@@ -50,18 +50,23 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
   }, []);
 
   const filteredItems = items.filter(item => {
-    const mainVal = normalizeSearch(item[displayField] || '');
-    const secVal = secondaryField ? normalizeSearch(item[secondaryField] || '') : '';
+    const mainVal = normalizeSearch(item[displayField] || item.title || item.company_title || item.full_name || [item.name, item.surname].filter(Boolean).join(' ') || '');
+    const secVal = secondaryField ? normalizeSearch(item[secondaryField] || item.secondary_info || '') : '';
+    const taxVal = normalizeSearch(item.tax_number || item.tc_id || '');
+    const phoneVal = normalizeSearch(item.phone || '');
+    const emailVal = normalizeSearch(item.email || '');
+    const combinedSearchText = `${mainVal} ${secVal} ${taxVal} ${phoneVal} ${emailVal}`;
+
     const searchTerms = normalizeSearch(deferredSearch).split(/\s+/).filter(Boolean);
     if (searchTerms.length === 0) return true;
-    return searchTerms.every(term => mainVal.includes(term) || secVal.includes(term));
+    return searchTerms.every(term => combinedSearchText.includes(term));
   });
 
   const getIcon = (itemType?: string) => {
     const activeType = itemType || type;
     if (activeType === 'product' || activeType === 'part' || activeType === 'labor') return <Package className="h-4 w-4 text-slate-400" />;
-    if (activeType === 'company') return <Building2 className="h-4 w-4 text-slate-400" />;
-    return <User className="h-4 w-4 text-slate-400" />;
+    if (activeType === 'company') return <Building2 className="h-4 w-4 text-indigo-600" />;
+    return <User className="h-4 w-4 text-emerald-600" />;
   };
 
   return (
@@ -144,10 +149,25 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
                       {getIcon(item.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-slate-700 truncate">{item[displayField] || item.name || item.title || item.company_title || ''}</div>
-                      {secondaryField && item[secondaryField] && (
-                        <div className="text-[10px] text-slate-400 font-medium truncate">{item[secondaryField]}</div>
-                      )}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-sm font-bold text-slate-800 truncate">
+                          {item[displayField] || item.title || item.company_title || item.full_name || [item.name, item.surname].filter(Boolean).join(' ') || ''}
+                        </div>
+                        {item.type && (
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded tracking-wider shrink-0 ${
+                            item.type === 'company' 
+                              ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
+                              : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                          }`}>
+                            {item.type === 'company' ? (isTr ? 'KURUMSAL' : 'CORP') : (isTr ? 'BİREYSEL' : 'INDIV')}
+                          </span>
+                        )}
+                      </div>
+                      {(secondaryField && item[secondaryField]) || item.secondary_info ? (
+                        <div className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                          {item[secondaryField] || item.secondary_info}
+                        </div>
+                      ) : null}
                     </div>
                   </button>
                 ))}

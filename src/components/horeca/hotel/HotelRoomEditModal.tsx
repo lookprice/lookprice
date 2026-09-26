@@ -323,31 +323,45 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
               <label className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide block mb-2">
                 {isTr ? "Fiyatlandırma Mantığı (Rezervasyon Hesaplaması)" : "Pricing Logic"}
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
                 <button
                   type="button"
                   onClick={() => setRoomForm({ ...roomForm, pricing_type: 'per_room' })}
-                  className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                  className={`w-full p-3.5 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between min-w-0 ${
                     roomForm.pricing_type === 'per_room'
-                      ? 'bg-emerald-50 dark:bg-emerald-900/40 border-emerald-500 text-emerald-900 dark:text-emerald-100'
+                      ? 'bg-emerald-50 dark:bg-emerald-900/40 border-emerald-500 text-emerald-900 dark:text-emerald-100 shadow-2xs'
                       : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                   }`}
                 >
-                  <div className="font-black text-sm mb-0.5">Oda Başı (Sabit Fiyat)</div>
-                  <div className="text-[10px] font-medium opacity-80 leading-tight">Odayı kullanan kişi sayısından bağımsız, odanın gecelik satış fiyatı sabittir. (Kapasiteye kadar)</div>
+                  <div className="font-black text-sm mb-1 text-emerald-950 dark:text-emerald-100 flex items-center justify-between gap-2">
+                    <span>Oda Başı (Sabit Fiyat)</span>
+                    {roomForm.pricing_type === 'per_room' && (
+                      <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold shrink-0">Seçili</span>
+                    )}
+                  </div>
+                  <div className="text-xs font-medium opacity-90 leading-normal break-words">
+                    Odayı kullanan kişi sayısından bağımsız, odanın gecelik satış fiyatı sabittir. (Kapasiteye kadar)
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setRoomForm({ ...roomForm, pricing_type: 'per_person' })}
-                  className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                  className={`w-full p-3.5 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between min-w-0 ${
                     roomForm.pricing_type === 'per_person' || !roomForm.pricing_type
-                      ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-500 text-indigo-900 dark:text-indigo-100'
+                      ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-500 text-indigo-900 dark:text-indigo-100 shadow-2xs'
                       : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                   }`}
                 >
-                  <div className="font-black text-sm mb-0.5">Kişi Başı (Dinamik Fiyat)</div>
-                  <div className="text-[10px] font-medium opacity-80 leading-tight">Girdiğiniz fiyatlar kişi başı 1 yetişkin ücretidir. Yaş indirimleri vb. çocuk kıvrımlarına göre hesaplanır.</div>
+                  <div className="font-black text-sm mb-1 text-indigo-950 dark:text-indigo-100 flex items-center justify-between gap-2">
+                    <span>Kişi Başı (Dinamik Fiyat)</span>
+                    {(roomForm.pricing_type === 'per_person' || !roomForm.pricing_type) && (
+                      <span className="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold shrink-0">Seçili</span>
+                    )}
+                  </div>
+                  <div className="text-xs font-medium opacity-90 leading-normal break-words">
+                    Girdiğiniz fiyatlar kişi başı 1 yetişkin ücretidir. Yaş indirimleri vb. çocuk oranlarına göre hesaplanır.
+                  </div>
                 </button>
               </div>
             </div>

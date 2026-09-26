@@ -119,7 +119,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
   const [saleId, setSaleId] = useState<number | null>(null);
-  const [isTaxInclusive, setIsTaxInclusive] = useState(true);
+  const [isTaxInclusive, setIsTaxInclusive] = useState(false);
   const [editTaxNumber, setEditTaxNumber] = useState("");
   const [editTaxOffice, setEditTaxOffice] = useState("");
   const [editAddress, setEditAddress] = useState("");
@@ -473,7 +473,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     setExemptionReasonCode("");
     setExemptionReasonText("");
     setWithholdingTaxCode("");
-    setIsTaxInclusive(true);
+    setIsTaxInclusive(false);
     setEditTaxNumber("");
     setEditTaxOffice("");
     setEditAddress("");
@@ -601,9 +601,22 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       if (data.error) throw new Error(data.error);
       setEditingInvoiceId(id);
       setSaleId(data.sale_id);
-      setCustomerId(data.customer_id || "");
-      setCompanyId(data.company_id || "");
-      setCustomerSearch(data.customer_name || data.company_title || "");
+      setCustomerId(data.customer_id ? String(data.customer_id) : "");
+      setCompanyId(data.company_id ? String(data.company_id) : "");
+
+      let initialSearch = data.company_title || data.customer_name || "";
+      if (data.company_id) {
+        const matchedComp = (companies as any[]).find(c => String(c.id) === String(data.company_id));
+        if (matchedComp) {
+          initialSearch = matchedComp.title || matchedComp.company_title || initialSearch;
+        }
+      } else if (data.customer_id) {
+        const matchedCust = (customers as any[]).find(c => String(c.id) === String(data.customer_id));
+        if (matchedCust) {
+          initialSearch = (matchedCust.full_name && matchedCust.full_name.trim()) || [matchedCust.name, matchedCust.surname].filter(Boolean).join(' ').trim() || matchedCust.customer_name || initialSearch;
+        }
+      }
+      setCustomerSearch(initialSearch);
       setInvoiceNumber(data.invoice_number);
       setWaybillNumber(data.waybill_number || "");
       setInvoiceDate(new Date(data.invoice_date).toISOString().split('T')[0]);
@@ -652,7 +665,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setEditTaxOffice(resolvedTaxOffice);
       setEditAddress(resolvedAddress);
       setCustomerEmail(resolvedEmail);
-      setIsTaxInclusive(data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true);
+      setIsTaxInclusive(data.is_tax_inclusive !== undefined ? Boolean(data.is_tax_inclusive) : false);
       setItems((data.items || []).map((item: any) => ({
         product_id: item.product_id,
         product_name: item.product_name,

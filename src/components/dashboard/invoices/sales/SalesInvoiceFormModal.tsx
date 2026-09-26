@@ -8,7 +8,9 @@ import {
   Package, 
   Plus, 
   Trash2, 
-  Loader2 
+  Loader2,
+  Building2,
+  User
 } from 'lucide-react';
 import { AutocompleteSelect } from '../../../AutocompleteSelect';
 import { numberToTurkishWords } from '../../../../lib/invoiceUtils';
@@ -319,13 +321,32 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                   </div>
 
                   <AutocompleteSelect
-                    label={isTr ? 'Müşteri / Cari Arama' : 'Search Customer / Account'}
+                    label={isTr ? 'Müşteri / Cari Arama (Ünvan, İsim, VKN/TC)' : 'Search Customer / Account'}
                     items={[
-                      ...customers.map(c => ({ ...c, display: c.name || c.full_name || c.customer_name || c.email, type: 'customer' })),
-                      ...companies.map(c => ({ ...c, display: c.title || c.company_title || c.name, type: 'company' }))
+                      ...companies.map(c => ({
+                        ...c,
+                        display: c.title || c.company_title || c.name || c.company_name || '',
+                        type: 'company',
+                        secondary_info: [
+                          c.tax_number ? `VKN: ${c.tax_number}` : '',
+                          c.phone ? `Tel: ${c.phone}` : ''
+                        ].filter(Boolean).join(' | ') || (isTr ? 'Kurumsal Cari' : 'Company')
+                      })),
+                      ...customers.map(c => {
+                        const fullName = (c.full_name && c.full_name.trim()) || [c.name, c.surname].filter(Boolean).join(' ').trim() || c.customer_name || c.name || c.email || '';
+                        return {
+                          ...c,
+                          display: fullName,
+                          type: 'customer',
+                          secondary_info: [
+                            c.tax_number || c.tc_id ? `TC/VKN: ${c.tax_number || c.tc_id}` : '',
+                            c.phone ? `Tel: ${c.phone}` : ''
+                          ].filter(Boolean).join(' | ') || (isTr ? 'Bireysel Müşteri' : 'Individual')
+                        };
+                      })
                     ]}
                     displayField="display"
-                    secondaryField="phone"
+                    secondaryField="secondary_info"
                     value={customerSearch}
                     onSelect={(item) => {
                       if (!item) {
@@ -339,14 +360,14 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                         return;
                       }
                       if (item.type === 'customer') {
-                        setCustomerId(item.id);
+                        setCustomerId(String(item.id));
                         setCompanyId('');
-                        setEditTaxNumber(item.tax_number || '');
+                        setEditTaxNumber(item.tax_number || item.tc_id || '');
                         setEditTaxOffice(item.tax_office || '');
                         setEditAddress(item.address || '');
                         setCustomerEmail(item.email || '');
                       } else {
-                        setCompanyId(item.id);
+                        setCompanyId(String(item.id));
                         setCustomerId('');
                         setEditTaxNumber(item.tax_number || '');
                         setEditTaxOffice(item.tax_office || '');
@@ -357,9 +378,75 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                     }}
                     type="all-accounts"
                     lang={isTr ? 'tr' : 'en'}
-                    placeholder={isTr ? 'Ünvan, isim veya telefon ile arayın...' : 'Search by title, name or phone...'}
+                    placeholder={isTr ? 'Ünvan, Ad Soyad, VKN veya telefon yazın...' : 'Search title, full name, VKN or phone...'}
                     onQuickAdd={onQuickCariAdd}
                   />
+
+                  {/* Highly visible selected Cari / Company display banner for operator clarity */}
+                  {selectedCompany ? (
+                    <div className="p-2.5 bg-indigo-50/90 border border-indigo-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-1.5 bg-indigo-600 text-white rounded-lg shrink-0">
+                          <Building2 className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase text-indigo-700 tracking-wider">
+                              {isTr ? 'Seçili Kurumsal Cari:' : 'Selected Company:'}
+                            </span>
+                            <span className="text-[9px] font-extrabold bg-indigo-200 text-indigo-800 px-1.5 py-0.2 rounded">VKN: {editTaxNumber || selectedCompany.tax_number || 'Belirtilmedi'}</span>
+                          </div>
+                          <div className="text-xs font-black text-slate-900 truncate">
+                            {selectedCompany.title || selectedCompany.company_title || customerSearch}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold text-indigo-600 bg-white px-2 py-1 rounded-lg border border-indigo-100 shrink-0">
+                        {isTr ? 'Kurumsal' : 'Corporate'}
+                      </span>
+                    </div>
+                  ) : selectedCustomer ? (
+                    <div className="p-2.5 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-1.5 bg-emerald-600 text-white rounded-lg shrink-0">
+                          <User className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">
+                              {isTr ? 'Seçili Bireysel Cari:' : 'Selected Individual:'}
+                            </span>
+                            <span className="text-[9px] font-extrabold bg-emerald-200 text-emerald-800 px-1.5 py-0.2 rounded">TC/VKN: {editTaxNumber || selectedCustomer.tc_id || selectedCustomer.tax_number || 'Belirtilmedi'}</span>
+                          </div>
+                          <div className="text-xs font-black text-slate-900 truncate">
+                            {(selectedCustomer.full_name && selectedCustomer.full_name.trim()) || [selectedCustomer.name, selectedCustomer.surname].filter(Boolean).join(' ') || selectedCustomer.customer_name || customerSearch}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold text-emerald-600 bg-white px-2 py-1 rounded-lg border border-emerald-100 shrink-0">
+                        {isTr ? 'Bireysel' : 'Individual'}
+                      </span>
+                    </div>
+                  ) : customerSearch.trim() ? (
+                    <div className="p-2.5 bg-amber-50/90 border border-amber-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-1.5 bg-amber-600 text-white rounded-lg shrink-0">
+                          <Building2 className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-black uppercase text-amber-700 tracking-wider block">
+                            {isTr ? 'Aranan / Manuel Cari Ünvanı:' : 'Searched / Manual Title:'}
+                          </span>
+                          <div className="text-xs font-black text-slate-900 truncate">
+                            {customerSearch}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold text-amber-700 bg-white px-2 py-1 rounded-lg border border-amber-100 shrink-0">
+                        {isTr ? 'Serbest Cari' : 'Custom Title'}
+                      </span>
+                    </div>
+                  ) : null}
 
                   {/* Compact Customer Tax & Contact Details Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 border-t border-slate-100">
