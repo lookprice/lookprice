@@ -81,7 +81,86 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
     }
   ];
 
-  // Safe reading of digital menu settings
+  // Curated vibrant hotel & resort hero images
+  const PRESET_HOTEL_HERO_IMAGES = [
+    {
+      title: txt("Lüks Resort & Havuz", "Luxury Resort & Pool", "Πολυτελές Θέρετρο & Πισίνα"),
+      url: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=1600"
+    },
+    {
+      title: txt("Deniz Manzaralı Deluxe Süit", "Sea View Deluxe Suite", "Σουίτα με Θέα στη Θάλασσα"),
+      url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&q=80&w=1600&q=80"
+    },
+    {
+      title: txt("Modern Butik Otel & Teras", "Modern Boutique Hotel & Terrace", "Μπουτίκ Ξενοδοχείο"),
+      url: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=1600&q=80"
+    },
+    {
+      title: txt("Akdeniz Sahil Oteli", "Mediterranean Beachfront", "Παραθαλάσσιο Ξενοδοχείο"),
+      url: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&q=80&w=1600&q=80"
+    },
+    {
+      title: txt("Doğa & Dağ Bungalow", "Nature & Mountain Bungalow", "Μπανγκαλόου στη Φύση"),
+      url: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&q=80&w=1600&q=80"
+    },
+    {
+      title: txt("Premium Spa & Wellness", "Premium Spa & Wellness Resort", "Σπα & Ευεξία"),
+      url: "https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&q=80&w=1600&q=80"
+    }
+  ];
+
+  // Helper to extract banner array
+  const getBannerList = (raw: any): Array<{ id: string; image_url: string; title?: string; subtitle?: string }> => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+      return raw.map((item, idx) => {
+        if (typeof item === 'string') {
+          return { id: `b-${idx}-${Date.now()}`, image_url: item };
+        }
+        if (typeof item === 'object' && item.image_url) {
+          return { id: item.id || `b-${idx}`, image_url: item.image_url, title: item.title, subtitle: item.subtitle };
+        }
+        return null;
+      }).filter(Boolean) as any;
+    }
+    return [];
+  };
+
+  const restaurantBanners = useMemo(() => {
+    return getBannerList(branding?.restaurant_banners || branding?.horeca_banners);
+  }, [branding?.restaurant_banners, branding?.horeca_banners]);
+
+  const hotelBanners = useMemo(() => {
+    return getBannerList(branding?.hotel_banners);
+  }, [branding?.hotel_banners]);
+
+  const [newRestaurantBannerUrl, setNewRestaurantBannerUrl] = useState("");
+  const [newHotelBannerUrl, setNewHotelBannerUrl] = useState("");
+
+  const handleAddRestaurantBanner = (url: string) => {
+    if (!url.trim()) return;
+    const updated = [...restaurantBanners, { id: `rb-${Date.now()}`, image_url: url.trim() }];
+    onBrandingChange("restaurant_banners", updated);
+    onBrandingChange("hero_image_url", url.trim());
+    setNewRestaurantBannerUrl("");
+  };
+
+  const handleRemoveRestaurantBanner = (idx: number) => {
+    const updated = restaurantBanners.filter((_, i) => i !== idx);
+    onBrandingChange("restaurant_banners", updated);
+  };
+
+  const handleAddHotelBanner = (url: string) => {
+    if (!url.trim()) return;
+    const updated = [...hotelBanners, { id: `hb-${Date.now()}`, image_url: url.trim() }];
+    onBrandingChange("hotel_banners", updated);
+    setNewHotelBannerUrl("");
+  };
+
+  const handleRemoveHotelBanner = (idx: number) => {
+    const updated = hotelBanners.filter((_, i) => i !== idx);
+    onBrandingChange("hotel_banners", updated);
+  };
   const horecaConfig = useMemo(() => {
     const raw = branding?.digital_menu_settings || branding?.page_layout_settings?.digital_menu_settings || {};
     return {
@@ -454,59 +533,186 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
             </div>
           </div>
 
-          {/* Curated High-Vibrancy Hero Photos Gallery */}
+          {/* 1. RESTORAN / KAFE KONSEPTİ BANNERLARI (ÇOKLU BANNER & SLIDER) */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <Image className="w-3.5 h-3.5 text-slate-500" />
-                {txt("Canlı Kapak & Hero Fotoğrafı Seçimi", "Vibrant Hero / Cover Photo Selection", "Εικόνα Εξωφύλλου")}
+                <UtensilsCrossed className="w-3.5 h-3.5 text-amber-600" />
+                {txt("🍽️ Restoran / Kafe Konsepti Banner Görselleri", "🍽️ Restaurant / Cafe Banners", "🍽️ Banner Εστιατορίου")}
               </span>
-              <span className="text-[10px] font-bold text-slate-500">
-                {txt("Tek tıkla seçin veya özel URL girin", "1-Click pick or paste URL", "Επιλέξτε")}
+              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                {restaurantBanners.length} {txt("Banner Aktif", "Active Banners", "Ενεργά")}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-              {PRESET_HERO_IMAGES.map((preset, idx) => {
-                const isSelected = horecaConfig.cover_image === preset.url;
-                return (
+            <p className="text-[10px] text-slate-500">
+              {txt(
+                "Restoran & Menü görünümünde dönecek olan özel bannerlar. Eklediğiniz görseller varsayılan vitrin resimlerini ezerek gösterilir.",
+                "Custom banners rotating in restaurant/menu view. Added images directly override default showcase photos.",
+                "Εικόνες banner για το εστιατόριο."
+              )}
+            </p>
+
+            {/* Presets Grid for Restaurant */}
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                {txt("Hazır Restoran Fotoğraflarından Seç & Ekle:", "Pick & Add from Curated Restaurant Photos:", "Επιλέξτε:")}
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                {PRESET_HERO_IMAGES.map((preset, idx) => (
                   <div
                     key={idx}
-                    onClick={() => updateHorecaConfig({ cover_image: preset.url })}
-                    className={`group relative rounded-xl overflow-hidden aspect-video border cursor-pointer transition-all ${
-                      isSelected ? "ring-2 ring-emerald-500 border-emerald-500 shadow-xs" : "border-slate-200 hover:border-slate-300"
-                    }`}
+                    onClick={() => handleAddRestaurantBanner(preset.url)}
+                    className="group relative rounded-xl overflow-hidden aspect-video border border-slate-200 hover:border-amber-400 cursor-pointer transition-all hover:scale-102 shadow-2xs"
+                    title={txt("Tıklayarak bannerlara ekleyin", "Click to add to banners", "Προσθήκη")}
                   >
-                    <img
-                      src={preset.url}
-                      alt={preset.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 brightness-95"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-1.5">
-                      <span className="text-[9px] font-bold text-white line-clamp-1">{preset.title}</span>
+                    <img src={preset.url} alt={preset.title} className="w-full h-full object-cover brightness-95" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end justify-between p-1.5">
+                      <span className="text-[8px] font-bold text-white line-clamp-1">{preset.title}</span>
+                      <Plus className="w-3 h-3 text-white shrink-0 group-hover:text-amber-400" />
                     </div>
-                    {isSelected && (
-                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 stroke-[3]" />
-                      </div>
-                    )}
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 shrink-0">
-                {txt("Özel Kapak URL'si:", "Custom Cover URL:", "Ειδικό URL:")}
-              </span>
+            {/* Add Custom Restaurant Banner URL */}
+            <div className="flex items-center gap-2 pt-1">
               <input
                 type="text"
-                value={horecaConfig.cover_image}
-                onChange={(e) => updateHorecaConfig({ cover_image: e.target.value })}
-                placeholder="https://images.unsplash.com/..."
+                value={newRestaurantBannerUrl}
+                onChange={(e) => setNewRestaurantBannerUrl(e.target.value)}
+                placeholder={txt("Özel Restoran Banner URL'si (https://...)", "Custom Restaurant Banner URL", "URL Banner...")}
+                className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:bg-white focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={() => handleAddRestaurantBanner(newRestaurantBannerUrl)}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shrink-0 shadow-2xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{txt("Banner Ekle", "Add Banner", "Προσθήκη")}</span>
+              </button>
+            </div>
+
+            {/* Active Restaurant Banners List */}
+            {restaurantBanners.length > 0 && (
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+                  {txt("Yüklü Restoran Bannerları:", "Configured Restaurant Banners:", "Ενεργά Banner:")}
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {restaurantBanners.map((b, bIdx) => (
+                    <div key={b.id || bIdx} className="relative group rounded-xl overflow-hidden border border-slate-200 bg-slate-50 p-1.5 flex items-center gap-2 shadow-2xs">
+                      <img src={b.image_url} alt={`Banner ${bIdx + 1}`} className="w-16 h-10 object-cover rounded-lg shrink-0 border border-slate-200" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-bold text-slate-800 block truncate">Restoran Banner #{bIdx + 1}</span>
+                        <span className="text-[8px] text-slate-400 font-mono block truncate">{b.image_url}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRestaurantBanner(bIdx)}
+                        className="p-1 text-rose-500 hover:bg-rose-50 rounded-md cursor-pointer transition-colors"
+                        title={txt("Bannerı Kaldır", "Remove Banner", "Διαγραφή")}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2. OTEL / KONAKLAMA KONSEPTİ BANNERLARI (ÇOKLU BANNER & SLIDER) */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+                {txt("🏨 Otel / Konaklama Konsepti Banner Görselleri", "🏨 Hotel / Stay Banners", "🏨 Banner Ξενοδοχείου")}
+              </span>
+              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                {hotelBanners.length} {txt("Banner Aktif", "Active Banners", "Ενεργά")}
+              </span>
+            </div>
+
+            <p className="text-[10px] text-slate-500">
+              {txt(
+                "Otel & Oda Rezervasyon görünümünde dönecek olan özel bannerlar. Eklediğiniz görseller varsayılan vitrin resimlerini ezerek gösterilir.",
+                "Custom banners rotating in hotel/booking view. Added images directly override default showcase photos.",
+                "Εικόνες banner για το ξενοδοχείο."
+              )}
+            </p>
+
+            {/* Presets Grid for Hotel */}
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                {txt("Hazır Otel Fotoğraflarından Seç & Ekle:", "Pick & Add from Curated Hotel Photos:", "Επιλέξτε:")}
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                {PRESET_HOTEL_HERO_IMAGES.map((preset, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleAddHotelBanner(preset.url)}
+                    className="group relative rounded-xl overflow-hidden aspect-video border border-slate-200 hover:border-indigo-400 cursor-pointer transition-all hover:scale-102 shadow-2xs"
+                    title={txt("Tıklayarak otel bannerlarına ekleyin", "Click to add to hotel banners", "Προσθήκη")}
+                  >
+                    <img src={preset.url} alt={preset.title} className="w-full h-full object-cover brightness-95" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end justify-between p-1.5">
+                      <span className="text-[8px] font-bold text-white line-clamp-1">{preset.title}</span>
+                      <Plus className="w-3 h-3 text-white shrink-0 group-hover:text-indigo-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Add Custom Hotel Banner URL */}
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="text"
+                value={newHotelBannerUrl}
+                onChange={(e) => setNewHotelBannerUrl(e.target.value)}
+                placeholder={txt("Özel Otel Banner URL'si (https://...)", "Custom Hotel Banner URL", "URL Banner...")}
                 className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
               />
+              <button
+                type="button"
+                onClick={() => handleAddHotelBanner(newHotelBannerUrl)}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shrink-0 shadow-2xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{txt("Otel Bannerı Ekle", "Add Hotel Banner", "Προσθήκη")}</span>
+              </button>
             </div>
+
+            {/* Active Hotel Banners List */}
+            {hotelBanners.length > 0 && (
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+                  {txt("Yüklü Otel Bannerları:", "Configured Hotel Banners:", "Ενεργά Banner:")}
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {hotelBanners.map((b, bIdx) => (
+                    <div key={b.id || bIdx} className="relative group rounded-xl overflow-hidden border border-slate-200 bg-slate-50 p-1.5 flex items-center gap-2 shadow-2xs">
+                      <img src={b.image_url} alt={`Hotel Banner ${bIdx + 1}`} className="w-16 h-10 object-cover rounded-lg shrink-0 border border-slate-200" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-bold text-slate-800 block truncate">Otel Banner #{bIdx + 1}</span>
+                        <span className="text-[8px] text-slate-400 font-mono block truncate">{b.image_url}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveHotelBanner(bIdx)}
+                        className="p-1 text-rose-500 hover:bg-rose-50 rounded-md cursor-pointer transition-colors"
+                        title={txt("Bannerı Kaldır", "Remove Banner", "Διαγραφή")}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Menu Title, Slogan and Cover Image */}

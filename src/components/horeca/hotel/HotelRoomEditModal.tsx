@@ -426,102 +426,102 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {/* RO */}
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     Sadece Oda (RO)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">₺</span>
+                    <span className="absolute left-2.5 top-1.5 text-xs text-slate-400">₺</span>
                     <input
                       type="text"
                       placeholder="0"
                       value={formatThousand(roomForm.price_room_only)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_room_only: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100"
                     />
                   </div>
                 </div>
 
                 {/* BB - Baz Fiyat */}
-                <div className="p-2.5 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-xl border border-indigo-300 dark:border-indigo-700">
-                  <label className="text-[10px] font-black text-indigo-900 dark:text-indigo-200 block mb-1">
+                <div className="p-2.5 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-200 dark:border-indigo-800">
+                  <label className="text-[10px] font-bold text-indigo-900 dark:text-indigo-200 block mb-1">
                     Oda & Kahvaltı (BB) *
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1.5 text-xs font-bold text-indigo-500">₺</span>
+                    <span className="absolute left-2.5 top-1.5 text-xs text-indigo-500">₺</span>
                     <input
                       type="text"
                       placeholder="2.500"
                       value={formatThousand(roomForm.price_per_night)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_per_night: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-indigo-400 dark:border-indigo-600 rounded-lg text-xs font-black text-indigo-900 dark:text-indigo-200"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-xs font-normal text-indigo-950 dark:text-indigo-100"
                     />
                   </div>
                 </div>
 
                 {/* HB */}
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     Yarım Pansiyon (HB)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">₺</span>
+                    <span className="absolute left-2.5 top-1.5 text-xs text-slate-400">₺</span>
                     <input
                       type="text"
                       placeholder="0"
                       value={formatThousand(roomForm.price_half_board)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_half_board: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100"
                     />
                   </div>
                 </div>
 
                 {/* FB */}
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     Tam Pansiyon (FB)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">₺</span>
+                    <span className="absolute left-2.5 top-1.5 text-xs text-slate-400">₺</span>
                     <input
                       type="text"
                       placeholder="0"
                       value={formatThousand(roomForm.price_full_board)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_full_board: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100"
                     />
                   </div>
                 </div>
 
                 {/* AI */}
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     Her Şey Dahil (AI)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">₺</span>
+                    <span className="absolute left-2.5 top-1.5 text-xs text-slate-400">₺</span>
                     <input
                       type="text"
                       placeholder="0"
                       value={formatThousand(roomForm.price_all_inclusive)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_all_inclusive: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100"
                     />
                   </div>
                 </div>
 
                 {/* UAI */}
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     Ultra Her Şey (UAI)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">₺</span>
+                    <span className="absolute left-2.5 top-1.5 text-xs text-slate-400">₺</span>
                     <input
                       type="text"
                       placeholder="0"
                       value={formatThousand(roomForm.price_ultra_all_inclusive)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_ultra_all_inclusive: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100"
                     />
                   </div>
                 </div>
@@ -542,7 +542,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                     placeholder="10"
                     value={roomForm.non_refundable_discount || 0}
                     onChange={(e) => setRoomForm({ ...roomForm, non_refundable_discount: Number(e.target.value) })}
-                    className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-emerald-600 text-right"
+                    className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-emerald-600 text-right"
                   />
                 </div>
               </div>
@@ -553,10 +553,10 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
           {activeTab === 'special_dates' && (
             <div className="space-y-4">
               {/* Özel Gün & Bayram Fiyatları */}
-              <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-800/60 space-y-2.5">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black text-amber-900 dark:text-amber-200 uppercase flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+                  <span className="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                     Özel Tarih Tarifeleri (Bayram, Yılbaşı, Sezon)
                   </span>
                   <button
@@ -582,7 +582,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                         special_prices: [...(roomForm.special_prices || []), newRule]
                       });
                     }}
-                    className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold rounded-lg cursor-pointer flex items-center gap-1 shadow-2xs"
+                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg cursor-pointer flex items-center gap-1 shadow-2xs transition-colors"
                   >
                     <Plus className="h-3 w-3" />
                     <span>Özel Fiyat Ekle</span>
@@ -592,7 +592,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                 {Array.isArray(roomForm.special_prices) && roomForm.special_prices.length > 0 ? (
                   <div className="space-y-2">
                     {roomForm.special_prices.map((sp: any, spIdx: number) => (
-                      <div key={sp.id || spIdx} className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-amber-200 dark:border-amber-800/80 space-y-2 text-xs">
+                      <div key={sp.id || spIdx} className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-2.5 text-xs shadow-2xs">
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
                           <div className="sm:col-span-4">
                             <input
@@ -604,10 +604,10 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                 updated[spIdx].title = e.target.value;
                                 setRoomForm({ ...roomForm, special_prices: updated });
                               }}
-                              className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-xs text-slate-900 dark:text-white placeholder:text-slate-400"
+                              className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-medium text-xs text-slate-900 dark:text-white placeholder:text-slate-400"
                             />
                           </div>
-                          <div className="sm:col-span-5 flex items-center gap-1">
+                          <div className="sm:col-span-5 flex items-center gap-1.5">
                             <input
                               type="date"
                               value={sp.start_date}
@@ -618,9 +618,9 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                 updated[spIdx].end_date = getNextDay(newStart);
                                 setRoomForm({ ...roomForm, special_prices: updated });
                               }}
-                              className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-[10px] text-slate-900 dark:text-white"
+                              className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white"
                             />
-                            <span className="text-slate-500 dark:text-slate-400 font-bold">-</span>
+                            <span className="text-slate-400 font-bold">-</span>
                             <input
                               type="date"
                               value={sp.end_date}
@@ -629,31 +629,34 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                 updated[spIdx].end_date = e.target.value;
                                 setRoomForm({ ...roomForm, special_prices: updated });
                               }}
-                              className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-[10px] text-slate-900 dark:text-white"
+                              className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white"
                             />
                           </div>
                           <div className="sm:col-span-2">
-                            <input
-                              type="text"
-                              placeholder="Taban Fiyat"
-                              value={formatThousand(sp.price_per_night)}
-                              onChange={(e) => {
-                                const newBase = parseThousand(e.target.value);
-                                const updated = [...roomForm.special_prices];
-                                updated[spIdx].price_per_night = newBase;
-                                if (!updated[spIdx].board_prices || Object.keys(updated[spIdx].board_prices).length === 0) {
-                                  updated[spIdx].board_prices = {
-                                    room_only: Math.round(newBase * 0.88),
-                                    bed_breakfast: newBase,
-                                    half_board: Math.round(newBase * 1.28),
-                                    full_board: Math.round(newBase * 1.56),
-                                    all_inclusive: Math.round(newBase * 1.92)
-                                  };
-                                }
-                                setRoomForm({ ...roomForm, special_prices: updated });
-                              }}
-                              className="w-full px-2 py-1 bg-amber-50 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-700 rounded-lg font-black text-amber-950 dark:text-amber-100 text-xs"
-                            />
+                            <div className="relative">
+                              <span className="absolute left-2 top-1.5 text-xs text-slate-400">₺</span>
+                              <input
+                                type="text"
+                                placeholder="Taban Fiyat"
+                                value={formatThousand(sp.price_per_night)}
+                                onChange={(e) => {
+                                  const newBase = parseThousand(e.target.value);
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].price_per_night = newBase;
+                                  if (!updated[spIdx].board_prices || Object.keys(updated[spIdx].board_prices).length === 0) {
+                                    updated[spIdx].board_prices = {
+                                      room_only: Math.round(newBase * 0.88),
+                                      bed_breakfast: newBase,
+                                      half_board: Math.round(newBase * 1.28),
+                                      full_board: Math.round(newBase * 1.56),
+                                      all_inclusive: Math.round(newBase * 1.92)
+                                    };
+                                  }
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full pl-5 pr-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-normal text-slate-800 dark:text-slate-100 text-xs"
+                              />
+                            </div>
                           </div>
                           <div className="sm:col-span-1 flex justify-end">
                             <button
@@ -662,134 +665,152 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                 const updated = roomForm.special_prices.filter((_: any, i: number) => i !== spIdx);
                                 setRoomForm({ ...roomForm, special_prices: updated });
                               }}
-                              className="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 rounded cursor-pointer"
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg cursor-pointer transition-colors"
                               title="Sil"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
 
                         {/* ÖZEL TARİFEYE AİT PANSİYON TİPLERİ VE FİYATLARI */}
-                        <div className="pt-2 border-t border-amber-100 dark:border-amber-900/40 space-y-1">
-                          <div className="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300 flex items-center justify-between">
-                            <span>Özel Dönem Pansiyon Fiyatları (Ayrı Ayrı Düzenlenebilir)</span>
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                          <div className="text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                            <span>Özel Dönem Pansiyon Fiyatları</span>
                             <span className="text-[9px] font-normal text-slate-400">0 girilen pansiyon sunulmaz</span>
                           </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                             {/* RO */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Sadece Oda (RO)</label>
-                              <input
-                                type="text"
-                                placeholder="0"
-                                value={formatThousand(sp.board_prices?.room_only || 0)}
-                                onChange={(e) => {
-                                  const val = parseThousand(e.target.value);
-                                  const updated = [...roomForm.special_prices];
-                                  updated[spIdx].board_prices = {
-                                    ...(updated[spIdx].board_prices || {}),
-                                    room_only: val
-                                  };
-                                  setRoomForm({ ...roomForm, special_prices: updated });
-                                }}
-                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
-                              />
+                              <label className="text-[9px] font-medium text-slate-600 dark:text-slate-400 block truncate mb-0.5">Sadece Oda (RO)</label>
+                              <div className="relative">
+                                <span className="absolute left-1.5 top-1 text-[10px] text-slate-400">₺</span>
+                                <input
+                                  type="text"
+                                  placeholder="0"
+                                  value={formatThousand(sp.board_prices?.room_only || 0)}
+                                  onChange={(e) => {
+                                    const val = parseThousand(e.target.value);
+                                    const updated = [...roomForm.special_prices];
+                                    updated[spIdx].board_prices = {
+                                      ...(updated[spIdx].board_prices || {}),
+                                      room_only: val
+                                    };
+                                    setRoomForm({ ...roomForm, special_prices: updated });
+                                  }}
+                                  className="w-full pl-4 pr-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md font-normal text-slate-800 dark:text-slate-100 text-xs"
+                                />
+                              </div>
                             </div>
                             {/* BB */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Oda Kahvaltı (BB)</label>
-                              <input
-                                type="text"
-                                placeholder="0"
-                                value={formatThousand(sp.board_prices?.bed_breakfast || 0)}
-                                onChange={(e) => {
-                                  const val = parseThousand(e.target.value);
-                                  const updated = [...roomForm.special_prices];
-                                  updated[spIdx].board_prices = {
-                                    ...(updated[spIdx].board_prices || {}),
-                                    bed_breakfast: val
-                                  };
-                                  setRoomForm({ ...roomForm, special_prices: updated });
-                                }}
-                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
-                              />
+                              <label className="text-[9px] font-medium text-slate-600 dark:text-slate-400 block truncate mb-0.5">Oda Kahvaltı (BB)</label>
+                              <div className="relative">
+                                <span className="absolute left-1.5 top-1 text-[10px] text-slate-400">₺</span>
+                                <input
+                                  type="text"
+                                  placeholder="0"
+                                  value={formatThousand(sp.board_prices?.bed_breakfast || 0)}
+                                  onChange={(e) => {
+                                    const val = parseThousand(e.target.value);
+                                    const updated = [...roomForm.special_prices];
+                                    updated[spIdx].board_prices = {
+                                      ...(updated[spIdx].board_prices || {}),
+                                      bed_breakfast: val
+                                    };
+                                    setRoomForm({ ...roomForm, special_prices: updated });
+                                  }}
+                                  className="w-full pl-4 pr-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md font-normal text-slate-800 dark:text-slate-100 text-xs"
+                                />
+                              </div>
                             </div>
                             {/* HB */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Yarım Pansiyon (HB)</label>
-                              <input
-                                type="text"
-                                placeholder="0"
-                                value={formatThousand(sp.board_prices?.half_board || 0)}
-                                onChange={(e) => {
-                                  const val = parseThousand(e.target.value);
-                                  const updated = [...roomForm.special_prices];
-                                  updated[spIdx].board_prices = {
-                                    ...(updated[spIdx].board_prices || {}),
-                                    half_board: val
-                                  };
-                                  setRoomForm({ ...roomForm, special_prices: updated });
-                                }}
-                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
-                              />
+                              <label className="text-[9px] font-medium text-slate-600 dark:text-slate-400 block truncate mb-0.5">Yarım Pansiyon (HB)</label>
+                              <div className="relative">
+                                <span className="absolute left-1.5 top-1 text-[10px] text-slate-400">₺</span>
+                                <input
+                                  type="text"
+                                  placeholder="0"
+                                  value={formatThousand(sp.board_prices?.half_board || 0)}
+                                  onChange={(e) => {
+                                    const val = parseThousand(e.target.value);
+                                    const updated = [...roomForm.special_prices];
+                                    updated[spIdx].board_prices = {
+                                      ...(updated[spIdx].board_prices || {}),
+                                      half_board: val
+                                    };
+                                    setRoomForm({ ...roomForm, special_prices: updated });
+                                  }}
+                                  className="w-full pl-4 pr-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md font-normal text-slate-800 dark:text-slate-100 text-xs"
+                                />
+                              </div>
                             </div>
                             {/* FB */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Tam Pansiyon (FB)</label>
-                              <input
-                                type="text"
-                                placeholder="0"
-                                value={formatThousand(sp.board_prices?.full_board || 0)}
-                                onChange={(e) => {
-                                  const val = parseThousand(e.target.value);
-                                  const updated = [...roomForm.special_prices];
-                                  updated[spIdx].board_prices = {
-                                    ...(updated[spIdx].board_prices || {}),
-                                    full_board: val
-                                  };
-                                  setRoomForm({ ...roomForm, special_prices: updated });
-                                }}
-                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
-                              />
+                              <label className="text-[9px] font-medium text-slate-600 dark:text-slate-400 block truncate mb-0.5">Tam Pansiyon (FB)</label>
+                              <div className="relative">
+                                <span className="absolute left-1.5 top-1 text-[10px] text-slate-400">₺</span>
+                                <input
+                                  type="text"
+                                  placeholder="0"
+                                  value={formatThousand(sp.board_prices?.full_board || 0)}
+                                  onChange={(e) => {
+                                    const val = parseThousand(e.target.value);
+                                    const updated = [...roomForm.special_prices];
+                                    updated[spIdx].board_prices = {
+                                      ...(updated[spIdx].board_prices || {}),
+                                      full_board: val
+                                    };
+                                    setRoomForm({ ...roomForm, special_prices: updated });
+                                  }}
+                                  className="w-full pl-4 pr-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md font-normal text-slate-800 dark:text-slate-100 text-xs"
+                                />
+                              </div>
                             </div>
                             {/* AI */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Her Şey Dahil (AI)</label>
-                              <input
-                                type="text"
-                                placeholder="0"
-                                value={formatThousand(sp.board_prices?.all_inclusive || 0)}
-                                onChange={(e) => {
-                                  const val = parseThousand(e.target.value);
-                                  const updated = [...roomForm.special_prices];
-                                  updated[spIdx].board_prices = {
-                                    ...(updated[spIdx].board_prices || {}),
-                                    all_inclusive: val
-                                  };
-                                  setRoomForm({ ...roomForm, special_prices: updated });
-                                }}
-                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
-                              />
+                              <label className="text-[9px] font-medium text-slate-600 dark:text-slate-400 block truncate mb-0.5">Her Şey Dahil (AI)</label>
+                              <div className="relative">
+                                <span className="absolute left-1.5 top-1 text-[10px] text-slate-400">₺</span>
+                                <input
+                                  type="text"
+                                  placeholder="0"
+                                  value={formatThousand(sp.board_prices?.all_inclusive || 0)}
+                                  onChange={(e) => {
+                                    const val = parseThousand(e.target.value);
+                                    const updated = [...roomForm.special_prices];
+                                    updated[spIdx].board_prices = {
+                                      ...(updated[spIdx].board_prices || {}),
+                                      all_inclusive: val
+                                    };
+                                    setRoomForm({ ...roomForm, special_prices: updated });
+                                  }}
+                                  className="w-full pl-4 pr-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md font-normal text-slate-800 dark:text-slate-100 text-xs"
+                                />
+                              </div>
                             </div>
                             {/* UAI */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Ultra Her Şey Dahil (UAI)</label>
-                              <input
-                                type="text"
-                                placeholder="0"
-                                value={formatThousand(sp.board_prices?.ultra_all_inclusive || 0)}
-                                onChange={(e) => {
-                                  const val = parseThousand(e.target.value);
-                                  const updated = [...roomForm.special_prices];
-                                  updated[spIdx].board_prices = {
-                                    ...(updated[spIdx].board_prices || {}),
-                                    ultra_all_inclusive: val
-                                  };
-                                  setRoomForm({ ...roomForm, special_prices: updated });
-                                }}
-                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
-                              />
+                              <label className="text-[9px] font-medium text-slate-600 dark:text-slate-400 block truncate mb-0.5">Ultra Her Şey (UAI)</label>
+                              <div className="relative">
+                                <span className="absolute left-1.5 top-1 text-[10px] text-slate-400">₺</span>
+                                <input
+                                  type="text"
+                                  placeholder="0"
+                                  value={formatThousand(sp.board_prices?.ultra_all_inclusive || 0)}
+                                  onChange={(e) => {
+                                    const val = parseThousand(e.target.value);
+                                    const updated = [...roomForm.special_prices];
+                                    updated[spIdx].board_prices = {
+                                      ...(updated[spIdx].board_prices || {}),
+                                      ultra_all_inclusive: val
+                                    };
+                                    setRoomForm({ ...roomForm, special_prices: updated });
+                                  }}
+                                  className="w-full pl-4 pr-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md font-normal text-slate-800 dark:text-slate-100 text-xs"
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -797,7 +818,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <div className="p-2.5 bg-white/60 dark:bg-slate-900/60 rounded-lg border border-dashed border-amber-200 dark:border-amber-800 text-center text-[11px] text-amber-800 dark:text-amber-300">
+                  <div className="p-2.5 bg-white/60 dark:bg-slate-900/60 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 text-center text-[11px] text-slate-500 dark:text-slate-400">
                     Özel tarih fiyatı eklenmedi. Standart taban fiyatlar geçerlidir.
                   </div>
                 )}

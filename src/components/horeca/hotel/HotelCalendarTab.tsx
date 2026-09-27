@@ -109,41 +109,39 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
   }
 
   return (
-    <div className="space-y-4">
-      {/* COLLAPSIBLE ANALYTICS BAR & DASHBOARD */}
-      <div className="bg-gradient-to-r from-emerald-900 via-teal-950 to-slate-900 text-white rounded-2xl p-3 sm:p-4 shadow-md border border-emerald-800/60 transition-all">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500/20 text-emerald-300 rounded-xl shrink-0">
-              <TrendingUp className="h-5 w-5" />
+    <div className="space-y-2.5">
+      {/* COMPACT ANALYTICS BAR */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-xl p-2.5 sm:px-3.5 sm:py-2 border border-slate-800 shadow-xs transition-all">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-indigo-500/20 text-indigo-300 rounded-lg shrink-0">
+              <TrendingUp className="h-4 w-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xs sm:text-sm font-black text-white">
-                  {isTr ? "Gelecek Misafir & Yaş Grubu Analizi" : "Guest & Age Group Distribution"}
-                </h2>
-                <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/80">
-                  {title} ({start} ~ {end})
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-emerald-200/90 font-bold flex-wrap">
-                <span>👥 Toplam: <strong className="text-white font-black">{stats.totalGuests}</strong> Kişi</span>
-                <span className="text-emerald-500">•</span>
-                <span>🧑 Yetişkin: <strong className="text-white font-black">{stats.totalAdults}</strong></span>
-                <span className="text-emerald-500">•</span>
-                <span>👶 Çocuk/Bebek: <strong className="text-white font-black">{stats.totalChildrenAll}</strong></span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-white">
+                {isTr ? "Misafir & Yaş Analizi" : "Guest Analytics"}:
+              </span>
+              <span className="text-[10px] font-medium text-indigo-200 bg-indigo-950/80 px-1.5 py-0.5 rounded border border-indigo-800/80">
+                {title} ({start} ~ {end})
+              </span>
+              <div className="flex items-center gap-2 text-[11px] text-slate-300 font-medium">
+                <span>👥 Toplam: <strong className="text-white font-bold">{stats.totalGuests}</strong></span>
+                <span className="text-slate-600">•</span>
+                <span>🧑 Yetişkin: <strong className="text-white font-bold">{stats.totalAdults}</strong></span>
+                <span className="text-slate-600">•</span>
+                <span>👶 Çocuk/Bebek: <strong className="text-white font-bold">{stats.totalChildrenAll}</strong></span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-center">
             {/* Period Selector Buttons */}
-            <div className="flex items-center gap-0.5 bg-white/10 p-0.5 rounded-lg border border-white/15 text-[10px]">
+            <div className="flex items-center gap-0.5 bg-white/10 p-0.5 rounded-lg border border-white/10 text-[10px]">
               {[
-                { id: 'next_7', label: '7 Gün', days: 7 },
-                { id: 'next_14', label: '14 Gün', days: 14 },
-                { id: 'next_30', label: '30 Gün', days: 30 },
-                { id: 'next_60', label: '60 Gün', days: 60 },
+                { id: 'next_7', label: '7G', days: 7 },
+                { id: 'next_14', label: '14G', days: 14 },
+                { id: 'next_30', label: '30G', days: 30 },
+                { id: 'next_60', label: '60G', days: 60 },
               ].map(p => (
                 <button
                   key={p.id}
@@ -152,12 +150,12 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                     setAnalysisPeriod(p.id as any);
                     setCalendarDaysCount(p.days);
                   }}
-                  className={`px-2 py-0.5 rounded font-black cursor-pointer transition-all ${
+                  className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-all ${
                     analysisPeriod === p.id
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-white/80 hover:bg-white/10'
                   }`}
-                  title={`${p.label} Göster`}
+                  title={`${p.days} Günlük Göster`}
                 >
                   {p.label}
                 </button>
@@ -167,18 +165,17 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
             <button
               type="button"
               onClick={() => setIsAnalyticsOpen(!isAnalyticsOpen)}
-              className="px-2.5 py-1 bg-emerald-600/90 hover:bg-emerald-500 text-white rounded-lg text-xs font-black flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+              className="px-2 py-0.5 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
             >
-              <span>{isAnalyticsOpen ? "İstatistikleri Gizle" : "İstatistikleri Göster"}</span>
-              {isAnalyticsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              <span>{isAnalyticsOpen ? "Gizle" : "Döküm"}</span>
+              {isAnalyticsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
           </div>
         </div>
 
         {/* EXPANDABLE DRILLDOWN STATS */}
         {isAnalyticsOpen && (
-          <div className="pt-3 mt-3 border-t border-white/15 space-y-3">
-            {/* ANALYTICS STAT CARDS GRID - INTERACTIVE DRILLDOWNS */}
+          <div className="pt-2.5 mt-2 border-t border-white/10">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               {/* TOTAL EXPECTED GUESTS */}
               <button
@@ -189,16 +186,16 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                   badge: `${stats.totalGuests} Kişi`,
                   guests: stats.guestRecords
                 })}
-                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                className="p-2 bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg space-y-0.5 text-left transition-all cursor-pointer group shadow-2xs"
                 title="Tüm kayıtlı misafir listesini görmek için tıklayın"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">Toplam Misafir</p>
-                  <Users className="h-3.5 w-3.5 text-emerald-300" />
+                  <p className="text-[9px] font-bold uppercase text-indigo-200 tracking-wider">Toplam</p>
+                  <Users className="h-3 w-3 text-indigo-300" />
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-black text-white">{stats.totalGuests}</span>
-                  <span className="text-[10px] font-normal text-emerald-200">Kişi</span>
+                  <span className="text-base font-bold text-white">{stats.totalGuests}</span>
+                  <span className="text-[9px] text-indigo-200">Kişi</span>
                 </div>
               </button>
 
@@ -211,16 +208,16 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                   badge: `${stats.totalAdults} Yetişkin`,
                   guests: stats.adultsList
                 })}
-                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                className="p-2 bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg space-y-0.5 text-left transition-all cursor-pointer group shadow-2xs"
                 title="Yetişkin misafir kayıtlarını görmek için tıklayın"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">18+ Yetişkin</p>
-                  <UserCheck className="h-3.5 w-3.5 text-emerald-300" />
+                  <p className="text-[9px] font-bold uppercase text-indigo-200 tracking-wider">18+ Yetişkin</p>
+                  <UserCheck className="h-3 w-3 text-indigo-300" />
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-black text-white">{stats.totalAdults}</span>
-                  <span className="text-[10px] font-normal text-emerald-200">Kişi</span>
+                  <span className="text-base font-bold text-white">{stats.totalAdults}</span>
+                  <span className="text-[9px] text-indigo-200">Kişi</span>
                 </div>
               </button>
 
@@ -233,16 +230,16 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                   badge: `${stats.totalChildrenAll} Çocuk/Bebek`,
                   guests: stats.childrenAllList
                 })}
-                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                className="p-2 bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg space-y-0.5 text-left transition-all cursor-pointer group shadow-2xs"
                 title="Tüm çocuk kayıtlarını incelemek için tıklayın"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">0-17 Çocuk & Bebek</p>
-                  <Baby className="h-3.5 w-3.5 text-emerald-300" />
+                  <p className="text-[9px] font-bold uppercase text-indigo-200 tracking-wider">0-17 Çocuk/Bebek</p>
+                  <Baby className="h-3 w-3 text-indigo-300" />
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-black text-white">{stats.totalChildrenAll}</span>
-                  <span className="text-[10px] font-normal text-emerald-200">Kişi</span>
+                  <span className="text-base font-bold text-white">{stats.totalChildrenAll}</span>
+                  <span className="text-[9px] text-indigo-200">Kişi</span>
                 </div>
               </button>
 
@@ -255,16 +252,16 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                   badge: `${stats.infants} Bebek`,
                   guests: stats.infantsList
                 })}
-                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                className="p-2 bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg space-y-0.5 text-left transition-all cursor-pointer group shadow-2xs"
                 title="Bebek kayıtlarını incelemek için tıklayın"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">0-2 Bebek</p>
-                  <span className="text-[9px] font-bold text-emerald-300">%100 İnd.</span>
+                  <p className="text-[9px] font-bold uppercase text-indigo-200 tracking-wider">0-2 Bebek</p>
+                  <span className="text-[8px] font-bold text-indigo-300">%100 İnd.</span>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-black text-white">{stats.infants}</span>
-                  <span className="text-[10px] font-normal text-emerald-200">Bebek</span>
+                  <span className="text-base font-bold text-white">{stats.infants}</span>
+                  <span className="text-[9px] text-indigo-200">Bebek</span>
                 </div>
               </button>
 
@@ -277,16 +274,16 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                   badge: `${stats.toddlers} Çocuk`,
                   guests: stats.toddlersList
                 })}
-                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                className="p-2 bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg space-y-0.5 text-left transition-all cursor-pointer group shadow-2xs"
                 title="3-6 Yaş kayıtlarını incelemek için tıklayın"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">3-6 Çocuk</p>
-                  <span className="text-[9px] font-bold text-emerald-300">%50 İnd.</span>
+                  <p className="text-[9px] font-bold uppercase text-indigo-200 tracking-wider">3-6 Çocuk</p>
+                  <span className="text-[8px] font-bold text-indigo-300">%50 İnd.</span>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-black text-white">{stats.toddlers}</span>
-                  <span className="text-[10px] font-normal text-emerald-200">Çocuk</span>
+                  <span className="text-base font-bold text-white">{stats.toddlers}</span>
+                  <span className="text-[9px] text-indigo-200">Çocuk</span>
                 </div>
               </button>
 
@@ -299,42 +296,50 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                   badge: `${stats.schoolTeens} Genç`,
                   guests: stats.schoolTeensList
                 })}
-                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                className="p-2 bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg space-y-0.5 text-left transition-all cursor-pointer group shadow-2xs"
                 title="7-17 Yaş kayıtlarını incelemek için tıklayın"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">7-17 Genç</p>
-                  <span className="text-[9px] font-bold text-emerald-300">Standart</span>
+                  <p className="text-[9px] font-bold uppercase text-indigo-200 tracking-wider">7-17 Genç</p>
+                  <span className="text-[8px] font-bold text-indigo-300">Standart</span>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-black text-white">{stats.schoolTeens}</span>
-                  <span className="text-[10px] font-normal text-emerald-200">Genç</span>
+                  <span className="text-base font-bold text-white">{stats.schoolTeens}</span>
+                  <span className="text-[9px] text-indigo-200">Genç</span>
                 </div>
               </button>
             </div>
           </div>
         )}
       </div>
-      {/* 60-DAY INTERACTIVE RESERVATION GANTT BOARD */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border-2 border-slate-200 dark:border-slate-800 shadow-xl space-y-4 max-w-full overflow-hidden">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-sm shrink-0">
-              <CalendarRange className="h-6 w-6" />
+
+      {/* SINGLE-ROW HEADER COMPACT RESERVATION BOARD */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 sm:p-3 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2.5 max-w-full overflow-hidden">
+        {/* SINGLE ROW TOOLBAR & CONTROLS */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+          {/* TITLE & MINI INLINE LEGEND */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-2xs shrink-0">
+              <CalendarRange className="h-4 w-4" />
             </div>
-            <div>
-              <h2 className="text-base font-black text-slate-900 dark:text-white">
-                {calendarDaysCount} Günlük Müsaitlik & Doluluk Takvimi (Rezervasyon Board)
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                {calendarDaysCount} Günlük Müsaitlik & Doluluk Takvimi
               </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                Oda bazlı günlük müsaitlik durumu. Dolu günlerin üzerine tıklayarak misafir ve yaş detaylarını görebilirsiniz.
-              </p>
+              {/* COMPACT INLINE LEGEND */}
+              <div className="hidden sm:flex items-center gap-2 text-[10px] text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-emerald-500 rounded-xs"></span> Boş</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-rose-600 rounded-xs"></span> Dolu</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-500 rounded-xs"></span> Rezervasyon</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-slate-400 rounded-xs"></span> Bakım</span>
+              </div>
             </div>
           </div>
 
-          {/* BOARD DATE CONTROL BUTTONS */}
-          <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
-            <div className="flex items-center gap-1.5 flex-1 sm:flex-initial w-full sm:w-auto justify-between sm:justify-start">
+          {/* SINGLE-ROW CONTROLS */}
+          <div className="flex items-center gap-1.5 flex-wrap justify-between sm:justify-end">
+            {/* DATE NAVIGATION BUTTONS */}
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => {
@@ -342,18 +347,16 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                   d.setDate(d.getDate() - calendarDaysCount);
                   setCalendarStartDate(d.toISOString().split('T')[0]);
                 }}
-                className="px-2.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1 flex-1 sm:flex-initial"
+                className="p-1 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-md cursor-pointer transition-all"
                 title={`Önceki ${calendarDaysCount} Gün`}
               >
-                <ChevronLeft className="h-4 w-4 shrink-0" />
-                <span className="hidden xs:inline sm:inline">Önceki {calendarDaysCount} Gün</span>
-                <span className="xs:hidden sm:hidden">-{calendarDaysCount}G</span>
+                <ChevronLeft className="h-3.5 w-3.5" />
               </button>
 
               <button
                 type="button"
                 onClick={() => setCalendarStartDate(new Date().toISOString().split('T')[0])}
-                className="px-3 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-xs font-black cursor-pointer shadow-xs shrink-0"
+                className="px-2 py-0.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-md text-[11px] font-bold cursor-pointer transition-all shadow-2xs"
               >
                 Bugün
               </button>
@@ -365,93 +368,61 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                   d.setDate(d.getDate() + calendarDaysCount);
                   setCalendarStartDate(d.toISOString().split('T')[0]);
                 }}
-                className="px-2.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1 flex-1 sm:flex-initial"
+                className="p-1 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-md cursor-pointer transition-all"
                 title={`Sonraki ${calendarDaysCount} Gün`}
               >
-                <span className="hidden xs:inline sm:inline">Sonraki {calendarDaysCount} Gün</span>
-                <span className="xs:hidden sm:hidden">+{calendarDaysCount}G</span>
-                <ChevronRight className="h-4 w-4 shrink-0" />
+                <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
 
             {/* ODA SEÇİM FİLTRESİ */}
-            <div className="w-full sm:w-auto">
-              <select
-                value={activeRoomId || 'all'}
-                onChange={(e) => {
-                  const val = e.target.value === 'all' ? null : e.target.value;
-                  if (setSelectedCalendarRoomId) setSelectedCalendarRoomId(val);
-                  setInternalRoomFilter(e.target.value);
-                }}
-                className="w-full sm:w-auto px-3 py-2 bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-800 dark:text-slate-200 cursor-pointer"
-              >
-                <option value="all">Tüm Odalar ({rooms.length})</option>
-                {rooms.map(r => (
-                  <option key={r.id} value={r.id}>Oda #{r.room_number} ({r.room_type})</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="w-full sm:w-auto">
-              <select
-                value={calendarDaysCount}
-                onChange={(e) => {
-                  const cnt = Number(e.target.value);
-                  setCalendarDaysCount(cnt as any);
-                  if (cnt === 7) setAnalysisPeriod('next_7');
-                  else if (cnt === 14) setAnalysisPeriod('next_14');
-                  else if (cnt === 30) setAnalysisPeriod('next_30');
-                  else if (cnt === 60) setAnalysisPeriod('next_60');
-                }}
-                className="w-full sm:w-auto px-3 py-2 bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-800 dark:text-slate-200 cursor-pointer"
-              >
-                <option value={7}>7 Gün Göster (1 Hafta)</option>
-                <option value={14}>14 Gün Göster (2 Hafta)</option>
-                <option value={30}>30 Gün Göster (1 Ay)</option>
-                <option value={60}>60 Gün Göster (2 Ay)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* ACTIVE ROOM FILTER BANNER */}
-        {activeRoomId && (
-          <div className="flex items-center justify-between p-2.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 rounded-xl text-xs">
-            <span className="font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
-              <Filter className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Görüntülenen Oda: <strong>Oda #{rooms.find(r => r.id === activeRoomId || r.room_number === activeRoomId)?.room_number}</strong> ({rooms.find(r => r.id === activeRoomId || r.room_number === activeRoomId)?.room_type})</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                if (setSelectedCalendarRoomId) setSelectedCalendarRoomId(null);
-                setInternalRoomFilter('all');
+            <select
+              value={activeRoomId || 'all'}
+              onChange={(e) => {
+                const val = e.target.value === 'all' ? null : e.target.value;
+                if (setSelectedCalendarRoomId) setSelectedCalendarRoomId(val);
+                setInternalRoomFilter(e.target.value);
               }}
-              className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-lg text-[10px] font-black text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 cursor-pointer flex items-center gap-1 shadow-2xs"
+              className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
             >
-              <X className="h-3 w-3" />
-              <span>Tüm Odaları Göster ({rooms.length})</span>
-            </button>
-          </div>
-        )}
+              <option value="all">Tüm Odalar ({rooms.length})</option>
+              {rooms.map(r => (
+                <option key={r.id} value={r.id}>Oda #{r.room_number} ({r.room_type})</option>
+              ))}
+            </select>
 
-        {/* LEGEND COLOR BAR */}
-        <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3.5 h-3.5 bg-emerald-500 rounded-md"></div>
-            <span>Boş & Müsait (Tıkla -&gt; Giriş Yap)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3.5 h-3.5 bg-rose-600 rounded-md"></div>
-            <span>Konaklayan / Dolu Misafir</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3.5 h-3.5 bg-amber-500 rounded-md"></div>
-            <span>Gelecek Rezervasyon</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3.5 h-3.5 bg-slate-400 rounded-md"></div>
-            <span>Tadilatta / Servis Dışı</span>
+            {/* GÜN SEÇİMİ */}
+            <select
+              value={calendarDaysCount}
+              onChange={(e) => {
+                const cnt = Number(e.target.value);
+                setCalendarDaysCount(cnt as any);
+                if (cnt === 7) setAnalysisPeriod('next_7');
+                else if (cnt === 14) setAnalysisPeriod('next_14');
+                else if (cnt === 30) setAnalysisPeriod('next_30');
+                else if (cnt === 60) setAnalysisPeriod('next_60');
+              }}
+              className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+            >
+              <option value={7}>7 Gün</option>
+              <option value={14}>14 Gün</option>
+              <option value={30}>30 Gün</option>
+              <option value={60}>60 Gün</option>
+            </select>
+
+            {activeRoomId && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (setSelectedCalendarRoomId) setSelectedCalendarRoomId(null);
+                  setInternalRoomFilter('all');
+                }}
+                className="p-1 bg-rose-50 dark:bg-rose-950/50 text-rose-600 rounded-md hover:bg-rose-100 cursor-pointer"
+                title="Oda filtresini temizle"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
 

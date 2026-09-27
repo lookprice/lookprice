@@ -438,6 +438,7 @@ export const api = {
   getMarketplaceListings: () => api.get(`/api/public/marketplace/listings`),
   getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${slug}/products?t=${Date.now()}`),
   getPublicStore: (slug: string) => api.get(`/api/public/store/${slug}?t=${Date.now()}`),
+  getPublicHotelRooms: (storeId: number) => api.get(`/api/public/hotel-rooms?storeId=${storeId}`),
   getProductBySlug: (slug: string, barcode: string) => api.get(`/api/public/scan/${slug}/${barcode}`),
   getSaleStatus: (id: number) => api.get(`/api/public/sales/${id}/status`),
   createPublicSale: (data: any) => api.post("/api/public/sales", data),

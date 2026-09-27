@@ -18,6 +18,7 @@ import { ModernAutomotiveLayout } from "../components/ModernAutomotiveLayout";
 import { ModernCafeRestaurantLayout } from "../components/ModernCafeRestaurantLayout";
 import { ModernShopRetailLayout } from "../components/ModernShopRetailLayout";
 import { BookstoreNetflixLayout } from "../components/BookstoreNetflixLayout";
+import { ShopNetflixLayout } from "../components/ShopNetflixLayout";
 import ErrorBoundary from "../components/ErrorBoundary";
 
 // Types
@@ -793,10 +794,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               setShowAuthModal={setShowAuthModal}
             />
           ) : (
-            <ModernShopRetailLayout
+            <ShopNetflixLayout
               store={store}
               products={products}
-              onViewProduct={setSelectedProduct}
+              onViewProduct={(p, rowProds) => {
+                setActiveModalProducts(rowProds && rowProds.length > 0 ? rowProds : products);
+                setSelectedProduct(p);
+              }}
               addToBasket={addToBasket}
               basket={basket}
               setBasket={setBasket}
@@ -808,7 +812,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               t={t}
               customer={customer}
               onOpenProfile={(tab) => {
-                setProfileModalTab(tab as any);
+                setProfileModalTab(tab === 'orders' ? 'orders' : 'profile');
                 setShowProfileModal(true);
               }}
               onLogout={() => {

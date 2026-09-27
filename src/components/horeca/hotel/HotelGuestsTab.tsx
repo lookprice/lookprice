@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Users,
   Printer,
@@ -7,7 +7,8 @@ import {
   X,
   Hotel,
   Info,
-  Receipt
+  Receipt,
+  ChevronDown
 } from "lucide-react";
 import { formatBoardType } from "./hotelTypes";
 
@@ -36,6 +37,7 @@ export const HotelGuestsTab: React.FC<HotelGuestsTabProps> = ({
   setInspectGuestModal,
   setCheckOutModalRoom,
 }) => {
+  const [isStatsExpanded, setIsStatsExpanded] = useState<boolean>(true);
   const stats = calculateAgeBreakdownStats();
   let filteredGuests = Array.isArray(stats?.guestRecords) ? stats.guestRecords : [];
 
@@ -126,54 +128,65 @@ export const HotelGuestsTab: React.FC<HotelGuestsTabProps> = ({
               <Settings2 className="h-4 w-4 text-emerald-300" />
               <span>Yaş & İndirim Politikası</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+              className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs backdrop-blur-xs flex items-center gap-1.5 cursor-pointer transition-all border border-white/20"
+              title={isStatsExpanded ? "Yaş Dökümünü Gizle" : "Yaş Dökümünü Göster"}
+            >
+              <span>{isStatsExpanded ? "Yaş Dökümünü Gizle" : "Yaş Dökümünü Göster"}</span>
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isStatsExpanded ? "rotate-180" : ""}`} />
+            </button>
           </div>
         </div>
 
         {/* QUICK STATS CARDS */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
-          <div 
-            onClick={() => setGuestListCategoryFilter('all')}
-            className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'all' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
-          >
-            <p className="text-[10px] uppercase font-bold text-emerald-200">Toplam Misafir</p>
-            <p className="text-xl font-black">{stats.totalGuests} <span className="text-xs font-normal opacity-80">Kişi</span></p>
+        {isStatsExpanded && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1 transition-all">
+            <div 
+              onClick={() => setGuestListCategoryFilter('all')}
+              className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'all' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
+            >
+              <p className="text-[10px] uppercase font-bold text-emerald-200">Toplam Misafir</p>
+              <p className="text-xl font-black">{stats.totalGuests} <span className="text-xs font-normal opacity-80">Kişi</span></p>
+            </div>
+            <div 
+              onClick={() => setGuestListCategoryFilter('adults')}
+              className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'adults' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
+            >
+              <p className="text-[10px] uppercase font-bold text-emerald-200">18+ Yetişkin</p>
+              <p className="text-xl font-black">{stats.totalAdults} <span className="text-xs font-normal opacity-80">Kişi</span></p>
+            </div>
+            <div 
+              onClick={() => setGuestListCategoryFilter('children_all')}
+              className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'children_all' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
+            >
+              <p className="text-[10px] uppercase font-bold text-emerald-200">0-17 Çocuk & Bebek</p>
+              <p className="text-xl font-black">{stats.totalChildrenAll} <span className="text-xs font-normal opacity-80">Kişi</span></p>
+            </div>
+            <div 
+              onClick={() => setGuestListCategoryFilter('infants')}
+              className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'infants' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
+            >
+              <p className="text-[10px] uppercase font-bold text-emerald-200">0-2 Yaş</p>
+              <p className="text-xl font-black">{stats.totalInfants} <span className="text-xs font-normal opacity-80">Kişi</span></p>
+            </div>
+            <div 
+              onClick={() => setGuestListCategoryFilter('toddlers')}
+              className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'toddlers' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
+            >
+              <p className="text-[10px] uppercase font-bold text-emerald-200">3-6 Yaş</p>
+              <p className="text-xl font-black">{stats.totalToddlers} <span className="text-xs font-normal opacity-80">Kişi</span></p>
+            </div>
+            <div 
+              onClick={() => setGuestListCategoryFilter('school_teens')}
+              className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'school_teens' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
+            >
+              <p className="text-[10px] uppercase font-bold text-emerald-200">7-17 Yaş</p>
+              <p className="text-xl font-black">{stats.totalChildren + stats.totalTeens} <span className="text-xs font-normal opacity-80">Kişi</span></p>
+            </div>
           </div>
-          <div 
-            onClick={() => setGuestListCategoryFilter('adults')}
-            className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'adults' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
-          >
-            <p className="text-[10px] uppercase font-bold text-emerald-200">18+ Yetişkin</p>
-            <p className="text-xl font-black">{stats.totalAdults} <span className="text-xs font-normal opacity-80">Kişi</span></p>
-          </div>
-          <div 
-            onClick={() => setGuestListCategoryFilter('children_all')}
-            className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'children_all' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
-          >
-            <p className="text-[10px] uppercase font-bold text-emerald-200">0-17 Çocuk & Bebek</p>
-            <p className="text-xl font-black">{stats.totalChildrenAll} <span className="text-xs font-normal opacity-80">Kişi</span></p>
-          </div>
-          <div 
-            onClick={() => setGuestListCategoryFilter('infants')}
-            className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'infants' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
-          >
-            <p className="text-[10px] uppercase font-bold text-emerald-200">0-2 Yaş</p>
-            <p className="text-xl font-black">{stats.totalInfants} <span className="text-xs font-normal opacity-80">Kişi</span></p>
-          </div>
-          <div 
-            onClick={() => setGuestListCategoryFilter('toddlers')}
-            className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'toddlers' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
-          >
-            <p className="text-[10px] uppercase font-bold text-emerald-200">3-6 Yaş</p>
-            <p className="text-xl font-black">{stats.totalToddlers} <span className="text-xs font-normal opacity-80">Kişi</span></p>
-          </div>
-          <div 
-            onClick={() => setGuestListCategoryFilter('school_teens')}
-            className={`p-3 rounded-xl border cursor-pointer transition-all ${guestListCategoryFilter === 'school_teens' ? 'bg-white text-slate-900 border-emerald-400 font-bold ring-2 ring-emerald-300 shadow-xs' : 'bg-white/10 text-white border-white/15 hover:bg-white/15'}`}
-          >
-            <p className="text-[10px] uppercase font-bold text-emerald-200">7-17 Yaş</p>
-            <p className="text-xl font-black">{stats.totalChildren + stats.totalTeens} <span className="text-xs font-normal opacity-80">Kişi</span></p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* SEARCH & FILTERS CONTROLS */}

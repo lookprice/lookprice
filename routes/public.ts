@@ -3307,6 +3307,40 @@ const handlePublicHotelReservation = async (req: express.Request, res: express.R
   }
 };
 
+// Public GET hotel rooms for store (no auth required for public website visitors)
+router.get("/hotel-rooms", async (req: any, res) => {
+  try {
+    const storeId = req.query.storeId ? parseInt(req.query.storeId as string) : undefined;
+    if (!storeId || isNaN(storeId)) {
+      return res.status(400).json({ error: "Store ID is required" });
+    }
+
+    const storeRes = await pool.query(
+      "SELECT branding, name, slug FROM stores WHERE id = $1",
+      [storeId]
+    );
+
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Store not found" });
+    }
+
+    let branding = storeRes.rows[0].branding || {};
+    if (typeof branding === "string") {
+      try {
+        branding = JSON.parse(branding);
+      } catch (e) {
+        branding = {};
+      }
+    }
+
+    const rooms = Array.isArray(branding.hotel_rooms) ? branding.hotel_rooms : [];
+    return res.json({ success: true, rooms });
+  } catch (err: any) {
+    console.error("Error in public GET /hotel-rooms:", err);
+    return res.status(500).json({ error: err.message || "Failed to fetch hotel rooms" });
+  }
+});
+
 router.post("/stores/:id/hotel-reservations", handlePublicHotelReservation);
 router.post("/hotel-reservations", handlePublicHotelReservation);
 

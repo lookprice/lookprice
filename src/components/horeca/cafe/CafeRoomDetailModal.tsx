@@ -33,9 +33,28 @@ export const CafeRoomDetailModal: React.FC<CafeRoomDetailModalProps> = ({
 
   if (!room) return null;
 
-  const galleryPhotos = (room.images && room.images.length > 0)
-    ? room.images
-    : [room.cover_image || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80"];
+  const galleryPhotos = (() => {
+    let imgs: string[] = [];
+    if (room.images) {
+      if (Array.isArray(room.images)) {
+        imgs = room.images;
+      } else if (typeof room.images === 'string') {
+        try {
+          const parsed = JSON.parse(room.images);
+          if (Array.isArray(parsed)) imgs = parsed;
+        } catch (e) {
+          imgs = [room.images];
+        }
+      }
+    }
+    if (imgs.length === 0 && room.cover_image) {
+      imgs = [room.cover_image];
+    }
+    if (imgs.length === 0) {
+      imgs = ["https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80"];
+    }
+    return imgs.filter(Boolean);
+  })();
   const currentPhotoIndex = activeDetailImageIndex % galleryPhotos.length;
 
   const boardList = (getRoomBoardList && searchCheckIn) ? getRoomBoardList(room, searchCheckIn) : [];
