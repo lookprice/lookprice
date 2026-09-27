@@ -161,6 +161,37 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showStoreLocatorModal, setShowStoreLocatorModal] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+
+  // Load theme preference from store config
+  useEffect(() => {
+    if (store) {
+      const config = store.theme_config || store.branding?.theme_config || {};
+      const netflixConfig = store.branding?.netflix_config || {};
+      const configuredTheme = netflixConfig.theme_mode === 'auto' ? undefined : (netflixConfig.theme_mode || config.theme);
+      // Default to light for Gap Bilişim, otherwise dark (or configuredTheme if explicitly set)
+      const isGapStore = (
+        store.name?.toLowerCase().includes("gap") || 
+        store.slug?.toLowerCase().includes("gap") ||
+        store.slug === 'gap-bilisim' ||
+        store.slug === 'gap_bilisim' ||
+        store.slug === 'gapbilisim' ||
+        String(store.id) === 'gap-bilisim'
+      );
+      const defaultTheme = isGapStore ? 'light' : 'dark';
+      setTheme(configuredTheme || defaultTheme);
+    }
+  }, [store]);
+
+  // Apply theme class to the container
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
 
   const layoutSettings = React.useMemo(() => store?.page_layout_settings || {
     show_announcement: true,
@@ -172,7 +203,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     theme_variety: "modern",
     sector: "general",
   }, [store]);
-
   const primaryColor = store?.primary_color || (layoutSettings.theme_variety === "luxury" ? "#8B7355" : "#3b82f6");
   const isLuxury = layoutSettings.theme_variety === "luxury" || layoutSettings.theme_variety === "minimal";
   const sector = layoutSettings.sector || "general";
@@ -797,6 +827,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <ShopNetflixLayout
               store={store}
               products={products}
+              theme={theme}
+              setTheme={setTheme}
+              onToggleTheme={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
               onViewProduct={(p, rowProds) => {
                 setActiveModalProducts(rowProds && rowProds.length > 0 ? rowProds : products);
                 setSelectedProduct(p);
@@ -839,6 +872,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 setProfileModalTab(tab as any);
                 setShowProfileModal(true);
               }}
+              theme={theme}
+              setTheme={setTheme}
             />
             <CustomerAccountView
               isProfileView={isProfileView} isOrdersView={isOrdersView} isReturnView={isReturnView}

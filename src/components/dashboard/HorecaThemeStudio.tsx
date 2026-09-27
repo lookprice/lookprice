@@ -716,138 +716,37 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
           </div>
 
           {/* Menu Title, Slogan and Cover Image */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <ChefHat className="w-3.5 h-3.5 text-slate-500" />
-                {txt("Karşılama Metinleri", "Welcome Texts", "Τίτλος Υποδοχής")}
-              </span>
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+              <ChefHat className="w-3.5 h-3.5 text-slate-500" />
+              {txt("Karşılama Metinleri", "Welcome Texts", "Τίτλος Υποδοχής")}
+            </span>
 
-              <div className="space-y-2.5">
-                <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                    {txt("Menü Başlığı", "Menu Heading", "Επικεφαλίδα")}
-                  </label>
-                  <input
-                    type="text"
-                    value={horecaConfig.menu_title}
-                    onChange={(e) => updateHorecaConfig({ menu_title: e.target.value })}
-                    placeholder={txt("Örn: Gurme Lezzetler", "e.g. Gourmet Flavors", "π.χ. Γκουρμέ Γεύσεις")}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                    {txt("Alt Açıklama / Slogan", "Subtitle", "Υπότιτλος")}
-                  </label>
-                  <input
-                    type="text"
-                    value={horecaConfig.menu_subtitle}
-                    onChange={(e) => updateHorecaConfig({ menu_subtitle: e.target.value })}
-                    placeholder={txt("Taze lezzetler...", "Explore fresh dishes...", "Ανακαλύψτε γεύσεις...")}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
-                  />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                  {txt("Menü Başlığı", "Menu Heading", "Επικεφαλίδα")}
+                </label>
+                <input
+                  type="text"
+                  value={horecaConfig.menu_title}
+                  onChange={(e) => updateHorecaConfig({ menu_title: e.target.value })}
+                  placeholder={txt("Örn: Gurme Lezzetler", "e.g. Gourmet Flavors", "π.χ. Γκουρμέ Γεύσεις")}
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                />
               </div>
-            </div>
 
-            {/* STORE LOGO & FAVICON */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <Image className="w-3.5 h-3.5 text-slate-500" />
-                {txt("Mağaza Logosu & Favicon", "Store Logo & Favicon", "Λογότυπο & Favicon")}
-              </span>
-
-              <div className="space-y-2">
-                {/* LOGO */}
-                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/80 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg border border-slate-200 bg-white flex items-center justify-center p-1 shrink-0 shadow-2xs">
-                    {branding?.logo_url ? (
-                      <img src={branding.logo_url} alt="Logo" className="max-w-full max-h-full object-contain" />
-                    ) : (
-                      <span className="text-[8px] font-bold text-slate-400">Logo Yok</span>
-                    )}
-                  </div>
-
-                  <div className="space-y-1 flex-1 min-w-0">
-                    <input
-                      type="file"
-                      id="horeca_logo_upload"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          if (typeof reader.result === "string") {
-                            onBrandingChange("logo_url", reader.result);
-                          }
-                        };
-                        reader.readAsDataURL(file);
-                        e.target.value = "";
-                      }}
-                    />
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => document.getElementById("horeca_logo_upload")?.click()}
-                        className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-md text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1 shadow-2xs"
-                      >
-                        <Upload className="w-3 h-3" /> Logo Yükle
-                      </button>
-                      {branding?.logo_url && (
-                        <button
-                          type="button"
-                          onClick={() => onBrandingChange("logo_url", "")}
-                          className="px-2 py-1 text-rose-600 hover:text-rose-700 text-[10px] font-bold cursor-pointer"
-                        >
-                          Sil
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* FAVICON */}
-                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/80 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg border border-slate-200 bg-white flex items-center justify-center p-1 shrink-0 shadow-2xs">
-                    {branding?.favicon_url ? (
-                      <img src={branding.favicon_url} alt="Favicon" className="w-6 h-6 object-contain" />
-                    ) : (
-                      <span className="text-[8px] font-bold text-slate-400">Favicon</span>
-                    )}
-                  </div>
-
-                  <div className="space-y-1 flex-1 min-w-0">
-                    <input
-                      type="file"
-                      id="horeca_favicon_upload"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          if (typeof reader.result === "string") {
-                            onBrandingChange("favicon_url", reader.result);
-                          }
-                        };
-                        reader.readAsDataURL(file);
-                        e.target.value = "";
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => document.getElementById("horeca_favicon_upload")?.click()}
-                      className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-md text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1 shadow-2xs"
-                    >
-                      <Upload className="w-3 h-3" /> Favicon Yükle
-                    </button>
-                  </div>
-                </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                  {txt("Alt Açıklama / Slogan", "Subtitle", "Υπότιτλος")}
+                </label>
+                <input
+                  type="text"
+                  value={horecaConfig.menu_subtitle}
+                  onChange={(e) => updateHorecaConfig({ menu_subtitle: e.target.value })}
+                  placeholder={txt("Taze lezzetler...", "Explore fresh dishes...", "Ανακαλύψτε γεύσεις...")}
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
+                />
               </div>
             </div>
           </div>

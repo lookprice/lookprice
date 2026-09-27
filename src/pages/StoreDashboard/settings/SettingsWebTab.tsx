@@ -158,12 +158,11 @@ export const SettingsWebTab = ({
                     {txt('Web sitenizde, üst menüde (header) ve dökümanlarda görüntülenir.', 'Displayed in your website header, invoices, and legal documents.', 'Εμφανίζεται στην κεφαλίδα του ιστότοπου και στα έγγραφα.')}
                   </p>
                 </div>
-                {(branding?.logo_url || branding?.logo) && (
+                {(branding?.logo_url) && (
                   <button
                     type="button"
                     onClick={() => {
                       onBrandingChange("logo_url", "");
-                      onBrandingChange("logo", "");
                     }}
                     className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
                     title={txt('Logoyu Kaldır', 'Remove Logo', 'Αφαίρεση')}
@@ -175,9 +174,9 @@ export const SettingsWebTab = ({
 
               {/* Logo Görsel Önizleme Alanı */}
               <div className="flex items-center justify-center p-4 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 min-h-[110px] relative overflow-hidden group">
-                {branding?.logo_url || branding?.logo ? (
+                {branding?.logo_url ? (
                   <img
-                    src={branding?.logo_url || branding?.logo}
+                    src={branding?.logo_url}
                     alt="Logo Preview"
                     className="max-h-24 max-w-full object-contain drop-shadow-xs transition-transform group-hover:scale-105 duration-200"
                     onError={(e) => {
@@ -233,10 +232,9 @@ export const SettingsWebTab = ({
                   </label>
                   <input
                     type="url"
-                    value={branding?.logo_url || branding?.logo || ""}
+                    value={branding?.logo_url || ""}
                     onChange={(e) => {
                       onBrandingChange("logo_url", e.target.value);
-                      onBrandingChange("logo", e.target.value);
                     }}
                     placeholder="https://... (Doğrudan görsel linki)"
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20"

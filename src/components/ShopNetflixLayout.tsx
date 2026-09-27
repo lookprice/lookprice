@@ -26,7 +26,9 @@ import {
   Layers,
   CheckCircle2,
   PhoneCall,
-  MapPin
+  MapPin,
+  Sun,
+  Moon
 } from "lucide-react";
 import { Product, Store as StoreInfo } from "../types";
 import { StoreFooter } from "./showcase/StoreFooter";
@@ -85,6 +87,9 @@ interface ShopNetflixLayoutProps {
   setShowAboutModal: (s: boolean) => void;
   setShowStoreLocatorModal: (s: boolean) => void;
   setShowAuthModal: (s: boolean) => void;
+  theme?: 'light' | 'dark';
+  setTheme?: (t: 'light' | 'dark') => void;
+  onToggleTheme?: () => void;
 }
 
 export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
@@ -105,7 +110,10 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
   onLogout,
   setShowAboutModal,
   setShowStoreLocatorModal,
-  setShowAuthModal
+  setShowAuthModal,
+  theme = 'dark',
+  setTheme,
+  onToggleTheme
 }) => {
   const isTr = lang === "tr";
   const [searchQuery, setSearchQuery] = useState("");
@@ -165,13 +173,39 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
   const [heroIndex, setHeroIndex] = useState(0);
 
+  // Netflix Architecture Configuration from branding
+  const netflixConfig = useMemo(() => {
+    const raw = store?.branding?.netflix_config;
+    if (typeof raw === "string") {
+      try { return JSON.parse(raw); } catch { return {}; }
+    }
+    return (raw && typeof raw === "object") ? raw : {};
+  }, [store?.branding?.netflix_config]);
+
+  const showHero = netflixConfig.hero_enabled !== false;
+  const showHeroBadges = netflixConfig.show_hero_badges !== false;
+  const heroIntervalSec = Number(netflixConfig.hero_autoplay_interval) || 6;
+  const showBestsellers = netflixConfig.show_bestsellers_row !== false;
+  const bestsellersTitle = netflixConfig.bestsellers_title || (isTr ? "🔥 Çok Satanlar & Popüler Ürünler" : "🔥 Bestsellers & Popular");
+  const showFeatured = netflixConfig.show_featured_row !== false;
+  const featuredTitle = netflixConfig.featured_title || (isTr ? "⭐ Öne Çıkan Koleksiyon" : "⭐ Featured Collection");
+  const showDiscounted = netflixConfig.show_discounted_row !== false;
+  const discountedTitle = netflixConfig.discounted_title || (isTr ? "🏷️ Fırsatlar & Kampanyalı Ürünler" : "🏷️ Special Offers & Discounts");
+  const showNewArrivals = netflixConfig.show_new_arrivals_row !== false;
+  const newArrivalsTitle = netflixConfig.new_arrivals_title || (isTr ? "✨ Yeni Gelen Ürünler" : "✨ New Arrivals");
+  const enableHoverZoom = netflixConfig.enable_hover_zoom !== false;
+  const showQuickAddCart = netflixConfig.show_quick_add_cart !== false;
+  const showStockBadge = netflixConfig.show_stock_badge !== false;
+  const showOldPrice = netflixConfig.show_old_price !== false;
+  const showThemeToggle = netflixConfig.show_theme_toggle !== false;
+
   useEffect(() => {
-    if (heroProducts.length <= 1) return;
+    if (heroProducts.length <= 1 || !showHero) return;
     const timer = setInterval(() => {
       setHeroIndex(prev => (prev + 1) % heroProducts.length);
-    }, 6000);
+    }, heroIntervalSec * 1000);
     return () => clearInterval(timer);
-  }, [heroProducts.length]);
+  }, [heroProducts.length, showHero, heroIntervalSec]);
 
   const currentHero = heroProducts[heroIndex] || products[0];
 
@@ -230,46 +264,46 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
   const totalBasketCount = basket.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
+    <div className={`min-h-screen ${theme === 'dark' ? 'dark ' : ''}bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200`}>
       {/* CINEMATIC NAVIGATION BAR */}
-      <header className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between transition-all">
+      <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-200/90 dark:border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between transition-all shadow-xs dark:shadow-none">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setActiveTab('home'); setSelectedCategory('all'); setSelectedBadge('all'); }}>
             {storeLogo ? (
-              <img src={storeLogo} alt={storeName} className="h-9 w-9 rounded-xl object-cover border border-slate-700 shadow-sm" />
+              <img src={storeLogo} alt={storeName} className="h-9 w-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-xs" />
             ) : (
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-black text-white shadow-md">
                 {storeName.charAt(0)}
               </div>
             )}
             <div className="flex flex-col">
-              <span className="font-black text-sm tracking-tight text-white">{storeName}</span>
-              <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Premium Mağaza</span>
+              <span className="font-black text-sm tracking-tight text-slate-900 dark:text-white">{storeName}</span>
+              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest">Premium Mağaza</span>
             </div>
           </div>
 
-          <nav className="hidden md:flex items-center gap-1 text-xs font-bold text-slate-300">
+          <nav className="hidden md:flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
             <button 
               onClick={() => { setActiveTab('home'); setSelectedCategory('all'); setSelectedBadge('all'); }}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${activeTab === 'home' && selectedCategory === 'all' && selectedBadge === 'all' ? 'bg-white/10 text-white font-black' : 'hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${activeTab === 'home' && selectedCategory === 'all' && selectedBadge === 'all' ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white font-black' : 'hover:text-slate-900 dark:hover:text-white'}`}
             >
               {isTr ? "Keşfet" : "Explore"}
             </button>
             <button 
               onClick={() => { setActiveTab('catalog'); setSelectedCategory('all'); setSelectedBadge('all'); }}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${activeTab === 'catalog' && selectedCategory === 'all' && selectedBadge === 'all' ? 'bg-white/10 text-white font-black' : 'hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${activeTab === 'catalog' && selectedCategory === 'all' && selectedBadge === 'all' ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white font-black' : 'hover:text-slate-900 dark:hover:text-white'}`}
             >
               {isTr ? "Tüm Ürünler" : "All Products"}
             </button>
             <button 
               onClick={() => { setActiveTab('catalog'); setSelectedBadge('bestseller'); }}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${selectedBadge === 'bestseller' ? 'bg-white/10 text-white font-black' : 'hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${selectedBadge === 'bestseller' ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white font-black' : 'hover:text-slate-900 dark:hover:text-white'}`}
             >
               {isTr ? "Çok Satanlar" : "Bestsellers"}
             </button>
             <button 
               onClick={() => { setActiveTab('catalog'); setSelectedBadge('discount'); }}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${selectedBadge === 'discount' ? 'bg-white/10 text-white font-black' : 'hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${selectedBadge === 'discount' ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white font-black' : 'hover:text-slate-900 dark:hover:text-white'}`}
             >
               {isTr ? "Fırsatlar" : "Deals"}
             </button>
@@ -278,29 +312,29 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 const footer = document.getElementById('store-footer');
                 if (footer) footer.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="px-3 py-1.5 rounded-lg transition-colors cursor-pointer hover:text-white flex items-center gap-1 text-slate-300"
+              className="px-3 py-1.5 rounded-lg transition-colors cursor-pointer hover:text-slate-900 dark:hover:text-white flex items-center gap-1 text-slate-600 dark:text-slate-300"
               title={isTr ? "İletişim & Mağaza Bilgileri" : "Contact & Store Info"}
             >
-              <PhoneCall className="h-3.5 w-3.5 text-blue-400" />
+              <PhoneCall className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
               <span>{isTr ? "İletişim" : "Contact"}</span>
             </button>
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button 
             onClick={() => {
               const footer = document.getElementById('store-footer');
               if (footer) footer.scrollIntoView({ behavior: 'smooth' });
             }}
-            className="sm:hidden p-2 text-blue-400 hover:text-white cursor-pointer"
+            className="sm:hidden p-2 text-blue-600 dark:text-blue-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
             title={isTr ? "İletişim" : "Contact"}
           >
             <PhoneCall className="h-5 w-5" />
           </button>
           
           {/* SEARCH BAR */}
-          <div className="relative hidden sm:block w-56 lg:w-72">
+          <div className="relative hidden sm:block w-52 lg:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
@@ -310,14 +344,29 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 setSearchQuery(e.target.value);
                 if (activeTab === 'home' && e.target.value.trim()) setActiveTab('catalog');
               }}
-              className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              className="w-full pl-9 pr-4 py-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer">
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
+
+          {/* THEME TOGGLE (SUN / MOON) */}
+          {showThemeToggle && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onToggleTheme) onToggleTheme();
+                else if (setTheme) setTheme(theme === 'dark' ? 'light' : 'dark');
+              }}
+              className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-amber-400 rounded-xl border border-slate-200 dark:border-slate-800 transition-all cursor-pointer shadow-2xs"
+              title={theme === 'dark' ? (isTr ? "Açık Moda Geç" : "Switch to Light Mode") : (isTr ? "Koyu Moda Geç" : "Switch to Dark Mode")}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+          )}
 
           {/* CONTACT QUICK BTN */}
           <button
@@ -326,10 +375,10 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
               const footer = document.getElementById('store-footer');
               if (footer) footer.scrollIntoView({ behavior: 'smooth' });
             }}
-            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-800 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+            className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl border border-slate-200 dark:border-slate-800 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
             title={isTr ? "İletişim, Adres & Çalışma Saatleri" : "Contact, Address & Hours"}
           >
-            <PhoneCall className="h-4 w-4 text-blue-400" />
+            <PhoneCall className="h-4 w-4 text-blue-500 dark:text-blue-400" />
             <span className="hidden xl:inline">{isTr ? "İletişim" : "Contact"}</span>
           </button>
 
@@ -342,7 +391,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
             <ShoppingBag className="h-4 w-4" />
             <span className="hidden sm:inline">{isTr ? "Sepetim" : "Cart"}</span>
             {totalBasketCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-950">
+              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-950">
                 {totalBasketCount}
               </span>
             )}
@@ -355,7 +404,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
               if (customer) onOpenProfile('profile');
               else setShowAuthModal(true);
             }}
-            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-800 transition-all cursor-pointer"
+            className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl border border-slate-200 dark:border-slate-800 transition-all cursor-pointer"
             title={customer ? (customer.name || "Profilim") : "Giriş Yap"}
           >
             <User className="h-4 w-4" />
@@ -367,7 +416,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
       {activeTab === 'home' && !searchQuery ? (
         <div className="space-y-8 pb-20">
           {/* MINIMALIST ILLUMINATED HERO SHOWCASE BANNER */}
-          {currentHero && (
+          {showHero && currentHero && (
             <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4 sm:pt-6">
               <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 shadow-2xl p-5 sm:p-7 md:p-9 min-h-[260px] sm:min-h-[300px] flex flex-col md:flex-row items-center justify-between gap-6 group">
                 {/* Luminous Ambient Background Glow */}
@@ -376,27 +425,29 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
                 {/* LEFT CONTENT */}
                 <div className="relative z-10 max-w-2xl space-y-3 w-full">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded-md font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                      <Sparkles className="h-3 w-3" />
-                      Öne Çıkan Ürün
-                    </span>
-                    {currentHero.brand && (
-                      <span className="px-2 py-0.5 bg-slate-800/90 text-slate-300 rounded-md font-bold text-[9px] border border-slate-700">
-                        {currentHero.brand}
+                  {showHeroBadges && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded-md font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                        <Sparkles className="h-3 w-3" />
+                        Öne Çıkan Ürün
                       </span>
-                    )}
-                    {currentHero.category && (
-                      <span className="px-2 py-0.5 bg-slate-800/90 text-slate-300 rounded-md font-bold text-[9px] border border-slate-700">
-                        {currentHero.category}
-                      </span>
-                    )}
-                    {getLabels(currentHero.labels || (currentHero as any).tags || (currentHero as any).badges).slice(0, 2).map((lbl, idx) => (
-                      <span key={idx} className="px-2 py-0.5 bg-indigo-900/80 text-indigo-200 rounded-md font-bold text-[9px] border border-indigo-700/60">
-                        🏷️ {lbl}
-                      </span>
-                    ))}
-                  </div>
+                      {currentHero.brand && (
+                        <span className="px-2 py-0.5 bg-slate-800/90 text-slate-300 rounded-md font-bold text-[9px] border border-slate-700">
+                          {currentHero.brand}
+                        </span>
+                      )}
+                      {currentHero.category && (
+                        <span className="px-2 py-0.5 bg-slate-800/90 text-slate-300 rounded-md font-bold text-[9px] border border-slate-700">
+                          {currentHero.category}
+                        </span>
+                      )}
+                      {getLabels(currentHero.labels || (currentHero as any).tags || (currentHero as any).badges).slice(0, 2).map((lbl, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-indigo-900/80 text-indigo-200 rounded-md font-bold text-[9px] border border-indigo-700/60">
+                          🏷️ {lbl}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white drop-shadow-xs line-clamp-2">
                     {currentHero.name}
@@ -481,46 +532,62 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
           {/* NETFLIX ROWS */}
           <div className="space-y-10 px-4 sm:px-8 max-w-7xl mx-auto">
             {/* ROW 1: ÇOK SATANLAR */}
-            {bestsellerProducts.length > 0 && (
+            {showBestsellers && bestsellerProducts.length > 0 && (
               <NetflixRow 
-                title={isTr ? "🔥 Çok Satanlar & Popüler Ürünler" : "🔥 Bestsellers & Popular"}
+                title={bestsellersTitle}
                 products={bestsellerProducts}
                 onViewProduct={onViewProduct}
                 addToBasket={addToBasket}
                 onShowAll={() => { setSelectedBadge("bestseller"); setActiveTab("catalog"); }}
+                enableHoverZoom={enableHoverZoom}
+                showQuickAddCart={showQuickAddCart}
+                showStockBadge={showStockBadge}
+                showOldPrice={showOldPrice}
               />
             )}
 
             {/* ROW 2: ÖNE ÇIKANLAR */}
-            {featuredProducts.length > 0 && (
+            {showFeatured && featuredProducts.length > 0 && (
               <NetflixRow 
-                title={isTr ? "⭐ Öne Çıkan Koleksiyon" : "⭐ Featured Collection"}
+                title={featuredTitle}
                 products={featuredProducts}
                 onViewProduct={onViewProduct}
                 addToBasket={addToBasket}
                 onShowAll={() => { setSelectedBadge("featured"); setActiveTab("catalog"); }}
+                enableHoverZoom={enableHoverZoom}
+                showQuickAddCart={showQuickAddCart}
+                showStockBadge={showStockBadge}
+                showOldPrice={showOldPrice}
               />
             )}
 
             {/* ROW 3: FIRSATLAR & İNDİRİMLER */}
-            {discountedProducts.length > 0 && (
+            {showDiscounted && discountedProducts.length > 0 && (
               <NetflixRow 
-                title={isTr ? "🏷️ Fırsatlar & Kampanyalı Ürünler" : "🏷️ Special Offers & Discounts"}
+                title={discountedTitle}
                 products={discountedProducts}
                 onViewProduct={onViewProduct}
                 addToBasket={addToBasket}
                 onShowAll={() => { setSelectedBadge("discount"); setActiveTab("catalog"); }}
+                enableHoverZoom={enableHoverZoom}
+                showQuickAddCart={showQuickAddCart}
+                showStockBadge={showStockBadge}
+                showOldPrice={showOldPrice}
               />
             )}
 
             {/* ROW 4: YENİ GELENLER */}
-            {newArrivals.length > 0 && (
+            {showNewArrivals && newArrivals.length > 0 && (
               <NetflixRow 
-                title={isTr ? "✨ Yeni Gelen Ürünler" : "✨ New Arrivals"}
+                title={newArrivalsTitle}
                 products={newArrivals}
                 onViewProduct={onViewProduct}
                 addToBasket={addToBasket}
                 onShowAll={() => { setActiveTab("catalog"); }}
+                enableHoverZoom={enableHoverZoom}
+                showQuickAddCart={showQuickAddCart}
+                showStockBadge={showStockBadge}
+                showOldPrice={showOldPrice}
               />
             )}
 
@@ -536,6 +603,10 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                   onViewProduct={onViewProduct}
                   addToBasket={addToBasket}
                   onShowAll={() => { setSelectedCategory(catName); setActiveTab("catalog"); }}
+                  enableHoverZoom={enableHoverZoom}
+                  showQuickAddCart={showQuickAddCart}
+                  showStockBadge={showStockBadge}
+                  showOldPrice={showOldPrice}
                 />
               );
             })}
@@ -544,10 +615,10 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
       ) : (
         /* FULL CATALOG / SEARCH VIEW */
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-6">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-800">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs dark:shadow-none">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm font-black text-white">{isTr ? "Ürün Kataloğu" : "Product Catalog"}</span>
-              <span className="text-xs text-slate-400 font-bold">({filteredProducts.length} {isTr ? "ürün listeleniyor" : "products"})</span>
+              <span className="text-sm font-black text-slate-900 dark:text-white">{isTr ? "Ürün Kataloğu" : "Product Catalog"}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">({filteredProducts.length} {isTr ? "ürün listeleniyor" : "products"})</span>
             </div>
 
             {/* FILTER CHIPS */}
@@ -555,7 +626,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-slate-950 border border-slate-800 text-xs text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
               >
                 <option value="all">{isTr ? "Tüm Kategoriler" : "All Categories"}</option>
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -565,7 +636,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 <select
                   value={selectedSubCategory}
                   onChange={(e) => setSelectedSubCategory(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 text-xs text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
                 >
                   <option value="all">{isTr ? "Tüm Alt Kategoriler" : "All Subcategories"}</option>
                   {subCategories.map(s => <option key={s} value={s}>{s}</option>)}
@@ -575,7 +646,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
               <select
                 value={selectedBrand}
                 onChange={(e) => setSelectedBrand(e.target.value)}
-                className="bg-slate-950 border border-slate-800 text-xs text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
               >
                 <option value="all">{isTr ? "Tüm Markalar" : "All Brands"}</option>
                 {brands.map(b => <option key={b} value={b}>{b}</option>)}
@@ -584,7 +655,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
               <select
                 value={selectedBadge}
                 onChange={(e) => setSelectedBadge(e.target.value)}
-                className="bg-slate-950 border border-slate-800 text-xs text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
               >
                 <option value="all">{isTr ? "Tüm Etiketler" : "All Badges"}</option>
                 <option value="bestseller">{isTr ? "Çok Satan" : "Bestseller"}</option>
@@ -596,9 +667,9 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
           {/* GRID OF PRODUCTS */}
           {filteredProducts.length === 0 ? (
-            <div className="p-16 text-center bg-slate-900 rounded-2xl border border-slate-800 space-y-3">
-              <Package className="h-12 w-12 text-slate-600 mx-auto" />
-              <p className="text-sm font-bold text-slate-300">{isTr ? "Aradığınız kriterlere uygun ürün bulunamadı." : "No products found matching your criteria."}</p>
+            <div className="p-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
+              <Package className="h-12 w-12 text-slate-400 dark:text-slate-600 mx-auto" />
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{isTr ? "Aradığınız kriterlere uygun ürün bulunamadı." : "No products found matching your criteria."}</p>
               <button
                 onClick={() => { setSelectedCategory('all'); setSelectedSubCategory('all'); setSelectedBrand('all'); setSelectedBadge('all'); setSearchQuery(''); }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer"
@@ -615,6 +686,10 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                   onViewProduct={onViewProduct}
                   addToBasket={addToBasket}
                   allProducts={filteredProducts}
+                  enableHoverZoom={enableHoverZoom}
+                  showQuickAddCart={showQuickAddCart}
+                  showStockBadge={showStockBadge}
+                  showOldPrice={showOldPrice}
                 />
               ))}
             </div>
@@ -639,9 +714,23 @@ interface NetflixRowProps {
   onViewProduct: (product: Product, rowProducts: Product[]) => void;
   addToBasket: (product: Product) => void;
   onShowAll?: () => void;
+  enableHoverZoom?: boolean;
+  showQuickAddCart?: boolean;
+  showStockBadge?: boolean;
+  showOldPrice?: boolean;
 }
 
-const NetflixRow: React.FC<NetflixRowProps> = ({ title, products, onViewProduct, addToBasket, onShowAll }) => {
+const NetflixRow: React.FC<NetflixRowProps> = ({ 
+  title, 
+  products, 
+  onViewProduct, 
+  addToBasket, 
+  onShowAll,
+  enableHoverZoom = true,
+  showQuickAddCart = true,
+  showStockBadge = true,
+  showOldPrice = true
+}) => {
   const rowRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = (direction: 'left' | 'right') => {
@@ -658,9 +747,9 @@ const NetflixRow: React.FC<NetflixRowProps> = ({ title, products, onViewProduct,
   return (
     <div className="space-y-3 relative group">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm sm:text-base font-black tracking-tight text-white flex items-center gap-2">
+        <h2 className="text-sm sm:text-base font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
           <span>{title}</span>
-          <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider bg-blue-950/60 border border-blue-800/60 px-2 py-0.5 rounded-md">
+          <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-2 py-0.5 rounded-md">
             {products.length} Ürün
           </span>
         </h2>
@@ -668,7 +757,7 @@ const NetflixRow: React.FC<NetflixRowProps> = ({ title, products, onViewProduct,
           <button
             type="button"
             onClick={onShowAll}
-            className="text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
+            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
           >
             <span>Tümünü Gör</span>
             <ChevronRight className="h-3.5 w-3.5" />
@@ -679,7 +768,7 @@ const NetflixRow: React.FC<NetflixRowProps> = ({ title, products, onViewProduct,
       <div className="relative">
         <button
           onClick={() => handleScroll('left')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 -ml-3 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-2xl cursor-pointer hover:bg-blue-600"
+          className="absolute left-0 top-1/2 -translate-y-1/2 -ml-3 z-20 w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -696,6 +785,10 @@ const NetflixRow: React.FC<NetflixRowProps> = ({ title, products, onViewProduct,
                 onViewProduct={onViewProduct}
                 addToBasket={addToBasket}
                 allProducts={products}
+                enableHoverZoom={enableHoverZoom}
+                showQuickAddCart={showQuickAddCart}
+                showStockBadge={showStockBadge}
+                showOldPrice={showOldPrice}
               />
             </div>
           ))}
@@ -703,7 +796,7 @@ const NetflixRow: React.FC<NetflixRowProps> = ({ title, products, onViewProduct,
 
         <button
           onClick={() => handleScroll('right')}
-          className="absolute right-0 top-1/2 -translate-y-1/2 -mr-3 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-2xl cursor-pointer hover:bg-blue-600"
+          className="absolute right-0 top-1/2 -translate-y-1/2 -mr-3 z-20 w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -717,83 +810,113 @@ interface NetflixProductCardProps {
   onViewProduct: (product: Product, rowProducts: Product[]) => void;
   addToBasket: (product: Product) => void;
   allProducts: Product[];
+  enableHoverZoom?: boolean;
+  showQuickAddCart?: boolean;
+  showStockBadge?: boolean;
+  showOldPrice?: boolean;
 }
 
-const NetflixProductCard: React.FC<NetflixProductCardProps> = ({ product, onViewProduct, addToBasket, allProducts }) => {
+const NetflixProductCard: React.FC<NetflixProductCardProps> = ({ 
+  product, 
+  onViewProduct, 
+  addToBasket, 
+  allProducts,
+  enableHoverZoom = true,
+  showQuickAddCart = true,
+  showStockBadge = true,
+  showOldPrice = true
+}) => {
   const coverImg = getProductImageUrl(product);
   const stockCount = getProductStockCount(product);
   const isOutOfStock = stockCount <= 0 && (product as any).is_sellable !== true && (product as any).allow_backorder !== true;
 
   return (
     <motion.div
-      whileHover={{ y: -6, scale: 1.02 }}
+      whileHover={enableHoverZoom ? { y: -6, scale: 1.02 } : { y: -2 }}
       transition={{ duration: 0.2 }}
-      className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-md flex flex-col justify-between w-full h-full cursor-pointer relative"
+      className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-md dark:shadow-none flex flex-col justify-between w-full h-full cursor-pointer relative transition-all"
       onClick={() => onViewProduct(product, allProducts)}
     >
-      <div className="relative aspect-[4/3] sm:aspect-[1/1] overflow-hidden bg-slate-950 flex items-center justify-center p-2">
+      <div className="relative aspect-[4/3] sm:aspect-[1/1] overflow-hidden bg-white dark:bg-slate-950 flex items-center justify-center p-2.5">
         <img
           src={coverImg}
           alt={product.name}
-          className="max-w-full max-h-full object-contain filter brightness-105 contrast-105 group-hover:scale-105 transition-transform duration-500"
+          className="max-w-full max-h-full object-contain filter group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/10 dark:from-slate-950/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+        {/* STOCK BADGE */}
+        {showStockBadge && (
+          <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1 pointer-events-none">
+            {isOutOfStock ? (
+              <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white font-black text-[9px] uppercase tracking-wider shadow-sm">
+                Tükendi
+              </span>
+            ) : stockCount > 0 && stockCount <= 3 ? (
+              <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white font-black text-[9px] uppercase tracking-wider shadow-sm">
+                Son {stockCount} Adet
+              </span>
+            ) : null}
+          </div>
+        )}
 
         {/* FLOATING ICON-ONLY ADD TO BASKET (QUICK ACTION) */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            addToBasket(product);
-          }}
-          className="absolute bottom-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-all active:scale-90 cursor-pointer"
-          title="Sepete Ekle"
-        >
-          <ShoppingBag className="h-4 w-4" />
-        </button>
+        {showQuickAddCart && !isOutOfStock && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              addToBasket(product);
+            }}
+            className="absolute bottom-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-all active:scale-90 cursor-pointer"
+            title="Sepete Ekle"
+          >
+            <ShoppingBag className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="p-3 space-y-1.5 flex-1 flex flex-col justify-between">
         <div className="space-y-1">
           {product.brand && (
-            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wide">
+            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
               {product.brand}
             </span>
           )}
-          <h3 className="font-bold text-xs text-white line-clamp-2 group-hover:text-blue-300 transition-colors leading-snug">
+          <h3 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors leading-snug">
             {product.name}
           </h3>
         </div>
 
-        <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-sm font-black text-white">
+              <span className="text-sm font-black text-slate-900 dark:text-white">
                 ₺{(product.price || 0).toLocaleString('tr-TR')}
               </span>
-              {product.old_price && product.old_price > product.price && (
-                <span className="text-[10px] text-slate-400 line-through">
+              {showOldPrice && product.old_price && product.old_price > product.price && (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through">
                   ₺{product.old_price.toLocaleString('tr-TR')}
                 </span>
               )}
             </div>
 
             {/* SECONDARY MINI CART ICON BUTTON */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                addToBasket(product);
-              }}
-              className="p-1.5 bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white rounded-lg transition-all active:scale-90 cursor-pointer flex items-center justify-center"
-              title="Sepete Ekle"
-            >
-              <ShoppingBag className="h-3.5 w-3.5" />
-            </button>
+            {!isOutOfStock && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToBasket(product);
+                }}
+                className="p-1.5 bg-slate-100 hover:bg-blue-600 dark:bg-slate-800 dark:hover:bg-blue-600 text-slate-700 hover:text-white dark:text-slate-300 dark:hover:text-white rounded-lg transition-all active:scale-90 cursor-pointer flex items-center justify-center"
+                title="Sepete Ekle"
+              >
+                <ShoppingBag className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-
-
         </div>
       </div>
     </motion.div>

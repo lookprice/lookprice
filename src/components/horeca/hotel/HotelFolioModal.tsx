@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Receipt, Plus, Printer, AlertTriangle, Clock } from 'lucide-react';
+import { X, Receipt, Plus, Printer, AlertTriangle, Clock, Trash2 } from 'lucide-react';
 import { HotelRoom } from '../HotelRoomManagement';
 
 interface HotelFolioModalProps {
@@ -11,10 +11,12 @@ interface HotelFolioModalProps {
   handlePrintFolio: (room: HotelRoom, method: string) => void;
   handleExecuteCheckOut: (room: HotelRoom) => void;
   setAddExpenseModalRoom: (room: HotelRoom | null) => void;
-  addExpenseModalRoom: HotelRoom | null;
-  manualExpense: { title: string; amount: number };
-  setManualExpense: React.Dispatch<React.SetStateAction<{ title: string; amount: number }>>;
-  handleAddExpenseToFolio: (e: React.FormEvent) => void;
+  addExpenseModalRoom?: HotelRoom | null;
+  manualExpense?: { title: string; amount: number };
+  setManualExpense?: React.Dispatch<React.SetStateAction<{ title: string; amount: number }>>;
+  handleAddExpenseToFolio?: (e: React.FormEvent) => void;
+  handleRemoveExpenseFromFolio: (roomId: string, itemId: string) => void;
+  handleClearFolioExpenses?: (roomId: string) => void;
 }
 
 export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
@@ -26,10 +28,8 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
   handlePrintFolio,
   handleExecuteCheckOut,
   setAddExpenseModalRoom,
-  addExpenseModalRoom,
-  manualExpense,
-  setManualExpense,
-  handleAddExpenseToFolio,
+  handleRemoveExpenseFromFolio,
+  handleClearFolioExpenses,
 }) => {
   if (!checkOutModalRoom || !checkOutModalRoom.current_guest) return null;
 
@@ -147,6 +147,17 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
                 <span>2. Açık Restoran & Kafeterya Harcamaları ({details.restaurantItems?.length || 0} Kalem)</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-black text-slate-900 dark:text-white">₺{details.restaurantTotal.toLocaleString('tr-TR')}</span>
+                  {details.restaurantItems && details.restaurantItems.length > 0 && handleClearFolioExpenses && (
+                    <button
+                      type="button"
+                      onClick={() => handleClearFolioExpenses(checkOutModalRoom.id)}
+                      className="px-2 py-1 text-[10px] font-bold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 transition-all flex items-center gap-1 cursor-pointer"
+                      title="Odadaki tüm test/eski harcamaları sıfırla"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      <span>Tümünü Sıfırla</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={!isGuestInHouse}
@@ -176,7 +187,16 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
                         <span className="font-bold">{item.title}</span>
                         <span className="text-[10px] text-slate-400 block">{item.date} • {item.category}</span>
                       </div>
-                      <span className="font-bold text-slate-900 dark:text-white">₺{item.finalAmount.toLocaleString('tr-TR')}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-slate-900 dark:text-white">₺{item.finalAmount.toLocaleString('tr-TR')}</span>
+                        <button
+                          onClick={() => handleRemoveExpenseFromFolio(checkOutModalRoom.id, item.id)}
+                          className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer transition-colors"
+                          title="Harcamayı Kaldır"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -271,70 +291,6 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
           </div>
         </div>
       </div>
-
-      {/* MODAL: ADD MANUAL EXPENSE */}
-      {addExpenseModalRoom && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                Oda #{addExpenseModalRoom.room_number} Adisyon Ekle
-              </h3>
-              <button onClick={() => setAddExpenseModalRoom(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={(e) => {
-              if (!isGuestInHouse) {
-                e.preventDefault();
-                return;
-              }
-              handleAddExpenseToFolio(e);
-            }} className="space-y-3">
-              <div>
-                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase">Harcama Kalemi / Adisyon</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Örn: Restoran Adisyon #1092, Mini Bar"
-                  value={manualExpense.title}
-                  onChange={(e) => setManualExpense({ ...manualExpense, title: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase">Tutar (₺)</label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  value={manualExpense.amount}
-                  onChange={(e) => setManualExpense({ ...manualExpense, amount: Number(e.target.value) })}
-                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setAddExpenseModalRoom(null)}
-                  className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  İptal
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer"
-                >
-                  Hesaba İşle
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 };

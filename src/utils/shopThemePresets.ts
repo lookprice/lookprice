@@ -1,5 +1,5 @@
 export interface ShopThemeConfig {
-  preset_name: "minimal_swiss" | "luxury_dark" | "nordic_warm" | "street_bold" | "bookstore_netflix" | "custom";
+  preset_name: "minimal_swiss" | "luxury_dark" | "nordic_warm" | "street_bold" | "bookstore_netflix" | "netflix_original" | "netflix_cyber_blue" | "netflix_luxury_gold" | "netflix_minimal_light" | "custom";
   primary_color: string;
   accent_color: string;
   background_mode: "light" | "dark" | "warm";
@@ -19,6 +19,23 @@ export interface ShopThemeConfig {
   show_trust_badges: boolean;
   show_quick_view: boolean;
   show_swatches_on_card: boolean;
+  // Netflix-Style Architecture Configuration
+  netflix_theme_mode?: "dark" | "light" | "warm";
+  netflix_hero_type?: "cinematic_products" | "custom_banners" | "both" | "none";
+  netflix_hero_timer?: number; // 0 (off), 3, 5, 8, 10
+  netflix_hero_glow?: boolean;
+  netflix_card_density?: "compact" | "standard" | "large";
+  netflix_quick_cart?: "always" | "hover" | "subtle";
+  netflix_show_bestsellers?: boolean;
+  netflix_bestsellers_title?: string;
+  netflix_show_featured?: boolean;
+  netflix_featured_title?: string;
+  netflix_show_discounted?: boolean;
+  netflix_discounted_title?: string;
+  netflix_show_new_arrivals?: boolean;
+  netflix_new_arrivals_title?: string;
+  netflix_show_categories?: boolean;
+  netflix_row_limit?: number;
   showcase_rows?: Array<{
     id: string;
     title: string;
@@ -211,5 +228,93 @@ export const THEME_PRESETS: Record<string, Partial<ShopThemeConfig>> = {
       { id: "row2", title: "Trendler", type: "trending" },
       { id: "row3", title: "Klasikler", type: "category", tag_or_category: "Klasikler" }
     ]
+  },
+  netflix_original: {
+    preset_name: "netflix_original",
+    primary_color: "#ef4444",
+    accent_color: "#dc2626",
+    background_mode: "dark",
+    card_style: "elevated",
+    card_radius: "rounded",
+    card_aspect_ratio: "portrait",
+    card_hover_effect: "zoom",
+    netflix_theme_mode: "dark",
+    netflix_hero_type: "cinematic_products",
+    netflix_hero_timer: 6,
+    netflix_hero_glow: true,
+    netflix_card_density: "standard",
+    netflix_quick_cart: "hover",
+    netflix_show_bestsellers: true,
+    netflix_show_featured: true,
+    netflix_show_discounted: true,
+    netflix_show_new_arrivals: true,
+    netflix_show_categories: true,
+    netflix_row_limit: 16
+  },
+  netflix_cyber_blue: {
+    preset_name: "netflix_cyber_blue",
+    primary_color: "#2563eb",
+    accent_color: "#3b82f6",
+    background_mode: "dark",
+    card_style: "glass",
+    card_radius: "rounded",
+    card_aspect_ratio: "portrait",
+    card_hover_effect: "glow",
+    netflix_theme_mode: "dark",
+    netflix_hero_type: "cinematic_products",
+    netflix_hero_timer: 6,
+    netflix_hero_glow: true,
+    netflix_card_density: "standard",
+    netflix_quick_cart: "hover",
+    netflix_show_bestsellers: true,
+    netflix_show_featured: true,
+    netflix_show_discounted: true,
+    netflix_show_new_arrivals: true,
+    netflix_show_categories: true,
+    netflix_row_limit: 16
+  },
+  netflix_luxury_gold: {
+    preset_name: "netflix_luxury_gold",
+    primary_color: "#d97706",
+    accent_color: "#f59e0b",
+    background_mode: "dark",
+    card_style: "elevated",
+    card_radius: "subtle",
+    card_aspect_ratio: "portrait",
+    card_hover_effect: "zoom",
+    netflix_theme_mode: "dark",
+    netflix_hero_type: "cinematic_products",
+    netflix_hero_timer: 8,
+    netflix_hero_glow: true,
+    netflix_card_density: "large",
+    netflix_quick_cart: "always",
+    netflix_show_bestsellers: true,
+    netflix_show_featured: true,
+    netflix_show_discounted: true,
+    netflix_show_new_arrivals: true,
+    netflix_show_categories: true,
+    netflix_row_limit: 16
+  },
+  netflix_minimal_light: {
+    preset_name: "netflix_minimal_light",
+    primary_color: "#0f172a",
+    accent_color: "#2563eb",
+    background_mode: "light",
+    card_style: "minimal",
+    card_radius: "rounded",
+    card_aspect_ratio: "portrait",
+    card_hover_effect: "zoom",
+    netflix_theme_mode: "light",
+    netflix_hero_type: "cinematic_products",
+    netflix_hero_timer: 6,
+    netflix_hero_glow: false,
+    netflix_card_density: "standard",
+    netflix_quick_cart: "hover",
+    netflix_show_bestsellers: true,
+    netflix_show_featured: true,
+    netflix_show_discounted: true,
+    netflix_show_new_arrivals: true,
+    netflix_show_categories: true,
+    netflix_row_limit: 16
   }
 };

@@ -17,7 +17,15 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  Save
+  Save,
+  Film,
+  Sun,
+  Moon,
+  Flame,
+  Star,
+  ShoppingBag,
+  SlidersHorizontal,
+  LayoutTemplate
 } from "lucide-react";
 import { DEFAULT_SHOP_THEME, ShopThemeConfig, THEME_PRESETS } from "../../utils/shopThemePresets";
 
@@ -36,7 +44,7 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
   onSave,
   saving = false
 }) => {
-  const [activeTab, setActiveTab] = useState<"presets" | "hero" | "stories" | "bento" | "badges">("presets");
+  const [activeTab, setActiveTab] = useState<"netflix" | "presets" | "hero" | "stories" | "bento" | "badges">("netflix");
 
   // Read current themeConfig safely
   const themeConfig: ShopThemeConfig = useMemo(() => {
@@ -119,6 +127,32 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
       updateThemeConfig({
         ...preset,
         preset_name: presetKey as any
+      });
+    }
+  };
+
+  // Netflix Layout Architecture Config
+  const netflixConfig = useMemo(() => {
+    const raw = branding?.netflix_config;
+    if (typeof raw === "string") {
+      try { return JSON.parse(raw); } catch { return {}; }
+    }
+    return (raw && typeof raw === "object") ? raw : {};
+  }, [branding?.netflix_config]);
+
+  const updateNetflixConfig = (updates: any) => {
+    const merged = { ...netflixConfig, ...updates };
+    onBrandingChange("netflix_config", merged);
+    const curLayout = branding?.page_layout_settings || {};
+    onBrandingChange("page_layout_settings", {
+      ...curLayout,
+      netflix_config: merged,
+      theme_default: merged.theme_mode || curLayout.theme_default,
+    });
+    if (updates.theme_mode) {
+      onBrandingChange("theme_config", {
+        ...(branding?.theme_config || {}),
+        theme: updates.theme_mode === 'auto' ? undefined : updates.theme_mode
       });
     }
   };
@@ -349,6 +383,7 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
         {/* Compact Sub-Nav Strip */}
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-0.5">
           {[
+            { id: "netflix", label: "Netflix Mimari & Karuseller", icon: <Film className="w-3.5 h-3.5 text-blue-500" /> },
             { id: "presets", label: "Konsept & Renkler", icon: <Palette className="w-3.5 h-3.5" /> },
             { id: "hero", label: "Hero Banner & Afişler", icon: <ImageIcon className="w-3.5 h-3.5" /> },
             { id: "stories", label: "Instagram Hikayeleri", icon: <Smartphone className="w-3.5 h-3.5" /> },
@@ -372,114 +407,395 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
         </div>
       </div>
 
-      {/* TAB 1: KONSEPT & RENKLER */}
-      {activeTab === "presets" && (
-        <div className="space-y-3">
-          {/* Mağaza Logosu & Favicon Kimliği */}
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
+      {/* TAB 0: NETFLIX VİTRİN MİMARİSİ & KARUSEL YÖNETİMİ */}
+      {activeTab === "netflix" && (
+        <div className="space-y-4">
+          {/* 1. TEMA & RENK / AYDINLATMA MODU */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div>
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
-                  {lang === "tr" ? "Mağaza Logosu & Favicon" : "Store Logo & Favicon"}
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Aydınlatma & Tema Modu (Açık / Koyu Zemin)</span>
                 </h3>
                 <p className="text-[11px] text-slate-500 font-normal">
-                  {lang === "tr" ? "Kurumsal logonuzu ve tarayıcı sekme ikonunuzu (favicon) yönetin." : "Manage your store logo and browser tab favicon."}
+                  Gap Bilişim gibi beyaz ürün arka planına sahip mağazalar için açık mod, sinematik etki için koyu mod.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Logo URL */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
-                  {lang === "tr" ? "Kurumsal Logo URL" : "Corporate Logo URL"}
-                </label>
-                <div className="flex gap-2 items-center">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <button
+                type="button"
+                onClick={() => updateNetflixConfig({ theme_mode: "light" })}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                  netflixConfig.theme_mode === "light"
+                    ? "bg-amber-50/60 border-amber-400 ring-2 ring-amber-400/20 shadow-xs"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <Sun className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Açık Mod (Light)</span>
+                  </span>
+                  {netflixConfig.theme_mode === "light" && <Check className="w-3.5 h-3.5 text-amber-600" />}
+                </div>
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  Temiz beyaz zemin, yüksek kontrast. Beyaz arkaplanlı ürün görselleri için kusursuz uyum sağlar.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => updateNetflixConfig({ theme_mode: "dark" })}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                  netflixConfig.theme_mode === "dark" || !netflixConfig.theme_mode
+                    ? "bg-slate-900 text-white border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold flex items-center gap-1.5">
+                    <Moon className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Koyu Mod (Dark)</span>
+                  </span>
+                  {(netflixConfig.theme_mode === "dark" || !netflixConfig.theme_mode) && <Check className="w-3.5 h-3.5 text-blue-400" />}
+                </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  Netflix sinematik gece ambiyansı, antrasit/siyah zemin ve ışıltılı neon vurgular.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => updateNetflixConfig({ theme_mode: "auto" })}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                  netflixConfig.theme_mode === "auto"
+                    ? "bg-indigo-50/60 border-indigo-400 ring-2 ring-indigo-400/20 shadow-xs"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <RefreshCw className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Sistem (Otomatik)</span>
+                  </span>
+                  {netflixConfig.theme_mode === "auto" && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                </div>
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  Müşterinin cihaz (telefon/bilgisayar) tema tercihiyle tam senkronize çalışır.
+                </p>
+              </button>
+            </div>
+
+            <div className="pt-1 flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.show_theme_toggle !== false}
+                  onChange={(e) => updateNetflixConfig({ show_theme_toggle: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-slate-800">
+                  Web Vitrininde Ziyaretçi Tema Değiştirme (Güneş / Ay) Butonunu Göster
+                </span>
+              </label>
+              <span className="text-[10px] text-slate-500">Müşteriler tek tıkla açık/koyu mod geçişi yapabilir.</span>
+            </div>
+          </div>
+
+          {/* 2. NETFLIX IŞILTILI HERO BANNER */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Netflix Hero Vitrin Kartı (Işıltılı Manşet)</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 font-normal">
+                  Ana sayfanın en üstünde yer alan sinematik ürün tanıtım manşetini yapılandırın.
+                </p>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.hero_enabled !== false}
+                  onChange={(e) => updateNetflixConfig({ hero_enabled: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-slate-800">Hero Aktif</span>
+              </label>
+            </div>
+
+            {netflixConfig.hero_enabled !== false && (
+              <div className="space-y-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                      Otomatik Slayt Geçiş Süresi
+                    </label>
+                    <select
+                      value={netflixConfig.hero_autoplay_interval || 6}
+                      onChange={(e) => updateNetflixConfig({ hero_autoplay_interval: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none"
+                    >
+                      <option value={4}>4 Saniyede Bir Geç</option>
+                      <option value={6}>6 Saniyede Bir Geç (Önerilen)</option>
+                      <option value={8}>8 Saniyede Bir Geç</option>
+                      <option value={10}>10 Saniyede Bir Geç</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                      Vurgu Rozetleri
+                    </label>
+                    <div className="flex items-center h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={netflixConfig.show_hero_badges !== false}
+                          onChange={(e) => updateNetflixConfig({ show_hero_badges: e.target.checked })}
+                          className="w-3.5 h-3.5 rounded text-blue-600 accent-blue-600"
+                        />
+                        <span className="text-xs font-semibold text-slate-700">Öne Çıkan, Çok Satan rozetlerini göster</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3. NETFLIX YATAY KARUSEL SIRALARI (ROW CONTROLS) */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Film className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Netflix Yatay Karusel Sıraları (Row Controls)</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 font-normal">
+                  Ana sayfada alt alta dizilen Netflix tarzı yatay kaydırmalı ürün bantlarını yönetin.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {/* Sıra 1: Çok Satanlar */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg">
+                    <Flame className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">Çok Satanlar & Popüler Ürünler Sırası</span>
+                    <span className="text-[10px] text-slate-500">En popüler ve çok satan ürünleri yatay bantta sergiler.</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    value={branding?.logo_url || branding?.logo || ""}
-                    onChange={(e) => {
-                      onBrandingChange("logo_url", e.target.value);
-                      onBrandingChange("logo", e.target.value);
-                    }}
-                    placeholder="https://... (Görsel URL)"
-                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    placeholder="🔥 Çok Satanlar & Popüler Ürünler"
+                    value={netflixConfig.bestsellers_title || ""}
+                    onChange={(e) => updateNetflixConfig({ bestsellers_title: e.target.value })}
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium w-48 outline-none"
                   />
-                  {(branding?.logo_url || branding?.logo) && (
-                    <div className="w-10 h-10 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center p-1 shrink-0">
-                      <img src={branding?.logo_url || branding?.logo} alt="Logo Preview" className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400"; }} />
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <label className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold cursor-pointer transition-colors flex items-center gap-1">
-                    <Upload className="w-3 h-3" />
-                    {lang === "tr" ? "Dosyadan Yükle" : "Upload File"}
+                  <label className="flex items-center gap-1 cursor-pointer shrink-0">
                     <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            const b64 = ev.target?.result as string;
-                            onBrandingChange("logo_url", b64);
-                            onBrandingChange("logo", b64);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
+                      type="checkbox"
+                      checked={netflixConfig.show_bestsellers_row !== false}
+                      onChange={(e) => updateNetflixConfig({ show_bestsellers_row: e.target.checked })}
+                      className="w-4 h-4 rounded text-blue-600 accent-blue-600"
                     />
+                    <span className="text-xs font-bold text-slate-700">Aktif</span>
                   </label>
-                  <span className="text-[10px] text-slate-400">PNG, JPG, SVG (Max 2MB)</span>
                 </div>
               </div>
 
-              {/* Favicon URL */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
-                  {lang === "tr" ? "Favicon (Tarayıcı Sekme İkonu) URL" : "Favicon URL"}
-                </label>
-                <div className="flex gap-2 items-center">
+              {/* Sıra 2: Öne Çıkanlar */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
+                    <Star className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">Öne Çıkan Koleksiyon Sırası</span>
+                    <span className="text-[10px] text-slate-500">Öne çıkan etiketi taşıyan seçkin ürünler.</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    value={branding?.favicon_url || ""}
-                    onChange={(e) => onBrandingChange("favicon_url", e.target.value)}
-                    placeholder="https://... (Favicon URL)"
-                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    placeholder="⭐ Öne Çıkan Koleksiyon"
+                    value={netflixConfig.featured_title || ""}
+                    onChange={(e) => updateNetflixConfig({ featured_title: e.target.value })}
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium w-48 outline-none"
                   />
-                  {branding?.favicon_url && (
-                    <div className="w-10 h-10 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center p-1 shrink-0">
-                      <img src={branding?.favicon_url} alt="Favicon Preview" className="max-h-full max-w-full object-contain" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <label className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold cursor-pointer transition-colors flex items-center gap-1">
-                    <Upload className="w-3 h-3" />
-                    {lang === "tr" ? "Dosyadan Yükle" : "Upload File"}
+                  <label className="flex items-center gap-1 cursor-pointer shrink-0">
                     <input
-                      type="file"
-                      accept="image/*,.ico"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            const b64 = ev.target?.result as string;
-                            onBrandingChange("favicon_url", b64);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
+                      type="checkbox"
+                      checked={netflixConfig.show_featured_row !== false}
+                      onChange={(e) => updateNetflixConfig({ show_featured_row: e.target.checked })}
+                      className="w-4 h-4 rounded text-blue-600 accent-blue-600"
                     />
+                    <span className="text-xs font-bold text-slate-700">Aktif</span>
                   </label>
-                  <span className="text-[10px] text-slate-400">ICO, PNG (32x32px)</span>
                 </div>
+              </div>
+
+              {/* Sıra 3: Fırsatlar & İndirimler */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+                    <Tag className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">Fırsatlar & Kampanyalı Ürünler Sırası</span>
+                    <span className="text-[10px] text-slate-500">İndirimli veya kampanyalı ürünlerin sergilendiği bant.</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="🏷️ Fırsatlar & Kampanyalı Ürünler"
+                    value={netflixConfig.discounted_title || ""}
+                    onChange={(e) => updateNetflixConfig({ discounted_title: e.target.value })}
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium w-48 outline-none"
+                  />
+                  <label className="flex items-center gap-1 cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={netflixConfig.show_discounted_row !== false}
+                      onChange={(e) => updateNetflixConfig({ show_discounted_row: e.target.checked })}
+                      className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                    />
+                    <span className="text-xs font-bold text-slate-700">Aktif</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Sıra 4: Yeni Gelenler */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">Yeni Gelen Ürünler Sırası</span>
+                    <span className="text-[10px] text-slate-500">En son eklenen yeni ürünleri vitrinde ilk sıraya taşır.</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="✨ Yeni Gelen Ürünler"
+                    value={netflixConfig.new_arrivals_title || ""}
+                    onChange={(e) => updateNetflixConfig({ new_arrivals_title: e.target.value })}
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium w-48 outline-none"
+                  />
+                  <label className="flex items-center gap-1 cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={netflixConfig.show_new_arrivals_row !== false}
+                      onChange={(e) => updateNetflixConfig({ show_new_arrivals_row: e.target.checked })}
+                      className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                    />
+                    <span className="text-xs font-bold text-slate-700">Aktif</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. ÜRÜN KARTLARI & ETKİLEŞİM AYARLARI */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Ürün Kartları & Etkileşim Ayarları</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 font-normal">
+                  Karusel ve katalogdaki ürün kartlarının buton ve rozet davranışları.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <label className="flex items-center gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.enable_hover_zoom !== false}
+                  onChange={(e) => updateNetflixConfig({ enable_hover_zoom: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">Netflix Hover Zoom Animasyonu</span>
+                  <span className="text-[10px] text-slate-500">Kart üzerine fare ile gelindiğinde akıcı büyüme ve gölge efekti.</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.show_quick_add_cart !== false}
+                  onChange={(e) => updateNetflixConfig({ show_quick_add_cart: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">Hızlı 'Sepete Ekle' Butonu</span>
+                  <span className="text-[10px] text-slate-500">Müşterilerin karta tıklamadan doğrudan sepete atabilmesini sağlar.</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.show_stock_badge !== false}
+                  onChange={(e) => updateNetflixConfig({ show_stock_badge: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">Stok Durumu Rozeti</span>
+                  <span className="text-[10px] text-slate-500">Stok adedi veya 'Tükendi' ibaresini kart üzerinde gösterir.</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.show_old_price !== false}
+                  onChange={(e) => updateNetflixConfig({ show_old_price: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">Eski Fiyat ve İndirim Vurgusu</span>
+                  <span className="text-[10px] text-slate-500">İndirimli ürünlerde üstü çizili eski fiyatı sergiler.</span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 1: KONSEPT & RENKLER */}
+      {activeTab === "presets" && (
+        <div className="space-y-3">
+          {/* Bilgi Kutusu: Logo ve Favicon Yönlendirmesi */}
+          <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-3 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
+                <ImageIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-indigo-900 block">Kurumsal Logo ve Sekme İkonu (Favicon)</span>
+                <span className="text-[11px] text-indigo-700">
+                  {lang === "tr"
+                    ? "Logonuzu ve favicon sekme görselinizi üst sekmedeki 'Logo & Favicon' bölümünden doğrudan dosya yükleyerek yönetebilirsiniz."
+                    : "Manage your corporate logo and favicon directly from the 'Logo & Favicon' tab."}
+                </span>
               </div>
             </div>
           </div>

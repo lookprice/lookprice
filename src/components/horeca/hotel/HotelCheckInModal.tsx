@@ -75,7 +75,9 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
     Boolean(guestForm.custom_nightly_rate && guestForm.custom_nightly_rate > 0)
   );
 
-  // Nights calculation - moved above the early return
+  if (!checkInModalRoom) return null;
+
+  // Nights calculation - moved after the early return
   const nights = useMemo(() => {
     try {
       const cin = new Date(guestForm.check_in_date || new Date());
@@ -87,7 +89,6 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
     }
   }, [guestForm.check_in_date, guestForm.check_out_date]);
 
-  if (!checkInModalRoom) return null;
 
   // Helper to extract board price for a given room and board code
   const getBoardPrice = (room: HotelRoom, code: string): number => {

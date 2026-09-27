@@ -8,7 +8,9 @@ import {
   User, 
   Package, 
   LogOut, 
-  ShoppingBag 
+  ShoppingBag,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 interface StoreHeaderProps {
@@ -30,6 +32,8 @@ interface StoreHeaderProps {
   basketCount: number;
   setShowBlog: (show: boolean) => void;
   onOpenProfile: (tab: 'profile' | 'orders') => void;
+  theme?: 'light' | 'dark';
+  setTheme?: (theme: 'light' | 'dark') => void;
 }
 
 const getDisplayStoreName = (store: any) => {
@@ -64,7 +68,9 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
   setIsBasketOpen,
   basketCount,
   setShowBlog,
-  onOpenProfile
+  onOpenProfile,
+  theme = 'light',
+  setTheme
 }) => {
   const navigate = useNavigate();
   const displayName = getDisplayStoreName(store);
@@ -230,6 +236,15 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
                     {basketCount}
                   </span>
                 )}
+              </button>
+            )}
+            {setTheme && (
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="p-3 bg-gray-50 hover:bg-gray-100 rounded-full transition-all active:scale-95 group shadow-sm border border-gray-200/50 cursor-pointer"
+                title={theme === 'dark' ? "Açık Mod" : "Koyu Mod"}
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-slate-700" />}
               </button>
             )}
           </div>

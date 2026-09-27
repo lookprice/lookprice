@@ -4,6 +4,7 @@ import { playHotelReservationChime } from "../../utils/hotelSound";
 import { HotelCheckInModal } from "./hotel/HotelCheckInModal";
 import { HotelRoomEditModal } from "./hotel/HotelRoomEditModal";
 import { HotelFolioModal } from "./hotel/HotelFolioModal";
+import { HotelAddExpenseModal } from "./hotel/HotelAddExpenseModal";
 import { HotelAgePolicyModal } from "./hotel/HotelAgePolicyModal";
 import { HotelCheckoutReceiptModal } from "./hotel/HotelCheckoutReceiptModal";
 import { HotelOnlineBookingDetailModal } from "./hotel/HotelOnlineBookingDetailModal";
@@ -2013,7 +2014,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         status: 'occupied',
         current_guest: newGuest,
         additional_guests: processedAdditionalGuests,
-        folio: r.folio || { id: `folio-${Date.now()}`, total_amount: 0, items: [] }
+        folio: { id: `folio-${Date.now()}`, total_amount: 0, items: [] },
+        reservations: r.reservations || [] 
       } : r));
     } else {
       const newReservation: RoomReservation = {
@@ -2121,28 +2123,35 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     // 2. Board Type Nightly Rate
     let nightlyRate = room.price_per_night || 2500;
     let boardTypeLabel = "Oda Kahvaltı (BB)";
+    const hasCustomNightlyRate = (guest as any).custom_nightly_rate !== undefined && (guest as any).custom_nightly_rate !== null && !isNaN(Number((guest as any).custom_nightly_rate));
 
-    const bt = (guest.board_type || 'bed_breakfast').toLowerCase();
-    if (bt.includes('room_only') || bt === 'ro') {
-      nightlyRate = room.board_prices?.room_only || room.price_room_only || Math.round(nightlyRate * 0.88);
-      boardTypeLabel = "Sadece Oda (RO)";
-    } else if (bt.includes('half_board') || bt === 'hb') {
-      nightlyRate = room.board_prices?.half_board || room.price_half_board || Math.round(nightlyRate * 1.28);
-      boardTypeLabel = "Yarım Pansiyon (HB)";
-    } else if (bt.includes('full_board') || bt === 'fb') {
-      nightlyRate = room.board_prices?.full_board || room.price_full_board || Math.round(nightlyRate * 1.56);
-      boardTypeLabel = "Tam Pansiyon (FB)";
-    } else if (bt.includes('all_inclusive') || bt === 'ai') {
-      nightlyRate = room.board_prices?.all_inclusive || room.price_all_inclusive || Math.round(nightlyRate * 1.92);
-      boardTypeLabel = "Her Şey Dahil (AI)";
-    } else if (bt.includes('ultra') || bt === 'uai') {
-      nightlyRate = room.board_prices?.ultra_all_inclusive || room.price_ultra_all_inclusive || Math.round(nightlyRate * 2.30);
-      boardTypeLabel = "Ultra Her Şey Dahil (UAI)";
+    if (hasCustomNightlyRate) {
+      nightlyRate = Number((guest as any).custom_nightly_rate);
+      boardTypeLabel = `${guest.board_type || 'BB'} (Özel / Revize Fiyat: ₺${nightlyRate.toLocaleString('tr-TR')})`;
+    } else {
+      const bt = (guest.board_type || 'bed_breakfast').toLowerCase();
+      if (bt.includes('room_only') || bt === 'ro') {
+        nightlyRate = room.board_prices?.room_only || room.price_room_only || Math.round(nightlyRate * 0.88);
+        boardTypeLabel = "Sadece Oda (RO)";
+      } else if (bt.includes('half_board') || bt === 'hb') {
+        nightlyRate = room.board_prices?.half_board || room.price_half_board || Math.round(nightlyRate * 1.28);
+        boardTypeLabel = "Yarım Pansiyon (HB)";
+      } else if (bt.includes('full_board') || bt === 'fb') {
+        nightlyRate = room.board_prices?.full_board || room.price_full_board || Math.round(nightlyRate * 1.56);
+        boardTypeLabel = "Tam Pansiyon (FB)";
+      } else if (bt.includes('all_inclusive') || bt === 'ai') {
+        nightlyRate = room.board_prices?.all_inclusive || room.price_all_inclusive || Math.round(nightlyRate * 1.92);
+        boardTypeLabel = "Her Şey Dahil (AI)";
+      } else if (bt.includes('ultra') || bt === 'uai') {
+        nightlyRate = room.board_prices?.ultra_all_inclusive || room.price_ultra_all_inclusive || Math.round(nightlyRate * 2.30);
+        boardTypeLabel = "Ultra Her Şey Dahil (UAI)";
+      }
     }
 
     // 3. Person count and individual breakdown
     // Core Formula: Oda Başı ise -> Toplam fiyat sabittir. Kişi Başı ise -> (fiyat X kişi sayısı x gece) - (yaş indirimleri).
-    const isPerPerson = room.pricing_type !== 'per_room';
+    // Manuel/revize fiyat girilmişse operatörün belirlediği net oda fiyatı esas alınır.
+    const isPerPerson = room.pricing_type !== 'per_room' && !hasCustomNightlyRate;
     const additionalGuests = Array.isArray(room.additional_guests) ? room.additional_guests : [];
     const totalPersons = 1 + additionalGuests.length;
 
@@ -2341,6 +2350,38 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
     setAddExpenseModalRoom(null);
     setManualExpense({ title: "", amount: 0, category: "Restoran Adisyon" });
+  };
+
+  // Handle Remove Expense from Room Folio
+  const handleRemoveExpenseFromFolio = (roomId: string, itemId: string) => {
+    setRooms(rooms.map(r => {
+      if (r.id === roomId && r.folio) {
+        const updatedItems = r.folio.items.filter(item => item.id !== itemId);
+        const newTotal = updatedItems.reduce((acc, curr) => acc + curr.amount, 0);
+        return {
+          ...r,
+          folio: {
+            ...r.folio,
+            total_amount: newTotal,
+            items: updatedItems
+          }
+        };
+      }
+      return r;
+    }));
+  };
+
+  // Handle Clear All Folio Expenses (Quick purge for test adisyons)
+  const handleClearFolioExpenses = (roomId: string) => {
+    setRooms(rooms.map(r => {
+      if (r.id === roomId) {
+        return {
+          ...r,
+          folio: { id: r.folio?.id || `folio-${Date.now()}`, total_amount: 0, items: [] }
+        };
+      }
+      return r;
+    }));
   };
 
   // Safe Isolated Print Function (Prevents Blank Page / Freeze Defects)
@@ -3809,7 +3850,14 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         handlePrintFolio={handlePrintFolio}
         handleExecuteCheckOut={handleExecuteCheckOut}
         setAddExpenseModalRoom={setAddExpenseModalRoom}
-        addExpenseModalRoom={addExpenseModalRoom}
+        handleRemoveExpenseFromFolio={handleRemoveExpenseFromFolio}
+        handleClearFolioExpenses={handleClearFolioExpenses}
+      />
+
+      {/* MODAL: ADD MANUAL EXPENSE / ADISYON (ALWAYS VISIBLE DIRECTLY WHEN TRIGGERED) */}
+      <HotelAddExpenseModal
+        room={addExpenseModalRoom}
+        onClose={() => setAddExpenseModalRoom(null)}
         manualExpense={manualExpense}
         setManualExpense={setManualExpense}
         handleAddExpenseToFolio={handleAddExpenseToFolio}
