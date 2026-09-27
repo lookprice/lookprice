@@ -31,13 +31,15 @@ interface DuplicateMergeModalProps {
   onClose: () => void;
   onMergedSuccess: () => void;
   storeId?: number;
+  initialSelectedIds?: number[];
 }
 
 export const DuplicateMergeModal: React.FC<DuplicateMergeModalProps> = ({
   isOpen,
   onClose,
   onMergedSuccess,
-  storeId
+  storeId,
+  initialSelectedIds
 }) => {
   const [candidates, setCandidates] = useState<DuplicateCandidate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,7 +50,47 @@ export const DuplicateMergeModal: React.FC<DuplicateMergeModalProps> = ({
     setLoading(true);
     try {
       const res = await api.getDuplicateCandidates(storeId);
-      setCandidates(res.data?.candidates || []);
+      let list: DuplicateCandidate[] = res.data?.candidates || [];
+
+      // If operator explicitly selected 2 items from table
+      if (initialSelectedIds && initialSelectedIds.length === 2) {
+        const id1 = initialSelectedIds[0];
+        const id2 = initialSelectedIds[1];
+        const existingIdx = list.findIndex(c => 
+          (c.target.id === id1 && c.source.id === id2) || 
+          (c.target.id === id2 && c.source.id === id1)
+        );
+
+        if (existingIdx >= 0) {
+          // Move to top
+          const matched = list.splice(existingIdx, 1)[0];
+          list.unshift(matched);
+        } else {
+          // Fetch the two products directly and synthesize a candidate pair
+          try {
+            const [p1Res, p2Res] = await Promise.all([
+              api.getProduct(id1, storeId),
+              api.getProduct(id2, storeId)
+            ]);
+            const p1 = p1Res.data || p1Res;
+            const p2 = p2Res.data || p2Res;
+            if (p1 && p2) {
+              const target = Number(p1.stock_quantity) >= Number(p2.stock_quantity) ? p1 : p2;
+              const source = Number(p1.stock_quantity) >= Number(p2.stock_quantity) ? p2 : p1;
+              list.unshift({
+                target,
+                source,
+                reason: "Tablodan Seçilen Özel 2 Ürün Eşleşmesi",
+                confidence: 100
+              });
+            }
+          } catch (e) {
+            console.warn("Could not fetch selected items for merge:", e);
+          }
+        }
+      }
+
+      setCandidates(list);
     } catch (err: any) {
       console.error("Duplicate candidates fetch error:", err);
       toast.error(err.response?.data?.error || "Mükerrer ürünler taranamadı.");

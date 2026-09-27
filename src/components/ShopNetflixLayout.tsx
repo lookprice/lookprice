@@ -324,116 +324,117 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
         </div>
       </header>
 
-      {/* HORIZONTAL CATEGORIES QUICK PILLS */}
-      {categories.length > 0 && (
-        <div className="bg-slate-900/60 border-b border-slate-800/60 px-4 sm:px-8 py-2.5 overflow-x-auto no-scrollbar flex items-center gap-2">
-          <button
-            onClick={() => { setSelectedCategory("all"); if (activeTab === 'catalog') setActiveTab('home'); }}
-            className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-              selectedCategory === "all" ? "bg-blue-600 text-white shadow-xs" : "bg-slate-800/80 text-slate-300 hover:bg-slate-700"
-            }`}
-          >
-            ✨ {isTr ? "Tüm Kategoriler" : "All Categories"}
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => { setSelectedCategory(cat); setActiveTab('catalog'); }}
-              className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                selectedCategory === cat ? "bg-blue-600 text-white shadow-xs" : "bg-slate-800/80 text-slate-300 hover:bg-slate-700"
-              }`}
-            >
-              📦 {cat}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* MAIN VIEW CONTENT */}
       {activeTab === 'home' && !searchQuery ? (
-        <div className="space-y-10 pb-20">
-          {/* CINEMATIC HERO BANNER */}
+        <div className="space-y-8 pb-20">
+          {/* MINIMALIST ILLUMINATED HERO SHOWCASE BANNER */}
           {currentHero && (
-            <div className="relative w-full h-[450px] sm:h-[520px] overflow-hidden bg-slate-900 flex items-end">
-              <div className="absolute inset-0">
-                <img 
-                  src={getProductImageUrl(currentHero)} 
-                  alt={currentHero.name}
-                  className="w-full h-full object-cover object-center filter brightness-90 transform scale-105 transition-all duration-1000"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/50 to-transparent" />
-              </div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4 sm:pt-6">
+              <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 shadow-2xl p-5 sm:p-7 md:p-9 min-h-[260px] sm:min-h-[300px] flex flex-col md:flex-row items-center justify-between gap-6 group">
+                {/* Luminous Ambient Background Glow */}
+                <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -top-10 -left-10 w-64 h-64 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
 
-              <div className="relative z-10 max-w-5xl mx-auto px-6 sm:px-12 pb-12 w-full space-y-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-1 bg-blue-600 text-white rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-md">
-                    <Sparkles className="h-3 w-3" />
-                    Öne Çıkan Ürün
-                  </span>
-                  {currentHero.brand && (
-                    <span className="px-2.5 py-1 bg-slate-800/80 backdrop-blur-md text-slate-300 rounded-lg font-bold text-[10px] border border-slate-700">
-                      {currentHero.brand}
+                {/* LEFT CONTENT */}
+                <div className="relative z-10 max-w-2xl space-y-3 w-full">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded-md font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                      <Sparkles className="h-3 w-3" />
+                      Öne Çıkan Ürün
                     </span>
-                  )}
-                  {currentHero.category && (
-                    <span className="px-2.5 py-1 bg-slate-800/80 backdrop-blur-md text-slate-300 rounded-lg font-bold text-[10px] border border-slate-700">
-                      {currentHero.category}
-                    </span>
-                  )}
-                  {getLabels(currentHero.labels || (currentHero as any).tags || (currentHero as any).badges).slice(0, 3).map((lbl, idx) => (
-                    <span key={idx} className="px-2 py-0.5 bg-indigo-900/80 text-indigo-200 rounded-md font-bold text-[9px] border border-indigo-700/60">
-                      🏷️ {lbl}
-                    </span>
-                  ))}
-                </div>
-
-                <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white drop-shadow-md max-w-3xl">
-                  {currentHero.name}
-                </h1>
-
-                <p className="text-xs sm:text-sm text-slate-300 line-clamp-2 max-w-2xl font-medium">
-                  {currentHero.description || (isTr ? "Bu sezona damga vuran premium ürünümüzü hemen keşfedin ve avantajlı fiyatlardan yararlanın." : "Discover our premium product defining this season with exceptional value.")}
-                </p>
-
-                <div className="flex items-center gap-3 pt-2 flex-wrap">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xl sm:text-2xl font-black text-blue-400">
-                      ₺{(currentHero.price || 0).toLocaleString('tr-TR')}
-                    </span>
-                    {currentHero.old_price && currentHero.old_price > currentHero.price && (
-                      <span className="text-xs text-slate-400 line-through">
-                        ₺{currentHero.old_price.toLocaleString('tr-TR')}
+                    {currentHero.brand && (
+                      <span className="px-2 py-0.5 bg-slate-800/90 text-slate-300 rounded-md font-bold text-[9px] border border-slate-700">
+                        {currentHero.brand}
                       </span>
                     )}
+                    {currentHero.category && (
+                      <span className="px-2 py-0.5 bg-slate-800/90 text-slate-300 rounded-md font-bold text-[9px] border border-slate-700">
+                        {currentHero.category}
+                      </span>
+                    )}
+                    {getLabels(currentHero.labels || (currentHero as any).tags || (currentHero as any).badges).slice(0, 2).map((lbl, idx) => (
+                      <span key={idx} className="px-2 py-0.5 bg-indigo-900/80 text-indigo-200 rounded-md font-bold text-[9px] border border-indigo-700/60">
+                        🏷️ {lbl}
+                      </span>
+                    ))}
                   </div>
 
-                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-lg border ${
-                    getProductStockCount(currentHero) > 0 
-                      ? "bg-emerald-950/60 text-emerald-300 border-emerald-800/80" 
-                      : "bg-rose-950/60 text-rose-300 border-rose-800/80"
-                  }`}>
-                    {getProductStockCount(currentHero) > 0 ? `Stokta: ${getProductStockCount(currentHero)} Adet` : "Tükendi"}
-                  </span>
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white drop-shadow-xs line-clamp-2">
+                    {currentHero.name}
+                  </h1>
 
-                  <button
-                    type="button"
-                    onClick={() => onViewProduct(currentHero, products)}
-                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-xl shadow-blue-600/30 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <span>{isTr ? "Hemen İncele" : "View Details"}</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
+                  <p className="text-xs sm:text-sm text-slate-300 line-clamp-2 max-w-xl font-normal leading-relaxed">
+                    {currentHero.description || (isTr ? "Bu sezona damga vuran premium ürünümüzü hemen keşfedin ve avantajlı fiyatlardan yararlanın." : "Discover our premium product defining this season with exceptional value.")}
+                  </p>
 
-                  <button
-                    type="button"
-                    onClick={() => addToBasket(currentHero)}
-                    className="px-5 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 border border-slate-700 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <ShoppingBag className="h-4 w-4" />
-                    <span>{isTr ? "Sepete Ekle" : "Add to Cart"}</span>
-                  </button>
+                  <div className="flex items-center gap-3 pt-1 flex-wrap">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-lg sm:text-2xl font-black text-blue-400">
+                        ₺{(currentHero.price || 0).toLocaleString('tr-TR')}
+                      </span>
+                      {currentHero.old_price && currentHero.old_price > currentHero.price && (
+                        <span className="text-xs text-slate-400 line-through">
+                          ₺{currentHero.old_price.toLocaleString('tr-TR')}
+                        </span>
+                      )}
+                    </div>
+
+                    <span className={`px-2 py-0.5 text-[9px] font-bold rounded-md border ${
+                      getProductStockCount(currentHero) > 0 
+                        ? "bg-emerald-950/60 text-emerald-300 border-emerald-800/80" 
+                        : "bg-rose-950/60 text-rose-300 border-rose-800/80"
+                    }`}>
+                      {getProductStockCount(currentHero) > 0 ? `Stokta: ${getProductStockCount(currentHero)} Adet` : "Tükendi"}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => onViewProduct(currentHero, products)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <span>{isTr ? "Hemen İncele" : "View Details"}</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => addToBasket(currentHero)}
+                      className="px-4 py-2 bg-slate-800/90 hover:bg-slate-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 border border-slate-700 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <ShoppingBag className="h-3.5 w-3.5" />
+                      <span>{isTr ? "Sepete Ekle" : "Add to Cart"}</span>
+                    </button>
+                  </div>
                 </div>
+
+                {/* RIGHT CRISP PRODUCT IMAGE SHOWCASE */}
+                <div className="relative z-10 shrink-0 w-48 sm:w-60 md:w-72 h-44 sm:h-52 md:h-60 flex items-center justify-center p-2">
+                  <div className="w-full h-full rounded-2xl bg-slate-950/60 border border-slate-800/60 flex items-center justify-center p-3 shadow-inner overflow-hidden">
+                    <img 
+                      src={getProductImageUrl(currentHero)} 
+                      alt={currentHero.name}
+                      className="max-w-full max-h-full object-contain filter brightness-105 contrast-105 drop-shadow-xl transform transition-transform duration-500 group-hover:scale-105"
+                      loading="eager"
+                    />
+                  </div>
+                </div>
+
+                {/* HERO SLIDER DOTS */}
+                {heroProducts.length > 1 && (
+                  <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-slate-950/70 backdrop-blur-xs px-2 py-0.5 rounded-full border border-slate-800">
+                    {heroProducts.map((_, hIdx) => (
+                      <button
+                        key={hIdx}
+                        type="button"
+                        onClick={() => setHeroIndex(hIdx)}
+                        className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                          heroIndex === hIdx ? "w-4 bg-blue-500 shadow-xs" : "w-1.5 bg-white/30 hover:bg-white/60"
+                        }`}
+                        title={`Ürün ${hIdx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

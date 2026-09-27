@@ -192,11 +192,84 @@ export async function mergeProducts(clientOrPool: any, sourceId: number, targetI
 }
 
 /**
+ * Normalizes hardware/retail product titles for fuzzy & synonym matching
+ */
+function normalizeTechTerms(str: string): string {
+  if (!str) return "";
+  let s = str.toLowerCase()
+    .replace(/[ıİ]/g, "i")
+    .replace(/[ğĞ]/g, "g")
+    .replace(/[üÜ]/g, "u")
+    .replace(/[şŞ]/g, "s")
+    .replace(/[öÖ]/g, "o")
+    .replace(/[çÇ]/g, "c");
+  
+  // Normalize common technical synonyms
+  s = s.replace(/\b(card\s*reader|kart\s*okuyucu|kart\s*okuyucusu)\b/g, "kart_okuyucu");
+  s = s.replace(/\b(memory\s*card|hafiza\s*karti|bellek\s*karti)\b/g, "bellek_karti");
+  s = s.replace(/\b(wireless|kablosuz)\b/g, "kablosuz");
+  s = s.replace(/\b(mouse|fare)\b/g, "mouse");
+  s = s.replace(/\b(keyboard|klavye)\b/g, "klavye");
+  s = s.replace(/\b(headset|headphone|earphone|kulaklik)\b/g, "kulaklik");
+  s = s.replace(/\b(speaker|hoparlor)\b/g, "hoparlor");
+  s = s.replace(/\b(cable|kablo)\b/g, "kablo");
+  s = s.replace(/\b(adapter|adaptor|charger|sarj\s*aleti)\b/g, "adaptor");
+  s = s.replace(/\b(case|canta|kilif)\b/g, "kilif");
+  
+  return s.replace(/[^a-z0-9_]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Extracts distinct model codes (alphanumerics or 4+ digit part numbers)
+ */
+function getProductModelCodes(p: any): string[] {
+  const text = `${p.name || ''} ${p.product_code || ''} ${p.sku || ''} ${p.barcode || ''}`;
+  const tokens = text.match(/[A-Za-z0-9]+(?:[-_/][A-Za-z0-9]+)+|[A-Za-z]{1,4}[0-9]{2,6}[A-Za-z0-9]*|[0-9]{4,8}[A-Za-z]+|\b[0-9]{4,8}\b/g) || [];
+  
+  // Filter out obvious generic non-model numbers (years if generic, or common standard vat/percentages)
+  const ignored = new Set(["2020", "2021", "2022", "2023", "2024", "2025", "2026", "1000", "2000", "3000", "0000"]);
+  return Array.from(new Set(tokens.map(t => t.trim().toLowerCase()))).filter(t => t.length >= 4 && !ignored.has(t));
+}
+
+function scoreProductAsTarget(p: any): number {
+  let score = 0;
+  // 1. Is sellable / active vs closed
+  if (p.is_sellable !== false) score += 100;
+  else score -= 50;
+
+  // 2. Barcode validity
+  const bar = (p.barcode || "").trim();
+  if (isValidStandardBarcode(bar)) score += 80;
+  else if (!bar || bar.startsWith("200") || bar.startsWith("TEMP")) score -= 30;
+
+  // 3. Stock quantity (positive stock preferred over negative stock)
+  const stock = Number(p.stock_quantity) || 0;
+  if (stock > 0) score += 60 + Math.min(stock, 20);
+  else if (stock < 0) score -= 40;
+
+  // 4. Selling price active
+  const price = Number(p.price) || 0;
+  if (price > 0) score += 40;
+
+  // 5. Cost price defined
+  if (Number(p.cost_price) > 0) score += 15;
+
+  // 6. Image present
+  if (p.image_url) score += 25;
+
+  // 7. Brand and category
+  if (p.brand) score += 10;
+  if (p.category) score += 10;
+
+  return score;
+}
+
+/**
  * Scans a store's products to find candidate pairs for merging (duplicates, temp barcodes matching real products).
  */
 export async function getDuplicateCandidatesForStore(storeId: number) {
   const all = await pool.query(
-    `SELECT id, store_id, name, barcode, product_code, sku, stock_quantity, cost_price, cost_currency, price, currency, image_url, category, brand, created_at 
+    `SELECT id, store_id, name, barcode, product_code, sku, stock_quantity, cost_price, cost_currency, price, currency, image_url, category, brand, is_sellable, created_at 
      FROM products 
      WHERE store_id = $1 
      ORDER BY id ASC`,
@@ -223,49 +296,76 @@ export async function getDuplicateCandidatesForStore(storeId: number) {
       const bCode = (b.product_code || "").trim().toLowerCase();
       const aSku = (a.sku || "").trim().toLowerCase();
       const bSku = (b.sku || "").trim().toLowerCase();
+      const aBar = (a.barcode || "").trim().toLowerCase();
+      const bBar = (b.barcode || "").trim().toLowerCase();
 
-      const codeMatch = (aCode && bCode && aCode === bCode) ||
-                        (aSku && bSku && aSku === bSku) ||
-                        (aCode && bSku && aCode === bSku) ||
-                        (aSku && bCode && aSku === bCode);
+      // 1. Direct code/sku match
+      const directCodeMatch = (aCode && bCode && aCode === bCode) ||
+                              (aSku && bSku && aSku === bSku) ||
+                              (aCode && bSku && aCode === bSku) ||
+                              (aSku && bCode && aSku === bCode);
 
-      const aNameNorm = (a.name || "").trim().toLowerCase();
-      const bNameNorm = (b.name || "").trim().toLowerCase();
-      const nameMatch = aNameNorm.length > 2 && aNameNorm === bNameNorm;
+      // 2. Cross barcode <-> code match
+      const crossBarCodeMatch = (aBar && bCode && aBar === bCode) ||
+                                (aBar && bSku && aBar === bSku) ||
+                                (bBar && aCode && bBar === aCode) ||
+                                (bBar && aSku && bBar === aSku) ||
+                                (aBar && bBar && aBar === bBar && a.id !== b.id);
 
-      if (codeMatch && nameMatch) {
+      // 3. Name normalization & tech terms
+      const aNorm = normalizeTechTerms(a.name);
+      const bNorm = normalizeTechTerms(b.name);
+      const exactNameMatch = aNorm.length > 3 && aNorm === bNorm;
+
+      // 4. Model code extraction & token overlap
+      const aModels = getProductModelCodes(a);
+      const bModels = getProductModelCodes(b);
+      const sharedModels = aModels.filter(m => bModels.includes(m));
+
+      // Brand matching
+      const aBrand = (a.brand || a.name.split(" ")[0] || "").trim().toLowerCase();
+      const bBrand = (b.brand || b.name.split(" ")[0] || "").trim().toLowerCase();
+      const brandMatch = aBrand.length >= 3 && bBrand.length >= 3 && (aBrand === bBrand || aNorm.includes(bBrand) || bNorm.includes(aBrand));
+
+      // Word tokens overlap
+      const aWords = aNorm.split(/\s+/).filter(w => w.length > 2);
+      const bWords = bNorm.split(/\s+/).filter(w => w.length > 2);
+      const sharedWords = aWords.filter(w => bWords.includes(w));
+      const unionWordCount = new Set([...aWords, ...bWords]).size;
+      const jaccard = unionWordCount > 0 ? sharedWords.length / unionWordCount : 0;
+
+      if (directCodeMatch && exactNameMatch) {
         reason = `Ürün Kodu (${a.product_code || a.sku}) ve Ürün Adı birebir aynı`;
         confidence = 100;
-      } else if (codeMatch) {
-        reason = `Aynı Ürün Kodu / Model No (${a.product_code || a.sku})`;
-        confidence = (aIsTemp || bIsTemp) ? 95 : 85;
-      } else if (nameMatch && (aIsTemp || bIsTemp)) {
-        reason = `Birebir aynı ürün adı (biri geçici/dahili barkodlu)`;
-        confidence = 90;
-      } else if (nameMatch) {
-        reason = `Birebir aynı ürün adı`;
-        confidence = 80;
+      } else if (crossBarCodeMatch) {
+        reason = `Barkod & Ürün Kodu Çapraz Eşleşmesi (${a.barcode || b.barcode})`;
+        confidence = 98;
+      } else if (sharedModels.length > 0 && (brandMatch || sharedWords.length >= 2 || jaccard >= 0.4)) {
+        reason = `Aynı Model / Parça Kodu (${sharedModels[0].toUpperCase()}) ve ${brandMatch ? aBrand.toUpperCase() + ' Marka' : 'Teknik Ürün'} Eşleşmesi`;
+        confidence = 95;
+      } else if (directCodeMatch) {
+        reason = `Aynı Ürün Kodu / Model No (${a.product_code || a.sku || b.product_code || b.sku})`;
+        confidence = (aIsTemp || bIsTemp) ? 95 : 90;
+      } else if (exactNameMatch) {
+        reason = `Birebir aynı ürün adı ${aIsTemp || bIsTemp ? '(dahili/geçici barkodlu)' : ''}`;
+        confidence = (aIsTemp || bIsTemp) ? 95 : 90;
+      } else if (brandMatch && (sharedWords.length >= 3 || jaccard >= 0.6)) {
+        reason = `Aynı Marka (${aBrand.toUpperCase()}) ve Yüksek İsim/Donanım Benzerliği`;
+        confidence = 88;
+      } else if (sharedModels.length > 0 && sharedModels[0].length >= 5) {
+        reason = `Ortak Ürün Model Numarası (${sharedModels[0].toUpperCase()})`;
+        confidence = 85;
       }
 
       if (reason) {
         seenPairs.add(pairKey);
-        // Decide target (to keep) and source (to merge into target)
-        let target = a;
-        let source = b;
 
-        if (aIsTemp && !bIsTemp) {
-          target = b;
-          source = a;
-        } else if (!aIsTemp && bIsTemp) {
-          target = a;
-          source = b;
-        } else {
-          // If both temp or both real: prefer the one with positive stock or earlier created
-          if ((Number(b.stock_quantity) || 0) > (Number(a.stock_quantity) || 0)) {
-            target = b;
-            source = a;
-          }
-        }
+        // Smart decision of target (keeper) and source (to merge into target)
+        const aScore = scoreProductAsTarget(a);
+        const bScore = scoreProductAsTarget(b);
+
+        let target = aScore >= bScore ? a : b;
+        let source = aScore >= bScore ? b : a;
 
         candidates.push({ target, source, reason, confidence });
       }

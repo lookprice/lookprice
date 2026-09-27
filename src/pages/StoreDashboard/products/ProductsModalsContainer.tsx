@@ -94,6 +94,7 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
             if (onRefresh) onRefresh();
           }}
           storeId={currentStoreId}
+          initialSelectedIds={selectedIds}
         />
       )}
 

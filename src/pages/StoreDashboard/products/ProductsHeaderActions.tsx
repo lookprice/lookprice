@@ -6,7 +6,8 @@ import {
   Download, 
   Sparkles, 
   Tag, 
-  Cloud 
+  Cloud,
+  Layers
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/services/api";
@@ -97,6 +98,20 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
               <Plus className="h-4 w-4" />
             </button>
 
+            {selectedIds.length === 2 && (
+              <button 
+                type="button"
+                onClick={() => setIsMergeModalOpen(true)}
+                className="p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg transition-all border border-indigo-200 hover:border-indigo-700 active:scale-95 font-bold flex items-center gap-1.5 shadow-xs text-xs cursor-pointer animate-in fade-in duration-200"
+                title={lang === 'tr' ? "Seçilen 2 Mükerrer Ürünü Birleştir" : "Merge Selected 2 Products"}
+              >
+                <Layers className="h-4 w-4" />
+                <span className="text-[10px] tracking-tight uppercase hidden xs:inline sm:inline">
+                  {lang === 'tr' ? "2 ÜRÜNÜ BİRLEŞTİR" : "MERGE 2"}
+                </span>
+              </button>
+            )}
+
             {selectedIds.length > 0 && (
               <button 
                 type="button"
@@ -166,7 +181,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
             >
               <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
               <span className="text-[11px] font-bold text-amber-900 hidden lg:inline whitespace-nowrap">
-                {lang === 'tr' ? "Temizle" : "Clean"}
+                {lang === 'tr' ? "Mükerrer Birleştir" : "Merge Duplicates"}
               </span>
             </button>
           </>
