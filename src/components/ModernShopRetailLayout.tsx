@@ -859,7 +859,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
               <img
                 src={heroImage}
                 alt={heroTitle}
-                className="w-full h-full object-cover object-center opacity-65 scale-105 transition-all duration-700"
+                className="w-full h-full object-cover object-center opacity-80 scale-105 filter brightness-105 contrast-110 saturate-110 transition-all duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/70 to-transparent" />
             </div>

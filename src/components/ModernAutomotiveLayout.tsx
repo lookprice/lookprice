@@ -449,6 +449,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                   backgroundImage: `url(${slide.image_url})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
+                  filter: "brightness(1.05) contrast(1.1) saturate(1.1)",
                   zIndex: isActive ? 1 : 0
                 }}
               ></div>

@@ -1027,9 +1027,9 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
               : (customHeroImage || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=1600")
             }
             alt="Hero Background"
-            className="w-full h-full object-cover opacity-50 md:opacity-60 filter brightness-95 transition-all duration-1000"
+            className="w-full h-full object-cover opacity-75 md:opacity-85 filter brightness-105 contrast-110 saturate-110 transition-all duration-1000"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-slate-950/20" />
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center space-y-4 md:space-y-6 w-full">
