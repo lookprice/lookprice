@@ -126,13 +126,13 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[94vh] overflow-hidden">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[94vh] overflow-hidden text-slate-900 dark:text-slate-100">
         
-        {/* COMPACT FUTURISTIC HEADER */}
-        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-900/90">
+        {/* COMPACT CORPORATE ILLUMINATED HEADER */}
+        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black border border-indigo-200 dark:border-indigo-800/60">
               <Building2 className="h-4 w-4" />
             </div>
             <div>
@@ -140,7 +140,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                 <span className="text-sm font-black text-slate-900 dark:text-white">
                   {editingRoom ? `Oda #${editingRoom.room_number}` : "Yeni Oda Tanımla"}
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
                   {editingRoom ? "Düzenle & Güncelle" : "Oluştur"}
                 </span>
               </div>
@@ -156,8 +156,8 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
           </button>
         </div>
 
-        {/* FUTURISTIC SEGMENTED TAB SELECTOR */}
-        <div className="px-4 pt-2.5 pb-2 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5 overflow-x-auto text-xs">
+        {/* CORPORATE SEGMENTED TAB SELECTOR */}
+        <div className="px-4 pt-2.5 pb-2 bg-slate-50/50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto text-xs">
           {[
             { id: 'general', label: 'Temel & Yatak', icon: <Bed className="h-3.5 w-3.5" /> },
             { id: 'pricing', label: 'Pansiyon Fiyatları', icon: <Receipt className="h-3.5 w-3.5" /> },
@@ -173,7 +173,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all text-xs cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'
                 }`}
               >
                 {tab.icon}
@@ -184,7 +184,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
         </div>
 
         {/* FORM CONTAINER - HIGH INFORMATION DENSITY */}
-        <form onSubmit={handleSubmitRoom} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+        <form onSubmit={handleSubmitRoom} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-slate-50/30 dark:bg-slate-900/60">
           
           {/* TAB 1: TEMEL BİLGİLER & YATAK KONFİGÜRASYONU */}
           {activeTab === 'general' && (
@@ -192,7 +192,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
               {/* Row 1: Oda No, Oda Tipi, Kat, Durum */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase block mb-1">
                     Oda No *
                   </label>
                   <input
@@ -201,12 +201,12 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                     placeholder="101"
                     value={roomForm.room_number}
                     onChange={(e) => setRoomForm({ ...roomForm, room_number: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white focus:ring-1 focus:ring-indigo-500"
+                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-2xs"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase block mb-1">
                     Oda Tipi *
                   </label>
                   <input
@@ -215,18 +215,18 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                     placeholder="Standart Çift Kişilik"
                     value={roomForm.room_type}
                     onChange={(e) => setRoomForm({ ...roomForm, room_type: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white focus:ring-1 focus:ring-indigo-500"
+                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-2xs"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase block mb-1">
                     Kat
                   </label>
                   <select
                     value={roomForm.floor}
                     onChange={(e) => setRoomForm({ ...roomForm, floor: Number(e.target.value) })}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white focus:ring-1 focus:ring-indigo-500"
+                    className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-2xs"
                   >
                     <option value={0}>Zemin (0)</option>
                     <option value={1}>1. Kat</option>
@@ -239,13 +239,13 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase block mb-1">
                     Durum
                   </label>
                   <select
                     value={roomForm.status}
                     onChange={(e) => setRoomForm({ ...roomForm, status: e.target.value as any })}
-                    className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white focus:ring-1 focus:ring-indigo-500"
+                    className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-2xs"
                   >
                     <option value="vacant">🟢 Boş & Temiz</option>
                     <option value="occupied">🔴 Dolu (Bugün Konaklayan)</option>
@@ -256,37 +256,37 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                 </div>
               </div>
 
-              {/* Yatak Konfigürasyonu Kartı */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5">
+              {/* Yatak Konfigürasyonu Kartı - ILLUMINATED & CRYSTAL CLEAR */}
+              <div className="p-3.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase flex items-center gap-1.5">
-                    <Bed className="h-3.5 w-3.5 text-indigo-500" />
+                  <span className="text-[11px] font-black text-slate-900 dark:text-slate-100 uppercase flex items-center gap-1.5">
+                    <Bed className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                     Yataklar & Kapasite
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black px-2 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-md">
+                    <span className="text-[11px] font-black px-2.5 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-md shadow-2xs">
                       {roomForm.capacity} Kişi Kapasite
                     </span>
                   </div>
                 </div>
 
-                {/* Yatak Sayaçları */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {/* Yatak Sayaçları (Mobile 2-Cols / Desktop 4-Cols, Clear Badges) */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   {[
-                    { label: "Çift Kişilik", key: "doubleBeds", icon: <BedDouble className="h-3.5 w-3.5 text-indigo-500" /> },
-                    { label: "Tek Kişilik", key: "singleBeds", icon: <BedSingle className="h-3.5 w-3.5 text-sky-500" /> },
-                    { label: "Ranza", key: "bunkBeds", icon: <Layers className="h-3.5 w-3.5 text-amber-500" /> },
-                    { label: "Ekstra Yatak", key: "extraBeds", icon: <BedSingle className="h-3.5 w-3.5 text-emerald-500" /> },
-                    { label: "Yer Yatağı", key: "floorMattress", icon: <Bed className="h-3.5 w-3.5 text-slate-400" /> },
-                    { label: "Bebek Beşiği", key: "babyCribs", icon: <User className="h-3.5 w-3.5 text-rose-400" /> },
-                    { label: "Açılır Çekyat", key: "sofaBeds", icon: <Bed className="h-3.5 w-3.5 text-purple-500" /> },
+                    { label: "Çift Kişilik", key: "doubleBeds", icon: <BedDouble className="h-4 w-4 text-indigo-500 shrink-0" /> },
+                    { label: "Tek Kişilik", key: "singleBeds", icon: <BedSingle className="h-4 w-4 text-sky-500 shrink-0" /> },
+                    { label: "Ranza", key: "bunkBeds", icon: <Layers className="h-4 w-4 text-amber-500 shrink-0" /> },
+                    { label: "Ekstra Yatak", key: "extraBeds", icon: <BedSingle className="h-4 w-4 text-emerald-500 shrink-0" /> },
+                    { label: "Yer Yatağı", key: "floorMattress", icon: <Bed className="h-4 w-4 text-slate-500 shrink-0" /> },
+                    { label: "Bebek Beşiği", key: "babyCribs", icon: <User className="h-4 w-4 text-rose-500 shrink-0" /> },
+                    { label: "Açılır Çekyat", key: "sofaBeds", icon: <Bed className="h-4 w-4 text-purple-500 shrink-0" /> },
                   ].map((item) => {
                     const count = bedConfig[item.key] || 0;
                     return (
-                      <div key={item.key} className="p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-1 text-xs">
-                        <div className="flex items-center gap-1 min-w-0">
+                      <div key={item.key} className="p-2 bg-slate-50 dark:bg-slate-900/90 rounded-lg border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-1.5 text-xs shadow-2xs">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
                           {item.icon}
-                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate">
+                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">
                             {item.label}
                           </span>
                         </div>
@@ -294,15 +294,19 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                           <button
                             type="button"
                             onClick={() => updateBedItem(item.key, -1)}
-                            className="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-rose-100 hover:text-rose-700 font-black text-xs flex items-center justify-center cursor-pointer transition-colors"
+                            className="w-6 h-6 rounded-md bg-white dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950 dark:hover:text-rose-300 text-slate-700 dark:text-slate-200 font-black text-xs flex items-center justify-center cursor-pointer transition-all border border-slate-200 dark:border-slate-700 active:scale-90 shadow-2xs"
+                            title="Azalt"
                           >
                             -
                           </button>
-                          <span className="w-4 text-center font-black text-xs">{count}</span>
+                          <span className="min-w-[22px] px-1 h-6 flex items-center justify-center font-black text-xs rounded-md bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80">
+                            {count}
+                          </span>
                           <button
                             type="button"
                             onClick={() => updateBedItem(item.key, 1)}
-                            className="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 hover:text-emerald-700 font-black text-xs flex items-center justify-center cursor-pointer transition-colors"
+                            className="w-6 h-6 rounded-md bg-white dark:bg-slate-800 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950 dark:hover:text-emerald-300 text-slate-700 dark:text-slate-200 font-black text-xs flex items-center justify-center cursor-pointer transition-all border border-slate-200 dark:border-slate-700 active:scale-90 shadow-2xs"
+                            title="Arttır"
                           >
                             +
                           </button>
@@ -312,9 +316,9 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                   })}
                 </div>
 
-                {/* Hızlı Şablonlar */}
-                <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-200/60 dark:border-slate-800">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">Şablon:</span>
+                {/* Hızlı Şablonlar (High-Contrast Buttons) */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-100 dark:border-slate-700/60">
+                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wide">Şablon:</span>
                   {[
                     { label: "1 Çift Kişilik", d: 1, s: 0, b: 0, ex: 0, fl: 0, cb: 0, sf: 0 },
                     { label: "2 Tek (Twin)", d: 0, s: 2, b: 0, ex: 0, fl: 0, cb: 0, sf: 0 },
@@ -326,7 +330,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       key={tpl.label}
                       type="button"
                       onClick={() => applyBedTemplate(tpl)}
-                      className="px-2 py-0.5 text-[9px] font-bold rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950 transition-colors cursor-pointer"
+                      className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-300 transition-all cursor-pointer shadow-2xs active:scale-95"
                     >
                       {tpl.label}
                     </button>
@@ -339,14 +343,14 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                   placeholder="Yatak açıklaması..."
                   value={roomForm.bed_info}
                   onChange={(e) => setRoomForm({ ...roomForm, bed_info: e.target.value })}
-                  className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-medium text-slate-900 dark:text-white placeholder:text-slate-400"
+                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
 
               {/* Olanaklar & Özellikler */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase flex items-center gap-1.5">
-                  <Coffee className="h-3.5 w-3.5 text-amber-500" />
+              <div className="p-3.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs space-y-2.5">
+                <span className="text-[11px] font-black text-slate-900 dark:text-slate-100 uppercase flex items-center gap-1.5">
+                  <Coffee className="h-4 w-4 text-amber-500" />
                   Oda Olanakları
                 </span>
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -369,10 +373,10 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                           }
                           setRoomForm({ ...roomForm, amenitiesStr: arr.join(", ") });
                         }}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-2xs active:scale-95 ${
                           isSelected
-                            ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
-                            : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100"
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                            : "bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
                         }`}
                       >
                         {isSelected ? `✓ ${amenity}` : `+ ${amenity}`}
@@ -425,8 +429,8 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
               {/* 6 Pansiyon Gecelik Fiyatları (Kompakt 3-Kolon Izgara) */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {/* RO */}
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                <div className="p-2.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-200 block mb-1">
                     Sadece Oda (RO)
                   </label>
                   <div className="relative">
@@ -436,31 +440,31 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       placeholder="0"
                       value={formatThousand(roomForm.price_room_only)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_room_only: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100"
+                      className="w-full pl-6 pr-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
 
                 {/* BB - Baz Fiyat */}
-                <div className="p-2.5 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-200 dark:border-indigo-800">
-                  <label className="text-[10px] font-bold text-indigo-900 dark:text-indigo-200 block mb-1">
+                <div className="p-2.5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800 shadow-2xs">
+                  <label className="text-[10px] font-bold text-indigo-950 dark:text-indigo-200 block mb-1">
                     Oda & Kahvaltı (BB) *
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1.5 text-xs text-indigo-500">₺</span>
+                    <span className="absolute left-2.5 top-1.5 text-xs text-indigo-600 dark:text-indigo-400">₺</span>
                     <input
                       type="text"
                       placeholder="2.500"
                       value={formatThousand(roomForm.price_per_night)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_per_night: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-xs font-normal text-indigo-950 dark:text-indigo-100"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-xs font-normal text-indigo-950 dark:text-indigo-100 focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
 
                 {/* HB */}
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                <div className="p-2.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-200 block mb-1">
                     Yarım Pansiyon (HB)
                   </label>
                   <div className="relative">
@@ -470,14 +474,14 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       placeholder="0"
                       value={formatThousand(roomForm.price_half_board)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_half_board: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100"
+                      className="w-full pl-6 pr-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
 
                 {/* FB */}
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                <div className="p-2.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-200 block mb-1">
                     Tam Pansiyon (FB)
                   </label>
                   <div className="relative">
@@ -487,14 +491,14 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       placeholder="0"
                       value={formatThousand(roomForm.price_full_board)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_full_board: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100"
+                      className="w-full pl-6 pr-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
 
                 {/* AI */}
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                <div className="p-2.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-200 block mb-1">
                     Her Şey Dahil (AI)
                   </label>
                   <div className="relative">
@@ -504,14 +508,14 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       placeholder="0"
                       value={formatThousand(roomForm.price_all_inclusive)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_all_inclusive: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100"
+                      className="w-full pl-6 pr-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
 
                 {/* UAI */}
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                <div className="p-2.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-200 block mb-1">
                     Ultra Her Şey (UAI)
                   </label>
                   <div className="relative">
@@ -521,17 +525,17 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       placeholder="0"
                       value={formatThousand(roomForm.price_ultra_all_inclusive)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_ultra_all_inclusive: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100"
+                      className="w-full pl-6 pr-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
               </div>
 
               {/* İptal Edilemez İndirimi */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="p-3.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">İptal Edilemez İndirim Oranı</span>
-                  <span className="text-[10px] text-slate-500">Erken ödemede web vitrininde uygulanacak indirim yüzdesi</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">Erken ödemede web vitrininde uygulanacak indirim yüzdesi</span>
                 </div>
                 <div className="relative w-24">
                   <span className="absolute left-2.5 top-1.5 text-xs font-bold text-emerald-600">%</span>
@@ -542,7 +546,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                     placeholder="10"
                     value={roomForm.non_refundable_discount || 0}
                     onChange={(e) => setRoomForm({ ...roomForm, non_refundable_discount: Number(e.target.value) })}
-                    className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-emerald-600 text-right"
+                    className="w-full pl-6 pr-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-emerald-600 text-right focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>

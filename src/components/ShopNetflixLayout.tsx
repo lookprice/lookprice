@@ -35,7 +35,8 @@ import { getLabels } from "../utils/showcase";
 export const getProductImageUrl = (p: Product): string => {
   if (!p) return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
   if (p.image_url && typeof p.image_url === "string" && p.image_url.trim()) return p.image_url.trim();
-  if (p.cover_image && typeof p.cover_image === "string" && p.cover_image.trim()) return p.cover_image.trim();
+  const cover = (p as any)?.cover_image;
+  if (cover && typeof cover === "string" && cover.trim()) return cover.trim();
   if (Array.isArray(p.images) && p.images.length > 0 && typeof p.images[0] === "string" && p.images[0].trim()) {
     return p.images[0].trim();
   }
@@ -287,6 +288,17 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => {
+              const footer = document.getElementById('store-footer');
+              if (footer) footer.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="sm:hidden p-2 text-blue-400 hover:text-white cursor-pointer"
+            title={isTr ? "İletişim" : "Contact"}
+          >
+            <PhoneCall className="h-5 w-5" />
+          </button>
+          
           {/* SEARCH BAR */}
           <div className="relative hidden sm:block w-56 lg:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -781,21 +793,7 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({ product, onView
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
-              !isOutOfStock
-                ? "text-emerald-300 bg-emerald-950/60 border border-emerald-800/60"
-                : "text-rose-400 bg-rose-950/60 border border-rose-800/60"
-            }`}>
-              {!isOutOfStock ? (stockCount > 0 ? `Stokta: ${stockCount}` : "Stokta Var") : "Tükendi"}
-            </span>
 
-            {product.category && (
-              <span className="text-[9px] text-slate-400 truncate max-w-[90px]">
-                {product.category}
-              </span>
-            )}
-          </div>
         </div>
       </div>
     </motion.div>

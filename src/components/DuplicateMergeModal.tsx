@@ -69,8 +69,8 @@ export const DuplicateMergeModal: React.FC<DuplicateMergeModalProps> = ({
           // Fetch the two products directly and synthesize a candidate pair
           try {
             const [p1Res, p2Res] = await Promise.all([
-              api.getProduct(id1, storeId),
-              api.getProduct(id2, storeId)
+              api.get(`/store/products/${id1}?storeId=${storeId || ''}`),
+              api.get(`/store/products/${id2}?storeId=${storeId || ''}`)
             ]);
             const p1 = p1Res.data || p1Res;
             const p2 = p2Res.data || p2Res;

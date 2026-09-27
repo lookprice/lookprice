@@ -1405,6 +1405,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     gender?: string;
     nationality?: string;
     board_type?: string;
+    custom_nightly_rate?: number;
     advance_payment?: number;
     payment_method?: string;
     notes?: string;
@@ -1575,9 +1576,10 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     email: "",
     gender: "Belirtilmedi",
     nationality: "TC - Türkiye",
-    board_type: "bed_breakfast",
+    board_type: "BB",
+    custom_nightly_rate: undefined,
     advance_payment: 0,
-    payment_method: "Kredi Kartı",
+    payment_method: "credit_card",
     notes: "",
     check_in_date: new Date().toISOString().split('T')[0],
     check_out_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
@@ -1738,7 +1740,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
   };
 
   // Helper to determine real-time operational status for TODAY
-  const getEffectiveRoomStatus = (room: HotelRoom): 'vacant' | 'occupied' | 'maintenance' | 'staff' => {
+  const getEffectiveRoomStatus = (room: HotelRoom): 'vacant' | 'occupied' | 'maintenance' | 'staff' | 'reserved' => {
     if (!room) return 'vacant';
     if (room.status === 'maintenance' || room.status === 'disabled') return 'maintenance';
     if (room.status === 'staff') return 'staff';
@@ -1746,7 +1748,15 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     // Is guest actively in-house TODAY? (check_in_date <= today && check_out_date > today)
     if (isGuestActiveToday(room)) return 'occupied';
 
-    // Today the room is vacant/free (future bookings only apply on future dates in calendar)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const hasTodayReservation = Array.isArray(room.reservations) && room.reservations.some(res => 
+      (res as any).status !== 'cancelled' && 
+      res.check_in_date <= todayStr && 
+      res.check_out_date > todayStr
+    );
+    if (hasTodayReservation) return 'reserved';
+
+    // Today the room is vacant/free
     return 'vacant';
   };
 
@@ -1983,11 +1993,12 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       discount_rate: mainGuestAgeDetails.discountRate,
       phone: guestForm.phone || "",
       email: guestForm.email || "",
-      gender: guestForm.gender || "Kadın",
+      gender: guestForm.gender || "Belirtilmedi",
       nationality: guestForm.nationality || "TC - Türkiye",
       check_in_date: guestForm.check_in_date,
       check_out_date: guestForm.check_out_date,
-      board_type: guestForm.board_type || "BB",
+      board_type: (guestForm.board_type || "BB").toUpperCase(),
+      custom_nightly_rate: guestForm.custom_nightly_rate,
       advance_payment: Number(guestForm.advance_payment) || 0,
       payment_method: guestForm.payment_method || "credit_card",
       notes: (guestForm.notes || "").trim()
@@ -2582,11 +2593,14 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                     birth_date: "1990-01-01",
                     phone: "",
                     email: "",
+                    gender: "Belirtilmedi",
+                    nationality: "TC - Türkiye",
                     check_in_date: todayStr,
                     check_out_date: getNextDayString(todayStr),
-                    board_type: "bed_breakfast",
+                    board_type: "BB",
+                    custom_nightly_rate: undefined,
                     advance_payment: 0,
-                    payment_method: "Kredi Kartı",
+                    payment_method: "credit_card",
                     notes: "",
                     additionalGuests: []
                   });
