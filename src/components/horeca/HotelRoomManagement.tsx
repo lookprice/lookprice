@@ -2143,6 +2143,20 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       alert(`📅 Gelecek tarihli (${formatDisplayDate(newGuest.check_in_date)}) rezervasyon başarıyla kaydedildi. Oda bugün boş (müsait) kalmaya devam edecektir.`);
     }
 
+    // Record the payment on the backend sales table if there is an advance payment
+    if (Number(newGuest.advance_payment) > 0) {
+      api.recordHotelPayment({
+        roomNumber: checkInModalRoom.room_number,
+        boardType: newGuest.board_type,
+        amount: Number(newGuest.advance_payment),
+        paymentMethod: newGuest.payment_method,
+        guestName: `${newGuest.first_name} ${newGuest.last_name}`,
+        paymentType: 'check_in_advance'
+      }, storeId).catch(err => {
+        console.error("Failed to record check-in advance payment:", err);
+      });
+    }
+
     setCheckInModalRoom(null);
     setGuestForm({
       identity_no: "",
@@ -2391,6 +2405,28 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       historyList.unshift(newArchiveRecord);
       localStorage.setItem(`hotelCheckoutHistory_${storeId}`, JSON.stringify(historyList));
     } catch (e) {}
+
+    // Record checkout settlement payment on backend sales table
+    if (details.netPayableBalance > 0) {
+      const mapPaymentMethodToSlug = (method: string) => {
+        if (!method) return 'credit_card';
+        const m = method.toLowerCase();
+        if (m.includes('nakit') || m.includes('cash')) return 'cash';
+        if (m.includes('havale') || m.includes('transfer') || m.includes('eft') || m.includes('banka')) return 'bank_transfer';
+        return 'credit_card';
+      };
+
+      api.recordHotelPayment({
+        roomNumber: room.room_number,
+        boardType: details.boardTypeLabel,
+        amount: details.netPayableBalance,
+        paymentMethod: mapPaymentMethodToSlug(pMethod),
+        guestName: `${guestSnapshot.first_name} ${guestSnapshot.last_name}`,
+        paymentType: 'check_out_settlement'
+      }, storeId).catch(err => {
+        console.error("Failed to record check-out settlement payment:", err);
+      });
+    }
 
     // 3. Set Completed Checkout Data to show full detailed on-screen statement receipt
     setCompletedCheckoutData({

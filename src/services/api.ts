@@ -651,6 +651,17 @@ export const api = {
     api.get(`/api/store/hotel-rooms${storeId ? `?storeId=${storeId}` : ''}`),
   updateHotelRooms: (rooms: any[], storeId?: number) =>
     api.post(`/api/store/hotel-rooms${storeId ? `?storeId=${storeId}` : ''}`, { rooms }),
+  recordHotelPayment: (paymentData: {
+    roomNumber: string;
+    boardType?: string;
+    amount: number;
+    currency?: string;
+    paymentMethod?: string;
+    guestName?: string;
+    paymentType: "check_in_advance" | "check_out_settlement" | "adisyon";
+    exchangeRate?: number;
+  }, storeId?: number) =>
+    api.post(`/api/store/hotel-rooms/payment${storeId ? `?storeId=${storeId}` : ''}`, paymentData),
   getHotelReservations: (storeId?: number, status?: string) => 
     api.get(`/api/store/hotel-reservations?${storeId ? `storeId=${storeId}` : ''}${status ? `status=${status}` : ''}`),
   updateHotelReservationStatus: (id: number | string, status: string, extraData?: any, storeId?: number) => 

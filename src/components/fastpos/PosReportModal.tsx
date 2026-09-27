@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { 
   FileText, 
@@ -12,7 +12,9 @@ import {
   Search, 
   Printer,
   UserCheck,
-  Award
+  Award,
+  BedDouble,
+  Utensils
 } from "lucide-react";
 import { getStoreWaiters } from "../../utils/staffHelpers";
 
@@ -61,6 +63,99 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
   onPrintReport,
   onPrintA4Report
 }) => {
+  const [activeReportTab, setActiveReportTab] = useState<'combined' | 'hotel' | 'restaurant'>('combined');
+
+  const getPaymentSummary = (paymentsList: any[], methods: string[]) => {
+    const currencyMap: { [key: string]: number } = {};
+    let txCount = 0;
+    
+    (paymentsList || []).forEach((p: any) => {
+      const pm = p.payment_method?.toLowerCase() || '';
+      const isMatch = methods.some(m => pm.includes(m));
+      if (isMatch) {
+        const cur = (p.currency || 'TRY').toUpperCase();
+        currencyMap[cur] = (currencyMap[cur] || 0) + (Number(p.total_amount) || 0);
+        txCount += Number(p.transaction_count) || 0;
+      }
+    });
+
+    return { currencyMap, txCount };
+  };
+
+  const getGrandTotalSummary = (paymentsList: any[]) => {
+    const currencyMap: { [key: string]: number } = {};
+    let txCount = 0;
+    
+    (paymentsList || []).forEach((p: any) => {
+      const cur = (p.currency || 'TRY').toUpperCase();
+      currencyMap[cur] = (currencyMap[cur] || 0) + (Number(p.total_amount) || 0);
+      txCount += Number(p.transaction_count) || 0;
+    });
+
+    return { currencyMap, txCount };
+  };
+
+  const renderCurrencySummary = (summary: { currencyMap: { [key: string]: number }, txCount: number }, isDark = false) => {
+    const keys = Object.keys(summary.currencyMap);
+    const textColorClass = isDark ? "text-white" : "text-slate-800";
+    const subTextColorClass = isDark ? "text-indigo-100" : "text-slate-500";
+    const borderClass = isDark ? "border-white/10" : "border-slate-100";
+    const badgeClass = isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800";
+
+    if (keys.length === 0) return <p className={`text-lg font-black ${textColorClass}`}>0.00 ₺</p>;
+    
+    const sortedKeys = [...keys].sort((a, b) => {
+      if (a === 'TRY') return -1;
+      if (b === 'TRY') return 1;
+      return a.localeCompare(b);
+    });
+
+    const primaryKey = sortedKeys[0];
+    const primaryAmount = summary.currencyMap[primaryKey];
+    const currencySymbols: { [key: string]: string } = { TRY: '₺', USD: '$', EUR: '€', GBP: '£' };
+    const getSymbol = (cur: string) => currencySymbols[cur] || cur;
+
+    return (
+      <div className="space-y-1">
+        <p className={`text-lg font-black tracking-tight ${textColorClass}`}>
+          {primaryAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {getSymbol(primaryKey)}
+        </p>
+        {sortedKeys.length > 1 && (
+          <div className={`text-[10px] ${subTextColorClass} font-extrabold flex flex-wrap gap-1.5 border-t ${borderClass} pt-1`}>
+            {sortedKeys.slice(1).map(k => (
+              <span key={k} className={`px-1.5 py-0.5 rounded ${badgeClass}`}>
+                {summary.currencyMap[k].toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {getSymbol(k)}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const activePayments = useMemo(() => {
+    if (!reportData) return [];
+    if (activeReportTab === 'restaurant') {
+      return reportData.restaurant_payments || [];
+    }
+    if (activeReportTab === 'hotel') {
+      return reportData.hotel_payments || [];
+    }
+    return reportData.payments || [];
+  }, [reportData, activeReportTab]);
+
+  const activeGrandSummary = useMemo(() => {
+    return getGrandTotalSummary(activePayments);
+  }, [activePayments]);
+
+  const activeCashSummary = useMemo(() => {
+    return getPaymentSummary(activePayments, ['cash', 'nakit']);
+  }, [activePayments]);
+
+  const activeCardSummary = useMemo(() => {
+    return getPaymentSummary(activePayments, ['credit_card', 'card', 'kredi_karti', 'pos']);
+  }, [activePayments]);
+
   if (!isOpen) return null;
 
   return (
@@ -184,6 +279,45 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
           </div>
         </div>
 
+        {/* Report Segment Tab Switcher */}
+        <div className="px-6 py-2 border-b border-slate-100 bg-slate-50 flex items-center justify-start gap-1">
+          <button
+            onClick={() => setActiveReportTab('combined')}
+            className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
+              activeReportTab === 'combined'
+                ? 'bg-white text-indigo-700 border-slate-200 shadow-2xs font-extrabold'
+                : 'text-slate-500 hover:text-slate-800 border-transparent bg-transparent'
+            }`}
+          >
+            <TrendingUp className="h-4 w-4 text-indigo-600" />
+            <span>{lang === 'tr' ? 'Birleşik Rapor' : 'Combined Report'}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveReportTab('restaurant')}
+            className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
+              activeReportTab === 'restaurant'
+                ? 'bg-white text-indigo-700 border-slate-200 shadow-2xs font-extrabold'
+                : 'text-slate-500 hover:text-slate-800 border-transparent bg-transparent'
+            }`}
+          >
+            <Utensils className="h-4 w-4 text-orange-600" />
+            <span>{lang === 'tr' ? 'Restoran / POS' : 'Restaurant & POS'}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveReportTab('hotel')}
+            className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
+              activeReportTab === 'hotel'
+                ? 'bg-white text-indigo-700 border-slate-200 shadow-2xs font-extrabold'
+                : 'text-slate-500 hover:text-slate-800 border-transparent bg-transparent'
+            }`}
+          >
+            <BedDouble className="h-4 w-4 text-emerald-600" />
+            <span>{lang === 'tr' ? 'Oda Satışları' : 'Hotel Room Sales'}</span>
+          </button>
+        </div>
+
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
           {reportLoading ? (
@@ -208,18 +342,10 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
                         {lang === 'tr' ? 'Nakit Satış' : 'Cash'}
                       </span>
                     </div>
-                    <p className="text-lg font-black text-slate-800">
-                      {(
-                        reportData.payments
-                          ?.filter((p: any) => ['cash', 'nakit'].includes(p.payment_method?.toLowerCase()))
-                          ?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || Number(p.total) || 0), 0) || 0
-                      ).toFixed(2)} ₺
-                    </p>
+                    {renderCurrencySummary(activeCashSummary, false)}
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold mt-1">
-                    {reportData.payments
-                      ?.filter((p: any) => ['cash', 'nakit'].includes(p.payment_method?.toLowerCase()))
-                      ?.reduce((sum: number, p: any) => sum + (Number(p.transaction_count) || 0), 0) || 0} {lang === 'tr' ? 'İşlem' : 'Txn'}
+                    {activeCashSummary.txCount} {lang === 'tr' ? 'İşlem' : 'Txn'}
                   </span>
                 </div>
 
@@ -234,38 +360,36 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
                         {lang === 'tr' ? 'Kredi Kartı' : 'Card'}
                       </span>
                     </div>
-                    <p className="text-lg font-black text-slate-800">
-                      {(
-                        reportData.payments
-                          ?.filter((p: any) => ['credit_card', 'card', 'kredi_karti', 'pos'].includes(p.payment_method?.toLowerCase()))
-                          ?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || Number(p.total) || 0), 0) || 0
-                      ).toFixed(2)} ₺
-                    </p>
+                    {renderCurrencySummary(activeCardSummary, false)}
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold mt-1">
-                    {reportData.payments
-                      ?.filter((p: any) => ['credit_card', 'card', 'kredi_karti', 'pos'].includes(p.payment_method?.toLowerCase()))
-                      ?.reduce((sum: number, p: any) => sum + (Number(p.transaction_count) || 0), 0) || 0} {lang === 'tr' ? 'İşlem' : 'Txn'}
+                    {activeCardSummary.txCount} {lang === 'tr' ? 'İşlem' : 'Txn'}
                   </span>
                 </div>
 
-                {/* Items Sold Card */}
+                {/* Items Sold / Room Bookings Card */}
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
                       <div className="h-6 w-6 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                        <Package className="h-3.5 w-3.5" />
+                        {activeReportTab === 'hotel' ? <BedDouble className="h-3.5 w-3.5" /> : <Package className="h-3.5 w-3.5" />}
                       </div>
                       <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-tight">
-                        {lang === 'tr' ? 'Satılan Ürün' : 'Items Sold'}
+                        {activeReportTab === 'hotel' 
+                          ? (lang === 'tr' ? 'Oda Satış Sayısı' : 'Room Booking Count') 
+                          : (lang === 'tr' ? 'Satılan Ürün' : 'Items Sold')}
                       </span>
                     </div>
                     <p className="text-lg font-black text-purple-700">
-                      {(reportData.products?.reduce((sum: number, p: any) => sum + (Number(p.total_quantity) || 0), 0)) || 0} Adet
+                      {activeReportTab === 'hotel' 
+                        ? `${reportData.hotel_sales?.length || 0} Adet`
+                        : `${(reportData.products?.reduce((sum: number, p: any) => sum + (Number(p.total_quantity) || 0), 0)) || 0} Adet`}
                     </p>
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold mt-1">
-                    {reportData.products?.length || 0} {lang === 'tr' ? 'Farklı Ürün' : 'Unique Items'}
+                    {activeReportTab === 'hotel' 
+                      ? (lang === 'tr' ? 'Toplam Tahsilat' : 'Total Settlements')
+                      : `${reportData.products?.length || 0} ${lang === 'tr' ? 'Farklı Ürün' : 'Unique Items'}`}
                   </span>
                 </div>
 
@@ -277,15 +401,13 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
                         <TrendingUp className="h-3.5 w-3.5" />
                       </div>
                       <span className="text-[11px] font-black text-indigo-100 uppercase tracking-tight">
-                        {reportStartDate === reportEndDate ? (lang === 'tr' ? 'Gün Toplamı' : 'Day Total') : (lang === 'tr' ? 'Dönem Toplamı' : 'Period Total')}
+                        {reportStartDate === reportEndDate ? (lang === 'tr' ? 'Ciro Toplamı' : 'Total Revenue') : (lang === 'tr' ? 'Dönem Toplamı' : 'Period Total')}
                       </span>
                     </div>
-                    <p className="text-lg font-black tracking-tight">
-                      {((reportData.grand_total || reportData.payments?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || Number(p.total) || 0), 0)) || 0).toFixed(2)} ₺
-                    </p>
+                    {renderCurrencySummary(activeGrandSummary, true)}
                   </div>
                   <span className="text-[10px] text-indigo-200 font-bold mt-1">
-                    {reportData.total_sales || 0} {lang === 'tr' ? 'Toplam Satış' : 'Total Sales'}
+                    {activeGrandSummary.txCount} {lang === 'tr' ? 'Toplam Satış' : 'Total Sales'}
                   </span>
                 </div>
               </div>
@@ -350,129 +472,193 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
                 );
               })()}
 
-              {/* Product Quantities breakdown table */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-                <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                      {lang === 'tr' ? 'Satılan Ürün Kalemleri' : 'Sold Product Breakdown'}
-                    </span>
-                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-[10px] font-black">
-                      {reportData.products?.length || 0} {lang === 'tr' ? 'Kalem' : 'Items'}
+              {/* Segmented breakdown views */}
+              {activeReportTab === 'hotel' ? (
+                /* Hotel Room Sales breakdown table */
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <div className="flex items-center gap-2">
+                      <BedDouble className="w-4 h-4 text-emerald-600" />
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                        {lang === 'tr' ? 'Oda Satış ve Tahsilat Detayları' : 'Hotel Room Sales & Settlement Details'}
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[10px] font-black">
+                      {reportData.hotel_sales?.length || 0} {lang === 'tr' ? 'Kayıt' : 'Records'}
                     </span>
                   </div>
-
-                  {/* Search & Sort Controls */}
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                      <input 
-                        type="text"
-                        placeholder={lang === 'tr' ? 'Ürün ara...' : 'Search items...'}
-                        value={reportSearchQuery}
-                        onChange={(e) => setReportSearchQuery(e.target.value)}
-                        className="pl-8 pr-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:border-indigo-500 w-36 sm:w-44"
-                      />
-                      {reportSearchQuery && (
-                        <button 
-                          onClick={() => setReportSearchQuery('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-600">
-                      <button
-                        onClick={() => setReportSortBy('qty')}
-                        className={`px-2 py-0.5 rounded-md transition-all ${reportSortBy === 'qty' ? 'bg-white text-indigo-700 font-black shadow-2xs' : 'hover:text-slate-900'}`}
-                      >
-                        {lang === 'tr' ? 'Adet' : 'Qty'}
-                      </button>
-                      <button
-                        onClick={() => setReportSortBy('revenue')}
-                        className={`px-2 py-0.5 rounded-md transition-all ${reportSortBy === 'revenue' ? 'bg-white text-indigo-700 font-black shadow-2xs' : 'hover:text-slate-900'}`}
-                      >
-                        {lang === 'tr' ? 'Ciro' : 'Rev'}
-                      </button>
-                      <button
-                        onClick={() => setReportSortBy('name')}
-                        className={`px-2 py-0.5 rounded-md transition-all ${reportSortBy === 'name' ? 'bg-white text-indigo-700 font-black shadow-2xs' : 'hover:text-slate-900'}`}
-                      >
-                        {lang === 'tr' ? 'A-Z' : 'A-Z'}
-                      </button>
-                    </div>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-left text-xs text-slate-600">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50 text-[10px] font-extrabold uppercase text-slate-400">
+                          <th className="p-3 w-1/4">{lang === 'tr' ? 'Oda / Konuk' : 'Room / Guest'}</th>
+                          <th className="p-3 w-5/12">{lang === 'tr' ? 'Açıklama / Detay' : 'Details'}</th>
+                          <th className="p-3 w-1/6 text-center">{lang === 'tr' ? 'Ödeme Türü' : 'Method'}</th>
+                          <th className="p-3 w-1/6 text-right">{lang === 'tr' ? 'Tutar' : 'Collected'}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {reportData.hotel_sales && reportData.hotel_sales.length > 0 ? (
+                          reportData.hotel_sales.map((s: any, idx: number) => {
+                            const currencySymbols: { [key: string]: string } = { TRY: '₺', USD: '$', EUR: '€', GBP: '£' };
+                            const getSymbol = (cur: string) => currencySymbols[cur] || cur;
+                            
+                            return (
+                              <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="p-3 font-black text-slate-800">
+                                  {s.customer_name}
+                                </td>
+                                <td className="p-3 text-slate-500 font-bold max-w-[200px] sm:max-w-[300px] truncate" title={s.notes}>
+                                  {s.notes}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 font-bold rounded-lg text-[10px] uppercase">
+                                    {s.payment_method === 'cash' ? (lang === 'tr' ? 'Nakit' : 'Cash') : (s.payment_method === 'credit_card' ? (lang === 'tr' ? 'Kredi Kartı' : 'Credit Card') : s.payment_method || 'Kredi Kartı')}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right font-extrabold text-slate-800">
+                                  {s.total_amount?.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {getSymbol(s.currency)}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="p-8 text-center text-slate-400 font-bold">
+                              {lang === 'tr' ? 'Bu tarih aralığında oda satışı bulunmuyor' : 'No room sales in this period'}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
+              ) : (
+                /* Product Quantities breakdown table */
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                        {lang === 'tr' ? 'Satılan Ürün Kalemleri' : 'Sold Product Breakdown'}
+                      </span>
+                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-[10px] font-black">
+                        {reportData.products?.length || 0} {lang === 'tr' ? 'Kalem' : 'Items'}
+                      </span>
+                    </div>
 
-                {/* Products List */}
-                <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-                  {reportData.products && reportData.products.length > 0 ? (
-                    (() => {
-                      const filtered = reportData.products.filter((p: any) => 
-                        !reportSearchQuery || p.product_name.toLowerCase().includes(reportSearchQuery.toLowerCase())
-                      );
+                    {/* Search & Sort Controls */}
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                        <input 
+                          type="text"
+                          placeholder={lang === 'tr' ? 'Ürün ara...' : 'Search items...'}
+                          value={reportSearchQuery}
+                          onChange={(e) => setReportSearchQuery(e.target.value)}
+                          className="pl-8 pr-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:border-indigo-500 w-36 sm:w-44"
+                        />
+                        {reportSearchQuery && (
+                          <button 
+                            onClick={() => setReportSearchQuery('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
 
-                      const sorted = [...filtered].sort((a: any, b: any) => {
-                        if (reportSortBy === 'qty') return (b.total_quantity || 0) - (a.total_quantity || 0);
-                        if (reportSortBy === 'revenue') return (b.total_revenue || 0) - (a.total_revenue || 0);
-                        return (a.product_name || '').localeCompare(b.product_name || '');
-                      });
+                      <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-600">
+                        <button
+                          onClick={() => setReportSortBy('qty')}
+                          className={`px-2 py-0.5 rounded-md transition-all ${reportSortBy === 'qty' ? 'bg-white text-indigo-700 font-black shadow-2xs' : 'hover:text-slate-900'}`}
+                        >
+                          {lang === 'tr' ? 'Adet' : 'Qty'}
+                        </button>
+                        <button
+                          onClick={() => setReportSortBy('revenue')}
+                          className={`px-2 py-0.5 rounded-md transition-all ${reportSortBy === 'revenue' ? 'bg-white text-indigo-700 font-black shadow-2xs' : 'hover:text-slate-900'}`}
+                        >
+                          {lang === 'tr' ? 'Ciro' : 'Rev'}
+                        </button>
+                        <button
+                          onClick={() => setReportSortBy('name')}
+                          className={`px-2 py-0.5 rounded-md transition-all ${reportSortBy === 'name' ? 'bg-white text-indigo-700 font-black shadow-2xs' : 'hover:text-slate-900'}`}
+                        >
+                          {lang === 'tr' ? 'A-Z' : 'A-Z'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
-                      const maxRev = Math.max(...reportData.products.map((p: any) => p.total_revenue || 1));
-
-                      if (sorted.length === 0) {
-                        return (
-                          <div className="p-8 text-center text-slate-400">
-                            <p className="text-xs font-bold">{lang === 'tr' ? 'Aramaya uygun ürün bulunamadı.' : 'No matching products found.'}</p>
-                          </div>
+                  {/* Products List */}
+                  <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                    {reportData.products && reportData.products.length > 0 ? (
+                      (() => {
+                        const filtered = reportData.products.filter((p: any) => 
+                          !reportSearchQuery || p.product_name.toLowerCase().includes(reportSearchQuery.toLowerCase())
                         );
-                      }
 
-                      return sorted.map((p: any, idx: number) => {
-                        const unitPrice = p.total_quantity ? (p.total_revenue / p.total_quantity) : 0;
-                        const revPct = maxRev > 0 ? Math.min(100, Math.round((p.total_revenue / maxRev) * 100)) : 0;
+                        const sorted = [...filtered].sort((a: any, b: any) => {
+                          if (reportSortBy === 'qty') return (b.total_quantity || 0) - (a.total_quantity || 0);
+                          if (reportSortBy === 'revenue') return (b.total_revenue || 0) - (a.total_revenue || 0);
+                          return (a.product_name || '').localeCompare(b.product_name || '');
+                        });
 
-                        return (
-                          <div key={idx} className="p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                            <div className="min-w-0 flex-1 pr-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black text-slate-400 w-5">{idx + 1}.</span>
-                                <p className="text-xs font-black text-slate-800 truncate">{p.product_name}</p>
-                              </div>
-                              <div className="flex items-center gap-3 mt-1 pl-7">
-                                <p className="text-[10px] text-slate-400 font-bold">
-                                  {unitPrice.toFixed(2)} ₺ / {lang === 'tr' ? 'birim' : 'unit'}
-                                </p>
-                                {/* Mini bar */}
-                                <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                  <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${revPct}%` }} />
+                        const maxRev = Math.max(...reportData.products.map((p: any) => p.total_revenue || 1));
+
+                        if (sorted.length === 0) {
+                          return (
+                            <div className="p-8 text-center text-slate-400">
+                              <p className="text-xs font-bold">{lang === 'tr' ? 'Aramaya uygun ürün bulunamadı.' : 'No matching products found.'}</p>
+                            </div>
+                          );
+                        }
+
+                        return sorted.map((p: any, idx: number) => {
+                          const unitPrice = p.total_quantity ? (p.total_revenue / p.total_quantity) : 0;
+                          const revPct = maxRev > 0 ? Math.min(100, Math.round((p.total_revenue / maxRev) * 100)) : 0;
+
+                          return (
+                            <div key={idx} className="p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                              <div className="min-w-0 flex-1 pr-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black text-slate-400 w-5">{idx + 1}.</span>
+                                  <p className="text-xs font-black text-slate-800 truncate">{p.product_name}</p>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 pl-7">
+                                  <p className="text-[10px] text-slate-400 font-bold">
+                                    {unitPrice.toFixed(2)} ₺ / {lang === 'tr' ? 'birim' : 'unit'}
+                                  </p>
+                                  {/* Mini bar */}
+                                  <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                    <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${revPct}%` }} />
+                                  </div>
                                 </div>
                               </div>
+                              <div className="flex items-center gap-3 text-right shrink-0">
+                                <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-black min-w-16 text-center">
+                                  {p.total_quantity} {lang === 'tr' ? 'Adet' : 'Qty'}
+                                </span>
+                                <span className="text-xs font-black text-slate-800 min-w-20">
+                                  {p.total_revenue?.toFixed(2)} ₺
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3 text-right shrink-0">
-                              <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-black min-w-16 text-center">
-                                {p.total_quantity} {lang === 'tr' ? 'Adet' : 'Qty'}
-                              </span>
-                              <span className="text-xs font-black text-slate-800 min-w-20">
-                                {p.total_revenue?.toFixed(2)} ₺
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()
-                  ) : (
-                    <div className="p-12 text-center text-slate-400">
-                      <Package className="h-10 w-10 mx-auto mb-2 opacity-25" />
-                      <p className="text-xs font-bold">
-                        {lang === 'tr' ? 'Bu tarih aralığında ürün satışı bulunmuyor' : 'No products sold in this period'}
-                      </p>
-                    </div>
-                  )}
+                          );
+                        });
+                      })()
+                    ) : (
+                      <div className="p-12 text-center text-slate-400">
+                        <Package className="h-10 w-10 mx-auto mb-2 opacity-25" />
+                        <p className="text-xs font-bold">
+                          {lang === 'tr' ? 'Bu tarih aralığında ürün satışı bulunmuyor' : 'No products sold in this period'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           ) : (
             <div className="p-12 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">

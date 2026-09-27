@@ -71,9 +71,11 @@ router.get("/pos-daily", async (req: any, res) => {
     const targetStart = (startDate as string) || (date as string) || today;
     const targetEnd = (endDate as string) || (date as string) || targetStart;
 
+    // Combined payments (Restaurant + Hotel) grouped by method and currency
     const paymentQuery = `
       SELECT 
         COALESCE(sp.payment_method, s.payment_method, 'cash') as payment_method, 
+        COALESCE(s.currency, 'TRY') as currency,
         SUM(COALESCE(sp.amount, s.total_amount))::FLOAT as total_amount,
         COUNT(DISTINCT s.id)::INT as transaction_count
       FROM sales s
@@ -81,10 +83,64 @@ router.get("/pos-daily", async (req: any, res) => {
       WHERE s.store_id = $1 
         AND s.status IN ('completed', 'paid')
         AND (s.created_at::date >= $2::date AND s.created_at::date <= $3::date)
-      GROUP BY COALESCE(sp.payment_method, s.payment_method, 'cash')
+      GROUP BY COALESCE(sp.payment_method, s.payment_method, 'cash'), COALESCE(s.currency, 'TRY')
     `;
     const paymentRes = await pool.query(paymentQuery, [storeId, targetStart, targetEnd]);
 
+    // Restaurant-only payments grouped by method and currency
+    const restaurantPaymentQuery = `
+      SELECT 
+        COALESCE(sp.payment_method, s.payment_method, 'cash') as payment_method, 
+        COALESCE(s.currency, 'TRY') as currency,
+        SUM(COALESCE(sp.amount, s.total_amount))::FLOAT as total_amount,
+        COUNT(DISTINCT s.id)::INT as transaction_count
+      FROM sales s
+      LEFT JOIN sale_payments sp ON sp.sale_id = s.id
+      WHERE s.store_id = $1 
+        AND s.status IN ('completed', 'paid')
+        AND COALESCE(s.source, 'pos') != 'hotel'
+        AND (s.created_at::date >= $2::date AND s.created_at::date <= $3::date)
+      GROUP BY COALESCE(sp.payment_method, s.payment_method, 'cash'), COALESCE(s.currency, 'TRY')
+    `;
+    const restaurantPaymentRes = await pool.query(restaurantPaymentQuery, [storeId, targetStart, targetEnd]);
+
+    // Hotel-only payments grouped by method and currency
+    const hotelPaymentQuery = `
+      SELECT 
+        COALESCE(sp.payment_method, s.payment_method, 'cash') as payment_method, 
+        COALESCE(s.currency, 'TRY') as currency,
+        SUM(COALESCE(sp.amount, s.total_amount))::FLOAT as total_amount,
+        COUNT(DISTINCT s.id)::INT as transaction_count
+      FROM sales s
+      LEFT JOIN sale_payments sp ON sp.sale_id = s.id
+      WHERE s.store_id = $1 
+        AND s.status IN ('completed', 'paid')
+        AND s.source = 'hotel'
+        AND (s.created_at::date >= $2::date AND s.created_at::date <= $3::date)
+      GROUP BY COALESCE(sp.payment_method, s.payment_method, 'cash'), COALESCE(s.currency, 'TRY')
+    `;
+    const hotelPaymentRes = await pool.query(hotelPaymentQuery, [storeId, targetStart, targetEnd]);
+
+    // Hotel-only sales details (which room, boarding type, guest name, collected amount, currency, and payment method)
+    const hotelSalesQuery = `
+      SELECT 
+        s.id,
+        s.created_at,
+        s.total_amount::FLOAT as total_amount,
+        s.currency,
+        s.customer_name,
+        s.payment_method,
+        s.notes
+      FROM sales s
+      WHERE s.store_id = $1
+        AND s.status IN ('completed', 'paid')
+        AND s.source = 'hotel'
+        AND (s.created_at::date >= $2::date AND s.created_at::date <= $3::date)
+      ORDER BY s.created_at DESC
+    `;
+    const hotelSalesRes = await pool.query(hotelSalesQuery, [storeId, targetStart, targetEnd]);
+
+    // Restaurant/POS product sales
     const productQuery = `
       SELECT 
         COALESCE(NULLIF(TRIM(p.name), ''), NULLIF(TRIM(REGEXP_REPLACE(REGEXP_REPLACE(si.product_name, '^[0-9]+[.)\\s-]+', ''), '\\s*\\([^()]*\\)\\s*$', '')), ''), TRIM(si.product_name)) as product_name, 
@@ -95,6 +151,7 @@ router.get("/pos-daily", async (req: any, res) => {
       LEFT JOIN products p ON si.product_id = p.id
       WHERE s.store_id = $1 
         AND s.status IN ('completed', 'paid')
+        AND COALESCE(s.source, 'pos') != 'hotel'
         AND (s.created_at::date >= $2::date AND s.created_at::date <= $3::date)
       GROUP BY COALESCE(NULLIF(TRIM(p.name), ''), NULLIF(TRIM(REGEXP_REPLACE(REGEXP_REPLACE(si.product_name, '^[0-9]+[.)\\s-]+', ''), '\\s*\\([^()]*\\)\\s*$', '')), ''), TRIM(si.product_name))
       ORDER BY total_quantity DESC
@@ -119,6 +176,9 @@ router.get("/pos-daily", async (req: any, res) => {
       endDate: targetEnd,
       isRange: targetStart !== targetEnd,
       payments: paymentRes.rows,
+      restaurant_payments: restaurantPaymentRes.rows,
+      hotel_payments: hotelPaymentRes.rows,
+      hotel_sales: hotelSalesRes.rows,
       products: productRes.rows,
       total_sales: totalSalesRes.rows[0]?.total_sales_count || 0,
       grand_total: totalSalesRes.rows[0]?.grand_total || 0
