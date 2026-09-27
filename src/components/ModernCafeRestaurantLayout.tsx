@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { formatAllergensText } from "../utils/allergenHelpers";
 import { motion, AnimatePresence } from "motion/react";
 import { api } from "../services/api";
 import {
@@ -1529,6 +1530,12 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           <AnimatePresence mode="popLayout">
             {filteredProducts.map((product) => {
               const productDesc = product.description || (isTr ? "Özenle hazırlanan taze, eşsiz yerel lezzetler." : "Fresh culinary specialties prepared with premium ingredients.");
+              const ingredients = (product as any).ingredients || (product.sector_data as any)?.ingredients || (product as any).recipe;
+              const allergens = product.allergens || (product.sector_data as any)?.allergens;
+              const calories = product.calories || (product.sector_data as any)?.calories;
+              const prepTime = product.prep_time_min || (product.sector_data as any)?.prep_time_min;
+              const portion = product.portion_size || (product.sector_data as any)?.portion_size;
+
               return (
                 <motion.div
                   layout
@@ -1537,22 +1544,21 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ duration: 0.2 }}
-                  onClick={() => onViewProduct(product)}
-                  className={`group p-3.5 sm:p-4 rounded-xl border shadow-xs transition-all duration-200 flex gap-3 sm:gap-4 cursor-pointer relative ${
-                    isLightTheme ? "bg-white border-slate-200/90 hover:border-slate-300 text-slate-900 shadow-xs" :
-                    isAmberTheme ? "bg-white border-amber-200/80 hover:border-amber-400 text-stone-900 shadow-xs" :
-                    isEmeraldTheme ? "bg-white border-emerald-100 hover:border-emerald-300 text-slate-900 shadow-xs" :
-                    "bg-slate-900 border-slate-800/80 hover:border-slate-700 text-white"
+                  className={`group p-3.5 sm:p-4 rounded-2xl border shadow-xs transition-all duration-200 flex gap-3 sm:gap-4 relative ${
+                    isLightTheme ? "bg-white border-slate-200/90 text-slate-900 shadow-xs" :
+                    isAmberTheme ? "bg-white border-amber-200/80 text-stone-900 shadow-xs" :
+                    isEmeraldTheme ? "bg-white border-emerald-100 text-slate-900 shadow-xs" :
+                    "bg-slate-900 border-slate-800/80 text-white"
                   }`}
                 >
-                  <div className={`relative h-20 w-20 sm:h-22 sm:w-22 shrink-0 rounded-lg overflow-hidden border ${
+                  <div className={`relative h-22 w-22 sm:h-24 sm:w-24 shrink-0 rounded-xl overflow-hidden border ${
                     isLightTheme ? "bg-slate-100 border-slate-200" : "bg-slate-950 border-slate-800"
                   }`}>
                     {product.image_url ? (
                       <img
                         src={product.image_url}
                         alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-100 filter brightness-100"
+                        className="w-full h-full object-cover opacity-100 filter brightness-100"
                       />
                     ) : (
                       <div className={`w-full h-full flex items-center justify-center ${isLightTheme ? "text-slate-400" : "text-slate-600"}`}>
@@ -1567,16 +1573,16 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                     )}
                   </div>
                   
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                  <div className="flex-1 min-w-0 flex flex-col justify-between space-y-1.5">
                     <div>
                       <div className="flex justify-between items-start gap-2">
-                        <h3 className={`font-bold text-sm transition-colors leading-snug line-clamp-1 ${
-                          isLightTheme ? "text-slate-900 group-hover:text-amber-700" : "text-white group-hover:text-slate-200"
+                        <h3 className={`font-extrabold text-sm sm:text-base transition-colors leading-snug ${
+                          isLightTheme ? "text-slate-900" : "text-white"
                         }`}>
                           {product.name}
                         </h3>
-                        <span className={`font-black text-xs whitespace-nowrap shrink-0 ml-1 ${
-                          isLightTheme ? "text-slate-900" : "text-slate-100"
+                        <span className={`font-black text-xs sm:text-sm whitespace-nowrap shrink-0 ml-1 ${
+                          isLightTheme ? "text-amber-700" : "text-amber-400"
                         }`}>
                           {(() => {
                             let vars: any[] = [];
@@ -1601,11 +1607,54 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                           })()}
                         </span>
                       </div>
-                      <p className={`text-[11px] font-normal mt-1 line-clamp-2 leading-relaxed ${
-                        isLightTheme ? "text-slate-500" : "text-slate-400"
+
+                      {/* Açıklama / Yemeğin Özeti */}
+                      <p className={`text-[11px] font-normal mt-1 leading-relaxed ${
+                        isLightTheme ? "text-slate-600" : "text-slate-300"
                       }`}>
                         {productDesc}
                       </p>
+
+                      {/* İçindekiler / Malzemeler */}
+                      {ingredients && (
+                        <div className={`text-[10px] mt-1.5 leading-relaxed font-medium flex items-start gap-1 ${
+                          isLightTheme ? "text-slate-700" : "text-slate-300"
+                        }`}>
+                          <span className="font-extrabold shrink-0 text-slate-800 dark:text-amber-300">{isTr ? "İçindekiler:" : "Ingredients:"}</span>
+                          <span className="line-clamp-2">{ingredients}</span>
+                        </div>
+                      )}
+
+                      {/* Alerjen & Beslenme Uyarısı */}
+                      {allergens && (Array.isArray(allergens) ? allergens.length > 0 : String(allergens).trim()) && (
+                        <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-900 flex items-center gap-1">
+                            <AlertCircle className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                            <span>{isTr ? "Alerjen:" : "Allergens:"} {formatAllergensText(allergens, isTr ? 'tr' : 'en')}</span>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Besin / Kalori / Porsiyon Mikrokartları */}
+                      {(calories || prepTime || portion) && (
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          {calories ? (
+                            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
+                              🔥 {calories} kcal
+                            </span>
+                          ) : null}
+                          {prepTime ? (
+                            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                              ⏱️ ~{prepTime} {isTr ? "dk" : "min"}
+                            </span>
+                          ) : null}
+                          {portion ? (
+                            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                              🍽️ {portion}
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
 
                     <div className={`flex items-center justify-between mt-2 pt-1.5 border-t ${
@@ -1615,11 +1664,6 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                         isLightTheme ? "bg-slate-50 text-slate-600 border-slate-200" : "bg-slate-950 text-slate-400 border-slate-800"
                       }`}>
                         {product.category || (isTr ? "Genel" : "General")}
-                      </span>
-                      <span className={`text-[9px] font-bold uppercase tracking-wider flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform ${
-                        isLightTheme ? "text-slate-700" : "text-slate-300"
-                      }`}>
-                        {isTr ? "İncele" : "View"} <ChevronRight className="w-3 h-3" />
                       </span>
                     </div>
                   </div>

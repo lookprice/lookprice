@@ -769,7 +769,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
   };
   const [showServisDisiInfo, setShowServisDisiInfo] = useState<boolean>(true);
   const [calendarStartDate, setCalendarStartDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
-  const [calendarDaysCount, setCalendarDaysCount] = useState<30 | 60>(60);
+  const [calendarDaysCount, setCalendarDaysCount] = useState<number>(60);
   const [analysisPeriod, setAnalysisPeriod] = useState<'next_7' | 'next_14' | 'next_30' | 'next_60' | 'custom'>('next_60');
   const [customAnalizStart, setCustomAnalizStart] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [customAnalizEnd, setCustomAnalizEnd] = useState<string>(() => {
@@ -814,7 +814,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
   // Filter & Search States
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<'all' | 'vacant' | 'occupied' | 'checkout_today' | 'maintenance' | 'staff'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'vacant' | 'occupied' | 'reserved' | 'checkout_today' | 'maintenance' | 'staff'>('all');
   const [isPmsExpanded, setIsPmsExpanded] = useState(false);
   const [isServisDisiDetailsOpen, setIsServisDisiDetailsOpen] = useState(false);
 
@@ -1526,7 +1526,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         special_prices: roomToEdit.special_prices || [],
         closed_dates: roomToEdit.closed_dates || [],
         description: roomToEdit.description || "",
-        status: roomToEdit.status,
+        status: getEffectiveRoomStatus(roomToEdit),
         notes: roomToEdit.notes || ""
       });
     } else {
@@ -1737,12 +1737,16 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     return cin <= todayStr && cout > todayStr;
   };
 
-  // Helper to determine real-time status for TODAY (A room is ONLY occupied if a guest is in-house TODAY)
+  // Helper to determine real-time operational status for TODAY
   const getEffectiveRoomStatus = (room: HotelRoom): 'vacant' | 'occupied' | 'maintenance' | 'staff' => {
     if (!room) return 'vacant';
     if (room.status === 'maintenance' || room.status === 'disabled') return 'maintenance';
     if (room.status === 'staff') return 'staff';
+
+    // Is guest actively in-house TODAY? (check_in_date <= today && check_out_date > today)
     if (isGuestActiveToday(room)) return 'occupied';
+
+    // Today the room is vacant/free (future bookings only apply on future dates in calendar)
     return 'vacant';
   };
 
@@ -1754,7 +1758,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     return room.current_guest.check_out_date === todayStr;
   };
 
-  // Filtered rooms based on real-time TODAY status
+  // Filtered rooms based on real-time TODAY & Reserved status
   const filteredRooms = rooms.filter(room => {
     const term = searchTerm.trim().toLowerCase();
     
@@ -1786,8 +1790,10 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
   });
 
   // Calculate statistics based on real-time status
+  const todayStr = new Date().toISOString().split('T')[0];
   const totalRooms = (Array.isArray(rooms) ? rooms : []).length;
   const occupiedRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && getEffectiveRoomStatus(r) === 'occupied').length;
+  const reservedRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && (Boolean(r.current_guest && r.current_guest.check_in_date > todayStr) || (Array.isArray(r.reservations) && r.reservations.some(res => (res as any).status !== 'cancelled' && res.check_in_date > todayStr)))).length;
   const todayCheckOuts = (Array.isArray(rooms) ? rooms : []).filter(r => r && isTodayCheckOut(r)).length;
   const maintenanceRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && getEffectiveRoomStatus(r) === 'maintenance').length;
   const staffRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && getEffectiveRoomStatus(r) === 'staff').length;
@@ -2772,94 +2778,119 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       {activeViewMode === 'grid' && (
         <div className="space-y-6">
           {/* DASHBOARD MATRIX STATS */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5 sm:gap-2.5">
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
-              className={`p-2 sm:p-3.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
+              className={`p-2 sm:p-3 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
                 statusFilter === 'all'
-                  ? 'bg-white dark:bg-slate-800 border-emerald-500 ring-2 ring-emerald-400 shadow-xs'
+                  ? 'bg-white dark:bg-slate-800 border-indigo-500 ring-2 ring-indigo-400 shadow-xs'
                   : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
               }`}
             >
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-400 tracking-wider">{isTr ? "Toplam Oda" : "Total Rooms"}</p>
+              <p className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">{isTr ? "Toplam Oda" : "Total Rooms"}</p>
               <div className="flex items-center justify-between">
-                <span className="text-base sm:text-2xl font-black text-slate-900 dark:text-white">{totalRooms}</span>
-                <BedDouble className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-400" />
+                <span className="text-base sm:text-xl font-black text-slate-900 dark:text-white">{totalRooms}</span>
+                <BedDouble className="h-3.5 w-3.5 text-slate-400" />
               </div>
             </button>
 
             <button
               type="button"
               onClick={() => setStatusFilter('occupied')}
-              className={`p-2 sm:p-3.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
+              className={`p-2 sm:p-3 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
                 statusFilter === 'occupied'
-                  ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 ring-2 ring-emerald-400 shadow-xs'
-                  : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-emerald-300'
+                  ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-500 ring-2 ring-rose-400 shadow-xs'
+                  : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-rose-300'
               }`}
             >
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-400 tracking-wider">{isTr ? "Dolu Odalar" : "Occupied"}</p>
+              <p className="text-[9px] font-bold uppercase text-rose-700 dark:text-rose-400 tracking-wider flex items-center gap-1">
+                <span>🔴</span>
+                <span>{isTr ? "Dolu (Bugün)" : "Occupied"}</span>
+              </p>
               <div className="flex items-center justify-between">
-                <span className="text-base sm:text-2xl font-black text-emerald-700 dark:text-emerald-400">{occupiedRooms}</span>
-                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
+                <span className="text-base sm:text-xl font-black text-rose-700 dark:text-rose-400">{occupiedRooms}</span>
+                <Users className="h-3.5 w-3.5 text-rose-600" />
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter('reserved')}
+              className={`p-2 sm:p-3 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
+                statusFilter === 'reserved'
+                  ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-500 ring-2 ring-amber-400 shadow-xs'
+                  : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-amber-300'
+              }`}
+            >
+              <p className="text-[9px] font-bold uppercase text-amber-800 dark:text-amber-300 tracking-wider flex items-center gap-1">
+                <span>🟠</span>
+                <span>{isTr ? "Rezerve" : "Reserved"}</span>
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-base sm:text-xl font-black text-amber-800 dark:text-amber-300">{reservedRooms}</span>
+                <Calendar className="h-3.5 w-3.5 text-amber-600" />
               </div>
             </button>
 
             <button
               type="button"
               onClick={() => setStatusFilter('checkout_today')}
-              className={`p-2 sm:p-3.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
+              className={`p-2 sm:p-3 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
                 statusFilter === 'checkout_today'
-                  ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-500 ring-2 ring-amber-400 shadow-xs'
+                  ? 'bg-amber-100 dark:bg-amber-950 border-amber-600 ring-2 ring-amber-500 shadow-xs'
                   : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-amber-300'
               }`}
             >
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
-                {isTr ? "Bugün Çıkış" : "Check-out Today"}
+              <p className="text-[9px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                {isTr ? "Bugün Çıkış" : "Check-outs"}
               </p>
               <div className="flex items-center justify-between">
-                <span className="text-base sm:text-2xl font-black text-amber-800 dark:text-amber-300">{todayCheckOuts}</span>
-                <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600" />
+                <span className="text-base sm:text-xl font-black text-amber-900 dark:text-amber-200">{todayCheckOuts}</span>
+                <Clock className="h-3.5 w-3.5 text-amber-600" />
               </div>
             </button>
 
             <button
               type="button"
               onClick={() => setStatusFilter('vacant')}
-              className={`p-2 sm:p-3.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
+              className={`p-2 sm:p-3 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
                 statusFilter === 'vacant'
-                  ? 'bg-slate-50 dark:bg-slate-800 border-slate-400 ring-2 ring-slate-400 shadow-xs'
-                  : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 ring-2 ring-emerald-400 shadow-xs'
+                  : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-emerald-300'
               }`}
             >
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-wider">{isTr ? "Boş / Hazır" : "Vacant"}</p>
+              <p className="text-[9px] font-bold uppercase text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1">
+                <span>🟢</span>
+                <span>{isTr ? "Boş / Müsait" : "Vacant"}</span>
+              </p>
               <div className="flex items-center justify-between">
-                <span className="text-base sm:text-2xl font-black text-slate-800 dark:text-slate-200">{availableRooms}</span>
-                <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-400" />
+                <span className="text-base sm:text-xl font-black text-emerald-700 dark:text-emerald-400">{availableRooms}</span>
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
               </div>
             </button>
 
             <button
               type="button"
               onClick={() => setStatusFilter('maintenance')}
-              className={`p-2 sm:p-3.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
+              className={`p-2 sm:p-3 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
                 statusFilter === 'maintenance'
-                  ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-500 ring-2 ring-rose-400 shadow-xs'
-                  : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-rose-300'
+                  ? 'bg-purple-50 dark:bg-purple-950/60 border-purple-500 ring-2 ring-purple-400 shadow-xs'
+                  : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-purple-300'
               }`}
             >
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase text-rose-700 dark:text-rose-400 tracking-wider">{isTr ? "Tadilat / Servis" : "Maintenance"}</p>
+              <p className="text-[9px] font-bold uppercase text-purple-700 dark:text-purple-400 tracking-wider">{isTr ? "Tadilat / Servis" : "Maintenance"}</p>
               <div className="flex items-center justify-between">
-                <span className="text-base sm:text-2xl font-black text-rose-700 dark:text-rose-400">{maintenanceRooms + staffRooms}</span>
-                <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-600" />
+                <span className="text-base sm:text-xl font-black text-purple-700 dark:text-purple-400">{maintenanceRooms + staffRooms}</span>
+                <Wrench className="h-3.5 w-3.5 text-purple-600" />
               </div>
             </button>
 
-            <div className="p-2 sm:p-3.5 bg-slate-900 text-white rounded-xl shadow-xs space-y-1">
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase text-emerald-200 tracking-wider">{isTr ? "Doluluk" : "Occupancy"}</p>
+            <div className="p-2 sm:p-3 bg-slate-900 text-white rounded-xl shadow-xs space-y-1">
+              <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">{isTr ? "Doluluk" : "Occupancy"}</p>
               <div className="flex items-center justify-between">
-                <span className="text-base sm:text-2xl font-black text-white">%{occupancyRate}</span>
-                <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-300" />
+                <span className="text-base sm:text-xl font-black text-white">%{occupancyRate}</span>
+                <Sparkles className="h-3.5 w-3.5 text-emerald-300" />
               </div>
             </div>
           </div>
@@ -2950,10 +2981,10 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none pb-1 sm:pb-0 w-full sm:w-auto">
             {[
               { id: 'all', label: isTr ? 'Tüm Odalar' : 'All', icon: <BedDouble className="h-5 w-5 sm:h-3.5 sm:w-3.5 shrink-0" /> },
+              { id: 'occupied', label: isTr ? '🔴 Dolu' : 'Occupied', icon: <Users className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-rose-600 shrink-0" /> },
               { id: 'checkout_today', label: isTr ? '⚠️ Çıkışlar' : 'Checkouts', alert: true, icon: <Clock className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-amber-600 dark:text-amber-400 shrink-0" /> },
-              { id: 'occupied', label: isTr ? 'Dolu' : 'Occupied', icon: <Users className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-emerald-600 shrink-0" /> },
-              { id: 'vacant', label: isTr ? 'Boş' : 'Vacant', icon: <CheckCircle2 className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-blue-600 shrink-0" /> },
-              { id: 'maintenance', label: isTr ? 'Servis' : 'Maint.', icon: <Wrench className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-rose-600 shrink-0" /> },
+              { id: 'vacant', label: isTr ? '🟢 Boş' : 'Vacant', icon: <CheckCircle2 className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-emerald-600 shrink-0" /> },
+              { id: 'maintenance', label: isTr ? 'Servis' : 'Maint.', icon: <Wrench className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-purple-600 shrink-0" /> },
               { id: 'staff', label: isTr ? 'Personel' : 'Staff', icon: <ShieldAlert className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-purple-600 shrink-0" /> }
             ].map(f => (
               <button
@@ -3098,25 +3129,30 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                         </td>
                         <td className="p-3.5">
                           <div className="flex items-center gap-2">
-                            <select
-                              value={room.status}
-                              onChange={(e) => handleQuickStatusChange(room.id, e.target.value as any)}
-                              className={`px-2.5 py-1 rounded-xl text-xs font-black cursor-pointer border outline-none transition-all ${
-                                room.status === 'occupied'
-                                  ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300'
-                                  : room.status === 'vacant'
-                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border-blue-300'
-                                  : room.status === 'maintenance'
-                                  ? 'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border-rose-300'
-                                  : 'bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border-purple-300'
-                              }`}
-                            >
-                              <option value="vacant">🟢</option>
-                              <option value="occupied">🔴</option>
-                              <option value="maintenance">🛠️</option>
-                              <option value="staff">👤</option>
-                              <option value="disabled">⛔</option>
-                            </select>
+                            {(() => {
+                              const effStatus = getEffectiveRoomStatus(room);
+                              return (
+                                <select
+                                  value={effStatus}
+                                  onChange={(e) => handleQuickStatusChange(room.id, e.target.value as any)}
+                                  className={`px-2.5 py-1 rounded-xl text-xs font-black cursor-pointer border outline-none transition-all ${
+                                    effStatus === 'occupied'
+                                      ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-800'
+                                      : effStatus === 'vacant'
+                                      ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800'
+                                      : effStatus === 'maintenance'
+                                      ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-800'
+                                      : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-300'
+                                  }`}
+                                >
+                                  <option value="vacant" className="text-slate-900 bg-white">🟢 Boş</option>
+                                  <option value="occupied" className="text-slate-900 bg-white">🔴 Dolu (Bugün)</option>
+                                  <option value="maintenance" className="text-slate-900 bg-white">🛠️ Bakımda</option>
+                                  <option value="staff" className="text-slate-900 bg-white">👤 Personel</option>
+                                  <option value="disabled" className="text-slate-900 bg-white">⛔ Pasif</option>
+                                </select>
+                              );
+                            })()}
                             {isTodayOut && (
                               <span className="px-2 py-0.5 bg-amber-500 text-white rounded text-[10px] font-black animate-pulse whitespace-nowrap">
                                 Bugün Çıkış
@@ -3125,43 +3161,107 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                           </div>
                         </td>
                         <td className="p-3.5">
-                          {room.status === 'occupied' && room.current_guest ? (
-                            isGuestActiveToday(room) ? (
+                          {(() => {
+                            const effStatus = getEffectiveRoomStatus(room);
+                            
+                            // 1. Occupied TODAY by active guest
+                            if (effStatus === 'occupied' && room.current_guest) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedRoomDetailModal(room)}
+                                  className="text-left hover:opacity-80 cursor-pointer group"
+                                  title="Misafir Kimlik Künyesi Aç"
+                                >
+                                  <div className="font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                                    <Users className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                                    <span>{room.current_guest.first_name} {room.current_guest.last_name}</span>
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 font-medium">
+                                    {formatDisplayDate(room.current_guest.check_in_date)} ➔ {formatDisplayDate(room.current_guest.check_out_date)}
+                                  </div>
+                                </button>
+                              );
+                            }
+
+                            if (effStatus === 'maintenance' || effStatus === 'staff') {
+                              return (
+                                <span className="text-[11px] text-purple-600 dark:text-purple-400 italic font-medium">
+                                  {room.notes || (effStatus === 'staff' ? "Personel Tahsisli" : "Bakımda / Kullanıma kapalı")}
+                                </span>
+                              );
+                            }
+
+                            // 2. Room is VACANT today -> collect ALL future reservations
+                            const todayStr = new Date().toISOString().split('T')[0];
+                            const futureList: Array<{ name: string; checkIn: string; checkOut: string }> = [];
+
+                            if (room.current_guest && room.current_guest.check_in_date > todayStr) {
+                              futureList.push({
+                                name: `${room.current_guest.first_name} ${room.current_guest.last_name}`,
+                                checkIn: room.current_guest.check_in_date,
+                                checkOut: room.current_guest.check_out_date
+                              });
+                            }
+
+                            if (Array.isArray(room.reservations)) {
+                              room.reservations.forEach(r => {
+                                if ((r as any).status !== 'cancelled' && r.check_in_date > todayStr) {
+                                  const name = `${r.first_name} ${r.last_name}`;
+                                  if (!futureList.some(f => f.name === name && f.checkIn === r.check_in_date)) {
+                                    futureList.push({
+                                      name,
+                                      checkIn: r.check_in_date,
+                                      checkOut: r.check_out_date
+                                    });
+                                  }
+                                }
+                              });
+                            }
+
+                            // Sort by earliest check-in date
+                            futureList.sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+
+                            if (futureList.length === 0) {
+                              return (
+                                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1">
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                  <span>Boş / Müsait</span>
+                                </span>
+                              );
+                            }
+
+                            const nextRes = futureList[0];
+                            const remainingCount = futureList.length - 1;
+
+                            return (
                               <button
                                 type="button"
-                                onClick={() => setSelectedRoomDetailModal(room)}
-                                className="text-left hover:opacity-80 cursor-pointer group"
-                                title="Misafir Kimlik Künyesi Aç"
+                                onClick={() => handleOpenRoomCalendar(room.id)}
+                                className="text-left group cursor-pointer block"
+                                title={`Oda #${room.room_number} için ${futureList.length} adet gelecek rezervasyon var. Takvimde görmek için tıklayın.`}
                               >
-                                <div className="font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                                  <Users className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-                                  <span>{room.current_guest.first_name} {room.current_guest.last_name}</span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] font-black text-amber-900 dark:text-amber-200 bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                                    <Calendar className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                    <span>Gelecek Rez: {nextRes.name} ({formatDisplayDate(nextRes.checkIn)})</span>
+                                  </span>
+
+                                  {remainingCount > 0 && (
+                                    <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/80 border border-indigo-300 dark:border-indigo-800 px-1.5 py-0.5 rounded-md">
+                                      +{remainingCount} Rezervasyon Daha
+                                    </span>
+                                  )}
                                 </div>
-                                <div className="text-[10px] text-slate-500 font-medium">
-                                  {formatDisplayDate(room.current_guest.check_in_date)} ➔ {formatDisplayDate(room.current_guest.check_out_date)}
-                                </div>
-                              </button>
-                            ) : (
-                              <div className="space-y-0.5">
-                                <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  Gelecek Rez: {formatDisplayDate(room.current_guest.check_in_date)}
-                                </span>
-                                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
                                   (Bugün Müsait)
                                 </div>
-                              </div>
-                            )
-                          ) : room.status === 'maintenance' ? (
-                            <span className="text-[11px] text-rose-600 dark:text-rose-400 italic">
-                              {room.notes || "Bakımda / Kullanıma kapalı"}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-slate-400 font-medium">- Müsait -</span>
-                          )}
+                              </button>
+                            );
+                          })()}
                         </td>
                         <td className="p-3.5">
-                          {room.status === 'occupied' && isGuestActiveToday(room) ? (
+                          {getEffectiveRoomStatus(room) === 'occupied' ? (
                             <div className="flex items-center gap-2">
                               <span className="font-black text-rose-600 dark:text-rose-400">
                                 ₺{folioAmount.toLocaleString('tr-TR')}
@@ -3188,43 +3288,44 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                             >
                               <Info className="h-4 w-4" />
                             </button>
-                            {room.status === 'vacant' && (
-                              <button
-                                onClick={() => setCheckInModalRoom(room)}
-                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
-                              >
-                                <UserCheck className="h-3.5 w-3.5" />
-                                <span>{isTr ? "Giriş Ekle" : "Check-In"}</span>
-                              </button>
-                            )}
-                            {room.status === 'occupied' && isGuestActiveToday(room) && (
-                              <button
-                                onClick={() => setCheckOutModalRoom(room)}
-                                className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
-                              >
-                                <Receipt className="h-3.5 w-3.5" />
-                                <span>{isTr ? "Çıkış" : "Checkout"}</span>
-                              </button>
-                            )}
-                            {room.status === 'occupied' && !isGuestActiveToday(room) && (
-                              <button
-                                onClick={() => setCheckInModalRoom(room)}
-                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
-                              >
-                                <UserCheck className="h-3.5 w-3.5" />
-                                <span>{isTr ? "Giriş Ekle" : "Check-In"}</span>
-                              </button>
-                            )}
-                            {room.status === 'maintenance' && (
-                              <button
-                                onClick={() => handleQuickStatusChange(room.id, 'vacant')}
-                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
-                                title="Odayı Aktifleştir"
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span>{isTr ? "Aktifleştir" : "Activate"}</span>
-                              </button>
-                            )}
+                            {(() => {
+                              const eff = getEffectiveRoomStatus(room);
+                              if (eff === 'vacant' || eff === 'reserved') {
+                                return (
+                                  <button
+                                    onClick={() => setCheckInModalRoom(room)}
+                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <UserCheck className="h-3.5 w-3.5" />
+                                    <span>{isTr ? "Giriş Ekle" : "Check-In"}</span>
+                                  </button>
+                                );
+                              }
+                              if (eff === 'occupied') {
+                                return (
+                                  <button
+                                    onClick={() => setCheckOutModalRoom(room)}
+                                    className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Receipt className="h-3.5 w-3.5" />
+                                    <span>{isTr ? "Çıkış" : "Checkout"}</span>
+                                  </button>
+                                );
+                              }
+                              if (eff === 'maintenance') {
+                                return (
+                                  <button
+                                    onClick={() => handleQuickStatusChange(room.id, 'vacant')}
+                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+                                    title="Odayı Aktifleştir"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    <span>{isTr ? "Aktifleştir" : "Activate"}</span>
+                                  </button>
+                                );
+                              }
+                              return null;
+                            })()}
                             <button
                               onClick={() => openAddOrEditRoomModal(room)}
                               className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
@@ -3255,6 +3356,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
           {filteredRooms.map(room => {
             const isTodayOut = isTodayCheckOut(room);
             const folioAmount = room.folio?.total_amount || 0;
+            const effStatus = getEffectiveRoomStatus(room);
 
             return (
               <div
@@ -3262,13 +3364,15 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                 className={`relative rounded-2xl p-4 border transition-all duration-200 flex flex-col justify-between space-y-3 shadow-xs bg-white dark:bg-slate-900 ${
                   isTodayOut
                     ? 'border-amber-400 dark:border-amber-600/80 border-t-4 border-t-amber-500'
-                    : room.status === 'occupied'
-                    ? 'border-emerald-200 dark:border-emerald-800/80 border-t-4 border-t-emerald-600'
-                    : room.status === 'vacant'
-                    ? 'border-slate-200 dark:border-slate-800 border-t-4 border-t-slate-300 dark:border-t-slate-700 hover:border-slate-300'
-                    : room.status === 'staff'
-                    ? 'border-slate-200 dark:border-slate-800 border-t-4 border-t-purple-500'
-                    : 'border-rose-200 dark:border-rose-800/80 border-t-4 border-t-rose-500'
+                    : effStatus === 'occupied'
+                    ? 'border-rose-300 dark:border-rose-800/80 border-t-4 border-t-rose-600 shadow-rose-500/5'
+                    : effStatus === 'reserved'
+                    ? 'border-amber-300 dark:border-amber-800/80 border-t-4 border-t-amber-500 shadow-amber-500/5'
+                    : effStatus === 'vacant'
+                    ? 'border-emerald-200 dark:border-emerald-800/80 border-t-4 border-t-emerald-500 hover:border-emerald-300'
+                    : effStatus === 'staff'
+                    ? 'border-indigo-200 dark:border-indigo-800/80 border-t-4 border-t-indigo-500'
+                    : 'border-purple-200 dark:border-purple-800/80 border-t-4 border-t-purple-500'
                 }`}
               >
                 {/* TOP ROOM CARD HEADER */}
@@ -3291,6 +3395,30 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                       >
                         <CalendarRange className="h-4 w-4" />
                       </button>
+
+                      {/* REAL-TIME STATUS BADGE PILL */}
+                      {effStatus === 'occupied' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200 border border-rose-300 dark:border-rose-800 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
+                          🔴 Dolu (Bugün)
+                        </span>
+                      )}
+                      {effStatus === 'vacant' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          🟢 Boş / Müsait
+                        </span>
+                      )}
+                      {effStatus === 'maintenance' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200 border border-purple-300 dark:border-purple-800 flex items-center gap-1">
+                          🛠️ Bakımda
+                        </span>
+                      )}
+                      {effStatus === 'staff' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-800 flex items-center gap-1">
+                          👤 Personel
+                        </span>
+                      )}
                     </div>
 
                     {/* SPECS BADGES - CLEAN HORIZONTAL BADGES */}
@@ -3365,109 +3493,118 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                       </span>
                     )}
                     <select
-                      value={room.status}
+                      value={effStatus}
                       onChange={(e) => handleQuickStatusChange(room.id, e.target.value as any)}
-                      className={`px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer border outline-none transition-all max-w-[50px] ${
-                        room.status === 'occupied'
-                          ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
-                          : room.status === 'vacant'
-                          ? 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-600'
-                          : room.status === 'maintenance'
-                          ? 'bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-700'
-                          : 'bg-purple-50 dark:bg-purple-950 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700'
+                      className={`px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer border outline-none transition-all max-w-[85px] ${
+                        effStatus === 'occupied'
+                          ? 'bg-rose-100 dark:bg-rose-950 text-rose-900 dark:text-rose-200 border-rose-300 dark:border-rose-700'
+                          : effStatus === 'vacant'
+                          ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
+                          : effStatus === 'maintenance'
+                          ? 'bg-purple-100 dark:bg-purple-950 text-purple-900 dark:text-purple-200 border-purple-300 dark:border-purple-700'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 border-slate-300 dark:border-slate-700'
                       }`}
                     >
-                      <option value="vacant" className="text-slate-900 bg-white">🟢</option>
-                      <option value="occupied" className="text-slate-900 bg-white">🔴</option>
-                      <option value="maintenance" className="text-slate-900 bg-white">🛠️</option>
-                      <option value="staff" className="text-slate-900 bg-white">👤</option>
-                      <option value="disabled" className="text-slate-900 bg-white">⛔</option>
+                      <option value="vacant" className="text-slate-900 bg-white">🟢 Boş</option>
+                      <option value="occupied" className="text-slate-900 bg-white">🔴 Dolu</option>
+                      <option value="maintenance" className="text-slate-900 bg-white">🛠️ Bakımda</option>
+                      <option value="staff" className="text-slate-900 bg-white">👤 Personel</option>
+                      <option value="disabled" className="text-slate-900 bg-white">⛔ Pasif</option>
                     </select>
                   </div>
                 </div>
 
-                {/* GUEST INFO IF OCCUPIED */}
-                {room.status === 'occupied' && room.current_guest && (
-                  isGuestActiveToday(room) ? (
-                    <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <UserCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                          <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                            {room.current_guest.first_name} {room.current_guest.last_name}
-                          </span>
-                        </div>
-                        {room.current_guest.discount_rate > 0 && (
-                          <span className="text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">
-                            %{room.current_guest.discount_rate} İndirim
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 space-y-0.5">
-                        <p className="flex justify-between">
-                          <span>Giriş - Çıkış:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            {formatDisplayDate(room.current_guest.check_in_date)} ➔ {formatDisplayDate(room.current_guest.check_out_date)}
-                          </span>
-                        </p>
-                        {Array.isArray(room.additional_guests) && room.additional_guests.length > 0 && (
-                          <p className="flex justify-between">
-                            <span>Ek Misafir:</span>
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">
-                              +{room.additional_guests.length} Kişi
-                            </span>
-                          </p>
-                        )}
-                      </div>
-
-                      {/* FOLIO HARCAMA HESABI */}
-                      <div className="pt-1.5 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                        <div>
-                          <p className="text-[9px] font-bold uppercase text-slate-400">Adisyon Borcu</p>
-                          <p className="text-xs font-bold text-slate-900 dark:text-white">
-                            ₺{folioAmount.toLocaleString('tr-TR')}
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={() => setAddExpenseModalRoom(room)}
-                          className="px-2 py-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <Plus className="h-3 w-3" />
-                          <span>Adisyon Ekle</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-2.5 bg-amber-50/70 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800/60 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-[11px] font-bold text-amber-900 dark:text-amber-200">
-                          <Calendar className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Gelecek Rezervasyon</span>
-                        </div>
-                        <span className="text-[9px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.2 rounded">
-                          Bugün Müsait
+                {/* GUEST INFO / RESERVATION DETAILS BASED ON EFFECTIVE STATUS */}
+                {effStatus === 'occupied' && room.current_guest && (
+                  <div className="p-2.5 bg-rose-50/50 dark:bg-rose-950/20 rounded-xl border border-rose-200/80 dark:border-rose-900/40 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <UserCheck className="h-3.5 w-3.5 text-rose-600 shrink-0" />
+                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          {room.current_guest.first_name} {room.current_guest.last_name}
                         </span>
                       </div>
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
-                        {room.current_guest.first_name} {room.current_guest.last_name}
-                      </p>
-                      <p className="text-[10px] text-slate-500 font-medium">
-                        {formatDisplayDate(room.current_guest.check_in_date)} ➔ {formatDisplayDate(room.current_guest.check_out_date)}
-                      </p>
+                      {room.current_guest.discount_rate > 0 && (
+                        <span className="text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">
+                          %{room.current_guest.discount_rate} İndirim
+                        </span>
+                      )}
                     </div>
-                  )
+
+                    <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 space-y-0.5">
+                      <p className="flex justify-between">
+                        <span>Konaklama Tarihleri:</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          {formatDisplayDate(room.current_guest.check_in_date)} ➔ {formatDisplayDate(room.current_guest.check_out_date)}
+                        </span>
+                      </p>
+                      {Array.isArray(room.additional_guests) && room.additional_guests.length > 0 && (
+                        <p className="flex justify-between">
+                          <span>Ek Misafir:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            +{room.additional_guests.length} Kişi
+                          </span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* FOLIO HARCAMA HESABI */}
+                    <div className="pt-1.5 border-t border-rose-200/60 dark:border-rose-900/40 flex items-center justify-between">
+                      <div>
+                        <p className="text-[9px] font-bold uppercase text-slate-400">Adisyon Borcu</p>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">
+                          ₺{folioAmount.toLocaleString('tr-TR')}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => setAddExpenseModalRoom(room)}
+                        className="px-2 py-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>Adisyon Ekle</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* FUTURE BOOKING INFO WHEN VACANT */}
+                {effStatus === 'vacant' && Boolean((room.current_guest && room.current_guest.check_in_date > todayStr) || (Array.isArray(room.reservations) && room.reservations.some(res => (res as any).status !== 'cancelled' && res.check_in_date > todayStr))) && (
+                  <div className="p-2 bg-amber-50/80 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800/80 space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-amber-900 dark:text-amber-200">
+                        <Calendar className="w-3 h-3 text-amber-600" />
+                        <span>Gelecek Rezervasyon Var</span>
+                      </div>
+                      <span className="text-[9px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-1 py-0.2 rounded">
+                        Bugün Müsait
+                      </span>
+                    </div>
+                    {(() => {
+                      const futureGuest = room.current_guest && room.current_guest.check_in_date > todayStr ? room.current_guest : room.reservations?.find(res => (res as any).status !== 'cancelled' && res.check_in_date > todayStr);
+                      if (!futureGuest) return null;
+                      return (
+                        <>
+                          <p className="text-[11px] font-bold text-slate-900 dark:text-slate-100 truncate">
+                            {futureGuest.first_name} {futureGuest.last_name}
+                          </p>
+                          <p className="text-[10px] text-slate-600 dark:text-slate-300 font-medium">
+                            {formatDisplayDate(futureGuest.check_in_date)} ➔ {formatDisplayDate(futureGuest.check_out_date)}
+                          </p>
+                        </>
+                      );
+                    })()}
+                  </div>
                 )}
 
                 {/* NOTES IF MAINTENANCE/STAFF */}
-                {(room.status === 'maintenance' || room.status === 'staff') && (
-                  <div className="p-2.5 bg-rose-50/70 dark:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900/60 space-y-2">
-                    <p className="text-[11px] font-medium text-rose-800 dark:text-rose-300 flex items-center gap-1.5">
-                      <Wrench className="h-3.5 w-3.5 shrink-0 text-rose-600" />
+                {(effStatus === 'maintenance' || effStatus === 'staff') && (
+                  <div className="p-2.5 bg-purple-50/70 dark:bg-purple-950/40 rounded-xl border border-purple-200 dark:border-purple-900/60 space-y-2">
+                    <p className="text-[11px] font-medium text-purple-800 dark:text-purple-300 flex items-center gap-1.5">
+                      <Wrench className="h-3.5 w-3.5 shrink-0 text-purple-600" />
                       <span>{room.notes || "Oda bakım veya teknik servise alınmıştır."}</span>
                     </p>
-                    {room.status === 'maintenance' && (
+                    {effStatus === 'maintenance' && (
                       <button
                         onClick={() => handleQuickStatusChange(room.id, 'vacant')}
                         className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
@@ -3499,16 +3636,16 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                       <Edit3 className="h-3.5 w-3.5" />
                     </button>
 
-                  <button
-                    onClick={() => handleDeleteRoom(room.id)}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors cursor-pointer"
-                    title="Odayı Sil"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                    <button
+                      onClick={() => handleDeleteRoom(room.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors cursor-pointer"
+                      title="Odayı Sil"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
 
-                   {room.status === 'vacant' && (
+                  {(effStatus === 'vacant' || effStatus === 'reserved') && (
                     <button
                       onClick={() => setCheckInModalRoom(room)}
                       className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
@@ -3518,23 +3655,13 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                     </button>
                   )}
 
-                  {room.status === 'occupied' && isGuestActiveToday(room) && (
+                  {effStatus === 'occupied' && (
                     <button
                       onClick={() => setCheckOutModalRoom(room)}
                       className="flex-1 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Receipt className="h-3.5 w-3.5" />
                       <span>{isTr ? "Çıkış" : "Checkout"}</span>
-                    </button>
-                  )}
-
-                  {room.status === 'occupied' && !isGuestActiveToday(room) && (
-                    <button
-                      onClick={() => setCheckInModalRoom(room)}
-                      className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <UserCheck className="h-3.5 w-3.5" />
-                      <span>{isTr ? "Giriş Ekle" : "Check-In"}</span>
                     </button>
                   )}
                 </div>

@@ -44,7 +44,8 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
   saving = false,
   storeId
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<"visual" | "table_order" | "hours" | "wifi" | "tables_qr" | "instagram">("visual");
+  const [activeSubTab, setActiveSubTab] = useState<"visual" | "facilities" | "table_order" | "hours" | "wifi" | "tables_qr" | "instagram">("visual");
+  const [newAmenityInput, setNewAmenityInput] = useState("");
 
   const txt = (tr: string, en: string, el: string) => {
     if (lang === "tr") return tr;
@@ -291,6 +292,7 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
         <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-100 overflow-x-auto no-scrollbar">
           {[
             { id: "visual", label: txt("Tema & Fotoğraflar", "Theme & Photos", "Θέμα & Φωτογραφίες"), icon: Sparkles },
+            { id: "facilities", label: txt("Tesis & Konsept", "Facilities & Concept", "Εγκαταστάσεις"), icon: Building2 },
             { id: "hours", label: txt("Çalışma Saatleri", "Opening Hours", "Ώρες Λειτουργίας"), icon: Clock },
             { id: "table_order", label: txt("Sipariş & Servis", "Ordering & Service", "Παραγγελίες"), icon: UtensilsCrossed },
             { id: "wifi", label: txt("Müşteri Wi-Fi", "Guest Wi-Fi", "Wi-Fi"), icon: Wifi },
@@ -692,6 +694,182 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
                   />
                 </div>
               )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* SUBTAB: TESİS OLANAKLARI VE OTEL KONSEPTİ */}
+      {activeSubTab === "facilities" && (
+        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                  {txt("Tesis Olanakları & Otel Konsepti", "Hotel Facilities & Concept", "Εγκαταστάσεις & Concept")}
+                </span>
+              </div>
+              <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                Otel & Konaklama
+              </span>
+            </div>
+
+            {/* GİRİŞ VE ÇIKIŞ SAATLERİ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50/80 rounded-xl border border-slate-200/80">
+              <div>
+                <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider block mb-1">
+                  Otele Giriş Saati (Check-In)
+                </label>
+                <input
+                  type="text"
+                  value={branding?.check_in_time || "14:00"}
+                  onChange={(e) => onBrandingChange("check_in_time", e.target.value)}
+                  placeholder="14:00"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-black text-slate-900 focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider block mb-1">
+                  Otelden Çıkış Saati (Check-Out)
+                </label>
+                <input
+                  type="text"
+                  value={branding?.check_out_time || "12:00"}
+                  onChange={(e) => onBrandingChange("check_out_time", e.target.value)}
+                  placeholder="12:00"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-black text-slate-900 focus:border-indigo-500 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* TESİS OLANAKLARI VE KONSEPT HİZMETLER LİSTESİ */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider block">
+                  Tesis Olanakları & Hizmet Etiketleri (Web Sitede Gösterilir)
+                </label>
+                <span className="text-[10px] font-bold text-slate-500">
+                  {(branding?.hotel_amenities || ["Açık Havuz", "SPA & Wellness", "Özel Plaj", "Ücretsiz Wi-Fi", "Vale & Otopark", "Restoran & Bar", "24/7 Resepsiyon"]).length} Özellik Tanımlı
+                </span>
+              </div>
+
+              {/* AMENITIES CHIPS CONTAINER */}
+              <div className="flex flex-wrap gap-2 p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 min-h-[60px] items-center">
+                {(branding?.hotel_amenities && Array.isArray(branding.hotel_amenities) && branding.hotel_amenities.length > 0
+                  ? branding.hotel_amenities
+                  : ["Açık Havuz", "SPA & Wellness", "Özel Plaj", "Ücretsiz Wi-Fi", "Vale & Otopark", "Restoran & Bar", "24/7 Resepsiyon"]
+                ).map((item: string, idx: number) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 shadow-2xs flex items-center gap-1.5 group"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{item}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = Array.isArray(branding?.hotel_amenities) && branding.hotel_amenities.length > 0
+                          ? branding.hotel_amenities
+                          : ["Açık Havuz", "SPA & Wellness", "Özel Plaj", "Ücretsiz Wi-Fi", "Vale & Otopark", "Restoran & Bar", "24/7 Resepsiyon"];
+                        const updated = current.filter((_: any, i: number) => i !== idx);
+                        onBrandingChange("hotel_amenities", updated);
+                      }}
+                      className="text-slate-400 hover:text-rose-600 ml-1 p-0.5 rounded cursor-pointer"
+                      title="Bu özelliği sil"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {/* YENİ ÖZELLİK EKLEME INPUT & HIZLI ŞABLONLAR */}
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  value={newAmenityInput}
+                  onChange={(e) => setNewAmenityInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newAmenityInput.trim()) {
+                      e.preventDefault();
+                      const current = Array.isArray(branding?.hotel_amenities) && branding.hotel_amenities.length > 0
+                        ? branding.hotel_amenities
+                        : ["Açık Havuz", "SPA & Wellness", "Özel Plaj", "Ücretsiz Wi-Fi", "Vale & Otopark", "Restoran & Bar", "24/7 Resepsiyon"];
+                      const val = newAmenityInput.trim();
+                      if (!current.includes(val)) {
+                        onBrandingChange("hotel_amenities", [...current, val]);
+                      }
+                      setNewAmenityInput("");
+                    }
+                  }}
+                  placeholder="Yeni tesis özelliği yazıp Ekle'ye basın (Örn: Çocuk Kulübü, Fitness)..."
+                  className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newAmenityInput.trim()) return;
+                    const current = Array.isArray(branding?.hotel_amenities) && branding.hotel_amenities.length > 0
+                      ? branding.hotel_amenities
+                      : ["Açık Havuz", "SPA & Wellness", "Özel Plaj", "Ücretsiz Wi-Fi", "Vale & Otopark", "Restoran & Bar", "24/7 Resepsiyon"];
+                    const val = newAmenityInput.trim();
+                    if (!current.includes(val)) {
+                      onBrandingChange("hotel_amenities", [...current, val]);
+                    }
+                    setNewAmenityInput("");
+                  }}
+                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-extrabold transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Ekle</span>
+                </button>
+              </div>
+
+              {/* HIZLI ÖNERİLER */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Hızlı Ekle:</span>
+                {[
+                  "Kapalı Isıtmalı Havuz",
+                  "Çocuk Kulübü",
+                  "Fitness Salonu",
+                  "Havaalanı Transferi",
+                  "Her Şey Dahil Konsept",
+                  "A La Carte Restoran",
+                  "Animasyon & Canlı Müzik"
+                ].map((sug) => (
+                  <button
+                    key={sug}
+                    type="button"
+                    onClick={() => {
+                      const current = Array.isArray(branding?.hotel_amenities) && branding.hotel_amenities.length > 0
+                        ? branding.hotel_amenities
+                        : ["Açık Havuz", "SPA & Wellness", "Özel Plaj", "Ücretsiz Wi-Fi", "Vale & Otopark", "Restoran & Bar", "24/7 Resepsiyon"];
+                      if (!current.includes(sug)) {
+                        onBrandingChange("hotel_amenities", [...current, sug]);
+                      }
+                    }}
+                    className="px-2 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 rounded text-[10px] font-bold text-slate-600 cursor-pointer transition-colors"
+                  >
+                    + {sug}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* İPTAL VE İADE POLİTİKASI */}
+            <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-1">
+              <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider block">
+                İptal & İade Politikası Bilgisi (Web Sitede Rozet Olarak Gösterilir)
+              </label>
+              <input
+                type="text"
+                value={branding?.cancellation_policy || ""}
+                onChange={(e) => onBrandingChange("cancellation_policy", e.target.value)}
+                placeholder="Örn: Giriş tarihine 24 saat kalaya kadar ücretsiz iptal imkanı."
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 outline-none focus:border-indigo-500"
+              />
             </div>
           </div>
         </motion.div>

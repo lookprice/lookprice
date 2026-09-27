@@ -24,9 +24,9 @@ export const HotelAgePolicyModal: React.FC<HotelAgePolicyModalProps> = ({
             <SlidersHorizontal className="h-5 w-5 text-indigo-600" />
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-white">
-                Tesis Fiyat & Yaş İndirim Politikası
+                Yaş İndirim Politikası
               </h3>
-              <p className="text-xs text-slate-500">Konaklama ve restoran adisyonlarında otomatik yaş indirimi kuralları</p>
+              <p className="text-xs text-slate-500">Yaş gruplarına göre otomatik indirim oranları</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer">
@@ -36,10 +36,10 @@ export const HotelAgePolicyModal: React.FC<HotelAgePolicyModalProps> = ({
 
         <div className="space-y-4">
           {/* TOGGLE: GENERAL AGE DISCOUNT POLICY ENABLED */}
-          <div className="p-3.5 bg-indigo-50/80 dark:bg-indigo-950/50 rounded-2xl border border-indigo-200 dark:border-indigo-800 flex items-center justify-between">
+          <div className="p-3 bg-indigo-50/80 dark:bg-indigo-950/50 rounded-2xl border border-indigo-200 dark:border-indigo-800 flex items-center justify-between">
             <div>
-              <span className="text-xs font-black text-indigo-950 dark:text-indigo-100 block">Tesis Geneli Yaş İndirimleri</span>
-              <span className="text-[11px] text-slate-500 font-medium">Aktif edilirse yaş grubuna göre otomatik indirim uygulanır.</span>
+              <span className="text-xs font-black text-indigo-950 dark:text-indigo-100 block">Yaş İndirimleri</span>
+              <span className="text-[11px] text-slate-500 font-medium">Otomatik yaş indirimi uygula.</span>
             </div>
             <button
               type="button"
@@ -50,14 +50,14 @@ export const HotelAgePolicyModal: React.FC<HotelAgePolicyModalProps> = ({
                   : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
               }`}
             >
-              {ageDiscountPolicy.enabled ? '🟢 AKTİF' : '🔴 PASİF (İndirimsiz)'}
+              {ageDiscountPolicy.enabled ? '🟢 AKTİF' : '🔴 PASİF'}
             </button>
           </div>
 
           {/* APPLICABILITY TOGGLES */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
-              <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 block">Konaklamada İndirim</span>
+              <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 block">Konaklama</span>
               <button
                 type="button"
                 onClick={() => saveAgePolicy({ ...ageDiscountPolicy, apply_to_room: !ageDiscountPolicy.apply_to_room })}
@@ -65,12 +65,12 @@ export const HotelAgePolicyModal: React.FC<HotelAgePolicyModalProps> = ({
                   ageDiscountPolicy.apply_to_room ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
                 }`}
               >
-                {ageDiscountPolicy.apply_to_room ? '✅ Konaklamada Uygula' : '❌ Uygulama'}
+                {ageDiscountPolicy.apply_to_room ? '✅ Uygula' : '❌ Uygulama'}
               </button>
             </div>
 
             <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
-              <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 block">Restoranda İndirim</span>
+              <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 block">Restoran</span>
               <button
                 type="button"
                 onClick={() => saveAgePolicy({ ...ageDiscountPolicy, apply_to_restaurant: !ageDiscountPolicy.apply_to_restaurant })}
@@ -78,61 +78,61 @@ export const HotelAgePolicyModal: React.FC<HotelAgePolicyModalProps> = ({
                   ageDiscountPolicy.apply_to_restaurant ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
                 }`}
               >
-                {ageDiscountPolicy.apply_to_restaurant ? '✅ Restoranda Uygula' : '❌ Uygulama'}
+                {ageDiscountPolicy.apply_to_restaurant ? '✅ Uygula' : '❌ Uygulama'}
               </button>
             </div>
           </div>
 
           {/* AGE BRACKET RATES */}
           <div className="space-y-2 pt-1">
-            <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider">Yaş Grubu İndirim Oranları (%)</h4>
+            <h4 className="text-xs font-black uppercase text-slate-600 dark:text-slate-300 tracking-wider">Yaş Grubu İndirim Oranları (%)</h4>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-black text-slate-600 uppercase block">0 - 2 Yaş Bebek İndirimi (%)</label>
+                <label className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase block mb-1">0 - 2 Yaş Bebek (%)</label>
                 <input
                   type="number"
                   min="0"
                   max="100"
                   value={ageDiscountPolicy.infant_0_2_rate}
                   onChange={(e) => saveAgePolicy({ ...ageDiscountPolicy, infant_0_2_rate: Number(e.target.value) })}
-                  className="w-full mt-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-sm font-black text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-slate-600 uppercase block">3 - 6 Yaş Çocuk İndirimi (%)</label>
+                <label className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase block mb-1">3 - 6 Yaş Çocuk (%)</label>
                 <input
                   type="number"
                   min="0"
                   max="100"
                   value={ageDiscountPolicy.toddler_3_6_rate}
                   onChange={(e) => saveAgePolicy({ ...ageDiscountPolicy, toddler_3_6_rate: Number(e.target.value) })}
-                  className="w-full mt-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-sm font-black text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-slate-600 uppercase block">7 - 12 Yaş Çocuk İndirimi (%)</label>
+                <label className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase block mb-1">7 - 12 Yaş Çocuk (%)</label>
                 <input
                   type="number"
                   min="0"
                   max="100"
                   value={ageDiscountPolicy.child_7_12_rate}
                   onChange={(e) => saveAgePolicy({ ...ageDiscountPolicy, child_7_12_rate: Number(e.target.value) })}
-                  className="w-full mt-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-sm font-black text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-slate-600 uppercase block">65+ Yaş Kıdemli İndirimi (%)</label>
+                <label className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase block mb-1">65+ Yaş Kıdemli (%)</label>
                 <input
                   type="number"
                   min="0"
                   max="100"
                   value={ageDiscountPolicy.senior_65_plus_rate}
                   onChange={(e) => saveAgePolicy({ ...ageDiscountPolicy, senior_65_plus_rate: Number(e.target.value) })}
-                  className="w-full mt-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-sm font-black text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -150,16 +150,16 @@ export const HotelAgePolicyModal: React.FC<HotelAgePolicyModalProps> = ({
                 child_7_12_rate: 0,
                 senior_65_plus_rate: 0
               })}
-              className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
+              className="px-4 py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 dark:bg-rose-950 dark:text-rose-200 rounded-xl text-xs font-black cursor-pointer transition-colors"
             >
-              Tüm İndirimleri Sıfırla (İndirimsiz Yap)
+              Sıfırla
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer"
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-colors"
             >
-              Ayarları Kaydet ve Kapat
+              Kaydet
             </button>
           </div>
         </div>

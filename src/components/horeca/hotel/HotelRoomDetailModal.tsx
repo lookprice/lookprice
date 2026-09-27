@@ -152,16 +152,51 @@ export const HotelRoomDetailModal: React.FC<HotelRoomDetailModalProps> = ({
                 <h3 className="text-lg font-black text-slate-900 dark:text-white">
                   Oda #{selectedRoomDetailModal.room_number} — Misafir Künyesi & Rezervasyon Detayları
                 </h3>
-                <span className={`px-2.5 py-0.5 rounded-md text-xs font-black uppercase ${
-                  selectedRoomDetailModal.status === 'occupied' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300' :
-                  selectedRoomDetailModal.status === 'vacant' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300' :
-                  selectedRoomDetailModal.status === 'maintenance' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300' :
-                  'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300'
-                }`}>
-                  {selectedRoomDetailModal.status === 'occupied' ? '🔴 Dolu (Misafirli)' :
-                   selectedRoomDetailModal.status === 'vacant' ? '🟢 Boş / Hazır' :
-                   selectedRoomDetailModal.status === 'maintenance' ? '🛠️ Servis Dışı / Bakımda' : '👤 Personel'}
-                </span>
+                {(() => {
+                  const room = selectedRoomDetailModal;
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  let effStatus = room.status;
+                  if (room.status === 'occupied' && room.current_guest) {
+                    if (room.current_guest.check_in_date <= todayStr && room.current_guest.check_out_date > todayStr) {
+                      effStatus = 'occupied';
+                    } else {
+                      effStatus = 'vacant';
+                    }
+                  } else if (room.status === 'maintenance' || room.status === 'disabled') {
+                    effStatus = 'maintenance';
+                  } else if (room.status === 'staff') {
+                    effStatus = 'staff';
+                  } else {
+                    effStatus = 'vacant';
+                  }
+
+                  if (effStatus === 'occupied') {
+                    return (
+                      <span className="px-2.5 py-0.5 rounded-md text-xs font-black bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200 border border-rose-300 dark:border-rose-800">
+                        🔴 Dolu (Konaklıyor)
+                      </span>
+                    );
+                  }
+                  if (effStatus === 'vacant') {
+                    return (
+                      <span className="px-2.5 py-0.5 rounded-md text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800">
+                        🟢 Boş / Müsait
+                      </span>
+                    );
+                  }
+                  if (effStatus === 'maintenance') {
+                    return (
+                      <span className="px-2.5 py-0.5 rounded-md text-xs font-black bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200 border border-purple-300 dark:border-purple-800">
+                        🛠️ Servis Dışı / Bakımda
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="px-2.5 py-0.5 rounded-md text-xs font-black bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-800">
+                      👤 Personel
+                    </span>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-2 flex-wrap mt-1">
                 <span className="text-xs font-bold text-slate-600 dark:text-slate-300">

@@ -293,26 +293,26 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
               handleAddExpenseToFolio(e);
             }} className="space-y-3">
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase">Harcama Kalemi / Adisyon</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase">Harcama Kalemi / Adisyon</label>
                 <input
                   type="text"
                   required
                   placeholder="Örn: Restoran Adisyon #1092, Mini Bar"
                   value={manualExpense.title}
                   onChange={(e) => setManualExpense({ ...manualExpense, title: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase">Tutar (₺)</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase">Tutar (₺)</label>
                 <input
                   type="number"
                   required
                   min="1"
                   value={manualExpense.amount}
                   onChange={(e) => setManualExpense({ ...manualExpense, amount: Number(e.target.value) })}
-                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                 />
               </div>
 

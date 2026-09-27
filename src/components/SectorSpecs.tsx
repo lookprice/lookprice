@@ -1,6 +1,7 @@
 import React from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Zap, Droplets, DoorClosed, Star, Award, Quote, Utensils, AlertCircle, Sparkles } from "lucide-react";
+import { formatAllergensText } from "../utils/allergenHelpers";
 
 interface SectorSpecsProps {
   sector: string;
@@ -930,7 +931,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
             </span>
           </div>
           <p className="text-xs font-semibold text-rose-950">
-            {Array.isArray(data.allergens) ? data.allergens.join(", ") : String(data.allergens)}
+            {formatAllergensText(data.allergens, lang)}
           </p>
         </div>
       )}

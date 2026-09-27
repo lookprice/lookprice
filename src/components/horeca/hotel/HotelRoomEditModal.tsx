@@ -248,7 +248,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                     className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white focus:ring-1 focus:ring-indigo-500"
                   >
                     <option value="vacant">🟢 Boş & Temiz</option>
-                    <option value="occupied">🔴 Dolu</option>
+                    <option value="occupied">🔴 Dolu (Bugün Konaklayan)</option>
                     <option value="maintenance">🛠️ Bakımda</option>
                     <option value="staff">🟣 Personel</option>
                     <option value="disabled">⚪ Pasif</option>
@@ -339,7 +339,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                   placeholder="Yatak açıklaması..."
                   value={roomForm.bed_info}
                   onChange={(e) => setRoomForm({ ...roomForm, bed_info: e.target.value })}
-                  className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-medium"
+                  className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-medium text-slate-900 dark:text-white placeholder:text-slate-400"
                 />
               </div>
 
@@ -426,7 +426,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {/* RO */}
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 block mb-1">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 block mb-1">
                     Sadece Oda (RO)
                   </label>
                   <div className="relative">
@@ -436,7 +436,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       placeholder="0"
                       value={formatThousand(roomForm.price_room_only)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_room_only: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
@@ -460,7 +460,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
 
                 {/* HB */}
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 block mb-1">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 block mb-1">
                     Yarım Pansiyon (HB)
                   </label>
                   <div className="relative">
@@ -470,14 +470,14 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       placeholder="0"
                       value={formatThousand(roomForm.price_half_board)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_half_board: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
 
                 {/* FB */}
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 block mb-1">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 block mb-1">
                     Tam Pansiyon (FB)
                   </label>
                   <div className="relative">
@@ -487,14 +487,14 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       placeholder="0"
                       value={formatThousand(roomForm.price_full_board)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_full_board: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
 
                 {/* AI */}
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 block mb-1">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 block mb-1">
                     Her Şey Dahil (AI)
                   </label>
                   <div className="relative">
@@ -504,14 +504,14 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       placeholder="0"
                       value={formatThousand(roomForm.price_all_inclusive)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_all_inclusive: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
 
                 {/* UAI */}
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-[10px] font-black text-slate-600 dark:text-slate-400 block mb-1">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 block mb-1">
                     Ultra Her Şey (UAI)
                   </label>
                   <div className="relative">
@@ -521,7 +521,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                       placeholder="0"
                       value={formatThousand(roomForm.price_ultra_all_inclusive)}
                       onChange={(e) => setRoomForm({ ...roomForm, price_ultra_all_inclusive: parseThousand(e.target.value) })}
-                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black"
+                      className="w-full pl-6 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
@@ -604,7 +604,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                 updated[spIdx].title = e.target.value;
                                 setRoomForm({ ...roomForm, special_prices: updated });
                               }}
-                              className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-xs"
+                              className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-xs text-slate-900 dark:text-white placeholder:text-slate-400"
                             />
                           </div>
                           <div className="sm:col-span-5 flex items-center gap-1">
@@ -618,9 +618,9 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                 updated[spIdx].end_date = getNextDay(newStart);
                                 setRoomForm({ ...roomForm, special_prices: updated });
                               }}
-                              className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-[10px]"
+                              className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-[10px] text-slate-900 dark:text-white"
                             />
-                            <span>-</span>
+                            <span className="text-slate-500 dark:text-slate-400 font-bold">-</span>
                             <input
                               type="date"
                               value={sp.end_date}
@@ -629,7 +629,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                 updated[spIdx].end_date = e.target.value;
                                 setRoomForm({ ...roomForm, special_prices: updated });
                               }}
-                              className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-[10px]"
+                              className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-[10px] text-slate-900 dark:text-white"
                             />
                           </div>
                           <div className="sm:col-span-2">
@@ -652,7 +652,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                 }
                                 setRoomForm({ ...roomForm, special_prices: updated });
                               }}
-                              className="w-full px-2 py-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 rounded-lg font-black text-amber-900 dark:text-amber-100 text-xs"
+                              className="w-full px-2 py-1 bg-amber-50 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-700 rounded-lg font-black text-amber-950 dark:text-amber-100 text-xs"
                             />
                           </div>
                           <div className="sm:col-span-1 flex justify-end">
@@ -679,7 +679,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
                             {/* RO */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Sadece Oda (RO)</label>
+                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Sadece Oda (RO)</label>
                               <input
                                 type="text"
                                 placeholder="0"
@@ -693,12 +693,12 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                   };
                                   setRoomForm({ ...roomForm, special_prices: updated });
                                 }}
-                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
                               />
                             </div>
                             {/* BB */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Oda Kahvaltı (BB)</label>
+                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Oda Kahvaltı (BB)</label>
                               <input
                                 type="text"
                                 placeholder="0"
@@ -712,12 +712,12 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                   };
                                   setRoomForm({ ...roomForm, special_prices: updated });
                                 }}
-                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
                               />
                             </div>
                             {/* HB */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Yarım Pansiyon (HB)</label>
+                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Yarım Pansiyon (HB)</label>
                               <input
                                 type="text"
                                 placeholder="0"
@@ -731,12 +731,12 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                   };
                                   setRoomForm({ ...roomForm, special_prices: updated });
                                 }}
-                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
                               />
                             </div>
                             {/* FB */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Tam Pansiyon (FB)</label>
+                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Tam Pansiyon (FB)</label>
                               <input
                                 type="text"
                                 placeholder="0"
@@ -750,12 +750,12 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                   };
                                   setRoomForm({ ...roomForm, special_prices: updated });
                                 }}
-                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
                               />
                             </div>
                             {/* AI */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Her Şey Dahil (AI)</label>
+                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Her Şey Dahil (AI)</label>
                               <input
                                 type="text"
                                 placeholder="0"
@@ -769,12 +769,12 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                   };
                                   setRoomForm({ ...roomForm, special_prices: updated });
                                 }}
-                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
                               />
                             </div>
                             {/* UAI */}
                             <div>
-                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Ultra Her Şey Dahil (UAI)</label>
+                              <label className="text-[9px] font-extrabold text-slate-700 dark:text-amber-200 block truncate">Ultra Her Şey Dahil (UAI)</label>
                               <input
                                 type="text"
                                 placeholder="0"
@@ -788,7 +788,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                   };
                                   setRoomForm({ ...roomForm, special_prices: updated });
                                 }}
-                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                                className="w-full px-2 py-1 bg-amber-50/80 dark:bg-slate-800 border border-amber-300 dark:border-amber-700/80 rounded-lg font-black text-slate-900 dark:text-white text-xs"
                               />
                             </div>
                           </div>
@@ -844,7 +844,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                             updated[cdIdx].title = e.target.value;
                             setRoomForm({ ...roomForm, closed_dates: updated });
                           }}
-                          className="flex-1 px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded font-bold text-xs"
+                          className="flex-1 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded font-bold text-xs text-slate-900 dark:text-white placeholder:text-slate-400"
                         />
                         <div className="flex items-center gap-1">
                           <input
@@ -857,9 +857,9 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                               updated[cdIdx].end_date = getNextDay(newStart);
                               setRoomForm({ ...roomForm, closed_dates: updated });
                             }}
-                            className="px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border rounded font-bold text-[10px]"
+                            className="px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded font-bold text-[10px] text-slate-900 dark:text-white"
                           />
-                          <span>-</span>
+                          <span className="text-slate-500 dark:text-slate-400 font-bold">-</span>
                           <input
                             type="date"
                             value={cd.end_date}
@@ -868,7 +868,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                               updated[cdIdx].end_date = e.target.value;
                               setRoomForm({ ...roomForm, closed_dates: updated });
                             }}
-                            className="px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border rounded font-bold text-[10px]"
+                            className="px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded font-bold text-[10px] text-slate-900 dark:text-white"
                           />
                         </div>
                         <button
@@ -945,7 +945,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                     type="text"
                     id="hotel_room_custom_url_input"
                     placeholder="Web görsel linki yapıştırın (https://...)"
-                    className="flex-1 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium"
+                    className="flex-1 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400"
                   />
                   <button
                     type="button"
@@ -964,7 +964,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                         input.value = "";
                       }
                     }}
-                    className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 rounded-lg text-xs font-bold cursor-pointer"
+                    className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:text-white rounded-lg text-xs font-bold cursor-pointer"
                   >
                     Ekle
                   </button>
@@ -1029,7 +1029,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
               {/* Açıklama & Notlar */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase block mb-1">
                     Web Vitrin Açıklaması
                   </label>
                   <textarea
@@ -1037,12 +1037,12 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                     placeholder="Oda konsepti ve misafir açıklaması..."
                     value={roomForm.description}
                     onChange={(e) => setRoomForm({ ...roomForm, description: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase block mb-1">
                     İç Resepsiyon Notları
                   </label>
                   <textarea
@@ -1050,7 +1050,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                     placeholder="Personel ve temizlik notları..."
                     value={roomForm.notes}
                     onChange={(e) => setRoomForm({ ...roomForm, notes: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400"
                   />
                 </div>
               </div>

@@ -128,25 +128,25 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                 placeholder="11 Haneli TC veya Pasaport"
                 value={guestForm.identity_no}
                 onChange={(e) => setGuestForm({ ...guestForm, identity_no: e.target.value })}
-                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase">Telefon</label>
+              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase">Telefon</label>
               <input
                 type="text"
                 placeholder="+90 5XX XXX XX XX"
                 value={guestForm.phone}
                 onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })}
-                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1">
+              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
                 <span>Misafir Adı</span>
                 <span className="text-rose-500 font-bold">* (Zorunlu)</span>
               </label>
@@ -156,12 +156,12 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                 placeholder="Adı"
                 value={guestForm.first_name}
                 onChange={(e) => setGuestForm({ ...guestForm, first_name: e.target.value })}
-                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1">
+              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
                 <span>Soyadı</span>
                 <span className="text-rose-500 font-bold">* (Zorunlu)</span>
               </label>
@@ -171,7 +171,7 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                 placeholder="Soyadı"
                 value={guestForm.last_name}
                 onChange={(e) => setGuestForm({ ...guestForm, last_name: e.target.value })}
-                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
           </div>
@@ -186,7 +186,7 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                   required
                   value={guestForm.birth_date}
                   onChange={(e) => setGuestForm({ ...guestForm, birth_date: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 rounded-xl text-xs font-bold"
+                  className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
@@ -210,26 +210,26 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase">Giriş Tarihi (Check-In)</label>
+              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase">Giriş Tarihi (Check-In)</label>
               <input
                 type="date"
                 required
                 min={new Date().toISOString().split('T')[0]}
                 value={guestForm.check_in_date}
                 onChange={(e) => handleAdminCheckInChange(e.target.value)}
-                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase">Çıkış Tarihi (Check-Out)</label>
+              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase">Çıkış Tarihi (Check-Out)</label>
               <input
                 type="date"
                 required
                 min={getNextDayString(guestForm.check_in_date)}
                 value={guestForm.check_out_date}
                 onChange={(e) => setGuestForm({ ...guestForm, check_out_date: e.target.value })}
-                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
           </div>
@@ -284,7 +284,7 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                           list[idx].identity_no = e.target.value;
                           setGuestForm({ ...guestForm, additionalGuests: list });
                         }}
-                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                       />
                     </div>
 
@@ -303,7 +303,7 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                           list[idx].first_name = e.target.value;
                           setGuestForm({ ...guestForm, additionalGuests: list });
                         }}
-                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                       />
                     </div>
 
@@ -322,7 +322,7 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                           list[idx].last_name = e.target.value;
                           setGuestForm({ ...guestForm, additionalGuests: list });
                         }}
-                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                       />
                     </div>
                   </div>
@@ -344,7 +344,7 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                           }
                           setGuestForm({ ...guestForm, additionalGuests: list });
                         }}
-                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold"
+                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                       />
                     </div>
 
@@ -357,7 +357,7 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                           list[idx].gender = e.target.value;
                           setGuestForm({ ...guestForm, additionalGuests: list });
                         }}
-                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                       >
                         <option value="Erkek">Erkek</option>
                         <option value="Kadın">Kadın</option>

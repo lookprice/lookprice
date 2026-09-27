@@ -52,7 +52,7 @@ export interface HotelRoom {
   max_adults?: number; // e.g., 2 adults
   max_children?: number; // e.g., 1 or 2 children
   bed_info?: string; // e.g., "1 Double + 1 Single"
-  status: 'vacant' | 'occupied' | 'maintenance' | 'staff' | 'disabled';
+  status: 'vacant' | 'occupied' | 'reserved' | 'maintenance' | 'staff' | 'disabled';
   pricing_type?: 'per_room' | 'per_person';
   special_prices?: RoomSpecialPrice[];
   closed_dates?: RoomClosedDate[];

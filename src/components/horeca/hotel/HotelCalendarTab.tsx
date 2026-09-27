@@ -339,15 +339,15 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                 type="button"
                 onClick={() => {
                   const d = new Date(calendarStartDate);
-                  d.setDate(d.getDate() - 15);
+                  d.setDate(d.getDate() - calendarDaysCount);
                   setCalendarStartDate(d.toISOString().split('T')[0]);
                 }}
                 className="px-2.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1 flex-1 sm:flex-initial"
-                title="Önceki 15 Gün"
+                title={`Önceki ${calendarDaysCount} Gün`}
               >
                 <ChevronLeft className="h-4 w-4 shrink-0" />
-                <span className="hidden xs:inline sm:inline">Önceki 15 Gün</span>
-                <span className="xs:hidden sm:hidden">-15 Gün</span>
+                <span className="hidden xs:inline sm:inline">Önceki {calendarDaysCount} Gün</span>
+                <span className="xs:hidden sm:hidden">-{calendarDaysCount}G</span>
               </button>
 
               <button
@@ -362,14 +362,14 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                 type="button"
                 onClick={() => {
                   const d = new Date(calendarStartDate);
-                  d.setDate(d.getDate() + 15);
+                  d.setDate(d.getDate() + calendarDaysCount);
                   setCalendarStartDate(d.toISOString().split('T')[0]);
                 }}
                 className="px-2.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1 flex-1 sm:flex-initial"
-                title="Sonraki 15 Gün"
+                title={`Sonraki ${calendarDaysCount} Gün`}
               >
-                <span className="hidden xs:inline sm:inline">Sonraki 15 Gün</span>
-                <span className="xs:hidden sm:hidden">+15 Gün</span>
+                <span className="hidden xs:inline sm:inline">Sonraki {calendarDaysCount} Gün</span>
+                <span className="xs:hidden sm:hidden">+{calendarDaysCount}G</span>
                 <ChevronRight className="h-4 w-4 shrink-0" />
               </button>
             </div>
@@ -457,9 +457,16 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
 
         {/* HORIZONTAL SCROLLABLE GANTT GRID */}
         <div className="overflow-x-auto border-2 border-slate-200 dark:border-slate-800 rounded-2xl shadow-inner max-h-[600px] overflow-y-auto w-full max-w-full">
-          <table className="w-full text-left border-collapse min-w-[1800px]">
-            {/* CALENDAR HEADER ROW */}
-            <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0 z-20 border-b-2 border-slate-300 dark:border-slate-700">
+          {(() => {
+            const dynamicMinWidth = 
+              calendarDaysCount === 7 ? "min-w-full sm:min-w-[650px]" :
+              calendarDaysCount === 14 ? "min-w-[900px]" :
+              calendarDaysCount === 30 ? "min-w-[1400px]" : "min-w-[2200px]";
+            
+            return (
+              <table className={`w-full text-left border-collapse ${dynamicMinWidth}`}>
+                {/* CALENDAR HEADER ROW */}
+                <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0 z-20 border-b-2 border-slate-300 dark:border-slate-700">
               <tr>
                 {/* Sticky Left Room Column Header */}
                 <th className="p-3 w-48 bg-slate-200 dark:bg-slate-900 sticky left-0 z-30 font-black text-xs text-slate-900 dark:text-slate-100 border-r-2 border-slate-300 dark:border-slate-700 shadow-md">
@@ -512,14 +519,28 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                       );
                     }
 
-                    const isCurrentGuestStay = room.status === 'occupied' && 
+                    const isCheckedInGuestCurrently = room.status === 'occupied' && 
+                      room.current_guest && 
+                      room.current_guest.check_in_date <= todayStr &&
+                      room.current_guest.check_out_date > todayStr;
+
+                    const isCurrentGuestCell = Boolean(
+                      isCheckedInGuestCurrently && 
                       room.current_guest && 
                       room.current_guest.check_in_date <= d.dateStr && 
-                      room.current_guest.check_out_date > d.dateStr;
+                      room.current_guest.check_out_date > d.dateStr
+                    );
 
-                    const reservationMatch = room.reservations?.find(r => r.check_in_date <= d.dateStr && r.check_out_date > d.dateStr);
+                    const isFutureGuestCell = Boolean(
+                      room.current_guest && 
+                      room.current_guest.check_in_date > todayStr && 
+                      room.current_guest.check_in_date <= d.dateStr && 
+                      room.current_guest.check_out_date > d.dateStr
+                    );
 
-                    if (isCurrentGuestStay && room.current_guest) {
+                    const reservationMatch = room.reservations?.find(r => (r as any).status !== 'cancelled' && r.check_in_date <= d.dateStr && r.check_out_date > d.dateStr);
+
+                    if (isCurrentGuestCell && room.current_guest) {
                       const cg = room.current_guest;
                       const addCount = room.additional_guests?.length || 0;
                       
@@ -549,10 +570,47 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                             });
                           }}
                           className="p-1 border-r border-slate-200 dark:border-slate-800 bg-rose-600 text-white cursor-pointer hover:opacity-90 transition-all text-center"
-                          title={`${cg.first_name} ${cg.last_name} (${cg.check_in_date} ~ ${cg.check_out_date})`}
+                          title={`Konaklayan Misafir (Dolu): ${cg.first_name} ${cg.last_name} (${cg.check_in_date} ~ ${cg.check_out_date})`}
                         >
                           <div className="text-[10px] font-black truncate leading-tight">{cg.first_name[0]}. {cg.last_name}</div>
                           <div className="text-[8px] font-bold opacity-90">{addCount > 0 ? `1Y+${addCount}Ç` : '1 Yetişkin'}</div>
+                        </td>
+                      );
+                    }
+
+                    if (isFutureGuestCell && room.current_guest) {
+                      const cg = room.current_guest;
+                      const addCount = room.additional_guests?.length || 0;
+                      return (
+                        <td
+                          key={d.dateStr}
+                          onClick={() => {
+                            setSelectedReservationModal({
+                              room,
+                              res: {
+                                id: cg.id,
+                                identity_no: cg.identity_no,
+                                first_name: cg.first_name,
+                                last_name: cg.last_name,
+                                phone: cg.phone,
+                                check_in_date: cg.check_in_date,
+                                check_out_date: cg.check_out_date,
+                                board_type: (cg.board_type as any) || 'BB',
+                                main_guest_age: cg.age,
+                                guests: room.additional_guests?.map(ag => ({
+                                  first_name: ag.first_name,
+                                  last_name: ag.last_name,
+                                  age: ag.age,
+                                  birth_date: ag.birth_date
+                                }))
+                              }
+                            });
+                          }}
+                          className="p-1 border-r border-slate-200 dark:border-slate-800 bg-amber-500 text-slate-950 cursor-pointer hover:opacity-90 transition-all text-center"
+                          title={`Gelecek Rezervasyon: ${cg.first_name} ${cg.last_name} (${cg.check_in_date} ~ ${cg.check_out_date})`}
+                        >
+                          <div className="text-[10px] font-black truncate leading-tight">{cg.first_name[0]}. {cg.last_name}</div>
+                          <div className="text-[8px] font-extrabold opacity-90">{addCount > 0 ? `1Y+${addCount}Ç` : '1 Yetişkin'}</div>
                         </td>
                       );
                     }
@@ -594,6 +652,8 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
               ))}
             </tbody>
           </table>
+            );
+          })()}
         </div>
       </div>
     </div>

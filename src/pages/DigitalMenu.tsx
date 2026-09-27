@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, AlertCircle, Edit3, ChevronDown, Check, Search, Keyboard, Flame, Sparkles, UserCheck, FlaskConical, RotateCcw, Clock, Utensils, Zap, Info, ShieldCheck, Smartphone, Send, Coffee } from "lucide-react";
 import { translateText } from "../utils/translator";
 import { StaffWaiter, getStoreWaiters } from "../utils/staffHelpers";
+import { parseAndFormatAllergens } from "../utils/allergenHelpers";
 
 const ALLERGEN_MAP: Record<string, { labelTr: string; labelEn: string; icon: string }> = {
   gluten: { labelTr: "Gluten", labelEn: "Gluten", icon: "🌾" },
@@ -812,17 +813,8 @@ export default function DigitalMenuPage() {
             const hasRecipe = recipeList.length > 0;
 
             // Parse allergens
-            let pAllergens: string[] = [];
-            if (Array.isArray(product.allergens)) {
-              pAllergens = product.allergens;
-            } else if (typeof product.allergens === 'string') {
-              try {
-                pAllergens = JSON.parse(product.allergens);
-              } catch {
-                pAllergens = [];
-              }
-            }
-            const hasNutritionsOrAllergens = (pAllergens.length > 0) || (Number(product.calories) > 0) || !!product.portion_size || (Number(product.prep_time_min) > 0);
+            const formattedAllergens = parseAndFormatAllergens(product.allergens, lang);
+            const hasNutritionsOrAllergens = (formattedAllergens.length > 0) || (Number(product.calories) > 0) || !!product.portion_size || (Number(product.prep_time_min) > 0);
             const hasDetailsToFlip = hasRecipe || hasNutritionsOrAllergens;
             const isFlipped = flippedProductId === product.id;
 
@@ -907,11 +899,11 @@ export default function DigitalMenuPage() {
                       </p>
                     ) : (
                       <div className="h-3 mt-0.5">
-                        {pAllergens.length > 0 && (
+                        {formattedAllergens.length > 0 && (
                           <div className="flex gap-1 overflow-hidden">
-                            {pAllergens.slice(0, 3).map((alg) => (
-                              <span key={alg} className="text-[8.5px] text-slate-500 font-bold bg-slate-100 px-1 py-0.2 rounded" title={ALLERGEN_MAP[alg]?.labelTr || alg}>
-                                {ALLERGEN_MAP[alg]?.icon || "⚠️"} {ALLERGEN_MAP[alg]?.labelTr || alg}
+                            {formattedAllergens.slice(0, 3).map((alg) => (
+                              <span key={alg.id + alg.label} className="text-[8.5px] text-slate-500 font-bold bg-slate-100 px-1 py-0.2 rounded" title={alg.label}>
+                                {alg.icon} {alg.label}
                               </span>
                             ))}
                           </div>
@@ -1081,17 +1073,17 @@ export default function DigitalMenuPage() {
                       )}
 
                       {/* Allergens badges */}
-                      {pAllergens.length > 0 && (
+                      {formattedAllergens.length > 0 && (
                         <div className="space-y-1 pt-1 border-t border-slate-800/80">
                           <p className="text-[8px] font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                             {t("Alerjen & Diyet Uyarıları", "Allergens & Dietary", "Αλλεργιογόνα")}
                           </p>
                           <div className="flex flex-wrap gap-1">
-                            {pAllergens.map((alg) => (
-                              <span key={alg} className="text-[9px] font-bold bg-slate-800 text-slate-200 border border-slate-700 px-1.5 py-0.5 rounded-md flex items-center gap-1">
-                                <span>{ALLERGEN_MAP[alg]?.icon || "⚠️"}</span>
-                                <span>{ALLERGEN_MAP[alg]?.labelTr || alg}</span>
+                            {formattedAllergens.map((alg) => (
+                              <span key={alg.id + alg.label} className="text-[9px] font-bold bg-slate-800 text-slate-200 border border-slate-700 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                                <span>{alg.icon}</span>
+                                <span>{alg.label}</span>
                               </span>
                             ))}
                           </div>
