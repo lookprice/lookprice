@@ -49,14 +49,32 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
   const isTr = lang === "tr";
   const displayName = getDisplayStoreName(store);
 
-  // Accurate address parsing without any assumed city/country fallbacks
-  const rawAddress = (store?.address || store?.branding?.address || store?.branding?.store_address || "").trim();
-  const rawDistrict = (store?.district || store?.branding?.district || "").trim();
-  const rawCity = (store?.city || store?.branding?.city || "").trim();
+  // Accurate address parsing: check locations array first, then direct store/branding address fields
+  const firstLocation = (Array.isArray(store?.branding?.locations) && store?.branding?.locations[0]) ||
+                        (Array.isArray(store?.locations) && store?.locations[0]) ||
+                        (Array.isArray(store?.branding?.page_layout_settings?.locations) && store?.branding?.page_layout_settings?.locations[0]);
+  
+  const locationAddress = firstLocation?.address || "";
+  const locationDistrict = firstLocation?.district || "";
+  const locationCity = firstLocation?.city || "";
+  
+  const rawAddress = (locationAddress || store?.address || store?.branding?.address || store?.branding?.store_address || store?.branding?.branch_address || "").trim();
+  const rawDistrict = (locationDistrict || store?.district || store?.branding?.district || "").trim();
+  const rawCity = (locationCity || store?.city || store?.branding?.city || "").trim();
   const rawCountry = (store?.country || store?.branding?.country || "").trim();
   
-  const addressParts = [rawAddress, rawDistrict, rawCity, rawCountry].filter(Boolean);
-  const fullAddress = addressParts.length > 0 ? addressParts.join(", ") : "";
+  // Format clean address without duplicate words
+  let fullAddress = rawAddress;
+  if (rawDistrict && !fullAddress.toLowerCase().includes(rawDistrict.toLowerCase())) {
+    fullAddress = fullAddress ? `${fullAddress}, ${rawDistrict}` : rawDistrict;
+  }
+  if (rawCity && !fullAddress.toLowerCase().includes(rawCity.toLowerCase())) {
+    fullAddress = fullAddress ? `${fullAddress}, ${rawCity}` : rawCity;
+  }
+  if (rawCountry && !fullAddress.toLowerCase().includes(rawCountry.toLowerCase())) {
+    fullAddress = fullAddress ? `${fullAddress}, ${rawCountry}` : rawCountry;
+  }
+  
   const displayAddressText = fullAddress || (isTr ? "İletişim kanallarımızdan bize ulaşabilirsiniz." : "Contact us for store address details.");
 
   const customMapUrl = store?.branding?.google_maps_url || "";
@@ -112,7 +130,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
   const linkedinUrl = social.linkedin || "https://linkedin.com";
 
   return (
-    <footer className="bg-slate-950 text-slate-300 border-t border-slate-800/80 pt-8 pb-6 select-none">
+    <footer id="store-footer" className="bg-slate-950 text-slate-300 border-t border-slate-800/80 pt-8 pb-6 select-none scroll-mt-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Main Footer Grid - 4 Columns, Compact & Dense */}
@@ -129,7 +147,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-red-600/30">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-blue-600/30">
                   {displayName.charAt(0)}
                 </div>
               )}
@@ -139,9 +157,11 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
             </div>
 
             <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
-              {store?.description || store?.branding?.slogan || (isTr 
-                ? "Edebiyat, bilim, araştırma ve sanat dünyasının en seçkin eserleri, güvenli ödeme ve hızlı teslimatla kapınızda." 
-                : "Curated collection of masterworks in literature, arts, and sciences with fast and secure delivery.")}
+              {store?.description || store?.branding?.description || store?.branding?.slogan || (
+                (store?.store_type === 'bookstore' || store?.branding?.store_type === 'bookstore')
+                  ? (isTr ? "Edebiyat, bilim, araştırma ve sanat dünyasının en seçkin eserleri, güvenli ödeme ve hızlı teslimatla kapınızda." : "Curated collection of masterworks in literature, arts, and sciences with fast and secure delivery.")
+                  : (isTr ? "En kaliteli teknoloji, bilişim ve perakende ürünleri, güvenli ödeme ve hızlı teslimat güvencesiyle kapınızda." : "Premium quality technology, electronics, and retail products with secure payment and fast delivery.")
+              )}
             </p>
 
             {/* Social Media Buttons */}

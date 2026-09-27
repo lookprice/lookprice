@@ -43,7 +43,7 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
   }, []);
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans relative operator-compact-layout">
+    <div className="flex h-screen h-[100dvh] min-h-screen bg-slate-50 overflow-hidden font-sans relative operator-compact-layout">
       {/* Top Non-blocking Loading Bar */}
       {loading && (
         <div className="fixed top-0 left-0 right-0 z-[9999] h-1 bg-indigo-100/80 overflow-hidden">
@@ -77,10 +77,10 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
 
       <DashboardSidebar {...sidebarProps} />
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
         {/* Mobile Header with Hamburger Menu */}
-        <div className="lg:hidden flex items-center p-4 bg-white border-b border-slate-200 z-10">
-          <button onClick={() => sidebarProps.setSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+        <div className="lg:hidden flex items-center p-4 bg-white border-b border-slate-200 z-10 shrink-0">
+          <button onClick={() => sidebarProps.setSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">
             <Menu className="w-6 h-6" />
           </button>
           <div className="ml-4 flex items-center gap-2.5 min-w-0">
@@ -93,10 +93,10 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
 
         {/* Desktop Collapsed Header */}
         {sidebarProps.desktopSidebarCollapsed && (
-          <div className="hidden lg:flex items-center p-4 bg-white border-b border-slate-200/60 z-10 shadow-sm transition-all">
+          <div className="hidden lg:flex items-center p-4 bg-white border-b border-slate-200/60 z-10 shadow-sm transition-all shrink-0">
             <button 
               onClick={() => sidebarProps.setDesktopSidebarCollapsed(false)} 
-              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 rounded-xl font-bold text-xs uppercase transition-all tracking-wider shrink-0"
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 rounded-xl font-bold text-xs uppercase transition-all tracking-wider shrink-0 cursor-pointer"
               title={lang === 'tr' ? 'Menüyü Aç' : 'Open Sidebar'}
             >
               <Menu className="w-4 h-4" />
@@ -111,8 +111,8 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
           </div>
         )}
         
-        <div className="flex-1 overflow-y-auto p-3.5 md:p-5 bg-slate-50/50">
-          <div className="max-w-7xl mx-auto space-y-5">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-3.5 md:p-5 pb-32 sm:pb-24 bg-slate-50/50">
+          <div className="max-w-7xl mx-auto space-y-5 pb-12">
             <ErrorBoundary lang={lang}>
               {!hasRenderedChildren && loading ? (
                 <div className="flex flex-col items-center justify-center h-64">

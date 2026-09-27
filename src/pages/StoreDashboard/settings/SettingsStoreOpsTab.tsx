@@ -198,7 +198,7 @@ export const SettingsStoreOpsTab = ({
     <motion.div 
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-6xl mx-auto space-y-4 text-slate-900 dark:text-slate-100"
+      className="max-w-6xl mx-auto space-y-4 text-slate-900 dark:text-slate-100 pb-28 sm:pb-16"
     >
       {/* Top Header & Horizontal Minimalist Micro Navigation Bar */}
       <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-xs">

@@ -843,28 +843,28 @@ router.put("/bulk-update-price", async (req: any, res) => {
   const val = Number(value);
 
   if (type === 'amount') {
-    if (direction === 'increase') priceCalc = `price + \${val}`;
-    else priceCalc = `GREATEST(price - \${val}, 0)`;
+    if (direction === 'increase') priceCalc = `price + ${val}`;
+    else priceCalc = `GREATEST(price - ${val}, 0)`;
   } else if (type === 'percentage') {
     const multiplier = direction === 'increase' ? (1 + val / 100) : (1 - val / 100);
-    priceCalc = `price * \${multiplier}`;
+    priceCalc = `price * ${multiplier}`;
   }
 
   if (rounding === 'round') {
-    priceCalc = `ROUND(CAST(\${priceCalc} AS numeric), 0)`;
+    priceCalc = `ROUND(CAST(${priceCalc} AS numeric), 0)`;
   } else if (rounding === 'ceil') {
-    priceCalc = `CEIL(\${priceCalc})`;
+    priceCalc = `CEIL(${priceCalc})`;
   } else if (rounding === 'floor') {
-    priceCalc = `FLOOR(\${priceCalc})`;
+    priceCalc = `FLOOR(${priceCalc})`;
   } else {
-    priceCalc = `ROUND(CAST(\${priceCalc} AS numeric), 2)`;
+    priceCalc = `ROUND(CAST(${priceCalc} AS numeric), 2)`;
   }
 
   try {
     let query = `
       UPDATE products p 
-      SET price = \${priceCalc}, 
-          price_2 = \${priceCalc} / (1 + COALESCE(p.tax_rate, s.default_tax_rate, 20) / 100.0), 
+      SET price = ${priceCalc}, 
+          price_2 = ${priceCalc} / (1 + COALESCE(p.tax_rate, s.default_tax_rate, 20) / 100.0), 
           price_2_currency = p.currency, 
           updated_at = CURRENT_TIMESTAMP 
       FROM stores s 
