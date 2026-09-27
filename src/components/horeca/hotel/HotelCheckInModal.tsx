@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   X, 
   Users, 
@@ -75,9 +75,13 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
     Boolean(guestForm.custom_nightly_rate && guestForm.custom_nightly_rate > 0)
   );
 
-  if (!checkInModalRoom) return null;
+  useEffect(() => {
+    if (checkInModalRoom) {
+      setIsCustomPriceActive(Boolean(guestForm.custom_nightly_rate && guestForm.custom_nightly_rate > 0));
+    }
+  }, [checkInModalRoom, guestForm.custom_nightly_rate]);
 
-  // Nights calculation - moved after the early return
+  // Nights calculation
   const nights = useMemo(() => {
     try {
       const cin = new Date(guestForm.check_in_date || new Date());
@@ -88,6 +92,8 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
       return 1;
     }
   }, [guestForm.check_in_date, guestForm.check_out_date]);
+
+  if (!checkInModalRoom) return null;
 
 
   // Helper to extract board price for a given room and board code
@@ -336,7 +342,7 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                       setGuestForm({ 
                         ...guestForm, 
                         board_type: opt.code,
-                        ...(isCustomPriceActive ? { custom_nightly_rate: price } : {})
+                        ...(isCustomPriceActive ? { custom_nightly_rate: guestForm.custom_nightly_rate ?? price } : {})
                       });
                     }}
                     className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 relative ${

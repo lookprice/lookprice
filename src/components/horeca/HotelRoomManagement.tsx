@@ -122,7 +122,17 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       try { 
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          // Clean up vacants that have folio items (old/lingering test adisyons)
+          return parsed.map((r: any) => {
+            const hasGuest = r.status === 'occupied' && r.current_guest;
+            if (!hasGuest && r.folio && r.folio.items && r.folio.items.length > 0) {
+              return {
+                ...r,
+                folio: { id: r.folio.id || `folio-${Date.now()}`, total_amount: 0, items: [] }
+              };
+            }
+            return r;
+          });
         }
       } catch (e) {}
     }
@@ -226,9 +236,20 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     if (storeId) {
       api.getHotelRooms(storeId).then((res: any) => {
         if (res && res.success && Array.isArray(res.rooms) && res.rooms.length > 0) {
-          setRooms(res.rooms);
-          localStorage.setItem(`hotel_rooms_${storeId}`, JSON.stringify(res.rooms));
-          onRoomsUpdated?.(res.rooms);
+          // Clean up vacants that have folio items (old/lingering test adisyons)
+          const cleanedRooms = res.rooms.map((r: any) => {
+            const hasGuest = r.status === 'occupied' && r.current_guest;
+            if (!hasGuest && r.folio && r.folio.items && r.folio.items.length > 0) {
+              return {
+                ...r,
+                folio: { id: r.folio.id || `folio-${Date.now()}`, total_amount: 0, items: [] }
+              };
+            }
+            return r;
+          });
+          setRooms(cleanedRooms);
+          localStorage.setItem(`hotel_rooms_${storeId}`, JSON.stringify(cleanedRooms));
+          onRoomsUpdated?.(cleanedRooms);
         }
       }).catch((e) => {
         console.warn("Could not fetch hotel rooms from API:", e);
@@ -1353,6 +1374,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       totalToddlers,
       totalChildren,
       totalTeens,
+      schoolTeens: schoolAgeList.length,
       totalChildrenAll,
       occupancyPercentage,
       estimatedRevenue,
@@ -1364,6 +1386,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       childrenList,
       teensList,
       schoolAgeList,
+      schoolTeensList: schoolAgeList,
       childrenAllList
     };
   };
@@ -1903,6 +1926,67 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     });
   };
 
+  const handleOpenCheckInModal = (room: HotelRoom) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const activeRes: any = (room.reservations || []).find((res: any) => res.status !== 'cancelled' && res.check_in_date <= todayStr && res.check_out_date > todayStr)
+      || (room.reservations || []).find((res: any) => res.status !== 'cancelled');
+
+    if (activeRes) {
+      setGuestForm({
+        identity_no: activeRes.identity_no || "",
+        first_name: activeRes.first_name || "",
+        last_name: activeRes.last_name || "",
+        birth_date: activeRes.birth_date || "1990-01-01",
+        phone: activeRes.phone || "",
+        email: activeRes.email || "",
+        gender: activeRes.gender || "Belirtilmedi",
+        nationality: activeRes.nationality || "TC - Türkiye",
+        board_type: activeRes.board_type || "BB",
+        custom_nightly_rate: activeRes.custom_nightly_rate,
+        advance_payment: activeRes.advance_payment || 0,
+        payment_method: activeRes.payment_method || "credit_card",
+        notes: activeRes.notes || "",
+        check_in_date: activeRes.check_in_date || todayStr,
+        check_out_date: activeRes.check_out_date || getNextDayString(todayStr),
+        additionalGuests: (activeRes.guests || []).map((ag: any) => ({
+          identity_no: ag.identity_no || "",
+          first_name: ag.first_name || "",
+          last_name: ag.last_name || "",
+          birth_date: ag.birth_date || "1990-01-01",
+          age: ag.age || 0,
+          age_category: ag.age_category || "child",
+          gender: ag.gender || "Kadın",
+          nationality: ag.nationality || "TC - Türkiye"
+        }))
+      });
+      setCheckInModalRoom({
+        ...room,
+        active_res_id: activeRes.id,
+        reservation_code: (activeRes as any).reservation_code
+      } as any);
+    } else {
+      setGuestForm({
+        identity_no: "",
+        first_name: "",
+        last_name: "",
+        birth_date: "",
+        phone: "",
+        email: "",
+        gender: "Belirtilmedi",
+        nationality: "TC - Türkiye",
+        board_type: "BB",
+        custom_nightly_rate: undefined,
+        advance_payment: 0,
+        payment_method: "credit_card",
+        notes: "",
+        check_in_date: todayStr,
+        check_out_date: getNextDayString(todayStr),
+        additionalGuests: []
+      });
+      setCheckInModalRoom(room);
+    }
+  };
+
   // Handle Guest Check-In
   const handleExecuteCheckIn = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2008,14 +2092,22 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     const todayStr = new Date().toISOString().split('T')[0];
     const isCheckInTodayOrPast = guestForm.check_in_date <= todayStr;
 
+    const activeResId = (checkInModalRoom as any)?.active_res_id;
+
     if (isCheckInTodayOrPast) {
       setRooms(rooms.map(r => r.id === checkInModalRoom.id ? {
         ...r,
         status: 'occupied',
-        current_guest: newGuest,
+        current_guest: {
+          ...newGuest,
+          custom_nightly_rate: newGuest.custom_nightly_rate !== undefined ? Number(newGuest.custom_nightly_rate) : undefined
+        },
         additional_guests: processedAdditionalGuests,
         folio: { id: `folio-${Date.now()}`, total_amount: 0, items: [] },
-        reservations: r.reservations || [] 
+        reservations: (r.reservations || []).filter(res => {
+          if (activeResId && res.id === activeResId) return false;
+          return res.check_in_date !== newGuest.check_in_date;
+        })
       } : r));
     } else {
       const newReservation: RoomReservation = {
@@ -2036,7 +2128,10 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
           birth_date: ag.birth_date
         })),
         notes: newGuest.notes,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        custom_nightly_rate: newGuest.custom_nightly_rate !== undefined ? Number(newGuest.custom_nightly_rate) : undefined,
+        advance_payment: Number(newGuest.advance_payment) || 0,
+        payment_method: newGuest.payment_method || "credit_card"
       } as any;
 
       setRooms(rooms.map(r => r.id === checkInModalRoom.id ? {
@@ -3702,7 +3797,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
                   {(effStatus === 'vacant' || effStatus === 'reserved') && (
                     <button
-                      onClick={() => setCheckInModalRoom(room)}
+                      onClick={() => handleOpenCheckInModal(room)}
                       className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <UserCheck className="h-3.5 w-3.5" />
@@ -3769,45 +3864,56 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       )}
 
       {/* MODAL: AGE CATEGORY DRILLDOWN MODAL */}
-      <HotelAgeCategoryDrilldownModal
-        selectedAgeCategoryModal={selectedAgeCategoryModal}
-        onClose={() => setSelectedAgeCategoryModal(null)}
-        formatDisplayDate={formatDisplayDate}
-        setInspectGuestModal={setInspectGuestModal}
-      />
+      {selectedAgeCategoryModal && (
+        <HotelAgeCategoryDrilldownModal
+          selectedAgeCategoryModal={selectedAgeCategoryModal}
+          onClose={() => setSelectedAgeCategoryModal(null)}
+          formatDisplayDate={formatDisplayDate}
+          setInspectGuestModal={setInspectGuestModal}
+        />
+      )}
 
       {/* MODAL: INSPECT GUEST FULL DOSSIER */}
-      <HotelInspectGuestModal
-        inspectGuestModal={inspectGuestModal}
-        onClose={() => setInspectGuestModal(null)}
-        formatDisplayDate={formatDisplayDate}
-        setAddExpenseModalRoom={setAddExpenseModalRoom}
-        setCheckOutModalRoom={setCheckOutModalRoom}
-        setSelectedAgeCategoryModal={setSelectedAgeCategoryModal}
-      />
+      {inspectGuestModal && (
+        <HotelInspectGuestModal
+          inspectGuestModal={inspectGuestModal}
+          onClose={() => setInspectGuestModal(null)}
+          formatDisplayDate={formatDisplayDate}
+          setAddExpenseModalRoom={setAddExpenseModalRoom}
+          setCheckOutModalRoom={setCheckOutModalRoom}
+          setSelectedAgeCategoryModal={setSelectedAgeCategoryModal}
+        />
+      )}
 
       {/* MODAL: CALENDAR RESERVATION DETAIL POPUP */}
-      <HotelReservationDetailModal
-        selectedReservationModal={selectedReservationModal}
-        onClose={() => setSelectedReservationModal(null)}
-        formatDisplayDate={formatDisplayDate}
-        calculateAgeDetails={calculateAgeDetails}
-        onSaveReservation={handleSaveReservationRevision}
-      />
+      {selectedReservationModal && (
+        <HotelReservationDetailModal
+          selectedReservationModal={selectedReservationModal}
+          onClose={() => setSelectedReservationModal(null)}
+          formatDisplayDate={formatDisplayDate}
+          calculateAgeDetails={calculateAgeDetails}
+          onSaveReservation={handleSaveReservationRevision}
+          setCheckInModalRoom={setCheckInModalRoom}
+          setGuestForm={setGuestForm}
+        />
+      )}
 
       {/* MODAL: ROOM DETAIL & FULL GUEST MANIFEST */}
-      <HotelRoomDetailModal
-        selectedRoomDetailModal={selectedRoomDetailModal}
-        onClose={() => setSelectedRoomDetailModal(null)}
-        formatDisplayDate={formatDisplayDate}
-        parseBedAndCapacity={parseBedAndCapacity}
-        handlePrintKbsManifest={handlePrintKbsManifest}
-        setCheckInModalRoom={setCheckInModalRoom}
-        setCheckOutModalRoom={setCheckOutModalRoom}
-        openAddOrEditRoomModal={openAddOrEditRoomModal}
-        onReviseRoomGuests={handleReviseRoomGuests}
-        onEditReservation={(room, res) => setSelectedReservationModal({ room, res })}
-      />
+      {selectedRoomDetailModal && (
+        <HotelRoomDetailModal
+          selectedRoomDetailModal={selectedRoomDetailModal}
+          onClose={() => setSelectedRoomDetailModal(null)}
+          formatDisplayDate={formatDisplayDate}
+          parseBedAndCapacity={parseBedAndCapacity}
+          handlePrintKbsManifest={handlePrintKbsManifest}
+          setCheckInModalRoom={handleOpenCheckInModal}
+          setCheckOutModalRoom={setCheckOutModalRoom}
+          openAddOrEditRoomModal={openAddOrEditRoomModal}
+          onReviseRoomGuests={handleReviseRoomGuests}
+          onEditReservation={(room, res) => setSelectedReservationModal({ room, res })}
+          setAddExpenseModalRoom={setAddExpenseModalRoom}
+        />
+      )}
 
       {/* MODAL: ADD / EDIT ROOM */}
       <HotelRoomEditModal
@@ -3826,42 +3932,48 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       />
 
       {/* MODAL: CHECK-IN GUEST */}
-      <HotelCheckInModal
-        checkInModalRoom={checkInModalRoom}
-        setCheckInModalRoom={setCheckInModalRoom}
-        rooms={rooms}
-        guestForm={guestForm}
-        setGuestForm={setGuestForm}
-        handleExecuteCheckIn={handleExecuteCheckIn}
-        handleAdminCheckInChange={handleAdminCheckInChange}
-        calculateAgeDetails={calculateAgeDetails}
-        getNextDayString={getNextDayString}
-        handleAddAdditionalGuestField={handleAddAdditionalGuestField}
-        handleRemoveAdditionalGuestField={handleRemoveAdditionalGuestField}
-      />
+      {checkInModalRoom && (
+        <HotelCheckInModal
+          checkInModalRoom={checkInModalRoom}
+          setCheckInModalRoom={setCheckInModalRoom}
+          rooms={rooms}
+          guestForm={guestForm}
+          setGuestForm={setGuestForm}
+          handleExecuteCheckIn={handleExecuteCheckIn}
+          handleAdminCheckInChange={handleAdminCheckInChange}
+          calculateAgeDetails={calculateAgeDetails}
+          getNextDayString={getNextDayString}
+          handleAddAdditionalGuestField={handleAddAdditionalGuestField}
+          handleRemoveAdditionalGuestField={handleRemoveAdditionalGuestField}
+        />
+      )}
 
       {/* MODAL: CHECK-OUT & FOLIO RECEIPT */}
-      <HotelFolioModal
-        checkOutModalRoom={checkOutModalRoom}
-        onCloseCheckOutModal={() => setCheckOutModalRoom(null)}
-        computeRoomFolioDetails={computeRoomFolioDetails}
-        checkoutPaymentMethod={checkoutPaymentMethod}
-        setCheckoutPaymentMethod={setCheckoutPaymentMethod}
-        handlePrintFolio={handlePrintFolio}
-        handleExecuteCheckOut={handleExecuteCheckOut}
-        setAddExpenseModalRoom={setAddExpenseModalRoom}
-        handleRemoveExpenseFromFolio={handleRemoveExpenseFromFolio}
-        handleClearFolioExpenses={handleClearFolioExpenses}
-      />
+      {checkOutModalRoom && (
+        <HotelFolioModal
+          checkOutModalRoom={checkOutModalRoom}
+          onCloseCheckOutModal={() => setCheckOutModalRoom(null)}
+          computeRoomFolioDetails={computeRoomFolioDetails}
+          checkoutPaymentMethod={checkoutPaymentMethod}
+          setCheckoutPaymentMethod={setCheckoutPaymentMethod}
+          handlePrintFolio={handlePrintFolio}
+          handleExecuteCheckOut={handleExecuteCheckOut}
+          setAddExpenseModalRoom={setAddExpenseModalRoom}
+          handleRemoveExpenseFromFolio={handleRemoveExpenseFromFolio}
+          handleClearFolioExpenses={handleClearFolioExpenses}
+        />
+      )}
 
       {/* MODAL: ADD MANUAL EXPENSE / ADISYON (ALWAYS VISIBLE DIRECTLY WHEN TRIGGERED) */}
-      <HotelAddExpenseModal
-        room={addExpenseModalRoom}
-        onClose={() => setAddExpenseModalRoom(null)}
-        manualExpense={manualExpense}
-        setManualExpense={setManualExpense}
-        handleAddExpenseToFolio={handleAddExpenseToFolio}
-      />
+      {addExpenseModalRoom && (
+        <HotelAddExpenseModal
+          room={addExpenseModalRoom}
+          onClose={() => setAddExpenseModalRoom(null)}
+          manualExpense={manualExpense}
+          setManualExpense={setManualExpense}
+          handleAddExpenseToFolio={handleAddExpenseToFolio}
+        />
+      )}
 
       {/* MODAL: AGE DISCOUNT & PRICING POLICY SETTINGS */}
       <HotelAgePolicyModal
@@ -3871,35 +3983,41 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         saveAgePolicy={saveAgePolicy}
       />
       {/* MODAL: COMPLETED CHECKOUT & DETAILED CUSTOMER STATEMENT */}
-      <HotelCheckoutReceiptModal
-        completedCheckoutData={completedCheckoutData}
-        onClose={() => setCompletedCheckoutData(null)}
-        handlePrintFolio={handlePrintFolio}
-      />
+      {completedCheckoutData && (
+        <HotelCheckoutReceiptModal
+          completedCheckoutData={completedCheckoutData}
+          onClose={() => setCompletedCheckoutData(null)}
+          handlePrintFolio={handlePrintFolio}
+        />
+      )}
 
       {/* MODAL: ONLINE RESERVATION DETAIL MODAL */}
-      <HotelOnlineBookingDetailModal
-        selectedOnlineResModal={selectedOnlineResModal}
-        onClose={() => setSelectedOnlineResModal(null)}
-        isTr={isTr}
-        formatThousand={formatThousand}
-        formatDisplayDate={formatDisplayDate}
-        handleCheckInOnlineReservation={handleCheckInOnlineReservation}
-        handleConfirmOnlineReservation={handleConfirmOnlineReservation}
-        handleCancelOnlineReservation={handleCancelOnlineReservation}
-        handleSaveOnlineReservationRevision={handleSaveOnlineReservationRevision}
-      />
+      {selectedOnlineResModal && (
+        <HotelOnlineBookingDetailModal
+          selectedOnlineResModal={selectedOnlineResModal}
+          onClose={() => setSelectedOnlineResModal(null)}
+          isTr={isTr}
+          formatThousand={formatThousand}
+          formatDisplayDate={formatDisplayDate}
+          handleCheckInOnlineReservation={handleCheckInOnlineReservation}
+          handleConfirmOnlineReservation={handleConfirmOnlineReservation}
+          handleCancelOnlineReservation={handleCancelOnlineReservation}
+          handleSaveOnlineReservationRevision={handleSaveOnlineReservationRevision}
+        />
+      )}
 
       {/* MODAL: ASSIGN ROOM SELECTOR FOR ONLINE RESERVATION */}
-      <HotelAssignRoomModal
-        assignRoomModalRes={assignRoomModalRes}
-        onClose={() => setAssignRoomModalRes(null)}
-        rooms={rooms}
-        selectedTargetRoomId={selectedTargetRoomId}
-        setSelectedTargetRoomId={setSelectedTargetRoomId}
-        formatThousand={formatThousand}
-        handleCheckInOnlineReservation={handleCheckInOnlineReservation}
-      />
+      {assignRoomModalRes && (
+        <HotelAssignRoomModal
+          assignRoomModalRes={assignRoomModalRes}
+          onClose={() => setAssignRoomModalRes(null)}
+          rooms={rooms}
+          selectedTargetRoomId={selectedTargetRoomId}
+          setSelectedTargetRoomId={setSelectedTargetRoomId}
+          formatThousand={formatThousand}
+          handleCheckInOnlineReservation={handleCheckInOnlineReservation}
+        />
+      )}
     </div>
   );
 };

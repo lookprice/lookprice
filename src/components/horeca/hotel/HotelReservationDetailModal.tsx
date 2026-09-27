@@ -31,6 +31,8 @@ export interface HotelReservationDetailModalProps {
   calculateAgeDetails: (birthDate?: string, manualAge?: number) => any;
   onSaveReservation?: (roomId: string, updatedRes: RoomReservation) => void;
   onDeleteReservation?: (roomId: string, resId: string) => void;
+  setCheckInModalRoom?: (room: any | null) => void;
+  setGuestForm?: (form: any) => void;
 }
 
 export const HotelReservationDetailModal: React.FC<HotelReservationDetailModalProps> = ({
@@ -40,6 +42,8 @@ export const HotelReservationDetailModal: React.FC<HotelReservationDetailModalPr
   calculateAgeDetails,
   onSaveReservation,
   onDeleteReservation,
+  setCheckInModalRoom,
+  setGuestForm,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<{
@@ -231,20 +235,58 @@ export const HotelReservationDetailModal: React.FC<HotelReservationDetailModalPr
             )}
 
             {/* ACTION BUTTONS */}
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Misafir Bilgilerini Revize Et</span>
-              </button>
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {setCheckInModalRoom && setGuestForm && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const res = selectedReservationModal.res;
+                      const room = selectedReservationModal.room;
+                      setGuestForm({
+                        identity_no: res.identity_no || "",
+                        first_name: res.first_name || "",
+                        last_name: res.last_name || "",
+                        phone: res.phone || "",
+                        email: res.email || "",
+                        birth_date: res.birth_date || "1990-01-01",
+                        check_in_date: res.check_in_date,
+                        check_out_date: res.check_out_date,
+                        board_type: res.board_type || "BB",
+                        custom_nightly_rate: res.custom_nightly_rate,
+                        advance_payment: res.advance_payment || 0,
+                        payment_method: res.payment_method || "credit_card",
+                        notes: res.notes || "",
+                        additionalGuests: res.guests || []
+                      });
+                      setCheckInModalRoom({
+                        ...room,
+                        active_res_id: res.id,
+                        reservation_code: res.reservation_code
+                      });
+                      onClose();
+                    }}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Giriş Yap (Check-In)</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-white rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700 active:scale-95 transition-all"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Misafir Bilgilerini Revize Et</span>
+                </button>
+              </div>
 
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl font-bold text-xs hover:bg-slate-800 cursor-pointer"
+                className="px-5 py-2.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl font-bold text-xs hover:bg-slate-800 cursor-pointer"
               >
                 Kapat
               </button>

@@ -12,7 +12,8 @@ import {
   Edit3,
   Save,
   AlertCircle,
-  Calendar
+  Calendar,
+  Plus
 } from "lucide-react";
 import { HotelRoom, ParsedBedAndCapacity, RoomReservation } from "./hotelTypes";
 
@@ -27,6 +28,7 @@ export interface HotelRoomDetailModalProps {
   openAddOrEditRoomModal: (room: HotelRoom) => void;
   onReviseRoomGuests?: (roomId: string, currentGuest: any, additionalGuests: any[]) => void;
   onEditReservation?: (room: HotelRoom, res: RoomReservation) => void;
+  setAddExpenseModalRoom?: (room: HotelRoom | null) => void;
 }
 
 export const HotelRoomDetailModal: React.FC<HotelRoomDetailModalProps> = ({
@@ -40,6 +42,7 @@ export const HotelRoomDetailModal: React.FC<HotelRoomDetailModalProps> = ({
   openAddOrEditRoomModal,
   onReviseRoomGuests,
   onEditReservation,
+  setAddExpenseModalRoom,
 }) => {
   const [isEditingGuests, setIsEditingGuests] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -275,11 +278,25 @@ export const HotelRoomDetailModal: React.FC<HotelRoomDetailModalProps> = ({
             </p>
           </div>
 
-          <div className="space-y-0.5">
-            <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Adisyon / Folyo Borcu</p>
-            <p className="text-sm font-black text-rose-600 dark:text-rose-400">
-              ₺{(selectedRoomDetailModal.folio?.total_amount || 0).toLocaleString('tr-TR')}
-            </p>
+          <div className="space-y-0.5 flex items-center justify-between col-span-1">
+            <div>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Adisyon / Folyo Borcu</p>
+              <p className="text-sm font-black text-rose-600 dark:text-rose-400">
+                ₺{(selectedRoomDetailModal.folio?.total_amount || 0).toLocaleString('tr-TR')}
+              </p>
+            </div>
+            {selectedRoomDetailModal.status === 'occupied' && setAddExpenseModalRoom && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAddExpenseModalRoom(selectedRoomDetailModal);
+                }}
+                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="h-3 w-3" />
+                <span>Adisyon Ekle</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -626,6 +643,20 @@ export const HotelRoomDetailModal: React.FC<HotelRoomDetailModalProps> = ({
               >
                 <Receipt className="h-4 w-4" />
                 <span>Folio & Check-Out Aç</span>
+              </button>
+            )}
+
+            {selectedRoomDetailModal.status === 'occupied' && setAddExpenseModalRoom && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  setAddExpenseModalRoom(selectedRoomDetailModal);
+                }}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Adisyon Ekle</span>
               </button>
             )}
 
