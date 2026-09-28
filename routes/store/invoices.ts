@@ -664,7 +664,7 @@ router.get("/sales/:id", async (req: any, res) => {
               c.tax_number as company_tax_number,
               c.tax_office as company_tax_office,
               c.address as company_address,
-              c.city as company_city,
+              NULL::text as company_city,
               c.email as company_email,
               COALESCE(
                 NULLIF(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), 'Amazon Müşterisi'),

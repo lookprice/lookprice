@@ -327,6 +327,19 @@ This file outlines strict engineering, performance, and naming directives that m
   - Şubeler arası stok transferi tamamlanmadan veya doğrudan şube envanterine mal girişi yapılmadan merkezdeki stok hiçbir koşulda şubeye yansıtılamaz.
   - Backend `/api/public/store/:slug/products/:barcode/stock` uç noktası `COALESCE(p.stock_quantity, 0)` değerini döndürür; istemci arayüzleri bu değeri doğrudan tüketmeli, arayüz seviyesinde yapay stok uydurma işlemlerine asla izin verilmemelidir.
 
+---
+
+## 25. İlkel OS/Browser Emojileri Yerine Yeni Nesil Vektörel İkon ve Özel Açılır Menü Standardı (Contemporary Vector Icon Protocol)
+
+- **İlkel OS/Browser Emojili Seçim Elemanı Yasağı**:
+  - Sistem genelinde (yönetim panelleri, filtre menüleri, butonlar, modallar vb.) eski tip 16-bit işletim sistemi emojileri (örn. `🛍️`, `🌐`, `🧡`, `📦`, `🔴`) ikon olarak KESİNLİKLE KULLANILAMAZ.
+  - HTML'in yerel `<select>` ve `<option>` etiketleri tarayıcıya göre işletim sisteminin antik çağdan kalma emojilerini bastığı için, filtreler ve seçim elemanları daima **özel tasarlanmış vektörel açılır menüler (custom dropdown popover)** ve yüksek çözünürlüklü Lucide vector ikonları / SVG marka rozetleri ile sunulmalıdır.
+
+- **Kesin Pazaryeri Fatura Filtreleme Standardı (Strict Marketplace Filtering Protocol)**:
+  - Fatura listesi filtrelemelerinde (`matchesMarketplaceFilter`), sadece metin içinde geçen genel kelimeler (örn. notlar içinde "Amazon TR" geçmesi) üzerinden geniş arama KULLANILAMAZ.
+  - Pazaryeri satış faturaları yalnızca **pazaryeri özel fatura numarası önekleri (`AMZ-`, `TY-`, `HB-`, `N11-`, `PZR-`)**, ödeme yöntemi (`Amazon Satış`, `Trendyol Satış`, vb.) veya `invoice_type === 'marketplace'` ile tam örtüşen kesin kriterler doğrultusunda süzülmelidir. Bu sayede manuel veya kurumsal faturaların pazaryeri satışlarıyla karışması %100 önlenmiştir.
+
+
 
 
 

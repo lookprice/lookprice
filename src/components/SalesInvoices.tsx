@@ -30,7 +30,12 @@ import {
   AlertTriangle,
   Check,
   Store,
-  ChevronDown
+  ChevronDown,
+  Globe,
+  Box,
+  Tag,
+  Layers,
+  ShoppingBag
 } from "lucide-react";
 import { normalizeSearch } from "../lib/searchUtils";
 import { getConnectedMarketplaces } from "../utils/marketplaceEStores";
@@ -102,34 +107,100 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   );
   const showMarketplaceFilter = isShopLpStore && connectedMarketplaces.hasAnyConnected;
 
+  const [marketplaceDropdownOpen, setMarketplaceDropdownOpen] = useState(false);
+  const marketplaceDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (marketplaceDropdownRef.current && !marketplaceDropdownRef.current.contains(event.target as Node)) {
+        setMarketplaceDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const isAmazonInv = (inv: any) => {
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const pMethod = (inv.payment_method || '').toLowerCase().trim();
+    const notes = (inv.notes || '').toLowerCase().trim();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    return (
+      invNum.startsWith('AMZ-') ||
+      pMethod === 'amazon satış' ||
+      pMethod === 'amazon' ||
+      (invType === 'marketplace' && (pMethod.includes('amazon') || notes.startsWith('amazon siparişi')))
+    );
+  };
+
+  const isTrendyolInv = (inv: any) => {
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const pMethod = (inv.payment_method || '').toLowerCase().trim();
+    const notes = (inv.notes || '').toLowerCase().trim();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    return (
+      invNum.startsWith('TY-') ||
+      pMethod === 'trendyol satış' ||
+      pMethod === 'trendyol' ||
+      (invType === 'marketplace' && (pMethod.includes('trendyol') || notes.startsWith('trendyol siparişi')))
+    );
+  };
+
+  const isHepsiburadaInv = (inv: any) => {
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const pMethod = (inv.payment_method || '').toLowerCase().trim();
+    const notes = (inv.notes || '').toLowerCase().trim();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    return (
+      invNum.startsWith('HB-') ||
+      pMethod === 'hepsiburada satış' ||
+      pMethod === 'hepsiburada' ||
+      (invType === 'marketplace' && (pMethod.includes('hepsiburada') || notes.startsWith('hepsiburada siparişi')))
+    );
+  };
+
+  const isN11Inv = (inv: any) => {
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const pMethod = (inv.payment_method || '').toLowerCase().trim();
+    const notes = (inv.notes || '').toLowerCase().trim();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    return (
+      invNum.startsWith('N11-') ||
+      pMethod === 'n11 satış' ||
+      pMethod === 'n11' ||
+      (invType === 'marketplace' && (pMethod.includes('n11') || notes.startsWith('n11 siparişi')))
+    );
+  };
+
+  const isPazaramaInv = (inv: any) => {
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const pMethod = (inv.payment_method || '').toLowerCase().trim();
+    const notes = (inv.notes || '').toLowerCase().trim();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    return (
+      invNum.startsWith('PZR-') ||
+      invNum.startsWith('PAZARAMA-') ||
+      pMethod === 'pazarama satış' ||
+      pMethod === 'pazarama' ||
+      (invType === 'marketplace' && (pMethod.includes('pazarama') || notes.startsWith('pazarama siparişi')))
+    );
+  };
+
   const matchesMarketplaceFilter = (inv: any) => {
     if (!showMarketplaceFilter || marketplaceFilter === 'all') return true;
 
-    const pMethod = (inv.payment_method || '').toLowerCase();
-    const notes = (inv.notes || '').toLowerCase();
-    const invNum = (inv.invoice_number || '').toUpperCase();
-    const invType = (inv.invoice_type || '').toLowerCase();
-
-    if (marketplaceFilter === 'trendyol') {
-      return pMethod.includes('trendyol') || notes.includes('trendyol') || invNum.startsWith('TY-') || invNum.includes('TRENDYOL');
-    }
-    if (marketplaceFilter === 'hepsiburada') {
-      return pMethod.includes('hepsiburada') || notes.includes('hepsiburada') || invNum.startsWith('HB-') || invNum.includes('HEPSIBURADA');
-    }
-    if (marketplaceFilter === 'amazon') {
-      return pMethod.includes('amazon') || notes.includes('amazon') || invNum.startsWith('AMZ-') || invNum.includes('AMAZON');
-    }
-    if (marketplaceFilter === 'n11') {
-      return pMethod.includes('n11') || notes.includes('n11') || invNum.startsWith('N11-');
-    }
-    if (marketplaceFilter === 'pazarama') {
-      return pMethod.includes('pazarama') || notes.includes('pazarama') || invNum.startsWith('PZR-') || invNum.startsWith('PAZARAMA-');
-    }
+    if (marketplaceFilter === 'amazon') return isAmazonInv(inv);
+    if (marketplaceFilter === 'trendyol') return isTrendyolInv(inv);
+    if (marketplaceFilter === 'hepsiburada') return isHepsiburadaInv(inv);
+    if (marketplaceFilter === 'n11') return isN11Inv(inv);
+    if (marketplaceFilter === 'pazarama') return isPazaramaInv(inv);
     if (marketplaceFilter === 'web') {
-      const isMp = pMethod.includes('trendyol') || pMethod.includes('hepsiburada') || pMethod.includes('amazon') || pMethod.includes('n11') || pMethod.includes('pazarama') ||
-                   notes.includes('trendyol') || notes.includes('hepsiburada') || notes.includes('amazon') || notes.includes('n11') || notes.includes('pazarama') ||
-                   invNum.startsWith('TY-') || invNum.startsWith('HB-') || invNum.startsWith('AMZ-') || invNum.startsWith('N11-') || invNum.startsWith('PZR-') ||
-                   invType === 'marketplace';
+      const isMp = isAmazonInv(inv) || isTrendyolInv(inv) || isHepsiburadaInv(inv) || isN11Inv(inv) || isPazaramaInv(inv);
       return !isMp;
     }
     return true;
@@ -1021,37 +1092,146 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             {isTr ? "Reddedilenler / Hatalı" : "Rejected / Error"}
           </button>
 
-          {/* E-MARKETPLACE FILTER DROPDOWN (ONLY FOR shopLP STORES WITH ACTIVE API INTEGRATIONS) */}
+          {/* CONTEMPORARY E-MARKETPLACE FILTER POPOVER (NO PRIMITIVE EMOJIS) */}
           {showMarketplaceFilter && (
-            <div className="relative ml-auto sm:ml-2">
-              <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 pointer-events-none z-10" />
-              <select
-                value={marketplaceFilter}
-                onChange={(e) => {
-                  setMarketplaceFilter(e.target.value as any);
-                  setPage(1);
-                }}
-                className="pl-9 pr-8 py-2 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-900/60 hover:border-indigo-400 text-slate-800 dark:text-slate-200 font-bold text-sm rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all cursor-pointer shadow-xs appearance-none"
+            <div className="relative ml-auto sm:ml-2" ref={marketplaceDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setMarketplaceDropdownOpen(!marketplaceDropdownOpen)}
+                className="flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all cursor-pointer"
               >
-                <option value="all">🛍️ {isTr ? "Tüm Satış Kaynakları" : "All Sales Sources"}</option>
-                <option value="web">🌐 {isTr ? "Doğrudan Web Satışları" : "Direct Web Sales"}</option>
-                {connectedMarketplaces.trendyol && (
-                  <option value="trendyol">🧡 Trendyol Satışları</option>
-                )}
-                {connectedMarketplaces.hepsiburada && (
-                  <option value="hepsiburada">🟠 Hepsiburada Satışları</option>
-                )}
-                {connectedMarketplaces.amazon && (
-                  <option value="amazon">📦 Amazon Satışları</option>
-                )}
-                {connectedMarketplaces.n11 && (
-                  <option value="n11">🔴 N11 Satışları</option>
-                )}
-                {connectedMarketplaces.pazarama && (
-                  <option value="pazarama">🟣 Pazarama Satışları</option>
-                )}
-              </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                {marketplaceFilter === 'all' && <Store className="w-4 h-4 text-indigo-500" />}
+                {marketplaceFilter === 'web' && <Globe className="w-4 h-4 text-blue-500" />}
+                {marketplaceFilter === 'trendyol' && <ShoppingBag className="w-4 h-4 text-orange-500" />}
+                {marketplaceFilter === 'hepsiburada' && <ShoppingBag className="w-4 h-4 text-amber-500" />}
+                {marketplaceFilter === 'amazon' && <Box className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
+                {marketplaceFilter === 'n11' && <Tag className="w-4 h-4 text-red-500" />}
+                {marketplaceFilter === 'pazarama' && <Store className="w-4 h-4 text-purple-500" />}
+
+                <span>
+                  {marketplaceFilter === 'all' && (isTr ? 'Tüm Satış Kaynakları' : 'All Sales Sources')}
+                  {marketplaceFilter === 'web' && (isTr ? 'Doğrudan Web Satışları' : 'Direct Web Sales')}
+                  {marketplaceFilter === 'trendyol' && 'Trendyol Satışları'}
+                  {marketplaceFilter === 'hepsiburada' && 'Hepsiburada Satışları'}
+                  {marketplaceFilter === 'amazon' && 'Amazon Satışları'}
+                  {marketplaceFilter === 'n11' && 'N11 Satışları'}
+                  {marketplaceFilter === 'pazarama' && 'Pazarama Satışları'}
+                </span>
+
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${marketplaceDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {marketplaceDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 w-60 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl space-y-1 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    type="button"
+                    onClick={() => { setMarketplaceFilter('all'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${marketplaceFilter === 'all' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+                        <Store className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <span>{isTr ? 'Tüm Satış Kaynakları' : 'All Sales Sources'}</span>
+                    </div>
+                    {marketplaceFilter === 'all' && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setMarketplaceFilter('web'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${marketplaceFilter === 'web' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                        <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span>{isTr ? 'Doğrudan Web Satışları' : 'Direct Web Sales'}</span>
+                    </div>
+                    {marketplaceFilter === 'web' && <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+                  </button>
+
+                  {connectedMarketplaces.trendyol && (
+                    <button
+                      type="button"
+                      onClick={() => { setMarketplaceFilter('trendyol'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${marketplaceFilter === 'trendyol' ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center">
+                          <ShoppingBag className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <span>Trendyol Satışları</span>
+                      </div>
+                      {marketplaceFilter === 'trendyol' && <Check className="w-4 h-4 text-orange-600 dark:text-orange-400" />}
+                    </button>
+                  )}
+
+                  {connectedMarketplaces.hepsiburada && (
+                    <button
+                      type="button"
+                      onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${marketplaceFilter === 'hepsiburada' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                          <ShoppingBag className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <span>Hepsiburada Satışları</span>
+                      </div>
+                      {marketplaceFilter === 'hepsiburada' && <Check className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
+                    </button>
+                  )}
+
+                  {connectedMarketplaces.amazon && (
+                    <button
+                      type="button"
+                      onClick={() => { setMarketplaceFilter('amazon'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${marketplaceFilter === 'amazon' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-amber-200/60 dark:bg-amber-900/60 flex items-center justify-center">
+                          <Box className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300" />
+                        </div>
+                        <span>Amazon Satışları</span>
+                      </div>
+                      {marketplaceFilter === 'amazon' && <Check className="w-4 h-4 text-amber-700 dark:text-amber-300" />}
+                    </button>
+                  )}
+
+                  {connectedMarketplaces.n11 && (
+                    <button
+                      type="button"
+                      onClick={() => { setMarketplaceFilter('n11'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${marketplaceFilter === 'n11' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
+                          <Tag className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <span>N11 Satışları</span>
+                      </div>
+                      {marketplaceFilter === 'n11' && <Check className="w-4 h-4 text-red-600 dark:text-red-400" />}
+                    </button>
+                  )}
+
+                  {connectedMarketplaces.pazarama && (
+                    <button
+                      type="button"
+                      onClick={() => { setMarketplaceFilter('pazarama'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${marketplaceFilter === 'pazarama' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+                          <Store className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <span>Pazarama Satışları</span>
+                      </div>
+                      {marketplaceFilter === 'pazarama' && <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

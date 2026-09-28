@@ -425,6 +425,9 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='delivery_address') THEN
           ALTER TABLE companies ADD COLUMN delivery_address TEXT;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='city') THEN
+          ALTER TABLE companies ADD COLUMN city TEXT;
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='is_expense') THEN
           ALTER TABLE companies ADD COLUMN is_expense BOOLEAN DEFAULT FALSE;
         END IF;
