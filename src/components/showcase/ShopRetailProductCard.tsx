@@ -278,36 +278,21 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
         )}
 
         {/* Hover Action Bar */}
-        <div className="absolute inset-x-3 bottom-3 z-10 hidden sm:flex items-center gap-2 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-          {themeConfig?.show_quick_view !== false && (
+        {themeConfig?.show_quick_view !== false && (
+          <div className="absolute inset-x-3 bottom-3 z-10 hidden sm:flex items-center gap-2 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onView(product);
               }}
-              className="flex-1 py-2.5 px-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white rounded-xl text-xs font-bold shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 border border-slate-200/60 dark:border-slate-700/60"
+              className="w-full py-2.5 px-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white rounded-xl text-xs font-bold shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5" />
               <span>{lang === "tr" ? "Hızlı İncele" : "Quick View"}</span>
             </button>
-          )}
-
-          {!isOutOfStock && (
-            <button
-              type="button"
-              onClick={handleQuickAdd}
-              style={{
-                backgroundColor: addedAnimation ? "#059669" : primaryColor,
-                color: "#ffffff"
-              }}
-              className="p-2.5 rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer"
-              title={lang === "tr" ? "Hızlı Sepete Ekle" : "Quick Add"}
-            >
-              {addedAnimation ? <Check className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
-            </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* 2. Content & Typography */}
@@ -388,7 +373,7 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
               backgroundColor: isOutOfStock ? undefined : addedAnimation ? "#059669" : primaryColor,
               color: isOutOfStock ? undefined : "#ffffff"
             }}
-            className={`sm:hidden p-2.5 rounded-xl transition-all active:scale-95 ${
+            className={`p-2.5 rounded-xl transition-all active:scale-95 cursor-pointer ${
               isOutOfStock
                 ? "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
                 : ""

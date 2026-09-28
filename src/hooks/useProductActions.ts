@@ -232,7 +232,14 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       data.barcode = barcode;
     }
 
-    const isDuplicate = barcode && products.some(p => p.barcode === barcode && p.id !== editingProduct?.id);
+    const editingProductId = (editingProduct?.id && !isNaN(Number(editingProduct.id))) ? Number(editingProduct.id) : null;
+    const editingProductOldBarcode = editingProduct?.barcode ? String(editingProduct.barcode).trim() : null;
+
+    const isDuplicate = Boolean(
+      barcode && 
+      editingProductOldBarcode !== barcode && 
+      products.some(p => p.barcode === barcode && (!editingProductId || Number(p.id) !== editingProductId))
+    );
     if (isDuplicate) {
       toast.error(lang === 'tr' ? "Bu barkod numarasına sahip başka bir ürün zaten var!" : "Another product with this barcode already exists!");
       return;
@@ -240,14 +247,32 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
 
     const savePromise = (async () => {
       let res;
-      if (editingProduct) {
-        res = await api.updateProduct(Number(editingProduct.id), data, targetStoreId);
+      if (editingProductId) {
+        res = await api.updateProduct(editingProductId, data, targetStoreId);
       } else {
         res = await api.addProduct(data, targetStoreId);
       }
 
+      const productId = editingProductId || res?.id || res?.data?.id;
+
+      // Sync purchase invoice item if requested from purchase invoice product edit
+      if (editingProduct?._purchaseInvoiceItemId && productId) {
+        try {
+          await api.updatePurchaseInvoiceItem(
+            Number(editingProduct._purchaseInvoiceItemId),
+            {
+              product_id: productId,
+              barcode: barcode || undefined,
+              product_code: data.product_code || undefined
+            },
+            targetStoreId
+          );
+        } catch (err) {
+          console.error("Purchase invoice item update error:", err);
+        }
+      }
+
       // Save recipe if data is present
-      const productId = editingProduct ? Number(editingProduct.id) : res?.id;
       if (productId && rawData.recipe_data) {
         try {
           const recipeItems = JSON.parse(rawData.recipe_data as string);

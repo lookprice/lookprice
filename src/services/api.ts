@@ -320,6 +320,7 @@ export const api = {
   convertPurchaseInvoiceToStock: (id: number, storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/convert-to-stock${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   convertPurchaseInvoiceToExpense: (id: number, data?: { expense_category?: string; expense_center?: string }, storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/convert-to-expense${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data || {}),
   autoRepairPurchaseExpenses: (storeId?: number) => api.post(`/api/store/purchase-invoices/auto-repair-expenses${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  updatePurchaseInvoiceItem: (itemId: number, data: { product_id?: number; barcode?: string; product_code?: string }, storeId?: number) => api.put(`/api/store/purchase-invoices/items/${itemId}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
     
   // AI Endpoints
   parseMenuImage: (imageBase64: string, lang: string) => api.post("/api/store/ai/parse-menu-image", { imageBase64, lang }),

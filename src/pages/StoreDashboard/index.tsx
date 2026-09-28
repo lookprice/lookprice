@@ -1309,11 +1309,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onFetchDetails={handleFetchSalesInvoiceDetails}
                   products={products}
                   onEditProduct={(item: any) => {
-                    const found = products.find((p: any) => p.id === item.product_id || p.barcode === item.barcode || (p.name && item.product_name && p.name.toLowerCase() === item.product_name.toLowerCase()));
+                    const normItemName = (item.product_name || item.name || '').trim().toLowerCase();
+                    const normItemBarcode = (item.barcode || '').trim();
+
+                    const found = products.find((p: any) => {
+                      if (item.product_id && Number(p.id) === Number(item.product_id)) return true;
+                      if (normItemBarcode && normItemName && p.barcode && p.name && p.barcode.trim() === normItemBarcode && p.name.trim().toLowerCase() === normItemName) return true;
+                      if (normItemName && p.name && p.name.trim().toLowerCase() === normItemName) return true;
+                      if (normItemBarcode && p.barcode && p.barcode.trim() === normItemBarcode) return true;
+                      return false;
+                    });
+
                     if (found) {
                       setEditingProduct(found);
                     } else {
                       setEditingProduct({
+                        id: item.product_id ? Number(item.product_id) : undefined,
                         name: item.product_name || item.name || '',
                         barcode: item.barcode || '',
                         price: Number(item.unit_price) || 0,
@@ -1380,11 +1391,26 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onFetchDetails={handleFetchPurchaseInvoiceDetails}
                   products={products}
                   onEditProduct={(item: any) => {
-                    const found = products.find((p: any) => p.id === item.product_id || p.barcode === item.barcode || (p.name && item.product_name && p.name.toLowerCase() === item.product_name.toLowerCase()));
+                    const normItemName = (item.product_name || item.name || '').trim().toLowerCase();
+                    const normItemBarcode = (item.barcode || '').trim();
+
+                    const found = products.find((p: any) => {
+                      if (item.product_id && Number(p.id) === Number(item.product_id)) return true;
+                      if (normItemBarcode && normItemName && p.barcode && p.name && p.barcode.trim() === normItemBarcode && p.name.trim().toLowerCase() === normItemName) return true;
+                      if (normItemName && p.name && p.name.trim().toLowerCase() === normItemName) return true;
+                      if (normItemBarcode && p.barcode && p.barcode.trim() === normItemBarcode) return true;
+                      return false;
+                    });
+
                     if (found) {
-                      setEditingProduct(found);
+                      setEditingProduct({
+                        ...found,
+                        _purchaseInvoiceItemId: item.id
+                      });
                     } else {
                       setEditingProduct({
+                        id: item.product_id ? Number(item.product_id) : undefined,
+                        _purchaseInvoiceItemId: item.id,
                         name: item.product_name || item.name || '',
                         barcode: item.barcode || '',
                         cost_price: Number(item.unit_price) || 0,

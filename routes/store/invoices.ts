@@ -2971,4 +2971,27 @@ router.post("/purchase/auto-repair-expenses", async (req: any, res) => {
   }
 });
 
+// Update a purchase invoice item's matched product_id, barcode or product_code
+router.put("/purchase/items/:itemId", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const itemId = req.params.itemId;
+    const { product_id, barcode, product_code } = req.body;
+
+    await pool.query(
+      `UPDATE purchase_invoice_items 
+       SET product_id = COALESCE($1, product_id), 
+           barcode = COALESCE($2, barcode), 
+           product_code = COALESCE($3, product_code) 
+       WHERE id = $4`,
+      [product_id || null, barcode || null, product_code || null, itemId]
+    );
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("Error updating purchase invoice item:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
