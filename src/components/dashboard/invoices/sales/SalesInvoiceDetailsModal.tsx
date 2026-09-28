@@ -58,9 +58,16 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
               <div className="space-y-1.5">
                 <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</p>
                 <p className="text-base font-bold text-slate-900">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name || '-'}</p>
-                {(invoice.customer_address || invoice.company_address || invoice.address) && (
-                  <p className="text-xs text-slate-600 leading-relaxed">{invoice.customer_address || invoice.company_address || invoice.address}</p>
-                )}
+                {(() => {
+                  const addr = invoice.customer_address || invoice.company_address || invoice.address || '';
+                  const city = invoice.customer_city || invoice.company_city || invoice.city || '';
+                  let fullAddr = addr;
+                  if (city && !addr.toLowerCase().includes(city.toLowerCase())) {
+                    fullAddr = addr ? `${addr} / ${city.toUpperCase()}` : city.toUpperCase();
+                  }
+                  if (!fullAddr) return null;
+                  return <p className="text-xs text-slate-600 leading-relaxed">{fullAddr}</p>;
+                })()}
                 {(invoice.customer_phone || invoice.company_phone || invoice.phone) && (
                   <p className="text-xs text-slate-500 font-mono"><span className="font-semibold text-slate-600">{isTr ? 'Tel:' : 'Phone:'}</span> {invoice.customer_phone || invoice.company_phone || invoice.phone}</p>
                 )}

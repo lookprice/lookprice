@@ -493,6 +493,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       const absoluteUrl = originalUrl.startsWith('http') ? originalUrl : `${origin}${originalUrl.startsWith('/') ? '' : '/'}${originalUrl}`;
       return `${origin}/api/annotate-image?imageUrl=${encodeURIComponent(absoluteUrl)}&status=${normalizedStatus}`;
     }
+
+    // Pre-emptively proxy domains known to enforce strict Hotlink / NotSameOrigin 403 blocks
+    if (originalUrl && (originalUrl.includes("extrememobiles.com.cy") || originalUrl.includes("wp-content/uploads/woocommerce"))) {
+      return `/api/proxy-image?url=${encodeURIComponent(originalUrl)}`;
+    }
     return originalUrl;
   };
 
@@ -736,6 +741,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   alt={product.name}
                   className="max-w-full max-h-[260px] sm:max-h-[330px] md:max-h-[400px] object-contain rounded-lg shadow-xs transition-all duration-300 group-hover/gallery:scale-105"
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    const src = productImages[activeImageIdx];
+                    if (!target.dataset.fallback && src && src.startsWith('http') && !src.includes('/api/proxy-image')) {
+                      target.dataset.fallback = 'proxy';
+                      target.src = `/api/proxy-image?url=${encodeURIComponent(src)}`;
+                    } else {
+                      target.onerror = null;
+                      target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+                    }
+                  }}
                 />
 
                 {/* Action Icon overlay */}
@@ -790,6 +806,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         src={getAnnotatedImageUrl(img)}
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (!target.dataset.fallback && img && img.startsWith('http') && !img.includes('/api/proxy-image')) {
+                            target.dataset.fallback = 'proxy';
+                            target.src = `/api/proxy-image?url=${encodeURIComponent(img)}`;
+                          } else {
+                            target.onerror = null;
+                            target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+                          }
+                        }}
                       />
                     </button>
                   ))}

@@ -15,7 +15,7 @@ export interface AmazonSettings {
   categoryAttributes?: Record<string, any>;
 }
 
-export const AMAZON_TR_MARKETPLACE_ID = "A33AVAJ2PDY3WV";
+export const AMAZON_TR_MARKETPLACE_ID = "A33AVAJ2PDY3EV";
 export const AMAZON_TOKEN_ENDPOINT = "https://api.amazon.com.tr/auth/o2/token";
 export const AMAZON_TOKEN_FALLBACK_ENDPOINT = "https://api.amazon.com/auth/o2/token";
 export const AMAZON_API_ENDPOINT = "https://sellingpartnerapi-eu.amazon.com";
@@ -32,6 +32,12 @@ export class AmazonService {
 
   private getApiEndpoint(): string {
     return this.settings.isSandbox ? AMAZON_SANDBOX_API_ENDPOINT : AMAZON_API_ENDPOINT;
+  }
+
+  public getMarketplaceId(): string {
+    const mp = this.settings.marketplace_id;
+    if (!mp || mp === "A33AVAJ2PDY3WV") return AMAZON_TR_MARKETPLACE_ID;
+    return mp;
   }
 
   /**
@@ -115,7 +121,7 @@ export class AmazonService {
   /**
    * Fetch Recent Amazon SP-API Orders
    */
-  async fetchOrders(createdAfterDays: number = 7): Promise<any[]> {
+  async fetchOrders(createdAfterDays: number = 14, orderStatuses?: string): Promise<any[]> {
     if (this.settings.isSandbox) {
       try {
         const accessToken = await this.getAccessToken();
@@ -159,12 +165,19 @@ export class AmazonService {
     try {
       const accessToken = await this.getAccessToken();
       const createdAfter = new Date(Date.now() - createdAfterDays * 24 * 60 * 60 * 1000).toISOString();
+      const marketplaceId = this.getMarketplaceId();
+
+      const params: any = {
+        MarketplaceIds: marketplaceId,
+        CreatedAfter: createdAfter,
+      };
+
+      if (orderStatuses) {
+        params.OrderStatuses = orderStatuses;
+      }
 
       const response = await axios.get(`${this.getApiEndpoint()}/orders/v0/orders`, {
-        params: {
-          MarketplaceIds: AMAZON_TR_MARKETPLACE_ID,
-          CreatedAfter: createdAfter,
-        },
+        params,
         headers: {
           "x-amz-access-token": accessToken,
         },

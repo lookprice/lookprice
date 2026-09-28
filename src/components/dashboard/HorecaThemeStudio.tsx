@@ -23,9 +23,14 @@ import {
   Heart,
   Plus,
   Calendar,
-  MapPin
+  MapPin,
+  Printer,
+  Smartphone,
+  Copy
 } from "lucide-react";
 import { motion } from "motion/react";
+import { QRCodeSVG } from "qrcode.react";
+import { WifiQrPrintModal } from "../../pages/StoreDashboard/modals/WifiQrPrintModal";
 
 interface HorecaThemeStudioProps {
   branding: any;
@@ -46,6 +51,7 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"visual" | "facilities" | "table_order" | "hours" | "wifi" | "tables_qr" | "instagram">("visual");
   const [newAmenityInput, setNewAmenityInput] = useState("");
+  const [wifiModalOpen, setWifiModalOpen] = useState(false);
 
   const txt = (tr: string, en: string, el: string) => {
     if (lang === "tr") return tr;
@@ -1179,40 +1185,139 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
       {/* SUBTAB 3: WI-FI AYARLARI */}
       {activeSubTab === "wifi" && (
         <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <Wifi className="w-3.5 h-3.5 text-emerald-600" />
-              {txt("Müşteri Wi-Fi Paylaşım Ayarları", "Guest Wi-Fi Settings", "Ρυθμίσεις Wi-Fi")}
-            </span>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                  Wi-Fi Ağ Adı (SSID)
-                </label>
-                <input
-                  type="text"
-                  value={horecaConfig.wifi_ssid}
-                  onChange={(e) => updateHorecaConfig({ wifi_ssid: e.target.value })}
-                  placeholder="Bistro_Wifi"
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
-                />
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+                  {txt("Müşteri Wi-Fi Paylaşım & Masa Standı Ayarları", "Guest Wi-Fi & Table Stand Settings", "Ρυθμίσεις Wi-Fi")}
+                </span>
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                  {txt(
+                    "Müşterilerinizin telefon kamerasıyla şifre girmeden bağlanabileceği akıllı Wi-Fi QR kodları oluşturun ve yazdırın.",
+                    "Create and print smart Wi-Fi QR codes so guests can connect instantly with their phone cameras without typing passwords.",
+                    "Δημιουργήστε έξυπνους κωδικούς Wi-Fi QR για άμεση σύνδεση των πελατών σας."
+                  )}
+                </p>
               </div>
 
-              <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                  Wi-Fi Şifresi
-                </label>
-                <input
-                  type="text"
-                  value={horecaConfig.wifi_password}
-                  onChange={(e) => updateHorecaConfig({ wifi_password: e.target.value })}
-                  placeholder="Şifre..."
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
-                />
+              <button
+                type="button"
+                onClick={() => setWifiModalOpen(true)}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-xs hover:shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>{txt("Şık Masa Standı / A5-A4 Çıktı Al", "Print Wi-Fi Stand / Card", "Εκτύπωση Wi-Fi Stand")}</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+              {/* Left Column: Credentials Form */}
+              <div className="lg:col-span-7 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                      Wi-Fi Ağ Adı (SSID) *
+                    </label>
+                    <input
+                      type="text"
+                      value={horecaConfig.wifi_ssid}
+                      onChange={(e) => updateHorecaConfig({ wifi_ssid: e.target.value })}
+                      placeholder="Bistro_Wifi"
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                      Wi-Fi Şifresi
+                    </label>
+                    <input
+                      type="text"
+                      value={horecaConfig.wifi_password}
+                      onChange={(e) => updateHorecaConfig({ wifi_password: e.target.value })}
+                      placeholder="Şifre..."
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex items-start gap-2.5">
+                  <Smartphone className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="text-[10px] text-slate-600 space-y-1">
+                    <p className="font-bold text-slate-800">
+                      {txt("Otomatik Bağlantı Protokolü", "Instant Auto-Connect Protocol", "Αυτόματη Σύνδεση")}
+                    </p>
+                    <p className="leading-relaxed">
+                      {txt(
+                        "iPhone ve Android telefonlar QR koda tutulduğunda şifre yazma gereksinimi olmadan 'Ağa Katıl' uyarısı verir. Masa standı ve kartvizit çıktıları alarak masalarınıza yerleştirebilirsiniz.",
+                        "When iPhone and Android cameras are pointed at the QR code, they automatically prompt 'Join Network' without typing passwords. Print as table tents, A5 cards or A4 posters.",
+                        "Σαρώστε με την κάμερα του κινητού για αυτόματη σύνδεση χωρίς πληκτρολόγηση κωδικού."
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Mini Live Stand Preview */}
+              <div className="lg:col-span-5 bg-slate-50/80 border border-slate-200 rounded-2xl p-3.5 flex flex-col items-center text-center">
+                <div className="inline-block bg-slate-900 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider mb-1">
+                  FREE WI-FI
+                </div>
+                <h5 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                  {branding?.store_name || branding?.name || "Restoran & Cafe"}
+                </h5>
+                <p className="text-[9px] text-slate-400 font-medium mb-2">Misafir Wi-Fi Ağı</p>
+
+                <div className="p-2 bg-white border border-slate-200 rounded-xl shadow-2xs mb-2">
+                  <QRCodeSVG
+                    value={
+                      !horecaConfig.wifi_password?.trim()
+                        ? `WIFI:T:nopass;S:${(horecaConfig.wifi_ssid || '').trim()};;`
+                        : `WIFI:T:WPA;S:${(horecaConfig.wifi_ssid || '').trim()};P:${(horecaConfig.wifi_password || '').trim()};;`
+                    }
+                    size={90}
+                    level="M"
+                  />
+                </div>
+
+                <div className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-[9px] text-left space-y-0.5">
+                  <div className="flex justify-between">
+                    <span className="font-bold text-slate-400">SSID:</span>
+                    <span className="font-mono font-bold text-slate-800">{horecaConfig.wifi_ssid || "-"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-bold text-slate-400">ŞİFRE:</span>
+                    <span className="font-mono font-bold text-slate-800">{horecaConfig.wifi_password || "(Şifresiz)"}</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setWifiModalOpen(true)}
+                  className="w-full mt-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer"
+                >
+                  <Printer className="w-3 h-3" />
+                  <span>{txt("Yazdır / PDF Olarak Kaydet", "Print / Save PDF", "Εκτύπωση")}</span>
+                </button>
               </div>
             </div>
           </div>
+
+          {/* Wi-Fi QR Print Modal */}
+          {wifiModalOpen && (
+            <WifiQrPrintModal
+              isOpen={wifiModalOpen}
+              onClose={() => setWifiModalOpen(false)}
+              branding={branding}
+              lang={lang}
+              initialSsid={horecaConfig.wifi_ssid}
+              initialPassword={horecaConfig.wifi_password}
+              onSaveCredentials={(ssid, password) => {
+                updateHorecaConfig({ wifi_ssid: ssid, wifi_password: password });
+              }}
+            />
+          )}
         </motion.div>
       )}
 

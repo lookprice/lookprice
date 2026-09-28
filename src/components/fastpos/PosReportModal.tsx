@@ -23,6 +23,7 @@ export interface PosReportModalProps {
   onClose: () => void;
   lang: string;
   branding?: any;
+  isHotelActive?: boolean;
   reportStartDate: string;
   setReportStartDate: (date: string) => void;
   reportEndDate: string;
@@ -46,6 +47,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
   onClose,
   lang,
   branding,
+  isHotelActive,
   reportStartDate,
   setReportStartDate,
   reportEndDate,
@@ -63,7 +65,14 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
   onPrintReport,
   onPrintA4Report
 }) => {
+  const effectiveHotelActive = Boolean(
+    isHotelActive !== undefined
+      ? isHotelActive
+      : (branding?.hotel_module_enabled || branding?.hotel_license_enabled || branding?.store_type === 'hotel')
+  );
+
   const [activeReportTab, setActiveReportTab] = useState<'combined' | 'hotel' | 'restaurant'>('combined');
+  const currentTab = effectiveHotelActive ? activeReportTab : 'restaurant';
 
   const getPaymentSummary = (paymentsList: any[], methods: string[]) => {
     const currencyMap: { [key: string]: number } = {};
@@ -135,14 +144,16 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
 
   const activePayments = useMemo(() => {
     if (!reportData) return [];
-    if (activeReportTab === 'restaurant') {
-      return reportData.restaurant_payments || [];
+    if (!effectiveHotelActive || currentTab === 'restaurant') {
+      return reportData.restaurant_payments && reportData.restaurant_payments.length > 0
+        ? reportData.restaurant_payments
+        : (reportData.payments || []);
     }
-    if (activeReportTab === 'hotel') {
+    if (currentTab === 'hotel') {
       return reportData.hotel_payments || [];
     }
     return reportData.payments || [];
-  }, [reportData, activeReportTab]);
+  }, [reportData, currentTab, effectiveHotelActive]);
 
   const activeGrandSummary = useMemo(() => {
     return getGrandTotalSummary(activePayments);
@@ -279,44 +290,46 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
           </div>
         </div>
 
-        {/* Report Segment Tab Switcher */}
-        <div className="px-6 py-2 border-b border-slate-100 bg-slate-50 flex items-center justify-start gap-1">
-          <button
-            onClick={() => setActiveReportTab('combined')}
-            className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
-              activeReportTab === 'combined'
-                ? 'bg-white text-indigo-700 border-slate-200 shadow-2xs font-extrabold'
-                : 'text-slate-500 hover:text-slate-800 border-transparent bg-transparent'
-            }`}
-          >
-            <TrendingUp className="h-4 w-4 text-indigo-600" />
-            <span>{lang === 'tr' ? 'Birleşik Rapor' : 'Combined Report'}</span>
-          </button>
+        {/* Report Segment Tab Switcher (Only visible when Hotel Concept is active) */}
+        {effectiveHotelActive && (
+          <div className="px-6 py-2 border-b border-slate-100 bg-slate-50 flex items-center justify-start gap-1">
+            <button
+              onClick={() => setActiveReportTab('combined')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
+                currentTab === 'combined'
+                  ? 'bg-white text-indigo-700 border-slate-200 shadow-2xs font-extrabold'
+                  : 'text-slate-500 hover:text-slate-800 border-transparent bg-transparent'
+              }`}
+            >
+              <TrendingUp className="h-4 w-4 text-indigo-600" />
+              <span>{lang === 'tr' ? 'Birleşik Rapor' : 'Combined Report'}</span>
+            </button>
 
-          <button
-            onClick={() => setActiveReportTab('restaurant')}
-            className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
-              activeReportTab === 'restaurant'
-                ? 'bg-white text-indigo-700 border-slate-200 shadow-2xs font-extrabold'
-                : 'text-slate-500 hover:text-slate-800 border-transparent bg-transparent'
-            }`}
-          >
-            <Utensils className="h-4 w-4 text-orange-600" />
-            <span>{lang === 'tr' ? 'Restoran / POS' : 'Restaurant & POS'}</span>
-          </button>
+            <button
+              onClick={() => setActiveReportTab('restaurant')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
+                currentTab === 'restaurant'
+                  ? 'bg-white text-indigo-700 border-slate-200 shadow-2xs font-extrabold'
+                  : 'text-slate-500 hover:text-slate-800 border-transparent bg-transparent'
+              }`}
+            >
+              <Utensils className="h-4 w-4 text-orange-600" />
+              <span>{lang === 'tr' ? 'Restoran / POS' : 'Restaurant & POS'}</span>
+            </button>
 
-          <button
-            onClick={() => setActiveReportTab('hotel')}
-            className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
-              activeReportTab === 'hotel'
-                ? 'bg-white text-indigo-700 border-slate-200 shadow-2xs font-extrabold'
-                : 'text-slate-500 hover:text-slate-800 border-transparent bg-transparent'
-            }`}
-          >
-            <BedDouble className="h-4 w-4 text-emerald-600" />
-            <span>{lang === 'tr' ? 'Oda Satışları' : 'Hotel Room Sales'}</span>
-          </button>
-        </div>
+            <button
+              onClick={() => setActiveReportTab('hotel')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
+                currentTab === 'hotel'
+                  ? 'bg-white text-indigo-700 border-slate-200 shadow-2xs font-extrabold'
+                  : 'text-slate-500 hover:text-slate-800 border-transparent bg-transparent'
+              }`}
+            >
+              <BedDouble className="h-4 w-4 text-emerald-600" />
+              <span>{lang === 'tr' ? 'Oda Satışları' : 'Hotel Room Sales'}</span>
+            </button>
+          </div>
+        )}
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
@@ -372,22 +385,22 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
                       <div className="h-6 w-6 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                        {activeReportTab === 'hotel' ? <BedDouble className="h-3.5 w-3.5" /> : <Package className="h-3.5 w-3.5" />}
+                        {effectiveHotelActive && currentTab === 'hotel' ? <BedDouble className="h-3.5 w-3.5" /> : <Package className="h-3.5 w-3.5" />}
                       </div>
                       <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-tight">
-                        {activeReportTab === 'hotel' 
+                        {effectiveHotelActive && currentTab === 'hotel' 
                           ? (lang === 'tr' ? 'Oda Satış Sayısı' : 'Room Booking Count') 
                           : (lang === 'tr' ? 'Satılan Ürün' : 'Items Sold')}
                       </span>
                     </div>
                     <p className="text-lg font-black text-purple-700">
-                      {activeReportTab === 'hotel' 
+                      {effectiveHotelActive && currentTab === 'hotel' 
                         ? `${reportData.hotel_sales?.length || 0} Adet`
                         : `${(reportData.products?.reduce((sum: number, p: any) => sum + (Number(p.total_quantity) || 0), 0)) || 0} Adet`}
                     </p>
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold mt-1">
-                    {activeReportTab === 'hotel' 
+                    {effectiveHotelActive && currentTab === 'hotel' 
                       ? (lang === 'tr' ? 'Toplam Tahsilat' : 'Total Settlements')
                       : `${reportData.products?.length || 0} ${lang === 'tr' ? 'Farklı Ürün' : 'Unique Items'}`}
                   </span>
@@ -473,7 +486,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
               })()}
 
               {/* Segmented breakdown views */}
-              {activeReportTab === 'hotel' ? (
+              {effectiveHotelActive && currentTab === 'hotel' ? (
                 /* Hotel Room Sales breakdown table */
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
                   <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">

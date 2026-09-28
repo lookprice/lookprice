@@ -35,28 +35,33 @@ import { StoreFooter } from "./showcase/StoreFooter";
 import { getLabels } from "../utils/showcase";
 
 export const getProductImageUrl = (p: Product): string => {
-  if (!p) return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
-  if (p.image_url && typeof p.image_url === "string" && p.image_url.trim()) return p.image_url.trim();
-  const cover = (p as any)?.cover_image;
-  if (cover && typeof cover === "string" && cover.trim()) return cover.trim();
-  if (Array.isArray(p.images) && p.images.length > 0 && typeof p.images[0] === "string" && p.images[0].trim()) {
-    return p.images[0].trim();
-  }
-  if (typeof p.images === "string" && p.images.trim()) {
+  let url = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+  if (!p) return url;
+  if (p.image_url && typeof p.image_url === "string" && p.image_url.trim()) url = p.image_url.trim();
+  else if ((p as any)?.cover_image && typeof (p as any).cover_image === "string" && (p as any).cover_image.trim()) url = (p as any).cover_image.trim();
+  else if (Array.isArray(p.images) && p.images.length > 0 && typeof p.images[0] === "string" && p.images[0].trim()) {
+    url = p.images[0].trim();
+  } else if (typeof p.images === "string" && p.images.trim()) {
     try {
       const parsed = JSON.parse(p.images);
       if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]) {
-        return String(parsed[0]).trim();
+        url = String(parsed[0]).trim();
       }
     } catch (e) {
-      if (p.images.startsWith("http") || p.images.startsWith("/")) return p.images.trim();
+      if (p.images.startsWith("http") || p.images.startsWith("/")) url = p.images.trim();
+    }
+  } else {
+    const rawPhotos = (p as any).photos;
+    if (Array.isArray(rawPhotos) && rawPhotos.length > 0 && rawPhotos[0]) {
+      url = String(rawPhotos[0]).trim();
     }
   }
-  const rawPhotos = (p as any).photos;
-  if (Array.isArray(rawPhotos) && rawPhotos.length > 0 && rawPhotos[0]) {
-    return String(rawPhotos[0]).trim();
+
+  // Pre-emptively proxy domains known to enforce strict Hotlink / NotSameOrigin 403 blocks
+  if (url && (url.includes("extrememobiles.com.cy") || url.includes("wp-content/uploads/woocommerce"))) {
+    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
   }
-  return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+  return url;
 };
 
 export const getProductStockCount = (p: Product): number => {
@@ -123,6 +128,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
   const [selectedBadge, setSelectedBadge] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"home" | "catalog" | "bestsellers">("home");
   const [visibleCount, setVisibleCount] = useState<number>(30);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   // Reset visibleCount on filter change
   useEffect(() => {
@@ -193,11 +199,15 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
   const discountedTitle = netflixConfig.discounted_title || (isTr ? "🏷️ Fırsatlar & Kampanyalı Ürünler" : "🏷️ Special Offers & Discounts");
   const showNewArrivals = netflixConfig.show_new_arrivals_row !== false;
   const newArrivalsTitle = netflixConfig.new_arrivals_title || (isTr ? "✨ Yeni Gelen Ürünler" : "✨ New Arrivals");
+  const showCategoryRows = netflixConfig.show_category_rows !== false;
   const enableHoverZoom = netflixConfig.enable_hover_zoom !== false;
   const showQuickAddCart = netflixConfig.show_quick_add_cart !== false;
   const showStockBadge = netflixConfig.show_stock_badge !== false;
   const showOldPrice = netflixConfig.show_old_price !== false;
   const showThemeToggle = netflixConfig.show_theme_toggle !== false;
+  const showAnnouncementBar = netflixConfig.show_announcement_bar !== false && !!(netflixConfig.announcement_text || store?.branding?.announcement_text);
+  const announcementText = netflixConfig.announcement_text || store?.branding?.announcement_text || "";
+  const accentColor = netflixConfig.accent_color || store?.branding?.accent_color || "#3b82f6";
 
   useEffect(() => {
     if (heroProducts.length <= 1 || !showHero) return;
@@ -265,12 +275,29 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'dark ' : ''}bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200`}>
+      {/* TOP ANNOUNCEMENT BANNER */}
+      {showAnnouncementBar && (
+        <aside 
+          aria-label={isTr ? "Duyuru ve Kampanyalar" : "Announcements"}
+          className="relative z-50 text-white text-xs font-bold py-2 px-4 text-center shadow-xs flex items-center justify-center gap-2 transition-all"
+          style={{ backgroundColor: accentColor }}
+        >
+          <span>{announcementText}</span>
+        </aside>
+      )}
+
       {/* CINEMATIC NAVIGATION BAR */}
-      <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-200/90 dark:border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between transition-all shadow-xs dark:shadow-none">
+      <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-200/90 dark:border-slate-800/80 px-4 sm:px-8 py-3 flex items-center justify-between transition-all shadow-xs dark:shadow-none">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setActiveTab('home'); setSelectedCategory('all'); setSelectedBadge('all'); }}>
             {storeLogo ? (
-              <img src={storeLogo} alt={storeName} className="h-9 w-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-xs" />
+              <img 
+                src={storeLogo} 
+                alt={storeName} 
+                referrerPolicy="no-referrer"
+                onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                className="h-9 w-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-xs" 
+              />
             ) : (
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-black text-white shadow-md">
                 {storeName.charAt(0)}
@@ -307,33 +334,21 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
             >
               {isTr ? "Fırsatlar" : "Deals"}
             </button>
-            <button 
-              onClick={() => {
-                const footer = document.getElementById('store-footer');
-                if (footer) footer.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="px-3 py-1.5 rounded-lg transition-colors cursor-pointer hover:text-slate-900 dark:hover:text-white flex items-center gap-1 text-slate-600 dark:text-slate-300"
-              title={isTr ? "İletişim & Mağaza Bilgileri" : "Contact & Store Info"}
-            >
-              <PhoneCall className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
-              <span>{isTr ? "İletişim" : "Contact"}</span>
-            </button>
           </nav>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* MOBILE SEARCH TOGGLE BUTTON */}
           <button 
-            onClick={() => {
-              const footer = document.getElementById('store-footer');
-              if (footer) footer.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="sm:hidden p-2 text-blue-600 dark:text-blue-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
-            title={isTr ? "İletişim" : "Contact"}
+            type="button"
+            onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+            className="sm:hidden p-2 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 transition-all cursor-pointer shadow-2xs"
+            title={isTr ? "Ürün Ara" : "Search"}
           >
-            <PhoneCall className="h-5 w-5" />
+            <Search className="h-4 w-4" />
           </button>
           
-          {/* SEARCH BAR */}
+          {/* DESKTOP SEARCH BAR */}
           <div className="relative hidden sm:block w-52 lg:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
@@ -368,7 +383,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
             </button>
           )}
 
-          {/* CONTACT QUICK BTN */}
+          {/* SINGLE UNIFIED CONTACT BUTTON */}
           <button
             type="button"
             onClick={() => {
@@ -412,16 +427,99 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
         </div>
       </header>
 
+      {/* COLLAPSIBLE MOBILE SEARCH BAR */}
+      {isMobileSearchOpen && (
+        <div className="sm:hidden px-4 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 transition-all">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              autoFocus
+              placeholder={isTr ? "Ürün veya marka ara..." : "Search products, brands..."}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (activeTab === 'home' && e.target.value.trim()) setActiveTab('catalog');
+              }}
+              className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 p-1">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <button 
+            type="button"
+            onClick={() => setIsMobileSearchOpen(false)} 
+            className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white px-2 py-1 cursor-pointer"
+          >
+            {isTr ? "Kapat" : "Close"}
+          </button>
+        </div>
+      )}
+
+      {/* MOBILE HORIZONTAL CHIP FILTER SCROLLER */}
+      <div className="md:hidden overflow-x-auto no-scrollbar px-3 py-2 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 flex items-center gap-1.5 shadow-2xs">
+        <button 
+          type="button"
+          onClick={() => { setActiveTab('home'); setSelectedCategory('all'); setSelectedBadge('all'); }} 
+          className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer ${activeTab === 'home' && selectedCategory === 'all' && selectedBadge === 'all' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300'}`}
+        >
+          {isTr ? "🔥 Keşfet" : "🔥 Explore"}
+        </button>
+        <button 
+          type="button"
+          onClick={() => { setActiveTab('catalog'); setSelectedCategory('all'); setSelectedBadge('all'); }} 
+          className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer ${activeTab === 'catalog' && selectedCategory === 'all' && selectedBadge === 'all' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300'}`}
+        >
+          {isTr ? "Tüm Ürünler" : "All"}
+        </button>
+        <button 
+          type="button"
+          onClick={() => { setActiveTab('catalog'); setSelectedBadge('bestseller'); }} 
+          className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer ${selectedBadge === 'bestseller' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300'}`}
+        >
+          {isTr ? "⭐ Çok Satanlar" : "⭐ Bestsellers"}
+        </button>
+        <button 
+          type="button"
+          onClick={() => { setActiveTab('catalog'); setSelectedBadge('discount'); }} 
+          className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer ${selectedBadge === 'discount' ? 'bg-rose-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300'}`}
+        >
+          {isTr ? "🏷️ Fırsatlar" : "🏷️ Deals"}
+        </button>
+        {categories.map(cat => (
+          <button 
+            key={cat} 
+            type="button"
+            onClick={() => { setSelectedCategory(cat); setActiveTab('catalog'); }} 
+            className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer ${selectedCategory === cat && activeTab === 'catalog' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300'}`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
       {/* MAIN VIEW CONTENT */}
       {activeTab === 'home' && !searchQuery ? (
-        <div className="space-y-8 pb-20">
+        <div className="space-y-8 pb-20 md:pb-12">
           {/* MINIMALIST ILLUMINATED HERO SHOWCASE BANNER */}
           {showHero && currentHero && (
             <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4 sm:pt-6">
-              <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 shadow-2xl p-5 sm:p-7 md:p-9 min-h-[260px] sm:min-h-[300px] flex flex-col md:flex-row items-center justify-between gap-6 group">
-                {/* Luminous Ambient Background Glow */}
-                <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute -top-10 -left-10 w-64 h-64 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50/90 via-indigo-50/30 to-white dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border border-slate-200/90 dark:border-slate-800 shadow-xl dark:shadow-2xl p-5 sm:p-7 md:p-9 min-h-[260px] sm:min-h-[300px] flex flex-col md:flex-row items-center justify-between gap-6 group transition-colors duration-200">
+                {/* Luminous Ambient Background Glow & Atmospheric Blurred Photo Backdrop */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-3xl">
+                  <img 
+                    src={getProductImageUrl(currentHero)} 
+                    alt="" 
+                    className="absolute -right-16 -bottom-16 w-[420px] h-[420px] object-cover opacity-20 dark:opacity-25 blur-3xl filter saturate-200 transform scale-125"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-80 h-80 bg-blue-300/20 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute -top-10 -left-10 w-64 h-64 bg-indigo-300/15 dark:bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 to-transparent dark:from-slate-950/95 dark:via-slate-900/80 dark:to-transparent" />
+                </div>
 
                 {/* LEFT CONTENT */}
                 <div className="relative z-10 max-w-2xl space-y-3 w-full">
@@ -429,41 +527,61 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded-md font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
                         <Sparkles className="h-3 w-3" />
-                        Öne Çıkan Ürün
+                        {isTr ? "Öne Çıkan Ürün" : "Featured Product"}
                       </span>
                       {currentHero.brand && (
-                        <span className="px-2 py-0.5 bg-slate-800/90 text-slate-300 rounded-md font-bold text-[9px] border border-slate-700">
+                        <span className="px-2 py-0.5 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 rounded-md font-bold text-[9px] border border-slate-200 dark:border-slate-700 shadow-2xs">
                           {currentHero.brand}
                         </span>
                       )}
                       {currentHero.category && (
-                        <span className="px-2 py-0.5 bg-slate-800/90 text-slate-300 rounded-md font-bold text-[9px] border border-slate-700">
+                        <span className="px-2 py-0.5 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 rounded-md font-bold text-[9px] border border-slate-200 dark:border-slate-700 shadow-2xs">
                           {currentHero.category}
                         </span>
                       )}
                       {getLabels(currentHero.labels || (currentHero as any).tags || (currentHero as any).badges).slice(0, 2).map((lbl, idx) => (
-                        <span key={idx} className="px-2 py-0.5 bg-indigo-900/80 text-indigo-200 rounded-md font-bold text-[9px] border border-indigo-700/60">
+                        <span key={idx} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-200 rounded-md font-bold text-[9px] border border-indigo-200 dark:border-indigo-700/60">
                           🏷️ {lbl}
                         </span>
                       ))}
                     </div>
                   )}
 
-                  <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white drop-shadow-xs line-clamp-2">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white drop-shadow-xs line-clamp-2">
                     {currentHero.name}
                   </h1>
 
-                  <p className="text-xs sm:text-sm text-slate-300 line-clamp-2 max-w-xl font-normal leading-relaxed">
-                    {currentHero.description || (isTr ? "Bu sezona damga vuran premium ürünümüzü hemen keşfedin ve avantajlı fiyatlardan yararlanın." : "Discover our premium product defining this season with exceptional value.")}
-                  </p>
+                  {(() => {
+                    const customFallback = (netflixConfig?.hero_default_description || "").trim();
+                    const desc = (currentHero.description || "").trim();
+                    const displayDesc = desc || customFallback;
+                    
+                    if (displayDesc) {
+                      return (
+                        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-2 max-w-xl font-normal leading-relaxed">
+                          {displayDesc}
+                        </p>
+                      );
+                    }
+
+                    if (currentHero.brand || currentHero.category) {
+                      return (
+                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-1 max-w-xl font-medium">
+                          {[currentHero.brand, currentHero.category, (currentHero as any).sub_category].filter(Boolean).join(' • ')}
+                        </p>
+                      );
+                    }
+
+                    return null;
+                  })()}
 
                   <div className="flex items-center gap-3 pt-1 flex-wrap">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-lg sm:text-2xl font-black text-blue-400">
+                      <span className="text-lg sm:text-2xl font-black text-blue-600 dark:text-blue-400">
                         ₺{(currentHero.price || 0).toLocaleString('tr-TR')}
                       </span>
                       {currentHero.old_price && currentHero.old_price > currentHero.price && (
-                        <span className="text-xs text-slate-400 line-through">
+                        <span className="text-xs text-slate-400 dark:text-slate-500 line-through">
                           ₺{currentHero.old_price.toLocaleString('tr-TR')}
                         </span>
                       )}
@@ -471,10 +589,10 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
                     <span className={`px-2 py-0.5 text-[9px] font-bold rounded-md border ${
                       getProductStockCount(currentHero) > 0 
-                        ? "bg-emerald-950/60 text-emerald-300 border-emerald-800/80" 
-                        : "bg-rose-950/60 text-rose-300 border-rose-800/80"
+                        ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/80" 
+                        : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/80"
                     }`}>
-                      {getProductStockCount(currentHero) > 0 ? `Stokta: ${getProductStockCount(currentHero)} Adet` : "Tükendi"}
+                      {getProductStockCount(currentHero) > 0 ? `${isTr ? "Stokta" : "In Stock"}: ${getProductStockCount(currentHero)} ${isTr ? "Adet" : "Pcs"}` : (isTr ? "Tükendi" : "Out of Stock")}
                     </span>
 
                     <button
@@ -489,7 +607,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                     <button
                       type="button"
                       onClick={() => addToBasket(currentHero)}
-                      className="px-4 py-2 bg-slate-800/90 hover:bg-slate-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 border border-slate-700 active:scale-95 transition-all cursor-pointer"
+                      className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-xs"
                     >
                       <ShoppingBag className="h-3.5 w-3.5" />
                       <span>{isTr ? "Sepete Ekle" : "Add to Cart"}</span>
@@ -498,13 +616,25 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 </div>
 
                 {/* RIGHT CRISP PRODUCT IMAGE SHOWCASE */}
-                <div className="relative z-10 shrink-0 w-48 sm:w-60 md:w-72 h-44 sm:h-52 md:h-60 flex items-center justify-center p-2">
-                  <div className="w-full h-full rounded-2xl bg-slate-950/60 border border-slate-800/60 flex items-center justify-center p-3 shadow-inner overflow-hidden">
+                <div className="relative z-10 shrink-0 w-52 sm:w-64 md:w-80 h-48 sm:h-56 md:h-64 flex items-center justify-center p-2">
+                  <div className="w-full h-full rounded-2xl sm:rounded-3xl bg-white border border-slate-200/90 dark:border-slate-700/80 flex items-center justify-center p-4 shadow-xl dark:shadow-2xl overflow-hidden group/img transition-all duration-300">
                     <img 
                       src={getProductImageUrl(currentHero)} 
                       alt={currentHero.name}
-                      className="max-w-full max-h-full object-contain filter brightness-105 contrast-105 drop-shadow-xl transform transition-transform duration-500 group-hover:scale-105"
+                      className="max-w-full max-h-full object-contain filter brightness-105 contrast-105 drop-shadow-md transform transition-transform duration-500 group-hover/img:scale-105"
                       loading="eager"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        const originalSrc = getProductImageUrl(currentHero);
+                        if (!target.dataset.fallback && originalSrc && originalSrc.startsWith('http') && !originalSrc.includes('/api/proxy-image')) {
+                          target.dataset.fallback = 'proxy';
+                          target.src = `/api/proxy-image?url=${encodeURIComponent(originalSrc)}`;
+                        } else {
+                          target.onerror = null;
+                          target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -592,7 +722,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
             )}
 
             {/* DYNAMIC CATEGORY ROWS (ALL DISTINCT CATEGORIES) */}
-            {categories.map(catName => {
+            {showCategoryRows && categories.map(catName => {
               const catItems = products.filter(p => p.category === catName || p.category_2 === catName);
               if (catItems.length === 0) return null;
               return (
@@ -704,6 +834,63 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
         setShowAboutModal={setShowAboutModal} 
         setShowStoreLocatorModal={setShowStoreLocatorModal} 
       />
+
+      {/* MOBILE MODERN BOTTOM APP BAR */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800/90 px-3 py-2 flex items-center justify-around shadow-2xl pb-safe">
+        <button 
+          type="button"
+          onClick={() => { setActiveTab('home'); setSelectedCategory('all'); setSelectedBadge('all'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${activeTab === 'home' && selectedCategory === 'all' && selectedBadge === 'all' ? 'text-blue-600 dark:text-blue-400 font-black' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+        >
+          <Sparkles className="h-4.5 w-4.5" />
+          <span className="text-[10px]">{isTr ? "Keşfet" : "Explore"}</span>
+        </button>
+        <button 
+          type="button"
+          onClick={() => { setActiveTab('catalog'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${activeTab === 'catalog' ? 'text-blue-600 dark:text-blue-400 font-black' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+        >
+          <Package className="h-4.5 w-4.5" />
+          <span className="text-[10px]">{isTr ? "Ürünler" : "Catalog"}</span>
+        </button>
+        <button 
+          type="button"
+          onClick={() => onCheckout()}
+          className="relative flex flex-col items-center gap-0.5 cursor-pointer transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+        >
+          <div className="relative">
+            <ShoppingBag className="h-4.5 w-4.5" />
+            {totalBasketCount > 0 && (
+              <span className="absolute -top-1.5 -right-2 bg-rose-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center">
+                {totalBasketCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px]">{isTr ? "Sepetim" : "Cart"}</span>
+        </button>
+        <button 
+          type="button"
+          onClick={() => {
+            const footer = document.getElementById('store-footer');
+            if (footer) footer.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="flex flex-col items-center gap-0.5 cursor-pointer transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+        >
+          <PhoneCall className="h-4.5 w-4.5 text-blue-500 dark:text-blue-400" />
+          <span className="text-[10px]">{isTr ? "İletişim" : "Contact"}</span>
+        </button>
+        <button 
+          type="button"
+          onClick={() => {
+            if (customer) onOpenProfile('profile');
+            else setShowAuthModal(true);
+          }}
+          className="flex flex-col items-center gap-0.5 cursor-pointer transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+        >
+          <User className="h-4.5 w-4.5" />
+          <span className="text-[10px]">{customer ? (customer.name?.split(' ')[0] || (isTr ? "Hesabım" : "Profile")) : (isTr ? "Giriş" : "Login")}</span>
+        </button>
+      </nav>
     </div>
   );
 };
@@ -843,6 +1030,17 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
           alt={product.name}
           className="max-w-full max-h-full object-contain filter group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (!target.dataset.fallback && coverImg && coverImg.startsWith('http') && !coverImg.includes('/api/proxy-image')) {
+              target.dataset.fallback = 'proxy';
+              target.src = `/api/proxy-image?url=${encodeURIComponent(coverImg)}`;
+            } else {
+              target.onerror = null;
+              target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+            }
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/10 dark:from-slate-950/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
@@ -859,21 +1057,6 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
               </span>
             ) : null}
           </div>
-        )}
-
-        {/* FLOATING ICON-ONLY ADD TO BASKET (QUICK ACTION) */}
-        {showQuickAddCart && !isOutOfStock && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              addToBasket(product);
-            }}
-            className="absolute bottom-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-all active:scale-90 cursor-pointer"
-            title="Sepete Ekle"
-          >
-            <ShoppingBag className="h-4 w-4" />
-          </button>
         )}
       </div>
 
@@ -902,8 +1085,8 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
               )}
             </div>
 
-            {/* SECONDARY MINI CART ICON BUTTON */}
-            {!isOutOfStock && (
+            {/* SINGLE MINI CART ICON BUTTON */}
+            {showQuickAddCart && !isOutOfStock && (
               <button
                 type="button"
                 onClick={(e) => {

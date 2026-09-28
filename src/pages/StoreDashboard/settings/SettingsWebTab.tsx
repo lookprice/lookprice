@@ -83,11 +83,10 @@ export const SettingsWebTab = ({
 
   const subNavItems = [
     { id: 'brand', label: txt('Logo & Favicon', 'Logo & Favicon', 'Λογότυπο & Favicon'), icon: ImageIcon, show: true },
-    { id: 'theme', label: txt('Vitrin', 'Theme', 'Βιτρίνα'), icon: Palette, show: true },
-    { id: 'labels', label: txt('Etiketler', 'Labels', 'Ετικέτες'), icon: Tag, show: !isPortfolio && !isCafeRestaurant },
-    { id: 'legal', label: txt('Politikalar', 'Policies', 'Πολιτικές'), icon: FileText, show: !isPortfolio && !isCafeRestaurant },
+    { id: 'theme', label: txt('Vitrin & Görsel Tasarım Stüdyosu', 'Visual Theme Studio', 'Βιτρίνα & Στούντιο Σχεδίασης'), icon: Palette, show: true },
+    { id: 'legal', label: txt('Hakkımızda & Politikalar', 'About & Policies', 'Σχετικά & Πολιτικές'), icon: FileText, show: !isPortfolio && !isCafeRestaurant },
     { id: 'contact', label: txt('İletişim', 'Contact', 'Επικοινωνία'), icon: Share2, show: true },
-    { id: 'analytics', label: txt('SEO', 'SEO', 'SEO'), icon: BarChart3, show: true },
+    { id: 'analytics', label: txt('SEO & Analitik', 'SEO & Analytics', 'SEO & Αναλυτικά'), icon: BarChart3, show: true },
   ].filter(item => item.show);
 
   return (
@@ -476,190 +475,120 @@ export const SettingsWebTab = ({
         </div>
       )}
 
-      {/* SUB-TAB 2: ÖZEL ETİKETLER VE HAKKIMIZDA */}
-      {activeSubTab === 'labels' && !isPortfolio && !isCafeRestaurant && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Label Customization */}
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-indigo-500" />
-                {txt('Özel Arayüz Etiketleri', 'Custom Interface Labels', 'Ετικέτες Διεπαφής')}
-              </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  onBrandingChange("brand_label", lang === "tr" ? "Yazarlar" : "Authors");
-                  onBrandingChange("category_label", lang === "tr" ? "Kitap Türleri" : "Book Types");
-                  onBrandingChange("product_label", lang === "tr" ? "Kitap" : "Book");
-                  onBrandingChange("stock_label", lang === "tr" ? "Stoktaki Kitap Sayısı" : "Books in Stock");
-                  onBrandingChange("hero_title", lang === "tr" ? "Okumayı Seviyoruz" : "We Love Reading");
-                }}
-                className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <BookOpen className="w-3 h-3" />
-                {txt('Kitapçı Konsepti Uygula', 'Apply Bookstore Concept', 'Εφαρμογή Concept Βιβλιοπωλείου')}
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  {txt('Marka Etiketi', 'Brand Label', 'Ετικέτα Μάρκας')}
-                </label>
-                <input
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder={txt('Örn: Yazarlar', 'e.g. Authors', 'π.χ. Συγγραφείς')}
-                  value={branding?.brand_label || ""}
-                  onChange={(e) => onBrandingChange("brand_label", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  {txt('Kategori Etiketi', 'Category Label', 'Ετικέτα Κατηγορίας')}
-                </label>
-                <input
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder={txt('Örn: Koleksiyon', 'e.g. Collections', 'π.χ. Συλλογές')}
-                  value={branding?.category_label || ""}
-                  onChange={(e) => onBrandingChange("category_label", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  {txt('Ürün Adlandırma', 'Product Label', 'Ετικέτα Προϊόντος')}
-                </label>
-                <input
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder={txt('Örn: Kitap', 'e.g. Book', 'π.χ. Βιβλίο')}
-                  value={branding?.product_label || ""}
-                  onChange={(e) => onBrandingChange("product_label", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  {txt('Stok Etiketi', 'Stock Label', 'Ετικέτα Αποθέματος')}
-                </label>
-                <input
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder={txt('Örn: Kalan Adet', 'e.g. Remaining', 'π.χ. Υπόλοιπο')}
-                  value={branding?.stock_label || ""}
-                  onChange={(e) => onBrandingChange("stock_label", e.target.value)}
-                />
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic">
-              {"* " + txt('Bu ayarlar web sitenizdeki filtreleme ve detay sayfalarındaki başlıkları özelleştirir.', 'Customizes title labels on website filtering & product pages.', 'Προσαρμόζει τις ετικέτες επικεφαλίδας στον ιστότοπό σας.')}
-            </p>
-          </div>
-
-          {/* About Text */}
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">
-              {txt('Hakkımızda Metni', 'About Store Text', 'Κείμενο Σχετικά με Εμάς')}
-            </h3>
-            <textarea
-              className="w-full h-28 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
-              value={branding?.about_text || ""}
-              onChange={(e) => onBrandingChange("about_text", e.target.value)}
-              placeholder={txt('Mağazanız hakkında kurumsal bilgi metni yazın...', 'Write company background information...', 'Γράψτε πληροφορίες σχετικά με το κατάστημά σας...')}
-            />
-            <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                  {txt('Google Merchant Sayfa URL', 'Google Merchant URL', 'Google Merchant URL')}
-                </p>
-                <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
-                  {window.location.origin}/store/{branding?.slug}/about-us
-                </code>
-              </div>
-              <a
-                href={`${window.location.origin}/store/${branding?.slug}/about-us`}
-                target="_blank"
-                rel="noreferrer"
-                className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SUB-TAB 3: YASAL POLİTİKALAR */}
+      {/* SUB-TAB 2: HAKKIMIZDA VE YASAL POLİTİKALAR */}
       {activeSubTab === 'legal' && !isPortfolio && !isCafeRestaurant && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                {txt('İade Politikası', 'Return Policy', 'Πολιτική Επιστροφών')}
-              </h3>
-              <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800">
-                Merchant Zorunlu
-              </span>
-            </div>
-            <textarea
-              className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
-              value={branding?.legal_pages?.return_policy || ""}
-              onChange={(e) =>
-                onBrandingChange("legal_pages", { ...branding?.legal_pages, return_policy: e.target.value })
-              }
-              placeholder={txt('İade şartları ve cayma hakkı metnini girin...', 'Enter return policy and withdrawal conditions...', 'Εισάγετε την πολιτική επιστροφών...')}
-            />
-            <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                  {txt('Sayfa Linki', 'Page Link', 'Σύνδεσμος Σελίδας')}
-                </p>
-                <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
-                  {window.location.origin}/store/{branding?.slug}/return-policy
-                </code>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* 1. HAKKIMIZDA METNİ */}
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  {txt('Hakkımızda Metni', 'About Store Text', 'Κείμενο Σχετικά με Εμάς')}
+                </h3>
+                <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-md border border-blue-200 dark:border-blue-800">
+                  Kurumsal
+                </span>
               </div>
-              <a
-                href={`${window.location.origin}/store/${branding?.slug}/return-policy`}
-                target="_blank"
-                rel="noreferrer"
-                className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              <textarea
+                className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                value={branding?.about_text || ""}
+                onChange={(e) => onBrandingChange("about_text", e.target.value)}
+                placeholder={txt('Mağazanız hakkında kurumsal bilgi metni yazın...', 'Write company background information...', 'Γράψτε πληροφορίες σχετικά με το κατάστημά σας...')}
+              />
+              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    {txt('Google Merchant Sayfa URL', 'Google Merchant URL', 'Google Merchant URL')}
+                  </p>
+                  <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
+                    {window.location.origin}/store/{branding?.slug}/about-us
+                  </code>
+                </div>
+                <a
+                  href={`${window.location.origin}/store/${branding?.slug}/about-us`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
-          </div>
 
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                {txt('Kargo Politikası', 'Shipping Policy', 'Πολιτική Αποστολής')}
-              </h3>
-              <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800">
-                Merchant Zorunlu
-              </span>
-            </div>
-            <textarea
-              className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
-              value={branding?.legal_pages?.shipping_policy || ""}
-              onChange={(e) =>
-                onBrandingChange("legal_pages", { ...branding?.legal_pages, shipping_policy: e.target.value })
-              }
-              placeholder={txt('Kargo, teslimat süreleri ve süreç metnini girin...', 'Enter shipping options & delivery times...', 'Εισάγετε την πολιτική αποστολής...')}
-            />
-            <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                  {txt('Sayfa Linki', 'Page Link', 'Σύνδεσμος Σελίδας')}
-                </p>
-                <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
-                  {window.location.origin}/store/{branding?.slug}/shipping-policy
-                </code>
+            {/* 2. İADE POLİTİKASI */}
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  {txt('İade Politikası', 'Return Policy', 'Πολιτική Επιστροφών')}
+                </h3>
+                <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800">
+                  Merchant Zorunlu
+                </span>
               </div>
-              <a
-                href={`${window.location.origin}/store/${branding?.slug}/shipping-policy`}
-                target="_blank"
-                rel="noreferrer"
-                className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              <textarea
+                className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                value={branding?.legal_pages?.return_policy || ""}
+                onChange={(e) =>
+                  onBrandingChange("legal_pages", { ...branding?.legal_pages, return_policy: e.target.value })
+                }
+                placeholder={txt('İade şartları ve cayma hakkı metnini girin...', 'Enter return policy and withdrawal conditions...', 'Εισάγετε την πολιτική επιστροφών...')}
+              />
+              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    {txt('Sayfa Linki', 'Page Link', 'Σύνδεσμος')}
+                  </p>
+                  <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
+                    {window.location.origin}/store/{branding?.slug}/return-policy
+                  </code>
+                </div>
+                <a
+                  href={`${window.location.origin}/store/${branding?.slug}/return-policy`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+
+            {/* 3. KARGO POLİTİKASI */}
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  {txt('Kargo Politikası', 'Shipping Policy', 'Πολιτική Αποστολής')}
+                </h3>
+                <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800">
+                  Merchant Zorunlu
+                </span>
+              </div>
+              <textarea
+                className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                value={branding?.legal_pages?.shipping_policy || ""}
+                onChange={(e) =>
+                  onBrandingChange("legal_pages", { ...branding?.legal_pages, shipping_policy: e.target.value })
+                }
+                placeholder={txt('Kargo, teslimat süreleri ve süreç metnini girin...', 'Enter shipping options & delivery times...', 'Εισάγετε την πολιτική αποστολής...')}
+              />
+              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    {txt('Sayfa Linki', 'Page Link', 'Σύνδεσμος')}
+                  </p>
+                  <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono break-all font-bold">
+                    {window.location.origin}/store/{branding?.slug}/shipping-policy
+                  </code>
+                </div>
+                <a
+                  href={`${window.location.origin}/store/${branding?.slug}/shipping-policy`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
           </div>
         </div>

@@ -612,10 +612,16 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const handlePrintReport = () => {
     if (!reportData) return;
 
-    const cashAmount = reportData.payments?.filter((p: any) => ['cash', 'nakit'].includes(p.payment_method?.toLowerCase()))?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0;
-    const cardAmount = reportData.payments?.filter((p: any) => ['credit_card', 'card', 'kredi_karti', 'pos'].includes(p.payment_method?.toLowerCase()))?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0;
-    const otherAmount = reportData.payments?.filter((p: any) => !['cash', 'nakit', 'credit_card', 'card', 'kredi_karti', 'pos'].includes(p.payment_method?.toLowerCase()))?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0;
-    const totalAmount = reportData.grand_total || (reportData.payments?.reduce((s: number, p: any) => s + (Number(p.total_amount) || 0), 0)) || 0;
+    const paymentsToUse = (!isHotelActive && reportData.restaurant_payments && reportData.restaurant_payments.length > 0)
+      ? reportData.restaurant_payments
+      : (reportData.payments || []);
+
+    const cashAmount = paymentsToUse.filter((p: any) => ['cash', 'nakit'].includes(p.payment_method?.toLowerCase()))?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0;
+    const cardAmount = paymentsToUse.filter((p: any) => ['credit_card', 'card', 'kredi_karti', 'pos'].includes(p.payment_method?.toLowerCase()))?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0;
+    const otherAmount = paymentsToUse.filter((p: any) => !['cash', 'nakit', 'credit_card', 'card', 'kredi_karti', 'pos'].includes(p.payment_method?.toLowerCase()))?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0;
+    const totalAmount = (!isHotelActive && reportData.restaurant_payments && reportData.restaurant_payments.length > 0)
+      ? paymentsToUse.reduce((s: number, p: any) => s + (Number(p.total_amount) || 0), 0)
+      : (reportData.grand_total || paymentsToUse.reduce((s: number, p: any) => s + (Number(p.total_amount) || 0), 0) || 0);
     const isRange = reportStartDate !== reportEndDate;
     const dateLabel = isRange ? `${reportStartDate} - ${reportEndDate}` : reportStartDate;
     const totalItems = reportData.products?.reduce((sum: number, p: any) => sum + (Number(p.total_quantity) || 0), 0) || 0;
@@ -640,19 +646,26 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     const isRange = reportStartDate !== reportEndDate;
     const dateLabel = isRange ? `${reportStartDate} — ${reportEndDate}` : reportStartDate;
     const storeTitle = branding?.store_name || branding?.name || 'LOOKPRICE RESTORAN & POS';
-    const cashAmount = reportData.payments?.filter((p: any) => ['cash', 'nakit'].includes(p.payment_method?.toLowerCase()))?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0;
-    const cardAmount = reportData.payments?.filter((p: any) => ['credit_card', 'card', 'kredi_karti', 'pos'].includes(p.payment_method?.toLowerCase()))?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0;
-    const grandTotal = reportData.grand_total || (reportData.payments?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0)) || 0;
+
+    const paymentsToUse = (!isHotelActive && reportData.restaurant_payments && reportData.restaurant_payments.length > 0)
+      ? reportData.restaurant_payments
+      : (reportData.payments || []);
+
+    const cashAmount = paymentsToUse.filter((p: any) => ['cash', 'nakit'].includes(p.payment_method?.toLowerCase()))?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0;
+    const cardAmount = paymentsToUse.filter((p: any) => ['credit_card', 'card', 'kredi_karti', 'pos'].includes(p.payment_method?.toLowerCase()))?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0;
+    const grandTotal = (!isHotelActive && reportData.restaurant_payments && reportData.restaurant_payments.length > 0)
+      ? paymentsToUse.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0)
+      : (reportData.grand_total || paymentsToUse.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0) || 0);
     const totalItems = reportData.products?.reduce((sum: number, p: any) => sum + (Number(p.total_quantity) || 0), 0) || 0;
 
-    const hotelRows = (reportData.hotel_sales || []).map((s: any, idx: number) => `
+    const hotelRows = isHotelActive ? (reportData.hotel_sales || []).map((s: any, idx: number) => `
       <tr style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 1 ? 'background-color: #f8fafc;' : ''}">
         <td style="padding: 8px 12px; font-weight: bold; color: #1e293b; text-align: left;">${idx + 1}. Oda ${s.customer_name?.replace(/Oda\s*/i, '') || s.customer_name}</td>
         <td style="padding: 8px 12px; text-align: left; color: #1e293b; font-size: 13px;">${s.notes || ''}</td>
         <td style="padding: 8px 12px; text-align: center; text-transform: uppercase; font-size: 13px;">${s.payment_method === 'cash' ? 'Nakit' : (s.payment_method === 'credit_card' ? 'Kredi Kartı' : s.payment_method || 'Kredi Kartı')}</td>
         <td style="padding: 8px 12px; text-align: right; font-weight: 800; color: #0f172a;">${s.total_amount?.toFixed(2)} ${s.currency === 'TRY' ? '₺' : s.currency}</td>
       </tr>
-    `).join('');
+    `).join('') : '';
 
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
@@ -744,7 +757,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             </tfoot>
           </table>
 
-          ${reportData.hotel_sales && reportData.hotel_sales.length > 0 ? `
+          ${isHotelActive && reportData.hotel_sales && reportData.hotel_sales.length > 0 ? `
             <h3 style="font-size: 14px; font-weight: 800; color: #334155; margin: 30px 0 5px 0; text-transform: uppercase;">Otel Oda Satış Detayları</h3>
             <table>
               <thead>

@@ -24,12 +24,17 @@ import {
   ChevronRight,
   Send,
   Smartphone,
-  UserPlus
+  UserPlus,
+  Wifi,
+  Printer,
+  QrCode
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { QRCodeSVG } from "qrcode.react";
 import { api } from "../../../services/api";
 import { IrpModal } from "../../../components/IrpModal";
 import { HotelUpgradeModal } from "../../../components/modals/HotelUpgradeModal";
+import { WifiQrPrintModal } from "../modals/WifiQrPrintModal";
 import { StaffWaiter, getStoreWaiters, generateWaiterWhatsappInviteUrl } from "../../../utils/staffHelpers";
 
 interface SettingsStoreOpsTabProps {
@@ -48,7 +53,7 @@ interface SettingsStoreOpsTabProps {
   storeCode?: string;
 }
 
-type OpsSubTab = 'profile' | 'working_hours' | 'security' | 'currency' | 'legal_tax' | 'shipping' | 'locations' | 'horeca' | 'bulk_price';
+type OpsSubTab = 'profile' | 'working_hours' | 'security' | 'currency' | 'legal_tax' | 'shipping' | 'locations' | 'horeca' | 'wifi' | 'bulk_price';
 
 export const SettingsStoreOpsTab = ({
   branding,
@@ -69,6 +74,8 @@ export const SettingsStoreOpsTab = ({
   const [syncingTcmb, setSyncingTcmb] = useState(false);
   const [isIrpModalOpen, setIsIrpModalOpen] = useState(false);
   const [isHotelUpgradeModalOpen, setIsHotelUpgradeModalOpen] = useState(false);
+  const [manualCategoryInput, setManualCategoryInput] = useState(false);
+  const [wifiModalOpen, setWifiModalOpen] = useState(false);
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const t = translations || {};
   const txt = (tr: string, en: string, el: string) => {
@@ -92,6 +99,20 @@ export const SettingsStoreOpsTab = ({
       setSyncingTcmb(false);
     }
   };
+
+  const storeCategoryStats = React.useMemo(() => {
+    if (!products || !Array.isArray(products)) return [];
+    const map = new Map<string, number>();
+    products.forEach((p: any) => {
+      const cat = (p.category || '').trim();
+      if (cat) {
+        map.set(cat, (map.get(cat) || 0) + 1);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  }, [products]);
 
   const allStoreCategories = React.useMemo(() => {
     if (!products || !Array.isArray(products)) return [];
@@ -189,6 +210,12 @@ export const SettingsStoreOpsTab = ({
       label: lang === 'tr' ? 'Toplu Fiyat' : 'Bulk Price', 
       icon: Percent, 
       show: !isPortfolio 
+    },
+    { 
+      id: 'wifi', 
+      label: lang === 'tr' ? 'Müşteri Wi-Fi' : 'Guest Wi-Fi', 
+      icon: Wifi, 
+      show: true 
     },
   ];
 
@@ -1490,13 +1517,42 @@ export const SettingsStoreOpsTab = ({
 
                   {bulkPriceForm.target === 'category' && (
                     <div className="space-y-1">
-                      <label className="text-[10.5px] font-semibold text-slate-500">Kategori</label>
-                      <input 
-                        type="text" 
-                        className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs"
-                        value={bulkPriceForm.category || ''}
-                        onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
-                      />
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10.5px] font-semibold text-slate-500">Kategori</label>
+                        {storeCategoryStats.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setManualCategoryInput(!manualCategoryInput)}
+                            className="text-[9.5px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                          >
+                            {manualCategoryInput ? txt('Listeden Seç', 'From List', 'Από Λίστα') : txt('Manuel Yaz', 'Type Custom', 'Χειροκίνητα')}
+                          </button>
+                        )}
+                      </div>
+                      {!manualCategoryInput && storeCategoryStats.length > 0 ? (
+                        <select
+                          required
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs cursor-pointer text-slate-800 dark:text-slate-100"
+                          value={bulkPriceForm.category || ''}
+                          onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
+                        >
+                          <option value="">{txt('-- Kategori Seçiniz --', '-- Select Category --', '-- Επιλέξτε Κατηγορία --')}</option>
+                          {storeCategoryStats.map((c) => (
+                            <option key={c.name} value={c.name}>
+                              {c.name} ({c.count} {txt('ürün', 'products', 'προϊόντα')})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input 
+                          type="text" 
+                          required
+                          placeholder={txt("Kategori adı...", "Category name...", "Όνομα κατηγορίας...")}
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs"
+                          value={bulkPriceForm.category || ''}
+                          onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -1545,6 +1601,135 @@ export const SettingsStoreOpsTab = ({
                   </button>
                 </div>
               </form>
+            </motion.div>
+          )}
+
+          {/* TAB 10: MÜŞTERİ Wİ-Fİ & MASA STANDI */}
+          {activeOpsTab === 'wifi' && (
+            <motion.div
+              key="wifi"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="space-y-4"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Wifi className="w-4 h-4 text-emerald-500" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {txt('Müşteri Wi-Fi Paylaşım & Masa Standı Ayarları', 'Guest Wi-Fi & Table Stand Settings', 'Ρυθμίσεις Wi-Fi')}
+                  </h3>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setWifiModalOpen(true)}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-xs hover:shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>{txt('Şık Masa Standı / A5-A4 Çıktı Al', 'Print Wi-Fi Stand / Card', 'Εκτύπωση Wi-Fi Stand')}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                <div className="lg:col-span-7 space-y-3 bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/80">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10.5px] font-semibold text-slate-500">Wi-Fi Ağ Adı (SSID) *</label>
+                      <input
+                        type="text"
+                        placeholder="Örn: LookPrice_Guest"
+                        className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold text-xs"
+                        value={branding?.wifi_ssid || ''}
+                        onChange={(e) => onBrandingChange('wifi_ssid', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10.5px] font-semibold text-slate-500">Wi-Fi Şifresi</label>
+                      <input
+                        type="text"
+                        placeholder="Şifre (Boş = Şifresiz)..."
+                        className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold text-xs"
+                        value={branding?.wifi_password || ''}
+                        onChange={(e) => onBrandingChange('wifi_password', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 space-y-1">
+                    <p className="text-[10.5px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <Smartphone className="w-3.5 h-3.5 text-emerald-500" />
+                      {txt('Kameradan Otomatik Bağlantı', 'Camera Auto-Connect', 'Αυτόματη Σύνδεση')}
+                    </p>
+                    <p className="text-[10px] leading-relaxed">
+                      {txt(
+                        'Standart Wi-Fi QR protokolü ile üretilen bu kod, müşterilerinizin telefon kameralarıyla okutulduğunda şifre yazma gereksinimi olmadan doğrudan ağa bağlanmalarını sağlar.',
+                        'Generated using standard Wi-Fi QR protocols so customers can connect directly with phone cameras without typing passwords.',
+                        'Σαρώστε με την κάμερα του κινητού για αυτόματη σύνδεση χωρίς κωδικό.'
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-5 bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/80 flex flex-col items-center text-center">
+                  <div className="inline-block bg-slate-900 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider mb-1">
+                    FREE WI-FI
+                  </div>
+                  <h5 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">
+                    {branding?.store_name || branding?.name || 'Seçkin Mağaza'}
+                  </h5>
+                  <p className="text-[9px] text-slate-400 font-medium mb-2">Misafir Wi-Fi Ağı</p>
+
+                  <div className="p-2 bg-white rounded-xl shadow-2xs border border-slate-200 mb-2">
+                    <QRCodeSVG
+                      value={
+                        !branding?.wifi_password?.trim()
+                          ? `WIFI:T:nopass;S:${(branding?.wifi_ssid || '').trim()};;`
+                          : `WIFI:T:WPA;S:${(branding?.wifi_ssid || '').trim()};P:${(branding?.wifi_password || '').trim()};;`
+                      }
+                      size={95}
+                      level="M"
+                    />
+                  </div>
+
+                  <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-[9.5px] text-left space-y-0.5">
+                    <div className="flex justify-between">
+                      <span className="font-bold text-slate-400">SSID:</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{branding?.wifi_ssid || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-bold text-slate-400">ŞİFRE:</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{branding?.wifi_password || '(Şifresiz)'}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setWifiModalOpen(true)}
+                    className="w-full mt-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>{txt('Stand & Afiş Çıktısı Al', 'Print Stand & Poster', 'Εκτύπωση Stand')}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Wi-Fi QR Print Modal */}
+              {wifiModalOpen && (
+                <WifiQrPrintModal
+                  isOpen={wifiModalOpen}
+                  onClose={() => setWifiModalOpen(false)}
+                  branding={branding}
+                  lang={lang}
+                  initialSsid={branding?.wifi_ssid}
+                  initialPassword={branding?.wifi_password}
+                  onSaveCredentials={(ssid, password) => {
+                    onBrandingChange('wifi_ssid', ssid);
+                    onBrandingChange('wifi_password', password);
+                  }}
+                />
+              )}
             </motion.div>
           )}
         </AnimatePresence>

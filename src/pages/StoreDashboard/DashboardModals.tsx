@@ -338,6 +338,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
         setBulkPriceForm={setBulkPriceForm}
         handleBulkPriceSubmit={handleBulkPriceSubmit}
         branding={branding}
+        products={products}
         translations={t}
         lang={lang}
         showQuickProductModal={showQuickProductModal}

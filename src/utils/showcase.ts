@@ -5,8 +5,11 @@ import { BOOKSTORE_BADGES } from "../data/bookstoreBadges";
  * into human-friendly, localized display strings.
  */
 export const getDisplayLabel = (label: string, lang: string = "tr"): string => {
-  const clean = String(label || "").trim();
-  if (!clean) return "";
+  const clean = String(label || "")
+    .replace(/\\+/g, "")
+    .replace(/^["'\[\]\s]+|["'\[\]\s]+$/g, "")
+    .trim();
+  if (!clean || clean === "[]" || clean === "null" || clean === "undefined") return "";
   const lower = clean.toLowerCase();
 
   // Filter out internal technical/JSON field keys that shouldn't appear as raw tags

@@ -316,6 +316,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
         onClose={() => setShowReportModal(false)}
         lang={lang}
         branding={branding}
+        isHotelActive={isHotelActive}
         reportStartDate={reportStartDate}
         setReportStartDate={setReportStartDate}
         reportEndDate={reportEndDate}

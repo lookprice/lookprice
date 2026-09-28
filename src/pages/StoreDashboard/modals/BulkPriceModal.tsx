@@ -11,6 +11,8 @@ interface BulkPriceModalProps {
   branding: any;
   translations: any;
   lang: string;
+  products?: any[];
+  categories?: string[];
 
   // Quick Product Add
   showQuickProductModal?: boolean;
@@ -29,6 +31,8 @@ export const BulkPriceModal: React.FC<BulkPriceModalProps> = ({
   branding,
   translations: t,
   lang,
+  products = [],
+  categories = [],
 
   showQuickProductModal,
   setShowQuickProductModal,
@@ -37,6 +41,30 @@ export const BulkPriceModal: React.FC<BulkPriceModalProps> = ({
   handleQuickAddProduct
 }) => {
   const isTr = lang === 'tr';
+  const [manualCategory, setManualCategory] = React.useState(false);
+
+  const categoryStats = React.useMemo(() => {
+    const map = new Map<string, number>();
+    if (Array.isArray(products) && products.length > 0) {
+      products.forEach((p: any) => {
+        const cat = (p.category || '').trim();
+        if (cat) {
+          map.set(cat, (map.get(cat) || 0) + 1);
+        }
+      });
+    }
+    if (Array.isArray(categories) && categories.length > 0) {
+      categories.forEach((cat: string) => {
+        const trimmed = (cat || '').trim();
+        if (trimmed && !map.has(trimmed)) {
+          map.set(trimmed, 0);
+        }
+      });
+    }
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+  }, [products, categories]);
 
   return (
     <>
@@ -93,6 +121,7 @@ export const BulkPriceModal: React.FC<BulkPriceModalProps> = ({
                       onChange={(e) => setBulkPriceForm({...bulkPriceForm, target: e.target.value})}
                     >
                       <option value="all">{isTr ? 'Tüm Ürünler' : 'All Products'}</option>
+                      <option value="category">{isTr ? 'Kategori Bazlı' : 'Category Based'}</option>
                       <option value="selected">{isTr ? 'Seçili Ürünler' : 'Selected Products'}</option>
                     </select>
                   </div>
@@ -108,6 +137,58 @@ export const BulkPriceModal: React.FC<BulkPriceModalProps> = ({
                     </select>
                   </div>
                 </div>
+
+                {bulkPriceForm.target === 'category' && (
+                  <div className="space-y-1.5 p-3.5 bg-indigo-50/60 border border-indigo-100 rounded-2xl">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wider">
+                        {isTr ? 'Uygulanacak Kategori *' : 'Target Category *'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setManualCategory(!manualCategory)}
+                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
+                      >
+                        {manualCategory 
+                          ? (isTr ? 'Listeden Seç' : 'Choose from List') 
+                          : (isTr ? 'Manuel Yaz' : 'Type Manually')}
+                      </button>
+                    </div>
+
+                    {!manualCategory && categoryStats.length > 0 ? (
+                      <select
+                        required
+                        className="w-full px-4 py-3 bg-white border-2 border-indigo-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-800 cursor-pointer text-xs"
+                        value={bulkPriceForm.category || ''}
+                        onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
+                      >
+                        <option value="">{isTr ? '-- Bir Kategori Seçiniz --' : '-- Select a Category --'}</option>
+                        {categoryStats.map((c) => (
+                          <option key={c.name} value={c.name}>
+                            {c.name} {c.count > 0 ? `(${c.count} ${isTr ? 'ürün' : 'products'})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        required
+                        placeholder={isTr ? "Kategori adını yazınız (örn: Giyim)" : "Enter category name"}
+                        className="w-full px-4 py-3 bg-white border-2 border-indigo-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-800 text-xs"
+                        value={bulkPriceForm.category || ''}
+                        onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
+                      />
+                    )}
+
+                    {bulkPriceForm.category && (
+                      <p className="text-[10.5px] font-medium text-indigo-700 mt-1">
+                        {isTr 
+                          ? `Seçilen kategori: "${bulkPriceForm.category}"` 
+                          : `Selected category: "${bulkPriceForm.category}"`}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">

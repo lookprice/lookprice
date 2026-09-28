@@ -557,26 +557,33 @@ router.get("/sales", async (req: any, res) => {
       SELECT si.*, 
              COALESCE(
                NULLIF(c.title, 'Bireysel Web Müşterisi'),
-               NULLIF(s.customer_name, ''),
-               NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
-               NULLIF(cust.full_name, ''),
+               NULLIF(NULLIF(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(NULLIF(cust.full_name, ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(s.customer_name, ''), 'Amazon Müşterisi'),
+               NULLIF(NULLIF(si.customer_name, ''), 'Amazon Müşterisi'),
                NULLIF(si.company_title, 'Bireysel Web Müşterisi'),
-               NULLIF(si.customer_name, 'Bireysel Web Müşterisi'),
-               si.company_title,
+               s.customer_name,
+               si.customer_name,
                'Müşteri'
              ) as company_title,
              COALESCE(
                NULLIF(c.title, 'Bireysel Web Müşterisi'),
-               NULLIF(s.customer_name, ''),
-               NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
-               NULLIF(cust.full_name, ''),
-               NULLIF(si.customer_name, 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(NULLIF(cust.full_name, ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(s.customer_name, ''), 'Amazon Müşterisi'),
+               NULLIF(NULLIF(si.customer_name, ''), 'Amazon Müşterisi'),
                NULLIF(si.company_title, 'Bireysel Web Müşterisi'),
                si.customer_name,
                'Müşteri'
              ) as customer_name,
              s.customer_name as sale_customer_name,
              COALESCE(NULLIF(si.tax_number, ''), c.tax_number, cust.tc_id, cust.tax_number, '11111111111') as resolved_tax_number,
+             cust.address as customer_address,
+             cust.city as customer_city,
+             cust.phone as customer_phone,
+             cust.email as customer_email,
+             cust.tax_number as customer_tax_number,
+             cust.tax_office as customer_tax_office,
              (
                SELECT COALESCE(json_agg(json_build_object(
                  'id', sii.id,
@@ -657,11 +664,19 @@ router.get("/sales/:id", async (req: any, res) => {
               c.tax_number as company_tax_number,
               c.tax_office as company_tax_office,
               c.address as company_address,
+              c.city as company_city,
               c.email as company_email,
-              COALESCE(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), NULLIF(TRIM(cust.full_name), ''), si.customer_name) as customer_name,
+              COALESCE(
+                NULLIF(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), 'Amazon Müşterisi'),
+                NULLIF(NULLIF(TRIM(cust.full_name), ''), 'Amazon Müşterisi'),
+                NULLIF(NULLIF(s.customer_name, ''), 'Amazon Müşterisi'),
+                NULLIF(NULLIF(si.customer_name, ''), 'Amazon Müşterisi'),
+                si.customer_name
+              ) as customer_name,
               cust.tax_number as customer_tax_number,
               cust.tax_office as customer_tax_office,
               cust.address as customer_address,
+              cust.city as customer_city,
               cust.email as customer_email_fallback,
               s.customer_name as sale_customer_name
        FROM sales_invoices si 

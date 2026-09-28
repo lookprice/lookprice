@@ -38,16 +38,7 @@ export function startCronJobs() {
   // Amazon Order Sync (Every 10 minutes)
   cron.schedule('*/10 * * * *', async () => {
     console.log("[CRON] Running Amazon order sync...");
-    try {
-      const stores = await pool.query("SELECT id, amazon_settings FROM stores WHERE amazon_settings IS NOT NULL");
-      for (const store of stores.rows) {
-        if (store.amazon_settings && store.amazon_settings.accessToken) {
-          console.log(`[CRON] Syncing Amazon for store ${store.id}`);
-        }
-      }
-    } catch (e) {
-      console.error("[CRON] Amazon sync failed", e);
-    }
+    await syncAmazonOrdersCron();
   });
 
   // TCMB Currency Rate Sync (Multiple daily syncs: 09:30, 12:00, 15:45 TCMB announcement, 18:00 official close)
@@ -347,5 +338,45 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
     }
   } catch (err: any) {
     console.error(`[CRON-CURRENCY] Store #${storeId} pazaryeri fiyat revizyonu hatası:`, err.message || err);
+  }
+}
+
+/**
+ * Periodically syncs Amazon orders for all configured stores
+ */
+export async function syncAmazonOrdersCron() {
+  try {
+    const storesRes = await pool.query("SELECT id, name, amazon_settings, branding FROM stores");
+    for (const store of storesRes.rows) {
+      try {
+        let settings = store.amazon_settings;
+        if (typeof settings === 'string') {
+          try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+        }
+        let branding = store.branding;
+        if (typeof branding === 'string') {
+          try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+        }
+
+        if (!settings || (!settings.refresh_token && !settings.refreshToken)) {
+          settings = branding?.amazon_settings || settings || {};
+        }
+
+        const refreshToken = (settings?.refresh_token || settings?.refreshToken || "").trim();
+        if (refreshToken) {
+          const { runAmazonSyncForStore } = await import('../../scripts/syncAmazon.js').catch(async () => {
+            return await import('../../scripts/syncAmazon');
+          });
+          const count = await runAmazonSyncForStore(store.id);
+          if (count > 0) {
+            console.log(`[CRON-AMZ] Store #${store.id} (${store.name}): ${count} yeni Amazon siparişi başarıyla çekildi ve sisteme işlendi.`);
+          }
+        }
+      } catch (storeErr: any) {
+        console.error(`[CRON-AMZ] Store #${store.id} senkronizasyon hatası:`, storeErr.message || storeErr);
+      }
+    }
+  } catch (err: any) {
+    console.error("[CRON-AMZ] Genel Amazon sipariş senkronizasyonu hatası:", err.message || err);
   }
 }

@@ -28,9 +28,12 @@ import {
   Truck,
   Clock,
   AlertTriangle,
-  Check
+  Check,
+  Store,
+  ChevronDown
 } from "lucide-react";
 import { normalizeSearch } from "../lib/searchUtils";
+import { getConnectedMarketplaces } from "../utils/marketplaceEStores";
 import { motion, AnimatePresence } from "motion/react";
 // import * as XLSX from 'xlsx';
 import { useReactToPrint } from 'react-to-print';
@@ -79,8 +82,58 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [htmlContent, setHtmlContent] = useState("");
   const [htmlLoading, setHtmlLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'rejected'>('all');
+  const [marketplaceFilter, setMarketplaceFilter] = useState<'all' | 'web' | 'trendyol' | 'hepsiburada' | 'amazon' | 'n11' | 'pazarama'>('all');
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
+
+  // E-Marketplace Filter Eligibility (Condition 1: shopLP store, Condition 2: At least 1 marketplace API connected)
+  const connectedMarketplaces = getConnectedMarketplaces(branding);
+  const isShopLpStore = Boolean(
+    branding?.store_type === 'shop' ||
+    branding?.store_type === 'product' ||
+    branding?.store_type === 'retail' ||
+    (branding?.store_type !== 'cafe_restaurant' &&
+     branding?.store_type !== 'real_estate' &&
+     branding?.store_type !== 'motor_vehicle' &&
+     branding?.store_type !== 'portfolio' &&
+     branding?.page_layout_settings?.sector !== 'cafe_restaurant' &&
+     branding?.page_layout_settings?.sector !== 'real_estate' &&
+     branding?.page_layout_settings?.sector !== 'automotive')
+  );
+  const showMarketplaceFilter = isShopLpStore && connectedMarketplaces.hasAnyConnected;
+
+  const matchesMarketplaceFilter = (inv: any) => {
+    if (!showMarketplaceFilter || marketplaceFilter === 'all') return true;
+
+    const pMethod = (inv.payment_method || '').toLowerCase();
+    const notes = (inv.notes || '').toLowerCase();
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    if (marketplaceFilter === 'trendyol') {
+      return pMethod.includes('trendyol') || notes.includes('trendyol') || invNum.startsWith('TY-') || invNum.includes('TRENDYOL');
+    }
+    if (marketplaceFilter === 'hepsiburada') {
+      return pMethod.includes('hepsiburada') || notes.includes('hepsiburada') || invNum.startsWith('HB-') || invNum.includes('HEPSIBURADA');
+    }
+    if (marketplaceFilter === 'amazon') {
+      return pMethod.includes('amazon') || notes.includes('amazon') || invNum.startsWith('AMZ-') || invNum.includes('AMAZON');
+    }
+    if (marketplaceFilter === 'n11') {
+      return pMethod.includes('n11') || notes.includes('n11') || invNum.startsWith('N11-');
+    }
+    if (marketplaceFilter === 'pazarama') {
+      return pMethod.includes('pazarama') || notes.includes('pazarama') || invNum.startsWith('PZR-') || invNum.startsWith('PAZARAMA-');
+    }
+    if (marketplaceFilter === 'web') {
+      const isMp = pMethod.includes('trendyol') || pMethod.includes('hepsiburada') || pMethod.includes('amazon') || pMethod.includes('n11') || pMethod.includes('pazarama') ||
+                   notes.includes('trendyol') || notes.includes('hepsiburada') || notes.includes('amazon') || notes.includes('n11') || notes.includes('pazarama') ||
+                   invNum.startsWith('TY-') || invNum.startsWith('HB-') || invNum.startsWith('AMZ-') || invNum.startsWith('N11-') || invNum.startsWith('PZR-') ||
+                   invType === 'marketplace';
+      return !isMp;
+    }
+    return true;
+  };
   
   // Marketplace Shipment States
   const [showMarketplaceShipModal, setShowMarketplaceShipModal] = useState(false);
@@ -934,7 +987,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => { setStatusFilter('all'); setPage(1); }}
             className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
@@ -967,6 +1020,40 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             <XCircle className="h-4 w-4" />
             {isTr ? "Reddedilenler / Hatalı" : "Rejected / Error"}
           </button>
+
+          {/* E-MARKETPLACE FILTER DROPDOWN (ONLY FOR shopLP STORES WITH ACTIVE API INTEGRATIONS) */}
+          {showMarketplaceFilter && (
+            <div className="relative ml-auto sm:ml-2">
+              <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 pointer-events-none z-10" />
+              <select
+                value={marketplaceFilter}
+                onChange={(e) => {
+                  setMarketplaceFilter(e.target.value as any);
+                  setPage(1);
+                }}
+                className="pl-9 pr-8 py-2 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-900/60 hover:border-indigo-400 text-slate-800 dark:text-slate-200 font-bold text-sm rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all cursor-pointer shadow-xs appearance-none"
+              >
+                <option value="all">🛍️ {isTr ? "Tüm Satış Kaynakları" : "All Sales Sources"}</option>
+                <option value="web">🌐 {isTr ? "Doğrudan Web Satışları" : "Direct Web Sales"}</option>
+                {connectedMarketplaces.trendyol && (
+                  <option value="trendyol">🧡 Trendyol Satışları</option>
+                )}
+                {connectedMarketplaces.hepsiburada && (
+                  <option value="hepsiburada">🟠 Hepsiburada Satışları</option>
+                )}
+                {connectedMarketplaces.amazon && (
+                  <option value="amazon">📦 Amazon Satışları</option>
+                )}
+                {connectedMarketplaces.n11 && (
+                  <option value="n11">🔴 N11 Satışları</option>
+                )}
+                {connectedMarketplaces.pazarama && (
+                  <option value="pazarama">🟣 Pazarama Satışları</option>
+                )}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -979,6 +1066,9 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             filtered = filtered.filter((inv: any) => 
                ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || inv.status === 'cancelled'
             );
+          }
+          if (showMarketplaceFilter && marketplaceFilter !== 'all') {
+            filtered = filtered.filter(matchesMarketplaceFilter);
           }
           return filtered;
         })().slice((page - 1) * itemsPerPage, page * itemsPerPage)}
@@ -1000,10 +1090,15 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         page={page}
         totalPages={Math.ceil((() => {
           let filtered = invoices;
-          if (statusFilter === 'rejected') {
+          if (statusFilter === 'draft') {
+            filtered = filtered.filter((inv: any) => inv.status === 'draft');
+          } else if (statusFilter === 'rejected') {
             filtered = filtered.filter((inv: any) => 
-               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status)
+               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || inv.status === 'cancelled'
             );
+          }
+          if (showMarketplaceFilter && marketplaceFilter !== 'all') {
+            filtered = filtered.filter(matchesMarketplaceFilter);
           }
           return filtered.length;
         })() / itemsPerPage)}

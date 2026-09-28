@@ -367,9 +367,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         invoice.company_title = invoice.company_title || comp.title;
         invoice.customer_email = invoice.customer_email || comp.email;
       }
-    } else if (invoice.customer_id && (!invoice.tax_number || !invoice.address || !invoice.customer_name)) {
+    } else if (invoice.customer_id) {
       const custRes = await pool.query(
-        "SELECT name, full_name, tax_number, tax_office, address, email FROM customers WHERE id = $1",
+        "SELECT name, surname, full_name, tax_number, tax_office, address, city, email FROM customers WHERE id = $1",
         [invoice.customer_id]
       );
       if (custRes.rows.length > 0) {
@@ -377,7 +377,11 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         invoice.tax_number = invoice.tax_number || cust.tax_number;
         invoice.tax_office = invoice.tax_office || cust.tax_office;
         invoice.address = invoice.address || cust.address;
-        invoice.customer_name = invoice.customer_name || cust.full_name || cust.name;
+        invoice.customer_city = cust.city;
+        const realName = cust.full_name || `${cust.name || ''} ${cust.surname || ''}`.trim();
+        if (realName && (!invoice.customer_name || invoice.customer_name === 'Amazon Müşterisi' || invoice.customer_name === 'Bireysel Web Müşterisi')) {
+          invoice.customer_name = realName;
+        }
         invoice.customer_email = invoice.customer_email || cust.email;
       }
     }
@@ -662,19 +666,21 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     console.log(`[DEBUG-CUSTOMER] Name: ${customerName}, Title: ${customerTitle}`);
 
     // Improved Address handling for GİB/MySoft
-    let cityName = "İSTANBUL";
-    let districtName = "MERKEZ";
+    let cityName = (invoice.customer_city || invoice.city || "").toString().trim().toUpperCase();
+    let districtName = (invoice.customer_district || invoice.district || "").toString().trim().toUpperCase();
     let cleanAddress = (address || "").replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
-    if (cleanAddress) {
+    if (!cityName && cleanAddress) {
        const cleanAddr = cleanAddress.replace(/, Türkiye/gi, '').replace(/,Turkey/gi, '').trim();
        const parts = cleanAddr.split(/[,/]+/).map(p => p.trim()).filter(Boolean);
        if (parts.length >= 2) {
           cityName = parts[parts.length - 1].toUpperCase().substring(0, 30);
-          districtName = parts[parts.length - 2].toUpperCase().substring(0, 30);
+          districtName = districtName || parts[parts.length - 2].toUpperCase().substring(0, 30);
        } else if (parts.length === 1) {
           cityName = parts[0].toUpperCase().substring(0, 30);
        }
     }
+    if (!cityName) cityName = "İSTANBUL";
+    if (!districtName) districtName = "MERKEZ";
 
     // Date formatting
     const docDate = new Date(invoice.invoice_date || new Date());

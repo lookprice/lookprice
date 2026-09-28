@@ -161,14 +161,34 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showStoreLocatorModal, setShowStoreLocatorModal] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const isGapUrl = typeof slug === 'string' && slug.toLowerCase().includes('gap');
+    const localSaved = slug ? localStorage.getItem(`store_theme_${slug}`) : null;
+    if (localSaved === 'light' || localSaved === 'dark') return localSaved;
+    return isGapUrl ? 'light' : 'dark';
+  });
 
-  // Load theme preference from store config
+  // Load theme preference from store config & user preferences
   useEffect(() => {
     if (store) {
+      const storeKey = `store_theme_${slug || store.slug || store.id}`;
+      const localSaved = localStorage.getItem(storeKey);
+      if (localSaved === 'light' || localSaved === 'dark') {
+        setTheme(localSaved);
+        return;
+      }
+
+      let netflixConfig: any = {};
+      const rawNetflix = store.branding?.netflix_config;
+      if (typeof rawNetflix === 'string') {
+        try { netflixConfig = JSON.parse(rawNetflix); } catch {}
+      } else if (rawNetflix && typeof rawNetflix === 'object') {
+        netflixConfig = rawNetflix;
+      }
+
       const config = store.theme_config || store.branding?.theme_config || {};
-      const netflixConfig = store.branding?.netflix_config || {};
       const configuredTheme = netflixConfig.theme_mode === 'auto' ? undefined : (netflixConfig.theme_mode || config.theme);
+      
       // Default to light for Gap Bilişim, otherwise dark (or configuredTheme if explicitly set)
       const isGapStore = (
         store.name?.toLowerCase().includes("gap") || 
@@ -176,20 +196,23 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         store.slug === 'gap-bilisim' ||
         store.slug === 'gap_bilisim' ||
         store.slug === 'gapbilisim' ||
-        String(store.id) === 'gap-bilisim'
+        String(store.id) === 'gap-bilisim' ||
+        (typeof slug === 'string' && slug.toLowerCase().includes("gap"))
       );
       const defaultTheme = isGapStore ? 'light' : 'dark';
       setTheme(configuredTheme || defaultTheme);
     }
-  }, [store]);
+  }, [store, slug]);
 
-  // Apply theme class to the container
+  // Apply theme class to documentElement and body
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
+      document.body.classList.add('dark');
     } else {
       root.classList.remove('dark');
+      document.body.classList.remove('dark');
     }
   }, [theme]);
 
@@ -829,7 +852,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               products={products}
               theme={theme}
               setTheme={setTheme}
-              onToggleTheme={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+              onToggleTheme={() => {
+                const next = theme === 'dark' ? 'light' : 'dark';
+                setTheme(next);
+                const storeKey = `store_theme_${slug || store?.slug || store?.id || 'default'}`;
+                localStorage.setItem(storeKey, next);
+              }}
               onViewProduct={(p, rowProds) => {
                 setActiveModalProducts(rowProds && rowProds.length > 0 ? rowProds : products);
                 setSelectedProduct(p);

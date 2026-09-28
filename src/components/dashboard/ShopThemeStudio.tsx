@@ -2,30 +2,24 @@ import React, { useState, useMemo } from "react";
 import {
   Palette,
   Sparkles,
-  Image as ImageIcon,
-  Smartphone,
-  Grid3X3,
-  ShieldCheck,
-  Tag,
-  Plus,
-  Trash2,
-  Upload,
-  Layers,
-  Check,
-  Eye,
-  RefreshCw,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Save,
   Film,
   Sun,
   Moon,
   Flame,
   Star,
-  ShoppingBag,
+  Tag,
   SlidersHorizontal,
-  LayoutTemplate
+  Megaphone,
+  Check,
+  Eye,
+  RefreshCw,
+  Save,
+  Layers,
+  CheckCircle2,
+  Zap,
+  ShoppingBag,
+  Clock,
+  LayoutGrid
 } from "lucide-react";
 import { DEFAULT_SHOP_THEME, ShopThemeConfig, THEME_PRESETS } from "../../utils/shopThemePresets";
 
@@ -37,6 +31,8 @@ interface ShopThemeStudioProps {
   saving?: boolean;
 }
 
+type StudioTab = "rows" | "hero" | "visuals" | "cards" | "announcement";
+
 export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
   branding,
   onBrandingChange,
@@ -44,38 +40,54 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
   onSave,
   saving = false
 }) => {
-  const [activeTab, setActiveTab] = useState<"netflix" | "presets" | "hero" | "stories" | "bento" | "badges">("netflix");
+  const isTr = lang === "tr";
+  const [activeTab, setActiveTab] = useState<StudioTab>("rows");
+
+  // Read current netflixConfig safely
+  const netflixConfig = useMemo(() => {
+    const raw = branding?.netflix_config || branding?.page_layout_settings?.netflix_config;
+    if (typeof raw === "string") {
+      try { return JSON.parse(raw); } catch { return {}; }
+    }
+    return (raw && typeof raw === "object") ? raw : {};
+  }, [branding?.netflix_config, branding?.page_layout_settings?.netflix_config]);
 
   // Read current themeConfig safely
   const themeConfig: ShopThemeConfig = useMemo(() => {
     const raw = branding?.theme_config || branding?.page_layout_settings?.theme_config;
     if (typeof raw === "string") {
-      try { return { ...DEFAULT_SHOP_THEME, ...JSON.parse(raw) }; } catch (e) { return DEFAULT_SHOP_THEME; }
+      try { return { ...DEFAULT_SHOP_THEME, ...JSON.parse(raw) }; } catch { return DEFAULT_SHOP_THEME; }
     } else if (raw && typeof raw === "object") {
       return { ...DEFAULT_SHOP_THEME, ...raw };
     }
     return DEFAULT_SHOP_THEME;
   }, [branding?.theme_config, branding?.page_layout_settings?.theme_config]);
 
-  // Helper to update themeConfig field
-  const updateThemeConfig = (updates: Partial<ShopThemeConfig>) => {
-    const updated = { ...themeConfig, ...updates };
-    onBrandingChange("theme_config", updated);
+  // Helper to update Netflix Configuration & persist to page_layout_settings
+  const updateNetflixConfig = (updates: any) => {
+    const merged = { ...netflixConfig, ...updates };
+    onBrandingChange("netflix_config", merged);
     
-    if (updates.show_hero_banner !== undefined) {
-      onBrandingChange("show_hero_banner", updates.show_hero_banner);
-    }
-    if (updates.show_story_ribbon !== undefined) {
-      onBrandingChange("show_story_ribbon", updates.show_story_ribbon);
-    }
-    if (updates.show_bento_grid !== undefined) {
-      onBrandingChange("show_bento_grid", updates.show_bento_grid);
-    }
+    const curLayout = branding?.page_layout_settings || {};
+    onBrandingChange("page_layout_settings", {
+      ...curLayout,
+      netflix_config: merged,
+      theme_default: merged.theme_mode || curLayout.theme_default,
+      theme_mode: merged.theme_mode || curLayout.theme_mode,
+      show_hero_banner: merged.hero_enabled !== false,
+      show_announcement_bar: merged.show_announcement_bar,
+      announcement_bar: merged.show_announcement_bar,
+      announcement_text: merged.announcement_text
+    });
+
     if (updates.show_announcement_bar !== undefined) {
       onBrandingChange("show_announcement_bar", updates.show_announcement_bar);
     }
     if (updates.announcement_text !== undefined) {
       onBrandingChange("announcement_text", updates.announcement_text);
+    }
+    if (updates.theme_mode !== undefined) {
+      onBrandingChange("theme_mode", updates.theme_mode);
     }
     if (updates.primary_color !== undefined) {
       onBrandingChange("primary_color", updates.primary_color);
@@ -83,275 +95,57 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
     if (updates.accent_color !== undefined) {
       onBrandingChange("accent_color", updates.accent_color);
     }
-    if (updates.background_mode !== undefined) {
-      onBrandingChange("background_mode", updates.background_mode);
-    }
-    if (updates.bento_blocks !== undefined) {
-      onBrandingChange("bento_blocks", updates.bento_blocks);
-    }
-    if (updates.stories !== undefined) {
-      onBrandingChange("stories", updates.stories);
-    }
-    if (updates.trust_badges !== undefined) {
-      onBrandingChange("trust_badges", updates.trust_badges);
-    }
-    if (updates.show_trust_badges !== undefined) {
-      onBrandingChange("show_trust_badges", updates.show_trust_badges);
-    }
-
-    const curLayout = branding?.page_layout_settings || {};
-    onBrandingChange("page_layout_settings", {
-      ...curLayout,
-      theme_config: updated,
-      show_hero_banner: updated.show_hero_banner,
-      show_story_ribbon: updated.show_story_ribbon,
-      show_bento_grid: updated.show_bento_grid,
-      announcement_bar: updated.show_announcement_bar,
-      show_announcement_bar: updated.show_announcement_bar,
-      announcement_text: updated.announcement_text,
-      primary_color: updated.primary_color,
-      accent_color: updated.accent_color,
-      background_mode: updated.background_mode,
-      card_style: updated.card_style,
-      card_radius: updated.card_radius,
-      card_aspect_ratio: updated.card_aspect_ratio,
-      card_hover_effect: updated.card_hover_effect,
-      bento_blocks: updated.bento_blocks,
-      stories: updated.stories
-    });
   };
 
-  const handleApplyPreset = (presetKey: string) => {
+  // Helper for applying curated Netflix style presets
+  const handleApplyNetflixPreset = (presetKey: string) => {
     const preset = THEME_PRESETS[presetKey];
     if (preset) {
-      updateThemeConfig({
-        ...preset,
-        preset_name: presetKey as any
-      });
-    }
-  };
-
-  // Netflix Layout Architecture Config
-  const netflixConfig = useMemo(() => {
-    const raw = branding?.netflix_config;
-    if (typeof raw === "string") {
-      try { return JSON.parse(raw); } catch { return {}; }
-    }
-    return (raw && typeof raw === "object") ? raw : {};
-  }, [branding?.netflix_config]);
-
-  const updateNetflixConfig = (updates: any) => {
-    const merged = { ...netflixConfig, ...updates };
-    onBrandingChange("netflix_config", merged);
-    const curLayout = branding?.page_layout_settings || {};
-    onBrandingChange("page_layout_settings", {
-      ...curLayout,
-      netflix_config: merged,
-      theme_default: merged.theme_mode || curLayout.theme_default,
-    });
-    if (updates.theme_mode) {
-      onBrandingChange("theme_config", {
-        ...(branding?.theme_config || {}),
-        theme: updates.theme_mode === 'auto' ? undefined : updates.theme_mode
-      });
-    }
-  };
-
-  // Banners
-  const normalizedBanners = useMemo(() => {
-    const list = Array.isArray(branding?.banners) ? branding.banners : [];
-    if (list.length === 0) {
-      if (branding?.hero_image_url || branding?.hero_title) {
-        return [{
-          id: "banner_0",
-          image_url: branding?.hero_image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80",
-          title: branding?.hero_title || (lang === "tr" ? "Yeni Nesil Şıklık" : "Modern Elegance"),
-          subtitle: branding?.hero_subtitle || (lang === "tr" ? "En seçkin ürünlerle stilinizi tamamlayın." : "Discover curated pieces."),
-          text_position: "center",
-          show_store_name: true,
-          button_text: lang === "tr" ? "Koleksiyonu İncele" : "Explore Collection",
-          button_link: "#catalog"
-        }];
-      }
-      return [];
-    }
-    return list.map((b: any, idx: number) => {
-      if (typeof b === "string") {
-        return {
-          id: `banner_str_${idx}`,
-          image_url: b,
-          title: idx === 0 ? (branding?.hero_title || "") : "",
-          subtitle: idx === 0 ? (branding?.hero_subtitle || "") : "",
-          text_position: "center",
-          show_store_name: true,
-          button_text: lang === "tr" ? "Koleksiyonu İncele" : "Explore",
-          button_link: "#catalog"
-        };
-      }
-      return {
-        id: b.id || `banner_${idx}`,
-        image_url: b.image_url || b.url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80",
-        title: b.title !== undefined ? b.title : "",
-        subtitle: b.subtitle !== undefined ? b.subtitle : "",
-        text_position: b.text_position || "center",
-        show_store_name: b.show_store_name !== false,
-        button_text: b.button_text || (lang === "tr" ? "Koleksiyonu İncele" : "Explore"),
-        button_link: b.button_link || "#catalog"
+      const netflixUpdates: any = {
+        theme_mode: preset.netflix_theme_mode || (preset.background_mode === "dark" ? "dark" : "light"),
+        hero_enabled: true,
+        hero_autoplay_interval: preset.netflix_hero_timer || 6,
+        hero_glow_effect: preset.netflix_hero_glow !== false,
+        card_density: preset.netflix_card_density || "standard",
+        enable_hover_zoom: true,
+        show_quick_add_cart: true,
+        show_stock_badge: true,
+        show_old_price: true,
+        show_bestsellers_row: preset.netflix_show_bestsellers !== false,
+        show_featured_row: preset.netflix_show_featured !== false,
+        show_discounted_row: preset.netflix_show_discounted !== false,
+        show_new_arrivals_row: preset.netflix_show_new_arrivals !== false,
+        primary_color: preset.primary_color,
+        accent_color: preset.accent_color
       };
-    });
-  }, [branding?.banners, branding?.hero_image_url, branding?.hero_title, branding?.hero_subtitle, lang]);
-
-  const handleAddBanner = () => {
-    const newBanner = {
-      id: `banner_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      image_url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80",
-      title: lang === "tr" ? "Özel Fırsatlar & İndirimler" : "Special Offers & Deals",
-      subtitle: lang === "tr" ? "Sezon sonu seçili ürünlerde kaçırılmayacak fiyatlar." : "Limited time curated offers.",
-      text_position: "center",
-      show_store_name: true,
-      button_text: lang === "tr" ? "Hemen İncele" : "Shop Now",
-      button_link: "#catalog"
-    };
-    const updated = [...normalizedBanners, newBanner];
-    onBrandingChange("banners", updated);
-    if (updated.length > 0) {
-      onBrandingChange("hero_image_url", updated[0].image_url || "");
-      onBrandingChange("hero_title", updated[0].title || "");
-      onBrandingChange("hero_subtitle", updated[0].subtitle || "");
-    }
-  };
-
-  const handleUpdateBanner = (id: string, field: string, value: any) => {
-    const updated = normalizedBanners.map((b: any) => (b.id === id ? { ...b, [field]: value } : b));
-    onBrandingChange("banners", updated);
-    if (updated.length > 0) {
-      onBrandingChange("hero_image_url", updated[0].image_url || "");
-      onBrandingChange("hero_title", updated[0].title || "");
-      onBrandingChange("hero_subtitle", updated[0].subtitle || "");
-    }
-  };
-
-  const handleRemoveBanner = (id: string) => {
-    const updated = normalizedBanners.filter((b: any) => b.id !== id);
-    onBrandingChange("banners", updated);
-    if (updated.length > 0) {
-      onBrandingChange("hero_image_url", updated[0].image_url || "");
-      onBrandingChange("hero_title", updated[0].title || "");
-      onBrandingChange("hero_subtitle", updated[0].subtitle || "");
-    } else {
-      onBrandingChange("hero_image_url", "");
-      onBrandingChange("hero_title", "");
-      onBrandingChange("hero_subtitle", "");
-    }
-  };
-
-  const handleBannerUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const b64 = ev.target?.result as string;
-        handleUpdateBanner(id, "image_url", b64);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Stories
-  const stories = themeConfig.stories || [];
-
-  const handleAddStory = () => {
-    const newStory = {
-      id: `story_${Date.now()}`,
-      title: lang === "tr" ? "Yeni Hikaye" : "New Story",
-      image_url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80",
-      badge: "YENİ",
-      link: "#catalog"
-    };
-    updateThemeConfig({ stories: [...stories, newStory] });
-  };
-
-  const handleUpdateStory = (index: number, field: string, value: any) => {
-    const updated = [...stories];
-    updated[index] = { ...updated[index], [field]: value };
-    updateThemeConfig({ stories: updated });
-  };
-
-  const handleRemoveStory = (index: number) => {
-    const updated = stories.filter((_, idx) => idx !== index);
-    updateThemeConfig({ stories: updated });
-  };
-
-  const handleStoryImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const b64 = ev.target?.result as string;
-        handleUpdateStory(index, "image_url", b64);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Bento Blocks
-  const bentoBlocks = themeConfig.bento_blocks || [];
-
-  const handleAddBento = () => {
-    const newBento = {
-      id: `bento_${Date.now()}`,
-      size: "medium" as const,
-      title: lang === "tr" ? "Öne Çıkan Başlık" : "Featured Spotlight",
-      subtitle: lang === "tr" ? "Kısa tanıtım ve açıklama yazısı." : "Short capsule description.",
-      badge: "TREND",
-      image_url: "https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=800&q=80",
-      cta_text: lang === "tr" ? "Koleksiyonu Keşfet" : "Explore",
-      link: "#catalog"
-    };
-    updateThemeConfig({ bento_blocks: [...bentoBlocks, newBento] });
-  };
-
-  const handleUpdateBento = (index: number, field: string, value: any) => {
-    const updated = [...bentoBlocks];
-    updated[index] = { ...updated[index], [field]: value };
-    updateThemeConfig({ bento_blocks: updated });
-  };
-
-  const handleRemoveBento = (index: number) => {
-    const updated = bentoBlocks.filter((_, idx) => idx !== index);
-    updateThemeConfig({ bento_blocks: updated });
-  };
-
-  const handleBentoImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const b64 = ev.target?.result as string;
-        handleUpdateBento(index, "image_url", b64);
-      };
-      reader.readAsDataURL(file);
+      updateNetflixConfig(netflixUpdates);
+      onBrandingChange("primary_color", preset.primary_color);
+      onBrandingChange("accent_color", preset.accent_color);
     }
   };
 
   return (
     <div className="space-y-3">
-      {/* Micro Compact Studio Header */}
-      <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-2xs space-y-3">
-        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg shrink-0">
-              <Sparkles className="w-4 h-4" />
+      {/* Studio Header & Sub-Navigation */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs space-y-3">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-xl shrink-0">
+              <Film className="w-4 h-4" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <h2 className="text-sm font-bold text-slate-900 leading-tight">
-                  Görsel Tasarım Stüdyosu
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-black text-slate-900 dark:text-white leading-tight">
+                  {isTr ? "Yeni Nesil Vitrin & Görsel Tasarım Stüdyosu" : "Next-Gen Visual Theme Studio"}
                 </h2>
-                <span className="px-1.5 py-0.2 bg-indigo-50 text-indigo-600 rounded text-[9px] font-bold uppercase tracking-wider">shopLP</span>
+                <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60 rounded-full text-[9px] font-black uppercase tracking-wider">
+                  Netflix Modu
+                </span>
               </div>
-              <p className="text-[11px] text-slate-500 font-normal">
-                {lang === "tr" ? "Tema konseptleri, renk paletleri ve vitrin bileşenlerini tek ekranda yönetin." : "Manage theme presets, color palettes and storefront components."}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                {isTr
+                  ? "Sinematik ürün vitrini, yatay karuseller, aydınlatma modları ve alışveriş deneyimi kontrolleri."
+                  : "Cinematic product showcase, horizontal carousels, lighting modes and shopping experience controls."}
               </p>
             </div>
           </div>
@@ -362,42 +156,41 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
                 type="button"
                 onClick={onSave}
                 disabled={saving}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-2xs disabled:opacity-50 cursor-pointer"
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer active:scale-95"
               >
                 {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                <span>{lang === "tr" ? "Kaydet" : "Save"}</span>
+                <span>{isTr ? "Değişiklikleri Kaydet" : "Save Changes"}</span>
               </button>
             )}
             <a
               href={`/s/${branding?.slug || ""}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3 py-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-medium border border-slate-200 transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5 text-slate-500" />
-              <span>{lang === "tr" ? "Vitrini Gör" : "Preview"}</span>
+              <span>{isTr ? "Canlı Vitrini Aç" : "Live Store"}</span>
             </a>
           </div>
         </div>
 
-        {/* Compact Sub-Nav Strip */}
+        {/* Compact Sub-Navigation Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-0.5">
           {[
-            { id: "netflix", label: "Netflix Mimari & Karuseller", icon: <Film className="w-3.5 h-3.5 text-blue-500" /> },
-            { id: "presets", label: "Konsept & Renkler", icon: <Palette className="w-3.5 h-3.5" /> },
-            { id: "hero", label: "Hero Banner & Afişler", icon: <ImageIcon className="w-3.5 h-3.5" /> },
-            { id: "stories", label: "Instagram Hikayeleri", icon: <Smartphone className="w-3.5 h-3.5" /> },
-            { id: "bento", label: "Kapsül Blokları (Bento)", icon: <Grid3X3 className="w-3.5 h-3.5" /> },
-            { id: "badges", label: "Duyuru & Rozetler", icon: <ShieldCheck className="w-3.5 h-3.5" /> }
+            { id: "rows", label: isTr ? "Vitrin Karuselleri" : "Showcase Rows", icon: <Film className="w-3.5 h-3.5 text-blue-500" /> },
+            { id: "hero", label: isTr ? "Sinematik Hero" : "Cinematic Hero", icon: <Sparkles className="w-3.5 h-3.5 text-amber-500" /> },
+            { id: "visuals", label: isTr ? "Tema & Renkler" : "Theme & Colors", icon: <Palette className="w-3.5 h-3.5 text-indigo-500" /> },
+            { id: "cards", label: isTr ? "Ürün Kartı & Sepet" : "Cards & Shopping", icon: <ShoppingBag className="w-3.5 h-3.5 text-emerald-500" /> },
+            { id: "announcement", label: isTr ? "Duyuru Çubuğu" : "Announcement Bar", icon: <Megaphone className="w-3.5 h-3.5 text-rose-500" /> },
           ].map((tab) => (
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              onClick={() => setActiveTab(tab.id as StudioTab)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeTab === tab.id
-                  ? "bg-slate-900 text-white shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
               }`}
             >
               {tab.icon}
@@ -407,191 +200,40 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
         </div>
       </div>
 
-      {/* TAB 0: NETFLIX VİTRİN MİMARİSİ & KARUSEL YÖNETİMİ */}
-      {activeTab === "netflix" && (
-        <div className="space-y-4">
-          {/* 1. TEMA & RENK / AYDINLATMA MODU */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+      {/* ========================================================================= */}
+      {/* TAB 1: VİTRİN KARUSELLERİ & SIRALAMA (ROWS)                               */}
+      {/* ========================================================================= */}
+      {activeTab === "rows" && (
+        <div className="space-y-3">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Aydınlatma & Tema Modu (Açık / Koyu Zemin)</span>
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Film className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span>{isTr ? "Netflix Yatay Karusel Sıraları" : "Netflix Horizontal Showcase Rows"}</span>
                 </h3>
-                <p className="text-[11px] text-slate-500 font-normal">
-                  Gap Bilişim gibi beyaz ürün arka planına sahip mağazalar için açık mod, sinematik etki için koyu mod.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                  {isTr
+                    ? "Ana sayfada alt alta dizilen Netflix tarzı yatay kaydırmalı ürün bantlarının başlıklarını ve görünürlüklerini özelleştirin."
+                    : "Customize the titles and visibility of Netflix-style horizontal product rows on your homepage."}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <button
-                type="button"
-                onClick={() => updateNetflixConfig({ theme_mode: "light" })}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
-                  netflixConfig.theme_mode === "light"
-                    ? "bg-amber-50/60 border-amber-400 ring-2 ring-amber-400/20 shadow-xs"
-                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <Sun className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Açık Mod (Light)</span>
-                  </span>
-                  {netflixConfig.theme_mode === "light" && <Check className="w-3.5 h-3.5 text-amber-600" />}
-                </div>
-                <p className="text-[10px] text-slate-500 leading-relaxed">
-                  Temiz beyaz zemin, yüksek kontrast. Beyaz arkaplanlı ürün görselleri için kusursuz uyum sağlar.
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => updateNetflixConfig({ theme_mode: "dark" })}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
-                  netflixConfig.theme_mode === "dark" || !netflixConfig.theme_mode
-                    ? "bg-slate-900 text-white border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
-                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold flex items-center gap-1.5">
-                    <Moon className="w-3.5 h-3.5 text-blue-400" />
-                    <span>Koyu Mod (Dark)</span>
-                  </span>
-                  {(netflixConfig.theme_mode === "dark" || !netflixConfig.theme_mode) && <Check className="w-3.5 h-3.5 text-blue-400" />}
-                </div>
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  Netflix sinematik gece ambiyansı, antrasit/siyah zemin ve ışıltılı neon vurgular.
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => updateNetflixConfig({ theme_mode: "auto" })}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
-                  netflixConfig.theme_mode === "auto"
-                    ? "bg-indigo-50/60 border-indigo-400 ring-2 ring-indigo-400/20 shadow-xs"
-                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <RefreshCw className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Sistem (Otomatik)</span>
-                  </span>
-                  {netflixConfig.theme_mode === "auto" && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                </div>
-                <p className="text-[10px] text-slate-500 leading-relaxed">
-                  Müşterinin cihaz (telefon/bilgisayar) tema tercihiyle tam senkronize çalışır.
-                </p>
-              </button>
-            </div>
-
-            <div className="pt-1 flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={netflixConfig.show_theme_toggle !== false}
-                  onChange={(e) => updateNetflixConfig({ show_theme_toggle: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
-                />
-                <span className="text-xs font-bold text-slate-800">
-                  Web Vitrininde Ziyaretçi Tema Değiştirme (Güneş / Ay) Butonunu Göster
-                </span>
-              </label>
-              <span className="text-[10px] text-slate-500">Müşteriler tek tıkla açık/koyu mod geçişi yapabilir.</span>
-            </div>
-          </div>
-
-          {/* 2. NETFLIX IŞILTILI HERO BANNER */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Netflix Hero Vitrin Kartı (Işıltılı Manşet)</span>
-                </h3>
-                <p className="text-[11px] text-slate-500 font-normal">
-                  Ana sayfanın en üstünde yer alan sinematik ürün tanıtım manşetini yapılandırın.
-                </p>
-              </div>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={netflixConfig.hero_enabled !== false}
-                  onChange={(e) => updateNetflixConfig({ hero_enabled: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
-                />
-                <span className="text-xs font-bold text-slate-800">Hero Aktif</span>
-              </label>
-            </div>
-
-            {netflixConfig.hero_enabled !== false && (
-              <div className="space-y-3 pt-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
-                      Otomatik Slayt Geçiş Süresi
-                    </label>
-                    <select
-                      value={netflixConfig.hero_autoplay_interval || 6}
-                      onChange={(e) => updateNetflixConfig({ hero_autoplay_interval: Number(e.target.value) })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none"
-                    >
-                      <option value={4}>4 Saniyede Bir Geç</option>
-                      <option value={6}>6 Saniyede Bir Geç (Önerilen)</option>
-                      <option value={8}>8 Saniyede Bir Geç</option>
-                      <option value={10}>10 Saniyede Bir Geç</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
-                      Vurgu Rozetleri
-                    </label>
-                    <div className="flex items-center h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={netflixConfig.show_hero_badges !== false}
-                          onChange={(e) => updateNetflixConfig({ show_hero_badges: e.target.checked })}
-                          className="w-3.5 h-3.5 rounded text-blue-600 accent-blue-600"
-                        />
-                        <span className="text-xs font-semibold text-slate-700">Öne Çıkan, Çok Satan rozetlerini göster</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 3. NETFLIX YATAY KARUSEL SIRALARI (ROW CONTROLS) */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Film className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Netflix Yatay Karusel Sıraları (Row Controls)</span>
-                </h3>
-                <p className="text-[11px] text-slate-500 font-normal">
-                  Ana sayfada alt alta dizilen Netflix tarzı yatay kaydırmalı ürün bantlarını yönetin.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2.5">
-              {/* Sıra 1: Çok Satanlar */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg">
+            <div className="space-y-3">
+              {/* Row 1: Bestsellers */}
+              <div className="p-3.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 rounded-xl">
                     <Flame className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block">Çok Satanlar & Popüler Ürünler Sırası</span>
-                    <span className="text-[10px] text-slate-500">En popüler ve çok satan ürünleri yatay bantta sergiler.</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white block">
+                      {isTr ? "Çok Satanlar & Popüler Ürünler Sırası" : "Bestsellers & Popular Row"}
+                    </span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                      {isTr ? "En çok satan ve talep gören ürünleri ilk sırada sergiler." : "Displays top-selling and trending products."}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -600,29 +242,33 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
                     placeholder="🔥 Çok Satanlar & Popüler Ürünler"
                     value={netflixConfig.bestsellers_title || ""}
                     onChange={(e) => updateNetflixConfig({ bestsellers_title: e.target.value })}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium w-48 outline-none"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white w-56 outline-none focus:border-blue-500"
                   />
-                  <label className="flex items-center gap-1 cursor-pointer shrink-0">
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer shrink-0">
                     <input
                       type="checkbox"
                       checked={netflixConfig.show_bestsellers_row !== false}
                       onChange={(e) => updateNetflixConfig({ show_bestsellers_row: e.target.checked })}
-                      className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                      className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
                     />
-                    <span className="text-xs font-bold text-slate-700">Aktif</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{isTr ? "Aktif" : "Active"}</span>
                   </label>
                 </div>
               </div>
 
-              {/* Sıra 2: Öne Çıkanlar */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
+              {/* Row 2: Featured Collection */}
+              <div className="p-3.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 rounded-xl">
                     <Star className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block">Öne Çıkan Koleksiyon Sırası</span>
-                    <span className="text-[10px] text-slate-500">Öne çıkan etiketi taşıyan seçkin ürünler.</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white block">
+                      {isTr ? "Öne Çıkan Koleksiyon Sırası" : "Featured Collection Row"}
+                    </span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                      {isTr ? "Öne çıkan etiketi taşıyan veya vitrinde vurgulanan ürünler." : "Products marked as featured or spotlighted."}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -631,29 +277,33 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
                     placeholder="⭐ Öne Çıkan Koleksiyon"
                     value={netflixConfig.featured_title || ""}
                     onChange={(e) => updateNetflixConfig({ featured_title: e.target.value })}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium w-48 outline-none"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white w-56 outline-none focus:border-blue-500"
                   />
-                  <label className="flex items-center gap-1 cursor-pointer shrink-0">
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer shrink-0">
                     <input
                       type="checkbox"
                       checked={netflixConfig.show_featured_row !== false}
                       onChange={(e) => updateNetflixConfig({ show_featured_row: e.target.checked })}
-                      className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                      className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
                     />
-                    <span className="text-xs font-bold text-slate-700">Aktif</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{isTr ? "Aktif" : "Active"}</span>
                   </label>
                 </div>
               </div>
 
-              {/* Sıra 3: Fırsatlar & İndirimler */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+              {/* Row 3: Deals & Discounts */}
+              <div className="p-3.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-xl">
                     <Tag className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block">Fırsatlar & Kampanyalı Ürünler Sırası</span>
-                    <span className="text-[10px] text-slate-500">İndirimli veya kampanyalı ürünlerin sergilendiği bant.</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white block">
+                      {isTr ? "Fırsatlar & Kampanyalı Ürünler Sırası" : "Deals & Discounts Row"}
+                    </span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                      {isTr ? "İndirimli veya eski fiyatı olan kampanyalı ürünler." : "Discounted items and special promotion offers."}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -662,29 +312,33 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
                     placeholder="🏷️ Fırsatlar & Kampanyalı Ürünler"
                     value={netflixConfig.discounted_title || ""}
                     onChange={(e) => updateNetflixConfig({ discounted_title: e.target.value })}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium w-48 outline-none"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white w-56 outline-none focus:border-blue-500"
                   />
-                  <label className="flex items-center gap-1 cursor-pointer shrink-0">
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer shrink-0">
                     <input
                       type="checkbox"
                       checked={netflixConfig.show_discounted_row !== false}
                       onChange={(e) => updateNetflixConfig({ show_discounted_row: e.target.checked })}
-                      className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                      className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
                     />
-                    <span className="text-xs font-bold text-slate-700">Aktif</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{isTr ? "Aktif" : "Active"}</span>
                   </label>
                 </div>
               </div>
 
-              {/* Sıra 4: Yeni Gelenler */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+              {/* Row 4: New Arrivals */}
+              <div className="p-3.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-xl">
                     <Sparkles className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block">Yeni Gelen Ürünler Sırası</span>
-                    <span className="text-[10px] text-slate-500">En son eklenen yeni ürünleri vitrinde ilk sıraya taşır.</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white block">
+                      {isTr ? "Yeni Gelen Ürünler Sırası" : "New Arrivals Row"}
+                    </span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                      {isTr ? "En son eklenen yeni ürünleri vitrinde sergiler." : "Displays recently added catalog items."}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -693,973 +347,529 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
                     placeholder="✨ Yeni Gelen Ürünler"
                     value={netflixConfig.new_arrivals_title || ""}
                     onChange={(e) => updateNetflixConfig({ new_arrivals_title: e.target.value })}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium w-48 outline-none"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white w-56 outline-none focus:border-blue-500"
                   />
-                  <label className="flex items-center gap-1 cursor-pointer shrink-0">
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer shrink-0">
                     <input
                       type="checkbox"
                       checked={netflixConfig.show_new_arrivals_row !== false}
                       onChange={(e) => updateNetflixConfig({ show_new_arrivals_row: e.target.checked })}
-                      className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                      className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
                     />
-                    <span className="text-xs font-bold text-slate-700">Aktif</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{isTr ? "Aktif" : "Active"}</span>
                   </label>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* 4. ÜRÜN KARTLARI & ETKİLEŞİM AYARLARI */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Ürün Kartları & Etkileşim Ayarları</span>
-                </h3>
-                <p className="text-[11px] text-slate-500 font-normal">
-                  Karusel ve katalogdaki ürün kartlarının buton ve rozet davranışları.
-                </p>
+              {/* Row 5: Dynamic Category Rows */}
+              <div className="p-3.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 rounded-xl">
+                    <LayoutGrid className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white block">
+                      {isTr ? "Otomatik Kategori Sıraları" : "Automatic Category Rows"}
+                    </span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                      {isTr ? "Mağazanızdaki her ana kategori için ana sayfada otomatik yatay karusel bandı açar." : "Creates separate horizontal rows for each main product category."}
+                    </span>
+                  </div>
+                </div>
+                <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={netflixConfig.show_category_rows !== false}
+                    onChange={(e) => updateNetflixConfig({ show_category_rows: e.target.checked })}
+                    className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{isTr ? "Kategori Sıraları Aktif" : "Active"}</span>
+                </label>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <label className="flex items-center gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={netflixConfig.enable_hover_zoom !== false}
-                  onChange={(e) => updateNetflixConfig({ enable_hover_zoom: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600 accent-blue-600"
-                />
-                <div>
-                  <span className="text-xs font-bold text-slate-800 block">Netflix Hover Zoom Animasyonu</span>
-                  <span className="text-[10px] text-slate-500">Kart üzerine fare ile gelindiğinde akıcı büyüme ve gölge efekti.</span>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={netflixConfig.show_quick_add_cart !== false}
-                  onChange={(e) => updateNetflixConfig({ show_quick_add_cart: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600 accent-blue-600"
-                />
-                <div>
-                  <span className="text-xs font-bold text-slate-800 block">Hızlı 'Sepete Ekle' Butonu</span>
-                  <span className="text-[10px] text-slate-500">Müşterilerin karta tıklamadan doğrudan sepete atabilmesini sağlar.</span>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={netflixConfig.show_stock_badge !== false}
-                  onChange={(e) => updateNetflixConfig({ show_stock_badge: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600 accent-blue-600"
-                />
-                <div>
-                  <span className="text-xs font-bold text-slate-800 block">Stok Durumu Rozeti</span>
-                  <span className="text-[10px] text-slate-500">Stok adedi veya 'Tükendi' ibaresini kart üzerinde gösterir.</span>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={netflixConfig.show_old_price !== false}
-                  onChange={(e) => updateNetflixConfig({ show_old_price: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600 accent-blue-600"
-                />
-                <div>
-                  <span className="text-xs font-bold text-slate-800 block">Eski Fiyat ve İndirim Vurgusu</span>
-                  <span className="text-[10px] text-slate-500">İndirimli ürünlerde üstü çizili eski fiyatı sergiler.</span>
-                </div>
-              </label>
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB 1: KONSEPT & RENKLER */}
-      {activeTab === "presets" && (
+      {/* ========================================================================= */}
+      {/* TAB 2: SİNEMATİK HERO VİTRİNİ (HERO)                                     */}
+      {/* ========================================================================= */}
+      {activeTab === "hero" && (
         <div className="space-y-3">
-          {/* Bilgi Kutusu: Logo ve Favicon Yönlendirmesi */}
-          <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-3 flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
-                <ImageIcon className="w-4 h-4" />
-              </div>
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <span className="font-bold text-indigo-900 block">Kurumsal Logo ve Sekme İkonu (Favicon)</span>
-                <span className="text-[11px] text-indigo-700">
-                  {lang === "tr"
-                    ? "Logonuzu ve favicon sekme görselinizi üst sekmedeki 'Logo & Favicon' bölümünden doğrudan dosya yükleyerek yönetebilirsiniz."
-                    : "Manage your corporate logo and favicon directly from the 'Logo & Favicon' tab."}
-                </span>
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>{isTr ? "Netflix Sinematik Hero Vitrini" : "Netflix Cinematic Hero Showcase"}</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                  {isTr
+                    ? "Ana sayfanın üstünde yer alan, dinamik ve akıcı slayt geçişli ürün manşetini yapılandırın."
+                    : "Configure the top dynamic cinematic product carousel and subtitle policy."}
+                </p>
               </div>
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.hero_enabled !== false}
+                  onChange={(e) => updateNetflixConfig({ hero_enabled: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                />
+                <span className="text-xs font-black text-slate-800 dark:text-white">{isTr ? "Hero Vitrini Aktif" : "Hero Active"}</span>
+              </label>
+            </div>
+
+            {netflixConfig.hero_enabled !== false && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-blue-500" />
+                      <span>{isTr ? "Otomatik Slayt Geçiş Süresi" : "Autoplay Slide Interval"}</span>
+                    </label>
+                    <select
+                      value={netflixConfig.hero_autoplay_interval || 6}
+                      onChange={(e) => updateNetflixConfig({ hero_autoplay_interval: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                    >
+                      <option value={4}>{isTr ? "4 Saniyede Bir Otomatik Geç" : "4 Seconds (Fast)"}</option>
+                      <option value={6}>{isTr ? "6 Saniyede Bir Otomatik Geç (Önerilen)" : "6 Seconds (Recommended)"}</option>
+                      <option value={8}>{isTr ? "8 Saniyede Bir Otomatik Geç" : "8 Seconds (Relaxed)"}</option>
+                      <option value={10}>{isTr ? "10 Saniyede Bir Otomatik Geç" : "10 Seconds"}</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Tag className="w-3.5 h-3.5 text-amber-500" />
+                      <span>{isTr ? "Hero Vurgu Rozetleri" : "Hero Highlight Badges"}</span>
+                    </label>
+                    <div className="flex items-center h-10 px-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={netflixConfig.show_hero_badges !== false}
+                          onChange={(e) => updateNetflixConfig({ show_hero_badges: e.target.checked })}
+                          className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                        />
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {isTr ? "Öne Çıkan, Çok Satan rozetlerini göster" : "Show Featured & Bestseller badges"}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slogan / Fallback Description Policy */}
+                <div className="space-y-1.5 p-3.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      {isTr ? "Açıklamasız Ürünler İçin Kurumsal Slogan (Opsiyonel)" : "Fallback Slogan for Products Without Description"}
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-medium">{isTr ? "İsteğe Bağlı" : "Optional"}</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={netflixConfig.hero_default_description || ""}
+                    onChange={(e) => updateNetflixConfig({ hero_default_description: e.target.value })}
+                    placeholder={isTr ? "Boş bırakılırsa sadece ürün detayları gösterilir (yapay metin üretilmez)" : "Leave blank to display pure product info"}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-blue-500 transition-colors"
+                  />
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-normal leading-relaxed">
+                    {isTr
+                      ? "💡 Ürünün kendi orijinal açıklaması yoksa burada yazdığınız kurumsal karşılama gösterilir. Boş bırakırsanız hiçbir yapay veya uyumsuz pazarlama cümlesi eklenmez."
+                      : "💡 When a product lacks its own description, your custom store slogan will appear. If left empty, clean details are displayed without synthetic marketing text."}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 3: TEMA MODU & RENKLER (VISUALS)                                      */}
+      {/* ========================================================================= */}
+      {activeTab === "visuals" && (
+        <div className="space-y-3">
+          {/* Lighting Mode */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Sun className="w-4 h-4 text-amber-500" />
+                  <span>{isTr ? "Aydınlatma & Tema Modu (Açık / Koyu Zemin)" : "Lighting & Theme Mode"}</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                  {isTr
+                    ? "Gap Bilişim gibi beyaz ürün arka planına sahip teknoloji mağazaları için Açık Mod önerilir."
+                    : "Light Mode is recommended for stores with white background product photos."}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Light Mode */}
+              <button
+                type="button"
+                onClick={() => updateNetflixConfig({ theme_mode: "light" })}
+                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
+                  netflixConfig.theme_mode === "light"
+                    ? "bg-amber-50/70 border-amber-400 ring-2 ring-amber-400/20 shadow-xs dark:bg-amber-950/40 dark:border-amber-500"
+                    : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Sun className="w-4 h-4 text-amber-500" />
+                    <span>{isTr ? "Açık Mod (Light)" : "Light Mode"}</span>
+                  </span>
+                  {netflixConfig.theme_mode === "light" && <Check className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
+                </div>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {isTr
+                    ? "Temiz beyaz zemin, yüksek kontrast. Beyaz arkaplanlı ürün fotoğraflarıyla kristal netliğinde uyum sağlar."
+                    : "Clean light background. Seamless fit for white-backdrop product catalogs."}
+                </p>
+              </button>
+
+              {/* Dark Mode */}
+              <button
+                type="button"
+                onClick={() => updateNetflixConfig({ theme_mode: "dark" })}
+                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
+                  netflixConfig.theme_mode === "dark" || !netflixConfig.theme_mode
+                    ? "bg-slate-900 text-white border-blue-500 ring-2 ring-blue-500/20 shadow-xs dark:bg-slate-950"
+                    : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Moon className="w-4 h-4 text-blue-400" />
+                    <span>{isTr ? "Koyu Mod (Dark Sinematik)" : "Dark Mode"}</span>
+                  </span>
+                  {(netflixConfig.theme_mode === "dark" || !netflixConfig.theme_mode) && (
+                    <Check className="w-4 h-4 text-blue-400" />
+                  )}
+                </div>
+                <p className="text-[10.5px] text-slate-400 leading-relaxed">
+                  {isTr
+                    ? "Netflix sinematik gece ambiyansı, antrasit zemin ve neon ışıltılı odak noktaları."
+                    : "Cinematic night ambiance with deep dark background and neon glows."}
+                </p>
+              </button>
+
+              {/* Auto Mode */}
+              <button
+                type="button"
+                onClick={() => updateNetflixConfig({ theme_mode: "auto" })}
+                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
+                  netflixConfig.theme_mode === "auto"
+                    ? "bg-indigo-50/70 border-indigo-400 ring-2 ring-indigo-400/20 shadow-xs dark:bg-indigo-950/40 dark:border-indigo-500"
+                    : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <RefreshCw className="w-4 h-4 text-indigo-500" />
+                    <span>{isTr ? "Sistem / Otomatik (Auto)" : "System Auto"}</span>
+                  </span>
+                  {netflixConfig.theme_mode === "auto" && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+                </div>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {isTr
+                    ? "Müşterinin telefon veya bilgisayar işletim sistemi tema tercihiyle tam otomatik senkronize çalışır."
+                    : "Automatically syncs with visitor's operating system preferences."}
+                </p>
+              </button>
+            </div>
+
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700">
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.show_theme_toggle !== false}
+                  onChange={(e) => updateNetflixConfig({ show_theme_toggle: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  {isTr ? "Web Vitrininde Ziyaretçi Tema Değiştirme (Güneş / Ay) Butonunu Göster" : "Show Theme Toggle (Sun/Moon) on Storefront"}
+                </span>
+              </label>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                {isTr ? "Ziyaretçiler tek tıkla açık/koyu mod geçişi yapabilir." : "Visitors can toggle dark/light mode with 1-click."}
+              </span>
             </div>
           </div>
 
-          {/* Hazır Tema Konseptleri */}
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+          {/* Curated Netflix Style Presets */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                  {lang === "tr" ? "Hazır Tema Konseptleri" : "Theme Presets"}
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Palette className="w-4 h-4 text-indigo-500" />
+                  <span>{isTr ? "Hazır Netflix Stil & Renk Paketleri" : "Netflix Curated Color Presets"}</span>
                 </h3>
-                <p className="text-[11px] text-slate-500 font-normal">
-                  {lang === "tr" ? "Sektörünüze özel hazır tasarım şablonunu tek tıkla uygulayın." : "Apply pre-designed aesthetic presets with 1-click."}
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                  {isTr ? "Sektörünüze uygun sinematik paleti tek tıkla vitrininize uygulayın." : "Apply ready-to-use color schemes with 1-click."}
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               {[
-                { id: "minimal_swiss", title: "Minimal Butik", desc: "Beyaz zemin, lüks sadelik", bg: "bg-slate-50 border-slate-200", dot1: "#0f172a", dot2: "#e11d48" },
-                { id: "luxury_dark", title: "Lüks & Gece (Dark)", desc: "Antrasit zemin, altın tonu", bg: "bg-slate-900 text-white border-slate-800", dot1: "#f59e0b", dot2: "#d97706" },
-                { id: "nordic_warm", title: "İskandinav Sıcak", desc: "Sıcak bej tonları, mat tekstil", bg: "bg-amber-50/70 border-amber-200/80", dot1: "#475569", dot2: "#0d9488" },
-                { id: "street_bold", title: "Sokak & Enerjik", desc: "Yüksek kontrast, spor moda", bg: "bg-zinc-100 border-zinc-300", dot1: "#000000", dot2: "#6366f1" }
+                { id: "netflix_cyber_blue", title: "Netflix Siber Mavi", desc: "Bilişim & Teknoloji", dot1: "#0f172a", dot2: "#3b82f6" },
+                { id: "netflix_luxury_gold", title: "Netflix Asil Altın", desc: "Lüks & Premium Takı", dot1: "#0f172a", dot2: "#f59e0b" },
+                { id: "netflix_original", title: "Netflix Orijinal Kırmızı", desc: "Moda, Trend & Dinamik", dot1: "#0f172a", dot2: "#e50914" },
+                { id: "netflix_minimal_light", title: "Netflix Minimal Açık", desc: "Temiz Aydınlık Zemin", dot1: "#ffffff", dot2: "#4f46e5" },
               ].map((p) => {
-                const isSelected = themeConfig.preset_name === p.id;
+                const isSelected = netflixConfig.accent_color === p.dot2;
                 return (
-                  <div
+                  <button
                     key={p.id}
-                    onClick={() => handleApplyPreset(p.id)}
-                    className={`p-3 rounded-lg border transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${p.bg} ${
+                    type="button"
+                    onClick={() => handleApplyNetflixPreset(p.id)}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
                       isSelected
-                        ? "ring-2 ring-indigo-500 border-indigo-600 shadow-2xs"
-                        : "hover:border-slate-300"
+                        ? "ring-2 ring-blue-500 border-blue-600 bg-blue-50/50 dark:bg-blue-950/40 shadow-xs"
+                        : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <span className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: p.dot1 }} />
-                        <span className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: p.dot2 }} />
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-3.5 h-3.5 rounded-full border border-black/20" style={{ backgroundColor: p.dot1 }} />
+                        <span className="w-3.5 h-3.5 rounded-full border border-black/20" style={{ backgroundColor: p.dot2 }} />
                       </div>
                       {isSelected && (
-                        <span className="px-1.5 py-0.2 bg-indigo-600 text-white rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-0.5">
+                        <span className="px-1.5 py-0.5 bg-blue-600 text-white rounded text-[8.5px] font-black uppercase tracking-wider flex items-center gap-0.5">
                           <Check className="w-2.5 h-2.5" />
                           Aktif
                         </span>
                       )}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold leading-tight">{p.title}</h4>
-                      <p className="text-[10px] opacity-75 font-normal leading-tight mt-0.5">{p.desc}</p>
+                      <h4 className="text-xs font-black text-slate-900 dark:text-white leading-tight">{p.title}</h4>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-normal leading-tight mt-0.5">{p.desc}</p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
-          </div>
 
-          {/* Renk & Atmosfer + Ürün Kartı Dizaynı Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {/* Renk & Atmosfer */}
-            <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Palette className="w-3.5 h-3.5 text-indigo-600" />
-                {lang === "tr" ? "Renk & Atmosfer" : "Colors & Atmosphere"}
-              </h3>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                    Zemin Modu
-                  </label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[
-                      { id: "light", label: "Açık (Light)" },
-                      { id: "dark", label: "Koyu (Dark)" },
-                      { id: "warm", label: "Sıcak Bej" }
-                    ].map((mode) => (
-                      <button
-                        key={mode.id}
-                        type="button"
-                        onClick={() => updateThemeConfig({ background_mode: mode.id as any })}
-                        className={`py-1.5 px-2 rounded-lg text-xs font-medium border transition-all cursor-pointer text-center ${
-                          themeConfig.background_mode === mode.id
-                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                            : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                        }`}
-                      >
-                        {mode.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Hızlı Renk Paletleri */}
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                    Hızlı Renk Paletleri
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { name: "Lüks Siyah", primary: "#0f172a", accent: "#e11d48" },
-                      { name: "Koyu İndigo", primary: "#1e1b4b", accent: "#6366f1" },
-                      { name: "Zümrüt Yeşil", primary: "#064e3b", accent: "#10b981" },
-                      { name: "Asil Bordo", primary: "#881337", accent: "#f43f5e" },
-                      { name: "Sıcak Kehribar", primary: "#451a03", accent: "#d97706" }
-                    ].map((swatch, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => updateThemeConfig({ primary_color: swatch.primary, accent_color: swatch.accent })}
-                        className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md text-[10px] font-medium text-slate-700 transition-all cursor-pointer"
-                      >
-                        <span className="w-2.5 h-2.5 rounded-full border border-black/20" style={{ backgroundColor: swatch.primary }} />
-                        <span className="w-2.5 h-2.5 rounded-full border border-black/20" style={{ backgroundColor: swatch.accent }} />
-                        <span>{swatch.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Color Inputs */}
-                <div className="grid grid-cols-2 gap-2.5 pt-1">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                      Ana Renk
-                    </label>
-                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-1">
-                      <input
-                        type="color"
-                        value={themeConfig.primary_color || "#0f172a"}
-                        onChange={(e) => updateThemeConfig({ primary_color: e.target.value })}
-                        className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0 shrink-0"
-                      />
-                      <input
-                        type="text"
-                        value={themeConfig.primary_color || "#0f172a"}
-                        onChange={(e) => updateThemeConfig({ primary_color: e.target.value })}
-                        className="w-full bg-transparent text-xs font-mono font-semibold text-slate-800 outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                      Vurgu (Aksan) Rengi
-                    </label>
-                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-1">
-                      <input
-                        type="color"
-                        value={themeConfig.accent_color || "#e11d48"}
-                        onChange={(e) => updateThemeConfig({ accent_color: e.target.value })}
-                        className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0 shrink-0"
-                      />
-                      <input
-                        type="text"
-                        value={themeConfig.accent_color || "#e11d48"}
-                        onChange={(e) => updateThemeConfig({ accent_color: e.target.value })}
-                        className="w-full bg-transparent text-xs font-mono font-semibold text-slate-800 outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Ürün Kartı Dizaynı */}
-            <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-indigo-600" />
-                {lang === "tr" ? "Ürün Kartı Dizaynı" : "Product Card Design"}
-              </h3>
-
-              <div className="space-y-2.5">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                    Kart Yapısı
-                  </label>
-                  <div className="flex flex-wrap gap-1">
-                    {[
-                      { id: "minimal", label: "Minimal" },
-                      { id: "borderless", label: "Çerçevesiz" },
-                      { id: "elevated", label: "Gölgeli" },
-                      { id: "glass", label: "Cam Efekti" },
-                      { id: "neo", label: "Retro" }
-                    ].map((st) => (
-                      <button
-                        key={st.id}
-                        type="button"
-                        onClick={() => updateThemeConfig({ card_style: st.id as any })}
-                        className={`py-1 px-2.5 rounded-md text-[11px] font-medium border transition-all cursor-pointer ${
-                          (themeConfig.card_style || "minimal") === st.id
-                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                            : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                        }`}
-                      >
-                        {st.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                      Köşe Yuvarlaklığı
-                    </label>
-                    <div className="grid grid-cols-2 gap-1">
-                      {[
-                        { id: "none", label: "0px Düz" },
-                        { id: "subtle", label: "8px Hafif" },
-                        { id: "rounded", label: "16px Zarif" },
-                        { id: "pill", label: "24px Oval" }
-                      ].map((r) => (
-                        <button
-                          key={r.id}
-                          type="button"
-                          onClick={() => updateThemeConfig({ card_radius: r.id as any })}
-                          className={`py-1 px-1.5 text-center rounded-md text-[10px] font-medium border transition-all cursor-pointer ${
-                            themeConfig.card_radius === r.id
-                              ? "bg-slate-900 text-white border-slate-900"
-                              : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                          }`}
-                        >
-                          {r.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                      Hover Efekti
-                    </label>
-                    <div className="grid grid-cols-3 gap-1">
-                      {[
-                        { id: "secondary_image", label: "2. Görsel" },
-                        { id: "zoom", label: "Zoom" },
-                        { id: "glow", label: "Parlama" }
-                      ].map((eff) => (
-                        <button
-                          key={eff.id}
-                          type="button"
-                          onClick={() => updateThemeConfig({ card_hover_effect: eff.id as any })}
-                          className={`py-1 px-1 text-center rounded-md text-[10px] font-medium border transition-all cursor-pointer ${
-                            themeConfig.card_hover_effect === eff.id
-                              ? "bg-slate-900 text-white border-slate-900"
-                              : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                          }`}
-                        >
-                          {eff.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                    Fotoğraf Oranı
-                  </label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[
-                      { id: "portrait", label: "3:4 Dikey Moda" },
-                      { id: "square", label: "1:1 Kare Standart" },
-                      { id: "wide", label: "16:9 Yatay" }
-                    ].map((asp) => (
-                      <button
-                        key={asp.id}
-                        type="button"
-                        onClick={() => updateThemeConfig({ card_aspect_ratio: asp.id as any })}
-                        className={`py-1 px-2 text-center rounded-md text-[10px] font-medium border transition-all cursor-pointer ${
-                          themeConfig.card_aspect_ratio === asp.id
-                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                            : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                        }`}
-                      >
-                        {asp.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: HERO BANNER & AFİŞLER */}
-      {activeTab === "hero" && (
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
-            <div>
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
-                {lang === "tr" ? "Hero Banner & Afiş Yönetimi" : "Hero Banner & Slides"}
-              </h3>
-              <p className="text-[11px] text-slate-500 font-normal">
-                {lang === "tr" ? "Hero vitrin afişlerini ve buton bağlantılarını yönetin." : "Manage hero slides, titles and call-to-action buttons."}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleAddBanner}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-all shadow-2xs flex items-center justify-center gap-1 cursor-pointer shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{lang === "tr" ? "Afiş Ekle" : "Add Slide"}</span>
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200/70">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={themeConfig.show_hero_banner !== false}
-                onChange={(e) => updateThemeConfig({ show_hero_banner: e.target.checked })}
-                className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span className="text-xs font-semibold text-slate-800">
-                {lang === "tr" ? "Hero Banner Görünsün" : "Show Hero Banner"}
-              </span>
-            </label>
-
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase mr-1">Düzen:</span>
-              {[
-                { id: "split", label: "Split (Kayan)" },
-                { id: "full_banner", label: "Tam Ekran" },
-                { id: "editorial", label: "Editoryal" }
-              ].map((hl) => (
-                <button
-                  key={hl.id}
-                  type="button"
-                  onClick={() => updateThemeConfig({ hero_layout: hl.id as any })}
-                  className={`px-2 py-1 rounded-md text-[10px] font-medium border transition-all cursor-pointer ${
-                    themeConfig.hero_layout === hl.id
-                      ? "bg-slate-900 text-white border-slate-900"
-                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  {hl.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Banner Items */}
-          {normalizedBanners.length === 0 ? (
-            <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-              <p className="text-slate-500 text-xs font-normal">
-                {lang === "tr" ? "Henüz afiş eklenmedi." : "No banner slides added yet."}
-              </p>
-              <button
-                type="button"
-                onClick={handleAddBanner}
-                className="mt-2 px-3 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-xs font-semibold rounded-md transition-colors cursor-pointer"
-              >
-                {lang === "tr" ? "İlk Afişi Ekle" : "Add First Slide"}
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {normalizedBanners.map((banner: any, idx: number) => (
-                <div
-                  key={banner.id || idx}
-                  className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/80 flex flex-col gap-2.5 relative hover:border-slate-300 transition-all shadow-2xs"
-                >
-                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60">
-                    <span className="text-[11px] font-bold text-indigo-600 flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold">
-                        #{idx + 1}
-                      </span>
-                      {lang === "tr" ? `SLAYT #${idx + 1}` : `SLIDE #${idx + 1}`}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveBanner(banner.id)}
-                      className="text-rose-600 hover:text-rose-700 p-1 hover:bg-rose-50 rounded transition-colors flex items-center gap-1 text-[10px] font-semibold cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>{lang === "tr" ? "Sil" : "Delete"}</span>
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {/* Image */}
-                    <div className="space-y-1 sm:col-span-1">
-                      <label className="text-[10px] font-semibold text-slate-400 uppercase block">
-                        Görsel
-                      </label>
-                      <div className="relative h-20 bg-white border border-slate-200 rounded-md overflow-hidden flex items-center justify-center">
-                        {banner.image_url ? (
-                          <img src={banner.image_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="text-center p-1">
-                            <Upload className="w-4 h-4 text-slate-300 mx-auto" />
-                            <span className="text-[8px] font-semibold text-slate-400 block">Yükle</span>
-                          </div>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                          onChange={(e) => handleBannerUpload(banner.id, e)}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Text Inputs */}
-                    <div className="space-y-2 sm:col-span-2">
-                      <div>
-                        <input
-                          type="text"
-                          value={banner.title || ""}
-                          onChange={(e) => handleUpdateBanner(banner.id, "title", e.target.value)}
-                          placeholder="Afiş Başlığı (Örn: %50 İndirim)"
-                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-900"
-                        />
-                      </div>
-                      <div>
-                        <input
-                          type="text"
-                          value={banner.subtitle || ""}
-                          onChange={(e) => handleUpdateBanner(banner.id, "subtitle", e.target.value)}
-                          placeholder="Alt Başlık"
-                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-xs text-slate-700"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Buttons & Alignment */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <input
-                        type="text"
-                        value={banner.button_text || ""}
-                        onChange={(e) => handleUpdateBanner(banner.id, "button_text", e.target.value)}
-                        placeholder="Buton Yazısı"
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs font-medium"
-                      />
-                      <input
-                        type="text"
-                        value={banner.button_link || ""}
-                        onChange={(e) => handleUpdateBanner(banner.id, "button_link", e.target.value)}
-                        placeholder="Link (#catalog)"
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs font-mono"
-                      />
-                    </div>
-
-                    <div className="flex gap-1 items-center">
-                      <span className="text-[10px] font-semibold text-slate-400 mr-1">Hizalama:</span>
-                      {[
-                        { key: "left", icon: <AlignLeft className="w-3.5 h-3.5" /> },
-                        { key: "center", icon: <AlignCenter className="w-3.5 h-3.5" /> },
-                        { key: "right", icon: <AlignRight className="w-3.5 h-3.5" /> }
-                      ].map((pos) => (
-                        <button
-                          key={pos.key}
-                          type="button"
-                          onClick={() => handleUpdateBanner(banner.id, "text_position", pos.key)}
-                          className={`p-1.5 rounded border transition-colors cursor-pointer ${
-                            (banner.text_position || "center") === pos.key
-                              ? "bg-indigo-600 border-indigo-600 text-white"
-                              : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                          }`}
-                        >
-                          {pos.icon}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 3: INSTAGRAM HİKAYELERİ */}
-      {activeTab === "stories" && (
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
-            <div>
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Smartphone className="w-3.5 h-3.5 text-indigo-600" />
-                {lang === "tr" ? "Instagram Hikayeleri" : "Instagram Stories"}
-              </h3>
-              <p className="text-[11px] text-slate-500 font-normal">
-                {lang === "tr" ? "Vitrinde üstte yer alan Instagram hikaye halkalarını yönetin." : "Manage top story bubbles and product links."}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={themeConfig.show_story_ribbon !== false}
-                  onChange={(e) => updateThemeConfig({ show_story_ribbon: e.target.checked })}
-                  className="w-3.5 h-3.5 text-indigo-600 rounded"
-                />
-                <span className="text-xs font-semibold text-slate-800">
-                  {lang === "tr" ? "Hikayeler Aktif" : "Enable"}
-                </span>
-              </label>
-
-              <button
-                type="button"
-                onClick={handleAddStory}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{lang === "tr" ? "Hikaye Ekle" : "Add Story"}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Stories List */}
-          {stories.length === 0 ? (
-            <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-              <p className="text-slate-500 text-xs font-normal">
-                {lang === "tr" ? "Henüz hikaye eklenmedi." : "No stories added yet."}
-              </p>
-              <button
-                type="button"
-                onClick={handleAddStory}
-                className="mt-2 px-3 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-xs font-semibold rounded-md cursor-pointer"
-              >
-                {lang === "tr" ? "İlk Hikayeyi Ekle" : "Add First Story"}
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-              {stories.map((story, idx) => (
-                <div
-                  key={story.id || idx}
-                  className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-200/80 flex flex-col gap-2 relative hover:border-slate-300 transition-all shadow-2xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-indigo-600 uppercase">
-                      #{idx + 1} HİKAYE
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveStory(idx)}
-                      className="text-rose-600 hover:text-rose-700 p-1 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="relative group/simg w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-indigo-500 via-rose-500 to-amber-500 shrink-0 overflow-hidden cursor-pointer">
-                      <img
-                        src={story.image_url}
-                        alt=""
-                        className="w-full h-full rounded-full object-cover bg-white"
-                      />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        onChange={(e) => handleStoryImageUpload(idx, e)}
-                      />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <input
-                        type="text"
-                        value={story.title || ""}
-                        onChange={(e) => handleUpdateStory(idx, "title", e.target.value)}
-                        placeholder="Hikaye Başlığı"
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-800"
-                      />
-                      <input
-                        type="text"
-                        value={story.badge || ""}
-                        onChange={(e) => handleUpdateStory(idx, "badge", e.target.value)}
-                        placeholder="Rozet (Örn: YENİ)"
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-indigo-600"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <input
-                      type="text"
-                      value={story.link || ""}
-                      onChange={(e) => handleUpdateStory(idx, "link", e.target.value)}
-                      placeholder="Target Link (#catalog)"
-                      className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-[10px] font-mono text-slate-600"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 4: KAPSÜL BLOKLARI (BENTO) */}
-      {activeTab === "bento" && (
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
-            <div>
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Grid3X3 className="w-3.5 h-3.5 text-indigo-600" />
-                {lang === "tr" ? "Kapsül Blokları (Bento Grid)" : "Bento Showcase"}
-              </h3>
-              <p className="text-[11px] text-slate-500 font-normal">
-                {lang === "tr" ? "Öne çıkan koleksiyon ve kategoriler için görsel Bento kartları." : "Promote categories with high-impact bento cards."}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={themeConfig.show_bento_grid !== false}
-                  onChange={(e) => updateThemeConfig({ show_bento_grid: e.target.checked })}
-                  className="w-3.5 h-3.5 text-indigo-600 rounded"
-                />
-                <span className="text-xs font-semibold text-slate-800">
-                  {lang === "tr" ? "Bento Aktif" : "Enable"}
-                </span>
-              </label>
-
-              <button
-                type="button"
-                onClick={handleAddBento}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{lang === "tr" ? "Kapsül Ekle" : "Add Block"}</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200/70">
-            <input
-              type="text"
-              placeholder={lang === "tr" ? "Bölüm Başlığı (Örn: Öne Çıkan Koleksiyonlar)" : "Section Title"}
-              value={themeConfig.featured_capsules_title || ""}
-              onChange={(e) => updateThemeConfig({ featured_capsules_title: e.target.value })}
-              className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-800"
-            />
-            <input
-              type="text"
-              placeholder={lang === "tr" ? "Bölüm Alt Başlığı" : "Section Subtitle"}
-              value={themeConfig.featured_capsules_subtitle || ""}
-              onChange={(e) => updateThemeConfig({ featured_capsules_subtitle: e.target.value })}
-              className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700"
-            />
-          </div>
-
-          {/* Bento Cards List */}
-          {bentoBlocks.length === 0 ? (
-            <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-              <p className="text-slate-500 text-xs font-normal">
-                {lang === "tr" ? "Henüz bento bloğu eklenmedi." : "No bento blocks added yet."}
-              </p>
-              <button
-                type="button"
-                onClick={handleAddBento}
-                className="mt-2 px-3 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-xs font-semibold rounded-md cursor-pointer"
-              >
-                {lang === "tr" ? "İlk Bloğu Ekle" : "Add First Block"}
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {bentoBlocks.map((bento, idx) => (
-                <div
-                  key={bento.id || idx}
-                  className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/80 flex flex-col gap-2 relative hover:border-slate-300 transition-all shadow-2xs"
-                >
-                  <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
-                    <span className="text-[10px] font-bold text-indigo-600">
-                      #{idx + 1} {bento.size === "large" ? "GENİŞ (2x)" : "STANDART (1x)"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveBento(idx)}
-                      className="text-rose-600 hover:text-rose-700 p-1 hover:bg-rose-50 rounded cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Size Selector */}
-                  <div className="flex gap-1">
-                    {[
-                      { id: "large", label: "Geniş (2x)" },
-                      { id: "medium", label: "Orta (1x)" },
-                      { id: "small", label: "Kompakt" }
-                    ].map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => handleUpdateBento(idx, "size", s.id)}
-                        className={`flex-1 py-1 rounded text-[10px] font-medium border transition-colors cursor-pointer ${
-                          bento.size === s.id
-                            ? "bg-slate-900 text-white border-slate-900"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Image */}
-                  <div className="relative h-20 bg-white border border-slate-200 rounded-md overflow-hidden flex items-center justify-center">
-                    <img src={bento.image_url} alt="" className="w-full h-full object-cover" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                      onChange={(e) => handleBentoImageUpload(idx, e)}
-                    />
-                  </div>
-
-                  {/* Inputs */}
-                  <div className="space-y-1.5">
-                    <input
-                      type="text"
-                      value={bento.title || ""}
-                      onChange={(e) => handleUpdateBento(idx, "title", e.target.value)}
-                      placeholder="Kapsül Başlığı"
-                      className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-900"
-                    />
-                    <input
-                      type="text"
-                      value={bento.subtitle || ""}
-                      onChange={(e) => handleUpdateBento(idx, "subtitle", e.target.value)}
-                      placeholder="Alt Başlık"
-                      className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-md text-xs text-slate-700"
-                    />
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <input
-                        type="text"
-                        value={bento.badge || ""}
-                        onChange={(e) => handleUpdateBento(idx, "badge", e.target.value)}
-                        placeholder="Rozet"
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs font-bold text-indigo-600"
-                      />
-                      <input
-                        type="text"
-                        value={bento.cta_text || ""}
-                        onChange={(e) => handleUpdateBento(idx, "cta_text", e.target.value)}
-                        placeholder="Buton Metni"
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-800"
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      value={bento.link || ""}
-                      onChange={(e) => handleUpdateBento(idx, "link", e.target.value)}
-                      placeholder="Yönlendirme Linki (#catalog)"
-                      className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs font-mono text-slate-600"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 5: DUYURU & ROZETLER */}
-      {activeTab === "badges" && (
-        <div className="space-y-3">
-          {/* Announcement Bar */}
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-2.5">
-            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-indigo-600" />
-                {lang === "tr" ? "Üst Duyuru Bandı" : "Announcement Ticker"}
-              </h3>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={themeConfig.show_announcement_bar !== false}
-                  onChange={(e) => updateThemeConfig({ show_announcement_bar: e.target.checked })}
-                  className="w-3.5 h-3.5 text-indigo-600 rounded"
-                />
-                <span className="text-xs font-semibold text-slate-700">{lang === "tr" ? "Aktif" : "Enabled"}</span>
-              </label>
-            </div>
-
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={themeConfig.announcement_text || ""}
-                onChange={(e) => updateThemeConfig({ announcement_text: e.target.value })}
-                placeholder="Örn: ✨ 1.500 TL Üzeri Ücretsiz Kargo & Aynı Gün Teslimat"
-                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900"
-              />
-
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={themeConfig.announcement_marquee !== false}
-                  onChange={(e) => updateThemeConfig({ announcement_marquee: e.target.checked })}
-                  className="w-3.5 h-3.5 text-indigo-600 rounded"
-                />
-                <span className="text-xs font-normal text-slate-600">
-                  {lang === "tr" ? "Kayan Yazı Animasyonu (Marquee Efekti)" : "Marquee scrolling animation"}
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {/* Trust Badges */}
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-2.5">
-            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                {lang === "tr" ? "Güven & Avantaj Rozetleri" : "Trust & Value Badges"}
-              </h3>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={themeConfig.show_trust_badges !== false}
-                  onChange={(e) => updateThemeConfig({ show_trust_badges: e.target.checked })}
-                  className="w-3.5 h-3.5 text-indigo-600 rounded"
-                />
-                <span className="text-xs font-semibold text-slate-700">{lang === "tr" ? "Aktif" : "Enabled"}</span>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-              {(themeConfig.trust_badges || DEFAULT_SHOP_THEME.trust_badges || []).map((badge, idx) => (
-                <div key={idx} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-indigo-600">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-bold uppercase">ROZET #{idx + 1}</span>
-                  </div>
+            {/* Custom Color Pickers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                  {isTr ? "Vurgu (Aksan) Rengi" : "Accent Color"}
+                </label>
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5">
+                  <input
+                    type="color"
+                    value={netflixConfig.accent_color || branding?.accent_color || "#3b82f6"}
+                    onChange={(e) => {
+                      updateNetflixConfig({ accent_color: e.target.value });
+                      onBrandingChange("accent_color", e.target.value);
+                    }}
+                    className="w-7 h-7 rounded-lg border border-slate-300 cursor-pointer p-0 shrink-0"
+                  />
                   <input
                     type="text"
-                    value={badge.title}
+                    value={netflixConfig.accent_color || branding?.accent_color || "#3b82f6"}
                     onChange={(e) => {
-                      const list = [...(themeConfig.trust_badges || DEFAULT_SHOP_THEME.trust_badges || [])];
-                      list[idx] = { ...list[idx], title: e.target.value };
-                      updateThemeConfig({ trust_badges: list });
+                      updateNetflixConfig({ accent_color: e.target.value });
+                      onBrandingChange("accent_color", e.target.value);
                     }}
-                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-900"
-                    placeholder="Rozet Başlığı"
-                  />
-                  <textarea
-                    rows={2}
-                    value={badge.description}
-                    onChange={(e) => {
-                      const list = [...(themeConfig.trust_badges || DEFAULT_SHOP_THEME.trust_badges || [])];
-                      list[idx] = { ...list[idx], description: e.target.value };
-                      updateThemeConfig({ trust_badges: list });
-                    }}
-                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-[11px] text-slate-600 resize-none"
-                    placeholder="Açıklama"
+                    className="w-full bg-transparent text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
                   />
                 </div>
-              ))}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                  {isTr ? "Ana Marka Rengi" : "Primary Brand Color"}
+                </label>
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5">
+                  <input
+                    type="color"
+                    value={netflixConfig.primary_color || branding?.primary_color || "#0f172a"}
+                    onChange={(e) => {
+                      updateNetflixConfig({ primary_color: e.target.value });
+                      onBrandingChange("primary_color", e.target.value);
+                    }}
+                    className="w-7 h-7 rounded-lg border border-slate-300 cursor-pointer p-0 shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={netflixConfig.primary_color || branding?.primary_color || "#0f172a"}
+                    onChange={(e) => {
+                      updateNetflixConfig({ primary_color: e.target.value });
+                      onBrandingChange("primary_color", e.target.value);
+                    }}
+                    className="w-full bg-transparent text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+                  />
+                </div>
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: ÜRÜN KARTLARI & SEPET ETKİLEŞİMİ (CARDS)                          */}
+      {/* ========================================================================= */}
+      {activeTab === "cards" && (
+        <div className="space-y-3">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-4 h-4 text-emerald-500" />
+                  <span>{isTr ? "Ürün Kartları & Alışveriş Deneyimi" : "Product Cards & Shopping Experience"}</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                  {isTr
+                    ? "Karusellerde ve ürün kataloğunda kartların buton, rozet ve animasyon davranışlarını yönetin."
+                    : "Configure button, badge, and hover animation behaviors across all product cards."}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {/* Hover Zoom */}
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.enable_hover_zoom !== false}
+                  onChange={(e) => updateNetflixConfig({ enable_hover_zoom: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                />
+                <div>
+                  <span className="text-xs font-black text-slate-900 dark:text-white block">
+                    {isTr ? "Netflix Hover Zoom Animasyonu" : "Netflix Hover Zoom Animation"}
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    {isTr ? "Fare ile kart üzerine gelindiğinde akıcı büyüme ve sinematik gölge efekti." : "Smooth card expansion on hover."}
+                  </span>
+                </div>
+              </label>
+
+              {/* Quick Add Cart */}
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.show_quick_add_cart !== false}
+                  onChange={(e) => updateNetflixConfig({ show_quick_add_cart: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                />
+                <div>
+                  <span className="text-xs font-black text-slate-900 dark:text-white block">
+                    {isTr ? "Hızlı 'Sepete Ekle' Butonu" : "Quick 'Add to Cart' Button"}
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    {isTr ? "Müşterilerin detay sayfasına girmeden tek tıkla sepete eklemesini sağlar." : "Allows 1-click cart addition directly on the card."}
+                  </span>
+                </div>
+              </label>
+
+              {/* Stock Badge */}
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.show_stock_badge !== false}
+                  onChange={(e) => updateNetflixConfig({ show_stock_badge: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                />
+                <div>
+                  <span className="text-xs font-black text-slate-900 dark:text-white block">
+                    {isTr ? "Stok Durumu & Adet Rozeti" : "Stock Status & Badge"}
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    {isTr ? "Stokta kalan adet veya 'Tükendi' ibaresini kart üzerinde gösterir." : "Displays remaining stock counts or sold out badge."}
+                  </span>
+                </div>
+              </label>
+
+              {/* Old Price Strikethrough */}
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.show_old_price !== false}
+                  onChange={(e) => updateNetflixConfig({ show_old_price: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                />
+                <div>
+                  <span className="text-xs font-black text-slate-900 dark:text-white block">
+                    {isTr ? "Eski Fiyat ve İndirim Vurgusu" : "Old Price Strikethrough"}
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    {isTr ? "İndirimli ürünlerde üstü çizili eski fiyatı ve kazancı sergiler." : "Displays original price with strikethrough."}
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 5: DUYURU ÇUBUĞU (ANNOUNCEMENT)                                       */}
+      {/* ========================================================================= */}
+      {activeTab === "announcement" && (
+        <div className="space-y-3">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Megaphone className="w-4 h-4 text-rose-500" />
+                  <span>{isTr ? "Üst Duyuru & Kampanya Bandı" : "Top Announcement Banner"}</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                  {isTr
+                    ? "Web sitenizin en üstünde ziyaretçileri karşılayan duyuru metnini yönetin."
+                    : "Manage top banner message for special campaigns or free shipping notices."}
+                </p>
+              </div>
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={netflixConfig.show_announcement_bar !== false}
+                  onChange={(e) => updateNetflixConfig({ show_announcement_bar: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                />
+                <span className="text-xs font-black text-slate-800 dark:text-white">{isTr ? "Duyuru Bandı Aktif" : "Banner Active"}</span>
+              </label>
+            </div>
+
+            {netflixConfig.show_announcement_bar !== false && (
+              <div className="space-y-3 pt-1">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    {isTr ? "Duyuru / Kampanya Metni *" : "Announcement Text *"}
+                  </label>
+                  <input
+                    type="text"
+                    value={netflixConfig.announcement_text || branding?.announcement_text || ""}
+                    onChange={(e) => updateNetflixConfig({ announcement_text: e.target.value })}
+                    placeholder="Örn: 🚀 Tüm Türkiye'ye 1.000 TL Üzeri Ücretsiz Kargo & Hızlı Teslimat"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                {/* Live Preview of Announcement Bar */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
+                  <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-wider block">
+                    {isTr ? "Canlı Görünüm Önizlemesi:" : "Live Preview:"}
+                  </span>
+                  <div
+                    className="py-1.5 px-4 text-center text-xs font-bold text-white rounded-lg transition-all shadow-xs"
+                    style={{ backgroundColor: netflixConfig.accent_color || branding?.accent_color || "#3b82f6" }}
+                  >
+                    {netflixConfig.announcement_text || branding?.announcement_text || "🚀 Tüm Türkiye'ye 1.000 TL Üzeri Ücretsiz Kargo & Hızlı Teslimat"}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
