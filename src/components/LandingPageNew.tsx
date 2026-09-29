@@ -611,9 +611,9 @@ export const LandingPage = () => {
               <div className="lg:col-span-8 space-y-3">
                 <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight">
                   {txt(
-                    "Amazon ve Hepsiburada Entegratöründen Yeni Nesil İşletme Yönetim Sistemleri Şimdi Kıbrıs'ta!",
-                    "Next-Gen Business Management Systems from Amazon & Hepsiburada Integrator Now in Cyprus!",
-                    "Συστήματα Διαχείρισης Νέας Γενιάς από την Amazon & Hepsiburada Τώρα στην Κύπρο!"
+                    "Amazon ve Hepsiburada Entegratörü: LookPrice.net'ten, Yeni Nesil İşletme Yönetim Sistemleri.. Şimdi Kıbrıs'ta!",
+                    "Amazon & Hepsiburada Integrator: Next-Gen Business Management Systems from LookPrice.net.. Now in Cyprus!",
+                    "Amazon & Hepsiburada Integrator: Συστήματα Διαχείρισης Νέας Γενιάς από το LookPrice.net.. Τώρα στην Κύπρο!"
                   )}
                 </h2>
                 <p className="text-xs md:text-sm text-slate-300 font-medium leading-relaxed">
@@ -632,23 +632,22 @@ export const LandingPage = () => {
                   <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-emerald-300 border border-white/10">🏨 HotelLP</span>
                 </div>
               </div>
-              <div className="lg:col-span-4 flex flex-col items-center justify-center">
-                <div className="relative group overflow-hidden rounded-xl border border-indigo-500/40 shadow-xl w-full max-h-44">
+              <div className="lg:col-span-4 flex flex-col items-center justify-center space-y-3">
+                <div className="relative group overflow-hidden rounded-xl border border-indigo-500/40 shadow-2xl w-full aspect-video bg-slate-950">
                   <img 
-                    src="/src/assets/images/cyprus_launch_banner_1790708092704.jpg" 
+                    src="/images/cyprus_launch_banner.jpg" 
                     alt="LookPrice Kıbrıs Lansmanı" 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex items-end p-2.5">
-                    <button 
-                      type="button"
-                      onClick={() => setShowDemoModal(true)} 
-                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-lg shadow-lg transition-all cursor-pointer"
-                    >
-                      {txt("Lansmana Özel Demo İste", "Request Cyprus Launch Demo", "Αίτημα Επίδειξης")}
-                    </button>
-                  </div>
                 </div>
+                <button 
+                  type="button"
+                  onClick={() => setShowDemoModal(true)} 
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>{txt("Lansmana Özel Demo İste", "Request Cyprus Launch Demo", "Αίτημα Επίδειξης")}</span>
+                </button>
               </div>
             </div>
           </div>
