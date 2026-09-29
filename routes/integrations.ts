@@ -343,7 +343,7 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
     for (const order of amazonOrders) {
       const orderStatus = String(order.OrderStatus || '').trim();
       const totalAmountFloat = parseFloat(order.OrderTotal?.Amount || '0') || 0;
-      const isCanceled = orderStatus === 'Canceled' || orderStatus === 'Cancelled' || orderStatus === 'Pending' || orderStatus === 'Unfulfillable';
+      const isCanceled = orderStatus === 'Canceled' || orderStatus === 'Cancelled' || orderStatus === 'Unfulfillable';
 
       // ZERO-AMOUNT & CANCELED ORDER GUARD:
       // Orders that are cancelled or 0-amount MUST NOT create sales/invoices and MUST NOT deduct inventory stock!
