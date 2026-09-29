@@ -710,6 +710,60 @@ export class AmazonService {
   }
 
   /**
+   * Calculate effective Amazon price using commission & fixed fee markup:
+   * P_AMZ = (P_Web_TRY + FixedFee) / (1 - (CommissionRate / 100))
+   */
+  calculateMarketplacePrice(webPriceTry: number, category?: string, subCategory?: string): number {
+    const rawPrice = Number(webPriceTry) || 0;
+    if (rawPrice <= 0) return 0;
+
+    const settings: any = this.settings || {};
+    const categoryMarkups = settings.categoryMarkups || {};
+
+    let commissionRate = settings.defaultCommissionRate !== undefined && settings.defaultCommissionRate !== null
+      ? Number(settings.defaultCommissionRate) 
+      : 0;
+    let fixedFee = settings.defaultFixedFee !== undefined && settings.defaultFixedFee !== null 
+      ? Number(settings.defaultFixedFee) 
+      : 0;
+
+    const cat1 = category ? String(category).trim() : '';
+    const sub1 = subCategory ? String(subCategory).trim() : '';
+    const subKey = cat1 && sub1 ? `${cat1} > ${sub1}` : '';
+
+    if (subKey && categoryMarkups[subKey]) {
+      const cm = categoryMarkups[subKey];
+      if (cm.commissionRate !== undefined && cm.commissionRate !== null && cm.commissionRate !== '') {
+        commissionRate = Number(cm.commissionRate);
+      }
+      if (cm.fixedFee !== undefined && cm.fixedFee !== null && cm.fixedFee !== '') {
+        fixedFee = Number(cm.fixedFee);
+      }
+    } else if (cat1 && categoryMarkups[cat1]) {
+      const cm = categoryMarkups[cat1];
+      if (cm.commissionRate !== undefined && cm.commissionRate !== null && cm.commissionRate !== '') {
+        commissionRate = Number(cm.commissionRate);
+      }
+      if (cm.fixedFee !== undefined && cm.fixedFee !== null && cm.fixedFee !== '') {
+        fixedFee = Number(cm.fixedFee);
+      }
+    }
+
+    if (commissionRate <= 0 && fixedFee <= 0) {
+      return Number(rawPrice.toFixed(2));
+    }
+
+    if (commissionRate >= 100) {
+      commissionRate = 99.9;
+    }
+
+    const divisor = 1 - (commissionRate / 100);
+    const calculatedPrice = (rawPrice + fixedFee) / divisor;
+
+    return Number(calculatedPrice.toFixed(2));
+  }
+
+  /**
    * Update Price & Stock for a single SKU via Listings Items API
    */
   async updateListingsItem(sku: string, price: number, quantity: number): Promise<{ success: boolean; sku: string; message?: string }> {

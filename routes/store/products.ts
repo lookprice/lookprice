@@ -1389,6 +1389,48 @@ router.put("/:id", async (req: any, res) => {
       })();
     }
 
+    if (existingProductRes.rows[0]?.is_amazon_active) {
+      (async () => {
+        try {
+          const storeRes = await pool.query("SELECT amazon_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+          const st = storeRes.rows[0];
+          const amzSettings = st?.amazon_settings || st?.branding?.amazon_settings;
+          if (amzSettings?.sellerId && amzSettings?.clientId && amzSettings?.clientSecret && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
+            const { AmazonService } = await import("../../src/services/backend/amazonService.js");
+            const amzService = new AmazonService(amzSettings, storeId);
+            
+            const rates = st?.currency_rates || st?.branding?.currency_rates || {};
+            let rawPrice = parseFloat(String(finalPrice || "0"));
+            const curr = (currency || "TRY").toUpperCase();
+            if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+            else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+            else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+
+            const effectivePrice = amzService.calculateMarketplacePrice(rawPrice, category, sub_category);
+            const amzSku = existingProductRes.rows[0]?.amazon_sku || finalBarcode;
+
+            if (amzSku) {
+              await amzService.updateListingsItem(
+                String(amzSku).trim(),
+                effectivePrice,
+                parseInt(String(newStock || 0), 10)
+              );
+              await pool.query(
+                "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = NULL WHERE id = $1",
+                [id]
+              );
+            }
+          }
+        } catch (amzSyncErr: any) {
+          console.warn(`[Background Amazon Sync] Failed for product ${id}:`, amzSyncErr.message);
+          await pool.query(
+            "UPDATE products SET amazon_last_error = $1 WHERE id = $2",
+            [amzSyncErr.message, id]
+          );
+        }
+      })();
+    }
+
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message });

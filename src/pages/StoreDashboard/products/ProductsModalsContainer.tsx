@@ -160,6 +160,7 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
           products={products}
           lang={lang}
           storeName={branding?.store_name || branding?.name || "Mağaza"}
+          branding={branding}
         />
       )}
     </>

@@ -12,7 +12,13 @@ import {
   ShoppingBag, 
   Barcode, 
   DollarSign, 
-  Package
+  Package,
+  TrendingUp,
+  AlertTriangle,
+  ExternalLink,
+  ShieldAlert,
+  SlidersHorizontal,
+  Filter
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -23,6 +29,7 @@ interface ProductXRayReportModalProps {
   products: any[];
   lang: string;
   storeName?: string;
+  branding?: any;
 }
 
 export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
@@ -30,11 +37,196 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
   onClose,
   products = [],
   lang,
-  storeName = "Mağaza"
+  storeName = "Mağaza",
+  branding = {}
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const isTr = lang === 'tr';
+
+  // Currency rates from store branding or fallback TCMB rates
+  const rates = useMemo(() => {
+    return branding?.currency_rates || {
+      USD: 48.9008,
+      EUR: 55.6307,
+      GBP: 64.7268
+    };
+  }, [branding]);
+
+  const usdRate = Number(rates.USD) || 48.9008;
+  const eurRate = Number(rates.EUR) || 55.6307;
+  const gbpRate = Number(rates.GBP) || 64.7268;
+
+  const convertToTry = (amount: number, curr?: string): number => {
+    const num = Number(amount) || 0;
+    const c = String(curr || 'TRY').toUpperCase().trim();
+    if (c === 'USD' || c === '$') return num * usdRate;
+    if (c === 'EUR' || c === '€') return num * eurRate;
+    if (c === 'GBP' || c === '£') return num * gbpRate;
+    return num;
+  };
+
+  const formatWithCurrency = (amount: number, curr?: string): string => {
+    const num = Number(amount) || 0;
+    const c = String(curr || 'TRY').toUpperCase().trim();
+    const formatted = num.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (c === 'USD' || c === '$') return `$${formatted}`;
+    if (c === 'EUR' || c === '€') return `${formatted} €`;
+    if (c === 'GBP' || c === '£') return `${formatted} £`;
+    return `${formatted} ₺`;
+  };
+
+  // Helper to compute exact multi-channel scenario prices, live prices & audit discrepancy
+  const getProductChannelScenario = (p: any) => {
+    let mpData: any = p.marketplace_data;
+    if (typeof mpData === 'string') {
+      try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+    }
+    mpData = mpData || {};
+
+    const rawWebPrice = Number(p.price) || 0;
+    const webCurr = String(p.currency || 'TRY').toUpperCase().trim();
+    const webPriceTry = convertToTry(rawWebPrice, webCurr);
+
+    const costPrice = Number(p.cost_price) || 0;
+    const costCurr = String(p.cost_currency || (p.currency || 'TRY')).toUpperCase().trim();
+    const costPriceTry = convertToTry(costPrice, costCurr);
+
+    // 1. Hepsiburada Strategy & Live Price
+    const hbSettings = branding?.hepsiburada_settings || {};
+    const hbCommRate = Number(hbSettings.defaultCommissionRate ?? 18);
+    const hbFixedFee = Number(hbSettings.defaultFixedFee ?? 0);
+    const hbDivisor = 1 - (hbCommRate / 100);
+    const hbTargetPrice = hbDivisor > 0 
+      ? Math.round(((webPriceTry + hbFixedFee) / hbDivisor) * 100) / 100 
+      : Math.round(webPriceTry * 100) / 100;
+
+    let hbLivePrice = 0;
+    let isHbExplicit = false;
+    if (mpData?.hepsiburada?.price && Number(mpData.hepsiburada.price) > 0) {
+      hbLivePrice = Number(mpData.hepsiburada.price);
+      isHbExplicit = true;
+    } else if (mpData?.hepsiburada?.attributes?.price && Number(mpData.hepsiburada.attributes.price) > 0) {
+      hbLivePrice = Number(mpData.hepsiburada.attributes.price);
+      isHbExplicit = true;
+    } else if (p.is_hepsiburada_active) {
+      hbLivePrice = hbTargetPrice;
+    }
+
+    const hbIsUnderpriced = Boolean(p.is_hepsiburada_active && hbLivePrice > 0 && hbLivePrice < hbTargetPrice - 1.0);
+    const hbPriceDiff = Math.max(0, Math.round((hbTargetPrice - hbLivePrice) * 100) / 100);
+    const hbUrl = p.hepsiburada_url || mpData?.hepsiburada?.productUrl || null;
+
+    // 2. Amazon TR Strategy & Live Price
+    const amzSettings = branding?.amazon_settings || {};
+    const amzCommRate = Number(amzSettings.defaultCommissionRate ?? 15);
+    const amzFixedFee = Number(amzSettings.defaultFixedFee ?? 0);
+    const amzDivisor = 1 - (amzCommRate / 100);
+    const amzTargetPrice = amzDivisor > 0
+      ? Math.round(((webPriceTry + amzFixedFee) / amzDivisor) * 100) / 100
+      : Math.round(webPriceTry * 100) / 100;
+
+    const cleanAmzAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim() : null;
+    const isAmzLive = Boolean(p.is_amazon_active && cleanAmzAsin);
+
+    let amzLivePrice = 0;
+    let isAmzExplicit = false;
+    if (mpData?.amazon?.price && Number(mpData.amazon.price) > 0) {
+      amzLivePrice = Number(mpData.amazon.price);
+      isAmzExplicit = true;
+    } else if (isAmzLive) {
+      amzLivePrice = amzTargetPrice;
+    }
+
+    const amzIsUnderpriced = Boolean(isAmzLive && amzLivePrice > 0 && amzLivePrice < amzTargetPrice - 1.0);
+    const amzPriceDiff = Math.max(0, Math.round((amzTargetPrice - amzLivePrice) * 100) / 100);
+    const amzUrl = p.amazon_url || mpData?.amazon?.productUrl || (cleanAmzAsin ? `https://www.amazon.com.tr/dp/${cleanAmzAsin}` : null);
+
+    // 3. Trendyol Strategy & Live Price
+    const tySettings = branding?.trendyol_settings || {};
+    const tyCommRate = Number(tySettings.defaultCommissionRate ?? 15);
+    const tyFixedFee = Number(tySettings.defaultFixedFee ?? 0);
+    const tyDivisor = 1 - (tyCommRate / 100);
+    const tyTargetPrice = tyDivisor > 0
+      ? Math.round(((webPriceTry + tyFixedFee) / tyDivisor) * 100) / 100
+      : Math.round(webPriceTry * 100) / 100;
+
+    let tyLivePrice = 0;
+    if (mpData?.trendyol?.price && Number(mpData.trendyol.price) > 0) {
+      tyLivePrice = Number(mpData.trendyol.price);
+    } else if (p.is_trendyol_active) {
+      tyLivePrice = tyTargetPrice;
+    }
+    const tyIsUnderpriced = Boolean(p.is_trendyol_active && tyLivePrice > 0 && tyLivePrice < tyTargetPrice - 1.0);
+
+    // 4. N11 Strategy & Live Price
+    const n11TargetPrice = Math.round(webPriceTry * 100) / 100;
+    let n11LivePrice = 0;
+    if (mpData?.n11?.price && Number(mpData.n11.price) > 0) {
+      n11LivePrice = Number(mpData.n11.price);
+    } else if (p.is_n11_active) {
+      n11LivePrice = n11TargetPrice;
+    }
+    const n11IsUnderpriced = Boolean(p.is_n11_active && n11LivePrice > 0 && n11LivePrice < n11TargetPrice - 1.0);
+
+    // 5. Pazarama Strategy & Live Price
+    const pzrTargetPrice = Math.round(webPriceTry * 100) / 100;
+    let pzrLivePrice = 0;
+    if (mpData?.pazarama?.price && Number(mpData.pazarama.price) > 0) {
+      pzrLivePrice = Number(mpData.pazarama.price);
+    } else if (p.is_pazarama_active) {
+      pzrLivePrice = pzrTargetPrice;
+    }
+    const pzrIsUnderpriced = Boolean(p.is_pazarama_active && pzrLivePrice > 0 && pzrLivePrice < pzrTargetPrice - 1.0);
+
+    const hasAnyUnderpriced = hbIsUnderpriced || amzIsUnderpriced || tyIsUnderpriced || n11IsUnderpriced || pzrIsUnderpriced;
+
+    return {
+      rawWebPrice,
+      webCurr,
+      webPriceTry,
+      costPrice,
+      costCurr,
+      costPriceTry,
+      
+      // HB
+      hbTargetPrice,
+      hbLivePrice,
+      hbIsUnderpriced,
+      hbPriceDiff,
+      hbUrl,
+      hbCommRate,
+      hbFixedFee,
+
+      // AMZ
+      amzTargetPrice,
+      amzLivePrice,
+      amzIsUnderpriced,
+      amzPriceDiff,
+      amzUrl,
+      amzCommRate,
+      amzFixedFee,
+
+      // TY
+      tyTargetPrice,
+      tyLivePrice,
+      tyIsUnderpriced,
+
+      // N11
+      n11TargetPrice,
+      n11LivePrice,
+      n11IsUnderpriced,
+
+      // PZR
+      pzrTargetPrice,
+      pzrLivePrice,
+      pzrIsUnderpriced,
+
+      hasAnyUnderpriced,
+      cleanAmzAsin,
+      isAmzLive
+    };
+  };
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -46,11 +238,14 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
         if (!matchesName && !matchesBarcode && !matchesSku) return false;
       }
 
-      if (channelFilter === 'hepsiburada') {
+      const sc = getProductChannelScenario(p);
+
+      if (channelFilter === 'underpriced') {
+        if (!sc.hasAnyUnderpriced) return false;
+      } else if (channelFilter === 'hepsiburada') {
         if (!p.is_hepsiburada_active) return false;
       } else if (channelFilter === 'amazon') {
-        const cleanAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim() : null;
-        if (!p.is_amazon_active || !cleanAsin) return false;
+        if (!sc.isAmzLive) return false;
       } else if (channelFilter === 'trendyol') {
         if (!p.is_trendyol_active) return false;
       } else if (channelFilter === 'n11') {
@@ -63,7 +258,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
 
       return true;
     });
-  }, [products, searchTerm, channelFilter]);
+  }, [products, searchTerm, channelFilter, usdRate, eurRate]);
 
   const metrics = useMemo(() => {
     let totalProducts = products.length;
@@ -72,35 +267,29 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
     let amzActive = 0;
     let tyActive = 0;
     let n11Active = 0;
+    let underpricedCount = 0;
     let totalStockQty = 0;
 
     products.forEach(p => {
+      const sc = getProductChannelScenario(p);
       if (p.is_web_sale) webActive++;
       if (p.is_hepsiburada_active) hbActive++;
-      const cleanAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim() : null;
-      if (p.is_amazon_active && cleanAsin) amzActive++;
+      if (sc.isAmzLive) amzActive++;
       if (p.is_trendyol_active) tyActive++;
       if (p.is_n11_active) n11Active++;
+      if (sc.hasAnyUnderpriced) underpricedCount++;
 
       const qty = parseFloat(p.stock_quantity || 0);
       totalStockQty += qty;
     });
 
-    return { totalProducts, webActive, hbActive, amzActive, tyActive, n11Active, totalStockQty };
-  }, [products]);
+    return { totalProducts, webActive, hbActive, amzActive, tyActive, n11Active, underpricedCount, totalStockQty };
+  }, [products, usdRate, eurRate]);
 
   const handleExportExcel = () => {
     try {
       const dataToExport = filteredProducts.map((p, idx) => {
-        let mpData: any = p.marketplace_data;
-        if (typeof mpData === 'string') {
-          try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
-        }
-        mpData = mpData || {};
-
-        const hbPrice = mpData?.hepsiburada?.price || p.price;
-        const amzPrice = mpData?.amazon?.price || p.price;
-        const tyPrice = mpData?.trendyol?.price || p.price;
+        const sc = getProductChannelScenario(p);
 
         return {
           "Sıra": idx + 1,
@@ -109,22 +298,34 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
           "SKU / Kod": p.sku || p.product_code || "",
           "Reel Stok Miktarı": parseFloat(p.stock_quantity || 0),
           "Birim": p.unit || "Adet",
-          "Alış Maliyeti (Ort.)": parseFloat(p.cost_price || 0),
-          "Web Satış Bedeli": parseFloat(p.price || 0),
+          "Alış Maliyeti": sc.costPrice,
+          "Maliyet Para Birimi": sc.costCurr,
+          "Alış Maliyeti (₺ Karşılığı)": Math.round(sc.costPriceTry * 100) / 100,
+          "Web Satış Bedeli": sc.rawWebPrice,
+          "Web Para Birimi": sc.webCurr,
+          "Web Satış (₺ Karşılığı)": Math.round(sc.webPriceTry * 100) / 100,
           "Hepsiburada Durum": p.is_hepsiburada_active ? "Aktif (Satışta)" : "Pasif",
           "Hepsiburada SKU": p.hepsiburada_sku || "",
-          "Hepsiburada Fiyat (₺)": parseFloat(hbPrice || p.price || 0),
+          "Hepsiburada Canlı Satış Fiyatı (₺)": sc.hbLivePrice,
+          "Hepsiburada Hedef Strateji Fiyatı (₺)": sc.hbTargetPrice,
+          "Hepsiburada Fiyat Durumu": sc.hbIsUnderpriced ? `Düşük Fiyat (-${sc.hbPriceDiff} ₺)` : "Uyumlu",
           "Hepsiburada Stok": p.is_hepsiburada_active ? parseFloat(p.stock_quantity || 0) : 0,
-          "Amazon Durum": (p.is_amazon_active && p.amazon_asin) ? "Aktif (Satışta)" : "Pasif",
+          "Amazon Durum": sc.isAmzLive ? "Aktif (Satışta)" : "Pasif",
           "Amazon ASIN": p.amazon_asin || "",
-          "Amazon Fiyat (₺)": parseFloat(amzPrice || p.price || 0),
-          "Amazon Stok": (p.is_amazon_active && p.amazon_asin) ? parseFloat(p.stock_quantity || 0) : 0,
+          "Amazon TR Canlı Satış Fiyatı (₺)": sc.amzLivePrice,
+          "Amazon TR Hedef Strateji Fiyatı (₺)": sc.amzTargetPrice,
+          "Amazon TR Fiyat Durumu": sc.amzIsUnderpriced ? `Düşük Fiyat (-${sc.amzPriceDiff} ₺)` : "Uyumlu",
+          "Amazon Stok": sc.isAmzLive ? parseFloat(p.stock_quantity || 0) : 0,
           "Trendyol Durum": p.is_trendyol_active ? "Aktif (Satışta)" : "Pasif",
-          "Trendyol Fiyat (₺)": parseFloat(tyPrice || p.price || 0),
+          "Trendyol Canlı Satış Fiyatı (₺)": sc.tyLivePrice,
+          "Trendyol Hedef Fiyat (₺)": sc.tyTargetPrice,
+          "Trendyol Fiyat Durumu": sc.tyIsUnderpriced ? "Düşük Fiyat" : "Uyumlu",
           "Trendyol Stok": p.is_trendyol_active ? parseFloat(p.stock_quantity || 0) : 0,
           "N11 Durum": p.is_n11_active ? "Aktif (Satışta)" : "Pasif",
+          "N11 Canlı Satış Fiyatı (₺)": sc.n11LivePrice,
           "N11 Stok": p.is_n11_active ? parseFloat(p.stock_quantity || 0) : 0,
           "Pazarama Durum": p.is_pazarama_active ? "Aktif (Satışta)" : "Pasif",
+          "Pazarama Canlı Satış Fiyatı (₺)": sc.pzrLivePrice,
           "Kategori": p.category || ""
         };
       });
@@ -133,7 +334,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Ürün Röntgeni Raporu");
       XLSX.writeFile(wb, `Urun_Rontgeni_Raporu_${storeName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success(isTr ? "Ürün Röntgeni ve Kanal Fiyat/Stok raporu Excel olarak indirildi!" : "Product X-Ray channel report downloaded successfully!");
+      toast.success(isTr ? "Ürün Röntgeni ve Strateji/Canlı Fiyat Raporu Excel olarak indirildi!" : "Product X-Ray pricing audit report downloaded successfully!");
     } catch (e: any) {
       toast.error(isTr ? "Excel dışa aktarma hatası: " + e.message : "Export error: " + e.message);
     }
@@ -152,12 +353,25 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
               <Activity className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
-                {isTr ? "Çok Kanallı Ürün Röntgeni & Kanal Senaryo Raporu" : "Multi-Channel Product X-Ray Report"}
-              </h3>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-                {isTr ? `${storeName} mağazasının tüm kanallardaki (Web, HB, Amazon, Trendyol, N11, Pazarama) reel stok ve kanal satış fiyatı röntgeni.` : `Complete stock and channel sales pricing audit across all sales channels.`}
-              </p>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+                  {isTr ? "Çok Kanallı Ürün Röntgeni & Fiyat Strateji Denetimi" : "Multi-Channel Product X-Ray & Pricing Audit"}
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-black uppercase tracking-wider">
+                  <TrendingUp className="h-3 w-3" />
+                  {isTr ? "Reel Listeleme vs Hedef Strateji" : "Live Price vs Target Strategy"}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs">
+                <p className="font-medium text-slate-500 dark:text-slate-400">
+                  {isTr ? `${storeName} mağazasının pazar yerlerindeki canlı satış fiyatları, hedef komisyonlu strateji fiyatları ve düşük kalan ürünlerin röntgeni.` : `Audit live listing prices versus targeted commission strategies across all channels.`}
+                </p>
+                <div className="inline-flex items-center gap-2 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 font-mono">
+                  <span>TCMB: 1 USD = {usdRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</span>
+                  <span>•</span>
+                  <span>1 EUR = {eurRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</span>
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -180,7 +394,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
         </div>
 
         {/* METRICS BAR */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 p-4 sm:p-5 bg-indigo-50/40 dark:bg-slate-950/40 border-b border-indigo-100 dark:border-slate-800 shrink-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 p-4 sm:p-5 bg-indigo-50/40 dark:bg-slate-950/40 border-b border-indigo-100 dark:border-slate-800 shrink-0">
           <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
             <span className="text-[10px] font-bold text-slate-400 uppercase block">{isTr ? "Toplam Ürün" : "Total Products"}</span>
             <span className="text-lg font-black text-slate-900 dark:text-white mt-0.5 block">{metrics.totalProducts}</span>
@@ -205,8 +419,25 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
             <span className="text-[10px] font-bold text-slate-400 uppercase block">N11</span>
             <span className="text-lg font-black text-red-600 dark:text-red-400 mt-0.5 block">{metrics.n11Active}</span>
           </div>
-          <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs col-span-2 sm:col-span-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase block">{isTr ? "Listelenen Kayıt" : "Filtered Count"}</span>
+          
+          {/* UNDERPRICED HIGHLIGHT METRIC */}
+          <div className={`p-3 rounded-2xl border shadow-2xs cursor-pointer transition-all ${
+            metrics.underpricedCount > 0 
+              ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 ring-2 ring-rose-500/20' 
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+          }`}
+          onClick={() => setChannelFilter(channelFilter === 'underpriced' ? 'all' : 'underpriced')}
+          title={isTr ? "Fiyatı düşük kalan ürünleri filtrelemek için tıklayın" : "Click to filter underpriced products"}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-rose-700 dark:text-rose-400 uppercase block">{isTr ? "Düşük Fiyat" : "Underpriced"}</span>
+              <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+            </div>
+            <span className="text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5 block">{metrics.underpricedCount}</span>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+            <span className="text-[10px] font-bold text-slate-400 uppercase block">{isTr ? "Listelenen" : "Listed"}</span>
             <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block">{filteredProducts.length}</span>
           </div>
         </div>
@@ -225,7 +456,37 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            {['all', 'web', 'hepsiburada', 'amazon', 'trendyol', 'n11', 'pazarama'].map((ch) => (
+            <button
+              type="button"
+              onClick={() => setChannelFilter('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                channelFilter === 'all' 
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
+            >
+              {isTr ? "Tüm Kanallar" : "All Channels"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setChannelFilter('underpriced')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                channelFilter === 'underpriced' 
+                  ? 'bg-rose-600 text-white shadow-md' 
+                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100'
+              }`}
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span>{isTr ? "⚠️ Fiyatı Düşük Kalanlar" : "⚠️ Underpriced Only"}</span>
+              {metrics.underpricedCount > 0 && (
+                <span className="px-1.5 py-0.2 bg-rose-700 text-white rounded-full text-[10px] font-black">
+                  {metrics.underpricedCount}
+                </span>
+              )}
+            </button>
+
+            {['web', 'hepsiburada', 'amazon', 'trendyol', 'n11', 'pazarama'].map((ch) => (
               <button
                 key={ch}
                 type="button"
@@ -236,7 +497,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
-                {ch === 'all' ? (isTr ? "Tüm Kanallar" : "All Channels") : ch}
+                {ch === 'amazon' ? 'Amazon TR' : ch}
               </button>
             ))}
           </div>
@@ -257,39 +518,39 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
                     <th className="p-3">#</th>
                     <th className="p-3">{isTr ? "Ürün Adı & Barkod" : "Product Name & Barcode"}</th>
                     <th className="p-3 text-center">{isTr ? "Reel Stok" : "Stock Qty"}</th>
-                    <th className="p-3 text-right">{isTr ? "Maliyet" : "Cost"}</th>
-                    <th className="p-3 text-right">{isTr ? "Web Fiyatı" : "Web Price"}</th>
-                    <th className="p-3 text-center">Hepsiburada (Fiyat / Stok)</th>
-                    <th className="p-3 text-center">Amazon TR (Fiyat / Stok)</th>
-                    <th className="p-3 text-center">Trendyol (Fiyat / Stok)</th>
-                    <th className="p-3 text-center">N11 (Fiyat / Stok)</th>
-                    <th className="p-3 text-center">Pazarama (Fiyat / Stok)</th>
+                    <th className="p-3 text-right">{isTr ? "Alış Maliyeti" : "Cost"}</th>
+                    <th className="p-3 text-right">{isTr ? "Web Satış Bedeli" : "Web Price"}</th>
+                    <th className="p-3 text-center">Hepsiburada (Canlı / Strateji)</th>
+                    <th className="p-3 text-center">Amazon TR (Canlı / Strateji)</th>
+                    <th className="p-3 text-center">Trendyol (Canlı / Strateji)</th>
+                    <th className="p-3 text-center">N11 (Canlı / Strateji)</th>
+                    <th className="p-3 text-center">Pazarama</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   {filteredProducts.map((p, idx) => {
-                    let mpData: any = p.marketplace_data;
-                    if (typeof mpData === 'string') {
-                      try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
-                    }
-                    mpData = mpData || {};
-
-                    const cleanAmzAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim() : null;
-                    const isAmzLive = Boolean(p.is_amazon_active && cleanAmzAsin);
+                    const sc = getProductChannelScenario(p);
                     const isHbLive = Boolean(p.is_hepsiburada_active);
                     const isTyLive = Boolean(p.is_trendyol_active);
                     const isN11Live = Boolean(p.is_n11_active);
                     const isPzrLive = Boolean(p.is_pazarama_active);
                     const isWebLive = Boolean(p.is_web_sale);
-
                     const stockQty = parseFloat(p.stock_quantity || 0);
-                    const webPrice = parseFloat(p.price || 0);
 
                     return (
-                      <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                      <tr key={p.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors ${
+                        sc.hasAnyUnderpriced ? 'bg-rose-50/30 dark:bg-rose-950/20' : ''
+                      }`}>
                         <td className="p-3 font-bold text-slate-400">{idx + 1}</td>
                         <td className="p-3">
-                          <div className="font-black text-slate-900 dark:text-white max-w-xs truncate">{p.name}</div>
+                          <div className="font-black text-slate-900 dark:text-white max-w-xs truncate flex items-center gap-1.5">
+                            {sc.hasAnyUnderpriced && (
+                              <span title={isTr ? "Pazaryerinde fiyatı formüle göre düşük kalmış!" : "Underpriced in marketplace!"}>
+                                <AlertTriangle className="h-3.5 w-3.5 text-rose-500 shrink-0 inline" />
+                              </span>
+                            )}
+                            <span className="truncate">{p.name}</span>
+                          </div>
                           <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1 mt-0.5">
                             <Barcode className="h-3 w-3" />
                             <span>{p.barcode || p.sku || 'N/A'}</span>
@@ -304,12 +565,30 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
                             {stockQty} {p.unit || 'Adet'}
                           </span>
                         </td>
-                        <td className="p-3 text-right font-mono font-bold text-slate-600 dark:text-slate-300">
-                          {Number(p.cost_price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+
+                        {/* Cost Price */}
+                        <td className="p-3 text-right font-mono">
+                          <div className="font-bold text-slate-700 dark:text-slate-200">
+                            {formatWithCurrency(sc.costPrice, sc.costCurr)}
+                          </div>
+                          {sc.costCurr !== 'TRY' && sc.costPrice > 0 && (
+                            <div className="text-[10px] text-slate-400 font-semibold" title={isTr ? "TCMB Alış Kuru ile TRY Karşılığı" : "TRY Equivalent"}>
+                              ≈ {sc.costPriceTry.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
+                            </div>
+                          )}
                         </td>
-                        <td className="p-3 text-right font-mono font-black text-indigo-600 dark:text-indigo-400">
-                          {webPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
-                          <div className="text-[9px] font-bold text-slate-400">
+
+                        {/* Web Price */}
+                        <td className="p-3 text-right font-mono">
+                          <div className="font-black text-indigo-600 dark:text-indigo-400">
+                            {formatWithCurrency(sc.rawWebPrice, sc.webCurr)}
+                          </div>
+                          {sc.webCurr !== 'TRY' && sc.rawWebPrice > 0 && (
+                            <div className="text-[10px] text-indigo-400 dark:text-indigo-300 font-semibold" title={isTr ? "TCMB Kuru ile Web Satış Değeri (TRY)" : "TRY Equivalent"}>
+                              ≈ {sc.webPriceTry.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
+                            </div>
+                          )}
+                          <div className="text-[9px] font-bold text-slate-400 mt-0.5">
                             {isWebLive ? (isTr ? "Web'de Aktif" : "Web Live") : (isTr ? "Web Pasif" : "Web Off")}
                           </div>
                         </td>
@@ -317,46 +596,106 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
                         {/* Hepsiburada */}
                         <td className="p-3 text-center">
                           {isHbLive ? (
-                            <div className="space-y-0.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-900 border border-orange-300 rounded-md text-[10px] font-black">
-                                <CheckCircle2 className="h-3 w-3 text-orange-600 shrink-0" />
-                                <span>{webPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
-                              </span>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-center gap-1">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black ${
+                                  sc.hbIsUnderpriced 
+                                    ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                                    : 'bg-orange-100 text-orange-900 border border-orange-300'
+                                }`}>
+                                  <CheckCircle2 className="h-3 w-3 text-orange-600 shrink-0" />
+                                  <span>{sc.hbLivePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
+                                </span>
+                                {sc.hbUrl && (
+                                  <a 
+                                    href={sc.hbUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="text-orange-600 hover:text-orange-800 p-0.5" 
+                                    title={isTr ? "Hepsiburada ürün sayfasına git" : "View on Hepsiburada"}
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+                              </div>
+
+                              {sc.hbIsUnderpriced ? (
+                                <div className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded inline-block" title={isTr ? "Döviz veya komisyon kuralına göre olması gereken hedef fiyat" : "Target Formula Price"}>
+                                  ⚠️ Hedef: {sc.hbTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ (-{sc.hbPriceDiff.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺)
+                                </div>
+                              ) : (
+                                <div className="text-[8px] font-medium text-slate-400" title={isTr ? `Hedef: ${sc.hbTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺` : "Target Formula Price"}>
+                                  Hedef: {sc.hbTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                </div>
+                              )}
+
                               <div className="text-[9px] font-bold text-emerald-700">Stok: {stockQty}</div>
+                              <div className="text-[8px] font-mono text-slate-400 truncate max-w-[100px] mx-auto">
+                                {p.hepsiburada_sku || '-'}
+                              </div>
                             </div>
                           ) : (
                             <span className="text-[10px] font-bold text-slate-400">Pasif</span>
                           )}
-                          <div className="text-[8px] font-mono text-slate-400 mt-0.5 truncate max-w-[100px] mx-auto">
-                            {p.hepsiburada_sku || '-'}
-                          </div>
                         </td>
 
                         {/* Amazon TR */}
                         <td className="p-3 text-center">
-                          {isAmzLive ? (
-                            <div className="space-y-0.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-md text-[10px] font-black">
-                                <CheckCircle2 className="h-3 w-3 text-amber-600 shrink-0" />
-                                <span>{webPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
-                              </span>
+                          {sc.isAmzLive ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-center gap-1">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black ${
+                                  sc.amzIsUnderpriced 
+                                    ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                                    : 'bg-amber-100 text-amber-900 border border-amber-300'
+                                }`}>
+                                  <CheckCircle2 className="h-3 w-3 text-amber-600 shrink-0" />
+                                  <span>{sc.amzLivePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
+                                </span>
+                                {sc.amzUrl && (
+                                  <a 
+                                    href={sc.amzUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="text-amber-600 hover:text-amber-800 p-0.5" 
+                                    title={isTr ? "Amazon TR ürün sayfasına git" : "View on Amazon TR"}
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+                              </div>
+
+                              {sc.amzIsUnderpriced ? (
+                                <div className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded inline-block" title={isTr ? "Döviz ve komisyon stratejisine göre olması gereken hedef fiyat" : "Target Formula Price"}>
+                                  ⚠️ Hedef: {sc.amzTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ (-{sc.amzPriceDiff.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺)
+                                </div>
+                              ) : (
+                                <div className="text-[8px] font-medium text-slate-400" title={isTr ? `Hedef: ${sc.amzTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺` : "Target Formula Price"}>
+                                  Hedef: {sc.amzTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                </div>
+                              )}
+
                               <div className="text-[9px] font-bold text-emerald-700">Stok: {stockQty}</div>
+                              <div className="text-[8px] font-mono text-slate-400 truncate max-w-[100px] mx-auto" title={sc.cleanAmzAsin || ''}>
+                                {sc.cleanAmzAsin || '-'}
+                              </div>
                             </div>
                           ) : (
                             <span className="text-[10px] font-bold text-slate-400">Pasif</span>
                           )}
-                          <div className="text-[8px] font-mono text-slate-400 mt-0.5 truncate max-w-[100px] mx-auto" title={cleanAmzAsin || ''}>
-                            {cleanAmzAsin || '-'}
-                          </div>
                         </td>
 
                         {/* Trendyol */}
                         <td className="p-3 text-center">
                           {isTyLive ? (
                             <div className="space-y-0.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-800 border border-orange-200 rounded-md text-[10px] font-black">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black ${
+                                sc.tyIsUnderpriced
+                                  ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                                  : 'bg-orange-50 text-orange-800 border border-orange-200'
+                              }`}>
                                 <CheckCircle2 className="h-3 w-3 text-orange-500 shrink-0" />
-                                <span>{webPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
+                                <span>{sc.tyLivePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
                               </span>
                               <div className="text-[9px] font-bold text-emerald-700">Stok: {stockQty}</div>
                             </div>
@@ -371,7 +710,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
                             <div className="space-y-0.5">
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-800 border border-red-200 rounded-md text-[10px] font-black">
                                 <CheckCircle2 className="h-3 w-3 text-red-500 shrink-0" />
-                                <span>{webPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
+                                <span>{sc.n11LivePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
                               </span>
                               <div className="text-[9px] font-bold text-emerald-700">Stok: {stockQty}</div>
                             </div>
@@ -386,7 +725,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
                             <div className="space-y-0.5">
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded-md text-[10px] font-black">
                                 <CheckCircle2 className="h-3 w-3 text-blue-500 shrink-0" />
-                                <span>{webPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
+                                <span>{sc.pzrLivePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
                               </span>
                               <div className="text-[9px] font-bold text-emerald-700">Stok: {stockQty}</div>
                             </div>
@@ -405,9 +744,17 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
 
         {/* FOOTER */}
         <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-between shrink-0">
-          <span className="text-xs font-bold text-slate-500">
-            {isTr ? `Toplam ${filteredProducts.length} ürün listeleniyor.` : `Showing ${filteredProducts.length} products.`}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500">
+              {isTr ? `Toplam ${filteredProducts.length} ürün listeleniyor.` : `Showing ${filteredProducts.length} products.`}
+            </span>
+            {metrics.underpricedCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3" />
+                {metrics.underpricedCount} ürünün pazaryeri fiyatı strateji formülünden düşük!
+              </span>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}

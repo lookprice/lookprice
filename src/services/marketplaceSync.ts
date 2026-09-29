@@ -637,9 +637,10 @@ export async function syncProductStockToMarketplaces(
             const sku = p.amazon_sku || p.sku || p.barcode;
             if (!sku) continue;
             const priceInTry = getPriceInTry(p);
+            const effectiveAmzPrice = amzService.calculateMarketplacePrice(priceInTry, p.category, p.sub_category);
             const currentStock = Math.max(0, parseInt(String(p.stock_quantity || 0), 10));
 
-            const amzRes = await amzService.updateListingsItem(String(sku).trim(), priceInTry, currentStock);
+            const amzRes = await amzService.updateListingsItem(String(sku).trim(), effectiveAmzPrice, currentStock);
             if (amzRes.success) {
               syncedCount++;
             } else {
