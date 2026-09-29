@@ -398,7 +398,7 @@ export class AmazonService {
 
             const lines = text.split("\n").filter((l: string) => l.trim().length > 0);
             if (lines.length > 1) {
-              const header = lines[0].split("\t");
+              const header = lines[0].replace(/^\uFEFF/, '').trim().split("\t").map(h => h.trim());
               for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split("\t");
                 const rowObj: any = {};
@@ -408,7 +408,7 @@ export class AmazonService {
 
                 const asin = rowObj["asin1"] || rowObj["product-id"];
                 const sku = rowObj["seller-sku"];
-                const title = rowObj["item-name"] || "";
+                const title = rowObj["item-name"] || rowObj["title"] || rowObj["product-name"] || "";
                 const price = parseFloat(rowObj["price"]) || 0;
                 const quantity = parseInt(rowObj["quantity"] || "0", 10);
                 const status = String(rowObj["status"] || "ACTIVE").toUpperCase();
@@ -1067,8 +1067,8 @@ export class AmazonService {
 
         const invRes = await client.query(
           `INSERT INTO sales_invoices 
-            (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, invoice_type, status, payment_method, address, notes, document_number, e_document_type, customer_email, customer_name) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id`,
+            (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, invoice_type, status, payment_method, address, notes, document_number, e_document_type, customer_email, customer_name, invoice_profile) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
           [
             this.storeId,
             saleId,
@@ -1084,10 +1084,11 @@ export class AmazonService {
             "Amazon",
             fullAddress,
             `Amazon.com.tr Siparişi #${amazonOrderId}`,
-            invoiceNumber,
+            null,
             "E-ARSIV",
             buyerEmail,
-            rawBuyerName
+            rawBuyerName,
+            "EARSIVFATURA"
           ]
         );
         const invoiceId = invRes.rows[0].id;

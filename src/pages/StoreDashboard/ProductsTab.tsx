@@ -7,6 +7,7 @@ import { useTableManager } from "@/hooks/useTableManager";
 import { BOOKSTORE_BADGES, extractProductLabels, hasBookstoreBadge, toggleBookstoreBadgeData } from "@/data/bookstoreBadges";
 import { resolveDomainId } from "@/utils/sectorCapability";
 import { getMarketplaceListingUrl } from "@/utils/marketplaceUrls";
+import { getConnectedMarketplaces } from "@/utils/marketplaceEStores";
 
 // Vertical Slices
 import { ProductsTabProps, MarketplaceFilterType, MarketplaceModalTab, MarketplaceModalStatus } from "./products/types";
@@ -354,12 +355,13 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   };
 
   const connectedMarketplaces = useMemo(() => {
+    const estoreConn = getConnectedMarketplaces(branding);
     const mp = branding?.marketplace_settings || {};
-    const hb = !!(mp.hepsiburada?.merchant_id && (mp.hepsiburada?.api_key || mp.hepsiburada?.secret_key));
-    const ty = !!(mp.trendyol?.supplier_id && mp.trendyol?.api_key);
-    const n11 = !!(mp.n11?.api_key && mp.n11?.api_secret);
-    const amz = !!(mp.amazon?.seller_id && mp.amazon?.refresh_token);
-    const pzr = !!(mp.pazarama?.api_key && mp.pazarama?.api_secret);
+    const hb = estoreConn.hepsiburada || !!(mp.hepsiburada?.merchant_id && (mp.hepsiburada?.api_key || mp.hepsiburada?.secret_key));
+    const ty = estoreConn.trendyol || !!(mp.trendyol?.supplier_id && mp.trendyol?.api_key);
+    const n11 = estoreConn.n11 || !!(mp.n11?.api_key && mp.n11?.api_secret);
+    const amz = estoreConn.amazon || !!(mp.amazon?.seller_id && (mp.amazon?.refresh_token || mp.amazon?.clientId));
+    const pzr = estoreConn.pazarama || !!(mp.pazarama?.api_key && mp.pazarama?.api_secret);
     return {
       hepsiburada: hb,
       trendyol: ty,
@@ -369,6 +371,10 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       hasAnyConnected: hb || ty || n11 || amz || pzr,
     };
   }, [branding]);
+
+  // Strict sectoral isolation: Product X-Ray is ONLY for shopLP (retail) stores with connected marketplace APIs
+  const isShopLpOnly = (domainId === 'RETAIL' || branding?.store_type === 'shop' || branding?.store_type === 'retail') && !isCafe && !isBookstore && !isPortfolio;
+  const showXRayButton = isShopLpOnly && connectedMarketplaces.hasAnyConnected;
 
   // Helper to check if a product is a bestseller
   const getIsBestseller = (p: any): boolean => {
@@ -542,6 +548,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         onImport={onImport}
         onExportReport={onExportReport}
         onOpenXRay={() => setShowXRayModal(true)}
+        showXRay={showXRayButton}
         handleBulkDeleteSelected={handleBulkDeleteSelected}
         handleSyncNamesFromInvoices={handleSyncNamesFromInvoices}
         isFixingNames={isFixingNames}

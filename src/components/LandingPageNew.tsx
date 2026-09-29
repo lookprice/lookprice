@@ -171,16 +171,16 @@ export const LandingPage = () => {
       },
       {
         id: "hotellp",
-        title: txt("HotelLP - Butik Otel & Rezervasyon Vitrini", "HotelLP - Boutique Hotel & Reservation Showcase", "HotelLP - Βιτρίνα Μπουτίκ Ξενοδοχείου & Κρατήσεων"),
+        title: txt("HotelLP - Butik Otel, Folio & Resepsiyon Otomasyonu", "HotelLP - Boutique Hotel, Folio & Reception Suite", "HotelLP - Βιτρίνα Μπουτίκ Ξενοδοχείου & Κρατήσεων"),
         tag: "HOTELLP",
         description: txt(
-          "Otel ve tatil köyleri için lüks oda tipleri, kişi kapasitesi, oda olanakları, rezervasyon takvimi ve çoklu tesis yönetimi.",
-          "Luxury room types, guest capacity, amenities, booking calendar, and multi-facility management for boutique hotels.",
-          "Τύποι πολυτελών δωματίων, χωρητικότητα επισκεπτών, ανέσεις και ημερολόγιο κρατήσεων για ξενοδοχεία."
+          "Yaş kategorili esnek çocuk politikaları, restoran POS adisyonlarını anında oda folyosuna aktaran birleşik hesap paneli, görsel doluluk takvimi ve biyometrik konuk CRM'i.",
+          "Age-categorized child policies, room folio billing integrated with restaurant POS, visual booking calendar, and biometric guest CRM.",
+          "Πολιτικές παιδιών ανά ηλικία, ενοποιημένος λογαριασμός δωματίου με POS εστιατορίου, ζωντανό ημερολόγιο και γρήγορο Check-in."
         ),
         youtubeId: null,
-        duration: txt("Yakında", "Coming Soon", "Σύντομα"),
-        isLive: false,
+        duration: txt("Canlı Demo", "Live Demo", "Ζωντανή Επίδειξη"),
+        isLive: true,
         coverImg: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
       }
     ];
@@ -350,9 +350,9 @@ export const LandingPage = () => {
       name: "HotelLP",
       sector: txt("Otel & Konaklama", "Hotel & Accommodation", "Ξενοδοχείο & Διαμονή"),
       description: txt(
-        "Butik oteller ve tatil köyleri için lüks oda tipleri, kişi kapasitesi, oda olanakları, rezervasyon takvimi ve çoklu tesis yönetimi.",
-        "Luxury room types, guest capacity, amenities, booking calendar, and multi-facility management for boutique hotels.",
-        "Τύποι πολυτελών δωματίων, χωρητικότητα επισκεπτών, ανέσεις και ημερολόγιο κρατήσεων για ξενοδοχεία."
+        "Butik oteller, tatil köyleri ve otel-restoran kompleksleri için tasarlanmış uçtan uca konaklama yönetim ekosistemi. Yaş kategorili esnek çocuk politikalarından sürükle-bırak oda tahsis takvimine, restoran POS adisyonlarını tek tıkla oda folyosuna aktaran birleşik hesap yönetiminden hızlı Check-in/Check-out ve biyometrik konuk CRM'ine kadar otelinizin tüm operasyonlarını tek ekrandan yönetin.",
+        "End-to-end hospitality management for boutique hotels, resorts, and hotel-restaurant complexes. Manage age-specific child policies, drag-and-drop room assignments, seamless restaurant POS-to-folio billing, fast Check-in/Check-out, and guest CRM.",
+        "Ολοκληρωμένη διαχείριση φιλοξενίας για μπουτίκ ξενοδοχεία, θέρετρα και συγκροτήματα. Διαχειριστείτε πολιτικές παιδιών ανά ηλικία, ημερολόγιο δωματίων, χρέωση εστιατορίου στο δωμάτιο και γρήγορο Check-in."
       ),
       icon: Hotel,
       link: "/horeca-landing",
@@ -361,10 +361,10 @@ export const LandingPage = () => {
       accent: "text-emerald-400",
       btnBg: "bg-emerald-600 hover:bg-emerald-700",
       features: [
-        txt("Lüks Oda & Konaklama Vitrini", "Luxury Room & Stay Showcase", "Βιτρίνα Πολυτελών Δωματίων & Διαμονής"),
-        txt("Kişi Kapasitesi & Oda Olanakları Filtresi", "Guest Capacity & Room Amenities Filter", "Φίλτρο Χωρητικότητας & Ανέσεων Δωματίου"),
-        txt("Online Rezervasyon & Doluluk Takvimi", "Online Booking & Availability Calendar", "Online Κράτηση & Ημερολόγιο Διαθεσιμότητας"),
-        txt("Çok Tesisli Oda & Hizmet Yönetimi", "Multi-Facility Room & Service Management", "Διαχείριση Δωματίων & Υπηρεσιών")
+        txt("Gelişmiş Oda Folyosu & Restoran POS Entegrasyonu", "Advanced Room Folio & Restaurant POS Billing", "Προηγμένος Λογαριασμός Δωματίου & Εστιατόριο POS"),
+        txt("Yaş Kategorili Çocuk Politikası & Fiyatlandırma", "Age-Categorized Child Policy & Dynamic Pricing", "Πολιτική Παιδιών ανά Ηλικία & Δυναμική Τιμολόγηση"),
+        txt("Görsel Oda Takvimi & Temizlik (Housekeeping) Takibi", "Visual Booking Matrix & Housekeeping Status", "Οπτικό Ημερολόγιο Δωματίων & Καθαριότητα"),
+        txt("Biyometrik Resepsiyon Check-In & Konuk CRM", "Biometric Reception Check-In & Guest CRM", "Γρήγορο Check-In & CRM Επισκεπτών")
       ]
     }
   ];
@@ -483,11 +483,11 @@ export const LandingPage = () => {
     {
       name: "HotelLP",
       sector: txt("Otel & Konaklama", "Hotel & Accommodation", "Ξενοδοχείο & Διαμονή"),
-      title: txt("Sektörünüze Özel\nButik Otel & Rezervasyon Vitrini", "Industry-Specific\nBoutique Hotel & Booking Suite", "Εξειδικευμένη Σουίτα\nΜπουτίκ Ξενοδοχείου & Κρατήσεων"),
+      title: txt("Sektörünüze Özel\nButik Otel, Folio & Resepsiyon Otomasyonu", "Industry-Specific\nBoutique Hotel, Folio & Reception Suite", "Εξειδικευμένη Σουίτα\nΜπουτίκ Ξενοδοχείου, Λογαριασμών & Υποδοχής"),
       description: txt(
-        "Lüks oda tipleri, kişi kapasitesi, oda içi olanaklar ve online rezervasyon takvimi ile modern konaklama yönetimi.",
-        "Modern hospitality management with luxury room types, guest capacity, room amenities, and online booking calendar.",
-        "Σύγχρονη διαχείριση φιλοξενίας με τύπους πολυτελών δωματίων, χωρητικότητα επισκεπτών, ανέσεις και ημερολόγιο online κρατήσεων."
+        "Yaş kategorili esnek çocuk politikaları, restoran POS adisyonlarını doğrudan oda folyosuna aktaran birleşik hesap paneli, görsel doluluk takvimi ve hızlı Check-in/Check-out.",
+        "Age-categorized child policies, unified room folio billing with restaurant POS integration, visual availability calendar, and rapid Check-in/Check-out.",
+        "Πολιτικές παιδιών ανά ηλικία, ενοποιημένος λογαριασμός δωματίου με POS εστιατορίου, ζωντανό ημερολόγιο διαθεσιμότητας."
       ),
       bgImage: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
       color: "from-emerald-600 to-teal-500",
@@ -495,10 +495,10 @@ export const LandingPage = () => {
       accentBg: "bg-emerald-500/10 border-emerald-500/20",
       glowColor: "rgba(16,185,129,0.15)",
       features: [
-        txt("Lüks Oda & Butik Tesis Vitrini", "Luxury Room & Boutique Showcase", "Βιτρίνα Πολυτελών Δωματίων & Μπουτίκ Εγκαταστάσεων"),
-        txt("Kişi Kapasitesi & Olanak Filtreleri", "Guest Capacity & Amenities Filters", "Φίλτρα Χωρητικότητας Επισκεπτών & Ανέσεων"),
-        txt("Online Rezervasyon & Doluluk Takvimi", "Online Booking & Availability Calendar", "Online Κράτηση & Ημερολόγιο Διαθεσιμότητας"),
-        txt("Adisyon & Çoklu Hizmet Entegrasyonu", "Folio, POS & Multi-Service Billing", "Ενσωμάτωση Λογαριασμού & Πολλαπλών Υπηρεσιών")
+        txt("Gelişmiş Oda Folyosu & Restoran POS Entegrasyonu", "Advanced Room Folio & Restaurant POS Billing", "Προηγμένος Λογαριασμός Δωματίου & Εστιατόριο POS"),
+        txt("Yaş Kategorili Çocuk Politikası & Fiyatlandırma", "Age-Categorized Child Policy & Dynamic Pricing", "Πολιτική Παιδιών ανά Ηλικία & Δυναμική Τιμολόγηση"),
+        txt("Görsel Oda Takvimi & Temizlik (Housekeeping) Takibi", "Visual Booking Matrix & Housekeeping Status", "Οπτικό Ημερολόγιο Δωματίων & Καθαριότητα"),
+        txt("Biyometrik Resepsiyon Check-In & Konuk CRM", "Biometric Reception Check-In & Guest CRM", "Γρήγορο Check-In & CRM Επισκεπτών")
       ],
       link: "/horeca-landing"
     }
@@ -604,6 +604,55 @@ export const LandingPage = () => {
         />
 
         <div className="relative z-10 max-w-7xl mx-auto w-full">
+          {/* Cyprus Launch Highlight Banner */}
+          <div className="relative mb-10 overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-slate-900/90 via-indigo-950/80 to-slate-900/90 p-5 md:p-7 shadow-2xl backdrop-blur-xl">
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              <div className="lg:col-span-8 space-y-3">
+                <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight">
+                  {txt(
+                    "Amazon ve Hepsiburada Entegratöründen Yeni Nesil İşletme Yönetim Sistemleri Şimdi Kıbrıs'ta!",
+                    "Next-Gen Business Management Systems from Amazon & Hepsiburada Integrator Now in Cyprus!",
+                    "Συστήματα Διαχείρισης Νέας Γενιάς από την Amazon & Hepsiburada Τώρα στην Κύπρο!"
+                  )}
+                </h2>
+                <p className="text-xs md:text-sm text-slate-300 font-medium leading-relaxed">
+                  {txt(
+                    "Perakende, e-ticaret, otel, restoran, oto galeri ve emlak sektörleri için Türkiye'nin pazar yeri entegrasyon gücü ile bulut tabanlı hibrit otomasyon ekosistemi KKTC'de yayında.",
+                    "Cloud-based hybrid business automation powered by leading e-commerce marketplace integration engines for retail, hotels, restaurants, auto dealers, and real estate now live in Cyprus.",
+                    "Υβριδικός αυτοματισμός επιχείρησης για λιανική, ξενοδοχεία, εστιατόρια, αυτοκίνητα και ακίνητα τώρα στην Κύπρο."
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-blue-300 border border-white/10">🏎️ AutoLP</span>
+                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-purple-300 border border-white/10">🏢 REstateLP</span>
+                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-indigo-300 border border-white/10">🛒 ShopLP</span>
+                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-amber-300 border border-white/10">🍽️ HoReCaLP</span>
+                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-pink-300 border border-white/10">📚 BookLP</span>
+                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-emerald-300 border border-white/10">🏨 HotelLP</span>
+                </div>
+              </div>
+              <div className="lg:col-span-4 flex flex-col items-center justify-center">
+                <div className="relative group overflow-hidden rounded-xl border border-indigo-500/40 shadow-xl w-full max-h-44">
+                  <img 
+                    src="/src/assets/images/cyprus_launch_banner_1790708092704.jpg" 
+                    alt="LookPrice Kıbrıs Lansmanı" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex items-end p-2.5">
+                    <button 
+                      type="button"
+                      onClick={() => setShowDemoModal(true)} 
+                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-lg shadow-lg transition-all cursor-pointer"
+                    >
+                      {txt("Lansmana Özel Demo İste", "Request Cyprus Launch Demo", "Αίτημα Επίδειξης")}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Main Display Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center min-h-[480px]">
             {/* Left Content Side */}

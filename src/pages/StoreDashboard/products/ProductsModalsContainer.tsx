@@ -8,6 +8,8 @@ import { MarketplaceBulkPublishModal } from "@/components/marketplace/Marketplac
 import { MarketplaceListingsModal } from "@/components/marketplace/MarketplaceListingsModal";
 import { ProductXRayReportModal } from "@/components/marketplace/ProductXRayReportModal";
 import { MarketplaceModalTab, MarketplaceModalStatus } from "./types";
+import { resolveDomainId } from "@/utils/sectorCapability";
+import { getConnectedMarketplaces } from "@/utils/marketplaceEStores";
 
 interface ProductsModalsContainerProps {
   products: any[];
@@ -64,6 +66,11 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
   onEdit,
   lang,
 }) => {
+  const domainId = resolveDomainId(branding);
+  const isShopLpOnly = (domainId === 'RETAIL' || branding?.store_type === 'shop' || branding?.store_type === 'retail') && domainId !== 'HORECA' && domainId !== 'HOTEL' && domainId !== 'BOOKSTORE' && domainId !== 'REAL_ESTATE' && domainId !== 'AUTOMOTIVE';
+  const estores = getConnectedMarketplaces(branding);
+  const hasMarketplaceApi = estores.hasAnyConnected || !!branding?.marketplace_settings;
+
   return (
     <>
       {selectedProduct && (
@@ -115,7 +122,7 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
         />
       )}
 
-      {showBulkPublishModal && (
+      {showBulkPublishModal && isShopLpOnly && hasMarketplaceApi && (
         <MarketplaceBulkPublishModal
           isOpen={showBulkPublishModal}
           onClose={() => setShowBulkPublishModal(false)}
@@ -130,7 +137,7 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
         />
       )}
 
-      {showMarketplaceListingsModal && (
+      {showMarketplaceListingsModal && isShopLpOnly && hasMarketplaceApi && (
         <MarketplaceListingsModal
           isOpen={showMarketplaceListingsModal}
           onClose={() => setShowMarketplaceListingsModal(false)}
@@ -153,7 +160,7 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
         />
       )}
 
-      {showXRayModal && (
+      {showXRayModal && isShopLpOnly && hasMarketplaceApi && (
         <ProductXRayReportModal
           isOpen={showXRayModal}
           onClose={() => setShowXRayModal(false)}

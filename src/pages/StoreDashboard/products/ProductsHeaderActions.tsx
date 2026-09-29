@@ -23,6 +23,7 @@ interface ProductsHeaderActionsProps {
   onImport: () => void;
   onExportReport: () => void;
   onOpenXRay: () => void;
+  showXRay?: boolean;
   handleBulkDeleteSelected: () => void;
   handleSyncNamesFromInvoices: () => void;
   isFixingNames: boolean;
@@ -46,6 +47,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
   onImport,
   onExportReport,
   onOpenXRay,
+  showXRay = false,
   handleBulkDeleteSelected,
   handleSyncNamesFromInvoices,
   isFixingNames,
@@ -131,17 +133,19 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={onOpenXRay}
-          className="os-btn-secondary px-3 py-2 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 rounded-lg transition-all border border-indigo-200 dark:border-indigo-800 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer font-bold text-xs"
-          title={lang === 'tr' ? "Çok Kanallı Ürün Röntgeni & Kanal Senaryo Raporu" : "Multi-Channel Product X-Ray Report"}
-        >
-          <Activity className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-          <span className="hidden sm:inline whitespace-nowrap">
-            {lang === 'tr' ? "Ürün Röntgeni" : "Product X-Ray"}
-          </span>
-        </button>
+        {showXRay && (
+          <button
+            type="button"
+            onClick={onOpenXRay}
+            className="os-btn-secondary px-3 py-2 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 rounded-lg transition-all border border-indigo-200 dark:border-indigo-800 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer font-bold text-xs"
+            title={lang === 'tr' ? "Çok Kanallı Ürün Röntgeni & Kanal Senaryo Raporu" : "Multi-Channel Product X-Ray Report"}
+          >
+            <Activity className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+            <span className="hidden sm:inline whitespace-nowrap">
+              {lang === 'tr' ? "Ürün Röntgeni" : "Product X-Ray"}
+            </span>
+          </button>
+        )}
 
         <button 
           type="button"

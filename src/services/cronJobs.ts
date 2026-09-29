@@ -45,6 +45,12 @@ export function startCronJobs() {
     await syncAmazonOrdersCron();
   });
 
+  // Comprehensive Marketplace Inventory & Price Reconciliation (Every 30 minutes)
+  cron.schedule('*/30 * * * *', async () => {
+    console.log("[CRON] Running 30-min Marketplace Price & Inventory Reconciliation...");
+    await reconcileMarketplaceInventoriesAndPrices();
+  });
+
   // TCMB Currency Rate Sync (Multiple daily syncs: 09:30, 12:00, 15:45 TCMB announcement, 18:00 official close)
   cron.schedule('30 9 * * *', async () => {
     console.log("[CRON] Running TCMB currency rate sync (Morning 09:30)...");
@@ -340,8 +346,72 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
         );
       }
     }
+
+    // 2. Amazon TR Price & Stock Push
+    let amzSettings = store.amazon_settings;
+    if (typeof amzSettings === 'string') {
+      try { amzSettings = JSON.parse(amzSettings); } catch (e) { amzSettings = {}; }
+    }
+    if (!amzSettings?.sellerId) {
+      amzSettings = store.branding?.amazon_settings || amzSettings || {};
+    }
+
+    if (amzSettings?.sellerId && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
+      const amzService = new AmazonService(amzSettings, storeId);
+      const amzProductsRes = await pool.query(
+        `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, amazon_asin, amazon_sku, is_amazon_active, marketplace_data 
+         FROM products 
+         WHERE store_id = $1 AND is_amazon_active = true AND amazon_asin IS NOT NULL AND amazon_asin != '' AND amazon_asin NOT LIKE 'http%'`,
+        [storeId]
+      );
+
+      for (const p of amzProductsRes.rows) {
+        try {
+          let rawPrice = parseFloat(p.price || "0");
+          const curr = (p.currency || "TRY").toUpperCase();
+          if (curr === "USD" && effectiveRates!.USD) {
+            rawPrice = rawPrice * Number(effectiveRates!.USD);
+          } else if (curr === "EUR" && effectiveRates!.EUR) {
+            rawPrice = rawPrice * Number(effectiveRates!.EUR);
+          } else if (curr === "GBP" && effectiveRates!.GBP) {
+            rawPrice = rawPrice * Number(effectiveRates!.GBP);
+          }
+
+          const effectivePrice = amzService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+          const sellerSku = p.amazon_sku || p.sku || p.barcode;
+          const stock = parseInt(p.stock_quantity || "0", 10);
+
+          if (sellerSku && effectivePrice > 0) {
+            const res = await amzService.updateListingsItem(sellerSku, effectivePrice, stock);
+            if (res.success) {
+              await pool.query(
+                "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = NULL WHERE id = $1",
+                [p.id]
+              );
+            }
+          }
+        } catch (itemErr: any) {
+          console.warn(`[CRON-CURRENCY-AMZ] Product #${p.id} update error:`, itemErr.message);
+        }
+      }
+      console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): Amazon TR ${amzProductsRes.rows.length} ürünün fiyat ve stoğu güncellendi.`);
+    }
   } catch (err: any) {
     console.error(`[CRON-CURRENCY] Store #${storeId} pazaryeri fiyat revizyonu hatası:`, err.message || err);
+  }
+}
+
+/**
+ * Periodically reconciles all active marketplace product prices and stocks across all channels
+ */
+export async function reconcileMarketplaceInventoriesAndPrices() {
+  try {
+    const storesRes = await pool.query("SELECT id, name FROM stores");
+    for (const store of storesRes.rows) {
+      await syncMarketplacePricesOnRateChange(store.id);
+    }
+  } catch (err: any) {
+    console.error("[CRON-RECONCILE] Marketplace reconciliation error:", err.message || err);
   }
 }
 

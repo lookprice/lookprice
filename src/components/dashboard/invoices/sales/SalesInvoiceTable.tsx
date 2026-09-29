@@ -192,8 +192,8 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                 const isFailed = ['HATALI', 'HATA', 'ERROR', 'FAILED'].includes(intStatus);
                 const isCancelled = ['CANCELLED', 'İPTAL', 'İPTAL EDİLDİ'].includes(intStatus) || inv.status === 'cancelled';
                 const isApproved = ['APPROVED', 'ONAYLANDI', 'BAŞARILI', '1300', 'SUCCESS'].includes(intStatus) || 
-                                  (inv.document_number && !isRejected && !isFailed && !isCancelled);
-                const isUnknown = !intStatus || intStatus === 'UNKNOWN' || intStatus === 'BILINMIYOR';
+                                  (Boolean(inv.ettn) && !isRejected && !isFailed && !isCancelled && intStatus !== 'DRAFT' && intStatus !== 'NOT_SENT');
+                const isUnknown = !intStatus || intStatus === 'UNKNOWN' || intStatus === 'BILINMIYOR' || intStatus === 'DRAFT' || intStatus === 'NOT_SENT';
                 const isExpanded = expandedRowIds.includes(inv.id);
                 const items = inv.items && inv.items.length > 0 ? inv.items : (itemsCache[inv.id] || []);
                 const isRowLoading = loadingRowId === inv.id;
@@ -295,14 +295,15 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           let computedDocType = null;
                           const profile = (inv.invoice_profile || "").toUpperCase();
                           const type = (inv.invoice_type || "").toUpperCase();
+                          const docType = (inv.e_document_type || "").toUpperCase();
                           
-                          if (['TEMELFATURA', 'TICARIFATURA', 'TEMEL', 'TICARI'].includes(profile) || 
-                              ['TEMELFATURA', 'TICARIFATURA', 'TEMEL', 'TICARI'].includes(type) ||
-                              (inv.e_document_type === 'E-FATURA')) {
+                          if (docType === 'E-ARSIV' || docType === 'E-ARŞİV' || profile === 'EARSIVFATURA' || profile === 'EARSIV' || type === 'EARSIVFATURA' || type === 'EARSIV') {
+                            computedDocType = 'E-ARŞİV';
+                          } else if (docType === 'E-FATURA' || ['TEMELFATURA', 'TICARIFATURA', 'TEMEL', 'TICARI', 'KAMUFATURA', 'IHRACAT'].includes(profile) || ['TEMELFATURA', 'TICARIFATURA', 'TEMEL', 'TICARI'].includes(type)) {
                             computedDocType = 'E-FATURA';
-                          } else if (profile === 'EARSIVFATURA' || profile === 'EARSIV' || 
-                                     type === 'EARSIVFATURA' || type === 'EARSIV' ||
-                                     (inv.e_document_type === 'E-ARŞİV' || inv.e_document_type === 'E-ARSIV')) {
+                          } else if (docType === 'E-IRSALIYE' || docType === 'E-İRSALİYE' || profile.includes('IRSALIYE')) {
+                            computedDocType = 'E-İRSALİYE';
+                          } else {
                             computedDocType = 'E-ARŞİV';
                           }
 
@@ -333,7 +334,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                    isApproved ? (isTr ? 'GİB ONAY' : 'APPROVED') : 
                                    isFailed ? (isTr ? 'HATALI' : 'FAILED') :
                                    isRejected ? (isTr ? 'REDDEDİLDİ' : 'REJECTED') :
-                                   isUnknown ? (inv.document_number ? (isTr ? 'GİB\'E GİTTİ' : 'SENT') : (isTr ? 'GÖNDERİLMEDİ' : 'NOT SENT')) :
+                                   isUnknown ? (inv.ettn ? (isTr ? 'GİB\'E GİTTİ' : 'SENT') : (isTr ? 'GÖNDERİLMEDİ' : 'NOT SENT')) :
                                    inv.integration_status}
                                 </div>
                               )}
