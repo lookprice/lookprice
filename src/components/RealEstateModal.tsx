@@ -626,7 +626,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                🏝️ KKTC
+                KKTC
               </button>
               <button
                 type="button"
@@ -639,7 +639,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                🇹🇷 TR
+                TR
               </button>
             </div>
 

@@ -52,7 +52,7 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
               }
             />
             <span className="text-[11px] font-black text-amber-900">
-              ⭐ Doğrulanmış Portföy Rozeti
+              Doğrulanmış Portföy Rozeti
             </span>
           </label>
         </div>
@@ -104,10 +104,10 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
                     value={docCategory}
                     onChange={(e) => setDocCategory(e.target.value as any)}
                   >
-                    <option value="title_deed">📋 Tapu Örneği / Title Deed</option>
-                    <option value="dask">🛡️ DASK / Sigorta</option>
-                    <option value="contract">✍️ Yetki & Aracılık Sözleşmesi</option>
-                    <option value="auth_doc">🔑 Diğer Resmî Evrak</option>
+                    <option value="title_deed">Tapu Örneği / Title Deed</option>
+                    <option value="dask">DASK / Sigorta</option>
+                    <option value="contract">Yetki & Aracılık Sözleşmesi</option>
+                    <option value="auth_doc">Diğer Resmî Evrak</option>
                   </select>
                 </div>
                 <div>
@@ -194,7 +194,7 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
       {/* Publication and Marketing Toggles */}
       <div className="bg-slate-900 text-white p-2.5 sm:p-3 rounded-xl space-y-2 shadow-md">
         <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 block">
-          ⚙️ İlan Yayın & Pazarlama Seçenekleri
+          İlan Yayın & Pazarlama Seçenekleri
         </span>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
           <label className="flex items-center gap-1.5 cursor-pointer bg-white/10 px-2 py-1 rounded-lg border border-white/10 hover:bg-white/15 transition-all">
@@ -242,7 +242,7 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
               }
               className="w-3.5 h-3.5 text-rose-500 rounded border-slate-400"
             />
-            <span className="text-[11px] font-bold text-rose-200">🔥 Fırsat & Kelepir</span>
+            <span className="text-[11px] font-bold text-rose-200">Fırsat & Kelepir</span>
           </label>
 
           <label className="flex items-center gap-1.5 cursor-pointer bg-amber-500/20 px-2 py-1 rounded-lg border border-amber-500/30 hover:bg-amber-500/30 transition-all sm:col-span-2">
@@ -255,7 +255,7 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
               className="w-3.5 h-3.5 text-amber-500 rounded border-slate-400"
             />
             <span className="text-[11px] font-bold text-amber-200">
-              ⭐ Öne Çıkan / VIP Portföy
+              Öne Çıkan / VIP Portföy
             </span>
           </label>
         </div>

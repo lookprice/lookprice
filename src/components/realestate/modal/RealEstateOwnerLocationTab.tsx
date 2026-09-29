@@ -226,9 +226,9 @@ export const RealEstateOwnerLocationTab: React.FC<RealEstateOwnerLocationTabProp
               setFormData({ ...formData, sharing_scope: e.target.value as any })
             }
           >
-            <option value="shared_pool">🌐 Ortak Havuz (Tüm Şubeler)</option>
-            <option value="branch_private">🔒 Şube İçi Özel</option>
-            <option value="private">🔑 Danışmana Özel</option>
+            <option value="shared_pool">Ortak Havuz (Tüm Şubeler)</option>
+            <option value="branch_private">Şube İçi Özel</option>
+            <option value="private">Danışmana Özel</option>
           </select>
         </div>
       </div>

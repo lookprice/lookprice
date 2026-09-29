@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Filter, Tag, Key, Building2, Layers, MapPin, RotateCcw, Home, DollarSign, ShieldCheck, Check, Car, Gauge, Calendar, Fuel, Settings } from 'lucide-react';
+import { X, Filter, Tag, Key, Building2, Layers, MapPin, RotateCcw, Home, DollarSign, ShieldCheck, Check, Car, Gauge, Calendar, Fuel, Settings, Armchair, FileText, Sparkles, Repeat } from 'lucide-react';
 import { normalizeVehicleCategory } from '../utils/formatUtils';
 import { getAvailableSubTypes, getAvailableSubRegions, REAL_ESTATE_REGIONS as DEFAULT_REGIONS, EMLAK_TIPI_SUB_TIPLERI as DEFAULT_SUB_TIPLERI } from '../data/realEstateConfig';
 
@@ -257,8 +257,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                     <div className="flex items-center gap-2">
                       {[
                         { id: "all", label: "TÜMÜ" },
-                        { id: "satilik", label: "🏷️ SATILIK" },
-                        { id: "kiralik", label: "🔑 KİRALIK" }
+                        { id: "satilik", label: "SATILIK" },
+                        { id: "kiralik", label: "KİRALIK" }
                       ].map((tab) => (
                         <button key={tab.id} onClick={() => setReFihristTab(tab.id)} className={getButtonClass(reFihristTab === tab.id)}>
                           {tab.label}
@@ -275,9 +275,9 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                     <div className="flex flex-wrap items-center gap-2">
                       {[
                         { id: "all", label: "TÜM TİPLER" },
-                        { id: "residence", label: "🏢 KONUT" },
-                        { id: "commercial", label: "🏪 TİCARİ" },
-                        { id: "land", label: "🏞️ ARSA" }
+                        { id: "residence", label: "KONUT" },
+                        { id: "commercial", label: "TİCARİ" },
+                        { id: "land", label: "ARSA" }
                       ].map((pt) => (
                         <button 
                           key={pt.id} 
@@ -477,13 +477,13 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                   {/* 7. EŞYA DURUMU */}
                   <div className="space-y-2">
                     <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                      🛋️ 7. Eşya Durumu
+                      <Armchair className="w-3.5 h-3.5 text-amber-400" /> 7. Eşya Durumu
                     </span>
                     <div className="flex items-center gap-2">
                       {[
                         { id: "all", label: "TÜMÜ" },
-                        { id: "eşyalı", label: "🛋️ Eşyalı" },
-                        { id: "eşyasız", label: "🏠 Eşyasız" }
+                        { id: "eşyalı", label: "Eşyalı" },
+                        { id: "eşyasız", label: "Eşyasız" }
                       ].map((f) => (
                         <button key={f.id} onClick={() => { if (setReFurnished) setReFurnished(f.id); }} className={getButtonClass(reFurnished === f.id)}>
                           {f.label}
@@ -495,14 +495,14 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                   {/* 8. KOÇAN TİPİ */}
                   <div className="space-y-2">
                     <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                      📜 8. Tapu / Koçan Tipi
+                      <FileText className="w-3.5 h-3.5 text-purple-400" /> 8. Tapu / Koçan Tipi
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
                       {[
                         { id: "all", label: "TÜMÜ" },
-                        { id: "türk", label: "🇹🇷 Türk Koçan" },
-                        { id: "eşdeğer", label: "📜 Eşdeğer" },
-                        { id: "tahsis", label: "🏛️ Tahsis" }
+                        { id: "türk", label: "Türk Koçan" },
+                        { id: "eşdeğer", label: "Eşdeğer" },
+                        { id: "tahsis", label: "Tahsis" }
                       ].map((k) => (
                         <button key={k.id} onClick={() => { if (setReKocanType) setReKocanType(k.id); }} className={getButtonClass(reKocanType === k.id)}>
                           {k.label}
@@ -537,7 +537,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                   {/* 10. ÖZELLİK ETİKETLERİ */}
                   <div className="space-y-2">
                     <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                      ✨ 10. Hızlı Öne Çıkan Etiketler
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" /> 10. Hızlı Öne Çıkan Etiketler
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {([
@@ -580,10 +580,10 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                     <div className="flex flex-wrap items-center gap-2">
                       {[
                         { id: "all", label: "TÜMÜ" },
-                        { id: "otomobil", label: "🚗 Otomobil" },
-                        { id: "suv", label: "🚙 SUV / Arazi Aracı" },
-                        { id: "hafif_ticari", label: "🚐 Hafif Ticari" },
-                        { id: "pickup", label: "🛻 Pick-up" }
+                        { id: "otomobil", label: "Otomobil" },
+                        { id: "suv", label: "SUV / Arazi Aracı" },
+                        { id: "hafif_ticari", label: "Hafif Ticari" },
+                        { id: "pickup", label: "Pick-up" }
                       ].map((cat) => {
                         const isSelected = activeVehicleCategory === cat.id || 
                           (cat.id !== "all" && normalizeVehicleCategory(activeVehicleCategory) === normalizeVehicleCategory(cat.id));

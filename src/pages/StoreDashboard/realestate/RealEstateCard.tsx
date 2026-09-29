@@ -11,7 +11,13 @@ import {
   Calendar,
   Layout,
   Edit2,
-  Trash2
+  Trash2,
+  Building2,
+  User,
+  Ruler,
+  Compass,
+  Check,
+  ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { RealEstateViewMode } from "./types";
@@ -74,10 +80,10 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
             property.listing_intent === 'rent' ? 'bg-sky-600 text-white' :
             'bg-emerald-600 text-white'
           }`}>
-            {property.status === 'optioned' ? '✍ OPSİYONLU' :
-             property.status === 'sold' ? '✅ SATILDI' :
-             property.status === 'rented' ? '🔑 KİRALANDI' :
-             property.listing_intent === 'rent' ? '🔑 KİRALIK' : '🏠 SATILIK'}
+            {property.status === 'optioned' ? 'OPSİYONLU' :
+             property.status === 'sold' ? 'SATILDI' :
+             property.status === 'rented' ? 'KİRALANDI' :
+             property.listing_intent === 'rent' ? 'KİRALIK' : 'SATILIK'}
           </span>
         </div>
 
@@ -99,20 +105,21 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
           {/* Branch and Scope Info */}
           <div className="flex items-center justify-between gap-2 text-[10px] font-black border-b border-dashed border-slate-100 pb-2 mb-1">
             <span className="flex items-center gap-1 text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
-              🏢 {property.branch_name || 'Merkez Ofis'}
+              <Building2 className="w-3 h-3 text-slate-500 shrink-0" />
+              <span>{property.branch_name || 'Merkez Ofis'}</span>
             </span>
             <span className={`px-2 py-0.5 rounded-lg border uppercase tracking-wider ${
               property.sharing_scope === 'private' ? 'bg-amber-50 text-amber-800 border-amber-200' :
               property.sharing_scope === 'branch_private' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' :
               'bg-emerald-50 text-emerald-800 border-emerald-200'
             }`}>
-              {property.sharing_scope === 'private' ? '🔑 Kişisel' :
-               property.sharing_scope === 'branch_private' ? '🔒 Ofise Özel' :
-               '🌐 Ortak Havuz'}
+              {property.sharing_scope === 'private' ? 'Kişisel' :
+               property.sharing_scope === 'branch_private' ? 'Ofise Özel' :
+               'Ortak Havuz'}
             </span>
             {property.is_trade_in_available && (
               <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg uppercase tracking-wider">
-                🔄 Takaslı
+                Takaslı
               </span>
             )}
           </div>
@@ -132,8 +139,9 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                 {property.location} {property.kktc_region ? `• Bölge: ${property.kktc_region}` : ""}
               </span>
               {property.responsible_agent && (
-                <span className="text-indigo-600 font-extrabold text-[9px] uppercase">
-                  👤 Danışman: {property.responsible_agent}
+                <span className="text-indigo-600 font-extrabold text-[9px] uppercase flex items-center gap-0.5">
+                  <User className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                  <span>Danışman: {property.responsible_agent}</span>
                 </span>
               )}
             </p>
@@ -150,37 +158,40 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
           <div className="flex flex-wrap gap-1.5 pt-1">
             {property.listing_intent !== 'rent' && property.kktc_title_type && (
               <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-[10px] font-extrabold border border-indigo-100">
-                📜 {property.kktc_title_type}
+                {property.kktc_title_type}
               </span>
             )}
             {property.listing_intent === 'rent' && (
               <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md text-[10px] font-extrabold border border-amber-100">
-                🛋️ {property.furnished ? 'Tam Eşyalı' : 'Eşyasız'}
+                {property.furnished ? 'Tam Eşyalı' : 'Eşyasız'}
               </span>
             )}
             {property.block_plot && (
               <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-md text-[10px] font-extrabold border border-slate-250">
-                📍 Ada/Parsel {property.block_plot}
+                Ada/Parsel {property.block_plot}
               </span>
             )}
             {property.room_count && (
               <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200">
-                🚪 Oda: {property.room_count}
+                Oda: {property.room_count}
               </span>
             )}
             {property.square_meters && (
-              <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200">
-                📐 {formatNumberVal(property.square_meters)} m² Net {property.sqm_gross ? `/ ${formatNumberVal(property.sqm_gross)} m² Brüt` : ''}
+              <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200 inline-flex items-center gap-1">
+                <Ruler className="w-3 h-3 text-slate-500 shrink-0" />
+                <span>{formatNumberVal(property.square_meters)} m² Net {property.sqm_gross ? `/ ${formatNumberVal(property.sqm_gross)} m² Brüt` : ''}</span>
               </span>
             )}
             {property.in_gated_community && (
-              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md text-[10px] font-bold border border-emerald-100">
-                🏡 Site İçi {property.dues ? `• ${formatNumberVal(property.dues)} ${property.dues_currency || 'GBP'} Aidat` : ''}
+              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md text-[10px] font-bold border border-emerald-100 inline-flex items-center gap-1">
+                <Home className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span>Site İçi {property.dues ? `• ${formatNumberVal(property.dues)} ${property.dues_currency || 'GBP'} Aidat` : ''}</span>
               </span>
             )}
             {property.facade && (
-              <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200">
-                🧭 {property.facade} Cephe
+              <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200 inline-flex items-center gap-1">
+                <Compass className="w-3 h-3 text-slate-500 shrink-0" />
+                <span>{property.facade} Cephe</span>
               </span>
             )}
           </div>
@@ -201,8 +212,9 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               <FolderLock className="w-3.5 h-3.5 text-amber-500" />
               <span>Resmî Evraklar:</span>
               {property.documents && property.documents.length > 0 ? (
-                <span className="text-emerald-600 font-extrabold flex items-center gap-0.5">
-                  ✔ Yüklü ({property.documents.length} adet)
+                <span className="text-emerald-600 font-extrabold flex items-center gap-1">
+                  <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                  <span>Yüklü ({property.documents.length} adet)</span>
                 </span>
               ) : (
                 <span className="text-slate-400 font-medium">Yüklenmemiş</span>
@@ -210,7 +222,8 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
             </div>
             {property.documents && property.documents.length > 0 && (
               <span className="text-indigo-600 font-black text-[9px] uppercase tracking-tight flex items-center gap-0.5">
-                GÖRÜNTÜLE ➔
+                <span>GÖRÜNTÜLE</span>
+                <ArrowRight className="w-3 h-3" />
               </span>
             )}
           </div>

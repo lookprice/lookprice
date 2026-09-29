@@ -1,5 +1,5 @@
 import React, { useState, useDeferredValue } from "react";
-import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building, LayoutList, LayoutGrid } from "lucide-react";
+import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building, LayoutList, LayoutGrid, Home, Key, Globe, Check, Briefcase, Clock, XCircle } from "lucide-react";
 import { RealEstateContact } from "../../types";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -252,7 +252,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                             stage === 'converted' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
                             'bg-slate-100 border-slate-200 text-slate-600'
                           }`}>
-                            {stage === 'new' ? '🏡' : stage === 'contacted' ? '📞' : stage === 'converted' ? '🔑' : <Users size={14} />}
+                            {stage === 'new' ? <Home size={14} /> : stage === 'contacted' ? <Phone size={14} /> : stage === 'converted' ? <Key size={14} /> : <Users size={14} />}
                           </div>
                           <div>
                             <h4 className="font-extrabold text-slate-900 text-xs leading-tight">{contact.name}</h4>
@@ -275,27 +275,32 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                         <div className="flex flex-col gap-1 items-start">
                           {stage === 'new' && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 border border-amber-600 shadow-2xs animate-pulse">
-                              🌐 Yeni Başvuru
+                              <Globe size={11} />
+                              <span>Yeni Başvuru</span>
                             </span>
                           )}
                           {stage === 'contacted' && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-600 text-white border border-blue-700 shadow-2xs">
-                              📞 İletişime Geçildi
+                              <Phone size={11} />
+                              <span>İletişime Geçildi</span>
                             </span>
                           )}
                           {stage === 'converted' && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-600 text-white border border-emerald-700 shadow-2xs">
-                              🏡 Portföye Alındı
+                              <Home size={11} />
+                              <span>Portföye Alındı</span>
                             </span>
                           )}
                           {stage === 'reviewed' && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 border border-slate-300">
-                              ✓ İncelendi / Arşiv
+                              <Check size={11} />
+                              <span>İncelendi / Arşiv</span>
                             </span>
                           )}
                           {stage === 'cancelled' && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 border border-rose-200">
-                              ✕ İptal Edildi
+                              <XCircle size={11} />
+                              <span>İptal Edildi</span>
                             </span>
                           )}
                           {stage === 'none' && (
@@ -413,7 +418,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                         stage === 'converted' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' :
                         'bg-slate-50 border-slate-100 text-slate-600'
                       }`}>
-                        {stage === 'new' ? '🏡' : stage === 'contacted' ? '📞' : stage === 'converted' ? '🔑' : <Users size={18} />}
+                        {stage === 'new' ? <Home size={18} /> : stage === 'contacted' ? <Phone size={18} /> : stage === 'converted' ? <Key size={18} /> : <Users size={18} />}
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900 text-sm">{contact.name}</h3>
@@ -422,28 +427,33 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                             {contact.type === 'owner' ? (isTr ? 'Mülk Sahibi' : 'Owner') : (isTr ? 'Yatırımcı' : 'Investor')}
                           </span>
                           {stage === 'new' && (
-                            <span className="inline-block text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 border border-amber-600 shadow-xs animate-pulse">
-                              🌐 Yeni Başvuru (Bekliyor)
+                            <span className="inline-flex items-center gap-1 text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 border border-amber-600 shadow-xs animate-pulse">
+                              <Globe size={10} />
+                              <span>Yeni Başvuru (Bekliyor)</span>
                             </span>
                           )}
                           {stage === 'contacted' && (
-                            <span className="inline-block text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-blue-500 text-white border border-blue-600 shadow-xs">
-                              📞 İletişime Geçildi
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-blue-500 text-white border border-blue-600 shadow-xs">
+                              <Phone size={10} />
+                              <span>İletişime Geçildi</span>
                             </span>
                           )}
                           {stage === 'converted' && (
-                            <span className="inline-block text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-700 shadow-xs">
-                              🏡 Portföye Alındı
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-700 shadow-xs">
+                              <Home size={10} />
+                              <span>Portföye Alındı</span>
                             </span>
                           )}
                           {stage === 'reviewed' && (
-                            <span className="inline-block text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
-                              ✓ İncelendi / Arşiv
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
+                              <Check size={10} />
+                              <span>İncelendi / Arşiv</span>
                             </span>
                           )}
                           {stage === 'cancelled' && (
-                            <span className="inline-block text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
-                              ✕ İptal Edildi
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                              <XCircle size={10} />
+                              <span>İptal Edildi</span>
                             </span>
                           )}
                         </div>
@@ -493,7 +503,8 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                           className="px-2 py-1 text-[10px] font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all active:scale-95 flex items-center gap-1"
                           title={isTr ? "İletişime geçildi olarak işaretle (Uyarıyı kaldırır)" : "Mark as contacted"}
                         >
-                          📞 İletişime Geçildi
+                          <Phone size={11} />
+                          <span>İletişime Geçildi</span>
                         </button>
                       )}
                       {stage !== 'converted' && (
@@ -503,7 +514,8 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                           className="px-2 py-1 text-[10px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all active:scale-95 flex items-center gap-1"
                           title={isTr ? "Portföye dahil edildi olarak işaretle" : "Mark as converted to portfolio"}
                         >
-                          🏡 Portföye Alındı
+                          <Home size={11} />
+                          <span>Portföye Alındı</span>
                         </button>
                       )}
                       {stage !== 'reviewed' && (
@@ -513,7 +525,8 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                           className="px-2 py-1 text-[10px] font-semibold rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 transition-all active:scale-95 flex items-center gap-1"
                           title={isTr ? "İncelendi olarak arşivle" : "Mark as reviewed"}
                         >
-                          ✓ İncelendi
+                          <Check size={11} />
+                          <span>İncelendi</span>
                         </button>
                       )}
                     </div>
@@ -590,30 +603,34 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'new') })}
-                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'new' ? 'bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${getLeadStage(formData.notes) === 'new' ? 'bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                       >
-                        🟡 Yeni (Bekliyor)
+                        <Clock size={12} />
+                        <span>Yeni (Bekliyor)</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'contacted') })}
-                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'contacted' ? 'bg-blue-600 text-white border-blue-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${getLeadStage(formData.notes) === 'contacted' ? 'bg-blue-600 text-white border-blue-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                       >
-                        📞 İletişime Geçildi
+                        <Phone size={12} />
+                        <span>İletişime Geçildi</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'converted') })}
-                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'converted' ? 'bg-emerald-600 text-white border-emerald-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${getLeadStage(formData.notes) === 'converted' ? 'bg-emerald-600 text-white border-emerald-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                       >
-                        🏡 Portföye Alındı
+                        <Home size={12} />
+                        <span>Portföye Alındı</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'reviewed') })}
-                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'reviewed' ? 'bg-slate-800 text-white border-slate-900 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${getLeadStage(formData.notes) === 'reviewed' ? 'bg-slate-800 text-white border-slate-900 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                       >
-                        ✓ İncelendi & Arşiv
+                        <Check size={12} />
+                        <span>İncelendi & Arşiv</span>
                       </button>
                     </div>
                   </div>
@@ -675,16 +692,18 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, type: "owner" })}
-                        className={`py-1.5 px-2 text-[11px] font-black rounded-lg border transition-all cursor-pointer ${formData.type === 'owner' ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        className={`py-1.5 px-2 text-[11px] font-black rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${formData.type === 'owner' ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                       >
-                        🏠 {isTr ? "Mülk Sahibi" : "Owner"}
+                        <Home size={12} />
+                        <span>{isTr ? "Mülk Sahibi" : "Owner"}</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, type: "investor" })}
-                        className={`py-1.5 px-2 text-[11px] font-black rounded-lg border transition-all cursor-pointer ${formData.type === 'investor' ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        className={`py-1.5 px-2 text-[11px] font-black rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${formData.type === 'investor' ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                       >
-                        💼 {isTr ? "Yatırımcı" : "Investor"}
+                        <Briefcase size={12} />
+                        <span>{isTr ? "Yatırımcı" : "Investor"}</span>
                       </button>
                     </div>
                   </div>

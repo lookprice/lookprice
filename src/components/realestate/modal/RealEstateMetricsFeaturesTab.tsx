@@ -114,7 +114,7 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                 }
                 className="w-3.5 h-3.5 text-sky-600 rounded"
               />
-              <span>⚡ Elektrik Altyapısı</span>
+              <span>Elektrik Altyapısı</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input
@@ -125,7 +125,7 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                 }
                 className="w-3.5 h-3.5 text-sky-600 rounded"
               />
-              <span>💧 Su Altyapısı</span>
+              <span>Su Altyapısı</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input
@@ -136,7 +136,7 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                 }
                 className="w-3.5 h-3.5 text-sky-600 rounded"
               />
-              <span>🛣️ Kadastro Yolu</span>
+              <span>Kadastro Yolu</span>
             </label>
           </div>
         </div>
@@ -158,9 +158,9 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                   })
                 }
               >
-                <option value="empty">🔑 Boş / Hazır</option>
-                <option value="devren">🔄 Devren Satılık</option>
-                <option value="tenant">📈 Hazır Kiracılı</option>
+                <option value="empty">Boş / Hazır</option>
+                <option value="devren">Devren Satılık</option>
+                <option value="tenant">Hazır Kiracılı</option>
               </select>
             </div>
 
@@ -253,7 +253,7 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                 }
                 className="w-3.5 h-3.5 text-indigo-600 rounded"
               />
-              <span>🛣️ Cadde Üzeri</span>
+              <span>Cadde Üzeri</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input
@@ -264,7 +264,7 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                 }
                 className="w-3.5 h-3.5 text-indigo-600 rounded"
               />
-              <span>🌬️ Sanayi Bacası</span>
+              <span>Sanayi Bacası</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input
@@ -278,7 +278,7 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                 }
                 className="w-3.5 h-3.5 text-indigo-600 rounded"
               />
-              <span>⚡ Sanayi Elektriği</span>
+              <span>Sanayi Elektriği</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input
@@ -400,7 +400,7 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                 }
                 className="w-3.5 h-3.5 text-indigo-600 rounded"
               />
-              <span>⚡ Trafo Bedeli Ödendi</span>
+              <span>Trafo Bedeli Ödendi</span>
             </label>
 
             <div className="flex items-center gap-1">
@@ -426,7 +426,7 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                 }
                 className="w-3.5 h-3.5 text-indigo-600 rounded"
               />
-              <span>🌅 Çatı Terası</span>
+              <span>Çatı Terası</span>
             </label>
 
             <label className="flex items-center gap-1.5 cursor-pointer">
@@ -438,7 +438,7 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                 }
                 className="w-3.5 h-3.5 text-indigo-600 rounded"
               />
-              <span>🏡 Site İçi</span>
+              <span>Site İçi</span>
             </label>
           </div>
         </div>

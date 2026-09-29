@@ -354,7 +354,7 @@ export default function PropertyTrackingPage() {
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">İLAN BEDELİ</span>
               <span className="text-2xl font-black text-indigo-600 block">{formatPrice(property.price, property.currency)}</span>
               <span className="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg inline-block uppercase">
-                {property.listing_intent === 'rent' ? '🔑 Kiralık Portföy' : '🏠 Satılık Portföy'}
+                {property.listing_intent === 'rent' ? 'Kiralık Portföy' : 'Satılık Portföy'}
               </span>
             </div>
           </div>
@@ -512,7 +512,7 @@ export default function PropertyTrackingPage() {
                       )}
                       {status === 'completed' && (
                         <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200 text-[9px] font-extrabold uppercase tracking-widest rounded-full">
-                          TAMAMLANDI ✔
+                          TAMAMLANDI
                         </span>
                       )}
                     </div>

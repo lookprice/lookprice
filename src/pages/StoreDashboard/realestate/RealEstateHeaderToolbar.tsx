@@ -84,33 +84,48 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
               <ArrowLeft className="w-3.5 h-3.5 stroke-[3]" />
               <span>← Portföy Listesine Dön</span>
             </button>
-            <span className="text-xs font-black uppercase text-slate-800 tracking-tight shrink-0 font-mono">
-              {viewMode === 'calendar' ? '📅 Gezi & Randevu Takvimi' : '📊 Gayrimenkul CRM & Pipeline'}
+            <span className="text-xs font-black uppercase text-slate-800 tracking-tight shrink-0 flex items-center gap-1.5 font-mono">
+              {viewMode === 'calendar' ? (
+                <>
+                  <CalendarDays className="w-4 h-4 text-indigo-600" />
+                  <span>Gezi & Randevu Takvimi</span>
+                </>
+              ) : (
+                <>
+                  <Layout className="w-4 h-4 text-indigo-600" />
+                  <span>Gayrimenkul CRM & Pipeline</span>
+                </>
+              )}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => setViewMode('list')}
-              className="px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200"
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                viewMode === 'list' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
             >
-              📋 Liste
+              <List className="w-3.5 h-3.5" />
+              <span>Liste</span>
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
                 viewMode === 'calendar' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              📅 Takvim
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Takvim</span>
             </button>
             <button
               onClick={() => setViewMode('pipeline')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
                 viewMode === 'pipeline' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              📊 Pipeline
+              <Layout className="w-3.5 h-3.5" />
+              <span>Pipeline</span>
             </button>
           </div>
         </div>
@@ -226,11 +241,11 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                 value={filterScope}
                 onChange={(e) => setFilterScope(e.target.value)}
               >
-                <option value="all">🌐 Ağ ve Havuz</option>
-                <option value="shared_pool">🌐 Ortak Havuz</option>
-                <option value="branch_private">🏢 Sadece Kendi Şubem</option>
-                <option value="private">🔑 Şahsi İlanlarım</option>
-                <option value="locked">🔒 Kilitli / Rezerveli</option>
+                <option value="all">Ağ ve Havuz</option>
+                <option value="shared_pool">Ortak Havuz</option>
+                <option value="branch_private">Sadece Kendi Şubem</option>
+                <option value="private">Şahsi İlanlarım</option>
+                <option value="locked">Kilitli / Rezerveli</option>
               </select>
             </div>
 
@@ -240,7 +255,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                 value={filterRegion}
                 onChange={(e) => setFilterRegion(e.target.value)}
               >
-                <option value="all">📍 Tüm Bölgeler (KKTC)</option>
+                <option value="all">Tüm Bölgeler (KKTC)</option>
                 {uniqueRegions.map(reg => (
                   <option key={reg} value={reg}>{reg}</option>
                 ))}
@@ -254,7 +269,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                   value={filterBranch}
                   onChange={(e) => setFilterBranch(e.target.value)}
                 >
-                  <option value="all">🏢 Tüm Şubeler</option>
+                  <option value="all">Tüm Şubeler</option>
                   {branches.map(b => (
                     <option key={b.id} value={b.name}>{b.name}</option>
                   ))}
@@ -284,7 +299,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              🏠 SATILIK ({saleCount})
+              SATILIK ({saleCount})
             </button>
 
             <button
@@ -295,7 +310,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              🔑 KİRALIK ({rentCount})
+              KİRALIK ({rentCount})
             </button>
 
             <button
@@ -306,7 +321,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              ✍ OPSİYONLU ({optionedCount})
+              OPSİYONLU ({optionedCount})
             </button>
 
             <button
@@ -317,7 +332,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              ✅ SATILDI ({soldCount})
+              SATILDI ({soldCount})
             </button>
 
             <button
@@ -328,7 +343,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              🔑 KİRALANDI ({rentedCount})
+              KİRALANDI ({rentedCount})
             </button>
           </div>
         </div>

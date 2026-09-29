@@ -102,9 +102,9 @@ export const RealEstateBasicTab: React.FC<RealEstateBasicTabProps> = ({
               setFormData({ ...formData, type: e.target.value as any, subtype: "" })
             }
           >
-            <option value="residence">🏠 Konut</option>
-            <option value="commercial">🏬 Ticari</option>
-            <option value="land">🌾 Arsa & Arazi</option>
+            <option value="residence">Konut</option>
+            <option value="commercial">Ticari</option>
+            <option value="land">Arsa & Arazi</option>
           </select>
         </div>
 
@@ -145,15 +145,15 @@ export const RealEstateBasicTab: React.FC<RealEstateBasicTabProps> = ({
           >
             {formData.listing_intent === "sale" ? (
               <>
-                <option value="active">🟢 Satışta</option>
-                <option value="optioned">🟡 Opsiyonlu</option>
-                <option value="sold">🔴 Satıldı</option>
+                <option value="active">Satışta (Aktif)</option>
+                <option value="optioned">Opsiyonlu</option>
+                <option value="sold">Satıldı</option>
               </>
             ) : (
               <>
-                <option value="active">🟢 Kiralık</option>
-                <option value="optioned">🟡 Opsiyonlu</option>
-                <option value="rented">🔴 Kiralandı</option>
+                <option value="active">Kiralık (Aktif)</option>
+                <option value="optioned">Opsiyonlu</option>
+                <option value="rented">Kiralandı</option>
               </>
             )}
           </select>

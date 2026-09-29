@@ -32,7 +32,7 @@ export const handlePrintProperty = (property: any, branding: any) => {
   const dateStr = new Date(property.created_at || Date.now()).toLocaleDateString('tr-TR');
   
   const isRent = property.listing_intent === 'rent';
-  const titleText = property.type === 'residence' ? '🏠 KONUT PORTFÖYÜ' : property.type === 'commercial' ? '🏢 TİCARİ PORTFÖY' : '🌿 ARSA PORTFÖYÜ';
+  const titleText = property.type === 'residence' ? 'KONUT PORTFÖYÜ' : property.type === 'commercial' ? 'TİCARİ PORTFÖY' : 'ARSA PORTFÖYÜ';
   const priceCurrency = property.currency === 'GBP' ? '£' : property.currency === 'USD' ? '$' : property.currency === 'EUR' ? '€' : '₺';
   const priceText = `${priceCurrency}${formatNumberVal(property.price)}`;
   const imageUrl = property.images && property.images[0] ? property.images[0] : '';
@@ -47,8 +47,8 @@ export const handlePrintProperty = (property: any, branding: any) => {
   const descContent = property.description ? unescapeEntities(property.description) : 'Bu gayrimenkul portföyü için detaylı teknik açıklama girilmemiştir. Lütfen yetkili danışmanımız ile irtibata geçiniz.';
   const agentName = property.responsible_agent || 'Sorumlu Şube Temsilcisi';
   const branchName = property.branch_name || 'Merkez Ofis';
-  const phoneInfo = branding?.phone ? `📞 ${branding.phone}` : '';
-  const addressInfo = branding?.address ? `📍 ${branding.address}` : '';
+  const phoneInfo = branding?.phone ? `TEL: ${branding.phone}` : '';
+  const addressInfo = branding?.address ? `${branding.address}` : '';
 
   const printWin = window.open('', '_blank');
   if (!printWin) {
@@ -480,7 +480,7 @@ export const handlePrintProperty = (property: any, branding: any) => {
               <div class="intent-tag">${titleText}</div>
               <h2 class="property-title">${property.title}</h2>
               <div class="location-pills">
-                <span class="pill-loc">📍 ${property.location}</span>
+                <span class="pill-loc">${property.location}</span>
                 <span class="pill-country">
                   ${property.country === 'KKTC' ? `KKTC • ${property.kktc_region || 'Girne'}` : `${property.country || 'Türkiye'}`}
                 </span>
@@ -493,8 +493,7 @@ export const handlePrintProperty = (property: any, branding: any) => {
                 <img src="${imageUrl}" alt="${property.title}" class="property-img" />
               ` : `
                 <div class="no-img-placeholder">
-                  <span style="font-size: 40px;">🏢</span>
-                  <span style="font-size: 11px; font-weight: bold; margin-top: 8px;">Görsel Bulunmuyor</span>
+                  <span style="font-size: 11px; font-weight: bold;">Görsel Bulunmuyor</span>
                 </div>
               `}
               <div class="price-badge-container">
@@ -545,7 +544,7 @@ export const handlePrintProperty = (property: any, branding: any) => {
                 </div>
               </div>
               <div class="footer-right">
-                <div class="badge-secure">🛡️ LOOKPRICE SECURE</div>
+                <div class="badge-secure">LOOKPRICE SECURE</div>
                 <p class="footer-desc">Sektörün En Güçlü CRM & Emlak Entegrasyon Altyapısı</p>
               </div>
             </div>

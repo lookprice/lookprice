@@ -623,13 +623,31 @@ export const LandingPage = () => {
                     "Υβριδικός αυτοματισμός επιχείρησης για λιανική, ξενοδοχεία, εστιατόρια, αυτοκίνητα και ακίνητα τώρα στην Κύπρο."
                   )}
                 </p>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-blue-300 border border-white/10">🏎️ AutoLP</span>
-                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-purple-300 border border-white/10">🏢 REstateLP</span>
-                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-indigo-300 border border-white/10">🛒 ShopLP</span>
-                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-amber-300 border border-white/10">🍽️ HoReCaLP</span>
-                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-pink-300 border border-white/10">📚 BookLP</span>
-                  <span className="px-2.5 py-1 bg-white/10 text-[11px] font-bold rounded-md text-emerald-300 border border-white/10">🏨 HotelLP</span>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-[12px] font-black tracking-tight text-white border border-white/10 shadow-xs">
+                    <Car className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                    <span>Auto<span className="text-indigo-400">LP</span></span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-[12px] font-black tracking-tight text-white border border-white/10 shadow-xs">
+                    <Building2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    <span>REstate<span className="text-indigo-400">LP</span></span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-[12px] font-black tracking-tight text-white border border-white/10 shadow-xs">
+                    <ShoppingCart className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                    <span>Shop<span className="text-indigo-400">LP</span></span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-[12px] font-black tracking-tight text-white border border-white/10 shadow-xs">
+                    <Utensils className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>HoReCa<span className="text-indigo-400">LP</span></span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-[12px] font-black tracking-tight text-white border border-white/10 shadow-xs">
+                    <BookOpen className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                    <span>Book<span className="text-indigo-400">LP</span></span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-[12px] font-black tracking-tight text-white border border-white/10 shadow-xs">
+                    <Hotel className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>Hotel<span className="text-indigo-400">LP</span></span>
+                  </span>
                 </div>
               </div>
               <div className="lg:col-span-4 flex flex-col items-center justify-center space-y-3">

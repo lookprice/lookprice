@@ -287,13 +287,13 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                               <div style="margin-top: 45px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; background-color: #f8fafc; font-family: sans-serif; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); page-break-inside: avoid;">
                                 <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                                   <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 16px;">🛡️</span>
+                                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background-color: #e0e7ff; color: #4338ca; border-radius: 6px; font-weight: bold; font-size: 13px;">✓</span>
                                     <div>
                                       <h4 style="margin: 0; font-size: 13px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em;">E-İMZA & GÜVENLİK DOĞRULAMA RAPORU</h4>
                                       <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase;">DIGITAL SIGNATURE & INTEGRITY REPORT</span>
                                     </div>
                                   </div>
-                                  <span style="background-color: #dcfce7; border: 1px solid #bbf7d0; color: #15803d; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">✅ DİJİTAL ONAYLANDI</span>
+                                  <span style="background-color: #dcfce7; border: 1px solid #bbf7d0; color: #15803d; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">DİJİTAL ONAYLANDI</span>
                                 </div>
                                 
                                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 11px; margin-bottom: 15px;">

@@ -1,5 +1,5 @@
 import React from "react";
-import { Image as ImageIcon } from "lucide-react";
+import { Image as ImageIcon, Sparkles } from "lucide-react";
 import { ImageGallery } from "../../ImageGallery";
 import { MultiImageUploader } from "../../MultiImageUploader";
 import { RealEstateProperty } from "../../../types";
@@ -74,7 +74,10 @@ export const RealEstateMediaTab: React.FC<RealEstateMediaTabProps> = ({
               }
               className="w-3.5 h-3.5 text-indigo-600 rounded"
             />
-            <span>✨ AI Sanal Asistan Aktif</span>
+            <span className="flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <span>AI Sanal Asistan Aktif</span>
+            </span>
           </label>
         </div>
       </div>

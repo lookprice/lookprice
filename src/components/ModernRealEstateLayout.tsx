@@ -704,7 +704,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
             onClick={() => { setIsSellModalOpen(true); setSellSuccess(false); }}
             className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-2 rounded-xl text-[10px] uppercase tracking-wider shadow-lg transition-all flex items-center gap-1 active:scale-95"
           >
-            🏠 {lang === 'tr' ? 'MÜLKÜNÜ SAT / KİRALA' : 'SELL PROPERTY'}
+            <span>{lang === 'tr' ? 'MÜLKÜNÜ SAT / KİRALA' : 'SELL PROPERTY'}</span>
           </button>
           <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer ml-2">MENU</div>
         </div>
@@ -713,7 +713,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
             onClick={() => { setIsSellModalOpen(true); setSellSuccess(false); }}
             className="bg-amber-500 text-slate-950 font-black px-2.5 py-1.5 rounded-lg text-[9px] uppercase tracking-tight shadow flex items-center gap-1 active:scale-95"
           >
-            🏠 {lang === 'tr' ? 'MÜLKÜNÜ SAT / KİRALA' : 'SELL / RENT'}
+            <span>{lang === 'tr' ? 'MÜLKÜNÜ SAT / KİRALA' : 'SELL / RENT'}</span>
           </button>
           <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer">MENU</div>
         </div>
@@ -731,7 +731,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                 <X className="w-4 h-4" />
               </button>
               <div className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest mb-2 border border-amber-500/30">
-                🏡 MÜLK SAHİBİ BAŞVURU FORMU
+                MÜLK SAHİBİ BAŞVURU FORMU
               </div>
               <h3 className="text-xl font-black tracking-tight text-white">Mülkünüzü Ücretsiz Değerlendirelim</h3>
               <p className="text-xs text-slate-400 mt-1 font-medium">
@@ -853,7 +853,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                     disabled={sellSubmitting}
                     className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2 mt-2"
                   >
-                    {sellSubmitting ? "Gönderiliyor..." : "🚀 Ücretsiz Değerleme ve Portföy Başvurusu Yap"}
+                    {sellSubmitting ? "Gönderiliyor..." : "Ücretsiz Değerleme ve Portföy Başvurusu Yap"}
                   </button>
                 </form>
               )}
