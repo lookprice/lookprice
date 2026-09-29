@@ -39,7 +39,6 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
 import { api } from "../services/api";
 import SEO from "./SEO";
-import { HyperFramesPlayer } from "./hyperframes/HyperFramesPlayer";
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -68,7 +67,6 @@ export const LandingPage = () => {
 
   const [activeVideoTab, setActiveVideoTab] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-  const [videoMode, setVideoMode] = useState<'hyperframes' | 'youtube'>('hyperframes');
   const [dbVideos, setDbVideos] = useState<any[]>([]);
 
   useEffect(() => {
@@ -97,12 +95,7 @@ export const LandingPage = () => {
         youtubeId: v.youtube_id,
         duration: v.duration || "1:00",
         isLive: v.is_live,
-        coverImg: v.cover_img || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
-        hyperframesScenario: v.hyperframes_scenario || (
-          v.product_key === 'booklp' ? 'book_nav' :
-          v.product_key === 'hotellp' ? 'hotel_booking' :
-          v.product_key === 'shoplp' ? 'shop_pos' : null
-        )
+        coverImg: v.cover_img || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80"
       }));
     }
     return [
@@ -118,23 +111,7 @@ export const LandingPage = () => {
         youtubeId: "bdbXezbS35c",
         duration: "1:24",
         isLive: true,
-        coverImg: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
-        hyperframesScenario: "shop_pos"
-      },
-      {
-        id: "booklp",
-        title: txt("BookLP - Sinematik Kitap & Yayınevi Vitrini", "BookLP - Cinematic Bookstore & Publisher Showcase", "BookLP - Κινηματογραφική Βιτρίνα Βιβλιοπωλείου"),
-        tag: "BOOKLP",
-        description: txt(
-          "Kitapçılar ve yayınevleri için modern vitrin, ISBN/barkodlu arama, yazar/yayınevi filtreleri ve anlık eser keşfi.",
-          "Modern showcase, ISBN search, author/publisher facets, and real-time book discovery for publishers.",
-          "Μοντέρνα βιτρίνα, αναζήτηση ISBN, φίλτρα συγγραφέων και άμεση ανακάλυψη βιβλίων."
-        ),
-        youtubeId: null,
-        duration: "0:30",
-        isLive: true,
-        coverImg: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=1200&q=80",
-        hyperframesScenario: "book_nav"
+        coverImg: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80"
       },
       {
         id: "autolp",
@@ -145,11 +122,10 @@ export const LandingPage = () => {
           "Vehicle portfolio management, accident queries, buyer-seller contracts and digital marketing integrations for auto dealers.",
           "Διαχείριση χαρτοφυλακίου οχημάτων, ερωτήματα ατυχημάτων, συμβόλαια αγοραστή-πωλητή και ενσωματώσεις ψηφιακού μάρκετινγκ."
         ),
-        youtubeId: null,
-        duration: txt("Yakında", "Coming Soon", "Σύντομα"),
-        isLive: false,
-        coverImg: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
-        hyperframesScenario: null
+        youtubeId: "bdbXezbS35c",
+        duration: "1:30",
+        isLive: true,
+        coverImg: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"
       },
       {
         id: "restatelp",
@@ -160,11 +136,10 @@ export const LandingPage = () => {
           "Listing portfolio management, smart matching engine, automated social media sharing and customer tracking for real estate offices.",
           "Διαχείριση χαρτοφυλακίου καταχωρίσεων, έξυπνη μηχανή αντιστοίχισης, αυτοματοποιημένη κοινή χρήση στα μέσα κοινωνικής δικτύωσης."
         ),
-        youtubeId: null,
-        duration: txt("Yakında", "Coming Soon", "Σύντομα"),
-        isLive: false,
-        coverImg: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80",
-        hyperframesScenario: null
+        youtubeId: "bdbXezbS35c",
+        duration: "1:45",
+        isLive: true,
+        coverImg: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=80"
       },
       {
         id: "horecalp",
@@ -175,11 +150,24 @@ export const LandingPage = () => {
           "Waiter handheld units, contactless QR menu ordering, digital kitchen screen and ingredient-precise inventory automation.",
           "Φορητές συσκευές σερβιτόρου, παραγγελία με μενού QR, ψηφιακή οθόνη κουζίνας και αυτοματοποίηση αποθεμάτων."
         ),
-        youtubeId: null,
-        duration: txt("Yakında", "Coming Soon", "Σύντομα"),
-        isLive: false,
-        coverImg: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80",
-        hyperframesScenario: null
+        youtubeId: "bdbXezbS35c",
+        duration: "1:24",
+        isLive: true,
+        coverImg: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        id: "booklp",
+        title: txt("BookLP - Sinematik Kitap & Yayınevi Vitrini", "BookLP - Cinematic Bookstore & Publisher Showcase", "BookLP - Κινηματογραφική Βιτρίνα Βιβλιοπωλείου"),
+        tag: "BOOKLP",
+        description: txt(
+          "Kitapçılar ve yayınevleri için modern vitrin, ISBN/barkodlu arama, yazar/yayınevi filtreleri ve anlık eser keşfi.",
+          "Modern showcase, ISBN search, author/publisher facets, and real-time book discovery for publishers.",
+          "Μοντέρνα βιτρίνα, αναζήτηση ISBN, φίλτρα συγγραφέων και άμεση ανακάλυψη βιβλίων."
+        ),
+        youtubeId: "fAtoVImD_28",
+        duration: "1:30",
+        isLive: true,
+        coverImg: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=1200&q=80"
       },
       {
         id: "hotellp",
@@ -191,55 +179,9 @@ export const LandingPage = () => {
           "Τύποι πολυτελών δωματίων, χωρητικότητα επισκεπτών, ανέσεις και ημερολόγιο κρατήσεων για ξενοδοχεία."
         ),
         youtubeId: null,
-        duration: "0:45",
-        isLive: true,
-        coverImg: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
-        hyperframesScenario: "hotel_booking"
-      },
-      {
-        id: "hotel_whatsapp",
-        title: txt("HotelLP - Otomatik WhatsApp Rezervasyon Kuponu & QR Check-in", "HotelLP - Automated WhatsApp Booking Voucher & QR Check-in", "HotelLP - Κουπόνι WhatsApp & QR Check-in"),
-        tag: "HOTELLP",
-        description: txt(
-          "Rezervasyon tamamlandığı anda misafirin telefonuna tek tıkla şık rezervasyon teyit kuponu ve temassız QR check-in kartı gönderimi.",
-          "Instantly deliver a sleek WhatsApp confirmation voucher and contactless QR check-in card directly to the guest's phone.",
-          "Αυτόματη αποστολή κουπονιού επιβεβαίωσης WhatsApp και κάρτας QR check-in στον επισκέπτη."
-        ),
-        youtubeId: null,
-        duration: "0:25",
-        isLive: true,
-        coverImg: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
-        hyperframesScenario: "hotel_whatsapp"
-      },
-      {
-        id: "hotel_cleaning",
-        title: txt("HotelLP - Kat Hizmetleri (Housekeeping) & Canlı Temizlik Paneli", "HotelLP - Housekeeping & Live Room Cleaning Board", "HotelLP - Καθαριότητα & Πίνακας Δωματίων"),
-        tag: "HOTELLP",
-        description: txt(
-          "Oda temizlik durumları (Temiz, Kirli, Temizlikte), oda servisi talepleri ve personel görev atamalarının tek ekrandan anlık takibi.",
-          "Real-time tracking of room cleaning states (Clean, Dirty, In Progress), housekeeping requests, and staff dispatch.",
-          "Παρακολούθηση κατάστασης καθαριότητας δωματίων και ανάθεση προσωπικού σε πραγματικό χρόνο."
-        ),
-        youtubeId: null,
-        duration: "0:22",
-        isLive: true,
-        coverImg: "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80",
-        hyperframesScenario: "hotel_cleaning"
-      },
-      {
-        id: "hotel_channel",
-        title: txt("HotelLP - Dinamik Sezon Fiyatlandırması & Hafta Sonu Çarpanı", "HotelLP - Dynamic Seasonality Pricing & Weekend Multiplier", "HotelLP - Δυναμική Τιμολόγηση Σεζόν"),
-        tag: "HOTELLP",
-        description: txt(
-          "Yüksek sezon, bayram ve hafta sonu doluluk oranlarına göre tüm oda fiyatlarını tek tıkla otomatik güncelleyen dinamik fiyatlandırma motoru.",
-          "Dynamic pricing engine automatically adjusting all room rates for high seasons, holidays, and weekends with one click.",
-          "Μηχανή δυναμικής τιμολόγησης για αυτόματη προσαρμογή τιμών σε υψηλή σεζόν και Σαββατοκύριακα."
-        ),
-        youtubeId: null,
-        duration: "0:20",
-        isLive: true,
-        coverImg: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80",
-        hyperframesScenario: "hotel_channel"
+        duration: txt("Yakında", "Coming Soon", "Σύντομα"),
+        isLive: false,
+        coverImg: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
       }
     ];
   }, [dbVideos, lang]);
@@ -920,11 +862,6 @@ export const LandingPage = () => {
                       onClick={() => {
                         setActiveVideoTab(idx);
                         setIsVideoPlaying(false);
-                        if (tab.hyperframesScenario) {
-                          setVideoMode('hyperframes');
-                        } else if (tab.youtubeId) {
-                          setVideoMode('youtube');
-                        }
                       }}
                       className={`w-full text-left p-3.5 rounded-xl border transition-all relative overflow-hidden flex items-start gap-3 cursor-pointer ${
                         isActive
@@ -944,21 +881,13 @@ export const LandingPage = () => {
                           }`}>
                             {tab.tag}
                           </span>
-                          <div className="flex items-center gap-1">
-                            {tab.hyperframesScenario && (
-                              <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-0.5">
-                                <Sparkles className="w-2 h-2 text-purple-300" />
-                                CANLI
-                              </span>
-                            )}
-                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
-                              tab.isLive 
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                                : 'bg-white/5 text-white/40'
-                            }`}>
-                              {tab.duration}
-                            </span>
-                          </div>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
+                            tab.isLive 
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                              : 'bg-white/5 text-white/40'
+                          }`}>
+                            {tab.duration}
+                          </span>
                         </div>
                         <h3 className={`text-xs font-bold tracking-tight mt-0.5 leading-snug line-clamp-2 ${
                           isActive ? 'text-white' : 'text-white/80'
@@ -977,13 +906,13 @@ export const LandingPage = () => {
               </div>
 
               {/* Video Player Info */}
-              <div className="bg-amber-500/5 rounded-xl p-3 border border-amber-500/10 flex items-center gap-2.5">
-                <Sparkles className="h-4 w-4 text-purple-400 shrink-0" />
-                <p className="text-[11px] text-amber-400/90 font-medium leading-tight">
+              <div className="bg-red-500/5 rounded-xl p-3 border border-red-500/10 flex items-center gap-2.5">
+                <Youtube className="h-4 w-4 text-red-500 shrink-0" />
+                <p className="text-[11px] text-white/80 font-medium leading-tight">
                   {txt(
-                    'Özelliklerimiz etkileşimli canlı simülasyon olarak ve YouTube kanalımızda yayınlanmaktadır.',
-                    'Our system features are published as interactive live simulations and on YouTube.',
-                    'Οι λειτουργίες του συστήματός μας δημοσιεύονται ως διαδραστικές προσομοιώσεις και στο YouTube.'
+                    'Sistemimizin canlı ekran videoları YouTube kanalımızda düzenli olarak yayınlanmaktadır.',
+                    'Our system screen recordings and demos are regularly published on our YouTube channel.',
+                    'Τα αναλυτικά βίντεο παρουσίασης του συστήματός μας δημοσιεύονται τακτικά στο κανάλι μας στο YouTube.'
                   )}
                 </p>
               </div>
@@ -991,56 +920,9 @@ export const LandingPage = () => {
 
             {/* Right Side: Active Video Player Stage (2/3 width = 8 columns) */}
             <div className="lg:col-span-8 order-1 lg:order-2 flex flex-col gap-3">
-              {/* Mode Switcher Bar */}
-              {(videoTabs[activeVideoTab]?.hyperframesScenario || videoTabs[activeVideoTab]?.youtubeId) && (
-                <div className="flex items-center justify-between gap-2 px-1">
-                  <div className="flex items-center gap-2">
-                    {videoTabs[activeVideoTab]?.hyperframesScenario && (
-                      <button
-                        onClick={() => setVideoMode('hyperframes')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                          videoMode === 'hyperframes'
-                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/20'
-                            : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/5'
-                        }`}
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-purple-300" />
-                        {txt('Canlı Simülasyon', 'Live Simulation', 'Ζωντανή Προσομοίωση')}
-                      </button>
-                    )}
-                    {videoTabs[activeVideoTab]?.youtubeId && (
-                      <button
-                        onClick={() => setVideoMode('youtube')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                          videoMode === 'youtube'
-                            ? 'bg-red-600 text-white shadow-lg shadow-red-500/20'
-                            : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/5'
-                        }`}
-                      >
-                        <Youtube className="w-3.5 h-3.5" />
-                        {txt('YouTube Kaydı', 'YouTube Video', 'Βίντεο YouTube')}
-                      </button>
-                    )}
-                  </div>
-                  <span className="text-[11px] font-bold text-white/40 hidden sm:inline-block">
-                    {videoMode === 'hyperframes' 
-                      ? txt('İnteraktif Sistem Turu', 'Interactive System Tour', 'Διαδραστική Περιήγηση') 
-                      : 'LookPrice TV'}
-                  </span>
-                </div>
-              )}
-
               {/* Player Stage Canvas */}
               <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-[#050508] shadow-2xl w-full">
-                {videoMode === 'hyperframes' && videoTabs[activeVideoTab]?.hyperframesScenario ? (
-                  <div className="w-full">
-                    <HyperFramesPlayer 
-                      key={`${videoTabs[activeVideoTab].id}-${videoTabs[activeVideoTab].hyperframesScenario}`}
-                      initialScenarioId={videoTabs[activeVideoTab].hyperframesScenario} 
-                      lang={lang} 
-                    />
-                  </div>
-                ) : videoTabs[activeVideoTab]?.isLive && videoTabs[activeVideoTab]?.youtubeId ? (
+                {videoTabs[activeVideoTab]?.youtubeId ? (
                   <div className="aspect-video relative w-full flex flex-col justify-center">
                     {isVideoPlaying ? (
                       <div className="relative w-full h-full">

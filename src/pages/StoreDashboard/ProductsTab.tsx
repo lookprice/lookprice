@@ -75,6 +75,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isAiMenuModalOpen, setIsAiMenuModalOpen] = useState(false);
   const [showBulkPublishModal, setShowBulkPublishModal] = useState(false);
+  const [showXRayModal, setShowXRayModal] = useState(false);
   const [showMarketplaceListingsModal, setShowMarketplaceListingsModal] = useState(() => {
     if (typeof window === 'undefined') return false;
     const url = new URL(window.location.href);
@@ -344,7 +345,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
 
   const getAmazonUrl = (p: any): string | null => {
     if (!p) return null;
-    return getMarketplaceListingUrl('amazon', p);
+    return getMarketplaceListingUrl('amazon', p, { fallbackToSearch: false });
   };
 
   const getPazaramaUrl = (p: any): string | null => {
@@ -440,7 +441,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         const isHb = Boolean(p.is_hepsiburada_active);
         const isTy = Boolean(p.is_trendyol_active);
         const isN11 = Boolean(p.is_n11_active);
-        const isAmz = Boolean(p.is_amazon_active);
+        const isAmz = Boolean(p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && String(p.amazon_asin).trim().length >= 9 && !String(p.amazon_asin).startsWith('http'));
         const isPzr = Boolean(p.is_pazarama_active);
         const isAnyActive = isHb || isTy || isN11 || isAmz || isPzr;
 
@@ -489,7 +490,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       const isHb = Boolean(p.is_hepsiburada_active);
       const isTy = Boolean(p.is_trendyol_active);
       const isN11 = Boolean(p.is_n11_active);
-      const isAmz = Boolean(p.is_amazon_active);
+      const isAmz = Boolean(p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && String(p.amazon_asin).trim().length >= 9 && !String(p.amazon_asin).startsWith('http'));
       const isPzr = Boolean(p.is_pazarama_active);
 
       if (isHb) hb++;
@@ -540,6 +541,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         onAddNew={onAddNew}
         onImport={onImport}
         onExportReport={onExportReport}
+        onOpenXRay={() => setShowXRayModal(true)}
         handleBulkDeleteSelected={handleBulkDeleteSelected}
         handleSyncNamesFromInvoices={handleSyncNamesFromInvoices}
         isFixingNames={isFixingNames}
@@ -657,6 +659,8 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         setIsAiMenuModalOpen={setIsAiMenuModalOpen}
         showBulkPublishModal={showBulkPublishModal}
         setShowBulkPublishModal={setShowBulkPublishModal}
+        showXRayModal={showXRayModal}
+        setShowXRayModal={setShowXRayModal}
         selectedIds={selectedIds}
         showMarketplaceListingsModal={showMarketplaceListingsModal}
         setShowMarketplaceListingsModal={setShowMarketplaceListingsModal}

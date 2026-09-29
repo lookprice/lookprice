@@ -380,7 +380,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       N11 ↗
                     </a>
                   )}
-                  {isShopLp && connectedMarketplaces.amazon && p.is_amazon_active && (
+                  {isShopLp && connectedMarketplaces.amazon && p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().length >= 9 && String(p.amazon_asin).toLowerCase() !== 'null' && (
                     <a
                       href={getAmazonUrl(p) || undefined}
                       target="_blank"
@@ -906,7 +906,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       N11 ↗
                     </a>
                   )}
-                  {connectedMarketplaces.amazon && p.is_amazon_active && (
+                  {connectedMarketplaces.amazon && p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().length >= 9 && String(p.amazon_asin).toLowerCase() !== 'null' && (
                     <a
                       href={getAmazonUrl(p) || undefined}
                       target="_blank"

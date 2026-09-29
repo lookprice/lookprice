@@ -6,6 +6,25 @@ import { GoogleGenAI } from "@google/genai";
 import XLSX from "xlsx";
 import { masterBookLookup, generateHighResBookCoverSvg } from "./bookLookupService";
 
+export function cleanMpString(val: any): string | null {
+  if (val === undefined || val === null) return null;
+  const s = String(val).trim();
+  if (!s || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'none' || s.toLowerCase() === 'n/a') return null;
+  return s;
+}
+
+export function parseMpBool(val: any, fallback: boolean = false): boolean {
+  if (val === undefined || val === null) return fallback;
+  if (val === true || val === 1) return true;
+  if (val === false || val === 0) return false;
+  if (typeof val === 'string') {
+    const s = val.trim().toLowerCase();
+    if (s === 'true' || s === '1' || s === 'on' || s === 'yes') return true;
+    if (s === 'false' || s === '0' || s === 'off' || s === 'no') return false;
+  }
+  return fallback;
+}
+
 /**
  * Reusable engine to merge a duplicate/temporary product into a target real product.
  * Reassigns all related stock movements, invoice lines, POS sales, and aliases.
@@ -1168,27 +1187,38 @@ router.put("/:id", async (req: any, res) => {
 
     const finalBarcode = barcode ? String(barcode).trim() : (existingProductRes.rows[0]?.barcode || 'GEN-' + Date.now().toString());
 
-    const finalHbSku = req.body.hepsiburada_sku !== undefined 
-      ? (String(req.body.hepsiburada_sku).trim() || null)
-      : (finalMarketplaceData?.hepsiburada?.hepsiburadaSku || finalMarketplaceData?.hepsiburada?.hbSku || existingProductRes.rows[0]?.hepsiburada_sku || null);
-    const finalHbUrl = req.body.hepsiburada_url !== undefined
-      ? (String(req.body.hepsiburada_url).trim() || null)
-      : (finalMarketplaceData?.hepsiburada?.productUrl || existingProductRes.rows[0]?.hepsiburada_url || null);
+    const rawHbSku = cleanMpString(req.body.hepsiburada_sku);
+    const existingHbSku = cleanMpString(finalMarketplaceData?.hepsiburada?.hepsiburadaSku || finalMarketplaceData?.hepsiburada?.hbSku || existingProductRes.rows[0]?.hepsiburada_sku);
+    const finalHbSku = req.body.hepsiburada_sku !== undefined ? rawHbSku : existingHbSku;
+
+    const rawHbUrl = cleanMpString(req.body.hepsiburada_url);
+    const existingHbUrl = cleanMpString(finalMarketplaceData?.hepsiburada?.productUrl || existingProductRes.rows[0]?.hepsiburada_url);
+    const finalHbUrl = req.body.hepsiburada_url !== undefined ? rawHbUrl : existingHbUrl;
+
     const finalIsHbActive = req.body.is_hepsiburada_active !== undefined 
-      ? Boolean(req.body.is_hepsiburada_active) 
-      : (Boolean(finalHbSku || finalHbUrl) && finalMarketplaceData?.hepsiburada?.status !== 'PENDING_APPROVAL');
-    const finalAmzAsin = req.body.amazon_asin !== undefined 
-      ? (String(req.body.amazon_asin).trim() || null) 
-      : (finalMarketplaceData?.amazon?.asin || existingProductRes.rows[0]?.amazon_asin || null);
-    const finalAmzSku = req.body.amazon_sku !== undefined 
-      ? (String(req.body.amazon_sku).trim() || null) 
-      : (finalMarketplaceData?.amazon?.sku || existingProductRes.rows[0]?.amazon_sku || null);
-    const finalAmzUrl = req.body.amazon_url !== undefined
-      ? (String(req.body.amazon_url).trim() || null)
-      : (finalMarketplaceData?.amazon?.productUrl || existingProductRes.rows[0]?.amazon_url || null);
+      ? parseMpBool(req.body.is_hepsiburada_active) 
+      : (Boolean(finalHbSku) && finalMarketplaceData?.hepsiburada?.status !== 'PENDING_APPROVAL' && Boolean(existingProductRes.rows[0]?.is_hepsiburada_active));
+
+    const rawAmzAsin = cleanMpString(req.body.amazon_asin);
+    const existingAmzAsin = cleanMpString(finalMarketplaceData?.amazon?.asin || existingProductRes.rows[0]?.amazon_asin);
+    const finalAmzAsin = req.body.amazon_asin !== undefined ? rawAmzAsin : existingAmzAsin;
+
+    const rawAmzSku = cleanMpString(req.body.amazon_sku);
+    const existingAmzSku = cleanMpString(finalMarketplaceData?.amazon?.sku || existingProductRes.rows[0]?.amazon_sku);
+    const finalAmzSku = req.body.amazon_sku !== undefined ? rawAmzSku : existingAmzSku;
+
+    const rawAmzUrl = cleanMpString(req.body.amazon_url);
+    const existingAmzUrl = cleanMpString(finalMarketplaceData?.amazon?.productUrl || existingProductRes.rows[0]?.amazon_url);
+    const finalAmzUrl = req.body.amazon_url !== undefined ? rawAmzUrl : existingAmzUrl;
+
+    // Strict ASIN Rule: On Amazon TR, a product CANNOT be on sale without a valid 10-character ASIN!
+    const cleanValidAmzAsin = (finalAmzAsin && finalAmzAsin.length >= 9 && !finalAmzAsin.startsWith('http')) 
+      ? finalAmzAsin.toUpperCase() 
+      : null;
+    const hasValidAmzAsin = Boolean(cleanValidAmzAsin);
     const finalIsAmzActive = req.body.is_amazon_active !== undefined 
-      ? Boolean(req.body.is_amazon_active) 
-      : (Boolean(finalAmzAsin || finalAmzUrl) || existingProductRes.rows[0]?.is_amazon_active || false);
+      ? (parseMpBool(req.body.is_amazon_active) && hasValidAmzAsin) 
+      : (hasValidAmzAsin && Boolean(existingProductRes.rows[0]?.is_amazon_active));
 
     if (finalHbUrl && finalMarketplaceData?.hepsiburada) {
       finalMarketplaceData.hepsiburada.productUrl = finalHbUrl;
@@ -1236,7 +1266,7 @@ router.put("/:id", async (req: any, res) => {
       JSON.stringify(finalMarketplaceData),
       JSON.stringify(finalSectorData),
       finalHbSku, finalIsHbActive,
-      finalAmzAsin, finalAmzSku, finalIsAmzActive,
+      cleanValidAmzAsin || null, finalAmzSku, finalIsAmzActive,
       finalHbUrl, finalAmzUrl,
       id, storeId
     ]);

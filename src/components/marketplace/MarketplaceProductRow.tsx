@@ -158,13 +158,13 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
 
                 return (
                   <>
-                    {showHb && hbSku && (
+                    {showHb && hbSku && hbSku !== 'null' && (
                       <span className="font-mono text-[10px] text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Hepsiburada SKU">
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                         HB: {hbSku}
                       </span>
                     )}
-                    {showAmz && p.amazon_asin && (
+                    {showAmz && p.amazon_asin && p.amazon_asin !== 'null' && !p.amazon_asin.startsWith('http') && (
                       <span className="font-mono text-[10px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Amazon ASIN">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                         ASIN: {p.amazon_asin}
@@ -265,7 +265,7 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                 )}
 
                 {/* Amazon Badge */}
-                {isAmzActive ? (
+                {isProductActive(p, 'amazon') ? (
                   <a
                     href={MARKETPLACES[3].getListingUrl(p)}
                     target="_blank"

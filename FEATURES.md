@@ -19,6 +19,7 @@ This registry tracks the application's critical features and their mandatory man
 | **Invoices (e-Fatura)**| Financial Data | Fetch HTML for a Sales Invoice (with multi-currency) -> Check for correct VAT grouping (if applicable) -> Check for "Döviz Karşılıkları" table. |
 | **Real Estate CRM** | Lead Tracking | Submit "Mülk Sahibi Başvuru Formu" -> Navigate to CRM Dashboard -> Verify entry in `real_estate_contacts` table. |
 | **Financing Calculator**| Calculation Display | Open Property Detail Modal (Sales) -> Check for Financing Calculator. Open Property Detail Modal (Rent) -> Ensure Financing Calculator is NOT visible. |
+| **Marketplace Listings & Unpublish** | Amazon & HB Sync Invariants | Open Marketplace Listings Modal -> Check that products without valid 10-char ASIN cannot be active on Amazon -> Unpublish a product and verify that background cron / match listings do not re-activate it (`manuallyUnpublished: true`). See `/docs/architecture/ecosystem-governance.md`. |
 
 ---
 ## Maintenance

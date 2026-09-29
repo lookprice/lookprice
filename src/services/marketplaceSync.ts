@@ -565,26 +565,11 @@ export async function syncProductStockToMarketplaces(
     let syncedCount = 0;
     let errorsCount = 0;
 
-    // 1. Zero-stock out-of-stock guard or restock auto-reactivation
+    // 1. Zero-stock out-of-stock guard
     for (const p of products) {
       const currentStock = Number(p.stock_quantity || 0);
       if (currentStock <= 0) {
         await autoUnpublishIfZeroStock(p.id, storeId);
-      } else {
-        // If stock is positive (> 0) and product has marketplace skus, ensure it is activated if closed
-        const shouldReactivateHb = !p.is_hepsiburada_active && Boolean(p.hepsiburada_sku);
-        const shouldReactivateAmz = !p.is_amazon_active && Boolean(p.amazon_sku || p.amazon_asin);
-        if (shouldReactivateHb || shouldReactivateAmz) {
-          await pool.query(
-            `UPDATE products 
-             SET is_hepsiburada_active = CASE WHEN $1 THEN true ELSE is_hepsiburada_active END,
-                 is_amazon_active = CASE WHEN $2 THEN true ELSE is_amazon_active END
-             WHERE id = $3 AND store_id = $4`,
-            [shouldReactivateHb, shouldReactivateAmz, p.id, storeId]
-          );
-          if (shouldReactivateHb) p.is_hepsiburada_active = true;
-          if (shouldReactivateAmz) p.is_amazon_active = true;
-        }
       }
     }
 
@@ -592,11 +577,8 @@ export async function syncProductStockToMarketplaces(
     const hbSettings = store.hepsiburada_settings || branding.hepsiburada_settings;
     if (hbSettings?.merchantId && hbSettings?.apiKey && hbSettings?.apiSecret) {
       const hbProducts = products.filter(p => {
-        let mpData = p.marketplace_data;
-        if (typeof mpData === "string") {
-          try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
-        }
-        return p.is_hepsiburada_active || Boolean(p.hepsiburada_sku) || mpData?.hepsiburada?.status === "ACTIVE";
+        const cleanHbSku = p.hepsiburada_sku && String(p.hepsiburada_sku).trim().toLowerCase() !== 'null' ? String(p.hepsiburada_sku).trim() : null;
+        return Boolean(p.is_hepsiburada_active) && Boolean(cleanHbSku);
       });
 
       if (hbProducts.length > 0) {
@@ -642,7 +624,8 @@ export async function syncProductStockToMarketplaces(
     const amzSettings = store.amazon_settings || branding.amazon_settings;
     if (amzSettings?.sellerId && amzSettings?.clientId && amzSettings?.clientSecret && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
       const amzProducts = products.filter(p => {
-        return p.is_amazon_active || Boolean(p.amazon_sku) || Boolean(p.amazon_asin);
+        const cleanAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim().toUpperCase() : null;
+        return Boolean(p.is_amazon_active) && Boolean(cleanAsin && cleanAsin.length >= 9);
       });
 
       if (amzProducts.length > 0) {

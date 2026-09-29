@@ -473,7 +473,7 @@ export class AmazonService {
 
         // Fetch products from local DB that have ASIN/SKU
         const res = await pool.query(
-          "SELECT amazon_asin as asin, amazon_sku as sku, barcode, name as title, price, stock_quantity as quantity FROM products WHERE store_id = $1 AND (amazon_asin IS NOT NULL OR amazon_sku IS NOT NULL) AND amazon_asin != 'B08N5WRWNW'",
+          "SELECT amazon_asin as asin, amazon_sku as sku, barcode, name as title, price, stock_quantity as quantity FROM products WHERE store_id = $1 AND amazon_asin IS NOT NULL AND amazon_asin != 'null' AND amazon_asin != '' AND amazon_asin NOT LIKE 'http%' AND amazon_asin != 'B08N5WRWNW' AND is_amazon_active = true",
           [this.storeId]
         );
         const dbListings = res.rows.map(r => ({ ...r, status: "ACTIVE" }));
@@ -573,25 +573,55 @@ export class AmazonService {
           try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
         }
         mpData = mpData || {};
+
+        const cleanAsin = (asin || matchedProd.amazon_asin) && String(asin || matchedProd.amazon_asin).trim().toLowerCase() !== 'null' && !String(asin || matchedProd.amazon_asin).startsWith('http')
+          ? String(asin || matchedProd.amazon_asin).trim().toUpperCase()
+          : null;
+        const hasValidAsin = Boolean(cleanAsin && cleanAsin.length >= 9);
+
+        // PERSISTENCE PROTOCOL: Respect operator's manual unpublish!
+        const isManuallyUnpublished = mpData.amazon?.manuallyUnpublished === true || mpData.amazon?.status === 'INACTIVE' || matchedProd.is_amazon_active === false;
+        const pPrice = Number(matchedProd.price || 0);
+        const pStock = Number(matchedProd.stock_quantity || 0);
+        const isListingActiveOnAmz = String(listing.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
+
+        // An Amazon product CANNOT be active if:
+        // 1) It has no valid ASIN
+        // 2) Operator manually unpublished it (manuallyUnpublished === true or status === 'INACTIVE')
+        // 3) Price or stock <= 0
+        // 4) Listing on Amazon report is INACTIVE
+        const finalIsActive = !isManuallyUnpublished && hasValidAsin && pPrice > 0 && pStock > 0 && isListingActiveOnAmz;
+
         mpData.amazon = {
           ...(mpData.amazon || {}),
-          asin: asin || mpData.amazon?.asin,
+          asin: cleanAsin || mpData.amazon?.asin,
           sku: sku || mpData.amazon?.sku,
           matchedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
-          status: listing.status || 'ACTIVE'
+          status: isManuallyUnpublished ? 'INACTIVE' : (finalIsActive ? 'ACTIVE' : (listing.status || 'INACTIVE'))
         };
+        if (isManuallyUnpublished) {
+          mpData.amazon.manuallyUnpublished = true;
+        }
 
         await pool.query(
           `UPDATE products 
-           SET is_amazon_active = true,
-               amazon_asin = $1,
-               amazon_sku = $2,
+           SET is_amazon_active = $1,
+               amazon_asin = $2,
+               amazon_sku = $3,
                amazon_last_sync = NOW(),
-               amazon_last_error = NULL,
-               marketplace_data = $3
-           WHERE id = $4 AND store_id = $5`,
-          [asin || matchedProd.amazon_asin || null, sku || matchedProd.amazon_sku || null, JSON.stringify(mpData), matchedProd.id, this.storeId]
+               amazon_last_error = $4,
+               marketplace_data = $5
+           WHERE id = $6 AND store_id = $7`,
+          [
+            finalIsActive,
+            cleanAsin || null,
+            sku || matchedProd.amazon_sku || null,
+            !hasValidAsin ? "ASIN kodu bulunamadığı için Amazon'da satışa açılamaz." : (finalIsActive ? null : (isManuallyUnpublished ? "Operatör tarafından satışa kapatıldı." : "Fiyat veya stok yetersiz")),
+            JSON.stringify(mpData),
+            matchedProd.id,
+            this.storeId
+          ]
         );
 
         matchedCount++;
@@ -601,7 +631,7 @@ export class AmazonService {
           productId: matchedProd.id,
           productName: matchedProd.name,
           barcode: matchedProd.barcode,
-          amazonAsin: asin,
+          amazonAsin: cleanAsin,
           amazonSku: sku,
           price: listing.price,
           stock: listing.quantity
@@ -612,30 +642,37 @@ export class AmazonService {
         const newPrice = listing.price || 0;
         const newStock = listing.quantity || 0;
 
+        const cleanAsin = asin && String(asin).trim().toLowerCase() !== 'null' && !String(asin).startsWith('http')
+          ? String(asin).trim().toUpperCase()
+          : null;
+        const hasValidAsin = Boolean(cleanAsin && cleanAsin.length >= 9);
+        const isListingActive = String(listing.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
+        const finalActive = hasValidAsin && newPrice > 0 && newStock > 0 && isListingActive;
+
         const mpData = {
           amazon: {
-            asin: asin,
+            asin: cleanAsin,
             sku: sku,
             importedFromAmazon: true,
             matchedAt: new Date().toISOString(),
             lastSync: new Date().toISOString(),
-            status: listing.status || 'ACTIVE'
+            status: finalActive ? 'ACTIVE' : 'INACTIVE'
           }
         };
 
         const insertRes = await pool.query(
           `INSERT INTO products 
             (store_id, name, barcode, price, stock_quantity, is_amazon_active, amazon_asin, amazon_sku, category, amazon_last_sync, marketplace_data)
-           VALUES ($1, $2, $3, $4, $5, true, $6, $7, 'Genel', NOW(), $8)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Genel', NOW(), $9)
            ON CONFLICT (store_id, barcode) DO UPDATE 
-             SET is_amazon_active = true,
+             SET is_amazon_active = EXCLUDED.is_amazon_active AND products.is_amazon_active AND NOT (COALESCE(products.marketplace_data->'amazon'->>'manuallyUnpublished', 'false') = 'true'),
                  amazon_asin = COALESCE(NULLIF(EXCLUDED.amazon_asin, ''), products.amazon_asin),
                  amazon_sku = COALESCE(NULLIF(EXCLUDED.amazon_sku, ''), products.amazon_sku),
                  amazon_last_sync = NOW(),
                  amazon_last_error = NULL,
                  marketplace_data = EXCLUDED.marketplace_data
            RETURNING id, name, barcode, amazon_asin, amazon_sku`,
-          [this.storeId, newName, newBarcode, newPrice, newStock, asin || null, sku || null, JSON.stringify(mpData)]
+          [this.storeId, newName, newBarcode, newPrice, newStock, finalActive, cleanAsin || null, sku || null, JSON.stringify(mpData)]
         );
 
         const insertedRow = insertRes.rows[0];

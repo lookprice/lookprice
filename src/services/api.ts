@@ -577,6 +577,7 @@ export const api = {
   bulkPublishHepsiburadaProducts: (productIds: number[], storeId?: number) => api.post("/api/integrations/hepsiburada/bulk-publish", { productIds, storeId }),
   unpublishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/unpublish", { productId, storeId }),
   unpublishAmazonProduct: (productId: number, storeId?: number) => api.post("/api/integrations/amazon/unpublish", { productId, storeId }),
+  bulkUnpublishAmazonProducts: (productIds: number[], storeId?: number) => api.post("/api/integrations/amazon/bulk-unpublish", { productIds, storeId }),
   bulkUnpublishHepsiburadaProducts: (productIds: number[], storeId?: number) => api.post("/api/integrations/hepsiburada/bulk-unpublish", { productIds, storeId }),
   unpublishTrendyolProduct: (productId: number, storeId?: number) => api.post("/api/integrations/trendyol/unpublish", { productId, storeId }),
   unpublishN11Product: (productId: number, storeId?: number) => api.post("/api/integrations/n11/unpublish", { productId, storeId }),

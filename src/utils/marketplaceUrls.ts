@@ -181,14 +181,16 @@ export function getMarketplaceListingUrl(
     case 'amazon': {
       const amz = mpData.amazon || {};
       const directUrl = amz.productUrl || amz.url || product.amazon_url;
-      if (directUrl && String(directUrl).startsWith('http') && !directUrl.includes('/s?')) {
+      if (directUrl && String(directUrl).startsWith('http') && String(directUrl).includes('amazon.') && !directUrl.includes('/s?')) {
         return directUrl;
       }
 
-      const asin = product.amazon_asin || amz.asin;
-      if (asin && String(asin).trim().length >= 9) {
-        const cleanAsin = String(asin).trim().toUpperCase();
-        return `https://www.amazon.com.tr/dp/${cleanAsin}`;
+      const rawAsin = product.amazon_asin || amz.asin;
+      if (rawAsin && String(rawAsin).trim().toLowerCase() !== 'null' && !String(rawAsin).startsWith('http')) {
+        const cleanAsin = String(rawAsin).trim().toUpperCase();
+        if (/^[A-Z0-9]{9,10}$/.test(cleanAsin)) {
+          return `https://www.amazon.com.tr/dp/${cleanAsin}`;
+        }
       }
 
       if (!fallbackToSearch) return null;

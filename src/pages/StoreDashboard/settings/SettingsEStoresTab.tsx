@@ -169,7 +169,7 @@ export const SettingsEStoresTab = ({
   const tyErrCount = products.filter(p => p.trendyol_last_error).length;
   const n11LiveCount = products.filter(p => p.is_n11_active).length;
   const n11ErrCount = products.filter(p => p.n11_last_error).length;
-  const amzLiveCount = products.filter(p => p.is_amazon_active).length;
+  const amzLiveCount = products.filter(p => p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().length >= 9 && String(p.amazon_asin).toLowerCase() !== 'null').length;
   const amzErrCount = products.filter(p => p.amazon_last_error).length;
   const pzLiveCount = products.filter(p => p.is_pazarama_active).length;
   const pzErrCount = products.filter(p => p.pazarama_last_error).length;

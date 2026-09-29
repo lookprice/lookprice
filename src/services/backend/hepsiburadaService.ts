@@ -930,7 +930,7 @@ export class HepsiburadaService {
       // Mark products as active (only if price > 0 and stock > 0) and record sync timestamp
       await pool.query(
         `UPDATE products 
-         SET is_hepsiburada_active = (CASE WHEN CAST(price AS NUMERIC) > 0 AND stock_quantity > 0 THEN true ELSE false END), 
+         SET is_hepsiburada_active = (CASE WHEN CAST(price AS NUMERIC) > 0 AND stock_quantity > 0 AND is_hepsiburada_active = true THEN true ELSE false END), 
              hepsiburada_last_sync = NOW(), 
              hepsiburada_last_error = (CASE WHEN CAST(price AS NUMERIC) <= 0 OR stock_quantity <= 0 THEN 'Fiyat (0₺) veya Stok (0/negatif) yetersiz olduğu için pasife alındı.' ELSE NULL END) 
          WHERE store_id = $1 AND barcode = ANY($2)`,
@@ -1353,6 +1353,11 @@ export class HepsiburadaService {
           ? `https://www.hepsiburada.com/${pSlug || 'urun'}-pm-${String(resolvedPid).trim().toLowerCase()}` 
           : (matchedProd.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.name || '')}`);
 
+        const isManuallyUnpublished = mpData.hepsiburada?.manuallyUnpublished === true || mpData.hepsiburada?.status === 'INACTIVE' || matchedProd.is_hepsiburada_active === false;
+        const pPrice = Number(matchedProd.price || 0);
+        const pStock = Number(matchedProd.stock_quantity || 0);
+        const isValidForListing = !isManuallyUnpublished && pPrice > 0 && pStock > 0 && listing.status !== 'PENDING_APPROVAL';
+
         mpData.hepsiburada = {
           ...(mpData.hepsiburada || {}),
           hepsiburadaSku: hbSku || mpData.hepsiburada?.hepsiburadaSku,
@@ -1361,12 +1366,11 @@ export class HepsiburadaService {
           productUrl: resolvedUrl,
           matchedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
-          status: listing.status || 'ACTIVE'
+          status: isManuallyUnpublished ? 'INACTIVE' : (listing.status || (isValidForListing ? 'ACTIVE' : 'INACTIVE'))
         };
-
-        const pPrice = Number(matchedProd.price || 0);
-        const pStock = Number(matchedProd.stock_quantity || 0);
-        const isValidForListing = pPrice > 0 && pStock > 0;
+        if (isManuallyUnpublished) {
+          mpData.hepsiburada.manuallyUnpublished = true;
+        }
 
         await pool.query(
           `UPDATE products 
@@ -1379,7 +1383,7 @@ export class HepsiburadaService {
           [
             isValidForListing,
             hbSku || null,
-            isValidForListing ? null : "Fiyat (0₺) veya Stok (0/negatif) yetersiz olduğu için pasife alındı.",
+            isManuallyUnpublished ? "Operatör tarafından satışa kapatıldı." : (isValidForListing ? null : "Fiyat (0₺) veya Stok (0/negatif) yetersiz olduğu için pasife alındı."),
             JSON.stringify(mpData),
             matchedProd.id,
             this.storeId

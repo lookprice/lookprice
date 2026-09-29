@@ -709,9 +709,33 @@ router.post("/amazon/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `"${p.name}" ürününün ${reasons.join(" ve ")} olduğu için Amazon'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
+    // Strict ASIN Guard: An Amazon listing CANNOT exist without a valid 10-char ASIN (e.g. B0...)
+    const cleanAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') 
+      ? String(p.amazon_asin).trim().toUpperCase() 
+      : null;
+
+    if (!cleanAsin || cleanAsin.length < 9) {
+      return res.status(400).json({ 
+        error: `"${p.name}" ürününün Amazon ASIN kodu tanımlı değildir. Amazon'da bir ürünün ASIN olmadan satışta olması teknik olarak imkansızdır. Lütfen önce ürün kartından geçerli bir ASIN (örn: B0...) giriniz.` 
+      });
+    }
+
+    let mpData: any = p.marketplace_data;
+    if (typeof mpData === "string") {
+      try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+    }
+    mpData = mpData || {};
+    mpData.amazon = {
+      ...(mpData.amazon || {}),
+      status: 'ACTIVE',
+      asin: cleanAsin,
+      lastSync: new Date().toISOString()
+    };
+    delete mpData.amazon.manuallyUnpublished;
+
     await pool.query(
-      "UPDATE products SET is_amazon_active = true, amazon_last_sync = NOW(), amazon_last_error = NULL WHERE id = $1 AND store_id = $2",
-      [productId, storeId]
+      "UPDATE products SET is_amazon_active = true, amazon_asin = $1, amazon_last_sync = NOW(), amazon_last_error = NULL, marketplace_data = $2 WHERE id = $3 AND store_id = $4",
+      [cleanAsin, JSON.stringify(mpData), productId, storeId]
     );
 
     res.json({ success: true, message: `"${p.name}" Amazon TR ilanına aktarıldı ve satışa açıldı.` });
@@ -1962,8 +1986,16 @@ router.post("/hepsiburada/unpublish", authenticate, async (req: any, res) => {
     }
 
     await pool.query(
-      "UPDATE products SET is_hepsiburada_active = false, hepsiburada_last_sync = NOW() WHERE id = $1",
-      [productId]
+      `UPDATE products 
+       SET is_hepsiburada_active = false, 
+           hepsiburada_last_sync = NOW(),
+           marketplace_data = jsonb_set(
+             COALESCE(marketplace_data, '{}'::jsonb), 
+             '{hepsiburada}', 
+             COALESCE(marketplace_data->'hepsiburada', '{}'::jsonb) || '{"status": "INACTIVE", "manuallyUnpublished": true}'::jsonb
+           )
+       WHERE id = $1 AND store_id = $2`,
+      [productId, storeId]
     );
 
     res.json({
@@ -1980,7 +2012,7 @@ router.post("/hepsiburada/unpublish", authenticate, async (req: any, res) => {
 router.post("/hepsiburada/bulk-unpublish", authenticate, async (req: any, res) => {
   const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
   const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user.store_id || 1) : Number(req.user.store_id || rawStoreId);
-  const productIds = req.body.productIds;
+  const productIds = req.body?.productIds;
 
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -2045,23 +2077,26 @@ router.post("/hepsiburada/bulk-unpublish", authenticate, async (req: any, res) =
       }
     }
 
-    if (items.length === 0) {
-      return res.status(400).json({ error: "Geçerli barkoda sahip ürün bulunamadı." });
-    }
-
     let trackingId: string | undefined;
-    try {
-      const result = await hbService.updatePriceAndStock(items);
-      trackingId = result?.trackingId;
-    } catch (bulkUnpubErr: any) {
-      console.warn("[HB Bulk Unpublish API warning]:", bulkUnpubErr.message || bulkUnpubErr);
+    if (items.length > 0) {
+      try {
+        const result = await hbService.updatePriceAndStock(items);
+        trackingId = result?.trackingId;
+      } catch (bulkUnpubErr: any) {
+        console.warn("[HB Bulk Unpublish API warning]:", bulkUnpubErr.message || bulkUnpubErr);
+      }
     }
 
     const unpublishProductIds = products.map((p: any) => p.id);
     await pool.query(
       `UPDATE products 
        SET is_hepsiburada_active = false, 
-           hepsiburada_last_sync = NOW() 
+           hepsiburada_last_sync = NOW(),
+           marketplace_data = jsonb_set(
+             COALESCE(marketplace_data, '{}'::jsonb), 
+             '{hepsiburada}', 
+             COALESCE(marketplace_data->'hepsiburada', '{}'::jsonb) || '{"status": "INACTIVE", "manuallyUnpublished": true}'::jsonb
+           )
        WHERE store_id = $1 AND id = ANY($2)`,
       [storeId, unpublishProductIds]
     );
@@ -2074,6 +2109,84 @@ router.post("/hepsiburada/bulk-unpublish", authenticate, async (req: any, res) =
     });
   } catch (error: any) {
     res.status(400).json({ error: error.message || "Toplu yayından kaldırma başarısız." });
+  }
+});
+
+// Amazon Unpublish & Bulk Unpublish
+router.post("/amazon/unpublish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productId = req.body.productId;
+  try {
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    const p = prodRes.rows[0];
+    if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
+
+    // 1. Update product in DB with explicit INACTIVE & manuallyUnpublished flag
+    let mpData: any = p.marketplace_data;
+    if (typeof mpData === "string") {
+      try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+    }
+    mpData = mpData || {};
+    mpData.amazon = {
+      ...(mpData.amazon || {}),
+      status: 'INACTIVE',
+      manuallyUnpublished: true,
+      unpublishedAt: new Date().toISOString()
+    };
+
+    await pool.query(
+      `UPDATE products 
+       SET is_amazon_active = false, 
+           amazon_last_sync = NOW(), 
+           marketplace_data = $1
+       WHERE id = $2 AND store_id = $3`,
+      [JSON.stringify(mpData), productId, storeId]
+    );
+
+    // 2. If Amazon credentials exist, push 0 quantity to Amazon to close offer
+    try {
+      const storeRes = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
+      const amzSettings = storeRes.rows[0]?.amazon_settings || storeRes.rows[0]?.branding?.amazon_settings;
+      if (amzSettings?.sellerId && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
+        const sku = p.amazon_sku || p.sku || p.barcode;
+        if (sku) {
+          const { AmazonService } = await import("./services/backend/amazonService.js");
+          const amzService = new AmazonService(amzSettings, storeId);
+          await amzService.updateListingsItem(String(sku).trim(), parseFloat(p.price || "0"), 0);
+        }
+      }
+    } catch (amzErr: any) {
+      console.warn("[Amazon Unpublish API Warning]:", amzErr.message || amzErr);
+    }
+
+    res.json({ success: true, message: `"${p.name}" Amazon TR'de satışa kapatıldı.` });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Amazon yayından kaldırma başarısız." });
+  }
+});
+
+router.post("/amazon/bulk-unpublish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productIds = req.body.productIds || [];
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+    return res.status(400).json({ error: "Lütfen yayından kaldırılacak ürünleri seçin." });
+  }
+  try {
+    await pool.query(
+      `UPDATE products 
+       SET is_amazon_active = false, 
+           amazon_last_sync = NOW(),
+           marketplace_data = jsonb_set(
+             COALESCE(marketplace_data, '{}'::jsonb), 
+             '{amazon}', 
+             COALESCE(marketplace_data->'amazon', '{}'::jsonb) || '{"status": "INACTIVE", "manuallyUnpublished": true}'::jsonb
+           )
+       WHERE store_id = $1 AND id = ANY($2)`,
+      [storeId, productIds]
+    );
+    res.json({ success: true, count: productIds.length, message: `${productIds.length} ürün Amazon TR'de satışa kapatıldı.` });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Toplu Amazon yayından kaldırma başarısız." });
   }
 });
 

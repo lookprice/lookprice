@@ -234,15 +234,25 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
       }
       const hb = mpData?.hepsiburada || {};
-      const hasSku = Boolean(
-        p.hepsiburada_sku || 
-        (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined')) ||
+      const cleanHbSku = p.hepsiburada_sku && String(p.hepsiburada_sku).trim().toLowerCase() !== 'null' ? String(p.hepsiburada_sku).trim() : null;
+      const hbHasSku = Boolean(
+        cleanHbSku || 
+        (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined') && String(hb.hepsiburadaSku).toLowerCase() !== 'null') ||
         (hb.productId && String(hb.productId).toUpperCase().startsWith('HBC'))
       );
-      if (hb.status === 'PENDING_APPROVAL' || (!hasSku && !p.hepsiburada_sku)) {
+      if (hb.status === 'PENDING_APPROVAL' || !hbHasSku) {
         return false;
       }
       return Boolean(p.is_hepsiburada_active);
+    }
+
+    if (mpKey === 'amazon') {
+      const cleanAmzAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim().toUpperCase() : null;
+      // Strict ASIN Rule: An Amazon listing CANNOT be active without a valid 10-character ASIN (e.g. B0...)
+      if (!cleanAmzAsin || cleanAmzAsin.length < 9) {
+        return false;
+      }
+      return Boolean(p.is_amazon_active);
     }
 
     if (mpKey === 'all') {
@@ -251,18 +261,22 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
       }
       const hb = mpData?.hepsiburada || {};
+      const cleanHbSku = p.hepsiburada_sku && String(p.hepsiburada_sku).trim().toLowerCase() !== 'null' ? String(p.hepsiburada_sku).trim() : null;
       const hbHasSku = Boolean(
-        p.hepsiburada_sku || 
-        (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined')) ||
+        cleanHbSku || 
+        (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined') && String(hb.hepsiburadaSku).toLowerCase() !== 'null') ||
         (hb.productId && String(hb.productId).toUpperCase().startsWith('HBC'))
       );
-      const isHbActive = Boolean(p.is_hepsiburada_active) && hb.status !== 'PENDING_APPROVAL' && (hbHasSku || Boolean(p.hepsiburada_sku));
+      const isHbActive = Boolean(p.is_hepsiburada_active) && hb.status !== 'PENDING_APPROVAL' && hbHasSku;
+
+      const cleanAmzAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim().toUpperCase() : null;
+      const isAmzActive = Boolean(p.is_amazon_active) && Boolean(cleanAmzAsin && cleanAmzAsin.length >= 9);
 
       return Boolean(
         isHbActive ||
         p.is_trendyol_active ||
         p.is_n11_active ||
-        p.is_amazon_active ||
+        isAmzActive ||
         p.is_pazarama_active
       );
     }
@@ -559,6 +573,17 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           }));
         }
       } else if (targetMp === 'amazon') {
+        const cleanAsin = product.amazon_asin && String(product.amazon_asin).trim().toLowerCase() !== 'null' && !String(product.amazon_asin).startsWith('http')
+          ? String(product.amazon_asin).trim().toUpperCase()
+          : null;
+        if (!cleanAsin || cleanAsin.length < 9) {
+          toast.error(isTr 
+            ? `"${product.name}" ürününün Amazon ASIN kodu tanımlı değildir. Amazon'da bir ürünün ASIN olmadan satışta olması teknik olarak imkansızdır. Lütfen önce ürün kartından geçerli bir ASIN (örn: B0...) giriniz.`
+            : "Amazon ASIN code is missing. Cannot publish without ASIN!");
+          setPublishingId(null);
+          return;
+        }
+
         try {
           const res = await api.publishAmazonProduct(product.id, currentStoreId);
           if (res && (res.data?.success || res?.success)) {
@@ -709,17 +734,19 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           toast.error(res?.error || "İşlem başarısız.");
         }
       } else if (targetMp === 'amazon') {
-        try {
-          await api.unpublishAmazonProduct(product.id, currentStoreId);
-        } catch(err) {}
-        toast.success(isTr ? `"${product.name}" Amazon TR'de yayından kaldırıldı!` : "Unpublished from Amazon TR!");
-        setLocalProducts(prev => prev.map(item => {
-          if (item.id === product.id) {
-            return { ...item, is_amazon_active: false, amazon_last_sync: new Date().toISOString() };
-          }
-          return item;
-        }));
-        if (onRefresh) onRefresh();
+        const res = await api.unpublishAmazonProduct(product.id, currentStoreId);
+        if (res && (res.data?.success || res?.success)) {
+          toast.success(isTr ? `"${product.name}" Amazon TR'de satışa kapatıldı!` : "Unpublished from Amazon TR!");
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_amazon_active: false, amazon_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
+          if (onRefresh) onRefresh();
+        } else {
+          toast.error(res?.error || res?.data?.error || "Amazon yayından kaldırma başarısız.");
+        }
       } else if (targetMp === 'pazarama') {
         const res = await api.unpublishPazaramaProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
@@ -759,6 +786,19 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         setLocalProducts(prev => prev.map(item => {
           if (selectedIds.includes(item.id)) {
             return { ...item, is_hepsiburada_active: false, hepsiburada_last_sync: new Date().toISOString() };
+          }
+          return item;
+        }));
+      } else if (targetMp === 'amazon') {
+        const res = await api.bulkUnpublishAmazonProducts(selectedIds, currentStoreId);
+        toast.success(
+          isTr 
+            ? `Amazon TR'de ${res.data?.count || selectedIds.length} ürün satışa kapatıldı!` 
+            : `Unpublished ${res.data?.count || selectedIds.length} products from Amazon TR!`
+        );
+        setLocalProducts(prev => prev.map(item => {
+          if (selectedIds.includes(item.id)) {
+            return { ...item, is_amazon_active: false, amazon_last_sync: new Date().toISOString() };
           }
           return item;
         }));

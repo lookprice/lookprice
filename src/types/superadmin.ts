@@ -107,5 +107,4 @@ export interface EnrakipsizVideo {
   cover_img?: string;
   is_live?: boolean;
   order_index?: number;
-  hyperframes_scenario?: string;
 }

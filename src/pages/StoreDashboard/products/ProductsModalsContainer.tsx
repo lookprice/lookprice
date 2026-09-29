@@ -6,6 +6,7 @@ import { DuplicateMergeModal } from "@/components/DuplicateMergeModal";
 import AiMenuScanModal from "@/pages/StoreDashboard/modals/AiMenuScanModal";
 import { MarketplaceBulkPublishModal } from "@/components/marketplace/MarketplaceBulkPublishModal";
 import { MarketplaceListingsModal } from "@/components/marketplace/MarketplaceListingsModal";
+import { ProductXRayReportModal } from "@/components/marketplace/ProductXRayReportModal";
 import { MarketplaceModalTab, MarketplaceModalStatus } from "./types";
 
 interface ProductsModalsContainerProps {
@@ -22,6 +23,8 @@ interface ProductsModalsContainerProps {
   setIsAiMenuModalOpen: (open: boolean) => void;
   showBulkPublishModal: boolean;
   setShowBulkPublishModal: (show: boolean) => void;
+  showXRayModal: boolean;
+  setShowXRayModal: (show: boolean) => void;
   selectedIds: number[];
   showMarketplaceListingsModal: boolean;
   setShowMarketplaceListingsModal: (show: boolean) => void;
@@ -48,6 +51,8 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
   setIsAiMenuModalOpen,
   showBulkPublishModal,
   setShowBulkPublishModal,
+  showXRayModal,
+  setShowXRayModal,
   selectedIds,
   showMarketplaceListingsModal,
   setShowMarketplaceListingsModal,
@@ -145,6 +150,16 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
             onEdit(product);
           }}
           lang={lang}
+        />
+      )}
+
+      {showXRayModal && (
+        <ProductXRayReportModal
+          isOpen={showXRayModal}
+          onClose={() => setShowXRayModal(false)}
+          products={products}
+          lang={lang}
+          storeName={branding?.store_name || branding?.name || "Mağaza"}
         />
       )}
     </>

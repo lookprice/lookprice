@@ -1314,9 +1314,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                     const found = products.find((p: any) => {
                       if (item.product_id && Number(p.id) === Number(item.product_id)) return true;
-                      if (normItemBarcode && normItemName && p.barcode && p.name && p.barcode.trim() === normItemBarcode && p.name.trim().toLowerCase() === normItemName) return true;
                       if (normItemName && p.name && p.name.trim().toLowerCase() === normItemName) return true;
-                      if (normItemBarcode && p.barcode && p.barcode.trim() === normItemBarcode) return true;
+                      if (normItemBarcode && normItemName && p.barcode && p.name && p.barcode.trim() === normItemBarcode && p.name.trim().toLowerCase() === normItemName) return true;
                       return false;
                     });
 
@@ -1396,9 +1395,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                     const found = products.find((p: any) => {
                       if (item.product_id && Number(p.id) === Number(item.product_id)) return true;
-                      if (normItemBarcode && normItemName && p.barcode && p.name && p.barcode.trim() === normItemBarcode && p.name.trim().toLowerCase() === normItemName) return true;
                       if (normItemName && p.name && p.name.trim().toLowerCase() === normItemName) return true;
-                      if (normItemBarcode && p.barcode && p.barcode.trim() === normItemBarcode) return true;
+                      if (normItemBarcode && normItemName && p.barcode && p.name && p.barcode.trim() === normItemBarcode && p.name.trim().toLowerCase() === normItemName) return true;
                       return false;
                     });
 

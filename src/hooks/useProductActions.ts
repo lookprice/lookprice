@@ -143,13 +143,17 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       product_type: rawData.product_type || 'product',
       sync_group: rawData.sync_group === 'on',
       marketplace_data: marketplaceData,
-      hepsiburada_url: rawData.hepsiburada_url || marketplaceData?.hepsiburada?.productUrl || editingProduct?.hepsiburada_url || null,
-      hepsiburada_sku: rawData.hepsiburada_sku || marketplaceData?.hepsiburada?.hepsiburadaSku || editingProduct?.hepsiburada_sku || null,
-      is_hepsiburada_active: String(rawData.is_hepsiburada_active) === 'true' || rawData.is_hepsiburada_active === 'on' || Boolean(rawData.hepsiburada_sku || marketplaceData?.hepsiburada?.hepsiburadaSku || rawData.hepsiburada_url),
-      amazon_asin: rawData.amazon_asin || marketplaceData?.amazon?.asin || editingProduct?.amazon_asin || null,
-      amazon_sku: rawData.amazon_sku || marketplaceData?.amazon?.sku || editingProduct?.amazon_sku || null,
-      amazon_url: rawData.amazon_url || marketplaceData?.amazon?.productUrl || editingProduct?.amazon_url || null,
-      is_amazon_active: String(rawData.is_amazon_active) === 'true' || rawData.is_amazon_active === 'on' || Boolean(rawData.amazon_asin || marketplaceData?.amazon?.asin)
+      hepsiburada_url: (rawData.hepsiburada_url && rawData.hepsiburada_url !== 'null') ? rawData.hepsiburada_url : (marketplaceData?.hepsiburada?.productUrl || editingProduct?.hepsiburada_url || null),
+      hepsiburada_sku: (rawData.hepsiburada_sku && rawData.hepsiburada_sku !== 'null') ? rawData.hepsiburada_sku : (marketplaceData?.hepsiburada?.hepsiburadaSku || editingProduct?.hepsiburada_sku || null),
+      is_hepsiburada_active: rawData.is_hepsiburada_active !== undefined 
+        ? (String(rawData.is_hepsiburada_active) === 'true' || rawData.is_hepsiburada_active === 'on') 
+        : Boolean(editingProduct?.is_hepsiburada_active),
+      amazon_asin: (rawData.amazon_asin && rawData.amazon_asin !== 'null' && !rawData.amazon_asin.startsWith('http')) ? rawData.amazon_asin : (marketplaceData?.amazon?.asin && marketplaceData.amazon.asin !== 'null' ? marketplaceData.amazon.asin : (editingProduct?.amazon_asin && editingProduct.amazon_asin !== 'null' ? editingProduct.amazon_asin : null)),
+      amazon_sku: (rawData.amazon_sku && rawData.amazon_sku !== 'null') ? rawData.amazon_sku : (marketplaceData?.amazon?.sku && marketplaceData.amazon.sku !== 'null' ? marketplaceData.amazon.sku : (editingProduct?.amazon_sku && editingProduct.amazon_sku !== 'null' ? editingProduct.amazon_sku : null)),
+      amazon_url: (rawData.amazon_url && rawData.amazon_url !== 'null') ? rawData.amazon_url : (marketplaceData?.amazon?.productUrl || editingProduct?.amazon_url || null),
+      is_amazon_active: rawData.is_amazon_active !== undefined 
+        ? (String(rawData.is_amazon_active) === 'true' || rawData.is_amazon_active === 'on') 
+        : Boolean(editingProduct?.is_amazon_active)
     };
 
     // Defensive synchronization between top-level fields and book sector_data

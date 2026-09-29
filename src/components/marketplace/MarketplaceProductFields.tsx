@@ -437,17 +437,20 @@ export const MarketplaceProductFields = ({
   const showHbSection = activeConnections.hepsiburada;
   const showAmzSection = activeConnections.amazon;
 
+  const effectiveAmzAsin = amzAsinInput || product?.amazon_asin || amzData.asin;
+  const hasValidAmzAsin = Boolean(effectiveAmzAsin && String(effectiveAmzAsin).trim().length >= 9 && String(effectiveAmzAsin).toLowerCase() !== 'null' && !String(effectiveAmzAsin).startsWith('http'));
+
   return (
     <div className="space-y-3 mt-3">
       {/* Hidden inputs for form synchronization */}
       <input type="hidden" name="marketplace_data" value={fullMarketplaceJson} />
-      <input type="hidden" name="hepsiburada_url" value={product?.hepsiburada_url || marketData.productUrl || ""} />
-      <input type="hidden" name="hepsiburada_sku" value={product?.hepsiburada_sku || marketData.hepsiburadaSku || ""} />
-      <input type="hidden" name="is_hepsiburada_active" value={String(Boolean(product?.is_hepsiburada_active || product?.hepsiburada_sku || marketData.hepsiburadaSku || product?.hepsiburada_url || marketData.productUrl))} />
-      <input type="hidden" name="amazon_url" value={product?.amazon_url || amzData.productUrl || ""} />
-      <input type="hidden" name="amazon_asin" value={product?.amazon_asin || amzData.asin || ""} />
-      <input type="hidden" name="amazon_sku" value={product?.amazon_sku || amzData.sku || ""} />
-      <input type="hidden" name="is_amazon_active" value={String(Boolean(product?.is_amazon_active || product?.amazon_asin || amzData.asin))} />
+      <input type="hidden" name="hepsiburada_url" value={product?.hepsiburada_url && product.hepsiburada_url !== 'null' ? product.hepsiburada_url : (marketData.productUrl || "")} />
+      <input type="hidden" name="hepsiburada_sku" value={product?.hepsiburada_sku && product.hepsiburada_sku !== 'null' ? product.hepsiburada_sku : (marketData.hepsiburadaSku || "")} />
+      <input type="hidden" name="is_hepsiburada_active" value={String(Boolean(product?.is_hepsiburada_active))} />
+      <input type="hidden" name="amazon_url" value={product?.amazon_url && product.amazon_url !== 'null' ? product.amazon_url : (amzData.productUrl || "")} />
+      <input type="hidden" name="amazon_asin" value={hasValidAmzAsin ? String(effectiveAmzAsin).trim().toUpperCase() : ""} />
+      <input type="hidden" name="amazon_sku" value={product?.amazon_sku && product.amazon_sku !== 'null' ? product.amazon_sku : (amzData.sku || "")} />
+      <input type="hidden" name="is_amazon_active" value={String(Boolean(product?.is_amazon_active && hasValidAmzAsin))} />
 
       {/* 1. HEPSIBURADA INTEGRATION SECTION */}
       {showHbSection && (
