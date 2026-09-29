@@ -291,50 +291,133 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
       const dataToExport = filteredProducts.map((p, idx) => {
         const sc = getProductChannelScenario(p);
 
+        const costRateApplied = sc.costCurr === 'USD' ? usdRate : (sc.costCurr === 'EUR' ? eurRate : (sc.costCurr === 'GBP' ? gbpRate : 1.0));
+        const webRateApplied = sc.webCurr === 'USD' ? usdRate : (sc.webCurr === 'EUR' ? eurRate : (sc.webCurr === 'GBP' ? gbpRate : 1.0));
+
+        const webPriceTryFormatted = sc.webPriceTry.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const hbTargetFormatted = sc.hbTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const amzTargetFormatted = sc.amzTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const tyTargetFormatted = sc.tyTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const hbFormulaExplanation = `(${webPriceTryFormatted} ₺ + ${sc.hbFixedFee} ₺) / (1 - %${sc.hbCommRate}) = ${hbTargetFormatted} ₺`;
+        const amzFormulaExplanation = `(${webPriceTryFormatted} ₺ + ${sc.amzFixedFee} ₺) / (1 - %${sc.amzCommRate}) = ${amzTargetFormatted} ₺`;
+        const tyFormulaExplanation = `(${webPriceTryFormatted} ₺ + ${sc.tyFixedFee} ₺) / (1 - %${sc.tyCommRate}) = ${tyTargetFormatted} ₺`;
+
         return {
-          "Sıra": idx + 1,
+          "Sıra No": idx + 1,
           "Ürün Adı": p.name || "",
-          "Barkod": p.barcode || "",
-          "SKU / Kod": p.sku || p.product_code || "",
-          "Reel Stok Miktarı": parseFloat(p.stock_quantity || 0),
+          "Barkod (EAN)": p.barcode || "",
+          "SKU / Ürün Kodu": p.sku || p.product_code || "",
+          "Kategori": p.category || "Genel",
+          "Reel Depo Stoğu": parseFloat(p.stock_quantity || 0),
           "Birim": p.unit || "Adet",
-          "Alış Maliyeti": sc.costPrice,
-          "Maliyet Para Birimi": sc.costCurr,
+          
+          // Alış / Maliyet Bölümü
+          "Alış Maliyeti (Orijinal Tutar)": sc.costPrice,
+          "Alış Para Birimi": sc.costCurr,
+          "Alış TCMB Kuru (₺)": costRateApplied,
           "Alış Maliyeti (₺ Karşılığı)": Math.round(sc.costPriceTry * 100) / 100,
-          "Web Satış Bedeli": sc.rawWebPrice,
+
+          // Web Satış Bölümü
+          "Web Satış Bedeli (Orijinal Tutar)": sc.rawWebPrice,
           "Web Para Birimi": sc.webCurr,
-          "Web Satış (₺ Karşılığı)": Math.round(sc.webPriceTry * 100) / 100,
-          "Hepsiburada Durum": p.is_hepsiburada_active ? "Aktif (Satışta)" : "Pasif",
+          "Web TCMB Kuru (₺)": webRateApplied,
+          "Web Satış Bedeli (₺ Karşılığı)": Math.round(sc.webPriceTry * 100) / 100,
+
+          // Hepsiburada Bölümü
+          "Hepsiburada Durumu": p.is_hepsiburada_active ? "Satışta (Aktif)" : "Pasif",
           "Hepsiburada SKU": p.hepsiburada_sku || "",
-          "Hepsiburada Canlı Satış Fiyatı (₺)": sc.hbLivePrice,
-          "Hepsiburada Hedef Strateji Fiyatı (₺)": sc.hbTargetPrice,
-          "Hepsiburada Fiyat Durumu": sc.hbIsUnderpriced ? `Düşük Fiyat (-${sc.hbPriceDiff} ₺)` : "Uyumlu",
+          "Hepsiburada Komisyon Oranı (%)": `%${sc.hbCommRate}`,
+          "Hepsiburada Sabit Hizmet Bedeli (₺)": `${sc.hbFixedFee} ₺`,
+          "Hepsiburada Fiyat Formülü Hesabı": hbFormulaExplanation,
+          "Hepsiburada Hedef Satış Fiyatı (₺)": sc.hbTargetPrice,
+          "Hepsiburada Canlı / Pazaryeri Fiyatı (₺)": sc.hbLivePrice,
+          "Hepsiburada Fiyat Durumu": sc.hbIsUnderpriced ? `⚠️ Düşük Fiyat (-${sc.hbPriceDiff} ₺)` : (p.is_hepsiburada_active ? "Uyumlu" : "Pasif"),
           "Hepsiburada Stok": p.is_hepsiburada_active ? parseFloat(p.stock_quantity || 0) : 0,
-          "Amazon Durum": sc.isAmzLive ? "Aktif (Satışta)" : "Pasif",
-          "Amazon ASIN": p.amazon_asin || "",
-          "Amazon TR Canlı Satış Fiyatı (₺)": sc.amzLivePrice,
-          "Amazon TR Hedef Strateji Fiyatı (₺)": sc.amzTargetPrice,
-          "Amazon TR Fiyat Durumu": sc.amzIsUnderpriced ? `Düşük Fiyat (-${sc.amzPriceDiff} ₺)` : "Uyumlu",
+
+          // Amazon TR Bölümü
+          "Amazon TR Durumu": sc.isAmzLive ? "Satışta (Aktif)" : "Pasif",
+          "Amazon ASIN Kodu": sc.cleanAmzAsin || p.amazon_asin || "",
+          "Amazon Komisyon Oranı (%)": `%${sc.amzCommRate}`,
+          "Amazon Sabit Hizmet Bedeli (₺)": `${sc.amzFixedFee} ₺`,
+          "Amazon TR Fiyat Formülü Hesabı": amzFormulaExplanation,
+          "Amazon TR Hedef Satış Fiyatı (₺)": sc.amzTargetPrice,
+          "Amazon TR Canlı / Pazaryeri Fiyatı (₺)": sc.amzLivePrice,
+          "Amazon TR Fiyat Durumu": sc.amzIsUnderpriced ? `⚠️ Düşük Fiyat (-${sc.amzPriceDiff} ₺)` : (sc.isAmzLive ? "Uyumlu" : "Pasif"),
           "Amazon Stok": sc.isAmzLive ? parseFloat(p.stock_quantity || 0) : 0,
-          "Trendyol Durum": p.is_trendyol_active ? "Aktif (Satışta)" : "Pasif",
-          "Trendyol Canlı Satış Fiyatı (₺)": sc.tyLivePrice,
-          "Trendyol Hedef Fiyat (₺)": sc.tyTargetPrice,
-          "Trendyol Fiyat Durumu": sc.tyIsUnderpriced ? "Düşük Fiyat" : "Uyumlu",
+
+          // Trendyol Bölümü
+          "Trendyol Durumu": p.is_trendyol_active ? "Satışta (Aktif)" : "Pasif",
+          "Trendyol Komisyon Oranı (%)": `%${sc.tyCommRate}`,
+          "Trendyol Fiyat Formülü Hesabı": tyFormulaExplanation,
+          "Trendyol Hedef Satış Fiyatı (₺)": sc.tyTargetPrice,
+          "Trendyol Canlı / Pazaryeri Fiyatı (₺)": sc.tyLivePrice,
+          "Trendyol Fiyat Durumu": sc.tyIsUnderpriced ? "⚠️ Düşük Fiyat" : (p.is_trendyol_active ? "Uyumlu" : "Pasif"),
           "Trendyol Stok": p.is_trendyol_active ? parseFloat(p.stock_quantity || 0) : 0,
-          "N11 Durum": p.is_n11_active ? "Aktif (Satışta)" : "Pasif",
+
+          // N11 & Pazarama
+          "N11 Durumu": p.is_n11_active ? "Satışta (Aktif)" : "Pasif",
           "N11 Canlı Satış Fiyatı (₺)": sc.n11LivePrice,
-          "N11 Stok": p.is_n11_active ? parseFloat(p.stock_quantity || 0) : 0,
-          "Pazarama Durum": p.is_pazarama_active ? "Aktif (Satışta)" : "Pasif",
+          "Pazarama Durumu": p.is_pazarama_active ? "Satışta (Aktif)" : "Pasif",
           "Pazarama Canlı Satış Fiyatı (₺)": sc.pzrLivePrice,
-          "Kategori": p.category || ""
         };
       });
 
       const ws = XLSX.utils.json_to_sheet(dataToExport);
+
+      // Auto-fit column widths
+      const colWidths = [
+        { wch: 8 },  // Sıra No
+        { wch: 36 }, // Ürün Adı
+        { wch: 18 }, // Barkod
+        { wch: 16 }, // SKU
+        { wch: 18 }, // Kategori
+        { wch: 14 }, // Reel Depo Stoğu
+        { wch: 10 }, // Birim
+        { wch: 20 }, // Alış Maliyeti
+        { wch: 14 }, // Alış Para Birimi
+        { wch: 16 }, // Alış Kuru
+        { wch: 20 }, // Alış TL
+        { wch: 22 }, // Web Satış Bedeli
+        { wch: 14 }, // Web Para Birimi
+        { wch: 16 }, // Web Kuru
+        { wch: 22 }, // Web TL
+        { wch: 18 }, // HB Durumu
+        { wch: 16 }, // HB SKU
+        { wch: 18 }, // HB Komisyon
+        { wch: 20 }, // HB Sabit Bedel
+        { wch: 42 }, // HB Formül Hesabı
+        { wch: 22 }, // HB Hedef Fiyat
+        { wch: 22 }, // HB Canlı Fiyat
+        { wch: 22 }, // HB Fiyat Durumu
+        { wch: 14 }, // HB Stok
+        { wch: 18 }, // AMZ Durumu
+        { wch: 16 }, // AMZ ASIN
+        { wch: 18 }, // AMZ Komisyon
+        { wch: 20 }, // AMZ Sabit Bedel
+        { wch: 42 }, // AMZ Formül Hesabı
+        { wch: 22 }, // AMZ Hedef Fiyat
+        { wch: 22 }, // AMZ Canlı Fiyat
+        { wch: 22 }, // AMZ Fiyat Durumu
+        { wch: 14 }, // AMZ Stok
+        { wch: 18 }, // TY Durumu
+        { wch: 18 }, // TY Komisyon
+        { wch: 42 }, // TY Formül Hesabı
+        { wch: 22 }, // TY Hedef Fiyat
+        { wch: 22 }, // TY Canlı Fiyat
+        { wch: 22 }, // TY Fiyat Durumu
+        { wch: 14 }, // TY Stok
+        { wch: 14 }, // N11 Durumu
+        { wch: 20 }, // N11 Canlı Fiyat
+        { wch: 14 }, // PZR Durumu
+        { wch: 20 }, // PZR Canlı Fiyat
+      ];
+      ws['!cols'] = colWidths;
+
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Ürün Röntgeni Raporu");
-      XLSX.writeFile(wb, `Urun_Rontgeni_Raporu_${storeName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success(isTr ? "Ürün Röntgeni ve Strateji/Canlı Fiyat Raporu Excel olarak indirildi!" : "Product X-Ray pricing audit report downloaded successfully!");
+      XLSX.utils.book_append_sheet(wb, ws, "Ürün Röntgeni ve Strateji");
+      XLSX.writeFile(wb, `Urun_Rontgeni_Strateji_Raporu_${storeName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success(isTr ? "Ürün Röntgeni & Dövizli Formül Strateji Raporu Excel olarak indirildi!" : "Product X-Ray & Multi-Currency Strategy report downloaded successfully!");
     } catch (e: any) {
       toast.error(isTr ? "Excel dışa aktarma hatası: " + e.message : "Export error: " + e.message);
     }

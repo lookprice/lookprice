@@ -3,6 +3,7 @@ import { pool } from '../../models/db';
 import axios from 'axios';
 import xml2js from 'xml2js';
 import { HepsiburadaService } from './backend/hepsiburadaService';
+import { AmazonService } from './backend/amazonService';
 import { IntegrationService } from './IntegrationService';
 
 export function startCronJobs() {
@@ -13,10 +14,13 @@ export function startCronJobs() {
     console.warn("[CRON] Initial TCMB sync on startup failed:", err.message);
   });
 
-  // Run initial Hepsiburada order sync on startup (after 5 seconds delay)
+  // Run initial marketplace order syncs on startup (after 5 seconds delay)
   setTimeout(() => {
     syncHepsiburadaOrdersCron().catch(err => {
       console.warn("[CRON] Initial Hepsiburada order sync failed:", err.message);
+    });
+    syncAmazonOrdersCron().catch(err => {
+      console.warn("[CRON] Initial Amazon order sync failed:", err.message);
     });
     syncHepsiburadaPendingAndListingsCron().catch(err => {
       console.warn("[CRON] Initial Hepsiburada listings sync failed:", err.message);
@@ -364,12 +368,13 @@ export async function syncAmazonOrdersCron() {
 
         const refreshToken = (settings?.refresh_token || settings?.refreshToken || "").trim();
         if (refreshToken) {
-          const { runAmazonSyncForStore } = await import('../../scripts/syncAmazon.js').catch(async () => {
-            return await import('../../scripts/syncAmazon');
-          });
-          const count = await runAmazonSyncForStore(store.id);
-          if (count > 0) {
-            console.log(`[CRON-AMZ] Store #${store.id} (${store.name}): ${count} yeni Amazon siparişi başarıyla çekildi ve sisteme işlendi.`);
+          const amzService = new AmazonService(settings, store.id);
+          const { syncedCount, errors } = await amzService.syncOrdersToDatabase({ days: 30 });
+          if (syncedCount > 0) {
+            console.log(`[CRON-AMZ] Store #${store.id} (${store.name}): ${syncedCount} yeni Amazon siparişi başarıyla çekildi ve sisteme işlendi.`);
+          }
+          if (errors && errors.length > 0) {
+            console.warn(`[CRON-AMZ] Store #${store.id} Amazon sipariş senkronizasyonunda bazı uyarılar:`, errors.map((e: any) => e.error || e.message || e));
           }
         }
       } catch (storeErr: any) {
