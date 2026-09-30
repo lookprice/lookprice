@@ -506,7 +506,6 @@ export const api = {
 
   // N11 Integration
   getN11Settings: (storeId?: number) => api.get(`/api/integrations/n11/settings${storeId ? `?storeId=${storeId}` : ""}`),
-  saveN11Settings: (data: { appKey: string, appSecret: string, categoryMappings?: any, categoryAttributes?: any, categoryMarkups?: any, defaultCommissionRate?: number, defaultFixedFee?: number, storeId?: number }) => api.post("/api/integrations/n11/settings", data),
   syncN11Orders: (storeId?: number) => api.post("/api/integrations/n11/sync", { storeId }),
   disconnectN11: (storeId?: number) => api.post("/api/integrations/n11/disconnect", { storeId }),
 
@@ -586,6 +585,9 @@ export const api = {
   getTrendyolBrands: (page?: number, size?: number) => api.get(`/api/integrations/trendyol/brands${(page !== undefined || size !== undefined) ? `?${page !== undefined ? `page=${page}` : ''}${size !== undefined ? `&size=${size}` : ''}` : ''}`),
   getPazaramaCategories: (storeId?: number) => api.get(`/api/integrations/pazarama/categories${storeId ? `?storeId=${storeId}` : ""}`),
   getPazaramaBrands: (storeId?: number) => api.get(`/api/integrations/pazarama/brands${storeId ? `?storeId=${storeId}` : ""}`),
+  getN11Categories: (storeId?: number) => api.get(`/api/integrations/n11/categories${storeId ? `?storeId=${storeId}` : ""}`),
+  getN11CategoryAttributes: (categoryId: string | number, storeId?: number) => api.get(`/api/integrations/n11/categories/${categoryId}/attributes${storeId ? `?storeId=${storeId}` : ""}`),
+  saveN11Settings: (data: { appKey?: string, appSecret?: string, categoryMappings?: any, categoryAttributes?: any, categoryMarkups?: any, defaultCommissionRate?: number, defaultFixedFee?: number, connected?: boolean, storeId?: number }) => api.post("/api/integrations/n11/settings", data),
   
   // Google Drive
   getGoogleDriveAuthUrl: () => api.get("/api/google-drive/auth-url"),
@@ -611,7 +613,7 @@ export const api = {
   logError: (data: any) => api.post("/api/store/log-error", data),
 
   // Integration Test Methods
-  testN11Connection: (storeId?: number) => api.post("/api/integrations/n11/test", { storeId }),
+  testN11Connection: (storeId?: number, data?: any) => api.post("/api/integrations/n11/test", { storeId, ...(data || {}) }),
   testHepsiburadaConnection: (storeId?: number, extraData?: any) => api.post("/api/integrations/hepsiburada/test", { storeId, ...(extraData || {}) }),
   testTrendyolConnection: (storeId?: number) => api.post("/api/integrations/trendyol/test", { storeId }),
   testPazaramaConnection: (storeId?: number) => api.post("/api/integrations/pazarama/test", { storeId }),

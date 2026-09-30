@@ -1,4 +1,4 @@
-export type MarketplaceType = 'hepsiburada' | 'trendyol' | 'amazon' | 'pazarama';
+export type MarketplaceType = 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama';
 
 export interface LocalCategoryItem {
   key: string;

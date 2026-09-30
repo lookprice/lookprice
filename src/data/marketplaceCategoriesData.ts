@@ -1139,6 +1139,34 @@ export const PAZARAMA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   { id: 107, name: "Spor & Outdoor", displayName: "Spor & Outdoor > Fitness & Kamp", paths: ["Spor Outdoor"] }
 ];
 
+// 5. Standard N11.com Leaf Categories
+export const N11_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
+  { id: 1000268, name: "USB Flash Bellek", displayName: "Bilgisayar > Veri Depolama > USB Flash Bellek", paths: ["Bilgisayar", "Veri Depolama", "USB Bellek"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000270, name: "Hafıza Kartı", displayName: "Bilgisayar > Veri Depolama > Hafıza Kartı", paths: ["Bilgisayar", "Veri Depolama", "Hafıza Kartı"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000269, name: "Dahili / Harici SSD & Hard Disk", displayName: "Bilgisayar > Veri Depolama > SSD & Hard Disk", paths: ["Bilgisayar", "Veri Depolama", "SSD"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000272, name: "Kart Okuyucu", displayName: "Bilgisayar > Veri Depolama > Kart Okuyucu", paths: ["Bilgisayar", "Veri Depolama", "Kart Okuyucu"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000275, name: "Dizüstü Bilgisayar (Laptop)", displayName: "Bilgisayar > Dizüstü Bilgisayar", paths: ["Bilgisayar", "Laptop"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000278, name: "Monitör", displayName: "Bilgisayar > Çevre Birimleri > Monitör", paths: ["Bilgisayar", "Monitör"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000280, name: "Klavye & Mouse Setleri", displayName: "Bilgisayar > Çevre Birimleri > Klavye & Mouse", paths: ["Bilgisayar", "Klavye", "Mouse"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000282, name: "Ağ & Modem & Router", displayName: "Bilgisayar > Ağ Ürünleri > Modem & Router", paths: ["Bilgisayar", "Modem", "Ağ"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000285, name: "Laptop Çantası & Kılıf", displayName: "Bilgisayar > Aksesuar > Laptop Çantası", paths: ["Bilgisayar", "Çanta", "Kılıf"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000288, name: "Kablo, Dönüştürücü & Adaptör", displayName: "Bilgisayar > Kablo & Adaptör", paths: ["Bilgisayar", "Kablo", "Dönüştürücü"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000301, name: "Cep Telefonu", displayName: "Telefon & Aksesuarları > Cep Telefonu", paths: ["Telefon", "Cep Telefonu"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 1000305, name: "Telefon Kılıfı & Kapak", displayName: "Telefon & Aksesuarları > Kılıf & Kapak", paths: ["Telefon", "Kılıf"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 1000308, name: "Ekran Koruyucu Cam & Film", displayName: "Telefon & Aksesuarları > Ekran Koruyucu", paths: ["Telefon", "Ekran Koruyucu"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 1000312, name: "Şarj Cihazı, Kablo & Powerbank", displayName: "Telefon & Aksesuarları > Şarj & Güç", paths: ["Telefon", "Şarj", "Powerbank"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 1000315, name: "Bluetooth Kulaklık & Kulaklık", displayName: "Telefon & Aksesuarları > Kulaklık", paths: ["Telefon", "Kulaklık", "Bluetooth"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 1000320, name: "Akıllı Saat & Bileklik", displayName: "Telefon & Aksesuarları > Akıllı Saat", paths: ["Telefon", "Akıllı Saat"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 1000401, name: "Televizyon & Ses Sistemleri", displayName: "Elektronik > TV & Ses Sistemleri", paths: ["Elektronik", "TV", "Ses"], leaf: true, available: true, status: "ACTIVE", sector: "electronics" },
+  { id: 1000410, name: "Güvenlik Kamerası & Alarm", displayName: "Elektronik > Güvenlik Sistemleri", paths: ["Elektronik", "Kamera", "Güvenlik"], leaf: true, available: true, status: "ACTIVE", sector: "electronics" },
+  { id: 1000501, name: "Erkek Giyim & Tişört & Pantolon", displayName: "Giyim & Ayakkabı > Erkek Giyim", paths: ["Giyim", "Erkek"], leaf: true, available: true, status: "ACTIVE", sector: "fashion" },
+  { id: 1000505, name: "Kadın Giyim & Elbise", displayName: "Giyim & Ayakkabı > Kadın Giyim", paths: ["Giyim", "Kadın"], leaf: true, available: true, status: "ACTIVE", sector: "fashion" },
+  { id: 1000510, name: "Spor Ayakkabı & Sneaker", displayName: "Giyim & Ayakkabı > Ayakkabı", paths: ["Ayakkabı", "Sneaker"], leaf: true, available: true, status: "ACTIVE", sector: "fashion" },
+  { id: 1000601, name: "Küçük Ev Aletleri & Süpürge", displayName: "Ev & Yaşam > Küçük Ev Aletleri", paths: ["Ev Yaşam", "Küçük Ev Aletleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 1000610, name: "Mutfak Gereçleri & Tencere", displayName: "Ev & Yaşam > Mutfak Gereçleri", paths: ["Ev Yaşam", "Mutfak"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 1000701, name: "Oto Aksesuar & Araç İçi Donanım", displayName: "Otomotiv & Motosiklet > Oto Aksesuar", paths: ["Otomotiv", "Aksesuar"], leaf: true, available: true, status: "ACTIVE", sector: "auto" }
+];
+
 // Country list for Origin / Menşei
 export const MARKETPLACE_ORIGIN_COUNTRIES = [
   "Çin",

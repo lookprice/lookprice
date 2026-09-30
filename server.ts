@@ -271,13 +271,40 @@ async function startServer() {
 
   app.use(domainMiddleware);
 
-  // API route to annotate images for social sharing
+  // API route to annotate images for social sharing (with SSRF protection)
   app.get("/api/annotate-image", async (req, res) => {
     const { imageUrl, status } = req.query;
-    if (!imageUrl || !status) return res.status(400).send("Missing parameters");
+    if (!imageUrl || typeof imageUrl !== 'string' || !status) {
+      return res.status(400).send("Missing or invalid parameters");
+    }
+
+    let targetUrl = imageUrl.trim();
+    if (targetUrl.startsWith('//')) {
+      targetUrl = 'https:' + targetUrl;
+    }
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(targetUrl);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return res.status(400).send("Invalid URL protocol");
+      }
+      if (isPrivateOrInternalIp(parsedUrl.hostname)) {
+        return res.status(403).send("Access forbidden: Internal or private IP address requested");
+      }
+    } catch {
+      return res.status(400).send("Malformed URL");
+    }
 
     try {
-      const response = await axios.get(imageUrl as string, { responseType: 'arraybuffer' });
+      const response = await axios.get(targetUrl, { 
+        responseType: 'arraybuffer',
+        timeout: 12000,
+        maxRedirects: 5,
+        httpsAgent: proxyHttpsAgent,
+        httpAgent: proxyHttpAgent,
+        validateStatus: (s) => s >= 200 && s < 400
+      });
       const imageBuffer = Buffer.from(response.data);
       
       // Create ribbon SVG
@@ -712,7 +739,13 @@ function sanitizeFilename(originalName: string): string {
   const storageRamCache = new Map<string, { buffer: Buffer; contentType: string; contentLength: number; etag: string; timestamp: number }>();
 
   app.get("/api/storage/*", async (req, res) => {
-    const filePath = req.params[0];
+    const rawFilePath = req.params[0] || '';
+    // Path traversal sanitization: normalize and strip any leading or relative traversal patterns
+    const safeFilePath = path.normalize(rawFilePath).replace(/^(\.\.[\/\\])+/, '').replace(/^[\\\/]+/, '');
+    if (!safeFilePath || safeFilePath.includes('..')) {
+      return res.status(403).json({ error: "Access forbidden: Invalid file path" });
+    }
+    const filePath = safeFilePath;
     const isImage = /\.(jpeg|jpg|png|webp|svg|gif|ico|bmp)$/i.test(filePath);
 
     // 0. Check in-memory RAM cache first (0 disk I/O, 0 network, 0 db query)
@@ -728,7 +761,8 @@ function sanitizeFilename(originalName: string): string {
       return res.send(cachedItem.buffer);
     }
 
-    // 1. Check local file system
+    // 1. Check local file system with strict directory bounds
+    const allowedRoots = [path.resolve(lookdocuDir), path.resolve(uploadsDir)];
     const possibleLocalPaths = [
       path.join(lookdocuDir, filePath),
       path.join(uploadsDir, filePath),
@@ -737,16 +771,20 @@ function sanitizeFilename(originalName: string): string {
     ];
 
     for (const localPath of possibleLocalPaths) {
-      if (fs.existsSync(localPath)) {
+      const resolved = path.resolve(localPath);
+      const isAllowed = allowedRoots.some(root => resolved.startsWith(root));
+      if (!isAllowed) continue;
+
+      if (fs.existsSync(resolved)) {
         try {
-          const stats = fs.statSync(localPath);
+          const stats = fs.statSync(resolved);
           const etag = `"${stats.size}-${stats.mtimeMs}"`;
           if (req.headers["if-none-match"] === etag) {
             return res.status(304).end();
           }
           res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
           res.setHeader("ETag", etag);
-          return res.sendFile(localPath);
+          return res.sendFile(resolved);
         } catch (e) {
           // fallback to next
         }

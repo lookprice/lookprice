@@ -148,7 +148,8 @@ export const SettingsEStoresTab = ({
 
   // Global Marketplace Category Mapping Modal
   const [categoryMappingModalOpen, setCategoryMappingModalOpen] = useState(false);
-  const [selectedMappingMarketplace, setSelectedMappingMarketplace] = useState<'hepsiburada' | 'trendyol' | 'amazon' | 'pazarama'>('hepsiburada');
+  const [selectedMappingMarketplace, setSelectedMappingMarketplace] = useState<'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama'>('hepsiburada');
+  const [testingN11, setTestingN11] = useState(false);
 
   // Unified Marketplace Listings & Error Modal
   const [showListingsModal, setShowListingsModal] = useState(() => {
@@ -500,7 +501,10 @@ export const SettingsEStoresTab = ({
         appKey: n11AppKey, 
         appSecret: n11AppSecret, 
         categoryMappings: prevN11.categoryMappings || {},
+        categoryAttributes: prevN11.categoryAttributes || {},
         categoryMarkups: prevN11.categoryMarkups || {},
+        defaultCommissionRate: prevN11.defaultCommissionRate ?? 20,
+        defaultFixedFee: prevN11.defaultFixedFee ?? 20,
         connected: isConn, 
         storeId: currentStoreId 
       };
@@ -513,8 +517,8 @@ export const SettingsEStoresTab = ({
       onBrandingChange('n11_settings', savedData);
       toast.success(isConn ? (lang === 'tr' ? "N11 hesabı başarıyla bağlandı ve kaydedildi" : "N11 account connected successfully") : (t.saveSuccess || "Kaydedildi"));
       if (onRefresh) onRefresh();
-    } catch (error) {
-      toast.error(t.errorOccurred || "Bir hata oluştu");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || t.errorOccurred || "Bir hata oluştu");
     }
   };
 
@@ -541,16 +545,25 @@ export const SettingsEStoresTab = ({
   };
 
   const handleTestN11 = async () => {
+    if (!n11AppKey || !n11AppSecret) {
+      toast.error(lang === 'tr' ? 'Lütfen önce N11 App Key ve App Secret giriniz.' : 'Please enter N11 App Key and App Secret first.');
+      return;
+    }
+    setTestingN11(true);
     try {
-      const res = await api.testN11Connection(currentStoreId);
-      if (res.success) {
+      const res = await api.testN11Connection(currentStoreId, { appKey: n11AppKey, appSecret: n11AppSecret });
+      if (res?.success || res?.data?.success) {
         toast.success(lang === 'tr' ? 'N11 Bağlantısı Başarılı!' : 'N11 Connection Successful!');
         onBrandingChange('n11_settings', { ...branding.n11_settings, appKey: n11AppKey, appSecret: n11AppSecret, connected: true });
       } else {
-        toast.error(`${lang === 'tr' ? 'N11 Bağlantı Hatası' : 'N11 Connection Error'}: ${res.error || 'Bilinmeyen hata'}`);
+        const errMsg = res?.error || res?.message || res?.data?.error || res?.data?.message || 'Kimlik doğrulama başarısız';
+        toast.error(`${lang === 'tr' ? 'N11 Bağlantı Hatası' : 'N11 Connection Error'}: ${errMsg}`);
       }
-    } catch (error) {
-      toast.error(t.errorOccurred || 'Bir hata oluştu');
+    } catch (error: any) {
+      const errMsg = error?.response?.data?.error || error?.response?.data?.message || error?.message || (lang === 'tr' ? 'N11 API Bağlantı Hatası' : 'N11 Connection Error');
+      toast.error(`${lang === 'tr' ? 'N11 Bağlantı Hatası' : 'N11 Connection Error'}: ${errMsg}`);
+    } finally {
+      setTestingN11(false);
     }
   };
 
@@ -935,7 +948,7 @@ export const SettingsEStoresTab = ({
       id: 'n11', 
       label: 'N11', 
       isConnected: isN11Connected, 
-      count: 0 
+      count: Object.keys(branding.n11_settings?.categoryMappings || {}).length 
     },
     { 
       id: 'all', 
@@ -1204,10 +1217,17 @@ export const SettingsEStoresTab = ({
           n11AppSecret={n11AppSecret}
           setN11AppSecret={setN11AppSecret}
           isN11Connected={isN11Connected}
+          testingN11={testingN11}
+          n11LiveCount={n11LiveCount}
+          n11ErrCount={n11ErrCount}
           handleTestN11={handleTestN11}
           handleSyncN11Orders={handleSyncN11Orders}
           handleDisconnectN11={handleDisconnectN11}
           handleSaveN11Settings={handleSaveN11Settings}
+          setListingsModalTab={setListingsModalTab}
+          setShowListingsModal={setShowListingsModal}
+          setSelectedMappingMarketplace={setSelectedMappingMarketplace}
+          setCategoryMappingModalOpen={setCategoryMappingModalOpen}
           n11Sync={n11Sync}
         />
       )}

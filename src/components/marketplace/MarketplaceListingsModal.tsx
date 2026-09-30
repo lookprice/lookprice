@@ -839,9 +839,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   const currentMpConfig = MARKETPLACES.find(m => m.key === selectedMarketplace);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-1.5 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
       <div 
-        className="relative w-full max-w-6xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden"
+        className="relative w-full max-w-6xl h-[94dvh] max-h-[94dvh] sm:h-auto sm:max-h-[92vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Marketplace Tabs & Direct Merchant Portal Links */}
@@ -959,7 +959,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           }}
           products={products}
           currentStoreId={currentStoreId}
-          initialMarketplace={selectedMarketplace === 'all' || selectedMarketplace === 'n11' ? 'hepsiburada' : (selectedMarketplace as any)}
+          initialMarketplace={selectedMarketplace === 'all' ? 'hepsiburada' : (selectedMarketplace as any)}
           onRefresh={onRefresh}
         />
       )}

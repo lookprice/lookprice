@@ -33,11 +33,13 @@ import hotelRoomsRouter from "./store/hotelRooms";
 const router = express.Router();
 
 
-// Debug middleware
-router.use((req, res, next) => {
-  console.log(`DEBUG: Store route hit: ${req.method} ${req.originalUrl}`);
-  next();
-});
+// Debug middleware (development only)
+if (process.env.NODE_ENV !== "production") {
+  router.use((req, res, next) => {
+    console.log(`DEBUG: Store route hit: ${req.method} ${req.originalUrl}`);
+    next();
+  });
+}
 
 // Auth middleware applied to all store routes
 router.use(authenticate);

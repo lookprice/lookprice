@@ -1,5 +1,6 @@
 import express from "express";
 import { pool, addStockMovement } from "../../models/db";
+import { getAuthorizedStoreId } from "../../middleware/auth";
 import { getEInvoiceService } from "../einvoice";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
 import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification, revertInvoiceStockAndProducts, detectExpenseCategory } from "./invoiceMatching";
@@ -550,7 +551,7 @@ async function resolveProductInfo(clientOrPool: any, storeId: number, productId:
 
 router.get("/sales", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     const { startDate, endDate, status, search } = req.query;
 
     let query = `
@@ -657,7 +658,7 @@ router.get("/sales", async (req: any, res) => {
 
 router.get("/sales/:id", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     const invoiceResult = await pool.query(
       `SELECT si.*, 
               c.title as company_title,
@@ -763,10 +764,7 @@ router.post("/sales", async (req: any, res) => {
       gi_withholding_tax_code
     } = req.body;
     
-    let storeId = req.user.store_id;
-    if (req.user.role === "superadmin" && bodyStoreId) {
-      storeId = bodyStoreId;
-    }
+    const storeId = getAuthorizedStoreId(req, bodyStoreId);
 
     if (!storeId) throw new Error("Store ID is required");
 
@@ -1068,7 +1066,7 @@ router.put("/sales/:id", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     
-    const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.body.storeId);
     const { 
       company_id, customer_id, invoice_number, waybill_number, invoice_date, invoice_time,
       notes, items, payment_method, currency, exchange_rate, 
@@ -1385,7 +1383,7 @@ router.put("/sales/:id", async (req: any, res) => {
 
 router.post("/sales/:id/create-from-sale", async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -1512,7 +1510,7 @@ router.post("/sales/:id/create-from-sale", async (req: any, res) => {
 
 router.get("/purchase", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     const { search, startDate, endDate } = req.query;
 
     let query = `
@@ -1598,17 +1596,14 @@ router.get("/purchase", async (req: any, res) => {
 
 router.get("/purchase/:id", async (req: any, res) => {
   try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     let query = `
       SELECT pi.*, c.title as company_name 
       FROM purchase_invoices pi 
       LEFT JOIN companies c ON pi.company_id = c.id 
-      WHERE pi.id = $1
+      WHERE pi.id = $1 AND pi.store_id = $2
     `;
-    let params = [req.params.id];
-    if (req.user.role !== "superadmin") {
-      query += " AND pi.store_id = $2";
-      params.push(req.user.store_id);
-    }
+    let params = [req.params.id, storeId];
     
     const invoiceResult = await pool.query(query, params);
     
@@ -1821,7 +1816,7 @@ router.get("/purchase/:id", async (req: any, res) => {
 
 router.post("/purchase", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
     const {
       invoice_number, invoice_date, company_id, waybill_number, tax_number, tax_office,
       address, total_amount, tax_amount, grand_total, currency, exchange_rate, notes,
@@ -2110,7 +2105,7 @@ router.post("/purchase", async (req: any, res) => {
 
 router.put("/purchase/:id", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
     const { id } = req.params;
     const {
       invoice_number, invoice_date, company_id, waybill_number, tax_number, tax_office,
@@ -2488,7 +2483,7 @@ router.put("/purchase/:id", async (req: any, res) => {
 
 router.delete("/sales/:id", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     const { id } = req.params;
 
     const checkRes = await pool.query("SELECT id, invoice_number, quotation_id, sale_id FROM sales_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
@@ -2530,7 +2525,7 @@ router.delete("/sales/:id", async (req: any, res) => {
 
 router.delete("/purchase/:id", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     const { id } = req.params;
 
     const checkRes = await pool.query("SELECT id, invoice_number FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
@@ -2601,7 +2596,7 @@ router.delete("/purchase/:id", async (req: any, res) => {
 
 router.post("/purchase/:id/status", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
     const { id } = req.params;
     const { status } = req.body;
 
@@ -2619,7 +2614,7 @@ router.post("/purchase/:id/status", async (req: any, res) => {
 
 router.patch("/purchase/:id/read", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     const { id } = req.params;
 
     const result = await pool.query(
@@ -2636,7 +2631,7 @@ router.patch("/purchase/:id/read", async (req: any, res) => {
 
 router.patch("/purchase/:id/payment-status", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
     const { id } = req.params;
     const { status } = req.body;
 
@@ -2721,7 +2716,7 @@ router.patch("/purchase/:id/payment-status", async (req: any, res) => {
 
 // Explicitly convert an existing invoice to an expense, cleanly reverting stocks and pinning supplier
 router.post("/purchase/:id/convert-to-expense", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const { id } = req.params;
   const { expense_category, expense_center } = req.body;
 
@@ -2780,7 +2775,7 @@ router.post("/purchase/:id/convert-to-expense", async (req: any, res) => {
 
 // Explicitly convert an existing expense invoice to a stock/commercial purchase
 router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const { id } = req.params;
 
   try {
@@ -2999,7 +2994,7 @@ router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
 
 // Auto-repair all historical expense invoices in the store that were mistakenly treated as inventory
 router.post("/purchase/auto-repair-expenses", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
 
   try {
     const invRes = await pool.query(
@@ -3058,7 +3053,7 @@ router.post("/purchase/auto-repair-expenses", async (req: any, res) => {
 // Update a purchase invoice item's matched product_id, barcode or product_code
 router.put("/purchase/items/:itemId", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
     const itemId = req.params.itemId;
     const { product_id, barcode, product_code } = req.body;
 

@@ -7,9 +7,11 @@ import {
   Plus,
   Search,
   Cloud,
+  Calendar,
   CalendarDays,
   Layout,
-  ArrowLeft
+  ArrowLeft,
+  List
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/services/api";
@@ -103,7 +105,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
             <button
               onClick={() => setViewMode('list')}
               className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
-                viewMode === 'list' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                (viewMode as string) === 'list' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               <List className="w-3.5 h-3.5" />

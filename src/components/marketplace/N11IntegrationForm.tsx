@@ -5,7 +5,10 @@ import {
   CheckCheck, 
   Save, 
   Eye, 
-  EyeOff 
+  EyeOff,
+  Store,
+  Layers,
+  Loader2
 } from "lucide-react";
 
 interface N11IntegrationFormProps {
@@ -18,10 +21,17 @@ interface N11IntegrationFormProps {
   n11AppSecret: string;
   setN11AppSecret: (val: string) => void;
   isN11Connected: boolean;
+  testingN11?: boolean;
+  n11LiveCount?: number;
+  n11ErrCount?: number;
   handleTestN11: () => void;
   handleSyncN11Orders: () => void;
   handleDisconnectN11: () => void;
   handleSaveN11Settings: () => void;
+  setListingsModalTab?: (tab: any) => void;
+  setShowListingsModal?: (show: boolean) => void;
+  setSelectedMappingMarketplace?: (m: any) => void;
+  setCategoryMappingModalOpen?: (open: boolean) => void;
   n11Sync: { isSyncing: boolean };
 }
 
@@ -35,24 +45,33 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
   n11AppSecret,
   setN11AppSecret,
   isN11Connected,
+  testingN11 = false,
+  n11LiveCount = 0,
+  n11ErrCount = 0,
   handleTestN11,
   handleSyncN11Orders,
   handleDisconnectN11,
   handleSaveN11Settings,
+  setListingsModalTab,
+  setShowListingsModal,
+  setSelectedMappingMarketplace,
+  setCategoryMappingModalOpen,
   n11Sync
 }) => {
   const [showN11Secret, setShowN11Secret] = useState(false);
 
+  const mappedCatCount = Object.keys(branding.n11_settings?.categoryMappings || {}).length;
+
   return (
-    <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs space-y-4" id="n11-integration-card">
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+    <div className="bg-white border border-slate-200/90 rounded-xl p-4 sm:p-5 shadow-xs space-y-4" id="n11-integration-card">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-lg bg-red-50 border border-red-200/70 flex items-center justify-center font-black text-red-600 text-xs tracking-tighter">
             N11
           </div>
           <div>
             <h3 className="text-sm font-semibold text-slate-900">{t.n11Integration || "N11 Entegrasyonu"}</h3>
-            <p className="text-xs text-slate-500">{t.n11IntegrationDesc || "N11 SOAP Web Servisi bağlantısı"}</p>
+            <p className="text-xs text-slate-500">{t.n11IntegrationDesc || "N11 SOAP Web Servisi & Ürün/Kategori Kataloğu"}</p>
           </div>
         </div>
 
@@ -135,10 +154,15 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
           <button 
             type="button"
             onClick={handleTestN11}
-            className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
+            disabled={testingN11}
+            className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
-            <span>{lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test API'}</span>
+            {testingN11 ? (
+              <Loader2 className="h-3.5 w-3.5 text-slate-500 animate-spin" />
+            ) : (
+              <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
+            )}
+            <span>{testingN11 ? (lang === 'tr' ? 'Test Ediliyor...' : 'Testing...') : (lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test API')}</span>
           </button>
 
           <button 
@@ -150,6 +174,51 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
             <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${n11Sync.isSyncing ? 'animate-spin' : ''}`} />
             <span>{n11Sync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
           </button>
+
+          {setListingsModalTab && setShowListingsModal && (
+            <button 
+              type="button"
+              onClick={() => {
+                setListingsModalTab('n11');
+                setShowListingsModal(true);
+              }}
+              id="n11-view-listings-btn"
+              className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-900 border border-red-200/90 shadow-xs transition-colors cursor-pointer"
+              title={lang === 'tr' ? "N11'de Satışta Olan ve Hata Alan Ürünleri Listele" : "List active and failed N11 products"}
+            >
+              <Store className="h-3.5 w-3.5 text-red-600" />
+              <span>{lang === 'tr' ? 'İlanlar & Hatalar' : 'Listings & Errors'}</span>
+              {n11LiveCount > 0 && (
+                <span className="text-[10px] font-black bg-emerald-600 text-white px-1.5 py-0.2 rounded-full">
+                  {n11LiveCount}
+                </span>
+              )}
+              {n11ErrCount > 0 && (
+                <span className="text-[10px] font-black bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse">
+                  {n11ErrCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {setSelectedMappingMarketplace && setCategoryMappingModalOpen && (
+            <button 
+              type="button"
+              onClick={() => {
+                setSelectedMappingMarketplace('n11');
+                setCategoryMappingModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
+            >
+              <Layers className="h-3.5 w-3.5 text-slate-500" />
+              <span>{lang === 'tr' ? 'Kategori & Nitelik Eşle' : 'Category Mapping'}</span>
+              {mappedCatCount > 0 && (
+                <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded-md border border-slate-200">
+                  {mappedCatCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

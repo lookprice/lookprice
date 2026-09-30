@@ -1,5 +1,6 @@
 import express from "express";
 import { pool, logAction, addStockMovement, convertRecipeAmountToMl } from "../../models/db";
+import { getAuthorizedStoreId } from "../../middleware/auth";
 import { getEInvoiceService } from "../einvoice";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
 
@@ -8,7 +9,7 @@ const router = express.Router();
 // Get All Quotations
 router.get("/", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     if (!storeId) return res.status(400).json({ error: "Store ID required" });
     
     const { search, status, startDate, endDate } = req.query;
@@ -59,7 +60,7 @@ router.get("/", async (req: any, res) => {
 // Get Single Quotation
 router.get("/:id", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     const { id } = req.params;
     
     const quotRes = await pool.query("SELECT * FROM quotations WHERE id = $1 AND store_id = $2", [id, storeId]);
@@ -76,7 +77,7 @@ router.get("/:id", async (req: any, res) => {
 router.post("/", async (req: any, res) => {
   const client = await pool.connect();
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
     const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, is_tax_inclusive, exchange_rate } = req.body;
     
     await client.query("BEGIN");
@@ -127,7 +128,7 @@ router.post("/", async (req: any, res) => {
 router.put("/:id", async (req: any, res) => {
   const client = await pool.connect();
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
     const { id } = req.params;
     const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, is_tax_inclusive, exchange_rate } = req.body;
     
@@ -166,7 +167,7 @@ router.put("/:id", async (req: any, res) => {
 router.delete("/:id", async (req: any, res) => {
   const client = await pool.connect();
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     const { id } = req.params;
     
     await client.query("BEGIN");
@@ -224,7 +225,7 @@ router.delete("/:id", async (req: any, res) => {
 
 // Approve Quotation (Convert to Sale)
 router.post("/:id/approve", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
     const { payment_method, due_date, notes } = req.body;
     const client = await pool.connect();
     try {
@@ -500,7 +501,7 @@ router.post("/:id/approve", async (req: any, res) => {
 
 // Cancel Quotation
 router.post("/:id/cancel", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");

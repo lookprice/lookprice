@@ -88,6 +88,7 @@ export interface Product {
   brand?: string;
   author?: string;
   labels?: string[];
+  _purchaseInvoiceItemId?: number | string;
   sector_data?: any;
   is_web_sale?: boolean;
   is_bestseller?: boolean;

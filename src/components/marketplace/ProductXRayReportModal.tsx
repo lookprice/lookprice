@@ -211,6 +211,8 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
       tyTargetPrice,
       tyLivePrice,
       tyIsUnderpriced,
+      tyCommRate,
+      tyFixedFee,
 
       // N11
       n11TargetPrice,

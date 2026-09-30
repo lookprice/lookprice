@@ -1,7 +1,7 @@
 import express from "express";
 import { pool } from "../models/db";
 import axios from "axios";
-import { authenticate } from "../middleware/auth";
+import { authenticate, getAuthorizedStoreId } from "../middleware/auth";
 import { IntegrationService } from "../src/services/IntegrationService";
 import { HepsiburadaService } from "../src/services/backend/hepsiburadaService";
 import { HepsiburadaServiceV3 } from "../src/services/backend/HepsiburadaServiceV3";
@@ -723,14 +723,116 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
 });
 
 router.post("/n11/test", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const dbSettings = storeRes.rows[0]?.n11_settings || {};
+    const appKey = (req.body.appKey || dbSettings.appKey || "").trim();
+    const appSecret = (req.body.appSecret || dbSettings.appSecret || "").trim();
+
+    if (!appKey || !appSecret) {
+      return res.status(400).json({ success: false, error: "N11 API AppKey ve AppSecret bilgileri eksik." });
+    }
+
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.testConnection({ appKey, appSecret });
+    
+    if (!result.success) {
+      return res.status(400).json({ success: false, error: result.message || "N11 API Kimlik doğrulaması başarısız." });
+    }
+
+    res.json({ success: true, message: result.message });
+  } catch (error: any) { 
+    res.status(500).json({ success: false, error: error.message || "N11 API Bağlantı testi başarısız." }); 
+  }
+});
+
+router.post("/n11/settings", authenticate, async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
+  try {
+    const { appKey, appSecret, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee, connected } = req.body;
+    const storeRes = await pool.query("SELECT n11_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+
+    const prevSettings = storeRes.rows[0].n11_settings || {};
+    const isConn = connected !== undefined ? connected : (!!((appKey || prevSettings.appKey)?.trim()) && !!((appSecret || prevSettings.appSecret)?.trim()));
+    const updatedSettings = {
+      ...prevSettings,
+      appKey: appKey !== undefined ? String(appKey).trim() : prevSettings.appKey,
+      appSecret: appSecret !== undefined ? String(appSecret).trim() : prevSettings.appSecret,
+      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prevSettings.categoryMappings || {}),
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prevSettings.categoryAttributes || {}),
+      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prevSettings.categoryMarkups || {}),
+      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prevSettings.defaultCommissionRate ?? 18),
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevSettings.defaultFixedFee ?? 20),
+      connected: isConn
+    };
+
+    const branding = storeRes.rows[0].branding || {};
+    branding.n11_settings = updatedSettings;
+
+    await pool.query("UPDATE stores SET n11_settings = $1, branding = $2 WHERE id = $3", [
+      JSON.stringify(updatedSettings),
+      JSON.stringify(branding),
+      storeId
+    ]);
+
+    res.json({ success: true, settings: updatedSettings });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/n11/categories", authenticate, async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query.storeId);
   try {
     const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.n11_settings;
-    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
-    const success = await testN11Connection(settings);
-    res.json({ success });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    const { N11_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
+
+    if (settings && settings.appKey && settings.appSecret) {
+      try {
+        const { N11Service } = await import("../src/services/backend/n11Service");
+        const liveCats = await N11Service.getTopLevelCategories(settings);
+        if (Array.isArray(liveCats) && liveCats.length > 0) {
+          const formatted = liveCats.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            displayName: c.name,
+            paths: [c.name],
+            leaf: false
+          }));
+          return res.json({ success: true, categories: [...N11_DEFAULT_CATEGORIES, ...formatted] });
+        }
+      } catch (soapErr) {
+        console.warn("[N11 Live Categories Fetch Warning]:", soapErr);
+      }
+    }
+    res.json({ success: true, categories: N11_DEFAULT_CATEGORIES });
+  } catch (error: any) {
+    const { N11_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
+    res.json({ success: true, categories: N11_DEFAULT_CATEGORIES });
+  }
+});
+
+router.get("/n11/categories/:id/attributes", authenticate, async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query.storeId);
+  const { id } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+
+    if (settings && settings.appKey && settings.appSecret) {
+      const { N11Service } = await import("../src/services/backend/n11Service");
+      const attrs = await N11Service.getCategoryAttributes(settings, Number(id));
+      if (Array.isArray(attrs)) {
+        return res.json({ success: true, attributes: attrs });
+      }
+    }
+    res.json({ success: true, attributes: [] });
+  } catch (error: any) {
+    res.json({ success: true, attributes: [] });
+  }
 });
 
 router.get("/n11/cities", authenticate, async (req: any, res) => {
@@ -2469,7 +2571,7 @@ router.post("/amazon/unpublish", authenticate, async (req: any, res) => {
       if (amzSettings?.sellerId && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
         const sku = p.amazon_sku || p.sku || p.barcode;
         if (sku) {
-          const { AmazonService } = await import("./services/backend/amazonService.js");
+          const { AmazonService } = await import("../src/services/backend/amazonService");
           const amzService = new AmazonService(amzSettings, storeId);
           await amzService.updateListingsItem(String(sku).trim(), parseFloat(p.price || "0"), 0);
         }

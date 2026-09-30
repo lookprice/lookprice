@@ -1,16 +1,25 @@
 import { pool } from "../../models/db";
 
 export const getAuthorizedStoreId = async (req: any, requestedStoreId: any) => {
-  const currentStoreId = req.user.store_id;
-  if (req.user.role === "superadmin") return parseInt(requestedStoreId || currentStoreId);
-  if (!requestedStoreId || parseInt(requestedStoreId) === parseInt(currentStoreId)) return currentStoreId;
+  const currentStoreId = Number(req.user?.store_id || 0);
+  if (req.user?.role === "superadmin") {
+    const parsed = Number(requestedStoreId || currentStoreId);
+    return !isNaN(parsed) && parsed > 0 ? parsed : currentStoreId;
+  }
+  if (!requestedStoreId || Number(requestedStoreId) === currentStoreId) return currentStoreId;
 
-  // Check if requestedStoreId is a branch of currentStoreId
-  const relationRes = await pool.query("SELECT id FROM stores WHERE id = $1 AND parent_id = $2", [requestedStoreId, currentStoreId]);
-  if (relationRes.rows.length > 0) return parseInt(requestedStoreId);
+  // Check if requestedStoreId is a valid authorized branch of currentStoreId
+  try {
+    const relationRes = await pool.query("SELECT id FROM stores WHERE id = $1 AND parent_id = $2", [Number(requestedStoreId), currentStoreId]);
+    if (relationRes.rows.length > 0) return Number(requestedStoreId);
+  } catch (err) {
+    console.error("[getAuthorizedStoreId] Branch check error:", err);
+  }
 
-  return null;
+  return currentStoreId;
 };
+
+export const getAuthorizedStoreIdWithBranch = getAuthorizedStoreId;
 
 /**
  * Normalizes a string for Turkish-friendly case-insensitive search in SQL

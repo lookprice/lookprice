@@ -148,7 +148,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       is_hepsiburada_active: rawData.is_hepsiburada_active !== undefined 
         ? (String(rawData.is_hepsiburada_active) === 'true' || rawData.is_hepsiburada_active === 'on') 
         : Boolean(editingProduct?.is_hepsiburada_active),
-      amazon_asin: (rawData.amazon_asin && rawData.amazon_asin !== 'null' && !rawData.amazon_asin.startsWith('http')) ? rawData.amazon_asin : (marketplaceData?.amazon?.asin && marketplaceData.amazon.asin !== 'null' ? marketplaceData.amazon.asin : (editingProduct?.amazon_asin && editingProduct.amazon_asin !== 'null' ? editingProduct.amazon_asin : null)),
+      amazon_asin: (typeof rawData.amazon_asin === 'string' && rawData.amazon_asin !== 'null' && !rawData.amazon_asin.startsWith('http')) ? rawData.amazon_asin : (marketplaceData?.amazon?.asin && marketplaceData.amazon.asin !== 'null' ? marketplaceData.amazon.asin : (editingProduct?.amazon_asin && editingProduct.amazon_asin !== 'null' ? editingProduct.amazon_asin : null)),
       amazon_sku: (rawData.amazon_sku && rawData.amazon_sku !== 'null') ? rawData.amazon_sku : (marketplaceData?.amazon?.sku && marketplaceData.amazon.sku !== 'null' ? marketplaceData.amazon.sku : (editingProduct?.amazon_sku && editingProduct.amazon_sku !== 'null' ? editingProduct.amazon_sku : null)),
       amazon_url: (rawData.amazon_url && rawData.amazon_url !== 'null') ? rawData.amazon_url : (marketplaceData?.amazon?.productUrl || editingProduct?.amazon_url || null),
       is_amazon_active: rawData.is_amazon_active !== undefined 

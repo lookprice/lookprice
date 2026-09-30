@@ -1,12 +1,12 @@
 import express from "express";
 import { pool } from "../../models/db";
+import { getAuthorizedStoreId } from "../../middleware/auth";
 
 const router = express.Router();
 
 // GET /api/store/transactions/:id - Fetch single transaction
 router.get("/:id", async (req: any, res) => {
-  let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-  if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId);
   const { id } = req.params;
 
   try {
@@ -26,8 +26,7 @@ router.get("/:id", async (req: any, res) => {
 
 // PUT /api/store/transactions/:id - Update transaction
 router.put("/:id", async (req: any, res) => {
-  let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
-  if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const { id } = req.params;
   const { type, amount, description, transaction_date, payment_method, currency, exchange_rate } = req.body;
 
@@ -72,8 +71,7 @@ router.put("/:id", async (req: any, res) => {
 
 // PATCH /api/store/transactions/:id - Alias to PUT
 router.patch("/:id", async (req: any, res) => {
-  let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
-  if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const { id } = req.params;
   const { type, amount, description, transaction_date, payment_method, currency, exchange_rate } = req.body;
 
@@ -118,8 +116,7 @@ router.patch("/:id", async (req: any, res) => {
 
 // DELETE /api/store/transactions/:id - Delete transaction
 router.delete("/:id", async (req: any, res) => {
-  let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-  if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId);
   const { id } = req.params;
 
   try {
