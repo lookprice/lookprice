@@ -1,10 +1,11 @@
 import express from "express";
 import { pool, addStockMovement } from "../../models/db";
+import { getAuthorizedStoreId } from "../../middleware/auth";
 
 const router = express.Router();
 
 router.get("/", async (req: any, res) => {
-  const storeId = req.query.storeId || req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId);
   const includeBranches = req.query.includeBranches === 'true';
   if (!storeId) return res.status(400).json({ error: "Store ID required" });
 
@@ -54,10 +55,9 @@ router.get("/", async (req: any, res) => {
 });
 
 router.post("/", async (req: any, res) => {
-  const userStoreId = req.user.store_id;
   const { from_store_id, to_store_id, fromStoreId, toStoreId, items, notes, status: requestedStatus } = req.body;
 
-  const actualFromStoreId = Number(from_store_id || fromStoreId || userStoreId);
+  const actualFromStoreId = getAuthorizedStoreId(req, from_store_id || fromStoreId);
   const actualToStoreId = Number(to_store_id || toStoreId);
   const initialStatus = requestedStatus === 'shipped' ? 'shipped' : 'pending';
 

@@ -1,7 +1,7 @@
 import express from "express";
 import crypto from "crypto";
 import { pool, addStockMovement } from "../models/db";
-import { authenticate } from "../middleware/auth";
+import { authenticate, getAuthorizedStoreId } from "../middleware/auth";
 import { MySoftService } from "../src/services/backend/mysoftService";
 import { IntegrationService } from "../src/services/IntegrationService";
 import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
@@ -3076,7 +3076,7 @@ router.get("/einvoice/waybill/html/:invoiceId", authenticate, async (req: any, r
 // 1. List independent waybills
 router.get("/independent-waybills", authenticate, async (req: any, res) => {
   try {
-    const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     let query = `
       SELECT ew.*, 
              c.title as company_name, c.title as company_title,
@@ -3124,7 +3124,7 @@ router.get("/independent-waybills", authenticate, async (req: any, res) => {
 // 2. Clear Waybill/Details
 router.get("/independent-waybills/:id", authenticate, async (req: any, res) => {
   try {
-    const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
     const waybillRes = await pool.query(
       `SELECT ew.*, 
               c.title as company_name, c.title as company_title, c.tax_number as company_tax_number, c.tax_office as company_tax_office, c.address as company_address, c.email as company_email,
@@ -3160,7 +3160,7 @@ router.get("/independent-waybills/:id", authenticate, async (req: any, res) => {
 
 // 3. Create independent waybill
 router.post("/independent-waybills", authenticate, async (req: any, res) => {
-  const storeId = req.body.storeId ? Number(req.body.storeId) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
   const {
     company_id,
     customer_id,
@@ -3303,7 +3303,7 @@ router.post("/independent-waybills", authenticate, async (req: any, res) => {
 
 // 4. Update independent waybill
 router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
-  const storeId = req.body.storeId ? Number(req.body.storeId) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
   const { id } = req.params;
   const {
     company_id,
@@ -3464,7 +3464,7 @@ router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
 
 // 5. Delete independent waybill
 router.delete("/independent-waybills/:id", authenticate, async (req: any, res) => {
-  const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   try {
     const statusCheck = await pool.query(
       "SELECT status FROM e_waybills WHERE id = $1 AND store_id = $2",
@@ -3491,7 +3491,7 @@ router.delete("/independent-waybills/:id", authenticate, async (req: any, res) =
 // 6. Transmit independent waybill to MySoft
 router.post("/independent-waybills/:id/send", authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
 
   try {
     const waybillRes = await pool.query(
@@ -3876,7 +3876,7 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
 // 7. Status checker
 router.get("/independent-waybills/:id/status", authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId);
   try {
     const waybillRes = await pool.query("SELECT * FROM e_waybills WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (waybillRes.rows.length === 0) return res.status(404).json({ error: "İrsaliye bulunamadı." });
@@ -3933,7 +3933,7 @@ router.get("/independent-waybills/:id/html", authenticate, async (req: any, res)
 
 // 9. Convert multiple waybills to a single Sales Invoice
 router.post("/independent-waybills/convert-to-invoice", authenticate, async (req: any, res) => {
-  const storeId = req.body.storeId ? Number(req.body.storeId) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
   const { waybillIds, invoiceProfile, giInvoiceType, paymentMethod, notes, currency } = req.body;
 
   if (!waybillIds || waybillIds.length === 0) {

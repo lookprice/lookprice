@@ -1960,7 +1960,8 @@ router.post("/purchase", async (req: any, res) => {
     }
 
     const affectedProductIds: number[] = [];
-    if (items && Array.isArray(items)) {
+    if (items && Array.isArray(items) && items.length > 0) {
+      const processedInvoiceItems: any[] = [];
       for (const item of items) {
         const qty = Number(item.quantity) || 0;
         const price = Number(item.unit_price) || 0;
@@ -1980,7 +1981,6 @@ router.post("/purchase", async (req: any, res) => {
           itemTotalPrice = itemTotalExcl;
         }
 
-        // For expense invoices, do NOT link to products, do NOT track stock!
         let resolvedProductId = null;
         let resolvedBarcode = null;
         let resolvedProductCode = null;
@@ -1991,16 +1991,58 @@ router.post("/purchase", async (req: any, res) => {
           resolvedProductCode = resProd.productCode || item.product_code || null;
         }
 
+        processedInvoiceItems.push({
+          rawItem: item,
+          resolvedProductId,
+          resolvedBarcode,
+          resolvedProductCode,
+          qty,
+          price,
+          taxRate,
+          itemTaxAmount,
+          itemTotalPrice
+        });
+      }
+
+      if (processedInvoiceItems.length > 0) {
+        const valueStrings: string[] = [];
+        const queryParams: any[] = [];
+        let pIdx = 1;
+
+        for (const pItem of processedInvoiceItems) {
+          const item = pItem.rawItem;
+          valueStrings.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
+          queryParams.push(
+            invoice.id,
+            pItem.resolvedProductId,
+            item.product_name || 'Bilinmeyen Ürün',
+            pItem.resolvedBarcode || null,
+            pItem.resolvedProductCode,
+            pItem.qty,
+            item.unit_code || 'Adet',
+            item.system_quantity || null,
+            item.system_unit_code || null,
+            pItem.price,
+            pItem.taxRate,
+            pItem.itemTaxAmount,
+            pItem.itemTotalPrice,
+            item.variant_id || null,
+            item.variant_name || null
+          );
+        }
+
         await pool.query(
           `INSERT INTO purchase_invoice_items 
            (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price, variant_id, variant_name)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
-          [
-            invoice.id, resolvedProductId, item.product_name || 'Bilinmeyen Ürün', resolvedBarcode || null, resolvedProductCode,
-            qty, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, price, taxRate, itemTaxAmount, itemTotalPrice,
-            item.variant_id || null, item.variant_name || null
-          ]
+           VALUES ${valueStrings.join(", ")}`,
+          queryParams
         );
+      }
+
+      for (const pItem of processedInvoiceItems) {
+        const item = pItem.rawItem;
+        const resolvedProductId = pItem.resolvedProductId;
+        const resolvedProductCode = pItem.resolvedProductCode;
 
         if (resolvedProductId && !finalIsExpense) {
           affectedProductIds.push(Number(resolvedProductId));
@@ -2296,7 +2338,8 @@ router.put("/purchase/:id", async (req: any, res) => {
       }
     }
 
-    if (items && Array.isArray(items)) {
+    if (items && Array.isArray(items) && items.length > 0) {
+      const processedInvoiceItems: any[] = [];
       for (const item of items) {
         const qty = Number(item.quantity) || 0;
         const price = Number(item.unit_price) || 0;
@@ -2316,7 +2359,6 @@ router.put("/purchase/:id", async (req: any, res) => {
           itemTotalPrice = itemTotalExcl;
         }
 
-        // For expense invoices, do NOT link to products, do NOT track stock!
         let resolvedProductId = null;
         let resolvedBarcode = null;
         let resolvedProductCode = null;
@@ -2327,16 +2369,58 @@ router.put("/purchase/:id", async (req: any, res) => {
           resolvedProductCode = resProd.productCode || item.product_code || null;
         }
 
+        processedInvoiceItems.push({
+          rawItem: item,
+          resolvedProductId,
+          resolvedBarcode,
+          resolvedProductCode,
+          qty,
+          price,
+          taxRate,
+          itemTaxAmount,
+          itemTotalPrice
+        });
+      }
+
+      if (processedInvoiceItems.length > 0) {
+        const valueStrings: string[] = [];
+        const queryParams: any[] = [];
+        let pIdx = 1;
+
+        for (const pItem of processedInvoiceItems) {
+          const item = pItem.rawItem;
+          valueStrings.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
+          queryParams.push(
+            id,
+            pItem.resolvedProductId,
+            item.product_name || 'Bilinmeyen Ürün',
+            pItem.resolvedBarcode || null,
+            pItem.resolvedProductCode,
+            pItem.qty,
+            item.unit_code || 'Adet',
+            item.system_quantity || null,
+            item.system_unit_code || null,
+            pItem.price,
+            pItem.taxRate,
+            pItem.itemTaxAmount,
+            pItem.itemTotalPrice,
+            item.variant_id || null,
+            item.variant_name || null
+          );
+        }
+
         await pool.query(
           `INSERT INTO purchase_invoice_items 
            (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price, variant_id, variant_name)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-          [
-            id, resolvedProductId, item.product_name || 'Bilinmeyen Ürün', resolvedBarcode || null, resolvedProductCode,
-            qty, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, price, taxRate, itemTaxAmount, itemTotalPrice,
-            item.variant_id || null, item.variant_name || null
-          ]
+           VALUES ${valueStrings.join(", ")}`,
+          queryParams
         );
+      }
+
+      for (const pItem of processedInvoiceItems) {
+        const item = pItem.rawItem;
+        const resolvedProductId = pItem.resolvedProductId;
+        const resolvedProductCode = pItem.resolvedProductCode;
 
         if (resolvedProductId && !finalIsExpense) {
           affectedProductIds.push(Number(resolvedProductId));

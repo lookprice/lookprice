@@ -1,5 +1,6 @@
 import express from "express";
 import { pool, logAction, addStockMovement, convertRecipeAmountToMl } from "../../models/db";
+import { getAuthorizedStoreId } from "../../middleware/auth";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
 import { syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
 import * as XLSX from "xlsx";
@@ -8,7 +9,7 @@ const router = express.Router();
 
 // Get All Sales
 router.get("/", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId);
   const status = req.query.status;
   const startDate = req.query.startDate;
   const endDate = req.query.endDate;
@@ -76,7 +77,7 @@ router.get("/", async (req: any, res) => {
 
 // Export Sales
 router.get("/export", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId);
   const startDate = req.query.startDate;
   const endDate = req.query.endDate;
   const lang = req.query.lang || 'tr';
@@ -142,7 +143,7 @@ router.get("/export", async (req: any, res) => {
 
 // Fast POS Sale
 router.post("/pos", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const { items, total, paymentMethod, customerName, notes, currency, exchangeRate, status, tableNumber } = req.body;
   const saleStatus = status || 'completed';
   const client = await pool.connect();
@@ -180,13 +181,24 @@ router.post("/pos", async (req: any, res) => {
     }
 
     const affectedProductIds: number[] = [];
-    for (const item of items) {
-      const itemTotal = Number(item.quantity) * Number(item.price);
-      await client.query(
-        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        [saleId, item.id || null, item.name, item.barcode || '', item.quantity, item.price, itemTotal]
-      );
+    if (items && items.length > 0) {
+      const saleItemValues: string[] = [];
+      const saleItemParams: any[] = [];
+      let pIdx = 1;
 
+      for (const item of items) {
+        const itemTotal = Number(item.quantity) * Number(item.price);
+        saleItemValues.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
+        saleItemParams.push(saleId, item.id || null, item.name, item.barcode || '', item.quantity, item.price, itemTotal);
+      }
+
+      await client.query(
+        `INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ${saleItemValues.join(", ")}`,
+        saleItemParams
+      );
+    }
+
+    for (const item of items) {
       if (item.id && saleStatus !== 'pending') {
         affectedProductIds.push(Number(item.id));
         const productRes = await client.query("SELECT product_type, has_variants, variants FROM products WHERE id = $1", [item.id]);
@@ -453,11 +465,18 @@ router.post("/:id/update-pending", async (req: any, res) => {
 
     await client.query("DELETE FROM sale_items WHERE sale_id = $1", [id]);
     
-    for (const item of items) {
-      const itemTotal = Number(item.quantity) * Number(item.price);
+    if (items && items.length > 0) {
+      const valueStrings: string[] = [];
+      const queryParams: any[] = [];
+      let pIdx = 1;
+      for (const item of items) {
+        const itemTotal = Number(item.quantity) * Number(item.price);
+        valueStrings.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
+        queryParams.push(id, item.id || null, item.name, item.barcode || '', item.quantity, item.price, itemTotal);
+      }
       await client.query(
-        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        [id, item.id || null, item.name, item.barcode || '', item.quantity, item.price, itemTotal]
+        `INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ${valueStrings.join(", ")}`,
+        queryParams
       );
     }
     
@@ -521,12 +540,19 @@ router.post("/:id/complete", async (req: any, res) => {
       await client.query("DELETE FROM sale_items WHERE sale_id = $1", [id]);
       
       let newTotal = 0;
-      for (const item of req.body.items) {
-        const itemTotal = Number(item.quantity) * Number(item.unit_price);
-        newTotal += itemTotal;
+      if (req.body.items.length > 0) {
+        const valueStrings: string[] = [];
+        const queryParams: any[] = [];
+        let pIdx = 1;
+        for (const item of req.body.items) {
+          const itemTotal = Number(item.quantity) * Number(item.unit_price);
+          newTotal += itemTotal;
+          valueStrings.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
+          queryParams.push(id, item.product_id || null, item.product_name, item.quantity, item.unit_price, itemTotal);
+        }
         await client.query(
-          "INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6)",
-          [id, item.product_id || null, item.product_name, item.quantity, item.unit_price, itemTotal]
+          `INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, total_price) VALUES ${valueStrings.join(", ")}`,
+          queryParams
         );
       }
       
@@ -1013,7 +1039,7 @@ export default router;
 
 router.post("/:id/create-invoice", async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.query.storeId ? parseInt(req.query.storeId as string) : req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   
   try {
     await pool.query("BEGIN");
@@ -1327,13 +1353,15 @@ router.post("/:id/create-invoice", async (req: any, res) => {
     
     const invoiceId = invRes.rows[0].id;
     
-    // Insert invoice items
-    for (const item of processedItems) {
-      await pool.query(
-        `INSERT INTO sales_invoice_items (
-          sales_invoice_id, product_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
+    // Insert invoice items with batch bulk insert
+    if (processedItems && processedItems.length > 0) {
+      const valueStrings: string[] = [];
+      const queryParams: any[] = [];
+      let paramIdx = 1;
+
+      for (const item of processedItems) {
+        valueStrings.push(`($${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++})`);
+        queryParams.push(
           invoiceId,
           item.product_id,
           item.product_name,
@@ -1342,7 +1370,14 @@ router.post("/:id/create-invoice", async (req: any, res) => {
           item.tax_rate,
           item.tax_amount,
           item.total_price
-        ]
+        );
+      }
+
+      await pool.query(
+        `INSERT INTO sales_invoice_items (
+          sales_invoice_id, product_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price
+        ) VALUES ${valueStrings.join(", ")}`,
+        queryParams
       );
     }
     

@@ -1,6 +1,6 @@
 import express from 'express';
 import { pool } from '../models/db';
-import { authenticate } from '../middleware/auth';
+import { authenticate, getAuthorizedStoreId } from '../middleware/auth';
 import multer from 'multer';
 import ai from '../src/services/aiService';
 
@@ -154,7 +154,7 @@ export async function initRealEstateSchema() {
 
 // Analyze Portfolio route
 router.post('/properties/analyze', authenticate, async (req: any, res) => {
-  const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId);
 
   try {
     const properties = await pool.query(
@@ -223,7 +223,7 @@ router.post('/properties/analyze', authenticate, async (req: any, res) => {
 // Create a task
 router.post('/properties/tasks', authenticate, async (req: any, res) => {
   const { property_id, task_type, description, due_date, store_id } = req.body;
-  const storeId = store_id || req.query.store_id || req.query.storeId || req.user?.store_id;
+  const storeId = getAuthorizedStoreId(req, store_id || req.query.store_id || req.query.storeId);
   const consultant_id = req.user?.id;
   try {
     const insertRes = await pool.query(
@@ -241,7 +241,7 @@ router.post('/properties/tasks', authenticate, async (req: any, res) => {
 
 // Get tasks
 router.get('/properties/tasks', authenticate, async (req: any, res) => {
-  const storeId = req.query.store_id || req.query.storeId || req.user?.store_id;
+  const storeId = getAuthorizedStoreId(req, req.query.store_id || req.query.storeId);
   const consultant_id = req.user?.id;
   try {
     let result;

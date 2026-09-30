@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticate } from "../middleware/auth";
+import { authenticate, getAuthorizedStoreId } from "../middleware/auth";
 
 // Import sub-routers
 import productsRouter from "./store/products";
@@ -131,7 +131,7 @@ router.post("/log-error", (req: any, res) => {
 
 router.post("/sync-tcmb", async (req: any, res) => {
   try {
-    const targetStoreId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
+    const targetStoreId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
     const { fetchTCMBRatesWithRetry } = await import("../src/utils/tcmbFetcher.js");
     const { pool } = await import("../models/db");
 

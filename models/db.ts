@@ -1846,8 +1846,16 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_consultants_store_id ON consultants (store_id);
       CREATE INDEX IF NOT EXISTS idx_radar_news_store_id ON radar_news (store_id);
 
-
-
+      -- High-performance composite indexes for instant lookups & sequential scan prevention
+      CREATE INDEX IF NOT EXISTS idx_products_store_barcode ON products (store_id, barcode);
+      CREATE INDEX IF NOT EXISTS idx_sales_store_created ON sales (store_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_stock_movements_store_product ON stock_movements (store_id, product_id);
+      CREATE INDEX IF NOT EXISTS idx_purchase_invoices_store ON purchase_invoices (store_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_sales_invoices_store ON sales_invoices (store_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items (sale_id);
+      CREATE INDEX IF NOT EXISTS idx_sales_invoice_items_invoice_id ON sales_invoice_items (sales_invoice_id);
+      CREATE INDEX IF NOT EXISTS idx_purchase_invoice_items_invoice_id ON purchase_invoice_items (purchase_invoice_id);
+      CREATE INDEX IF NOT EXISTS idx_current_account_transactions_store_comp ON current_account_transactions (store_id, company_id);
     `);
     console.log("Database optimizations and indexes applied successfully.");
 

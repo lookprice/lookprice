@@ -36,7 +36,7 @@ const FALLBACK_IMAGE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" 
 const FALLBACK_IMAGE_BUFFER = Buffer.from(FALLBACK_IMAGE_SVG);
 
 const proxyHttpsAgent = new https.Agent({
-  rejectUnauthorized: false,
+  rejectUnauthorized: true,
   keepAlive: true,
   timeout: 10000
 });
@@ -44,6 +44,48 @@ const proxyHttpAgent = new http.Agent({
   keepAlive: true,
   timeout: 10000
 });
+
+/**
+ * SSRF Protection Helper: Blocks private, loopback, link-local, and cloud metadata addresses
+ */
+function isPrivateOrInternalIp(hostname: string): boolean {
+  if (!hostname) return true;
+  const host = hostname.toLowerCase().trim();
+  if (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '0.0.0.0' ||
+    host === '::1' ||
+    host === '169.254.169.254' ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    host.endsWith('.lan')
+  ) {
+    return true;
+  }
+
+  // IPv4 regex check for private ranges
+  const ipMatch = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipMatch) {
+    const p1 = parseInt(ipMatch[1], 10);
+    const p2 = parseInt(ipMatch[2], 10);
+
+    // 127.0.0.0/8 (Loopback)
+    if (p1 === 127) return true;
+    // 10.0.0.0/8 (Private)
+    if (p1 === 10) return true;
+    // 172.16.0.0/12 (Private)
+    if (p1 === 172 && p2 >= 16 && p2 <= 31) return true;
+    // 192.168.0.0/16 (Private)
+    if (p1 === 192 && p2 === 168) return true;
+    // 169.254.0.0/16 (Link Local / Cloud Metadata)
+    if (p1 === 169 && p2 === 254) return true;
+    // 0.0.0.0/8
+    if (p1 === 0) return true;
+  }
+
+  return false;
+}
 
 // Optimize sharp for low-memory container environments (such as Render.com)
 // This disables libvips caching and limits image processing threads to avoid memory overhead spikes
@@ -289,6 +331,11 @@ async function startServer() {
       if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
         throw new Error('Invalid URL protocol');
       }
+      if (isPrivateOrInternalIp(parsedUrl.hostname)) {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Content-Type', 'image/svg+xml');
+        return res.status(403).send(FALLBACK_IMAGE_BUFFER);
+      }
     } catch {
       res.set('Access-Control-Allow-Origin', '*');
       res.set('Content-Type', 'image/svg+xml');
@@ -358,10 +405,23 @@ async function startServer() {
       url, overlay, type, title, price, location, storeName,
       ref, status, sub1, sub2, sub3, sub4, agentName, agentPhone
     } = req.query;
-    if (!url) return res.status(400).send("Missing url parameter");
+    if (!url || typeof url !== 'string') return res.status(400).send("Missing url parameter");
 
     try {
-      const response = await axios.get(url as string, { responseType: 'arraybuffer' });
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return res.status(400).send("Invalid URL protocol");
+      }
+      if (isPrivateOrInternalIp(parsedUrl.hostname)) {
+        return res.status(403).send("Access to private or internal IP address is forbidden");
+      }
+
+      const response = await axios.get(url, { 
+        responseType: 'arraybuffer',
+        timeout: 12000,
+        httpsAgent: proxyHttpsAgent,
+        httpAgent: proxyHttpAgent
+      });
       const imageBuffer = Buffer.from(response.data);
       
       let processedImage = sharp(imageBuffer);

@@ -209,7 +209,7 @@ export const CategoryMappingRow: React.FC<CategoryMappingRowProps> = ({
                 className="w-full text-left px-3 py-1.5 bg-white border border-dashed border-slate-300 hover:border-indigo-400 rounded-lg text-[11px] font-bold text-slate-600 flex items-center justify-between cursor-pointer transition-all"
               >
                 <span className="flex items-center gap-1 truncate">
-                  <span>{lang === 'tr' ? `${activeMarketplaceConfig.title} Kategorisi Seç...` : 'Select category...'}</span>
+                  <span>{lang === 'tr' ? `${activeMarketplaceConfig?.title || 'Pazaryeri'} Kategorisi Seç...` : 'Select category...'}</span>
                   {selectedSector !== 'all' && (
                     <span className="text-[10px] font-normal text-indigo-600 truncate">
                       ({MARKETPLACE_SECTORS.find((s) => s.id === selectedSector)?.name})

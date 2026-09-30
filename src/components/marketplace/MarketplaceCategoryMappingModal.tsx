@@ -681,7 +681,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     return true;
   });
 
-  const activeMarketplaceConfig = {
+  const MARKETPLACE_CONFIGS: Record<string, { title: string; badgeBg: string; activeTabBg: string; ringColor: string; accentColor: string; tag: string }> = {
     hepsiburada: {
       title: 'Hepsiburada',
       badgeBg: 'bg-rose-50 text-rose-700 border-rose-200',
@@ -697,6 +697,22 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
       ringColor: 'focus:border-amber-500',
       accentColor: 'text-amber-600',
       tag: 'SAPIGW Marketplace'
+    },
+    n11: {
+      title: 'N11.com',
+      badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      activeTabBg: 'bg-indigo-600 text-white',
+      ringColor: 'focus:border-indigo-500',
+      accentColor: 'text-indigo-600',
+      tag: 'SOAP WSDL Entegratör'
+    },
+    ciceksepeti: {
+      title: 'Çiçeksepeti',
+      badgeBg: 'bg-pink-50 text-pink-700 border-pink-200',
+      activeTabBg: 'bg-pink-600 text-white',
+      ringColor: 'focus:border-pink-500',
+      accentColor: 'text-pink-600',
+      tag: 'Çiçeksepeti API'
     },
     amazon: {
       title: 'Amazon TR',
@@ -714,7 +730,16 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
       accentColor: 'text-emerald-600',
       tag: 'Pazarama API'
     }
-  }[activeMarketplace];
+  };
+
+  const activeMarketplaceConfig = MARKETPLACE_CONFIGS[activeMarketplace] || {
+    title: activeMarketplace ? String(activeMarketplace).toUpperCase() : 'Pazaryeri',
+    badgeBg: 'bg-slate-50 text-slate-700 border-slate-200',
+    activeTabBg: 'bg-slate-800 text-white',
+    ringColor: 'focus:border-slate-500',
+    accentColor: 'text-slate-600',
+    tag: 'Pazaryeri Entegratör'
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-2 md:p-4 overflow-y-auto animate-fade-in">
@@ -744,7 +769,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         {/* PRICING STRATEGY & REVERSE MARGIN COMMISSION BANNER */}
         <CommissionSettingsBar
           activeMarketplace={activeMarketplace}
-          activeMarketplaceTitle={activeMarketplaceConfig.title}
+          activeMarketplaceTitle={activeMarketplaceConfig?.title || 'Pazaryeri'}
           defaultCommissionRates={defaultCommissionRates}
           setDefaultCommissionRates={setDefaultCommissionRates}
           defaultFixedFees={defaultFixedFees}
