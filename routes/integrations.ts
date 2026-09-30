@@ -732,6 +732,529 @@ router.post("/n11/test", authenticate, async (req: any, res) => {
     res.json({ success });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
+
+router.get("/n11/cities", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const cities = await N11Service.getCities(settings);
+    res.json({ success: true, cities });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/cities/:cityCode", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { cityCode } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const city = await N11Service.getCity(cityCode, settings);
+    res.json({ success: true, city });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/cities/:cityCode/districts", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { cityCode } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const districts = await N11Service.getDistricts(cityCode, settings);
+    res.json({ success: true, districts });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/districts/:districtId/neighborhoods", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { districtId } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const neighborhoods = await N11Service.getNeighborhoods(districtId, settings);
+    res.json({ success: true, neighborhoods });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/products", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const currentPage = Number(req.query.page || 0);
+  const pageSize = Number(req.query.pageSize || 100);
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.getProductList(settings, currentPage, pageSize);
+    res.json({ success: true, ...result });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/products/by-id/:productId", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { productId } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const product = await N11Service.getProductByProductId(settings, productId);
+    res.json({ success: true, product });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/products/by-seller-code/:sellerCode", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { sellerCode } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const product = await N11Service.getProductBySellerCode(settings, sellerCode);
+    res.json({ success: true, product });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/products/search", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { name, startDate, endDate, approvalStatus, page, pageSize } = req.query;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.searchProducts(settings, {
+      name: name ? String(name) : undefined,
+      startDate: startDate ? String(startDate) : undefined,
+      endDate: endDate ? String(endDate) : undefined,
+      approvalStatus: approvalStatus ? String(approvalStatus) : undefined,
+      currentPage: page ? Number(page) : 0,
+      pageSize: pageSize ? Number(pageSize) : 20
+    });
+    res.json({ success: true, ...result });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.delete("/n11/products/by-id/:productId", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.deleteProductById(settings, productId);
+    if (result.success) {
+      await pool.query("UPDATE products SET is_n11_active = false WHERE n11_id = $1 AND store_id = $2", [productId, storeId]);
+    }
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.delete("/n11/products/by-seller-code/:sellerCode", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { sellerCode } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.deleteProductBySellerCode(settings, sellerCode);
+    if (result.success) {
+      await pool.query("UPDATE products SET is_n11_active = false WHERE (sku = $1 OR barcode = $1) AND store_id = $2", [sellerCode, storeId]);
+    }
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/products/discount/by-id", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId, discountType, discountValue, discountStartDate, discountEndDate } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.updateDiscountValueByProductId(settings, productId, {
+      discountType,
+      discountValue,
+      discountStartDate,
+      discountEndDate
+    });
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/products/discount/by-seller-code", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { sellerCode, discountType, discountValue, discountStartDate, discountEndDate } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.updateDiscountValueBySellerCode(settings, sellerCode, {
+      discountType,
+      discountValue,
+      discountStartDate,
+      discountEndDate
+    });
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/products/price/by-id", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId, price, stockItems, currencyType } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.updateProductPriceById(settings, productId, price, stockItems, currencyType);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/products/price/by-seller-code", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { sellerCode, price, stockItems, currencyType } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.updateProductPriceBySellerCode(settings, sellerCode, price, stockItems, currencyType);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/products/basic-update", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId, productSellerCode, price, description, discount, images, stockItems } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.updateProductBasic(settings, {
+      productId,
+      productSellerCode,
+      price,
+      description,
+      discount,
+      images,
+      stockItems
+    });
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/products/status-counts", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const counts = await N11Service.getProductApprovalStatusCounts(settings);
+    res.json({ success: true, counts });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/products/start-selling/by-id", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.startSellingProductByProductId(settings, productId);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/products/start-selling/by-seller-code", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { sellerCode } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.startSellingProductBySellerCode(settings, sellerCode);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/products/stop-selling/by-id", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.stopSellingProductByProductId(settings, productId);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/products/stop-selling/by-seller-code", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { sellerCode } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.stopSellingProductBySellerCode(settings, sellerCode);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/stocks/by-product-id/:productId", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { productId } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const stockItems = await N11Service.getProductStockByProductId(settings, productId);
+    res.json({ success: true, stockItems });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/stocks/by-seller-code/:sellerCode", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { sellerCode } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const stockItems = await N11Service.getProductStockBySellerCode(settings, sellerCode);
+    res.json({ success: true, stockItems });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/stocks/update/by-stock-id", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { stockItems } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.updateStockByStockId(settings, stockItems);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/stocks/update/by-seller-code", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { stockItems } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.updateStockByStockSellerCode(settings, stockItems);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/stocks/update/by-attributes", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId, stockItems } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.deleteAndUpdateStockByStockAttributes(settings, productId, stockItems);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/stocks/increase/by-stock-id", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { stockItems } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.increaseStockByStockId(settings, stockItems);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/stocks/increase/by-seller-code", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { stockItems } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.increaseStockByStockSellerCode(settings, stockItems);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/stocks/increase/by-attributes", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId, stockItems } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.increaseStockByStockAttributes(settings, productId, stockItems);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/orders/summary-list", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId, status, buyerName, orderNumber, productSellerCode, recipient, startDate, endDate, sortForUpdateDate, page, pageSize } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.getOrderList(settings, {
+      productId,
+      status,
+      buyerName,
+      orderNumber,
+      productSellerCode,
+      recipient,
+      startDate,
+      endDate,
+      sortForUpdateDate,
+      currentPage: page || 0,
+      pageSize: pageSize || 100
+    });
+    res.json({ success: true, ...result });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/orders/detail/:orderId", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { orderId } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const orderDetail = await N11Service.getOrderDetail(settings, orderId);
+    res.json({ success: true, orderDetail });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/orders/accept-item", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { orderItemId, numberOfPackages } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.acceptOrderItem(settings, orderItemId, numberOfPackages || 1);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/orders/reject-item", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { orderItemId, rejectReason, rejectReasonType } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.rejectOrderItem(settings, orderItemId, rejectReason, rejectReasonType);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/orders/make-shipment", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { orderItemId, shipmentCompanyId, campaignNumber, trackingNumber, shipmentMethod } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.makeOrderItemShipment(settings, {
+      orderItemId,
+      shipmentCompanyId,
+      campaignNumber,
+      trackingNumber,
+      shipmentMethod
+    });
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/shipment-companies", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const companies = await N11Service.getShipmentCompanies(settings);
+    res.json({ success: true, companies });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/shipment-templates", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const templates = await N11Service.getShipmentTemplateList(settings);
+    res.json({ success: true, templates });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.get("/n11/shipment-templates/detail/:name", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { name } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const template = await N11Service.getShipmentTemplate(settings, name);
+    res.json({ success: true, template });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+router.post("/n11/shipment-templates/create-or-update", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { shipment } = req.body;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const result = await N11Service.createOrUpdateShipmentTemplate(settings, shipment);
+    res.json(result);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
 router.post("/n11/publish", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   const { productId, categoryId, attributes } = req.body;
@@ -747,62 +1270,50 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
     if (prodRes.rows.length === 0) return res.status(404).json({ error: "Ürün bulunamadı" });
     const product = prodRes.rows[0];
 
-    if (Number(product.price || 0) <= 0 || Number(product.stock_quantity || 0) <= 0) {
+    const price = Number(product.price || product.sale_price || 0);
+    const stock = Number(product.stock_quantity || 0);
+
+    if (price <= 0 || stock <= 0) {
       const reasons = [];
-      if (Number(product.price || 0) <= 0) reasons.push("fiyatı 0₺");
-      if (Number(product.stock_quantity || 0) <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      if (price <= 0) reasons.push("fiyatı 0₺");
+      if (stock <= 0) reasons.push("stoğu yetersiz (0/negatif)");
       return res.status(400).json({ error: `"${product.name}" ürününün ${reasons.join(" ve ")} olduğu için N11'de satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
-    // SOAP request for SaveProduct
-    // This is a simplified version, N11 requires much more detail (stock items, images etc)
-    const soapEnvelope = `
-      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/service/genel/ProductService">
-         <soapenv:Header/>
-         <soapenv:Body>
-            <sch:SaveProductRequest>
-               <auth>
-                  <appKey>${settings.appKey}</appKey>
-                  <appSecret>${settings.appSecret}</appSecret>
-               </auth>
-               <product>
-                  <productSellerCode>${product.sku || product.id}</productSellerCode>
-                  <title>${product.name}</title>
-                  <subtitle>${product.name.substring(0, 45)}</subtitle>
-                  <description><![CDATA[${product.description || product.name}]]></description>
-                  <category>
-                     <id>${categoryId || '1000001'}</id> 
-                  </category>
-                  <price>${product.sale_price}</price>
-                  <currencyType>1</currencyType>
-                  <stockItems>
-                     <stockItem>
-                        <sellerStockCode>${product.sku || product.id}</sellerStockCode>
-                        <quantity>${product.stock_quantity}</quantity>
-                     </stockItem>
-                  </stockItems>
-               </product>
-            </sch:SaveProductRequest>
-         </soapenv:Body>
-      </soapenv:Envelope>
-    `;
+    const sellerCode = product.sku || product.barcode || `PRD-${product.id}`;
+    const productImages = Array.isArray(product.images) ? product.images : (product.image_url ? [product.image_url] : ["https://via.placeholder.com/600"]);
+    const shipmentTemplate = settings.shipmentTemplate || "AGT";
 
-    const response = await axios.post("https://api.n11.com/ws/ProductService.wsdl", soapEnvelope, {
-      headers: { 'Content-Type': 'text/xml;charset=UTF-8' }
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const saveRes = await N11Service.saveProduct(settings, {
+      productSellerCode: sellerCode,
+      title: product.name,
+      subtitle: (product.name || "").substring(0, 45),
+      description: product.description || product.name,
+      category: { id: Number(categoryId || '1000001') },
+      price: price,
+      currencyType: "1",
+      images: productImages,
+      shipmentTemplate: shipmentTemplate,
+      attributes: Array.isArray(attributes) ? attributes : undefined,
+      stockItems: [
+        {
+          sellerStockCode: sellerCode,
+          quantity: stock,
+          gtin: product.barcode || undefined
+        }
+      ]
     });
 
-    const parsedResult = await parseStringPromise(response.data, { explicitArray: false, ignoreAttrs: true });
-    const saveRes = parsedResult['SOAP-ENV:Envelope']['SOAP-ENV:Body']['SaveProductResponse'];
-
-    if (saveRes.result.status === 'success') {
-      await pool.query("UPDATE products SET n11_id = $1 WHERE id = $2", [saveRes.product.id, productId]);
-      res.json({ success: true, n11Id: saveRes.product.id });
+    if (saveRes.success) {
+      await pool.query("UPDATE products SET n11_id = $1, is_n11_active = true WHERE id = $2 AND store_id = $3", [saveRes.n11Id || 'PUBLISHED', productId, storeId]);
+      res.json({ success: true, n11Id: saveRes.n11Id, message: saveRes.message });
     } else {
-      res.status(400).json({ error: saveRes.result.errorMessage });
+      res.status(400).json({ error: saveRes.message || "N11 ürün kaydı başarısız." });
     }
   } catch (error: any) {
     console.error("N11 Publish Error:", error.response?.data || error.message);
-    res.status(500).json({ error: "N11'de ürün yayınlanamadı" });
+    res.status(500).json({ error: error.message || "N11'de ürün yayınlanamadı" });
   }
 });
 

@@ -14,6 +14,10 @@ export const pool = new Pool({
   statement_timeout: 30000, // Increased to 30s to prevent statement timeouts during startup schema checks
 });
 
+pool.on('error', (err: any) => {
+  console.error('[PG Pool Error] Unexpected error on idle database client:', err?.message || err);
+});
+
 // Initialize Database
 export async function initDb() {
   console.log("Initializing database...");

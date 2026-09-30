@@ -48,6 +48,14 @@ const proxyHttpAgent = new http.Agent({
 // Optimize sharp for low-memory container environments (such as Render.com)
 // This disables libvips caching and limits image processing threads to avoid memory overhead spikes
 sharp.cache(false);
+
+process.on('unhandledRejection', (reason: any) => {
+  console.error('[Process Warning] Unhandled Rejection:', reason?.message || reason);
+});
+
+process.on('uncaughtException', (err: any) => {
+  console.error('[Process Warning] Uncaught Exception:', err?.message || err);
+});
 sharp.concurrency(1);
 
 dotenv.config();

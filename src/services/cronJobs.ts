@@ -5,6 +5,7 @@ import xml2js from 'xml2js';
 import { HepsiburadaService } from './backend/hepsiburadaService';
 import { AmazonService } from './backend/amazonService';
 import { IntegrationService } from './IntegrationService';
+import { fetchTCMBRatesWithRetry } from '../utils/tcmbFetcher';
 
 export function startCronJobs() {
   console.log("Starting cron jobs...");
@@ -180,82 +181,48 @@ export async function syncHepsiburadaPendingAndListingsCron() {
 
 export async function syncTCMBRates() {
   try {
-    const { data } = await axios.get('https://www.tcmb.gov.tr/kurlar/today.xml');
-    const parser = new xml2js.Parser();
-    await new Promise<void>((resolve, reject) => {
-      parser.parseString(data, async (err: any, result: any) => {
-        if (err) {
-          console.error("[CRON] TCMB sync failed to parse XML:", err);
-          return resolve();
-        }
-
-        const tcmbDate = result?.Tarih_Date?.['$']?.Tarih;
-        console.log(`[CRON] TCMB exchange rates date from XML: ${tcmbDate || 'Unknown'}`);
-
-        const currencies = result?.Tarih_Date?.Currency;
-        if (!currencies || !Array.isArray(currencies)) {
-          console.error("[CRON] TCMB sync failed: Invalid XML structure.");
-          return resolve();
-        }
-
-        const rates: Record<string, number> = {};
-        for (const c of currencies) {
-          const code = c['$']?.CurrencyCode || c['$']?.Kod;
-          if (['USD', 'EUR', 'GBP'].includes(code)) {
-            // Kara Kaplı Kitap Kuralı: Çapraz kurlar ve faturalandırma için Döviz Alış (ForexBuying) esastır.
-            const rateStr = (c.ForexBuying && c.ForexBuying[0]) || (c.ForexSelling && c.ForexSelling[0]) || (c.BanknoteSelling && c.BanknoteSelling[0]);
-            if (rateStr) {
-              const rate = parseFloat(rateStr);
-              if (!isNaN(rate)) {
-                rates[code] = rate;
-              }
-            }
-          }
-        }
-
-        if (Object.keys(rates).length > 0) {
-          console.log(`[CRON] Extracted TCMB ForexBuying rates for date ${tcmbDate}:`, rates);
-          
+    const { rates, tcmbDate } = await fetchTCMBRatesWithRetry();
+    
+    if (Object.keys(rates).length > 0) {
+      console.log(`[CRON] Extracted TCMB ForexBuying rates for date ${tcmbDate || 'Current'}:`, rates);
+      
+      try {
+        // Update all stores
+        const storesRes = await pool.query("SELECT id, currency_rates FROM stores");
+        for (const store of storesRes.rows) {
+          let currentRates = {};
           try {
-            // Update all stores
-            const storesRes = await pool.query("SELECT id, currency_rates FROM stores");
-            for (const store of storesRes.rows) {
-              let currentRates = {};
-              try {
-                if (typeof store.currency_rates === 'string') {
-                  currentRates = JSON.parse(store.currency_rates);
-                } else if (typeof store.currency_rates === 'object' && store.currency_rates !== null) {
-                  currentRates = store.currency_rates;
-                }
-              } catch (e) {
-                // Ignore parse errors, fallback to empty
-              }
-
-              const newRates = {
-                ...currentRates,
-                ...rates
-              };
-
-              await pool.query(
-                "UPDATE stores SET currency_rates = $1 WHERE id = $2",
-                [JSON.stringify(newRates), store.id]
-              );
-
-              // Auto-sync revised prices for active marketplace products in foreign currencies
-              syncMarketplacePricesOnRateChange(store.id, newRates).catch((syncErr) => {
-                console.warn(`[CRON-CURRENCY] Store #${store.id} pazaryeri fiyat revizyonu hatası:`, syncErr.message || syncErr);
-              });
+            if (typeof store.currency_rates === 'string') {
+              currentRates = JSON.parse(store.currency_rates);
+            } else if (typeof store.currency_rates === 'object' && store.currency_rates !== null) {
+              currentRates = store.currency_rates;
             }
-            console.log(`[CRON] TCMB ForexBuying rates synced successfully for ${storesRes.rowCount} stores.`);
-          } catch (e: any) {
-            console.error("[CRON] TCMB sync db update failed:", e);
+          } catch (e) {
+            // Ignore parse errors, fallback to empty
           }
-        } else {
-          console.error("[CRON] TCMB sync failed: Could not extract any rates.");
+
+          const newRates = {
+            ...currentRates,
+            ...rates
+          };
+
+          await pool.query(
+            "UPDATE stores SET currency_rates = $1 WHERE id = $2",
+            [JSON.stringify(newRates), store.id]
+          );
+
+          // Auto-sync revised prices for active marketplace products in foreign currencies
+          syncMarketplacePricesOnRateChange(store.id, newRates).catch((syncErr) => {
+            console.warn(`[CRON-CURRENCY] Store #${store.id} pazaryeri fiyat revizyonu hatası:`, syncErr.message || syncErr);
+          });
         }
-        resolve();
-      });
-    });
+        console.log(`[CRON] TCMB ForexBuying rates synced successfully for ${storesRes.rowCount} stores.`);
+      } catch (e: any) {
+        console.error("[CRON] TCMB sync db update failed:", e);
+      }
+    } else {
+      console.error("[CRON] TCMB sync failed: Could not extract any rates.");
+    }
   } catch (error: any) {
     console.error("[CRON] TCMB sync failed:", error.message);
   }

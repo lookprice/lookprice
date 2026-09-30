@@ -374,35 +374,11 @@ router.post("/sync-tcmb", async (req: any, res) => {
   try {
     const reqStoreId = req.query.storeId ? parseInt(req.query.storeId as string) : undefined;
     const targetStoreId = await getAuthorizedStoreId(req, reqStoreId);
-    const { default: axios } = await import("axios");
-    const xml2js = await import("xml2js");
+    const { fetchTCMBRatesWithRetry } = await import("../../src/utils/tcmbFetcher.js");
 
-    const { data } = await axios.get("https://www.tcmb.gov.tr/kurlar/today.xml");
-    const parser = new xml2js.Parser();
-    
-    const rates: Record<string, number> = await new Promise((resolve, reject) => {
-      parser.parseString(data, (err: any, result: any) => {
-        if (err) return reject(err);
-        const currencies = result?.Tarih_Date?.Currency;
-        if (!currencies || !Array.isArray(currencies)) {
-          return reject(new Error("Invalid TCMB XML structure"));
-        }
-        const extracted: Record<string, number> = {};
-        for (const c of currencies) {
-          const code = c['$']?.CurrencyCode || c['$']?.Kod;
-          if (['USD', 'EUR', 'GBP'].includes(code)) {
-            const rateStr = (c.ForexBuying && c.ForexBuying[0]) || (c.ForexSelling && c.ForexSelling[0]);
-            if (rateStr) {
-              const val = parseFloat(rateStr);
-              if (!isNaN(val)) extracted[code] = val;
-            }
-          }
-        }
-        resolve(extracted);
-      });
-    });
+    const { rates } = await fetchTCMBRatesWithRetry();
 
-    if (Object.keys(rates).length === 0) {
+    if (!rates || Object.keys(rates).length === 0) {
       return res.status(400).json({ error: "Could not extract rates from TCMB XML" });
     }
 

@@ -1,0 +1,1525 @@
+import axios from "axios";
+import xml2js from "xml2js";
+
+export * from "../n11Constants";
+
+export interface N11Auth {
+  appKey: string;
+  appSecret: string;
+}
+
+export interface N11ProductPayload {
+  productSellerCode: string;
+  title: string;
+  subtitle?: string;
+  description: string;
+  category: { id: number };
+  price: number;
+  currencyType?: string;
+  domestic?: boolean;
+  preparingDay?: number;
+  attributes?: Array<{ name: string; value: string }>;
+  stockItems: Array<{
+    sellerStockCode: string;
+    quantity: number;
+    gtin?: string;
+    mpn?: string;
+    oem?: string;
+    optionPrice?: number;
+    attributes?: Array<{ name: string; value: string }>;
+  }>;
+  images: string[];
+  shipmentTemplate: string;
+  approvalStatus?: string;
+}
+
+export class N11Service {
+  private static readonly BASE_URL = "https://api.n11.com/ws";
+
+  /**
+   * Helper to build a standard N11 SOAP Request XML Envelope
+   */
+  private static buildSoapEnvelope(actionName: string, auth?: N11Auth | null, bodyContent?: string): string {
+    const authXml = (auth && auth.appKey && auth.appSecret) ? `
+         <auth>
+            <appKey>${auth.appKey}</appKey>
+            <appSecret>${auth.appSecret}</appSecret>
+         </auth>` : "";
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/ws/schemas">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <sch:${actionName}Request>${authXml}
+         ${bodyContent || ""}
+      </sch:${actionName}Request>
+   </soapenv:Body>
+</soapenv:Envelope>`;
+  }
+
+  /**
+   * Helper to post SOAP request and parse response XML
+   */
+  private static async executeSoapRequest(serviceName: string, actionName: string, xmlData: string): Promise<any> {
+    const wsdlUrl = `${this.BASE_URL}/${serviceName}.wsdl`;
+    const response = await axios.post(wsdlUrl, xmlData, {
+      headers: {
+        "Content-Type": "text/xml;charset=UTF-8",
+        "SOAPAction": actionName,
+        "User-Agent": "LookPrice-N11-Integration/2.0"
+      },
+      timeout: 30000
+    });
+
+    const parser = new xml2js.Parser({
+      explicitArray: false,
+      ignoreAttrs: true,
+      tagNameProcessors: [xml2js.processors.stripPrefix]
+    });
+
+    const parsed = await parser.parseStringPromise(response.data);
+    const body = parsed?.Envelope?.Body;
+
+    if (body?.Fault) {
+      const fault = body.Fault;
+      throw new Error(`N11 SOAP Fault: ${fault.faultstring || fault.message || JSON.stringify(fault)}`);
+    }
+
+    return body?.[`${actionName}Response`] || body;
+  }
+
+  /**
+   * Test N11 API credentials by fetching shipment templates
+   */
+  static async testConnection(auth: N11Auth): Promise<{ success: boolean; message: string }> {
+    if (!auth.appKey || !auth.appSecret) {
+      return { success: false, message: "N11 AppKey veya AppSecret bilgisi boş olamaz." };
+    }
+
+    try {
+      const xml = this.buildSoapEnvelope(
+        "GetShipmentTemplateList",
+        auth,
+        ""
+      );
+
+      const res = await this.executeSoapRequest("ShipmentService", "GetShipmentTemplateList", xml);
+
+      if (res?.result?.status === "failure") {
+        return { success: false, message: res.result.errorMessage || "N11 API Kimlik doğrulaması başarısız." };
+      }
+
+      return { success: true, message: "N11 API bağlantısı başarılı! Mağaza kargo şablonları çekildi." };
+    } catch (err: any) {
+      console.error("[N11-SERVICE] Test Connection error:", err.message);
+      return { success: false, message: `N11 Bağlantı Hatası: ${err.message}` };
+    }
+  }
+
+  /**
+   * Get Seller Shipment Templates (Kargo Şablonları)
+   */
+  static async getShipmentTemplates(auth: N11Auth): Promise<any[]> {
+    const xml = this.buildSoapEnvelope(
+      "GetShipmentTemplateList",
+      auth,
+      ""
+    );
+
+    const res = await this.executeSoapRequest("ShipmentService", "GetShipmentTemplateList", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Kargo şablonları çekilemedi.");
+    }
+
+    const templates = res?.shipmentTemplates?.shipmentTemplate;
+    if (!templates) return [];
+    return Array.isArray(templates) ? templates : [templates];
+  }
+
+  /**
+   * Get Top Level & Sub Categories from N11
+   */
+  static async getTopLevelCategories(auth: N11Auth): Promise<any[]> {
+    const xml = this.buildSoapEnvelope(
+      "GetTopLevelCategories",
+      auth,
+      ""
+    );
+
+    const res = await this.executeSoapRequest("CategoryService", "GetTopLevelCategories", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Kategoriler çekilemedi.");
+    }
+
+    const cats = res?.categoryList?.category;
+    if (!cats) return [];
+    return Array.isArray(cats) ? cats : [cats];
+  }
+
+  /**
+   * Get Sub Categories for a given category ID
+   */
+  static async getSubCategories(auth: N11Auth, categoryId: number): Promise<any[]> {
+    const xml = this.buildSoapEnvelope(
+      "GetSubCategories",
+      auth,
+      `<categoryId>${categoryId}</categoryId>`
+    );
+
+    const res = await this.executeSoapRequest("CategoryService", "GetSubCategories", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Alt kategoriler çekilemedi.");
+    }
+
+    const cats = res?.category?.subCategoryList?.category || res?.category;
+    if (!cats) return [];
+    return Array.isArray(cats) ? cats : [cats];
+  }
+
+  /**
+   * Get Parent Category for a given sub-category ID
+   */
+  static async getParentCategory(auth: N11Auth, categoryId: number): Promise<any> {
+    const xml = this.buildSoapEnvelope(
+      "GetParentCategory",
+      auth,
+      `<categoryId>${categoryId}</categoryId>`
+    );
+
+    const res = await this.executeSoapRequest("CategoryService", "GetParentCategory", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Üst kategori çekilemedi.");
+    }
+
+    return res?.category || null;
+  }
+
+  /**
+   * Get Category Attributes with Values (GetCategoryAttributes)
+   */
+  static async getCategoryAttributes(auth: N11Auth, categoryId: number, currentPage = 0, pageSize = 100): Promise<any[]> {
+    const xml = this.buildSoapEnvelope(
+      "GetCategoryAttributes",
+      auth,
+      `<categoryId>${categoryId}</categoryId>
+       <pagingData>
+          <currentPage>${currentPage}</currentPage>
+          <pageSize>${pageSize}</pageSize>
+       </pagingData>`
+    );
+
+    const res = await this.executeSoapRequest("CategoryService", "GetCategoryAttributes", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Kategori özellikleri çekilemedi.");
+    }
+
+    const attrs = res?.category?.attributeList?.attribute;
+    if (!attrs) return [];
+    return Array.isArray(attrs) ? attrs : [attrs];
+  }
+
+  /**
+   * Get Category Attributes IDs only (GetCategoryAttributesId)
+   */
+  static async getCategoryAttributesId(auth: N11Auth, categoryId: number): Promise<any[]> {
+    const xml = this.buildSoapEnvelope(
+      "GetCategoryAttributesId",
+      auth,
+      `<categoryId>${categoryId}</categoryId>`
+    );
+
+    const res = await this.executeSoapRequest("CategoryService", "GetCategoryAttributesId", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Kategori özellik id listesi çekilemedi.");
+    }
+
+    const attrs = res?.categoryProductAttributeList?.categoryProductAttribute;
+    if (!attrs) return [];
+    return Array.isArray(attrs) ? attrs : [attrs];
+  }
+
+  /**
+   * Get Values for a specific Attribute ID (GetCategoryAttributeValue)
+   */
+  static async getCategoryAttributeValue(auth: N11Auth, categoryProductAttributeId: number, currentPage = 0, pageSize = 100): Promise<any[]> {
+    const xml = this.buildSoapEnvelope(
+      "GetCategoryAttributeValue",
+      auth,
+      `<categoryProductAttributeId>${categoryProductAttributeId}</categoryProductAttributeId>
+       <pagingData>
+          <currentPage>${currentPage}</currentPage>
+          <pageSize>${pageSize}</pageSize>
+       </pagingData>`
+    );
+
+    const res = await this.executeSoapRequest("CategoryService", "GetCategoryAttributeValue", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Kategori özellik değerleri çekilemedi.");
+    }
+
+    const values = res?.categoryProductAttributeValueList?.categoryProductAttributeValue;
+    if (!values) return [];
+    return Array.isArray(values) ? values : [values];
+  }
+
+  /**
+   * Create or Save Product on N11 (SaveProduct)
+   */
+  static async saveProduct(auth: N11Auth, product: N11ProductPayload): Promise<{ success: boolean; n11Id?: string; message?: string }> {
+    const imageXml = product.images
+      .filter(Boolean)
+      .slice(0, 8)
+      .map((img, idx) => `<image><url>${img}</url><order>${idx + 1}</order></image>`)
+      .join("\n");
+
+    const attributesXml = (product.attributes && product.attributes.length > 0)
+      ? `<attributes>${product.attributes.map(a => `<attribute><name><![CDATA[${a.name}]]></name><value><![CDATA[${a.value}]]></value></attribute>`).join("\n")}</attributes>`
+      : "";
+
+    const stockItemsXml = product.stockItems
+      .map((st) => {
+        const itemAttrXml = (st.attributes && st.attributes.length > 0)
+          ? `<attributes>${st.attributes.map(a => `<attribute><name><![CDATA[${a.name}]]></name><value><![CDATA[${a.value}]]></value></attribute>`).join("\n")}</attributes>`
+          : "";
+        const gtinXml = st.gtin ? `<gtin>${st.gtin}</gtin>` : "";
+        const mpnXml = st.mpn ? `<mpn>${st.mpn}</mpn>` : "";
+        const oemXml = st.oem ? `<oem>${st.oem}</oem>` : "";
+        const optionPriceXml = st.optionPrice ? `<optionPrice>${st.optionPrice}</optionPrice>` : "";
+
+        return `<stockItem>
+          <sellerStockCode>${st.sellerStockCode}</sellerStockCode>
+          <quantity>${st.quantity}</quantity>
+          ${gtinXml}
+          ${mpnXml}
+          ${oemXml}
+          ${optionPriceXml}
+          ${itemAttrXml}
+        </stockItem>`;
+      })
+      .join("\n");
+
+    const innerBody = `
+       <product>
+          <productSellerCode>${product.productSellerCode}</productSellerCode>
+          <title><![CDATA[${product.title}]]></title>
+          <subtitle><![CDATA[${product.subtitle || ""}]]></subtitle>
+          <description><![CDATA[${product.description}]]></description>
+          <category>
+             <id>${product.category.id}</id>
+          </category>
+          <price>${product.price}</price>
+          <currencyType>${product.currencyType || "1"}</currencyType>
+          <domestic>${product.domestic !== false ? "true" : "false"}</domestic>
+          <preparingDay>${product.preparingDay || 1}</preparingDay>
+          ${attributesXml}
+          <images>
+             ${imageXml}
+          </images>
+          <stockItems>
+             ${stockItemsXml}
+          </stockItems>
+          <shipmentTemplate>${product.shipmentTemplate}</shipmentTemplate>
+          <approvalStatus>${product.approvalStatus || "1"}</approvalStatus>
+       </product>
+    `;
+
+    const xml = this.buildSoapEnvelope(
+      "SaveProduct",
+      auth,
+      innerBody
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "SaveProduct", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Ürün N11'e kaydedilemedi." };
+    }
+
+    return {
+      success: true,
+      n11Id: res?.product?.id,
+      message: "Ürün başarıyla N11 kataloğuna eklendi."
+    };
+  }
+
+  /**
+   * Get Product Info by N11 Product ID (GetProductByProductId)
+   */
+  static async getProductByProductId(auth: N11Auth, productId: string | number): Promise<any> {
+    const xml = this.buildSoapEnvelope(
+      "GetProductByProductId",
+      auth,
+      `<productId>${productId}</productId>`
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "GetProductByProductId", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 ürün bilgisi alınamadı.");
+    }
+
+    return res?.product || null;
+  }
+
+  /**
+   * Get Product Info by Seller Product Code (GetProductBySellerCode)
+   */
+  static async getProductBySellerCode(auth: N11Auth, sellerCode: string): Promise<any> {
+    const xml = this.buildSoapEnvelope(
+      "GetProductBySellerCode",
+      auth,
+      `<sellerCode><![CDATA[${sellerCode}]]></sellerCode>`
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "GetProductBySellerCode", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 mağaza ürün kodu ile ürün bilgisi alınamadı.");
+    }
+
+    return res?.product || null;
+  }
+
+  /**
+   * List Products with Pagination (GetProductList)
+   */
+  static async getProductList(auth: N11Auth, currentPage = 0, pageSize = 100): Promise<{ products: any[]; pagingData?: any }> {
+    const xml = this.buildSoapEnvelope(
+      "GetProductList",
+      auth,
+      `<pagingData>
+         <currentPage>${currentPage}</currentPage>
+         <pageSize>${pageSize}</pageSize>
+      </pagingData>`
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "GetProductList", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 ürün listesi alınamadı.");
+    }
+
+    const rawProducts = res?.products?.product;
+    const products = rawProducts ? (Array.isArray(rawProducts) ? rawProducts : [rawProducts]) : [];
+    return {
+      products,
+      pagingData: res?.pagingData || null
+    };
+  }
+
+  /**
+   * Search Products on N11 (SearchProducts)
+   */
+  static async searchProducts(
+    auth: N11Auth,
+    query: {
+      name?: string;
+      startDate?: string;
+      endDate?: string;
+      approvalStatus?: string | number;
+      currentPage?: number;
+      pageSize?: number;
+    }
+  ): Promise<{ products: any[]; pagingData?: any }> {
+    const currentPage = query.currentPage || 0;
+    const pageSize = query.pageSize || 20;
+
+    let searchXml = "";
+    if (query.name) {
+      searchXml += `<name><![CDATA[${query.name}]]></name>`;
+    }
+    if (query.startDate || query.endDate) {
+      searchXml += `<saleDate>
+        ${query.startDate ? `<startDate>${query.startDate}</startDate>` : ""}
+        ${query.endDate ? `<endDate>${query.endDate}</endDate>` : ""}
+      </saleDate>`;
+    }
+    if (query.approvalStatus !== undefined && query.approvalStatus !== null && query.approvalStatus !== "") {
+      searchXml += `<approvalStatus>${query.approvalStatus}</approvalStatus>`;
+    }
+
+    const xml = this.buildSoapEnvelope(
+      "SearchProducts",
+      auth,
+      `<pagingData>
+         <currentPage>${currentPage}</currentPage>
+         <pageSize>${pageSize}</pageSize>
+      </pagingData>
+      <productSearch>
+         ${searchXml}
+      </productSearch>`
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "SearchProducts", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 ürün araması başarısız.");
+    }
+
+    const rawProducts = res?.products?.product;
+    const products = rawProducts ? (Array.isArray(rawProducts) ? rawProducts : [rawProducts]) : [];
+    return {
+      products,
+      pagingData: res?.pagingData || null
+    };
+  }
+
+  /**
+   * Delete Product by N11 Product ID (DeleteProductById)
+   */
+  static async deleteProductById(auth: N11Auth, productId: string | number): Promise<{ success: boolean; message?: string; product?: any }> {
+    const xml = this.buildSoapEnvelope(
+      "DeleteProductById",
+      auth,
+      `<productId>${productId}</productId>`
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "DeleteProductById", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "N11 ürün silme başarısız." };
+    }
+
+    return {
+      success: true,
+      message: "Ürün N11'den silindi.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * Delete Product by Seller Product Code (DeleteProductBySellerCode)
+   */
+  static async deleteProductBySellerCode(auth: N11Auth, sellerCode: string): Promise<{ success: boolean; message?: string; product?: any }> {
+    const xml = this.buildSoapEnvelope(
+      "DeleteProductBySellerCode",
+      auth,
+      `<productSellerCode><![CDATA[${sellerCode}]]></productSellerCode>`
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "DeleteProductBySellerCode", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "N11 ürün silme başarısız." };
+    }
+
+    return {
+      success: true,
+      message: "Ürün N11'den silindi.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * Update Discount Value by N11 Product ID (UpdateDiscountValueByProductId)
+   */
+  static async updateDiscountValueByProductId(
+    auth: N11Auth,
+    productId: string | number,
+    discount: {
+      discountType: number | string; // 1: Tutar, 2: Yüzde
+      discountValue: number | string;
+      discountStartDate?: string;
+      discountEndDate?: string;
+    }
+  ): Promise<{ success: boolean; message?: string; product?: any }> {
+    const xml = this.buildSoapEnvelope(
+      "UpdateDiscountValueByProductId",
+      auth,
+      `<productId>${productId}</productId>
+       <productDiscount>
+          <discountType>${discount.discountType}</discountType>
+          <discountValue>${discount.discountValue}</discountValue>
+          ${discount.discountStartDate ? `<discountStartDate>${discount.discountStartDate}</discountStartDate>` : ""}
+          ${discount.discountEndDate ? `<discountEndDate>${discount.discountEndDate}</discountEndDate>` : ""}
+       </productDiscount>`
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "UpdateDiscountValueByProductId", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "İndirim tutarı güncellenemedi." };
+    }
+
+    return {
+      success: true,
+      message: "N11 ürün indirimi güncellendi.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * Update Discount Value by Seller Product Code (UpdateDiscountValueBySellerCode)
+   */
+  static async updateDiscountValueBySellerCode(
+    auth: N11Auth,
+    sellerCode: string,
+    discount: {
+      discountType: number | string; // 1: Tutar, 2: Yüzde
+      discountValue: number | string;
+      discountStartDate?: string;
+      discountEndDate?: string;
+    }
+  ): Promise<{ success: boolean; message?: string; product?: any }> {
+    const xml = this.buildSoapEnvelope(
+      "UpdateDiscountValueBySellerCode",
+      auth,
+      `<productSellerCode><![CDATA[${sellerCode}]]></productSellerCode>
+       <productDiscount>
+          <discountType>${discount.discountType}</discountType>
+          <discountValue>${discount.discountValue}</discountValue>
+          ${discount.discountStartDate ? `<discountStartDate>${discount.discountStartDate}</discountStartDate>` : ""}
+          ${discount.discountEndDate ? `<discountEndDate>${discount.discountEndDate}</discountEndDate>` : ""}
+       </productDiscount>`
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "UpdateDiscountValueBySellerCode", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "İndirim tutarı güncellenemedi." };
+    }
+
+    return {
+      success: true,
+      message: "N11 ürün indirimi güncellendi.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * Update Product Price by N11 Product ID (UpdateProductPriceById)
+   */
+  static async updateProductPriceById(
+    auth: N11Auth,
+    productId: string | number,
+    price: number,
+    stockItems?: Array<{ sellerStockCode: string; optionPrice: number }>,
+    currencyType: string = "TL"
+  ): Promise<{ success: boolean; message?: string; product?: any }> {
+    const stockItemsXml = (stockItems && stockItems.length > 0)
+      ? `<stockItems>${stockItems.map(st => `<stockItem><sellerStockCode>${st.sellerStockCode}</sellerStockCode><optionPrice>${st.optionPrice}</optionPrice></stockItem>`).join("\n")}</stockItems>`
+      : "";
+
+    const xml = this.buildSoapEnvelope(
+      "UpdateProductPriceById",
+      auth,
+      `<productId>${productId}</productId>
+       <price>${price}</price>
+       <currencyType>${currencyType}</currencyType>
+       ${stockItemsXml}`
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "UpdateProductPriceById", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Fiyat güncellenemedi." };
+    }
+
+    return {
+      success: true,
+      message: "N11 ürün fiyatı güncellendi.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * Update Product Price by Seller Code (UpdateProductPriceBySellerCode)
+   */
+  static async updateProductPriceBySellerCode(
+    auth: N11Auth,
+    sellerCode: string,
+    price: number,
+    stockItems?: Array<{ sellerStockCode: string; optionPrice: number }>,
+    currencyType: string = "TL"
+  ): Promise<{ success: boolean; message?: string; product?: any }> {
+    const stockItemsXml = (stockItems && stockItems.length > 0)
+      ? `<stockItems>${stockItems.map(st => `<stockItem><sellerStockCode>${st.sellerStockCode}</sellerStockCode><optionPrice>${st.optionPrice}</optionPrice></stockItem>`).join("\n")}</stockItems>`
+      : "";
+
+    const xml = this.buildSoapEnvelope(
+      "UpdateProductPriceBySellerCode",
+      auth,
+      `<productSellerCode><![CDATA[${sellerCode}]]></productSellerCode>
+       <price>${price}</price>
+       <currencyType>${currencyType}</currencyType>
+       ${stockItemsXml}`
+    );
+
+    const res = await this.executeSoapRequest("ProductService", "UpdateProductPriceBySellerCode", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Fiyat güncellenemedi." };
+    }
+
+    return {
+      success: true,
+      message: "N11 ürün fiyatı güncellendi.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * Update Basic Product Attributes (UpdateProductBasic)
+   */
+  static async updateProductBasic(
+    auth: N11Auth,
+    params: {
+      productId?: string | number;
+      productSellerCode?: string;
+      price?: number;
+      description?: string;
+      discount?: {
+        discountType: number | string;
+        discountValue: number | string;
+        discountStartDate?: string;
+        discountEndDate?: string;
+      };
+      images?: string[];
+      stockItems?: Array<{
+        id?: string | number;
+        sellerStockCode?: string;
+        optionPrice?: number;
+        quantity?: number;
+      }>;
+    }
+  ): Promise<{ success: boolean; message?: string; product?: any }> {
+    let innerXml = "";
+
+    if (params.productId) {
+      innerXml += `<productId>${params.productId}</productId>\n`;
+    }
+    if (params.productSellerCode) {
+      innerXml += `<productSellerCode><![CDATA[${params.productSellerCode}]]></productSellerCode>\n`;
+    }
+    if (params.price !== undefined) {
+      innerXml += `<price>${params.price}</price>\n`;
+    }
+    if (params.description) {
+      innerXml += `<description><![CDATA[${params.description}]]></description>\n`;
+    }
+    if (params.discount) {
+      innerXml += `<productDiscount>
+        <discountType>${params.discount.discountType}</discountType>
+        <discountValue>${params.discount.discountValue}</discountValue>
+        <discountStartDate>${params.discount.discountStartDate || ""}</discountStartDate>
+        <discountEndDate>${params.discount.discountEndDate || ""}</discountEndDate>
+      </productDiscount>\n`;
+    }
+    if (params.images && params.images.length > 0) {
+      const imgXml = params.images
+        .filter(Boolean)
+        .map((url, idx) => `<image><url>${url}</url><order>${idx + 1}</order></image>`)
+        .join("\n");
+      innerXml += `<images>${imgXml}</images>\n`;
+    }
+    if (params.stockItems && params.stockItems.length > 0) {
+      const stockXml = params.stockItems
+        .map(st => {
+          let stXml = "<stockItem>";
+          if (st.id) stXml += `<id>${st.id}</id>`;
+          if (st.sellerStockCode) stXml += `<sellerStockCode>${st.sellerStockCode}</sellerStockCode>`;
+          if (st.optionPrice !== undefined) stXml += `<optionPrice>${st.optionPrice}</optionPrice>`;
+          if (st.quantity !== undefined) stXml += `<quantity>${st.quantity}</quantity>`;
+          stXml += "</stockItem>";
+          return stXml;
+        })
+        .join("\n");
+      innerXml += `<stockItems>${stockXml}</stockItems>\n`;
+    }
+
+    const xml = this.buildSoapEnvelope("UpdateProductBasic", auth, innerXml);
+    const res = await this.executeSoapRequest("ProductService", "UpdateProductBasic", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Temel ürün güncellenemedi." };
+    }
+
+    return {
+      success: true,
+      message: "N11 temel ürün özellikleri güncellendi.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * Product Approval Status Counts (ProductApprovalStatusRequest)
+   */
+  static async getProductApprovalStatusCounts(auth: N11Auth): Promise<any> {
+    const xml = this.buildSoapEnvelope("ProductApprovalStatus", auth, "");
+    const res = await this.executeSoapRequest("ProductService", "ProductApprovalStatus", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Ürün statü sayıları alınamadı.");
+    }
+
+    return res?.ProductApprovalStatusResponseResult || res || null;
+  }
+
+  /**
+   * Start Selling Product by Product ID (StartSellingProductByProductId)
+   */
+  static async startSellingProductByProductId(auth: N11Auth, productId: string | number): Promise<{ success: boolean; message?: string; product?: any }> {
+    const xml = this.buildSoapEnvelope(
+      "StartSellingProductByProductId",
+      auth,
+      `<productId>${productId}</productId>`
+    );
+
+    const res = await this.executeSoapRequest("ProductSellingService", "StartSellingProductByProductId", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Ürün satışı başlatılamadı." };
+    }
+
+    return {
+      success: true,
+      message: "Ürün N11'de satışa açıldı.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * Start Selling Product by Seller Code (StartSellingProductBySellerCode)
+   */
+  static async startSellingProductBySellerCode(auth: N11Auth, sellerCode: string): Promise<{ success: boolean; message?: string; product?: any }> {
+    const xml = this.buildSoapEnvelope(
+      "StartSellingProductBySellerCode",
+      auth,
+      `<productSellerCode><![CDATA[${sellerCode}]]></productSellerCode>`
+    );
+
+    const res = await this.executeSoapRequest("ProductSellingService", "StartSellingProductBySellerCode", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Ürün satışı başlatılamadı." };
+    }
+
+    return {
+      success: true,
+      message: "Ürün N11'de satışa açıldı.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * Stop Selling Product by Product ID (StopSellingProductByProductId)
+   */
+  static async stopSellingProductByProductId(auth: N11Auth, productId: string | number): Promise<{ success: boolean; message?: string; product?: any }> {
+    const xml = this.buildSoapEnvelope(
+      "StopSellingProductByProductId",
+      auth,
+      `<productId>${productId}</productId>`
+    );
+
+    const res = await this.executeSoapRequest("ProductSellingService", "StopSellingProductByProductId", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Ürün satışı durdurulamadı." };
+    }
+
+    return {
+      success: true,
+      message: "Ürün N11'de satışa kapatıldı.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * Stop Selling Product by Seller Code (StopSellingProductBySellerCode)
+   */
+  static async stopSellingProductBySellerCode(auth: N11Auth, sellerCode: string): Promise<{ success: boolean; message?: string; product?: any }> {
+    const xml = this.buildSoapEnvelope(
+      "StopSellingProductBySellerCode",
+      auth,
+      `<productSellerCode><![CDATA[${sellerCode}]]></productSellerCode>`
+    );
+
+    const res = await this.executeSoapRequest("ProductSellingService", "StopSellingProductBySellerCode", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Ürün satışı durdurulamadı." };
+    }
+
+    return {
+      success: true,
+      message: "Ürün N11'de satışa kapatıldı.",
+      product: res?.product || null
+    };
+  }
+
+  /**
+   * ProductStockService: Get Product Stock by N11 Product ID
+   */
+  static async getProductStockByProductId(auth: N11Auth, productId: string | number): Promise<any[]> {
+    const xml = this.buildSoapEnvelope("GetProductStockByProductId", auth, `<productId>${productId}</productId>`);
+    const res = await this.executeSoapRequest("ProductStockService", "GetProductStockByProductId", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 stok bilgisi alınamadı.");
+    }
+
+    const items = res?.stockItems?.stockItem;
+    if (!items) return [];
+    return Array.isArray(items) ? items : [items];
+  }
+
+  /**
+   * ProductStockService: Get Product Stock by Seller Product Code
+   */
+  static async getProductStockBySellerCode(auth: N11Auth, sellerCode: string): Promise<any[]> {
+    const xml = this.buildSoapEnvelope("GetProductStockByProductSellerCode", auth, `<productSellerCode><![CDATA[${sellerCode}]]></productSellerCode>`);
+    const res = await this.executeSoapRequest("ProductStockService", "GetProductStockByProductSellerCode", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 stok bilgisi alınamadı.");
+    }
+
+    const items = res?.stockItems?.stockItem;
+    if (!items) return [];
+    return Array.isArray(items) ? items : [items];
+  }
+
+  /**
+   * ProductStockService: Update Stock by Stock ID
+   */
+  static async updateStockByStockId(
+    auth: N11Auth,
+    stockItems: Array<{ id: string | number; quantity: number; version?: number }>
+  ): Promise<{ success: boolean; message?: string; stockItems?: any[] }> {
+    const stockItemsXml = stockItems
+      .map(st => `<stockItem><id>${st.id}</id><quantity>${st.quantity}</quantity>${st.version !== undefined ? `<version>${st.version}</version>` : ""}</stockItem>`)
+      .join("\n");
+
+    const xml = this.buildSoapEnvelope("UpdateStockByStockId", auth, `<stockItems>${stockItemsXml}</stockItems>`);
+    const res = await this.executeSoapRequest("ProductStockService", "UpdateStockByStockId", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "N11 stok güncelleme başarısız." };
+    }
+
+    const items = res?.stockItems?.stockItem;
+    return {
+      success: true,
+      message: "N11 stok miktarı güncellendi.",
+      stockItems: items ? (Array.isArray(items) ? items : [items]) : []
+    };
+  }
+
+  /**
+   * ProductStockService: Update Stock by Stock Seller Code
+   */
+  static async updateStockByStockSellerCode(
+    auth: N11Auth,
+    stockItems: Array<{ sellerStockCode: string; quantity: number; version?: number }>
+  ): Promise<{ success: boolean; message?: string; stockItems?: any[] }> {
+    const stockItemsXml = stockItems
+      .map(st => `<stockItem><sellerStockCode><![CDATA[${st.sellerStockCode}]]></sellerStockCode><quantity>${st.quantity}</quantity>${st.version !== undefined ? `<version>${st.version}</version>` : ""}</stockItem>`)
+      .join("\n");
+
+    const xml = this.buildSoapEnvelope("UpdateStockByStockSellerCode", auth, `<stockItems>${stockItemsXml}</stockItems>`);
+    const res = await this.executeSoapRequest("ProductStockService", "UpdateStockByStockSellerCode", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "N11 stok güncelleme başarısız." };
+    }
+
+    const items = res?.stockItems?.stockItem;
+    return {
+      success: true,
+      message: "N11 stok miktarı güncellendi.",
+      stockItems: items ? (Array.isArray(items) ? items : [items]) : []
+    };
+  }
+
+  /**
+   * ProductStockService: Delete and Update Stock by Stock Attributes
+   */
+  static async deleteAndUpdateStockByStockAttributes(
+    auth: N11Auth,
+    productId: string | number,
+    stockItems: Array<{ attributes: Array<{ name: string; value: string }>; quantity: number; version?: number }>
+  ): Promise<{ success: boolean; message?: string; stockItems?: any[] }> {
+    const stockItemsXml = stockItems
+      .map(st => {
+        const attrXml = st.attributes.map(a => `<attribute><name><![CDATA[${a.name}]]></name><value><![CDATA[${a.value}]]></value></attribute>`).join("");
+        return `<stockItem><attributes>${attrXml}</attributes><quantity>${st.quantity}</quantity>${st.version !== undefined ? `<version>${st.version}</version>` : ""}</stockItem>`;
+      })
+      .join("\n");
+
+    const xml = this.buildSoapEnvelope(
+      "DeleteAndUpdateStockByStockAttributes",
+      auth,
+      `<product><id>${productId}</id><stockItems>${stockItemsXml}</stockItems></product>`
+    );
+    const res = await this.executeSoapRequest("ProductStockService", "DeleteAndUpdateStockByStockAttributes", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Varyant stok güncelleme başarısız." };
+    }
+
+    const items = res?.stockItems?.stockItem;
+    return {
+      success: true,
+      message: "Varyant stokları güncellendi.",
+      stockItems: items ? (Array.isArray(items) ? items : [items]) : []
+    };
+  }
+
+  /**
+   * ProductStockService: Increase Stock by Stock ID
+   */
+  static async increaseStockByStockId(
+    auth: N11Auth,
+    stockItems: Array<{ id: string | number; quantityToIncrease: number; version?: number }>
+  ): Promise<{ success: boolean; message?: string; stockItems?: any[] }> {
+    const stockItemsXml = stockItems
+      .map(st => `<stockItem><id>${st.id}</id><quantityToIncrease>${st.quantityToIncrease}</quantityToIncrease>${st.version !== undefined ? `<version>${st.version}</version>` : ""}</stockItem>`)
+      .join("\n");
+
+    const xml = this.buildSoapEnvelope("IncreaseStockByStockId", auth, `<stockItems>${stockItemsXml}</stockItems>`);
+    const res = await this.executeSoapRequest("ProductStockService", "IncreaseStockByStockId", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Stok arttırma başarısız." };
+    }
+
+    const items = res?.stockItems?.stockItem;
+    return {
+      success: true,
+      message: "N11 stok miktarı arttırıldı.",
+      stockItems: items ? (Array.isArray(items) ? items : [items]) : []
+    };
+  }
+
+  /**
+   * ProductStockService: Increase Stock by Stock Seller Code
+   */
+  static async increaseStockByStockSellerCode(
+    auth: N11Auth,
+    stockItems: Array<{ sellerStockCode: string; quantityToIncrease: number; version?: number }>
+  ): Promise<{ success: boolean; message?: string; stockItems?: any[] }> {
+    const stockItemsXml = stockItems
+      .map(st => `<stockItem><sellerStockCode><![CDATA[${st.sellerStockCode}]]></sellerStockCode><quantityToIncrease>${st.quantityToIncrease}</quantityToIncrease>${st.version !== undefined ? `<version>${st.version}</version>` : ""}</stockItem>`)
+      .join("\n");
+
+    const xml = this.buildSoapEnvelope("IncreaseStockByStockSellerCode", auth, `<stockItems>${stockItemsXml}</stockItems>`);
+    const res = await this.executeSoapRequest("ProductStockService", "IncreaseStockByStockSellerCode", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Stok arttırma başarısız." };
+    }
+
+    const items = res?.stockItems?.stockItem;
+    return {
+      success: true,
+      message: "N11 stok miktarı arttırıldı.",
+      stockItems: items ? (Array.isArray(items) ? items : [items]) : []
+    };
+  }
+
+  /**
+   * ProductStockService: Increase Stock by Stock Attributes
+   */
+  static async increaseStockByStockAttributes(
+    auth: N11Auth,
+    productId: string | number,
+    stockItems: Array<{ attributes: Array<{ name: string; value: string }>; quantityToIncrease: number; version?: number }>
+  ): Promise<{ success: boolean; message?: string; stockItems?: any[] }> {
+    const stockItemsXml = stockItems
+      .map(st => {
+        const attrXml = st.attributes.map(a => `<attribute><name><![CDATA[${a.name}]]></name><value><![CDATA[${a.value}]]></value></attribute>`).join("");
+        return `<stockItem><attributes>${attrXml}</attributes><quantityToIncrease>${st.quantityToIncrease}</quantityToIncrease>${st.version !== undefined ? `<version>${st.version}</version>` : ""}</stockItem>`;
+      })
+      .join("\n");
+
+    const xml = this.buildSoapEnvelope(
+      "IncreaseStockByStockAttributes",
+      auth,
+      `<product><id>${productId}</id><stockItems>${stockItemsXml}</stockItems></product>`
+    );
+    const res = await this.executeSoapRequest("ProductStockService", "IncreaseStockByStockAttributes", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Varyant stok arttırma başarısız." };
+    }
+
+    const items = res?.stockItems?.stockItem;
+    return {
+      success: true,
+      message: "Varyant stok miktarları arttırıldı.",
+      stockItems: items ? (Array.isArray(items) ? items : [items]) : []
+    };
+  }
+
+  /**
+   * Update Product Price & Stock in N11
+   */
+  static async updatePriceAndStock(
+    auth: N11Auth,
+    productSellerCode: string,
+    price: number,
+    quantity: number
+  ): Promise<{ success: boolean; message?: string }> {
+    const innerBody = `
+       <productSellerCode>${productSellerCode}</productSellerCode>
+       <price>${price}</price>
+       <currencyType>TL</currencyType>
+       <stockItems>
+          <stockItem>
+             <sellerStockCode>${productSellerCode}</sellerStockCode>
+             <quantity>${quantity}</quantity>
+          </stockItem>
+       </stockItems>
+    `;
+
+    const xml = this.buildSoapEnvelope(
+      "UpdateProductPriceByIdOrSellerCode",
+      auth,
+      innerBody
+    );
+
+    try {
+      const res = await this.executeSoapRequest("ProductService", "UpdateProductPriceByIdOrSellerCode", xml);
+
+      if (res?.result?.status === "failure") {
+        return { success: false, message: res.result.errorMessage || "Fiyat/stok güncellenemedi." };
+      }
+
+      return { success: true, message: "N11 fiyat ve stok güncellendi." };
+    } catch (err: any) {
+      console.error("[N11-SERVICE] Update Price/Stock Error:", err.message);
+      return { success: false, message: err.message };
+    }
+  }
+
+  /**
+   * OrderService: Fetch Detailed Orders List (DetailedOrderList)
+   */
+  static async getDetailedOrders(
+    auth: N11Auth,
+    searchFilter: {
+      productId?: string | number;
+      status?: string;
+      buyerName?: string;
+      orderNumber?: string;
+      productSellerCode?: string;
+      recipient?: string;
+      startDate?: string;
+      endDate?: string;
+      sortForUpdateDate?: boolean;
+      currentPage?: number;
+      pageSize?: number;
+    } | string = "Approved"
+  ): Promise<any> {
+    if (typeof searchFilter === "string") {
+      searchFilter = { status: searchFilter };
+    }
+
+    let searchXml = "";
+    if (searchFilter.productId) searchXml += `<productId>${searchFilter.productId}</productId>\n`;
+    if (searchFilter.status) searchXml += `<status>${searchFilter.status}</status>\n`;
+    if (searchFilter.buyerName) searchXml += `<buyerName><![CDATA[${searchFilter.buyerName}]]></buyerName>\n`;
+    if (searchFilter.orderNumber) searchXml += `<orderNumber>${searchFilter.orderNumber}</orderNumber>\n`;
+    if (searchFilter.productSellerCode) searchXml += `<productSellerCode><![CDATA[${searchFilter.productSellerCode}]]></productSellerCode>\n`;
+    if (searchFilter.recipient) searchXml += `<recipient><![CDATA[${searchFilter.recipient}]]></recipient>\n`;
+    if (searchFilter.startDate || searchFilter.endDate) {
+      searchXml += `<period>
+        ${searchFilter.startDate ? `<startDate>${searchFilter.startDate}</startDate>` : ""}
+        ${searchFilter.endDate ? `<endDate>${searchFilter.endDate}</endDate>` : ""}
+      </period>\n`;
+    }
+    if (searchFilter.sortForUpdateDate) {
+      searchXml += `<sortForUpdateDate>${searchFilter.sortForUpdateDate}</sortForUpdateDate>\n`;
+    }
+
+    const currentPage = searchFilter.currentPage || 0;
+    const pageSize = searchFilter.pageSize || 100;
+
+    const innerBody = `
+       <searchData>
+          ${searchXml}
+       </searchData>
+       <pagingData>
+          <currentPage>${currentPage}</currentPage>
+          <pageSize>${pageSize}</pageSize>
+       </pagingData>
+    `;
+
+    const xml = this.buildSoapEnvelope("DetailedOrderList", auth, innerBody);
+    const res = await this.executeSoapRequest("OrderService", "DetailedOrderList", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 detaylı sipariş listesi alınamadı.");
+    }
+
+    const orderList = res?.orderList?.order;
+    const orders = orderList ? (Array.isArray(orderList) ? orderList : [orderList]) : [];
+    
+    // Return array directly for backward compatibility with existing sync, or array with pagingData if requested
+    return orders;
+  }
+
+  /**
+   * OrderService: Fetch Summary Order List (OrderList)
+   */
+  static async getOrderList(
+    auth: N11Auth,
+    searchFilter: {
+      productId?: string | number;
+      status?: string;
+      buyerName?: string;
+      orderNumber?: string;
+      productSellerCode?: string;
+      recipient?: string;
+      startDate?: string;
+      endDate?: string;
+      sortForUpdateDate?: boolean;
+      currentPage?: number;
+      pageSize?: number;
+    } = {}
+  ): Promise<{ orders: any[]; pagingData?: any }> {
+    let searchXml = "";
+    if (searchFilter.productId) searchXml += `<productId>${searchFilter.productId}</productId>\n`;
+    if (searchFilter.status) searchXml += `<status>${searchFilter.status}</status>\n`;
+    if (searchFilter.buyerName) searchXml += `<buyerName><![CDATA[${searchFilter.buyerName}]]></buyerName>\n`;
+    if (searchFilter.orderNumber) searchXml += `<orderNumber>${searchFilter.orderNumber}</orderNumber>\n`;
+    if (searchFilter.productSellerCode) searchXml += `<productSellerCode><![CDATA[${searchFilter.productSellerCode}]]></productSellerCode>\n`;
+    if (searchFilter.recipient) searchXml += `<recipient><![CDATA[${searchFilter.recipient}]]></recipient>\n`;
+    if (searchFilter.startDate || searchFilter.endDate) {
+      searchXml += `<period>
+        ${searchFilter.startDate ? `<startDate>${searchFilter.startDate}</startDate>` : ""}
+        ${searchFilter.endDate ? `<endDate>${searchFilter.endDate}</endDate>` : ""}
+      </period>\n`;
+    }
+    if (searchFilter.sortForUpdateDate) {
+      searchXml += `<sortForUpdateDate>${searchFilter.sortForUpdateDate}</sortForUpdateDate>\n`;
+    }
+
+    const currentPage = searchFilter.currentPage || 0;
+    const pageSize = searchFilter.pageSize || 100;
+
+    const innerBody = `
+       <searchData>
+          ${searchXml}
+       </searchData>
+       <pagingData>
+          <currentPage>${currentPage}</currentPage>
+          <pageSize>${pageSize}</pageSize>
+       </pagingData>
+    `;
+
+    const xml = this.buildSoapEnvelope("OrderList", auth, innerBody);
+    const res = await this.executeSoapRequest("OrderService", "OrderList", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 sipariş özeti alınamadı.");
+    }
+
+    const orderList = res?.orderList?.order;
+    const orders = orderList ? (Array.isArray(orderList) ? orderList : [orderList]) : [];
+    return {
+      orders,
+      pagingData: res?.pagingData || null
+    };
+  }
+
+  /**
+   * OrderService: Fetch Order Detail by Order ID (OrderDetail)
+   */
+  static async getOrderDetail(auth: N11Auth, orderId: string | number): Promise<any> {
+    const xml = this.buildSoapEnvelope("OrderDetail", auth, `<orderRequest><id>${orderId}</id></orderRequest>`);
+    const res = await this.executeSoapRequest("OrderService", "OrderDetail", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 sipariş detayı alınamadı.");
+    }
+
+    return res?.orderDetail || null;
+  }
+
+  /**
+   * OrderService: Accept Order Item (OrderItemAccept)
+   */
+  static async acceptOrderItem(
+    auth: N11Auth,
+    orderItemId: string | number,
+    numberOfPackages: number = 1
+  ): Promise<{ success: boolean; message?: string; orderItemList?: any[] }> {
+    const innerBody = `
+      <orderItemList>
+         <orderItem>
+            <id>${orderItemId}</id>
+         </orderItem>
+      </orderItemList>
+      <numberOfPackages>${numberOfPackages}</numberOfPackages>
+    `;
+
+    const xml = this.buildSoapEnvelope("OrderItemAccept", auth, innerBody);
+    const res = await this.executeSoapRequest("OrderService", "OrderItemAccept", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Sipariş kalemi onaylanamadı." };
+    }
+
+    const items = res?.orderItemList?.orderItem;
+    return {
+      success: true,
+      message: "Sipariş kalemi onaylandı.",
+      orderItemList: items ? (Array.isArray(items) ? items : [items]) : []
+    };
+  }
+
+  /**
+   * OrderService: Reject Order Item (OrderItemReject)
+   */
+  static async rejectOrderItem(
+    auth: N11Auth,
+    orderItemId: string | number,
+    rejectReason: string = "Ürün stoklarımızda bulunmamaktadır.",
+    rejectReasonType: string = "OUT_OF_STOCK"
+  ): Promise<{ success: boolean; message?: string; orderItemList?: any[] }> {
+    const innerBody = `
+      <orderItemList>
+         <orderItem>
+            <id>${orderItemId}</id>
+         </orderItem>
+      </orderItemList>
+      <rejectReason><![CDATA[${rejectReason}]]></rejectReason>
+      <rejectReasonType>${rejectReasonType}</rejectReasonType>
+    `;
+
+    const xml = this.buildSoapEnvelope("OrderItemReject", auth, innerBody);
+    const res = await this.executeSoapRequest("OrderService", "OrderItemReject", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Sipariş kalemi reddedilemedi." };
+    }
+
+    const items = res?.orderItemList?.orderItem;
+    return {
+      success: true,
+      message: "Sipariş kalemi reddedildi.",
+      orderItemList: items ? (Array.isArray(items) ? items : [items]) : []
+    };
+  }
+
+  /**
+   * OrderService: Make Order Item Shipment (MakeOrderItemShipment)
+   */
+  static async makeOrderItemShipment(
+    auth: N11Auth,
+    params: {
+      orderItemId: string | number;
+      shipmentCompanyId: string | number;
+      campaignNumber?: string;
+      trackingNumber?: string;
+      shipmentMethod?: number | string;
+    }
+  ): Promise<{ success: boolean; message?: string; orderItemList?: any[] }> {
+    const innerBody = `
+      <orderItemList>
+         <orderItem>
+            <id>${params.orderItemId}</id>
+            <shipmentInfo>
+               <shipmentCompany>
+                  <id>${params.shipmentCompanyId}</id>
+               </shipmentCompany>
+               ${params.campaignNumber ? `<campaignNumber>${params.campaignNumber}</campaignNumber>` : ""}
+               ${params.trackingNumber ? `<trackingNumber>${params.trackingNumber}</trackingNumber>` : ""}
+               <shipmentMethod>${params.shipmentMethod || 1}</shipmentMethod>
+            </shipmentInfo>
+         </orderItem>
+      </orderItemList>
+    `;
+
+    const xml = this.buildSoapEnvelope("MakeOrderItemShipment", auth, innerBody);
+    const res = await this.executeSoapRequest("OrderService", "MakeOrderItemShipment", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Kargoya verme işlemi başarısız." };
+    }
+
+    const items = res?.orderItemList?.orderItem;
+    return {
+      success: true,
+      message: "Sipariş kalemi kargoya verildi.",
+      orderItemList: items ? (Array.isArray(items) ? items : [items]) : []
+    };
+  }
+
+  /**
+   * ShipmentCompanyService: Get Shipment Companies List (GetShipmentCompanies) - Public Endpoint
+   */
+  static async getShipmentCompanies(auth?: N11Auth | null): Promise<any[]> {
+    const xml = this.buildSoapEnvelope("GetShipmentCompanies", auth, "");
+    const res = await this.executeSoapRequest("ShipmentCompanyService", "GetShipmentCompanies", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Kargo firmaları çekilemedi.");
+    }
+
+    const companies = res?.shipmentCompanies?.shipmentCompany;
+    if (!companies) return [];
+    return Array.isArray(companies) ? companies : [companies];
+  }
+
+  /**
+   * ShipmentService: Get Single Shipment Template Details (GetShipmentTemplate)
+   */
+  static async getShipmentTemplate(auth: N11Auth, name: string): Promise<any> {
+    const xml = this.buildSoapEnvelope("GetShipmentTemplate", auth, `<name><![CDATA[${name}]]></name>`);
+    const res = await this.executeSoapRequest("ShipmentService", "GetShipmentTemplate", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Teslimat şablonu çekilemedi.");
+    }
+
+    return res?.shipmentTemplate || null;
+  }
+
+  /**
+   * ShipmentService: Get All Shipment Templates List (GetShipmentTemplateList)
+   */
+  static async getShipmentTemplateList(auth: N11Auth): Promise<any[]> {
+    const xml = this.buildSoapEnvelope("GetShipmentTemplateList", auth, "");
+    const res = await this.executeSoapRequest("ShipmentService", "GetShipmentTemplateList", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "Kargo şablonları listesi çekilemedi.");
+    }
+
+    const templates = res?.shipmentTemplates?.shipmentTemplate;
+    if (!templates) return [];
+    return Array.isArray(templates) ? templates : [templates];
+  }
+
+  /**
+   * ShipmentService: Create or Update Shipment Template (CreateOrUpdateShipmentTemplate)
+   */
+  static async createOrUpdateShipmentTemplate(auth: N11Auth, shipment: any): Promise<{ success: boolean; message?: string; shipmentTemplate?: any }> {
+    let shipmentXml = "<shipment>\n";
+    if (shipment.templateName) shipmentXml += `<templateName><![CDATA[${shipment.templateName}]]></templateName>\n`;
+    if (shipment.installmentInfo) shipmentXml += `<installmentInfo><![CDATA[${shipment.installmentInfo}]]></installmentInfo>\n`;
+    if (shipment.exchangeInfo) shipmentXml += `<exchangeInfo><![CDATA[${shipment.exchangeInfo}]]></exchangeInfo>\n`;
+    if (shipment.shippingInfo) shipmentXml += `<shippingInfo><![CDATA[${shipment.shippingInfo}]]></shippingInfo>\n`;
+    if (shipment.specialDelivery !== undefined) shipmentXml += `<specialDelivery>${shipment.specialDelivery}</specialDelivery>\n`;
+    if (shipment.deliveryFeeType) shipmentXml += `<deliveryFeeType>${shipment.deliveryFeeType}</deliveryFeeType>\n`;
+    if (shipment.combinedShipmentAllowed !== undefined) shipmentXml += `<combinedShipmentAllowed>${shipment.combinedShipmentAllowed}</combinedShipmentAllowed>\n`;
+    if (shipment.shipmentMethod) shipmentXml += `<shipmentMethod>${shipment.shipmentMethod}</shipmentMethod>\n`;
+    
+    if (shipment.warehouseAddress) {
+      shipmentXml += `<warehouseAddress>
+        <title><![CDATA[${shipment.warehouseAddress.title || ""}]]></title>
+        <address><![CDATA[${shipment.warehouseAddress.address || ""}]]></address>
+        <city><code>${shipment.warehouseAddress.cityCode || ""}</code><name><![CDATA[${shipment.warehouseAddress.cityName || ""}]]></name></city>
+        <district><id>${shipment.warehouseAddress.districtId || ""}</id><name><![CDATA[${shipment.warehouseAddress.districtName || ""}]]></name></district>
+        <postalCode>${shipment.warehouseAddress.postalCode || ""}</postalCode>
+      </warehouseAddress>\n`;
+    }
+
+    if (shipment.exchangeAddress) {
+      shipmentXml += `<exchangeAddress>
+        <title><![CDATA[${shipment.exchangeAddress.title || ""}]]></title>
+        <address><![CDATA[${shipment.exchangeAddress.address || ""}]]></address>
+        <city><code>${shipment.exchangeAddress.cityCode || ""}</code><name><![CDATA[${shipment.exchangeAddress.cityName || ""}]]></name></city>
+        <district><id>${shipment.exchangeAddress.districtId || ""}</id><name><![CDATA[${shipment.exchangeAddress.districtName || ""}]]></name></district>
+        <postalCode>${shipment.exchangeAddress.postalCode || ""}</postalCode>
+      </exchangeAddress>\n`;
+    }
+
+    if (shipment.shipmentCompanies && shipment.shipmentCompanies.length > 0) {
+      shipmentXml += `<shipmentCompanies>${shipment.shipmentCompanies.map((c: any) => `<shipmentCompany><name><![CDATA[${c.name}]]></name><shortName>${c.shortName}</shortName></shipmentCompany>`).join("")}</shipmentCompanies>\n`;
+    }
+
+    if (shipment.claimShipmentCompany) {
+      shipmentXml += `<claimShipmentCompany><name><![CDATA[${shipment.claimShipmentCompany.name}]]></name><shortName>${shipment.claimShipmentCompany.shortName}</shortName></claimShipmentCompany>\n`;
+    }
+
+    if (shipment.useDmallCargo !== undefined) shipmentXml += `<useDmallCargo>${shipment.useDmallCargo}</useDmallCargo>\n`;
+    shipmentXml += "</shipment>";
+
+    const xml = this.buildSoapEnvelope("CreateOrUpdateShipmentTemplate", auth, shipmentXml);
+    const res = await this.executeSoapRequest("ShipmentService", "CreateOrUpdateShipmentTemplate", xml);
+
+    if (res?.result?.status === "failure") {
+      return { success: false, message: res.result.errorMessage || "Teslimat şablonu oluşturulamadı." };
+    }
+
+    return {
+      success: true,
+      message: "Teslimat şablonu başarıyla güncellendi.",
+      shipmentTemplate: res?.shipmentTemplate || null
+    };
+  }
+
+  /**
+   * CityService: List all cities (GetCities) - Public endpoint
+   */
+  static async getCities(auth?: N11Auth | null): Promise<any[]> {
+    const xml = this.buildSoapEnvelope("GetCities", auth, "");
+    const res = await this.executeSoapRequest("CityService", "GetCities", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 Şehir listesi alınamadı.");
+    }
+
+    const cityList = res?.cities?.city;
+    if (!cityList) return [];
+    return Array.isArray(cityList) ? cityList : [cityList];
+  }
+
+  /**
+   * CityService: Get single city info (GetCity) - Public endpoint
+   */
+  static async getCity(cityCode: string | number, auth?: N11Auth | null): Promise<any> {
+    const codeStr = String(cityCode).padStart(2, '0');
+    const xml = this.buildSoapEnvelope("GetCity", auth, `<cityCode>${codeStr}</cityCode>`);
+    const res = await this.executeSoapRequest("CityService", "GetCity", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 Şehir bilgisi alınamadı.");
+    }
+
+    return res?.city || null;
+  }
+
+  /**
+   * CityService: Get districts for a city code (GetDistrict) - Public endpoint
+   */
+  static async getDistricts(cityCode: string | number, auth?: N11Auth | null): Promise<any[]> {
+    const codeStr = String(cityCode).padStart(2, '0');
+    const xml = this.buildSoapEnvelope("GetDistrict", auth, `<cityCode>${codeStr}</cityCode>`);
+    const res = await this.executeSoapRequest("CityService", "GetDistrict", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 İlçe listesi alınamadı.");
+    }
+
+    const districtList = res?.districts?.district;
+    if (!districtList) return [];
+    return Array.isArray(districtList) ? districtList : [districtList];
+  }
+
+  /**
+   * CityService: Get neighborhoods for a district ID (GetNeighborhoods) - Public endpoint
+   */
+  static async getNeighborhoods(districtId: string | number, auth?: N11Auth | null): Promise<any[]> {
+    const xml = this.buildSoapEnvelope("GetNeighborhoods", auth, `<districtId>${districtId}</districtId>`);
+    const res = await this.executeSoapRequest("CityService", "GetNeighborhoods", xml);
+
+    if (res?.result?.status === "failure") {
+      throw new Error(res.result.errorMessage || "N11 Mahalle listesi alınamadı.");
+    }
+
+    const neighborhoodList = res?.neighborhoods?.neighborhood;
+    if (!neighborhoodList) return [];
+    return Array.isArray(neighborhoodList) ? neighborhoodList : [neighborhoodList];
+  }
+}
