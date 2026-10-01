@@ -1146,6 +1146,7 @@ export const N11_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   { id: 1000269, name: "Dahili / Harici SSD & Hard Disk", displayName: "Bilgisayar > Veri Depolama > SSD & Hard Disk", paths: ["Bilgisayar", "Veri Depolama", "SSD"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
   { id: 1000272, name: "Kart Okuyucu", displayName: "Bilgisayar > Veri Depolama > Kart Okuyucu", paths: ["Bilgisayar", "Veri Depolama", "Kart Okuyucu"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
   { id: 1000275, name: "Dizüstü Bilgisayar (Laptop)", displayName: "Bilgisayar > Dizüstü Bilgisayar", paths: ["Bilgisayar", "Laptop"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 1000276, name: "Tablet Bilgisayar & iPad", displayName: "Bilgisayar > Tablet Bilgisayar & iPad", paths: ["Bilgisayar", "Tablet", "iPad"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
   { id: 1000278, name: "Monitör", displayName: "Bilgisayar > Çevre Birimleri > Monitör", paths: ["Bilgisayar", "Monitör"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
   { id: 1000280, name: "Klavye & Mouse Setleri", displayName: "Bilgisayar > Çevre Birimleri > Klavye & Mouse", paths: ["Bilgisayar", "Klavye", "Mouse"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
   { id: 1000282, name: "Ağ & Modem & Router", displayName: "Bilgisayar > Ağ Ürünleri > Modem & Router", paths: ["Bilgisayar", "Modem", "Ağ"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
@@ -1484,6 +1485,7 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
 
   // Mobile & Tablets
   "371972": COMMON_MARKETPLACE_ATTRIBUTES.tablet_devices,
+  "1000276": COMMON_MARKETPLACE_ATTRIBUTES.tablet_devices,
   "371960": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371965": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371966": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
@@ -1493,6 +1495,32 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "371973": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371967": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
   "371968": COMMON_MARKETPLACE_ATTRIBUTES.smartwatch,
+
+  // N11 Default Categories Mapping
+  "1000268": COMMON_MARKETPLACE_ATTRIBUTES.usb_storage,
+  "1000270": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
+  "1000269": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
+  "1000272": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
+  "1000275": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
+  "1000278": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
+  "1000280": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
+  "1000282": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "1000285": COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags,
+  "1000288": COMMON_MARKETPLACE_ATTRIBUTES.usb_hub_adapters,
+  "1000301": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
+  "1000305": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "1000308": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "1000312": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "1000315": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
+  "1000320": COMMON_MARKETPLACE_ATTRIBUTES.smartwatch,
+  "1000401": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
+  "1000410": COMMON_MARKETPLACE_ATTRIBUTES.security_camera,
+  "1000501": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "1000505": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "1000510": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "1000601": COMMON_MARKETPLACE_ATTRIBUTES.home_kitchen,
+  "1000610": COMMON_MARKETPLACE_ATTRIBUTES.home_kitchen,
+  "1000701": COMMON_MARKETPLACE_ATTRIBUTES.auto,
 
   // USB Hubs & Adapters
   "1000122": COMMON_MARKETPLACE_ATTRIBUTES.usb_hub_adapters,
@@ -1635,6 +1663,7 @@ export function getAttributesForCategory(catName: string, paths: string[] = [], 
   // 0a. Tablet Bilgisayarlar & iPad (Device itself) - MUST match before phone accessories!
   if (
     text.includes("371972") ||
+    text.includes("1000276") ||
     text.includes("tablet bilgisayar") ||
     text.includes("ipad") ||
     (text.includes("tablet") && !text.includes("kılıf") && !text.includes("kilif") && !text.includes("cam") && !text.includes("koruyucu") && !text.includes("kalem") && !text.includes("tutucu") && !text.includes("aksesuar") && !text.includes("çanta") && !text.includes("canta") && !text.includes("şarj") && !text.includes("sarj") && !text.includes("stant") && !text.includes("stand"))

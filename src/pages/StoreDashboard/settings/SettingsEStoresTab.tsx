@@ -127,6 +127,8 @@ export const SettingsEStoresTab = ({
   // N11 State
   const [n11AppKey, setN11AppKey] = useState(branding.n11_settings?.appKey || "");
   const [n11AppSecret, setN11AppSecret] = useState(branding.n11_settings?.appSecret || "");
+  const [n11ShipmentTemplate, setN11ShipmentTemplate] = useState(branding.n11_settings?.shipmentTemplate || "Alıcı Öder");
+  const [n11PreparingDay, setN11PreparingDay] = useState<number>(branding.n11_settings?.preparingDay || 1);
   const [showN11Secret, setShowN11Secret] = useState(false);
 
   // Hepsiburada State
@@ -274,6 +276,8 @@ export const SettingsEStoresTab = ({
         if (n11 && typeof n11 === 'object' && Object.keys(n11).length > 0) {
           if (n11.appKey) setN11AppKey(n11.appKey);
           if (n11.appSecret) setN11AppSecret(n11.appSecret);
+          if (n11.shipmentTemplate) setN11ShipmentTemplate(n11.shipmentTemplate);
+          if (n11.preparingDay) setN11PreparingDay(n11.preparingDay);
           if (onBrandingChange) onBrandingChange('n11_settings', n11);
         }
       }
@@ -296,6 +300,8 @@ export const SettingsEStoresTab = ({
     const n = branding.n11_settings || {};
     if (n.appKey) setN11AppKey(n.appKey);
     if (n.appSecret) setN11AppSecret(n.appSecret);
+    if (n.shipmentTemplate) setN11ShipmentTemplate(n.shipmentTemplate);
+    if (n.preparingDay) setN11PreparingDay(n.preparingDay);
 
     const h = branding.hepsiburada_settings || {};
     if (h.apiKey !== undefined) setHbApiKey(h.apiKey || "lookprice_dev");
@@ -505,6 +511,8 @@ export const SettingsEStoresTab = ({
         categoryMarkups: prevN11.categoryMarkups || {},
         defaultCommissionRate: prevN11.defaultCommissionRate ?? 20,
         defaultFixedFee: prevN11.defaultFixedFee ?? 20,
+        shipmentTemplate: n11ShipmentTemplate,
+        preparingDay: n11PreparingDay,
         connected: isConn, 
         storeId: currentStoreId 
       };
@@ -513,6 +521,8 @@ export const SettingsEStoresTab = ({
 
       if (savedData.appKey !== undefined) setN11AppKey(savedData.appKey || "");
       if (savedData.appSecret !== undefined) setN11AppSecret(savedData.appSecret || "");
+      if (savedData.shipmentTemplate !== undefined) setN11ShipmentTemplate(savedData.shipmentTemplate || "Alıcı Öder");
+      if (savedData.preparingDay !== undefined) setN11PreparingDay(savedData.preparingDay || 1);
 
       onBrandingChange('n11_settings', savedData);
       toast.success(isConn ? (lang === 'tr' ? "N11 hesabı başarıyla bağlandı ve kaydedildi" : "N11 account connected successfully") : (t.saveSuccess || "Kaydedildi"));
@@ -522,9 +532,9 @@ export const SettingsEStoresTab = ({
     }
   };
 
-  const handleSyncN11Orders = async () => {
+  const handleSyncN11Orders = async (days: number = 5) => {
     await n11Sync.runSync(
-      () => api.syncN11Orders(currentStoreId),
+      () => api.syncN11Orders(currentStoreId, days),
       (res) => {
         toast.success(`${t.n11SyncSuccess || "N11 siparişleri senkronize edildi"}: ${res.count || 0} ${t.sales || "Satış"}`);
         if (onRefresh) onRefresh();
@@ -1216,6 +1226,10 @@ export const SettingsEStoresTab = ({
           setN11AppKey={setN11AppKey}
           n11AppSecret={n11AppSecret}
           setN11AppSecret={setN11AppSecret}
+          n11ShipmentTemplate={n11ShipmentTemplate}
+          setN11ShipmentTemplate={setN11ShipmentTemplate}
+          n11PreparingDay={n11PreparingDay}
+          setN11PreparingDay={setN11PreparingDay}
           isN11Connected={isN11Connected}
           testingN11={testingN11}
           n11LiveCount={n11LiveCount}

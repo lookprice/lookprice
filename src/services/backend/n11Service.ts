@@ -1522,4 +1522,90 @@ export class N11Service {
     if (!neighborhoodList) return [];
     return Array.isArray(neighborhoodList) ? neighborhoodList : [neighborhoodList];
   }
+
+  /**
+   * Match Remote N11 Listings with Local Store Products
+   */
+  static async matchListingsWithStoreProducts(
+    auth: N11Auth,
+    poolInstance: any,
+    storeId: number,
+    options: { importMissing?: boolean } = {}
+  ): Promise<{ success: boolean; matchedCount: number; importedCount: number; totalRemote: number; message: string }> {
+    const listRes = await this.getProductList(auth, 0, 500);
+    const remoteProducts = listRes.products || [];
+
+    const localProdRes = await poolInstance.query("SELECT * FROM products WHERE store_id = $1", [storeId]);
+    const localProducts = localProdRes.rows || [];
+
+    let matchedCount = 0;
+    let importedCount = 0;
+
+    for (const rp of remoteProducts) {
+      const rpId = String(rp.id || rp.productId || '');
+      const rpCode = String(rp.productSellerCode || rp.stockCode || rp.barcode || '').trim().toLowerCase();
+      const rpBarcode = String(rp.barcode || '').trim().toLowerCase();
+      const rpTitle = String(rp.title || rp.name || '').trim().toLowerCase();
+
+      let matchedLocal = localProducts.find((lp: any) => {
+        const lpSku = String(lp.sku || '').trim().toLowerCase();
+        const lpBarcode = String(lp.barcode || '').trim().toLowerCase();
+        const lpName = String(lp.name || '').trim().toLowerCase();
+
+        if (rpCode && lpSku && rpCode === lpSku) return true;
+        if (rpBarcode && lpBarcode && rpBarcode === lpBarcode) return true;
+        if (rpCode && lpBarcode && rpCode === lpBarcode) return true;
+        if (rpBarcode && lpSku && rpBarcode === lpSku) return true;
+        if (rpTitle && lpName && rpTitle === lpName) return true;
+        return false;
+      });
+
+      if (matchedLocal) {
+        let mpData: any = matchedLocal.marketplace_data;
+        if (typeof mpData === 'string') { try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; } }
+        mpData = mpData || {};
+        mpData.n11 = {
+          ...(mpData.n11 || {}),
+          n11Id: rpId,
+          status: 'ACTIVE',
+          lastSync: new Date().toISOString()
+        };
+
+        await poolInstance.query(
+          "UPDATE products SET n11_id = $1, is_n11_active = true, marketplace_data = $2 WHERE id = $3 AND store_id = $4",
+          [rpId, JSON.stringify(mpData), matchedLocal.id, storeId]
+        );
+        matchedCount++;
+      } else if (options.importMissing) {
+        const title = rp.title || rp.name || 'N11 İlanı';
+        const price = parseFloat(rp.price || rp.salePrice || 100);
+        const stock = parseInt(rp.quantity || rp.stockCount || 10);
+        const barcode = rp.barcode || rp.productSellerCode || `N11-${rpId}`;
+
+        await poolInstance.query(
+          `INSERT INTO products (store_id, name, price, stock_quantity, barcode, sku, is_n11_active, n11_id, marketplace_data)
+           VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8)`,
+          [
+            storeId,
+            title,
+            price,
+            stock,
+            barcode,
+            rpCode || barcode,
+            rpId,
+            JSON.stringify({ n11: { n11Id: rpId, status: 'ACTIVE', lastSync: new Date().toISOString() } })
+          ]
+        );
+        importedCount++;
+      }
+    }
+
+    return {
+      success: true,
+      matchedCount,
+      importedCount,
+      totalRemote: remoteProducts.length,
+      message: `N11 mağazası (enrakipsiz) tarandı: ${matchedCount} ürün yerel ürünlerinizle eşleştirildi, ${importedCount} yeni ürün içe aktarıldı.`
+    };
+  }
 }

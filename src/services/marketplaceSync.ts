@@ -217,9 +217,38 @@ export async function syncN11OrdersREST(client: any, storeId: number, settings: 
     return response.data?.orders || [];
 }
 
-export async function syncN11Orders(client: any, storeId: number, settings: any) {
+export async function syncN11Orders(client: any, storeId: number, settings: any, days?: number) {
     // Try SOAP first with corrected URL
     try {
+        let searchDataXml = "";
+
+        if (days && days > 0) {
+            const today = new Date();
+            const startDate = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
+
+            const formatDateN11 = (d: Date) => {
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                return `${day}/${month}/${year}`;
+            };
+
+            const startDateStr = formatDateN11(startDate);
+            const endDateStr = formatDateN11(today);
+
+            searchDataXml = `
+                      <period>
+                         <startDate>${startDateStr}</startDate>
+                         <endDate>${endDateStr}</endDate>
+                      </period>
+            `;
+        } else {
+            // Default and routine live sync: Only fetch New (instant) orders to prevent inventory desync!
+            searchDataXml = `
+                      <status>New</status>
+            `;
+        }
+
         const soapEnvelope = `
           <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/ws/schemas/OrderService">
              <soapenv:Header/>
@@ -230,7 +259,7 @@ export async function syncN11Orders(client: any, storeId: number, settings: any)
                       <appSecret>${settings.appSecret}</appSecret>
                    </auth>
                    <searchData>
-                      <status>New</status>
+                      ${searchDataXml}
                    </searchData>
                 </sch:DetailedOrderListRequest>
              </soapenv:Body>

@@ -506,7 +506,7 @@ export const api = {
 
   // N11 Integration
   getN11Settings: (storeId?: number) => api.get(`/api/integrations/n11/settings${storeId ? `?storeId=${storeId}` : ""}`),
-  syncN11Orders: (storeId?: number) => api.post("/api/integrations/n11/sync", { storeId }),
+  syncN11Orders: (storeId?: number, days?: number) => api.post("/api/integrations/n11/sync", { storeId, days }),
   disconnectN11: (storeId?: number) => api.post("/api/integrations/n11/disconnect", { storeId }),
 
   // Hepsiburada Integration

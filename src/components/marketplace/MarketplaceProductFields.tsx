@@ -34,23 +34,16 @@ export const MarketplaceProductFields = ({
         mp = {};
       }
     }
-    if (mp?.hepsiburada) {
-      return {
-        categoryId: String(mp.hepsiburada.categoryId || ""),
-        attributes: mp.hepsiburada.attributes || {},
-        hepsiburadaSku: mp.hepsiburada.hepsiburadaSku || mp.hepsiburada.hbSku || prod?.hepsiburada_sku || "",
-        productUrl: mp.hepsiburada.productUrl || ""
-      };
-    }
-    if (mp && (mp.categoryId !== undefined || mp.attributes !== undefined)) {
-      return {
-        categoryId: String(mp.categoryId || ""),
-        attributes: mp.attributes || {},
-        hepsiburadaSku: prod?.hepsiburada_sku || "",
-        productUrl: ""
-      };
-    }
-    return { categoryId: "", attributes: {}, hepsiburadaSku: prod?.hepsiburada_sku || "", productUrl: "" };
+    const hb = mp?.hepsiburada || {};
+    const universalAttrs = mp?.attributes || {};
+    const mergedAttributes = { ...universalAttrs, ...(hb.attributes || {}) };
+
+    return {
+      categoryId: String(hb.categoryId || mp?.categoryId || ""),
+      attributes: mergedAttributes,
+      hepsiburadaSku: hb.hepsiburadaSku || hb.hbSku || prod?.hepsiburada_sku || "",
+      productUrl: hb.productUrl || ""
+    };
   };
 
   const getAmzData = (prod: any) => {
@@ -209,15 +202,32 @@ export const MarketplaceProductFields = ({
       try { existingMp = JSON.parse(existingMp); } catch { existingMp = {}; }
     }
     existingMp = (typeof existingMp === 'object' && existingMp !== null) ? existingMp : {};
+    const sharedAttributes = hbSlice.attributes || existingMp.attributes || {};
+
     return {
       ...existingMp,
+      attributes: sharedAttributes,
       hepsiburada: {
         ...(existingMp.hepsiburada || {}),
-        ...hbSlice
+        ...hbSlice,
+        attributes: sharedAttributes
+      },
+      trendyol: {
+        ...(existingMp.trendyol || {}),
+        attributes: { ...(existingMp.trendyol?.attributes || {}), ...sharedAttributes }
+      },
+      n11: {
+        ...(existingMp.n11 || {}),
+        attributes: { ...(existingMp.n11?.attributes || {}), ...sharedAttributes }
       },
       amazon: {
         ...(existingMp.amazon || {}),
+        attributes: { ...(existingMp.amazon?.attributes || {}), ...sharedAttributes },
         ...(amzSlice || amzData)
+      },
+      pazarama: {
+        ...(existingMp.pazarama || {}),
+        attributes: { ...(existingMp.pazarama?.attributes || {}), ...sharedAttributes }
       }
     };
   };

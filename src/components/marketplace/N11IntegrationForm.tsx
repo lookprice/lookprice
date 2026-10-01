@@ -21,11 +21,15 @@ interface N11IntegrationFormProps {
   n11AppSecret: string;
   setN11AppSecret: (val: string) => void;
   isN11Connected: boolean;
+  n11ShipmentTemplate: string;
+  setN11ShipmentTemplate: (val: string) => void;
+  n11PreparingDay: number;
+  setN11PreparingDay: (val: number) => void;
   testingN11?: boolean;
   n11LiveCount?: number;
   n11ErrCount?: number;
   handleTestN11: () => void;
-  handleSyncN11Orders: () => void;
+  handleSyncN11Orders: (days?: number) => void;
   handleDisconnectN11: () => void;
   handleSaveN11Settings: () => void;
   setListingsModalTab?: (tab: any) => void;
@@ -45,6 +49,10 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
   n11AppSecret,
   setN11AppSecret,
   isN11Connected,
+  n11ShipmentTemplate,
+  setN11ShipmentTemplate,
+  n11PreparingDay,
+  setN11PreparingDay,
   testingN11 = false,
   n11LiveCount = 0,
   n11ErrCount = 0,
@@ -59,6 +67,7 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
   n11Sync
 }) => {
   const [showN11Secret, setShowN11Secret] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<string | number>("routine");
 
   const mappedCatCount = Object.keys(branding.n11_settings?.categoryMappings || {}).length;
 
@@ -147,6 +156,62 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
             </button>
           </div>
         </div>
+
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+            {lang === 'tr' ? 'N11 Teslimat Şablonu (Kargo Şablon Adı)' : 'N11 Delivery Template'}
+          </label>
+          <input 
+            type="text" 
+            id="n11-shipment-template-input"
+            className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs text-slate-900 transition-colors"
+            value={n11ShipmentTemplate}
+            onChange={(e) => {
+              const val = e.target.value;
+              setN11ShipmentTemplate(val);
+              onBrandingChange('n11_settings', {
+                ...(branding.n11_settings || {}),
+                shipmentTemplate: val
+              });
+            }}
+            placeholder={lang === 'tr' ? "Örn: Alıcı Öder, Mağaza Öder veya YurtiçiKargo" : "e.g. Alıcı Öder"}
+          />
+          <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+            {lang === 'tr' 
+              ? "N11 Mağaza panelinizdeki kargo şablonu adı ile BİREBİR AYNI olmalıdır." 
+              : "Must exactly match the shipment template name in your N11 merchant panel."}
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+            {lang === 'tr' ? 'Kargoya Hazırlama Süresi (Hazırlık Günü)' : 'Preparing Days (Shipment Lead Time)'}
+          </label>
+          <select 
+            id="n11-preparing-day-select"
+            className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs text-slate-900 cursor-pointer transition-colors"
+            value={n11PreparingDay}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              setN11PreparingDay(val);
+              onBrandingChange('n11_settings', {
+                ...(branding.n11_settings || {}),
+                preparingDay: val
+              });
+            }}
+          >
+            {Array.from({ length: 15 }, (_, i) => i + 1).map((day) => (
+              <option key={day} value={day}>
+                {day} {lang === 'tr' ? 'İş Günü' : 'Business Day(s)'}
+              </option>
+            ))}
+          </select>
+          <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+            {lang === 'tr' 
+              ? "Ürünün sipariş alındıktan sonra kargoya verilme süresidir." 
+              : "The time required to ship the product after receiving an order."}
+          </p>
+        </div>
       </div>
 
       <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
@@ -165,15 +230,35 @@ export const N11IntegrationForm: React.FC<N11IntegrationFormProps> = ({
             <span>{testingN11 ? (lang === 'tr' ? 'Test Ediliyor...' : 'Testing...') : (lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test API')}</span>
           </button>
 
-          <button 
-            type="button"
-            onClick={handleSyncN11Orders}
-            disabled={n11Sync.isSyncing}
-            className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${n11Sync.isSyncing ? 'animate-spin' : ''}`} />
-            <span>{n11Sync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
-          </button>
+          <div className="inline-flex items-center border border-slate-200/90 rounded-lg overflow-hidden shadow-xs h-8.5 bg-white">
+            <select
+              value={selectedDays}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedDays(val === "routine" ? "routine" : Number(val));
+              }}
+              disabled={n11Sync.isSyncing}
+              className="h-full px-2 bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer border-r border-slate-100"
+              title={lang === 'tr' ? "Senkronize edilecek gün sayısı" : "Sync period in days"}
+            >
+              <option value="routine">{lang === 'tr' ? 'Anlık Siparişler (Rutin Yeni)' : 'Instant Orders (Routine New)'}</option>
+              <option value={1}>{lang === 'tr' ? 'Son 1 Gün' : 'Last 1 Day'}</option>
+              <option value={3}>{lang === 'tr' ? 'Son 3 Gün (Test)' : 'Last 3 Days (Test)'}</option>
+              <option value={5}>{lang === 'tr' ? 'Son 5 Gün' : 'Last 5 Days'}</option>
+              <option value={15}>{lang === 'tr' ? 'Son 15 Gün' : 'Last 15 Days'}</option>
+              <option value={30}>{lang === 'tr' ? 'Son 30 Gün' : 'Last 30 Days'}</option>
+            </select>
+
+            <button 
+              type="button"
+              onClick={() => handleSyncN11Orders(selectedDays === "routine" ? undefined : Number(selectedDays))}
+              disabled={n11Sync.isSyncing}
+              className="inline-flex items-center gap-1.5 h-full px-3 text-xs font-medium bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${n11Sync.isSyncing ? 'animate-spin' : ''}`} />
+              <span>{n11Sync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
+            </button>
+          </div>
 
           {setListingsModalTab && setShowListingsModal && (
             <button 

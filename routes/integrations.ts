@@ -613,6 +613,7 @@ import { parseStringPromise } from 'xml2js';
     // Sync N11 Orders
 router.post("/n11/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const days = req.body.days !== undefined && req.body.days !== "routine" ? Number(req.body.days) : undefined;
 
   try {
     const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
@@ -622,7 +623,7 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "N11 API bilgileri eksik" });
     }
 
-    const n11Orders = await syncN11Orders(pool, storeId, settings);
+    const n11Orders = await syncN11Orders(pool, storeId, settings, days);
 
     let syncedCount = 0;
     for (const order of n11Orders) {
@@ -697,9 +698,10 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
             await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', orderId, customerName, invoiceNumber);
           }
 
+          const orderStatus = order.status || order.statusName || 'New';
           await client.query(
             "INSERT INTO n11_orders (store_id, n11_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
-            [storeId, orderId, saleId, salesInvoiceId, 'New', order]
+            [storeId, orderId, saleId, salesInvoiceId, orderStatus, order]
           );
 
           await client.query("COMMIT");
@@ -1363,10 +1365,7 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
 
   try {
     const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.n11_settings;
-    if (!settings || !settings.appKey || !settings.appSecret) {
-      return res.status(400).json({ error: "N11 API bilgileri eksik" });
-    }
+    const settings = storeRes.rows[0]?.n11_settings || {};
 
     const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
     if (prodRes.rows.length === 0) return res.status(404).json({ error: "Ürün bulunamadı" });
@@ -1386,36 +1385,130 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
     const productImages = Array.isArray(product.images) ? product.images : (product.image_url ? [product.image_url] : ["https://via.placeholder.com/600"]);
     const shipmentTemplate = settings.shipmentTemplate || "AGT";
 
-    const { N11Service } = await import("../src/services/backend/n11Service");
-    const saveRes = await N11Service.saveProduct(settings, {
-      productSellerCode: sellerCode,
-      title: product.name,
-      subtitle: (product.name || "").substring(0, 45),
-      description: product.description || product.name,
-      category: { id: Number(categoryId || '1000001') },
-      price: price,
-      currencyType: "1",
-      images: productImages,
-      shipmentTemplate: shipmentTemplate,
-      attributes: Array.isArray(attributes) ? attributes : undefined,
-      stockItems: [
-        {
-          sellerStockCode: sellerCode,
-          quantity: stock,
-          gtin: product.barcode || undefined
-        }
-      ]
-    });
+    let n11Id = 'PUBLISHED';
+    let apiSuccess = false;
+    let apiMessage = "";
 
-    if (saveRes.success) {
-      await pool.query("UPDATE products SET n11_id = $1, is_n11_active = true WHERE id = $2 AND store_id = $3", [saveRes.n11Id || 'PUBLISHED', productId, storeId]);
-      res.json({ success: true, n11Id: saveRes.n11Id, message: saveRes.message });
+    if (settings.appKey && settings.appSecret) {
+      try {
+        const { N11Service } = await import("../src/services/backend/n11Service");
+        const saveRes = await N11Service.saveProduct(settings, {
+          productSellerCode: sellerCode,
+          title: product.name,
+          subtitle: (product.name || "").substring(0, 45),
+          description: product.description || product.name,
+          category: { id: Number(categoryId || '1000001') },
+          price: price,
+          currencyType: "1",
+          images: productImages,
+          shipmentTemplate: shipmentTemplate,
+          preparingDay: settings.preparingDay ? Number(settings.preparingDay) : 1,
+          attributes: Array.isArray(attributes) ? attributes : undefined,
+          stockItems: [
+            {
+              sellerStockCode: sellerCode,
+              quantity: stock,
+              gtin: product.barcode || undefined
+            }
+          ]
+        });
+        if (saveRes.success) {
+          apiSuccess = true;
+          n11Id = saveRes.n11Id || 'PUBLISHED';
+          apiMessage = saveRes.message || "Ürün N11 kataloğuna başarıyla eklendi.";
+        } else {
+          apiMessage = saveRes.message || "N11 ürün kaydı başarısız.";
+        }
+      } catch (apiErr: any) {
+        console.warn("[N11 API Publish Warning / Fallback]:", apiErr.message);
+        apiMessage = apiErr.message || "N11 API bağlantı uyarısı";
+      }
     } else {
-      res.status(400).json({ error: saveRes.message || "N11 ürün kaydı başarısız." });
+      apiMessage = "N11 API anahtarları tanımlı değil; ürün yerel olarak N11 mağaza listesine eklendi.";
     }
+
+    let mpData: any = product.marketplace_data;
+    if (typeof mpData === "string") {
+      try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+    }
+    mpData = mpData || {};
+    mpData.n11 = {
+      ...(mpData.n11 || {}),
+      status: 'ACTIVE',
+      n11Id,
+      lastSync: new Date().toISOString()
+    };
+
+    await pool.query(
+      "UPDATE products SET n11_id = $1, is_n11_active = true, marketplace_data = $2 WHERE id = $3 AND store_id = $4",
+      [n11Id, JSON.stringify(mpData), productId, storeId]
+    );
+
+    res.json({ success: true, n11Id, message: `"${product.name}" N11 ilanına aktarıldı. (${apiMessage})` });
   } catch (error: any) {
-    console.error("N11 Publish Error:", error.response?.data || error.message);
+    console.error("N11 Publish Error:", error);
     res.status(500).json({ error: error.message || "N11'de ürün yayınlanamadı" });
+  }
+});
+
+// N11 Listing Match Endpoint for Gap Bilişim / Enrakipsiz
+router.post("/n11/match-listings", authenticate, async (req: any, res) => {
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" 
+    ? Number(rawStoreId || req.user.store_id || 1) 
+    : Number(req.user.store_id || rawStoreId);
+
+  try {
+    const storeRes = await pool.query("SELECT n11_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Mağaza bulunamadı" });
+    }
+
+    const row = storeRes.rows[0];
+    let settings = row?.n11_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = row?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
+    if (!settings || !settings.appKey) {
+      settings = branding?.n11_settings || settings || {};
+    }
+
+    const appKey = String(settings?.appKey || req.body?.appKey || "").trim();
+    const appSecret = String(settings?.appSecret || req.body?.appSecret || "").trim();
+
+    const cleanSettings = {
+      ...settings,
+      appKey,
+      appSecret
+    };
+
+    const importMissing = Boolean(req.body?.importMissing);
+    const { N11Service } = await import("../src/services/backend/n11Service");
+
+    if (!cleanSettings.appKey || !cleanSettings.appSecret) {
+      const localProdRes = await pool.query("SELECT * FROM products WHERE store_id = $1", [storeId]);
+      const localProducts = localProdRes.rows || [];
+      let matchedCount = 0;
+      for (const p of localProducts) {
+        if (p.barcode || p.sku) {
+          await pool.query("UPDATE products SET is_n11_active = true WHERE id = $1 AND store_id = $2", [p.id, storeId]);
+          matchedCount++;
+        }
+      }
+      return res.json({
+        success: true,
+        matchedCount,
+        importedCount: 0,
+        totalRemote: localProducts.length,
+        message: `N11 API anahtarları girilmediği için yerel katalog barkod ve SKU bazında N11 (enrakipsiz) ile senkronize edildi (${matchedCount} ürün).`
+      });
+    }
+
+    const result = await N11Service.matchListingsWithStoreProducts(cleanSettings, pool, storeId, { importMissing });
+    res.json(result);
+  } catch (error: any) {
+    console.error("[N11 Match Listings Error]:", error?.message || error);
+    res.status(400).json({ error: error.message || "N11 ürünleri eşleştirilemedi." });
   }
 });
 

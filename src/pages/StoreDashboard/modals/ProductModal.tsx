@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink, Layers } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 import { compressImageToWebP } from "../../../utils/imageUtils";
@@ -39,6 +39,7 @@ export const ProductModal = ({
   products = [],
 }: ProductModalProps) => {
   const [productImageUrl, setProductImageUrl] = useState("");
+  const [activeTab, setActiveTab] = useState<'general' | 'variants' | 'marketplaces'>('general');
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [selectedCategory2, setSelectedCategory2] = useState("");
@@ -495,6 +496,28 @@ export const ProductModal = ({
           </div>
         </div>
 
+        {/* MODERN TAB BAR */}
+        <div className="px-3 py-1.5 bg-slate-100 border-b border-slate-200 flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab('general')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              activeTab === 'general' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+            }`}
+          >
+            {isTr ? "1. Temel Bilgiler & Pazaryeri" : "1. General & Marketplace"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('variants')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              activeTab === 'variants' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+            }`}
+          >
+            {isTr ? "2. Varyantlar & Detaylar" : "2. Variants & Details"}
+          </button>
+        </div>
+
         {/* UNIFIED FORM WITH FIXED STICKY FOOTER */}
         <form
           onSubmit={(e) => {
@@ -502,12 +525,13 @@ export const ProductModal = ({
           }}
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
-          {/* SCROLLABLE BODY (COMPACT BENTO GRID) */}
+          {/* SCROLLABLE BODY */}
           <div className="flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-start">
-              
-              {/* LEFT COLUMN: IDENTIFICATION, SPECS, DESCRIPTION, RECIPE */}
-              <div className="lg:col-span-7 xl:col-span-8 space-y-2">
+            {activeTab === 'general' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-start">
+                
+                {/* LEFT COLUMN: IDENTIFICATION, SPECS, DESCRIPTION, RECIPE */}
+                <div className="lg:col-span-7 xl:col-span-8 space-y-2">
                 {/* 1. TEMEL KİMLİK & KODLAR */}
                 <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-1">
@@ -766,6 +790,40 @@ export const ProductModal = ({
                     defaultValue={editingProduct?.description || ""}
                   />
                 </div>
+
+                {/* PAZARYERİ ENTEGRASYONU VE ZORUNLU ALANLAR (MERGED IN TAB 1 FOR CONVENIENCE) */}
+                {isMarketplaceEnabled && (
+                  <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
+                    <div className="flex items-center gap-1.5 border-b border-slate-200 pb-1">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                      <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
+                        {isTr ? "PAZARYERİ ENTEGRASYONU & DİNAMİK NİTELİKLER" : "MARKETPLACE INTEGRATION & DYNAMIC ATTRIBUTES"}
+                      </span>
+                    </div>
+                    <MarketplaceProductFields
+                      product={editingProduct || {}}
+                      onUpdate={(updated) => {
+                        if (editingProduct) setEditingProduct({ ...editingProduct, ...updated });
+                      }}
+                      isTr={isTr}
+                      categories={hbCategories}
+                      storeSettings={branding?.hepsiburada_settings}
+                      connectedMarketplaces={connectedMarketplaces}
+                      branding={branding}
+                    />
+                    {editingProduct?.id && connectedMarketplaces.hepsiburada && (
+                      <button
+                        type="button"
+                        onClick={handleDirectPublishToHb}
+                        disabled={isPublishingToHb}
+                        className="w-full py-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border-0"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        <span>{isPublishingToHb ? "Hepsiburada'ya Gönderiliyor..." : "Hepsiburada'da Satışa Aç"}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* HORECA / CAFE RESTAURANT RECIPE & NUTRITION (Only if cafe_restaurant) */}
                 {isCafeRestaurant && (
@@ -1685,35 +1743,40 @@ export const ProductModal = ({
                   )}
                 </div>
 
-                {/* MARKETPLACE INTEGRATION (HEPSIBURADA & AMAZON) */}
-                {isMarketplaceEnabled && (
-                  <div className="space-y-1.5">
-                    <MarketplaceProductFields
-                      product={editingProduct || {}}
-                      onUpdate={(updated) => {
-                        if (editingProduct) setEditingProduct({ ...editingProduct, ...updated });
-                      }}
-                      isTr={isTr}
-                      categories={hbCategories}
-                      storeSettings={branding?.hepsiburada_settings}
-                      connectedMarketplaces={connectedMarketplaces}
-                      branding={branding}
-                    />
-                    {editingProduct?.id && connectedMarketplaces.hepsiburada && (
-                      <button
-                        type="button"
-                        onClick={handleDirectPublishToHb}
-                        disabled={isPublishingToHb}
-                        className="w-full py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Sparkles className="h-3 w-3" />
-                        <span>{isPublishingToHb ? "Hepsiburada'ya Gönderiliyor..." : "Hepsiburada'da Satışa Aç"}</span>
-                      </button>
-                    )}
-                  </div>
-                )}
+
+
+
+                </div>
               </div>
+            )}
+
+        {activeTab === 'variants' && (
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Layers className="h-4 w-4 text-indigo-600" />
+                <span>{isTr ? "Varyant Matrisi & Seçenekler" : "Variant Matrix & Options"}</span>
+              </h3>
+              <VariantMatrixManager
+                variants={variants}
+                onChange={(updated) => setVariants(updated)}
+                baseProduct={{
+                  name: editingProduct?.name,
+                  price: editingProduct?.price,
+                  cost_price: editingProduct?.cost_price,
+                  barcode: editingProduct?.barcode,
+                  sku: editingProduct?.sku || editingProduct?.barcode,
+                  stock_quantity: editingProduct?.stock_quantity,
+                  currency: editingProduct?.currency,
+                  image_url: productImageUrl
+                }}
+                isCafeRestaurant={isCafeRestaurant}
+                lang={lang}
+              />
             </div>
+          </div>
+        )}
+
           </div>
 
           {/* FIXED STICKY FOOTER - ALWAYS IN VIEWPORT */}
