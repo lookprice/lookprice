@@ -140,10 +140,10 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[1050px]">
+        <table className="w-full text-left border-collapse min-w-[760px] sm:min-w-[840px]">
           <thead>
-            <tr className="bg-slate-50/70 border-b border-slate-200">
-              <th className="px-3 py-2.5 text-center w-10">
+            <tr className="bg-slate-50/70 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <th className="px-2 py-2 text-center w-7">
                 <input 
                   type="checkbox" 
                   checked={selectedIds.length === invoices.length && invoices.length > 0}
@@ -154,33 +154,33 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                       setSelectedIds(invoices.map((inv: any) => inv.id));
                     }
                   }}
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
                 />
               </th>
-              <th className="px-2 py-2.5 text-center w-8">
+              <th className="px-1 py-2 text-center w-6">
                 <span className="sr-only">Detay</span>
               </th>
-              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
-              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
-              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center w-[110px]">{isTr ? 'Durum' : 'Status'}</th>
-              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest max-w-[200px]">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
-              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
-              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
-              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
-              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">{isTr ? 'Döviz' : 'Curr'}</th>
-              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center w-[100px]">{isTr ? 'İşlemler' : 'Actions'}</th>
+              <th className="px-2 py-2">{isTr ? 'Tarih' : 'Date'}</th>
+              <th className="px-2 py-2">{isTr ? 'Fatura No' : 'Invoice No'}</th>
+              <th className="px-2 py-2 text-center w-[95px]">{isTr ? 'Durum' : 'Status'}</th>
+              <th className="px-2 py-2 max-w-[180px]">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
+              <th className="px-2 py-2 text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
+              <th className="px-2 py-2 text-right">{isTr ? 'KDV' : 'VAT'}</th>
+              <th className="px-2 py-2 text-right">{isTr ? 'Toplam' : 'Total'}</th>
+              <th className="px-1.5 py-2 text-center w-12">{isTr ? 'Döviz' : 'Curr'}</th>
+              <th className="px-2 py-2 text-right w-[90px]">{isTr ? 'İşlemler' : 'Actions'}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={11} className="px-3 py-12 text-center">
+                <td colSpan={11} className="px-3 py-10 text-center">
                   <div className="flex justify-center"><div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>
                 </td>
               </tr>
             ) : invoices.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-3 py-12 text-center text-slate-400 text-sm font-medium">
+                <td colSpan={11} className="px-3 py-10 text-center text-slate-400 text-sm font-medium">
                   {isTr ? "Fatura bulunamadı" : "No invoices found"}
                 </td>
               </tr>
@@ -210,17 +210,17 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                         'hover:bg-slate-50'
                       }`}
                     >
-                      <td className="px-3 py-2.5 text-center">
+                      <td className="px-2 py-2 text-center">
                         <input 
                           type="checkbox" 
                           checked={selectedIds.includes(inv.id)}
                           onChange={() => {
                             setSelectedIds(prev => prev.includes(inv.id) ? prev.filter(i => i !== inv.id) : [...prev, inv.id]);
                           }}
-                          className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
                         />
                       </td>
-                      <td className="px-2 py-2.5 text-center">
+                      <td className="px-1 py-2 text-center">
                         <button
                           type="button"
                           onClick={() => toggleRow(inv)}
@@ -240,15 +240,15 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           )}
                         </button>
                       </td>
-                      <td className="px-3 py-2.5 text-xs font-medium text-slate-700 whitespace-nowrap">
+                      <td className="px-2 py-2 text-xs font-medium text-slate-700 whitespace-nowrap">
                         {new Date(inv.invoice_date).toLocaleDateString('tr-TR')}
                       </td>
-                      <td className="px-3 py-2.5 max-w-[170px]">
-                        <div className="text-xs font-medium text-slate-900 flex items-center gap-1.5 flex-wrap">
+                      <td className="px-2 py-2 max-w-[155px]">
+                        <div className="text-xs font-medium text-slate-900 flex items-center gap-1 flex-wrap">
                           <button
                             type="button"
                             onClick={() => toggleRow(inv)}
-                            className="font-mono text-xs font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 px-1.5 py-0.5 rounded-md border border-indigo-200/70 truncate max-w-[155px] transition-colors cursor-pointer"
+                            className="font-mono text-xs font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 px-1.5 py-0.5 rounded-md border border-indigo-200/70 truncate max-w-[145px] transition-colors cursor-pointer"
                             title={`#${inv.invoice_number}`}
                           >
                             #{inv.invoice_number}
@@ -259,36 +259,57 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             </span>
                           )}
                           {items && items.length > 0 && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[8px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[8px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                               <Package className="w-2.5 h-2.5 text-slate-400" />
                               {items.length} {isTr ? 'kalem' : 'items'}
                             </span>
                           )}
                         </div>
                         {inv.document_number && (
-                           <div className="text-[9px] text-indigo-600 font-bold tracking-widest mt-0.5">{inv.document_number}</div>
+                           <div className="text-[9px] text-indigo-600 font-medium tracking-wide mt-0.5">{inv.document_number}</div>
                         )}
-                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{inv.payment_method}</div>
+                        {(() => {
+                          const pm = (inv.payment_method || '').trim();
+                          if (!pm) return null;
+                          const pmLower = pm.toLowerCase();
+                          
+                          if (pmLower.includes('hepsiburada') || (inv.invoice_number || '').startsWith('HB-')) {
+                            return <div className="text-[9px] font-medium text-amber-600 dark:text-amber-400 mt-0.5">{pm}</div>;
+                          }
+                          if (pmLower.includes('n11') || (inv.invoice_number || '').startsWith('N11-')) {
+                            return <div className="text-[9px] font-medium text-red-600 dark:text-red-400 mt-0.5">{pm}</div>;
+                          }
+                          if (pmLower.includes('amazon') || (inv.invoice_number || '').startsWith('AMZ-')) {
+                            return <div className="text-[9px] font-medium text-amber-700 dark:text-amber-300 mt-0.5">{pm}</div>;
+                          }
+                          if (pmLower.includes('trendyol') || (inv.invoice_number || '').startsWith('TY-')) {
+                            return <div className="text-[9px] font-medium text-orange-600 dark:text-orange-400 mt-0.5">{pm}</div>;
+                          }
+                          if (pmLower.includes('pazarama') || (inv.invoice_number || '').startsWith('PZR-') || (inv.invoice_number || '').startsWith('PAZARAMA-')) {
+                            return <div className="text-[9px] font-medium text-purple-600 dark:text-purple-400 mt-0.5">{pm}</div>;
+                          }
+                          return <div className="text-[9px] font-medium text-slate-400 mt-0.5">{pm}</div>;
+                        })()}
                       </td>
-                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      <td className="px-2 py-2 text-center whitespace-nowrap">
                         <div className="flex justify-center mb-0.5">
                           {inv.status === 'draft' ? (
-                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider bg-amber-50 text-amber-700 border border-amber-200 shadow-xs">
+                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
                               <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
                               {isTr ? 'TASLAK' : 'DRAFT'}
                             </div>
                           ) : inv.status === 'approved' ? (
-                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
+                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                               <CheckCircle className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
                               {isTr ? 'ONAYLI' : 'APPROVED'}
                             </div>
                           ) : inv.status === 'cancelled' ? (
-                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider bg-rose-50 text-rose-700 border border-rose-200 shadow-xs">
+                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
                               <XCircle className="w-2.5 h-2.5 text-rose-500 shrink-0" />
                               {isTr ? 'İPTAL' : 'CANCELLED'}
                             </div>
                           ) : (
-                            <span className="text-[9px] font-bold text-slate-600">{inv.status}</span>
+                            <span className="text-[9px] font-medium text-slate-600">{inv.status}</span>
                           )}
                         </div>
                         {(() => {
@@ -313,7 +334,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
 
                           return (
                             <div className="flex flex-col gap-0.5 mt-0.5 font-sans items-center">
-                              <div className={`inline-flex px-1.5 py-0.2 rounded text-[8px] font-bold tracking-widest border w-fit ${
+                              <div className={`inline-flex px-1.5 py-0.2 rounded text-[8px] font-medium border w-fit ${
                                 isEFatura ? 'border-purple-200 bg-purple-50 text-purple-700' : 
                                 'border-blue-200 bg-blue-50 text-blue-700'
                               }`}>
@@ -321,10 +342,10 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               </div>
                               {(inv.integration_status || isApproved || isUnknown) && (
                                 <div 
-                                  className={`inline-flex px-1.5 py-0.2 rounded text-[8px] font-bold tracking-widest border w-fit ${
+                                  className={`inline-flex px-1.5 py-0.2 rounded text-[8px] font-medium border w-fit ${
                                     isQueued ? 'border-amber-200 bg-amber-50 text-amber-700' :
                                     isApproved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
-                                    isFailed ? 'border-rose-300 bg-rose-50 text-rose-700 font-black' :
+                                    isFailed ? 'border-rose-300 bg-rose-50 text-rose-700 font-bold' :
                                     isRejected ? 'border-amber-300 bg-amber-50 text-amber-800' :
                                     'border-slate-200 bg-slate-100 text-slate-600'
                                   }`}
@@ -340,7 +361,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               )}
                               {inv.waybill_number && (
                                 <div className="flex flex-col gap-0.5 mt-0.5 pt-0.5 border-t border-slate-100 items-center">
-                                  <div className="inline-flex px-1 py-0.2 rounded text-[8px] font-black tracking-widest border border-indigo-200 bg-indigo-50 text-indigo-700">
+                                  <div className="inline-flex px-1 py-0.2 rounded text-[8px] font-medium border border-indigo-200 bg-indigo-50 text-indigo-700">
                                     {inv.waybill_number}
                                   </div>
                                 </div>
@@ -349,7 +370,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           );
                         })()}
                       </td>
-                      <td className="px-3 py-2.5">
+                      <td className="px-2 py-2">
                         <div className="flex items-start gap-1.5">
                           {inv.company_id || (inv.tax_number && inv.tax_number.length === 10 && inv.tax_number !== '11111111111') ? (
                             <Building2 className="h-3.5 w-3.5 text-indigo-500 shrink-0 mt-0.5" />
@@ -358,39 +379,39 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           )}
                           <div className="min-w-0">
                             <div 
-                              className="text-xs font-semibold text-slate-800 max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate"
+                              className="text-xs font-semibold text-slate-800 max-w-[150px] sm:max-w-[190px] lg:max-w-[240px] truncate"
                               title={`${inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}${inv.tax_number ? ` (VKN/TC: ${inv.tax_number})` : ''}${inv.address ? ` - ${inv.address}` : ''}`}
                             >
                               {inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}
                             </div>
                             {inv.tax_number && inv.tax_number !== '11111111111' && (
                               <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1 mt-0.5">
-                                <span className="font-semibold text-slate-500">VKN/TC:</span> {inv.tax_number}
-                                {inv.tax_office && <span className="truncate max-w-[100px]">({inv.tax_office})</span>}
+                                <span className="font-medium text-slate-500">VKN/TC:</span> {inv.tax_number}
+                                {inv.tax_office && <span className="truncate max-w-[90px]">({inv.tax_office})</span>}
                               </div>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                      <td className="px-2 py-2 text-right whitespace-nowrap">
                         <div className="text-xs font-medium text-slate-700 font-mono tabular-nums">
                           {Number(inv.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                      <td className="px-2 py-2 text-right whitespace-nowrap">
                         <div className="text-xs font-medium text-slate-600 font-mono tabular-nums">
                           {Number(inv.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                      <td className="px-2 py-2 text-right whitespace-nowrap">
                         <div className="text-xs font-bold text-slate-900 font-mono tabular-nums">
                           {Number(inv.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-center text-xs font-bold text-slate-500 whitespace-nowrap">
+                      <td className="px-1.5 py-2 text-center text-xs font-medium text-slate-500 whitespace-nowrap">
                         {inv.currency}
                       </td>
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap relative">
+                      <td className="px-2 py-2 text-right whitespace-nowrap relative">
                         <div className="flex items-center justify-end gap-1">
                           {/* Quick Action 1: HTML Preview */}
                           {!isPortfolio && (
@@ -400,7 +421,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                 e.stopPropagation();
                                 handleViewHtml(inv.id);
                               }}
-                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200"
+                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
                               title={isTr ? "E-Fatura Görselini Aç (HTML)" : "View E-Invoice HTML"}
                             >
                               <Eye className="h-3.5 w-3.5" />
@@ -414,7 +435,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               e.stopPropagation();
                               handleViewDetails(inv, true);
                             }}
-                            className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-emerald-200"
+                            className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-emerald-200 cursor-pointer"
                             title={isTr ? "Yazdır / PDF" : "Print / PDF"}
                           >
                             <Printer className="h-3.5 w-3.5" />
@@ -428,7 +449,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                 e.stopPropagation();
                                 setOpenActionMenuId(openActionMenuId === inv.id ? null : inv.id);
                               }}
-                              className={`action-menu-trigger p-1.5 rounded-lg transition-all flex items-center gap-1 border ${
+                              className={`action-menu-trigger p-1.5 rounded-lg transition-all flex items-center gap-1 border cursor-pointer ${
                                 openActionMenuId === inv.id
                                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
                                   : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 bg-white border-slate-200 shadow-2xs'

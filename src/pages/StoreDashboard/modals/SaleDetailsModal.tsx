@@ -87,7 +87,49 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
           )}
           <div className="p-4 bg-indigo-600 rounded-2xl text-white">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{t.total?.toUpperCase() || 'TOTAL'}</span>
+              <div>
+                <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{t.total?.toUpperCase() || 'TOTAL'}</span>
+                {(() => {
+                  const pm = (selectedSale.payment_method || '').trim();
+                  const pmLower = pm.toLowerCase();
+                  const notesLower = (selectedSale.notes || '').toLowerCase();
+                  const sourceLower = (selectedSale.source || '').toLowerCase();
+
+                  let channelName = pm || 'Nakit / POS';
+                  let channelClass = 'bg-white/10 text-white border-white/20';
+
+                  if (pmLower.includes('hepsiburada') || notesLower.includes('hepsiburada')) {
+                    channelName = 'Hepsiburada';
+                    channelClass = 'bg-amber-500/20 text-amber-200 border-amber-400/30';
+                  } else if (pmLower.includes('n11') || notesLower.includes('n11')) {
+                    channelName = 'N11';
+                    channelClass = 'bg-red-500/20 text-red-200 border-red-400/30';
+                  } else if (pmLower.includes('amazon') || notesLower.includes('amazon')) {
+                    channelName = 'Amazon';
+                    channelClass = 'bg-amber-600/20 text-amber-200 border-amber-500/30';
+                  } else if (pmLower.includes('trendyol') || notesLower.includes('trendyol')) {
+                    channelName = 'Trendyol';
+                    channelClass = 'bg-orange-500/20 text-orange-200 border-orange-400/30';
+                  } else if (pmLower.includes('pazarama') || notesLower.includes('pazarama')) {
+                    channelName = 'Pazarama';
+                    channelClass = 'bg-purple-500/20 text-purple-200 border-purple-400/30';
+                  } else if (pmLower === 'iyzico' || pmLower === 'online' || pmLower === 'web' || sourceLower === 'web' || sourceLower === 'store' || notesLower.includes('web siparişi')) {
+                    const dom = branding?.custom_domain 
+                      ? branding.custom_domain.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').toLowerCase()
+                      : (branding?.slug ? (branding.slug.toLowerCase() === 'gap' ? 'gapbilisim.com' : branding.slug.toLowerCase() === 'medikalist' ? 'medikalist.net' : `${branding.slug.toLowerCase()}.lookprice.net`) : 'Web Satışı');
+                    channelName = dom;
+                    channelClass = 'bg-blue-500/20 text-blue-200 border-blue-400/30';
+                  }
+
+                  return (
+                    <div className="mt-1">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border ${channelClass}`}>
+                        {channelName}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
               <span className="text-xl font-bold">{Number(selectedSale.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.slice(0, 3)}</span>
             </div>
           </div>

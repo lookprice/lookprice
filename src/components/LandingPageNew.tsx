@@ -927,7 +927,7 @@ export const LandingPage = () => {
                       key={tab.id}
                       onClick={() => {
                         setActiveVideoTab(idx);
-                        setIsVideoPlaying(false);
+                        setIsVideoPlaying(true);
                       }}
                       className={`w-full text-left p-3.5 rounded-xl border transition-all relative overflow-hidden flex items-start gap-3 cursor-pointer ${
                         isActive

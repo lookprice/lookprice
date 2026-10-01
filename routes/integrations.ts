@@ -610,17 +610,54 @@ import { parseStringPromise } from 'xml2js';
 
 // ... existing code ...
 
+    // Helper to parse Turkish / ISO marketplace order dates safely
+    const parseMarketplaceOrderDate = (rawDateStr: any): Date => {
+      if (!rawDateStr) return new Date();
+      if (rawDateStr instanceof Date) return rawDateStr;
+
+      const str = String(rawDateStr).trim();
+      if (!str) return new Date();
+
+      // 1. Match DD/MM/YYYY or DD.MM.YYYY (e.g., "28/09/2026 15:34:00" or "28.09.2026 15:34:00")
+      const trMatch = str.match(/^(\d{2})[\/\.](\d{2})[\/\.](\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+      if (trMatch) {
+        const day = parseInt(trMatch[1], 10);
+        const month = parseInt(trMatch[2], 10) - 1;
+        const year = parseInt(trMatch[3], 10);
+        const hour = trMatch[4] ? parseInt(trMatch[4], 10) : 0;
+        const min = trMatch[5] ? parseInt(trMatch[5], 10) : 0;
+        const sec = trMatch[6] ? parseInt(trMatch[6], 10) : 0;
+        const parsed = new Date(year, month, day, hour, min, sec);
+        if (!isNaN(parsed.getTime())) return parsed;
+      }
+
+      // 2. Standard ISO / timestamp parse
+      const parsedIso = new Date(str);
+      if (!isNaN(parsedIso.getTime())) return parsedIso;
+
+      return new Date();
+    };
+
     // Sync N11 Orders
 router.post("/n11/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   const days = req.body.days !== undefined && req.body.days !== "routine" ? Number(req.body.days) : undefined;
 
   try {
-    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.n11_settings;
+    const storeRes = await pool.query("SELECT n11_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+
+    let settings = storeRes.rows[0]?.n11_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = storeRes.rows[0]?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
 
     if (!settings || !settings.appKey || !settings.appSecret) {
-      return res.status(400).json({ error: "N11 API bilgileri eksik" });
+      settings = branding?.n11_settings || settings || {};
+    }
+
+    if (!settings || !settings.appKey || !settings.appSecret) {
+      return res.status(400).json({ error: "N11 API bilgileri eksik (Ayarlar > E-Mağazalar sekmesinden N11 App Key ve App Secret kaydedin)" });
     }
 
     const n11Orders = await syncN11Orders(pool, storeId, settings, days);
@@ -628,80 +665,458 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
     let syncedCount = 0;
     for (const order of n11Orders) {
       const orderId = order.id;
-      const existing = await pool.query("SELECT id FROM n11_orders WHERE store_id = $1 AND n11_order_id = $2", [storeId, orderId]);
-      if (existing.rows.length === 0) {
+      const existing = await pool.query("SELECT id, sale_id, sales_invoice_id FROM n11_orders WHERE store_id = $1 AND n11_order_id = $2", [storeId, orderId]);
+      if (existing.rows.length > 0) {
+        // Auto Backfill / Repair existing N11 order records
+        const existingRow = existing.rows[0];
         const client = await pool.connect();
         try {
           await client.query("BEGIN");
 
-          // Find or create customer
-          let customerId = null;
           const buyer = order.buyer || {};
+          const billing = order.billingAddress || order.billing || {};
+          const shipping = order.shippingAddress || order.shipping || {};
+
+          const isCorporateOrder = (buyer.taxId && String(buyer.taxId).trim().length === 10) || (billing.taxId && String(billing.taxId).trim().length === 10) || order.invoiceType === "2" || order.invoiceType === 2 || /(a\.?ş|ltd|şti|tic|san|aş)/i.test(buyer.fullName || "") || /(a\.?ş|ltd|şti|tic|san|aş)/i.test(billing.companyTitle || "");
+
+          const companyTitle = (
+            billing.companyTitle || 
+            buyer.companyTitle || 
+            (isCorporateOrder ? (buyer.fullName || billing.fullName) : "")
+          ).trim();
+
+          const fullCustomerName = (
+            companyTitle || 
+            buyer.fullName || 
+            billing.fullName || 
+            shipping.fullName || 
+            "N11 Müşterisi"
+          ).trim();
           const customerEmail = buyer.email || `${orderId}@n11.com`;
-          const customerName = buyer.fullName || "N11 Müşterisi";
 
-          const rawCustName2 = (customerName || '').trim();
-          const nameParts2 = rawCustName2.split(' ');
-          const surname2 = nameParts2.length > 1 ? nameParts2.pop()! : '';
-          const firstName2 = nameParts2.join(' ') || rawCustName2;
+          const taxNumber = (billing.taxId || buyer.taxId || billing.tcId || buyer.tcId || order.citizenshipId || "").trim();
+          const taxOffice = (billing.taxHouse || billing.taxOffice || buyer.taxOffice || buyer.taxHouse || "").trim();
+          const tcId = (billing.tcId || buyer.tcId || order.citizenshipId || "").trim();
 
+          const billingParts = [
+            billing.address || "",
+            billing.neighborhood || "",
+            billing.district || "",
+            billing.city || "",
+            billing.postalCode || ""
+          ].map(s => String(s).trim()).filter(Boolean);
+          const fullBillingAddressStr = billingParts.join(" / ") || "Fatura Adresi";
+
+          const shippingParts = [
+            shipping.address || billing.address || "",
+            shipping.neighborhood || billing.neighborhood || "",
+            shipping.district || billing.district || "",
+            shipping.city || billing.city || "",
+            shipping.postalCode || billing.postalCode || ""
+          ].map(s => String(s).trim()).filter(Boolean);
+          const fullShippingAddressStr = shippingParts.join(" / ") || fullBillingAddressStr;
+
+          const shippingName = (shipping.fullName || shipping.recipient || fullCustomerName).trim();
+          const customerPhone = (shipping.gsm || billing.gsm || shipping.phone || billing.phone || buyer.mobilePhone || buyer.phone || "").trim();
+
+          const nameParts = fullCustomerName.split(' ');
+          const surname = nameParts.length > 1 ? nameParts.pop()! : '';
+          const firstName = nameParts.join(' ') || fullCustomerName;
+          const isCorporate = taxNumber.length === 10 || !!companyTitle;
+
+          const rawN11Date = order.createDate || order.orderDate || order.orderDetail?.createDate || order.createDateString;
+          const n11OrderDate = parseMarketplaceOrderDate(rawN11Date);
+
+          // Update or insert customer record
           const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, customerEmail]);
-          if (custRes.rows.length > 0) {
-            customerId = custRes.rows[0].id;
+          let customerId = custRes.rows[0]?.id || null;
+
+          if (customerId) {
+            await client.query(
+              `UPDATE customers SET 
+                 full_name = COALESCE(NULLIF($1, ''), full_name),
+                 company_title = COALESCE(NULLIF($1, ''), company_title),
+                 name = COALESCE(NULLIF($2, ''), name),
+                 surname = COALESCE(NULLIF($3, ''), surname),
+                 address = COALESCE(NULLIF($4, ''), address),
+                 city = COALESCE(NULLIF($5, ''), city),
+                 tax_number = COALESCE(NULLIF($6, ''), tax_number),
+                 tax_office = COALESCE(NULLIF($7, ''), tax_office),
+                 tc_id = COALESCE(NULLIF($8, ''), tc_id),
+                 phone = COALESCE(NULLIF($9, ''), phone),
+                 is_corporate = $10
+               WHERE id = $11`,
+              [fullCustomerName, firstName, surname, fullBillingAddressStr, billing.city || shipping.city || "", taxNumber, taxOffice, tcId, customerPhone, isCorporate, customerId]
+            );
           } else {
             const newCust = await client.query(
-              `INSERT INTO customers (store_id, email, password, full_name, name, surname, phone) 
-               VALUES ($1, $2, $3, $4, $5, $6, $7) 
+              `INSERT INTO customers (store_id, email, password, full_name, company_title, name, surname, phone, address, city, tax_number, tax_office, tc_id, is_corporate) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
                ON CONFLICT (store_id, email) DO UPDATE SET 
                  full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+                 company_title = COALESCE(NULLIF(EXCLUDED.company_title, ''), customers.company_title),
                  name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
                  surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
-                 phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone)
+                 phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+                 address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+                 city = COALESCE(NULLIF(EXCLUDED.city, ''), customers.city),
+                 tax_number = COALESCE(NULLIF(EXCLUDED.tax_number, ''), customers.tax_number),
+                 tax_office = COALESCE(NULLIF(EXCLUDED.tax_office, ''), customers.tax_office),
+                 tc_id = COALESCE(NULLIF(EXCLUDED.tc_id, ''), customers.tc_id),
+                 is_corporate = EXCLUDED.is_corporate
                RETURNING id`,
-              [storeId, customerEmail, 'marketplace_user', rawCustName2, firstName2, surname2, buyer.mobilePhone || '']
+              [storeId, customerEmail, 'marketplace_user', fullCustomerName, fullCustomerName, firstName, surname, customerPhone, fullBillingAddressStr, billing.city || shipping.city || "", taxNumber, taxOffice, tcId, isCorporate]
             );
             customerId = newCust.rows[0]?.id;
           }
 
-          const totalAmount = parseFloat(order.totalAmount || 0);
+          // Robust extraction of order lines
+          let rawItems: any[] = [];
+          if (order.orderItemList?.orderItem) {
+            rawItems = Array.isArray(order.orderItemList.orderItem) ? order.orderItemList.orderItem : [order.orderItemList.orderItem];
+          } else if (order.itemList?.item) {
+            rawItems = Array.isArray(order.itemList.item) ? order.itemList.item : [order.itemList.item];
+          } else if (order.itemList?.orderItem) {
+            rawItems = Array.isArray(order.itemList.orderItem) ? order.itemList.orderItem : [order.itemList.orderItem];
+          } else if (order.orderDetail?.orderItemList?.orderItem) {
+            const detailItems = order.orderDetail.orderItemList.orderItem;
+            rawItems = Array.isArray(detailItems) ? detailItems : [detailItems];
+          } else if (Array.isArray(order.items)) {
+            rawItems = order.items;
+          } else if (order.orderItemList && typeof order.orderItemList === 'object') {
+            rawItems = Array.isArray(order.orderItemList) ? order.orderItemList : [order.orderItemList];
+          }
+
+          const shipmentInfo = (rawItems[0] && rawItems[0].shipmentInfo) || order.shipmentInfo || {};
+          const shippingCarrier = shipmentInfo.shipmentCompany?.name || shipmentInfo.shipmentCompany?.shortName || "Aras Kargo";
+          const shippingTrackingNumber = shipmentInfo.trackingNumber || "";
+          const campaignNumber = shipmentInfo.campaignNumber || shipmentInfo.shipmenCompanyCampaignNumber || "";
+
+          const mappedLines = rawItems.map((l: any) => {
+            const qty = parseInt(l.quantity || l.itemCount || 1, 10) || 1;
+            const sellerInvoiceAmount = parseFloat(l.sellerInvoiceAmount || 0);
+            let unitPrice = 0;
+            if (sellerInvoiceAmount > 0) {
+              unitPrice = sellerInvoiceAmount / qty;
+            } else {
+              const rawPrice = parseFloat(l.price || l.dueAmount || l.unitPrice || 0) || 0;
+              const sellerDiscount = parseFloat(l.sellerDiscount || 0) || 0;
+              unitPrice = Math.max(0, (rawPrice - (sellerDiscount / qty)) || rawPrice);
+            }
+            const taxRate = parseFloat(l.vatRate || l.kdv || l.taxRate || 20) || 20;
+            const prodName = (l.productName || l.productTitle || l.title || l.productSellerCode || l.sellerStockCode || `N11 Sipariş Kalemi (${orderId})`).trim();
+            const code = (l.sellerStockCode || l.productSellerCode || l.productId || '').trim();
+
+            return {
+              name: prodName,
+              quantity: qty,
+              price: Math.round(unitPrice * 100) / 100,
+              barcode: code,
+              sku: code,
+              taxRate: taxRate
+            };
+          });
+
+          let grandTotal = parseFloat(order.totalAmount || order.dueAmount || order.sellerInvoiceAmount || 0);
+          if (grandTotal <= 0 && mappedLines.length > 0) {
+            grandTotal = mappedLines.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+          }
+          grandTotal = Math.round(grandTotal * 100) / 100;
+
+          let subtotal = 0;
+          let taxAmount = 0;
+          if (mappedLines.length > 0) {
+            for (const item of mappedLines) {
+              const lineTotal = item.price * item.quantity;
+              const lineSubtotal = lineTotal / (1 + item.taxRate / 100);
+              const lineTax = lineTotal - lineSubtotal;
+              subtotal += lineSubtotal;
+              taxAmount += lineTax;
+            }
+            subtotal = Math.round(subtotal * 100) / 100;
+            taxAmount = Math.round(taxAmount * 100) / 100;
+          } else {
+            subtotal = Math.round((grandTotal / 1.20) * 100) / 100;
+            taxAmount = Math.round((grandTotal - subtotal) * 100) / 100;
+          }
+
+          const invoiceNumber = `N11-${orderId}`;
+          const orderNotes = [
+            `N11 Sipariş No: ${order.orderNumber || orderId} (Paket No: ${orderId})`,
+            `Fatura Ünvanı: ${fullCustomerName} ${taxNumber ? `(VKN/TCKN: ${taxNumber}${taxOffice ? ` - VD: ${taxOffice}` : ''})` : ''}`,
+            `Fatura Adresi: ${fullBillingAddressStr}`,
+            `Teslimat Alıcısı: ${shippingName} ${customerPhone ? `(Tel: ${customerPhone})` : ''}`,
+            `Teslimat / Sevkiyat Adresi: ${fullShippingAddressStr}`,
+            shippingTrackingNumber ? `Kargo / Sevkiyat: ${shippingCarrier} - Takip No: ${shippingTrackingNumber} ${campaignNumber ? `(Kampanya No: ${campaignNumber})` : ''}` : ''
+          ].filter(Boolean).join('\n');
+
+          const saleId = existingRow.sale_id;
+          const salesInvoiceId = existingRow.sales_invoice_id;
+
+          if (saleId) {
+            await client.query(
+              `UPDATE sales SET 
+                 total_amount = $1, 
+                 customer_name = $2, 
+                 customer_id = COALESCE($3, customer_id), 
+                 customer_phone = $4,
+                 customer_address = $5,
+                 shipping_carrier = $6,
+                 tracking_number = $7,
+                 notes = $8, 
+                 created_at = $9 
+               WHERE id = $10`,
+              [grandTotal, fullCustomerName, customerId, customerPhone, fullShippingAddressStr, shippingCarrier, shippingTrackingNumber, orderNotes, n11OrderDate, saleId]
+            );
+          }
+
+          if (salesInvoiceId) {
+            await client.query(
+              `UPDATE sales_invoices SET 
+                 customer_id = COALESCE($1, customer_id), 
+                 customer_name = $2,
+                 company_title = $2,
+                 tax_number = $3,
+                 tax_office = $4,
+                 address = $5,
+                 customer_email = $6,
+                 invoice_date = $7, 
+                 total_amount = $8, 
+                 tax_amount = $9, 
+                 grand_total = $10, 
+                 notes = $11, 
+                 waybill_carrier_name = $12,
+                 waybill_tracking_number = $13,
+                 created_at = $7 
+               WHERE id = $14`,
+              [customerId, fullCustomerName, taxNumber, taxOffice, fullBillingAddressStr, customerEmail, n11OrderDate, subtotal, taxAmount, grandTotal, orderNotes, shippingCarrier, shippingTrackingNumber, salesInvoiceId]
+            );
+
+            // Re-create items with exact matched lines
+            await client.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [salesInvoiceId]);
+            if (saleId) {
+              await client.query("DELETE FROM sale_items WHERE sale_id = $1", [saleId]);
+            }
+            if (mappedLines.length > 0 && saleId) {
+              await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', orderId, fullCustomerName, invoiceNumber);
+            }
+          }
+
+          await client.query(
+            "UPDATE n11_orders SET created_at = $1, order_data = $2 WHERE id = $3",
+            [n11OrderDate, order, existingRow.id]
+          );
+
+          await client.query("COMMIT");
+          syncedCount++;
+        } catch (e) {
+          await client.query("ROLLBACK");
+          console.error("N11 Order Backfill Error:", e);
+        } finally {
+          client.release();
+        }
+      } else {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+
+          const buyer = order.buyer || {};
+          const billing = order.billingAddress || order.billing || {};
+          const shipping = order.shippingAddress || order.shipping || {};
+
+          const isCorporateOrder = (buyer.taxId && String(buyer.taxId).trim().length === 10) || (billing.taxId && String(billing.taxId).trim().length === 10) || order.invoiceType === "2" || order.invoiceType === 2 || /(a\.?ş|ltd|şti|tic|san|aş)/i.test(buyer.fullName || "") || /(a\.?ş|ltd|şti|tic|san|aş)/i.test(billing.companyTitle || "");
+
+          const companyTitle = (
+            billing.companyTitle || 
+            buyer.companyTitle || 
+            (isCorporateOrder ? (buyer.fullName || billing.fullName) : "")
+          ).trim();
+
+          const fullCustomerName = (
+            companyTitle || 
+            buyer.fullName || 
+            billing.fullName || 
+            shipping.fullName || 
+            "N11 Müşterisi"
+          ).trim();
+          const customerEmail = buyer.email || `${orderId}@n11.com`;
+
+          const taxNumber = (billing.taxId || buyer.taxId || billing.tcId || buyer.tcId || order.citizenshipId || "").trim();
+          const taxOffice = (billing.taxHouse || billing.taxOffice || buyer.taxOffice || buyer.taxHouse || "").trim();
+          const tcId = (billing.tcId || buyer.tcId || order.citizenshipId || "").trim();
+
+          const billingParts = [
+            billing.address || "",
+            billing.neighborhood || "",
+            billing.district || "",
+            billing.city || "",
+            billing.postalCode || ""
+          ].map(s => String(s).trim()).filter(Boolean);
+          const fullBillingAddressStr = billingParts.join(" / ") || "Fatura Adresi";
+
+          const shippingParts = [
+            shipping.address || billing.address || "",
+            shipping.neighborhood || billing.neighborhood || "",
+            shipping.district || billing.district || "",
+            shipping.city || billing.city || "",
+            shipping.postalCode || billing.postalCode || ""
+          ].map(s => String(s).trim()).filter(Boolean);
+          const fullShippingAddressStr = shippingParts.join(" / ") || fullBillingAddressStr;
+
+          const shippingName = (shipping.fullName || shipping.recipient || fullCustomerName).trim();
+          const customerPhone = (shipping.gsm || billing.gsm || shipping.phone || billing.phone || buyer.mobilePhone || buyer.phone || "").trim();
+
+          const nameParts2 = fullCustomerName.split(' ');
+          const surname2 = nameParts2.length > 1 ? nameParts2.pop()! : '';
+          const firstName2 = nameParts2.join(' ') || fullCustomerName;
+          const isCorporate = taxNumber.length === 10 || !!companyTitle;
+
+          let customerId = null;
+          const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, customerEmail]);
+          if (custRes.rows.length > 0) {
+            customerId = custRes.rows[0].id;
+            await client.query(
+              `UPDATE customers SET 
+                 full_name = COALESCE(NULLIF($1, ''), full_name),
+                 company_title = COALESCE(NULLIF($1, ''), company_title),
+                 name = COALESCE(NULLIF($2, ''), name),
+                 surname = COALESCE(NULLIF($3, ''), surname),
+                 address = COALESCE(NULLIF($4, ''), address),
+                 city = COALESCE(NULLIF($5, ''), city),
+                 tax_number = COALESCE(NULLIF($6, ''), tax_number),
+                 tax_office = COALESCE(NULLIF($7, ''), tax_office),
+                 tc_id = COALESCE(NULLIF($8, ''), tc_id),
+                 phone = COALESCE(NULLIF($9, ''), phone),
+                 is_corporate = $10
+               WHERE id = $11`,
+              [fullCustomerName, firstName2, surname2, fullBillingAddressStr, billing.city || shipping.city || "", taxNumber, taxOffice, tcId, customerPhone, isCorporate, customerId]
+            );
+          } else {
+            const newCust = await client.query(
+              `INSERT INTO customers (store_id, email, password, full_name, company_title, name, surname, phone, address, city, tax_number, tax_office, tc_id, is_corporate) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
+               ON CONFLICT (store_id, email) DO UPDATE SET 
+                 full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+                 company_title = COALESCE(NULLIF(EXCLUDED.company_title, ''), customers.company_title),
+                 name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+                 surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
+                 phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+                 address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+                 city = COALESCE(NULLIF(EXCLUDED.city, ''), customers.city),
+                 tax_number = COALESCE(NULLIF(EXCLUDED.tax_number, ''), customers.tax_number),
+                 tax_office = COALESCE(NULLIF(EXCLUDED.tax_office, ''), customers.tax_office),
+                 tc_id = COALESCE(NULLIF(EXCLUDED.tc_id, ''), customers.tc_id),
+                 is_corporate = EXCLUDED.is_corporate
+               RETURNING id`,
+              [storeId, customerEmail, 'marketplace_user', fullCustomerName, fullCustomerName, firstName2, surname2, customerPhone, fullBillingAddressStr, billing.city || shipping.city || "", taxNumber, taxOffice, tcId, isCorporate]
+            );
+            customerId = newCust.rows[0]?.id;
+          }
+
+          // Process order lines with robust fallback parsing across N11 XML schemas
+          let rawItems: any[] = [];
+          if (order.orderItemList?.orderItem) {
+            rawItems = Array.isArray(order.orderItemList.orderItem) ? order.orderItemList.orderItem : [order.orderItemList.orderItem];
+          } else if (order.itemList?.item) {
+            rawItems = Array.isArray(order.itemList.item) ? order.itemList.item : [order.itemList.item];
+          } else if (order.itemList?.orderItem) {
+            rawItems = Array.isArray(order.itemList.orderItem) ? order.itemList.orderItem : [order.itemList.orderItem];
+          } else if (order.orderDetail?.orderItemList?.orderItem) {
+            const detailItems = order.orderDetail.orderItemList.orderItem;
+            rawItems = Array.isArray(detailItems) ? detailItems : [detailItems];
+          } else if (Array.isArray(order.items)) {
+            rawItems = order.items;
+          } else if (order.orderItemList && typeof order.orderItemList === 'object') {
+            rawItems = Array.isArray(order.orderItemList) ? order.orderItemList : [order.orderItemList];
+          }
+
+          const shipmentInfo = (rawItems[0] && rawItems[0].shipmentInfo) || order.shipmentInfo || {};
+          const shippingCarrier = shipmentInfo.shipmentCompany?.name || shipmentInfo.shipmentCompany?.shortName || "Aras Kargo";
+          const shippingTrackingNumber = shipmentInfo.trackingNumber || "";
+          const campaignNumber = shipmentInfo.campaignNumber || shipmentInfo.shipmenCompanyCampaignNumber || "";
+
+          const mappedLines = rawItems.map((l: any) => {
+            const qty = parseInt(l.quantity || l.itemCount || 1, 10) || 1;
+            const sellerInvoiceAmount = parseFloat(l.sellerInvoiceAmount || 0);
+            let unitPrice = 0;
+            if (sellerInvoiceAmount > 0) {
+              unitPrice = sellerInvoiceAmount / qty;
+            } else {
+              const rawPrice = parseFloat(l.price || l.dueAmount || l.unitPrice || 0) || 0;
+              const sellerDiscount = parseFloat(l.sellerDiscount || 0) || 0;
+              unitPrice = Math.max(0, (rawPrice - (sellerDiscount / qty)) || rawPrice);
+            }
+            const taxRate = parseFloat(l.vatRate || l.kdv || l.taxRate || 20) || 20;
+            const prodName = (l.productName || l.productTitle || l.title || l.productSellerCode || l.sellerStockCode || `N11 Sipariş Kalemi (${orderId})`).trim();
+            const code = (l.sellerStockCode || l.productSellerCode || l.productId || '').trim();
+
+            return {
+              name: prodName,
+              quantity: qty,
+              price: Math.round(unitPrice * 100) / 100,
+              barcode: code,
+              sku: code,
+              taxRate: taxRate
+            };
+          });
+
+          let grandTotal = parseFloat(order.totalAmount || order.dueAmount || order.sellerInvoiceAmount || 0);
+          if (grandTotal <= 0 && mappedLines.length > 0) {
+            grandTotal = mappedLines.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+          }
+          grandTotal = Math.round(grandTotal * 100) / 100;
+
+          let subtotal = 0;
+          let taxAmount = 0;
+          if (mappedLines.length > 0) {
+            for (const item of mappedLines) {
+              const lineTotal = item.price * item.quantity;
+              const lineSubtotal = lineTotal / (1 + item.taxRate / 100);
+              const lineTax = lineTotal - lineSubtotal;
+              subtotal += lineSubtotal;
+              taxAmount += lineTax;
+            }
+            subtotal = Math.round(subtotal * 100) / 100;
+            taxAmount = Math.round(taxAmount * 100) / 100;
+          } else {
+            subtotal = Math.round((grandTotal / 1.20) * 100) / 100;
+            taxAmount = Math.round((grandTotal - subtotal) * 100) / 100;
+          }
+
+          // Parse actual N11 order creation date
+          const rawN11Date = order.createDate || order.orderDate || order.orderDetail?.createDate || order.createDateString;
+          const n11OrderDate = parseMarketplaceOrderDate(rawN11Date);
+
+          const invoiceNumber = `N11-${orderId}`;
+          const orderNotes = [
+            `N11 Sipariş No: ${order.orderNumber || orderId} (Paket No: ${orderId})`,
+            `Fatura Ünvanı: ${fullCustomerName} ${taxNumber ? `(VKN/TCKN: ${taxNumber}${taxOffice ? ` - VD: ${taxOffice}` : ''})` : ''}`,
+            `Fatura Adresi: ${fullBillingAddressStr}`,
+            `Teslimat Alıcısı: ${shippingName} ${customerPhone ? `(Tel: ${customerPhone})` : ''}`,
+            `Teslimat / Sevkiyat Adresi: ${fullShippingAddressStr}`,
+            shippingTrackingNumber ? `Kargo / Sevkiyat: ${shippingCarrier} - Takip No: ${shippingTrackingNumber} ${campaignNumber ? `(Kampanya No: ${campaignNumber})` : ''}` : ''
+          ].filter(Boolean).join('\n');
+
           const saleRes = await client.query(
-            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-            [storeId, totalAmount, 'TRY', 'completed', customerName, customerId, 'N11 Satış', `N11 Siparişi: ${orderId}`]
+            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, customer_phone, customer_address, shipping_carrier, tracking_number, payment_method, notes, created_at, source) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+            [storeId, grandTotal, 'TRY', 'completed', fullCustomerName, customerId, customerPhone, fullShippingAddressStr, shippingCarrier, shippingTrackingNumber, 'N11 Satış', orderNotes, n11OrderDate, 'n11']
           );
           const saleId = saleRes.rows[0].id;
 
-          // Create Sales Invoice
-          const invoiceNumber = `N11-${orderId}`;
-          const taxAmount = totalAmount * 0.20;
-          const grandTotal = totalAmount;
-          const subtotal = grandTotal - taxAmount;
-
           const invoiceRes = await client.query(
-            "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
-            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'N11 Satış', `N11 Siparişi: ${orderId}`, 'marketplace', 'completed']
+            "INSERT INTO sales_invoices (store_id, sale_id, customer_id, customer_name, company_title, tax_number, tax_office, address, customer_email, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status, waybill_carrier_name, waybill_tracking_number, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id",
+            [storeId, saleId, customerId, fullCustomerName, fullCustomerName, taxNumber, taxOffice, fullBillingAddressStr, customerEmail, invoiceNumber, n11OrderDate, subtotal, taxAmount, grandTotal, 'TRY', 'N11 Satış', orderNotes, 'marketplace', 'completed', shippingCarrier, shippingTrackingNumber, n11OrderDate]
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
-          // Process order lines
-          const itemList = order.itemList?.item || [];
-          const lines = Array.isArray(itemList) ? itemList : [itemList];
-          const mappedLines = lines.map((l: any) => ({
-            name: l.productName || `N11 Sipariş Kalemi (${orderId})`,
-            quantity: parseInt(l.quantity) || 1,
-            price: parseFloat(l.price) || 0,
-            barcode: l.sellerStockCode, 
-            sku: l.sellerStockCode,
-            taxRate: 20
-          }));
-
           if (mappedLines.length > 0) {
-            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', orderId, customerName, invoiceNumber);
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', orderId, fullCustomerName, invoiceNumber);
           }
 
           const orderStatus = order.status || order.statusName || 'New';
           await client.query(
-            "INSERT INTO n11_orders (store_id, n11_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
-            [storeId, orderId, saleId, salesInvoiceId, orderStatus, order]
+            "INSERT INTO n11_orders (store_id, n11_order_id, sale_id, sales_invoice_id, status, order_data, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [storeId, orderId, saleId, salesInvoiceId, orderStatus, order, n11OrderDate]
           );
 
           await client.query("COMMIT");
@@ -720,7 +1135,7 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
     res.json({ success: true, count: syncedCount });
   } catch (error: any) {
     await IntegrationService.logIntegrationError(storeId, 'N11', 'Sync All Orders', error);
-    res.status(500).json({ error: "N11 siparişleri senkronize edilemedi." });
+    res.status(400).json({ error: error?.message || "N11 siparişleri senkronize edilemedi." });
   }
 });
 
@@ -3290,21 +3705,22 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
             customerId = newCust.rows[0]?.id;
           }
 
+          const tyOrderDate = parseMarketplaceOrderDate(order.orderDate || order.createdDate);
           const saleRes = await client.query(
-            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'Trendyol Satış', `Trendyol Siparişi: ${order.id}`]
+            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'Trendyol Satış', `Trendyol Siparişi: ${order.id}`, tyOrderDate]
           );
           const saleId = saleRes.rows[0].id;
 
           const invoiceNumber = `TY-${order.id}`;
           const totalAmount = parseFloat(order.total);
-          const taxAmount = totalAmount * 0.20;
           const grandTotal = totalAmount;
-          const subtotal = grandTotal - taxAmount;
+          const subtotal = grandTotal / 1.20;
+          const taxAmount = grandTotal - subtotal;
 
           const invoiceRes = await client.query(
-            "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
-            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'Trendyol Satış', `Trendyol Siparişi: ${order.id}`, 'marketplace', 'completed']
+            "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+            [storeId, saleId, customerId, invoiceNumber, tyOrderDate, subtotal, taxAmount, grandTotal, 'TRY', 'Trendyol Satış', `Trendyol Siparişi: ${order.id}`, 'marketplace', 'completed', tyOrderDate]
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
@@ -3565,22 +3981,23 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
             customerId = newCust.rows[0]?.id;
           }
 
+          const pzOrderDate = parseMarketplaceOrderDate(order.orderDate || order.createdDate);
           const totalAmount = parseFloat(order.totalAmount || order.grandTotal || 0);
           const saleRes = await client.query(
-            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-            [storeId, totalAmount, 'TRY', 'completed', customerName, customerId, 'Pazarama Satış', `Pazarama Siparişi: ${orderId}`]
+            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+            [storeId, totalAmount, 'TRY', 'completed', customerName, customerId, 'Pazarama Satış', `Pazarama Siparişi: ${orderId}`, pzOrderDate]
           );
           const saleId = saleRes.rows[0].id;
 
           // Create Sales Invoice
           const invoiceNumber = `PZ-${orderId}`;
-          const taxAmount = totalAmount * 0.20;
           const grandTotal = totalAmount;
-          const subtotal = grandTotal - taxAmount;
+          const subtotal = grandTotal / 1.20;
+          const taxAmount = grandTotal - subtotal;
 
           const invoiceRes = await client.query(
-            "INSERT INTO sales_invoices (store_id, customer_id, sale_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
-            [storeId, customerId, saleId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'Pazarama Satış', `Pazarama Siparişi: ${orderId}`, 'marketplace', 'completed']
+            "INSERT INTO sales_invoices (store_id, customer_id, sale_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+            [storeId, customerId, saleId, invoiceNumber, pzOrderDate, subtotal, taxAmount, grandTotal, 'TRY', 'Pazarama Satış', `Pazarama Siparişi: ${orderId}`, 'marketplace', 'completed', pzOrderDate]
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 

@@ -13,7 +13,10 @@ import {
   AlertTriangle,
   Flame,
   FileText,
-  BadgeAlert
+  BadgeAlert,
+  Building,
+  Radio,
+  Activity
 } from "lucide-react";
 
 interface RadarNewsItem {
@@ -176,8 +179,9 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded ${isDark ? "bg-indigo-500/10 text-indigo-400" : "bg-indigo-50 text-indigo-600"}`}>
-                🔥 {displaySubBadge}
+              <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded flex items-center gap-1 ${isDark ? "bg-indigo-500/10 text-indigo-400" : "bg-indigo-50 text-indigo-600"}`}>
+                <Radio className="w-3 h-3 text-indigo-500 animate-pulse" />
+                {displaySubBadge}
               </span>
               <span className={`text-[10px] font-bold ${isDark ? "text-emerald-400" : "text-emerald-600"} flex items-center gap-1`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -271,7 +275,10 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
                   {currentNews.store_name && (
                     <>
                       <span className="w-1 h-1 rounded-full bg-slate-300" />
-                      <span className="text-indigo-500">🏢 {currentNews.store_name}</span>
+                      <span className="text-indigo-500 flex items-center gap-1">
+                        <Building className="w-3 h-3" />
+                        {currentNews.store_name}
+                      </span>
                     </>
                   )}
                 </div>
@@ -417,7 +424,10 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
                       </span>
                       <span>{item.date}</span>
                       {item.store_name && (
-                        <span className="text-indigo-400 font-extrabold">🏢 {item.store_name}</span>
+                        <span className="text-indigo-400 font-extrabold flex items-center gap-1">
+                          <Building className="w-3 h-3" />
+                          {item.store_name}
+                        </span>
                       )}
                     </div>
                     <h4 className={`text-sm font-black truncate ${isDark ? "text-white group-hover:text-indigo-400" : "text-slate-900"}`}>
@@ -495,7 +505,10 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
                     </span>
                     <span>{selectedItem.date}</span>
                     {selectedItem.store_name && (
-                      <span className="text-indigo-400 font-extrabold">🏢 {selectedItem.store_name}</span>
+                      <span className="text-indigo-400 font-extrabold flex items-center gap-1">
+                        <Building className="w-3 h-3" />
+                        {selectedItem.store_name}
+                      </span>
                     )}
                   </div>
 

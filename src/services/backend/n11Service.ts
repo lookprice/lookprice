@@ -1547,15 +1547,33 @@ export class N11Service {
       const rpBarcode = String(rp.barcode || '').trim().toLowerCase();
       const rpTitle = String(rp.title || rp.name || '').trim().toLowerCase();
 
+      // Extract GTINs and sellerStockCodes from stockItems
+      const stockItemsRaw = rp.stockItems?.stockItem || [];
+      const stockItemsList = Array.isArray(stockItemsRaw) ? stockItemsRaw : (stockItemsRaw ? [stockItemsRaw] : []);
+      const rpGtins = stockItemsList.map((si: any) => String(si.gtin || '').trim().toLowerCase()).filter(Boolean);
+      const rpSellerCodes = stockItemsList.map((si: any) => String(si.sellerStockCode || '').trim().toLowerCase()).filter(Boolean);
+
       let matchedLocal = localProducts.find((lp: any) => {
         const lpSku = String(lp.sku || '').trim().toLowerCase();
         const lpBarcode = String(lp.barcode || '').trim().toLowerCase();
+        const lpCleanBarcode = lpBarcode.replace(/^0+/, '');
         const lpName = String(lp.name || '').trim().toLowerCase();
 
         if (rpCode && lpSku && rpCode === lpSku) return true;
         if (rpBarcode && lpBarcode && rpBarcode === lpBarcode) return true;
         if (rpCode && lpBarcode && rpCode === lpBarcode) return true;
         if (rpBarcode && lpSku && rpBarcode === lpSku) return true;
+
+        for (const gtin of rpGtins) {
+          const cleanGtin = gtin.replace(/^0+/, '');
+          if (gtin === lpBarcode || cleanGtin === lpBarcode || cleanGtin === lpCleanBarcode) return true;
+          if (gtin === lpSku || cleanGtin === lpSku) return true;
+        }
+
+        for (const sc of rpSellerCodes) {
+          if (sc === lpSku || sc === lpBarcode) return true;
+        }
+
         if (rpTitle && lpName && rpTitle === lpName) return true;
         return false;
       });
@@ -1564,10 +1582,37 @@ export class N11Service {
         let mpData: any = matchedLocal.marketplace_data;
         if (typeof mpData === 'string') { try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; } }
         mpData = mpData || {};
+
+        const catalogId = rp.n11CatalogGroupId || stockItemsList[0]?.n11CatalogId || '';
+        const publicId = catalogId || rpId;
+        const n11Title = rp.title || matchedLocal.name || '';
+        const catalogSlug = n11Title
+          .toString()
+          .replace(/Ğ/g, 'g').replace(/ğ/g, 'g')
+          .replace(/Ü/g, 'u').replace(/ü/g, 'u')
+          .replace(/Ş/g, 's').replace(/ş/g, 's')
+          .replace(/İ/g, 'i').replace(/I/g, 'i').replace(/ı/g, 'i')
+          .replace(/Ö/g, 'o').replace(/ö/g, 'o')
+          .replace(/Ç/g, 'c').replace(/ç/g, 'c')
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9 -]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-');
+
+        const productUrl = publicId 
+          ? `https://www.n11.com/urun/${catalogSlug}-${publicId}?magaza=enrakipsiz` 
+          : `https://www.n11.com/urun/${catalogSlug}-${rpId}?magaza=enrakipsiz`;
+
         mpData.n11 = {
           ...(mpData.n11 || {}),
           n11Id: rpId,
+          productId: rpId,
+          n11CatalogId: stockItemsList[0]?.n11CatalogId || undefined,
+          n11CatalogGroupId: rp.n11CatalogGroupId || undefined,
+          title: n11Title,
           status: 'ACTIVE',
+          productUrl,
           lastSync: new Date().toISOString()
         };
 

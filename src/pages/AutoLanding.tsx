@@ -427,7 +427,7 @@ export default function AutoLanding() {
                       key={tab.id}
                       onClick={() => {
                         setActiveVideoTab(idx);
-                        setIsVideoPlaying(false);
+                        setIsVideoPlaying(true);
                       }}
                       className={`w-full text-left p-5 rounded-2xl border transition-all relative overflow-hidden flex items-start gap-4 cursor-pointer ${
                         isActive

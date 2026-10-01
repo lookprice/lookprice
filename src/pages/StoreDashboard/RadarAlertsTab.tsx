@@ -4,7 +4,6 @@ import { AcquisitionRadar } from "../../components/AcquisitionRadar";
 import { 
   Loader2, 
   Sparkles, 
-  X, 
   Calendar, 
   Flame, 
   FileText, 
@@ -21,7 +20,16 @@ import {
   CheckCircle2,
   Terminal,
   Activity,
-  HeartPulse
+  Sliders,
+  Trash2,
+  Store,
+  RotateCcw,
+  Car,
+  Building2,
+  Tag,
+  ShieldCheck,
+  Zap,
+  Layers
 } from "lucide-react";
 import { api } from "../../services/api";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -58,7 +66,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
   const isAuto = sector === 'automotive' || sector === 'motor_vehicle';
 
   // Dynamic tags
-  const defaultRealEstateTags = [
+  const defaultRealEstateTags: TagItem[] = [
     { id: '1', name: 'Lefkoşa İmar', value: 'Lefkoşa imar', emailAlert: true, matchesCount: 3 },
     { id: '2', name: 'Girne Marina', value: 'Girne marina', emailAlert: true, matchesCount: 2 },
     { id: '3', name: 'Kıbrıs Faizleri', value: 'faiz oranları', emailAlert: false, matchesCount: 2 },
@@ -66,7 +74,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
     { id: '5', name: 'İskele Tapu Yasası', value: 'yabancı satın alma', emailAlert: true, matchesCount: 2 }
   ];
 
-  const defaultAutomotiveTags = [
+  const defaultAutomotiveTags: TagItem[] = [
     { id: '1', name: 'Araç İthali & Gümrük', value: 'araç ithalat gümrük meclis', emailAlert: true, matchesCount: 4 },
     { id: '2', name: 'KKTC Tescil & Devir', value: 'KKTC plaka tescil devir', emailAlert: true, matchesCount: 2 },
     { id: '3', name: 'Günsel Elektrikli Araç', value: 'Günsel elektrikli araç fabrika', emailAlert: false, matchesCount: 3 },
@@ -75,15 +83,15 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
   ];
 
   // Dynamic news feed templates
-  const defaultRealEstateNews = [
+  const defaultRealEstateNews: NewsItem[] = [
     {
       id: 'news-1',
       title: 'Lefkoşa İmar Planı Revizyon Kararı Resmi Gazete\'de!',
       summary: 'Yeni karar uyarınca Gönyeli ve Hamitköy sınırlarında kalan parsellerde kat izinleri 4 kattan 6 kata çıkarıldı. İmar alanlarındaki yeşil şerit sınırları revize edildi.',
-      source: 'Google Alerts (lookpriceAI)',
+      source: 'Resmi Gazete / AI Radar',
       date: 'Bugün 10:15',
       tags: ['Lefkoşa imar'],
-      intensity: 'high' as const,
+      intensity: 'high',
       publishedOnStore: false,
       publishedOnEnrakipsiz: true
     },
@@ -94,7 +102,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       source: 'Resmi Kabine Kararı',
       date: 'Dün 14:30',
       tags: ['Girne marina', 'Lefkoşa imar'],
-      intensity: 'high' as const,
+      intensity: 'high',
       publishedOnStore: true,
       publishedOnEnrakipsiz: false
     },
@@ -102,10 +110,10 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       id: 'news-3',
       title: 'Kuzey Kıbrıs Bankalar Birliği Konut Faizlerini Güncelledi',
       summary: 'Döviz bütçeli yabancı yatırımcılara özel GBP cinsinden mortgage faizleri aylık %0.45 düzeyine geriledi. TL faizlerinde ise devlet destekli yeni teşvik paketi onaylandı.',
-      source: 'Kıbrıs Postası',
+      source: 'Kıbrıs Postası Bülteni',
       date: '2 gün önce',
       tags: ['faiz oranları'],
-      intensity: 'normal' as const,
+      intensity: 'normal',
       publishedOnStore: false,
       publishedOnEnrakipsiz: false
     },
@@ -113,10 +121,10 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       id: 'news-4',
       title: 'Ercan Yeni Terminal Binası İngiliz Havayolları İçin Teşvik Planı',
       summary: 'Charter uçuşlara ve özel jet terminali kullanımlarına KDV muafiyeti sağlandı. Bu adımın Girne ve Lefkoşa lüks residans alıcıları talebini canlandıracağı öngörülüyor.',
-      source: 'Google Alerts (lookpriceAI)',
+      source: 'Sivil Havacılık Bülteni',
       date: '3 gün önce',
       tags: ['Ercan charter'],
-      intensity: 'normal' as const,
+      intensity: 'normal',
       publishedOnStore: false,
       publishedOnEnrakipsiz: true
     },
@@ -124,16 +132,16 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       id: 'news-5',
       title: 'Yabancı Alıcılara Özel Tapu ve Kota Sınırlandırma Külliyatı',
       summary: 'İskele LongBeach ve Esentepe bölgesinde yabancı uyruklu şahısların hisse oranlarında tapu kayıt limitleri güncellendi. Ortak koçan tescilleri artık dijital ortamda tamamlanacak.',
-      source: 'Resmi Kabine Kararı',
+      source: 'Tapu ve Kadastro Dairesi',
       date: '4 gün önce',
       tags: ['yabancı satın alma'],
-      intensity: 'high' as const,
+      intensity: 'high',
       publishedOnStore: true,
       publishedOnEnrakipsiz: true
     }
   ];
 
-  const defaultAutomotiveNews = [
+  const defaultAutomotiveNews: NewsItem[] = [
     {
       id: 'news-1',
       title: 'KKTC Gümrük Mevzuatında 5 Yaş Sınırı Değişikliği Gündemde!',
@@ -141,7 +149,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       source: 'Resmi Meclis Kararı',
       date: 'Bugün 10:15',
       tags: ['araç ithalat gümrük meclis'],
-      intensity: 'high' as const,
+      intensity: 'high',
       publishedOnStore: false,
       publishedOnEnrakipsiz: true
     },
@@ -152,7 +160,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       source: 'Resmi Gazete Tescili',
       date: 'Dün 14:30',
       tags: ['elektrikli otomobil vergi muafiyeti', 'KKTC plaka tescil devir'],
-      intensity: 'high' as const,
+      intensity: 'high',
       publishedOnStore: true,
       publishedOnEnrakipsiz: false
     },
@@ -160,10 +168,10 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       id: 'news-3',
       title: 'Kıbrıs İkinci El Otomotiv Piyasasında GBP Endeksli Daralma!',
       summary: 'Döviz kurlarındaki dalgalanmalar nedeniyle, özellikle Japon ithal salon araç fiyatlarında son 30 günde %7\'lik bir talep daralması gözlemleniyor.',
-      source: 'Kıbrıs Postası',
+      source: 'Otomotiv Sektör Endeksi',
       date: '2 gün önce',
       tags: ['Kıbrıs sahibinden araba piyasası'],
-      intensity: 'normal' as const,
+      intensity: 'normal',
       publishedOnStore: false,
       publishedOnEnrakipsiz: false
     },
@@ -174,7 +182,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       source: 'Sanayi ve Enerji Bakanlığı',
       date: '3 gün önce',
       tags: ['Günsel elektrikli araç fabrika'],
-      intensity: 'normal' as const,
+      intensity: 'normal',
       publishedOnStore: false,
       publishedOnEnrakipsiz: true
     },
@@ -182,10 +190,10 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       id: 'news-5',
       title: 'KKTC Karayolları Dairesi Yeni Plaka Tescil Sistemini Duyurdu!',
       summary: 'Artık tüm devir, plaka basımı ve rehin (banka blokeli) kayıt işlemleri online e-Devlet kapısı üzerinden tescil edilebilecek.',
-      source: 'E-Devlet KKTC',
+      source: 'E-Devlet Tescil Kapısı',
       date: '4 gün önce',
       tags: ['KKTC plaka tescil devir'],
-      intensity: 'high' as const,
+      intensity: 'high',
       publishedOnStore: true,
       publishedOnEnrakipsiz: true
     }
@@ -205,23 +213,23 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
 
   // Terminal Logs for Cron Simulator
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
-    "🤖 [lookprice BOT V3] System ready. CRON schedule: Active (12-hour intervals)",
-    `📅 [${new Date().toLocaleDateString()}] Subscriptions validated. 5 active trackers in registry.`,
-    "📡 Listening to Cyprus Official Gazette, Google Alerts Feed, and Sectoral Bulletins."
+    "[CORE] lookprice Telemetry Engine v3.4 initialized.",
+    `[REGISTRY] Subscriptions validated. ${isAuto ? '5 automotive' : '5 real estate'} signal listeners active.`,
+    "[CRAWLER] Monitoring Cyprus Official Gazette, Regional Feeds & Google Alerts."
   ]);
 
   const addLog = (msg: string) => {
-    setTerminalLogs(prev => [...prev.slice(-10), `[${new Date().toLocaleTimeString()}] ${msg}`]);
+    setTerminalLogs(prev => [...prev.slice(-10), `[${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}] ${msg}`]);
   };
 
-  // Automated 12-hour cron triggers simulation (every 30 seconds for visual feedback log)
+  // Automated 12-hour cron triggers simulation (every 45 seconds for visual feedback log)
   useEffect(() => {
     const logInterval = setInterval(() => {
       const phrases = [
-        "🔄 Background verification triggered. Checking crawler proxies...",
-        "⚡ API Gateway ping: 24ms. Regional crawlers operating fully in KKTC.",
-        "📊 Synced. Local cache up to date.",
-        "📬 Subscribed alerts checking: 0 new matches found in queue."
+        "[DAEMON] Background crawler sweep verified. Proxies optimal.",
+        "[GATEWAY] Node ping: 22ms. Regional scrapers operational in KKTC.",
+        "[SYNC] Sectoral cache synchronized with core datastore.",
+        "[SCAN] Subscribed signal query checked: 0 anomalous spikes."
       ];
       const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
       addLog(randomPhrase);
@@ -233,7 +241,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
   // Sync cron interval
   useEffect(() => {
     const cronInterval = setInterval(() => {
-      addLog("⏰ CRON Scheduler triggered automated real-time scan.");
+      addLog("[CRON] Automated 12-hour background scan executing.");
       handleAIScanAlerts(true);
     }, 12 * 60 * 60 * 1000);
     
@@ -246,7 +254,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
 
   const fetchRadarNews = async () => {
     try {
-      addLog("📡 Fetching cached developments from core database...");
+      addLog("[DATABASE] Fetching cached developments from cloud datastore...");
       const data = await api.getRadarNews();
       if (Array.isArray(data) && data.length > 0) {
         const loadedNews = data.map((item: any) => ({
@@ -266,11 +274,11 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
           const filteredPrev = prev.filter(p => !loadedNews.some((l: any) => l.title === p.title));
           return [...loadedNews, ...filteredPrev];
         });
-        addLog(`✅ Successfully loaded ${loadedNews.length} verified news inputs.`);
+        addLog(`[SYNC] Loaded ${loadedNews.length} verified news inputs.`);
       }
     } catch (error) {
       console.error('Failed to fetch radar news:', error);
-      addLog("❌ Error: Failed to fetch radar news from cloud server.");
+      addLog("[ERROR] Failed to fetch radar news from cloud server.");
     }
   };
 
@@ -282,7 +290,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
     const newPublishedOnEnrakipsiz = type === 'enrakipsiz' ? !newsItem.publishedOnEnrakipsiz : newsItem.publishedOnEnrakipsiz;
 
     try {
-      addLog(`🔄 Updating publication channel [${type}] for item: "${newsItem.title.substring(0,25)}..."`);
+      addLog(`[DISPATCH] Updating channel [${type}] for item: "${newsItem.title.substring(0, 24)}..."`);
       await api.publishRadarNews({
         title: newsItem.title,
         summary: newsItem.summary,
@@ -302,30 +310,19 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       } : n));
 
       if (type === 'store') {
-        addLog(`🏪 News status modified on store showcase: ${newPublishedOnStore ? 'PUBLISHED' : 'DEACTIVATED'}`);
-        if (newPublishedOnStore) {
-          alert(isTr ? "🟢 Başarıyla İşlendi!\n\nBu gelişme portföy web mağazanızın 'Haberler' akışında ziyaretçilere gösterilmek üzere tescillendi." : "🟢 Successfully Published on Portfolios Store!");
-        } else {
-          alert(isTr ? "Bilgi: Haber mağaza vitrininden kaldırıldı." : "Info: News removed from store showcase.");
-        }
+        addLog(`[STORE] Status updated on portfolio showcase: ${newPublishedOnStore ? 'PUBLISHED' : 'DEACTIVATED'}`);
       } else {
-        addLog(`🚀 News status modified on enrakipsiz.com: ${newPublishedOnEnrakipsiz ? 'PUBLISHED' : 'DEACTIVATED'}`);
-        if (newPublishedOnEnrakipsiz) {
-          alert(isTr ? "⚡ ENRAKİPSİZ PORTALI AKTİF!\n\nBu kritik gelişme, amiral gemimiz 'enrakipsiz.com' ana sayfasında ve 'Kıbrıs İmar/Mevzuat Haberleri' ızgarasında flaş haber formatında tescil edildi!" : "⚡ EnRakipsiz Portal Activated!");
-        } else {
-          alert(isTr ? "Bilgi: enrakipsiz.com portal yayını durduruldu." : "Info: Post removed from enrakipsiz.com portal.");
-        }
+        addLog(`[PORTAL] Status updated on enrakipsiz.com: ${newPublishedOnEnrakipsiz ? 'PUBLISHED' : 'DEACTIVATED'}`);
       }
     } catch (error) {
       console.error("Failed to publish radar news:", error);
-      addLog("❌ Error during cloud publisher sync.");
-      alert(isTr ? "Hata: Bulut veritabanına kaydedilemedi." : "Error saving to database.");
+      addLog("[ERROR] Channel publisher sync failed.");
     }
   };
 
   const handleAIScanAlerts = async (silent: boolean = false) => {
     setIsScanningNews(true);
-    addLog("⚡ Initiating Deep Web Scanner with Google Alerts...");
+    addLog("[SCAN] Initiating Deep Web AI Scanner with Google Alerts...");
     try {
       const activeTags = newsTags.map(t => t.value);
       const res = await fetch('/api/real-estate/news', {
@@ -341,14 +338,14 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch news');
       
       if (Array.isArray(data) && data.length > 0) {
-        addLog(`🔥 Found ${data.length} potential matches. Analyzing sentiments...`);
+        addLog(`[MATCH] Found ${data.length} candidate signals. Parsing sentiments...`);
         const incomingNews = data.map((item: any, idx: number) => ({
           title: item.title,
           summary: item.summary || item.category || 'Canlı AI Gelişmesi',
           image: item.img || item.image_url || '',
           source: item.source || 'Live Radar & AI Search',
           date: item.date || 'Az Önce',
-          tags: item.tags || [activeTags[idx % activeTags.length] || 'imar'],
+          tags: item.tags || [activeTags[idx % activeTags.length] || (isAuto ? 'otomotiv' : 'imar')],
           intensity: item.priority === 'high' ? 'high' : 'normal',
           publishedOnStore: false, 
           publishedOnEnrakipsiz: false
@@ -377,382 +374,416 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
         }
 
         await fetchRadarNews();
-        if (!silent) {
-          alert(`🛎️ ${data.length} YENİ CANLI HABER BULUNDU!\n\nAI Radarı etiketlerinize uygun en güncel gerçek haberleri getirdi ve takip paneline sabitledi.`);
-        }
       } else {
-        addLog("✅ No new unique legislation changes parsed this term.");
-        if (!silent) {
-          alert(`🛎️ Şu anda belirlediğiniz etiketlerle eşleşen yeni bir kritik rapor bulunamadı.`);
-        }
+        addLog("[CHECK] No new unique regulatory changes parsed in this cycle.");
       }
     } catch (err: any) {
       console.error(err);
-      addLog("❌ AI Crawler encountered an error gateway timeout.");
-      if (!silent) {
-        alert('Hata: Canlı AI haberi alınamadı.');
-      }
+      addLog("[GATEWAY] AI crawler gateway timeout or rate limitation.");
     } finally {
       setIsScanningNews(false);
     }
   };
 
   const handleClearRadarNews = async () => {
-    if (!confirm(isTr ? "Kayıtlı tüm radar haberlerini ve taranmış gelişmeleri kalıcı olarak silmek ve listeyi sıfırlamak istediğinize emin misiniz?" : "Are you sure you want to permanently delete all radar news?")) return;
     try {
-      addLog("🗑️ Clearing development logs from database...");
+      addLog("[RESET] Clearing development records from database...");
       await api.deleteRadarNews();
       setNewsFeed(isAuto ? defaultAutomotiveNews : defaultRealEstateNews);
-      addLog("✅ Radar feed successfully reset to original state.");
-      alert(isTr ? "Mevzuat radarı sıfırlandı ve temizlendi." : "Radar feed successfully reset.");
+      addLog("[RESET] Radar feed restored to standard telemetry baseline.");
     } catch (e) {
       console.error(e);
-      addLog("❌ Failed to clear database logs.");
-      alert(isTr ? "Hata: Veritabanı temizleme başarısız." : "Error: Failed to clean database.");
+      addLog("[ERROR] Failed to reset database logs.");
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* HEADER CARD */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-[2rem] border border-slate-200/80 shadow-sm">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="p-1 px-2.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black tracking-widest uppercase">
-              🛰️ REGIONAL CRAWLER
-            </span>
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-            {isTr ? "Live AI Radar & Mevzuat Takibi" : "Live AI Radar & Legislation Tracker"}
-          </h2>
-          <p className="text-xs text-slate-500 font-medium max-w-xl">
-            Kıbrıs Resmi Gazete bültenlerini, Google Gelişmelerini ve imar kütüklerini 12 saatlik otomatik cron görevleriyle tarar, filtreler ve tek tıkla yayınlamanızı sağlar.
-          </p>
-        </div>
+    <div className="space-y-5">
+      {/* FUTURISTIC HUD HEADER */}
+      <div className="bg-slate-950 text-white rounded-2xl border border-slate-800 p-5 md:p-6 shadow-xl relative overflow-hidden">
+        {/* Subtle Ambient Radial Glow */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
 
-        {/* Action triggers */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={() => handleAIScanAlerts(false)}
-            disabled={isScanningNews}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase shadow-md transition-all border ${
-              isScanningNews 
-                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' 
-                : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-700 hover:scale-[1.02] active:scale-95 cursor-pointer shadow-indigo-100'
-            }`}
-          >
-            {isScanningNews ? (
-              <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
-            ) : (
-              <Sparkles className="w-4 h-4 text-amber-300 animate-bounce" />
-            )}
-            {isScanningNews ? 'AI Tarıyor...' : '⚡ AI Canlı Tara'}
-          </button>
-          
-          <button
-            onClick={handleClearRadarNews}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase shadow-md transition-all border bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100 hover:scale-[1.02] active:scale-95 cursor-pointer shadow-rose-100"
-          >
-            🗑️ {isTr ? 'Radar Verilerini Temizle' : 'Clear Radar News'}
-          </button>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="space-y-2 max-w-2xl">
+            {/* Telemetry pill */}
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-950/80 border border-cyan-800/50 text-[10px] font-bold text-cyan-400 tracking-wider uppercase">
+                <Radio className="w-3 h-3 text-cyan-400 animate-pulse" />
+                {isAuto ? "AUTOLP TELEMETRY RADAR" : "RESTATED REGIONAL CRAWLER"}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                CANLI İZLEME (12H DÖNGÜ)
+              </span>
+            </div>
+
+            <h2 className="text-xl md:text-2xl font-extrabold tracking-tight text-white">
+              {isAuto
+                ? (isTr ? "AutoLP • Motorlu Taşıtlar & Haber Radarı" : "AutoLP • Automotive & Regulatory Radar")
+                : (isTr ? "RestateLP • İmar & Mevzuat Haber Radarı" : "RestateLP • Zoning & Regulatory Radar")}
+            </h2>
+
+            <p className="text-xs text-slate-400 font-normal leading-relaxed">
+              {isAuto
+                ? "KKTC Meclis kararları, Resmi Gazete araç ithalat yaş sınırları, elektrikli otomobil teşvikleri ve piyasa endekslerini yapay zeka ile canlı tarar, analiz eder ve vitrininize bağlar."
+                : "Resmi Gazete imar planı kararları, belediye kat izinleri, yabancı tapu kota düzenlemeleri ve bölgesel inşaat katsayılarını yapay zeka ile canlı tarar, filtreler ve vitrininize bağlar."}
+            </p>
+          </div>
+
+          {/* Action triggers */}
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              onClick={() => handleAIScanAlerts(false)}
+              disabled={isScanningNews}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border shadow-sm ${
+                isScanningNews 
+                  ? 'bg-slate-900 border-slate-800 text-slate-500 cursor-not-allowed' 
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 shadow-indigo-950/30 hover:shadow-md cursor-pointer active:scale-95'
+              }`}
+            >
+              {isScanningNews ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-300" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
+              )}
+              {isScanningNews ? 'AI Taranıyor...' : 'AI Canlı Tara'}
+            </button>
+            
+            <button
+              onClick={handleClearRadarNews}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-semibold text-xs transition-all border bg-slate-900/80 border-slate-800 text-slate-300 hover:text-rose-400 hover:border-rose-900/50 hover:bg-rose-950/20 active:scale-95 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              {isTr ? 'Radar Verilerini Sıfırla' : 'Reset Radar Data'}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Tab Switcher for different radar types */}
-      <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit border border-slate-200">
+      {/* FUTURISTIC SEGMENTED CONTROLLER */}
+      <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200">
         <button
           onClick={() => setRadarType('legislation')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all ${
             radarType === 'legislation'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-900'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          🛰️ {isTr ? "Mevzuat & İmar Radarı" : "Legislation & Zoning Radar"}
+          <Radio className="w-3.5 h-3.5 text-cyan-600" />
+          {isAuto 
+            ? (isTr ? "Motorlu Taşıtlar & Mevzuat Radarı" : "Automotive & Legislation Radar")
+            : (isTr ? "İmar & Mevzuat Radarı" : "Zoning & Legislation Radar")}
         </button>
+
         <button
           onClick={() => setRadarType('acquisition')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all ${
             radarType === 'acquisition'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-900'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          🎯 {isTr ? "Mülk Toplama Radarı (Sahibinden)" : "Property Acquisition Radar"}
+          {isAuto ? (
+            <Car className="w-3.5 h-3.5 text-indigo-600" />
+          ) : (
+            <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+          )}
+          {isAuto
+            ? (isTr ? "Sahibinden Araç & Fırsat Radarı" : "Vehicle Acquisition Radar")
+            : (isTr ? "Sahibinden Mülk & Fırsat Radarı" : "Property Acquisition Radar")}
         </button>
       </div>
 
       {radarType === 'acquisition' ? (
-        <AcquisitionRadar />
+        <AcquisitionRadar sector={sector} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
-        {/* LEFT COLUMN: TAG SUBSCRIPTIONS & MONITORING CRON TERMINAL (Col-span-5) */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          {/* SUBSCRIPTION KEYWORDS */}
-          <div className="bg-white p-6 rounded-[2.2rem] border border-slate-200/80 shadow-sm space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <div>
-                <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">🔔 Takip Edilen Başlıklar</h4>
-                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Google / Resmi Gazete Takip Anahtarları</p>
-              </div>
-              <span className="bg-emerald-50 text-emerald-700 text-[10px] font-black px-2 py-1 rounded-lg">LIVE</span>
-            </div>
-
-            {/* Keyword Pills List */}
-            <div className="flex flex-wrap gap-1.5 max-h-[180px] overflow-y-auto pr-1">
-              <button
-                onClick={() => setSelectedNewsTag(null)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  selectedNewsTag === null
-                    ? 'bg-slate-900 text-white shadow-md'
-                    : 'bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                🌐 Tüm ({newsFeed.length})
-              </button>
-
-              {newsTags.map((tag) => {
-                const matchedNewsCount = newsFeed.filter(news => news.tags.some(t => t.toLowerCase() === tag.value.toLowerCase())).length;
-                return (
-                  <div
-                    key={tag.id}
-                    className={`flex items-center gap-1 pl-3 pr-1.5 py-1 rounded-xl text-xs font-bold transition-all border ${
-                      selectedNewsTag === tag.value
-                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-100'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <button
-                      onClick={() => setSelectedNewsTag(selectedNewsTag === tag.value ? null : tag.value)}
-                      className="text-left font-extrabold max-w-[120px] truncate"
-                    >
-                      #{tag.name} <span className="opacity-70 text-[10px]">({matchedNewsCount})</span>
-                    </button>
-
-                    {/* Minimal Toggle for Mail alerts */}
-                    <button
-                      onClick={() => {
-                        setNewsTags(newsTags.map(t => t.id === tag.id ? { ...t, emailAlert: !t.emailAlert } : t));
-                        addLog(`🔔 Updated email notification for "${tag.name}" to: ${!tag.emailAlert ? 'ON' : 'OFF'}`);
-                      }}
-                      className={`p-1 rounded transition-colors ${tag.emailAlert ? 'text-emerald-500 hover:text-slate-400' : 'text-slate-300 hover:text-slate-500'}`}
-                      title={tag.emailAlert ? "E-posta Bildirimi Aktif" : "E-posta Bildirimi Pasif"}
-                    >
-                      <Mail className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Delete Tag */}
-                    <button
-                      onClick={() => {
-                        if (confirm(`"${tag.name}" takibini sonlandırmak istiyor musunuz?`)) {
-                          setNewsTags(newsTags.filter(t => t.id !== tag.id));
-                          addLog(`🗑️ Removed keyword tracking for "${tag.name}"`);
-                        }
-                      }}
-                      className="text-slate-300 hover:text-red-500 p-1"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+          {/* LEFT COLUMN: TRACKING SIGNALS & TELEMETRY TERMINAL (Col-span-4) */}
+          <div className="lg:col-span-4 space-y-5">
+            
+            {/* SUBSCRIPTION KEYWORDS */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-indigo-600" />
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 tracking-wide uppercase">
+                      Aktif Takip Başlıkları
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-medium">Google & Resmi Gazete İzleme Anahtarları</p>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* NEW CONU ADD BOARD */}
-            <div className="space-y-2 pt-3 border-t border-slate-100">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Yeni Takip Terimi Tanımla</span>
-              <div className="grid grid-cols-1 gap-2">
-                <input
-                  type="text"
-                  placeholder="Başlık (Örn: Girne İmar)"
-                  className="bg-slate-50 text-slate-800 border-slate-200 focus:ring-1 focus:ring-indigo-500 rounded-xl px-3 py-2 text-xs font-semibold placeholder-slate-400"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                />
-                <input
-                  type="text"
-                  placeholder="Kelime (Örn: imar planı, liman)"
-                  className="bg-slate-50 text-slate-800 border-slate-200 focus:ring-1 focus:ring-indigo-500 rounded-xl px-3 py-2 text-xs font-semibold placeholder-slate-400"
-                  value={newTagKeyword}
-                  onChange={(e) => setNewTagKeyword(e.target.value)}
-                />
+                </div>
+                <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-200/60">
+                  {newsTags.length} AKTİF
+                </span>
               </div>
 
-              <div className="flex items-center justify-between gap-2 pt-1 text-[11px] font-semibold text-slate-600">
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newTagEmailAlert}
-                    onChange={(e) => setNewTagEmailAlert(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4.5 w-4.5"
-                  />
-                  <span>Beni Mail ile Uyar!</span>
-                </label>
+              {/* Keyword Chips List */}
+              <div className="flex flex-wrap gap-1.5 max-h-[190px] overflow-y-auto pr-1">
                 <button
-                  onClick={() => {
-                    if (!newTagName || !newTagKeyword) {
-                      alert("Lütfen tüm alanları doldurunuz!");
-                      return;
-                    }
-                    setNewsTags([...newsTags, {
-                      id: Date.now().toString(),
-                      name: newTagName,
-                      value: newTagKeyword,
-                      emailAlert: newTagEmailAlert,
-                      matchesCount: 0
-                    }]);
-                    addLog(`➕ Registered new alert listener: "${newTagName}" (#${newTagKeyword})`);
-                    setNewTagName("");
-                    setNewTagKeyword("");
-                  }}
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-black py-2 px-3 rounded-xl border border-indigo-100 transition-all cursor-pointer"
+                  onClick={() => setSelectedNewsTag(null)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    selectedNewsTag === null
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                  }`}
                 >
-                  ➕ Takibi Başlat
+                  <Globe className="w-3 h-3" />
+                  <span>Tümü ({newsFeed.length})</span>
                 </button>
+
+                {newsTags.map((tag) => {
+                  const matchedNewsCount = newsFeed.filter(news => news.tags.some(t => t.toLowerCase() === tag.value.toLowerCase())).length;
+                  const isSelected = selectedNewsTag === tag.value;
+                  return (
+                    <div
+                      key={tag.id}
+                      className={`flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                        isSelected
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <button
+                        onClick={() => setSelectedNewsTag(isSelected ? null : tag.value)}
+                        className="text-left font-semibold max-w-[130px] truncate"
+                      >
+                        #{tag.name} <span className="opacity-75 text-[10px]">({matchedNewsCount})</span>
+                      </button>
+
+                      {/* Minimal Toggle for Mail alerts */}
+                      <button
+                        onClick={() => {
+                          setNewsTags(newsTags.map(t => t.id === tag.id ? { ...t, emailAlert: !t.emailAlert } : t));
+                          addLog(`[ALERT] Updated email trigger for "${tag.name}" to: ${!tag.emailAlert ? 'ON' : 'OFF'}`);
+                        }}
+                        className={`p-1 rounded transition-colors ${
+                          tag.emailAlert 
+                            ? (isSelected ? 'text-cyan-200 hover:text-white' : 'text-emerald-600 hover:text-emerald-700') 
+                            : (isSelected ? 'text-indigo-300 hover:text-white' : 'text-slate-300 hover:text-slate-600')
+                        }`}
+                        title={tag.emailAlert ? "E-posta Bildirimi Aktif" : "E-posta Bildirimi Pasif"}
+                      >
+                        <Mail className="w-3 h-3" />
+                      </button>
+
+                      {/* Delete Tag */}
+                      <button
+                        onClick={() => {
+                          setNewsTags(newsTags.filter(t => t.id !== tag.id));
+                          addLog(`[TAG] Removed listener keyword: "${tag.name}"`);
+                        }}
+                        className={`p-1 transition-colors ${isSelected ? 'text-indigo-200 hover:text-white' : 'text-slate-300 hover:text-rose-500'}`}
+                        title="Takibi Kaldır"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* NEW TAG ADD BOARD */}
+              <div className="space-y-2 pt-3 border-t border-slate-100">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Yeni Takip Anahtarı Tanımla
+                </span>
+                <div className="grid grid-cols-1 gap-2">
+                  <input
+                    type="text"
+                    placeholder={isAuto ? "Başlık (Örn: Gümrük Yaş Sınırı)" : "Başlık (Örn: Girne İmar Revizyonu)"}
+                    className="bg-slate-50 text-slate-800 border border-slate-200 focus:ring-1 focus:ring-indigo-500 rounded-lg px-3 py-1.5 text-xs font-medium placeholder-slate-400"
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder={isAuto ? "Anahtarlar (Örn: araç ithalat, tescil, vergi)" : "Anahtarlar (Örn: imar planı, kat izni, tapu)"}
+                    className="bg-slate-50 text-slate-800 border border-slate-200 focus:ring-1 focus:ring-indigo-500 rounded-lg px-3 py-1.5 text-xs font-medium placeholder-slate-400"
+                    value={newTagKeyword}
+                    onChange={(e) => setNewTagKeyword(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1 text-[11px] font-medium text-slate-600">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newTagEmailAlert}
+                      onChange={(e) => setNewTagEmailAlert(e.target.checked)}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                    />
+                    <span>E-posta Bildirimi</span>
+                  </label>
+                  <button
+                    onClick={() => {
+                      if (!newTagName || !newTagKeyword) return;
+                      setNewsTags([...newsTags, {
+                        id: Date.now().toString(),
+                        name: newTagName,
+                        value: newTagKeyword,
+                        emailAlert: newTagEmailAlert,
+                        matchesCount: 0
+                      }]);
+                      addLog(`[TAG] Registered new telemetry listener: "${newTagName}" (#${newTagKeyword})`);
+                      setNewTagName("");
+                      setNewTagKeyword("");
+                    }}
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold py-1.5 px-3 rounded-lg border border-indigo-100 transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Takibi Başlat</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* CRON SCHEDULER MONITOR TERMINAL */}
+            <div className="bg-slate-950 text-slate-300 p-4 rounded-2xl border border-slate-800 shadow-lg font-mono relative overflow-hidden space-y-3">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <div className="flex items-center gap-2">
+                  <Terminal className="text-cyan-400 w-3.5 h-3.5" />
+                  <span className="text-[10px] font-bold text-white uppercase tracking-wider">Telemetry Daemon v3.4</span>
+                </div>
+                <span className="flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/30 text-[9px] font-bold text-emerald-400 px-2 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  OTONOM (12H)
+                </span>
+              </div>
+
+              {/* Log list terminal */}
+              <div className="space-y-1.5 text-[10px] overflow-y-auto max-h-[140px] custom-scrollbar pr-1 leading-relaxed text-slate-400">
+                {terminalLogs.map((log, index) => (
+                  <div key={index} className="text-slate-300 font-mono">
+                    {log}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[9px] text-slate-500">
+                <span>Döngü: 12 Saat</span>
+                <span>LookPrice AI Gateway</span>
               </div>
             </div>
           </div>
 
-          {/* CRON SCHEDULER MONITOR DIAL */}
-          <div className="bg-slate-950 text-slate-400 p-5 rounded-[2.2rem] border border-slate-900 shadow-xl font-mono relative overflow-hidden space-y-3.5">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-              <div className="flex items-center gap-2">
-                <Terminal className="text-indigo-400 w-4 h-4" />
-                <span className="text-[10px] font-bold text-white uppercase tracking-wider">Cron Job Daemon v1.02</span>
-              </div>
-              <span className="flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/30 text-[9px] font-black text-emerald-400 px-2 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                ACTIVE (12H)
+          {/* RIGHT COLUMN: INTERACTIVE LEGISLATION STREAM (Col-span-8) */}
+          <div className="lg:col-span-8 space-y-4">
+            
+            <div className="flex items-center justify-between bg-white px-5 py-3 rounded-xl border border-slate-200/80">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-2">
+                <Activity className="w-4 h-4 text-indigo-600" />
+                {isTr ? "Doğrulanmış Sinyal & Haber Akışı" : "Verified Signal Stream"}
+              </span>
+
+              <span className="text-[11px] font-semibold text-slate-500">
+                Toplam Gelişme: <strong className="text-slate-900">{newsFeed.length}</strong>
               </span>
             </div>
 
-            {/* Log list terminal */}
-            <div className="space-y-1.5 text-[10px] overflow-y-auto max-h-[150px] custom-scrollbar pr-1 line-clamp-6 leading-relaxed">
-              {terminalLogs.map((log, index) => (
-                <div key={index} className="text-slate-300">
-                  {log}
-                </div>
-              ))}
-            </div>
+            {/* FEED GRID/CARDS */}
+            <div className="space-y-3.5">
+              {(() => {
+                const filteredFeed = selectedNewsTag
+                  ? newsFeed.filter(item => item.tags.some(t => t.toLowerCase().includes(selectedNewsTag.toLowerCase())))
+                  : newsFeed;
 
-            <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[9px] text-slate-500">
-              <span>Next execution: Today 22:15</span>
-              <span>LookPrice AI Service Node</span>
-            </div>
-          </div>
-        </div>
+                if (filteredFeed.length === 0) {
+                  return (
+                    <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 border-dashed space-y-2">
+                      <AlertTriangle className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                      <p className="text-sm font-bold text-slate-800">Eşleşen Gelişme Bulunamadı</p>
+                      <p className="text-xs text-slate-500">Sol menüden yeni takip anahtarları tanımlayabilir veya 'AI Canlı Tara' butonuyla güncel tarama yapabilirsiniz.</p>
+                    </div>
+                  );
+                }
 
-        {/* RIGHT COLUMN: INTERACTIVE LEGISLATION STREAM (Col-span-8) */}
-        <div className="lg:col-span-8 space-y-5">
-          
-          <div className="flex items-center justify-between bg-white px-5 py-3 rounded-2xl border border-slate-200/80">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Activity className="w-4 h-4 text-indigo-500" />
-              {isTr ? "Sinyal Akış Listesi" : "Alert Stream Signals"}
-            </span>
-
-            <span className="text-[10px] font-bold text-slate-500">
-              Toplam Eşleşen Gelişme: <strong>{newsFeed.length}</strong>
-            </span>
-          </div>
-
-          {/* FEED GRID/CARDS */}
-          <div className="space-y-4">
-            {(() => {
-              const filteredFeed = selectedNewsTag
-                ? newsFeed.filter(item => item.tags.some(t => t.toLowerCase().includes(selectedNewsTag.toLowerCase())))
-                : newsFeed;
-
-              if (filteredFeed.length === 0) {
-                return (
-                  <div className="bg-white p-12 text-center rounded-[2.5rem] border border-slate-250 border-dashed">
-                    <AlertTriangle className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-                    <p className="text-sm font-black text-slate-800">Hasıl Olmuş Gelişme Bulunamadı</p>
-                    <p className="text-xs text-slate-500 mt-1">Sola yeni takip kelimeleri ekleyebilir veya AI tara butonunu ezebilirsiniz.</p>
-                  </div>
-                );
-              }
-
-              return filteredFeed.map((news) => (
-                <div 
-                  key={news.id} 
-                  className={`bg-white border rounded-[2.3rem] p-6 flex flex-col justify-between transition-all group shadow-sm hover:shadow-md ${
-                    news.intensity === 'high' ? 'border-l-4 border-l-rose-500 border-slate-200' : 'border-slate-200'
-                  }`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] bg-indigo-50 text-indigo-600 font-black px-2.5 py-1 rounded-lg uppercase tracking-wider flex items-center gap-1">
-                          📡 {news.source}
-                        </span>
-                        {news.intensity === 'high' && (
-                          <span className="bg-rose-50 text-rose-600 text-[9px] font-black px-2 py-1 rounded-lg flex items-center gap-1">
-                            <Flame className="w-3 h-3 text-rose-500 animate-pulse" />
-                            Kritik
+                return filteredFeed.map((news) => (
+                  <div 
+                    key={news.id} 
+                    className={`bg-white border rounded-2xl p-5 flex flex-col justify-between transition-all group shadow-sm hover:shadow-md ${
+                      news.intensity === 'high' ? 'border-l-4 border-l-rose-500 border-slate-200' : 'border-slate-200'
+                    }`}
+                  >
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2.5 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1 border border-slate-200/60">
+                            <Radio className="w-3 h-3 text-cyan-600" />
+                            {news.source}
                           </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-bold">{news.date}</span>
-                    </div>
-
-                    <h3 className="text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors leading-snug">
-                      {news.title}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                      {news.summary}
-                    </p>
-
-                    {/* Metadata tags */}
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {news.tags.map((t, idx) => (
-                        <span key={idx} className="text-[9px] font-extrabold text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
-                          #{t}
+                          {news.intensity === 'high' && (
+                            <span className="bg-rose-50 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border border-rose-200/60">
+                              <Flame className="w-3 h-3 text-rose-500" />
+                              Kritik Gelişme
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {news.date}
                         </span>
-                      ))}
+                      </div>
+
+                      <h3 className="text-base md:text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors leading-snug">
+                        {news.title}
+                      </h3>
+                      <p className="text-xs text-slate-600 font-normal leading-relaxed">
+                        {news.summary}
+                      </p>
+
+                      {/* Zero-pill metadata tags */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-medium text-slate-400">
+                        {news.tags.map((t, idx) => (
+                          <React.Fragment key={idx}>
+                            {idx > 0 && <span>·</span>}
+                            <span className="text-slate-500 font-semibold">#{t}</span>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* DUALLY PUBLISHING CHANNEL ACTION CONTROL FOOTER */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-4 mt-4 border-t border-slate-100">
+                      
+                      {/* Action 1: Showcase Web portföyü */}
+                      <button
+                        onClick={() => handleTogglePublish(news.id, 'store')}
+                        className={`py-2 px-3 rounded-xl text-xs font-semibold text-center border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          news.publishedOnStore 
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-bold' 
+                            : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700 hover:text-slate-900'
+                        }`}
+                      >
+                        <Store className="w-3.5 h-3.5 text-slate-500" />
+                        {news.publishedOnStore ? 'Mağaza Vitrininde Yayında' : 'Mağaza Vitrininde Göster'}
+                      </button>
+
+                      {/* Action 2: enrakipsiz.com portal */}
+                      <button
+                        onClick={() => handleTogglePublish(news.id, 'enrakipsiz')}
+                        className={`py-2 px-3 rounded-xl text-xs font-semibold text-center border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          news.publishedOnEnrakipsiz 
+                            ? 'bg-indigo-600 border-indigo-700 text-white shadow-sm' 
+                            : 'bg-slate-900 border-slate-950 hover:bg-slate-800 text-white'
+                        }`}
+                      >
+                        <Globe className="w-3.5 h-3.5 text-indigo-300" />
+                        {news.publishedOnEnrakipsiz ? "enrakipsiz.com'da Yayında" : "enrakipsiz.com'da Yayınla"}
+                      </button>
+
                     </div>
                   </div>
-
-                  {/* DUALLY PUBLISHING CHANNEL ACTION CONTROL FOOTER */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-4 mt-5 border-t border-slate-100">
-                    
-                    {/* Action 1: Showcase Web portföyü */}
-                    <button
-                      onClick={() => handleTogglePublish(news.id, 'store')}
-                      className={`py-2 px-3 rounded-xl text-[10.5px] font-black text-center border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                        news.publishedOnStore 
-                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-black' 
-                          : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700 hover:text-slate-900'
-                      }`}
-                    >
-                      <Building className="w-3.5 h-3.5" />
-                      {news.publishedOnStore ? '🏪 Mağazada Yayında' : '🏪 Mağazada Göster'}
-                    </button>
-
-                    {/* Action 2: enrakipsiz.com portal */}
-                    <button
-                      onClick={() => handleTogglePublish(news.id, 'enrakipsiz')}
-                      className={`py-2 px-3 rounded-xl text-[10.5px] font-black text-center border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                        news.publishedOnEnrakipsiz 
-                          ? 'bg-indigo-600 border-indigo-700 text-white shadow-md shadow-indigo-100' 
-                          : 'bg-slate-900 border-slate-950 hover:bg-slate-800 text-white'
-                      }`}
-                    >
-                      <Globe className="w-3.5 h-3.5 text-indigo-300" />
-                      {news.publishedOnEnrakipsiz ? '🚀 enrakipsiz\'de Yayında' : '🚀 enrakipsiz\'de Yayınla'}
-                    </button>
-
-                  </div>
-                </div>
-              ));
-            })()}
+                ));
+              })()}
+            </div>
           </div>
-        </div>
 
-      </div>
+        </div>
       )}
     </div>
   );

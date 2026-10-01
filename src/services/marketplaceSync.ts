@@ -131,9 +131,10 @@ export async function processMarketplaceOrderLines(
 
     const quantity = line.quantity || 1;
     const price = line.price || 0;
-    const taxRate = line.taxRate || 20;
-    const total = price * quantity;
-    const taxAmount = total * (taxRate / 100);
+    const taxRate = line.taxRate !== undefined ? Number(line.taxRate) : 20;
+    const total = Math.round(price * quantity * 100) / 100;
+    const subtotal = Math.round((total / (1 + taxRate / 100)) * 100) / 100;
+    const taxAmount = Math.round((total - subtotal) * 100) / 100;
     const name = matchedName;
     const finalBarcode = matchedBarcode || line.barcode || '';
     
@@ -218,9 +219,9 @@ export async function syncN11OrdersREST(client: any, storeId: number, settings: 
 }
 
 export async function syncN11Orders(client: any, storeId: number, settings: any, days?: number) {
-    // Try SOAP first with corrected URL
     try {
-        let searchDataXml = "";
+        const { N11Service } = await import("./backend/n11Service");
+        let filter: any = { status: "New" };
 
         if (days && days > 0) {
             const today = new Date();
@@ -233,66 +234,20 @@ export async function syncN11Orders(client: any, storeId: number, settings: any,
                 return `${day}/${month}/${year}`;
             };
 
-            const startDateStr = formatDateN11(startDate);
-            const endDateStr = formatDateN11(today);
-
-            searchDataXml = `
-                      <period>
-                         <startDate>${startDateStr}</startDate>
-                         <endDate>${endDateStr}</endDate>
-                      </period>
-            `;
-        } else {
-            // Default and routine live sync: Only fetch New (instant) orders to prevent inventory desync!
-            searchDataXml = `
-                      <status>New</status>
-            `;
+            filter = {
+                startDate: formatDateN11(startDate),
+                endDate: formatDateN11(today)
+            };
         }
 
-        const soapEnvelope = `
-          <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/ws/schemas/OrderService">
-             <soapenv:Header/>
-             <soapenv:Body>
-                <sch:DetailedOrderListRequest>
-                   <auth>
-                      <appKey>${settings.appKey}</appKey>
-                      <appSecret>${settings.appSecret}</appSecret>
-                   </auth>
-                   <searchData>
-                      ${searchDataXml}
-                   </searchData>
-                </sch:DetailedOrderListRequest>
-             </soapenv:Body>
-          </soapenv:Envelope>
-        `;
-
-        const response = await fetchWithRetry(async () => {
-            // Removing .wsdl and trying the main endpoint
-            return await axios.post("https://api.n11.com/ws/OrderService", soapEnvelope, {
-                headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
-                timeout: 30000
-            });
-        }, "N11-SOAP", storeId);
-        
-        await logAction(storeId, null, "sync_n11", "marketplace_sync", null, "N11 Order Sync", null, response.data);
-
-        const parsedResult = await parseStringPromise(response.data, { explicitArray: false, ignoreAttrs: true });
-        
-        if (parsedResult['SOAP-ENV:Envelope']['SOAP-ENV:Body']['SOAP-ENV:Fault']) {
-            throw new Error(parsedResult['SOAP-ENV:Envelope']['SOAP-ENV:Body']['SOAP-ENV:Fault'].faultstring);
-        }
-
-        const orderListResponse = parsedResult['SOAP-ENV:Envelope']['SOAP-ENV:Body']['DetailedOrderListResponse'];
-        if (orderListResponse.result.status === 'failure') throw new Error(orderListResponse.result.errorMessage);
-
-        const n11OrdersRaw = orderListResponse.orderList?.order;
-        return Array.isArray(n11OrdersRaw) ? n11OrdersRaw : (n11OrdersRaw ? [n11OrdersRaw] : []);
+        const orders = await N11Service.getDetailedOrders(settings, filter);
+        return Array.isArray(orders) ? orders : [];
     } catch (e: any) {
-        if (e.response?.status === 404 || e.message?.includes('404')) {
-            console.log("N11 SOAP 404, falling back to REST...");
+        console.warn("[N11 Sync Error / Fallback]:", e?.message || e);
+        if (e?.response?.status === 404 || e?.message?.includes('404')) {
             return syncN11OrdersREST(client, storeId, settings);
         }
-        throw e;
+        throw new Error(e?.message || "N11 sipariş servisine erişilemedi.");
     }
 }
 

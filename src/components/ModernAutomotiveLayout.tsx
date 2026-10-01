@@ -17,6 +17,9 @@ import {
   Share2,
   Search,
   ChevronRight,
+  Car,
+  Zap,
+  Fuel,
 } from "lucide-react";
 import { Store, Product } from "../types";
 import { formatTransmission, formatFuelType } from "../utils/formatUtils";
@@ -754,18 +757,38 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                           </div>
 
                           {/* Vehicle Specific Details row */}
-                          <div className="flex flex-wrap gap-2 py-1.5 border-y border-slate-100 text-[10px] font-bold text-slate-600">
+                          <div className="flex flex-wrap items-center gap-2 py-1.5 border-y border-slate-100 text-[10px] font-semibold text-slate-600">
                             {(p.sector_data?.brand || (p as any).brand) && (
-                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">🚗 {p.sector_data?.brand || (p as any).brand}</span>
+                              <span className="flex items-center gap-1 text-slate-700">
+                                <Car className="w-3 h-3 text-slate-400 shrink-0" />
+                                {p.sector_data?.brand || (p as any).brand}
+                              </span>
                             )}
                             {(p.sector_data?.model || (p as any).model) && (
-                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⚙️ {p.sector_data?.model || (p as any).model}</span>
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className="flex items-center gap-1 text-slate-700">
+                                  {p.sector_data?.model || (p as any).model}
+                                </span>
+                              </>
                             )}
                             {(p.sector_data?.transmission || (p as any).transmission) && (
-                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⚡ {formatTransmission(p.sector_data?.transmission || (p as any).transmission, lang)}</span>
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className="flex items-center gap-1 text-slate-600">
+                                  <Zap className="w-3 h-3 text-amber-500 shrink-0" />
+                                  {formatTransmission(p.sector_data?.transmission || (p as any).transmission, lang)}
+                                </span>
+                              </>
                             )}
                             {(p.sector_data?.fuel || p.sector_data?.fuel_type || (p as any).fuel) && (
-                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⛽ {formatFuelType(p.sector_data?.fuel || p.sector_data?.fuel_type || (p as any).fuel, lang)}</span>
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className="flex items-center gap-1 text-slate-600">
+                                  <Fuel className="w-3 h-3 text-slate-400 shrink-0" />
+                                  {formatFuelType(p.sector_data?.fuel || p.sector_data?.fuel_type || (p as any).fuel, lang)}
+                                </span>
+                              </>
                             )}
                           </div>
 

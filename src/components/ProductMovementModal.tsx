@@ -447,7 +447,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                   {isTr ? 'Mevcut Stok Durumu' : 'Current Stock Balance'}
                 </div>
                 <div className="text-lg font-black text-indigo-950">
-                  {product.stock_quantity ?? stats.netStock} <span className="text-xs font-bold text-indigo-700">{product.unit || 'Adet'}</span>
+                  {stats.totalCount > 0 ? stats.netStock : (product.stock_quantity ?? 0)} <span className="text-xs font-bold text-indigo-700">{product.unit || 'Adet'}</span>
                 </div>
                 <div className="text-[11px] font-bold text-indigo-700">
                   {isTr ? 'Satış Fiyatı:' : 'Price:'} {formatCurrency(product.price)}
@@ -712,7 +712,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             <div className="text-right">
               <div className="text-sm font-black text-slate-900">{product.name}</div>
               <div className="text-xs font-mono text-slate-600">{product.barcode || ''} {product.product_code ? `| ${product.product_code}` : ''}</div>
-              <div className="text-xs font-bold text-indigo-700 mt-1">{isTr ? 'Güncel Stok:' : 'Current Stock:'} {product.stock_quantity ?? stats.netStock} {product.unit || 'Adet'}</div>
+              <div className="text-xs font-bold text-indigo-700 mt-1">{isTr ? 'Güncel Stok:' : 'Current Stock:'} {stats.totalCount > 0 ? stats.netStock : (product.stock_quantity ?? 0)} {product.unit || 'Adet'}</div>
             </div>
           </div>
 

@@ -66,7 +66,7 @@ export const MarketplaceProductFields = ({
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [showAttributesEditor, setShowAttributesEditor] = useState(false);
+  const [showAttributesEditor, setShowAttributesEditor] = useState(true);
   const [dynamicAttributes, setDynamicAttributes] = useState<any[]>([]);
   const [loadingAttributes, setLoadingAttributes] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -82,16 +82,52 @@ export const MarketplaceProductFields = ({
     setAmzAsinInput(product?.amazon_asin || currentAmz.asin || "");
   }, [product?.id, product?.hepsiburada_sku, product?.amazon_asin, JSON.stringify(product?.marketplace_data)]);
 
-  // Check store-level category mapping
+  // Check store-level category mapping across all marketplace settings
   const catKey = product?.category ? String(product.category).trim() : "";
   const subCatKey = product?.sub_category ? String(product.sub_category).trim() : "";
   const hierarchicalKey = catKey && subCatKey ? `${catKey} > ${subCatKey}` : "";
   
-  const storeMappedCatId = 
-    (hierarchicalKey && storeSettings?.categoryMappings?.[hierarchicalKey]) ||
-    (subCatKey && storeSettings?.categoryMappings?.[subCatKey]) ||
-    (catKey && storeSettings?.categoryMappings?.[catKey]) ||
-    "";
+  const extractCatIdFromMapping = (mapVal: any): string => {
+    if (!mapVal) return "";
+    if (typeof mapVal === "string") return mapVal.trim();
+    if (typeof mapVal === "number") return String(mapVal);
+    if (typeof mapVal === "object") {
+      const found = mapVal.hepsiburada || mapVal.n11 || mapVal.trendyol || mapVal.amazon || mapVal.pazarama || mapVal.id || mapVal.categoryId;
+      if (found) return String(found).trim();
+    }
+    return "";
+  };
+
+  const getMappingForKeys = (key1: string, key2: string, key3: string) => {
+    const maps = [
+      storeSettings?.categoryMappings,
+      branding?.categoryMappings,
+      branding?.hepsiburada_settings?.categoryMappings,
+      branding?.n11_settings?.categoryMappings,
+      branding?.trendyol_settings?.categoryMappings,
+      branding?.pazarama_settings?.categoryMappings,
+      branding?.amazon_settings?.categoryMappings,
+    ];
+
+    for (const map of maps) {
+      if (!map || typeof map !== "object") continue;
+      if (key1 && map[key1]) {
+        const res = extractCatIdFromMapping(map[key1]);
+        if (res) return res;
+      }
+      if (key2 && map[key2]) {
+        const res = extractCatIdFromMapping(map[key2]);
+        if (res) return res;
+      }
+      if (key3 && map[key3]) {
+        const res = extractCatIdFromMapping(map[key3]);
+        if (res) return res;
+      }
+    }
+    return "";
+  };
+
+  const storeMappedCatId = getMappingForKeys(hierarchicalKey, subCatKey, catKey);
 
   // If user has explicitly selected a category (marketData.categoryId), respect it 100%!
   const prodSearchStr = `${product?.name || ''} ${catKey} ${subCatKey}`.toLowerCase();

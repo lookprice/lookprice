@@ -13,11 +13,129 @@ import {
   FileText,
   Calendar,
   Truck,
-  UserCheck
+  UserCheck,
+  Globe
 } from "lucide-react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
+
+const getStoreWebsiteDomain = (branding?: any) => {
+  if (branding?.custom_domain) {
+    return branding.custom_domain.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').toLowerCase();
+  }
+  if (branding?.slug) {
+    const slugLower = String(branding.slug).toLowerCase();
+    if (slugLower === 'gap') return 'gapbilisim.com';
+    if (slugLower === 'medikalist') return 'medikalist.net';
+    if (slugLower === 'gunes' || slugLower === 'dgbooks') return 'dgbooks.net';
+    return `${slugLower}.lookprice.net`;
+  }
+  return 'Web Satışı';
+};
+
+const renderPaymentMethod = (s: any, branding?: any, isTr: boolean = true) => {
+  const pm = (s.payment_method || '').trim();
+  const pmLower = pm.toLowerCase();
+  const notesLower = (s.notes || '').toLowerCase();
+  const sourceLower = (s.source || '').toLowerCase();
+
+  // Hepsiburada
+  if (pmLower.includes('hepsiburada') || notesLower.includes('hepsiburada')) {
+    return (
+      <div className="text-[9.5px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+        <span>Hepsiburada</span>
+      </div>
+    );
+  }
+
+  // N11
+  if (pmLower.includes('n11') || notesLower.includes('n11')) {
+    return (
+      <div className="text-[9.5px] font-medium text-red-600 dark:text-red-400 flex items-center gap-1 mt-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+        <span>N11</span>
+      </div>
+    );
+  }
+
+  // Amazon
+  if (pmLower.includes('amazon') || notesLower.includes('amazon')) {
+    return (
+      <div className="text-[9.5px] font-medium text-amber-700 dark:text-amber-300 flex items-center gap-1 mt-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0" />
+        <span>Amazon</span>
+      </div>
+    );
+  }
+
+  // Trendyol
+  if (pmLower.includes('trendyol') || notesLower.includes('trendyol')) {
+    return (
+      <div className="text-[9.5px] font-medium text-orange-600 dark:text-orange-400 flex items-center gap-1 mt-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+        <span>Trendyol</span>
+      </div>
+    );
+  }
+
+  // Pazarama
+  if (pmLower.includes('pazarama') || notesLower.includes('pazarama')) {
+    return (
+      <div className="text-[9.5px] font-medium text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+        <span>Pazarama</span>
+      </div>
+    );
+  }
+
+  // Web Sales (iyzico, web, online, direct store showcase)
+  if (pmLower === 'iyzico' || pmLower === 'online' || pmLower === 'web' || sourceLower === 'web' || sourceLower === 'store' || notesLower.includes('web siparişi')) {
+    const websiteDomain = getStoreWebsiteDomain(branding);
+    return (
+      <div className="text-[9.5px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1" title={isTr ? "Doğrudan Web Mağazası Satışı" : "Direct Web Store Sale"}>
+        <Globe className="w-3 h-3 text-blue-500 shrink-0" />
+        <span className="lowercase">{websiteDomain}</span>
+      </div>
+    );
+  }
+
+  // Cash / Nakit
+  if (['cash', 'nakit'].includes(pmLower)) {
+    return (
+      <div className="text-[9.5px] font-medium text-slate-500 flex items-center gap-1 mt-1">
+        <CreditCard className="w-3 h-3 text-slate-400 shrink-0" />
+        <span>{isTr ? 'Nakit' : 'Cash'}</span>
+      </div>
+    );
+  }
+
+  // Credit Card / Kredi Kartı
+  if (['credit_card', 'card', 'kredi_karti', 'pos'].includes(pmLower)) {
+    return (
+      <div className="text-[9.5px] font-medium text-slate-500 flex items-center gap-1 mt-1">
+        <CreditCard className="w-3 h-3 text-slate-400 shrink-0" />
+        <span>{isTr ? 'Kredi Kartı' : 'Credit Card'}</span>
+      </div>
+    );
+  }
+
+  // Room (Hotel)
+  if (pmLower === 'room') {
+    return (
+      <div className="text-[9.5px] font-medium text-indigo-600 flex items-center gap-1 mt-1">
+        <span>{isTr ? 'Odaya Yazıldı' : 'Charged to Room'}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-[9.5px] font-medium text-slate-500 flex items-center gap-1 mt-1">
+      <span>{pm || (isTr ? 'Nakit / POS' : 'Cash / POS')}</span>
+    </div>
+  );
+};
 
 interface PosTabProps {
   sales: any[];
@@ -211,12 +329,7 @@ const PosTab = ({
                       <div className="text-xs font-bold text-slate-900 font-mono tabular-nums">
                         {Number(s.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-500 font-medium ml-0.5">{(s.currency || 'TRY').substring(0, 3)}</span>
                       </div>
-                      <div className="text-[8px] text-indigo-500 uppercase font-black tracking-[0.1em] flex items-center mt-1">
-                        <div className="w-2.5 h-2.5 bg-indigo-50 border border-indigo-100 rounded flex items-center justify-center mr-1">
-                          <CreditCard className="h-2 w-2" />
-                        </div>
-                        {t[s.payment_method] || s.payment_method}
-                      </div>
+                      {renderPaymentMethod(s, branding, isTr)}
                     </td>
                     <td className="px-2 py-4 text-center">
                       <div className="flex justify-center" title={t[s.status] || s.status}>

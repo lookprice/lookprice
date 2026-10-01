@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Radar, ExternalLink, User, MapPin, Building2, Sparkles, RefreshCw, Globe, Sliders, Tag, AlertCircle } from 'lucide-react';
+import { Search, Radar, ExternalLink, User, MapPin, Building2, Sparkles, RefreshCw, Globe, Sliders, Tag, AlertCircle, Car, FileText } from 'lucide-react';
 import { api } from '../services/api';
 import { toast } from 'sonner';
 
@@ -15,23 +15,34 @@ interface Lead {
   link: string;
 }
 
-const QUICK_TAGS = [
-  "sahibinden satılık daire girne",
-  "satılık imarlı arsa iskele",
-  "kktc acil satılık sahibinden",
-  "lefkoşa satılık müstakil ev",
-  "sahibinden acil satılık arsa"
-];
+interface AcquisitionRadarProps {
+  sector?: string;
+}
 
-export const AcquisitionRadar: React.FC = () => {
+export const AcquisitionRadar: React.FC<AcquisitionRadarProps> = ({ sector }) => {
+  const isAuto = sector === 'automotive' || sector === 'motor_vehicle';
   const [loading, setLoading] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [lastScan, setLastScan] = useState<string | null>(null);
+
+  const defaultQuickTags = isAuto ? [
+    "sahibinden satılık araba girne",
+    "kktc acil satılık araba",
+    "sahibinden mercedes lefkoşa",
+    "kktc sahibinden ikinci el otomobil",
+    "magosa sahibinden satılık araç"
+  ] : [
+    "sahibinden satılık daire girne",
+    "satılık imarlı arsa iskele",
+    "kktc acil satılık sahibinden",
+    "lefkoşa satılık müstakil ev",
+    "sahibinden acil satılık arsa"
+  ];
   
   // Custom tracking state
   const [searchSource, setSearchSource] = useState<'google_search' | '101evler.com'>('google_search');
   const [searchFilter, setSearchFilter] = useState<'individual' | 'all'>('individual');
-  const [keywords, setKeywords] = useState('sahibinden satılık daire girne');
+  const [keywords, setKeywords] = useState(isAuto ? 'sahibinden satılık araba girne' : 'sahibinden satılık daire girne');
 
   const scanPortals = async (customKeywords?: string) => {
     setLoading(true);
@@ -40,11 +51,11 @@ export const AcquisitionRadar: React.FC = () => {
       const data = await api.getAcquisitionLeads(searchSource, searchFilter, activeKeywords);
       if (Array.isArray(data)) {
         setLeads(data);
-        setLastScan(new Date().toLocaleTimeString());
+        setLastScan(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         toast.success(
           searchSource === 'google_search' 
-            ? "Google arama radarı başarıyla tamamlandı!" 
-            : "101evler.com ilanları başarıyla tarandı."
+            ? "Google arama radarı başarıyla tamamlandı." 
+            : "İlan portalları başarıyla tarandı."
         );
       } else {
         console.error("Acquisition scan received invalid data format:", data);
@@ -68,32 +79,47 @@ export const AcquisitionRadar: React.FC = () => {
   const shareLeadOnWhatsApp = (lead: Lead) => {
     const formattedPrice = `${lead.currency === 'GBP' ? '£' : lead.currency === 'USD' ? '$' : '₺'}${new Intl.NumberFormat('tr-TR').format(lead.price)}`;
     const mockDiscount = Math.floor((parseInt(lead.id) || 7) % 7) + 12;
-    const message = `Ortağım! *${lead.location}* bölgesinde sahibinden acil satılık yeni bir *${lead.type}* ilanı düştü! 🎯\n\nFiyatı bölge piyasasının en az *%${mockDiscount} altında*! 📉\n\n*İlan:* ${lead.title}\n*Fırsat Bedeli:* ${formattedPrice}\n*Mülk Sahibi:* ${lead.owner_name}\n\nİlanı detaylıca incelemek ve hemen mal sahibini aramak için tıkla:\n🔗 ${lead.link}\n\nLookPrice Akıllı Radar Servisi 🛰️`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    const itemLabel = isAuto ? 'araç' : 'mülk';
+    const message = `Ortağım! *${lead.location}* bölgesinde sahibinden acil satılık yeni bir *${lead.type}* ${itemLabel} ilanı tespit edildi.\n\nFiyatı bölge piyasasının en az *%${mockDiscount} altında*!\n\n*İlan:* ${lead.title}\n*Fırsat Bedeli:* ${formattedPrice}\n*İlan Sahibi:* ${lead.owner_name}\n\nİlanı detaylıca incelemek ve satıcıyla görüşmek için bağlantı:\n${lead.link}\n\nLookPrice Akıllı Radar Servisi`;
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    const link = document.createElement('a');
+    link.href = waUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   useEffect(() => {
     scanPortals();
-  }, []);
+  }, [sector]);
 
   return (
-    <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm space-y-6">
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-5">
       {/* HEADER SECTION */}
-      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-slate-950 p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-400/20">
-              <Radar className="w-5 h-5 text-indigo-400 animate-pulse" />
+            <div className="p-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+              <Radar className="w-4 h-4 text-cyan-400 animate-pulse" />
             </div>
-            <h3 className="text-lg font-black uppercase tracking-tight">Akıllı Mülk Toplama Radarı</h3>
+            <h3 className="text-base font-extrabold uppercase tracking-tight text-white">
+              {isAuto ? "AutoLP • Akıllı Araç Toplama Radarı" : "RestateLP • Akıllı Mülk Toplama Radarı"}
+            </h3>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800/40">
+              CANLI CRAWLER
+            </span>
           </div>
-          <p className="text-xs text-indigo-200 font-medium opacity-80">
-            Google Arama motoru ve ilan portallarını yapay zeka ile eş zamanlı tarayarak en güncel sahibinden mülk fırsatlarını tespit eder.
+          <p className="text-xs text-slate-400 font-normal max-w-xl">
+            {isAuto
+              ? "Google Arama ve yerel araç portallarını yapay zeka ile eş zamanlı tarayarak doğrudan bireysel sahibinden satılık acil otomobil fırsatlarını tespit eder."
+              : "Google Arama motoru ve ilan portallarını yapay zeka ile eş zamanlı tarayarak en güncel sahibinden mülk fırsatlarını tespit eder."}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {lastScan && (
-            <span className="text-[10px] bg-white/10 px-3 py-1.5 rounded-xl border border-white/5 font-mono text-indigo-200 font-bold">
+            <span className="text-[11px] bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 font-mono text-cyan-400 font-semibold">
               Son Tarama: {lastScan}
             </span>
           )}
@@ -102,67 +128,68 @@ export const AcquisitionRadar: React.FC = () => {
 
       {/* FILTER & SEARCH FORM */}
       <div className="px-6 space-y-4">
-        <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
+        <div className="bg-slate-50 rounded-2xl border border-slate-200/80 p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             {/* Keywords Search Bar */}
             <div className="md:col-span-6 space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-                <Search className="w-3.5 h-3.5 text-indigo-500" /> Aranacak Kelimeler / Bölge
+              <label className="text-[10px] font-bold uppercase text-slate-600 tracking-wider flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-indigo-500" />
+                {isAuto ? "Aranacak Araç / Model / Bölge" : "Aranacak Kelimeler / Bölge"}
               </label>
               <input
                 type="text"
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
-                placeholder="Örn: sahibinden satılık daire girne alsancak acil"
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                placeholder={isAuto ? "Örn: sahibinden satılık araba girne mercedes acil" : "Örn: sahibinden satılık daire girne alsancak acil"}
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               />
             </div>
 
             {/* Scope selection */}
             <div className="md:col-span-3 space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+              <label className="text-[10px] font-bold uppercase text-slate-600 tracking-wider flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-indigo-500" /> Radar Kapsamı
               </label>
               <select
                 value={searchSource}
                 onChange={(e) => setSearchSource(e.target.value as any)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               >
-                <option value="google_search">🌎 Google Arama (Web'de Her Yerde)</option>
-                <option value="101evler.com">🏠 101evler.com Portalı</option>
+                <option value="google_search">Google Arama Motoru (Web Geneli)</option>
+                <option value="101evler.com">{isAuto ? "Kıbrıs Araç Portalları" : "101evler.com Portalı"}</option>
               </select>
             </div>
 
             {/* Owner type filter */}
             <div className="md:col-span-3 space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-                <Sliders className="w-3.5 h-3.5 text-indigo-500" /> İlan Sahibi Filtresi
+              <label className="text-[10px] font-bold uppercase text-slate-600 tracking-wider flex items-center gap-1.5">
+                <Sliders className="w-3.5 h-3.5 text-indigo-500" /> İlan Kaynağı Filtresi
               </label>
               <select
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value as any)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               >
-                <option value="individual">👤 Sadece Sahibinden (Bireysel)</option>
-                <option value="all">📂 Tümü (Emlak Ofisi & Sahibinden)</option>
+                <option value="individual">Doğrudan Sahibinden (Bireysel)</option>
+                <option value="all">Tüm İlanlar (Ofis & Sahibinden)</option>
               </select>
             </div>
           </div>
 
           {/* Quick suggestions tags */}
-          <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-slate-100">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-slate-200">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
               <Tag className="w-3 h-3" /> Hızlı Aramalar:
             </span>
-            {QUICK_TAGS.map((tag, idx) => (
+            {defaultQuickTags.map((tag, idx) => (
               <button
                 key={idx}
                 onClick={() => handleTagClick(tag)}
                 disabled={loading}
-                className={`text-[10px] font-bold px-3 py-1 rounded-full transition-all border ${
+                className={`text-[10px] font-semibold px-3 py-1 rounded-lg transition-all border ${
                   keywords === tag
-                    ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
                 }`}
               >
                 {tag}
@@ -174,12 +201,12 @@ export const AcquisitionRadar: React.FC = () => {
             <button
               onClick={() => scanPortals()}
               disabled={loading}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-6 py-2.5 rounded-xl text-xs font-extrabold transition-all shadow-md hover:shadow-lg hover:shadow-indigo-500/10 active:scale-95 cursor-pointer"
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
             >
               {loading ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Google & Portallar Taranıyor...</span>
+                  <span>Portallar Taranıyor...</span>
                 </>
               ) : (
                 <>
@@ -237,14 +264,24 @@ export const AcquisitionRadar: React.FC = () => {
               >
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center flex-wrap gap-2">
-                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1 ${
                       lead.owner_name?.toLowerCase().includes('sahibinden') || lead.owner_name === 'Sahibinden'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-indigo-100 text-indigo-700'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                     }`}>
-                      {lead.owner_name?.toLowerCase().includes('sahibinden') || lead.owner_name === 'Sahibinden' ? '👤 Sahibinden İlan' : '📂 Fırsat Portföy'}
+                      {lead.owner_name?.toLowerCase().includes('sahibinden') || lead.owner_name === 'Sahibinden' ? (
+                        <>
+                          <User className="w-2.5 h-2.5" />
+                          Sahibinden İlan
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-2.5 h-2.5" />
+                          Fırsat Portföy
+                        </>
+                      )}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-bold italic">Tespit Edildi: {lastScan}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Tespit Edildi: {lastScan}</span>
                   </div>
                   <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors uppercase leading-tight">
                     {lead.title}
@@ -255,7 +292,10 @@ export const AcquisitionRadar: React.FC = () => {
                     </p>
                   )}
                   <div className="flex flex-wrap gap-3 text-[11px] font-bold text-slate-500 pt-1">
-                    <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5 text-indigo-500" /> {lead.type || 'Konut'}</span>
+                    <span className="flex items-center gap-1">
+                      {isAuto ? <Car className="w-3.5 h-3.5 text-indigo-500" /> : <Building2 className="w-3.5 h-3.5 text-indigo-500" />} 
+                      {lead.type || (isAuto ? 'Otomobil' : 'Konut')}
+                    </span>
                     <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-rose-500" /> {lead.location}</span>
                     <span className="flex items-center gap-1 text-slate-800"><User className="w-3.5 h-3.5 text-slate-400" /> {lead.owner_name}</span>
                   </div>

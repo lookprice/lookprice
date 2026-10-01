@@ -15,7 +15,8 @@ import {
   FileSignature,
   RotateCcw,
   Save,
-  FileCheck
+  FileCheck,
+  PenTool
 } from "lucide-react";
 import { formatPhoneForWhatsApp } from "../utils/formatUtils";
 import { renderSignatureOrStamp } from "../utils/contractTemplates";
@@ -716,8 +717,9 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
                       />
                       {!isSigningActive && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-                          <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase flex items-center gap-1 animate-pulse">
-                            ✍️ BURAYA PARMAKLA ÇİZDİRİN
+                          <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase flex items-center gap-1.5 animate-pulse">
+                            <PenTool className="w-3 h-3 text-slate-400" />
+                            BURAYA PARMAKLA ÇİZDİRİN
                           </span>
                         </div>
                       )}

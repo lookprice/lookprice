@@ -163,11 +163,11 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               }}
             >
               <option value="all">{t.allCategories}</option>
-              {isCafe && <option value="bestsellers">🔥 {lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</option>}
+              {isCafe && <option value="bestsellers">{lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</option>}
               <optgroup label={lang === 'tr' ? "Vitrin Izgara Rozetleri" : "Showcase Badges"}>
                 {sectorBadges.map((b) => (
                   <option key={`opt-badge-${b.id}`} value={`badge_${b.id}`}>
-                    {b.iconName === 'Flame' ? '🔥' : b.iconName === 'Sparkles' ? '✨' : b.iconName === 'Star' ? '⭐' : b.iconName === 'Award' ? '🏆' : b.iconName === 'Crown' ? '👑' : b.iconName === 'Clock' ? '⏳' : '🏷️'} {lang === 'tr' ? b.labelTr : b.labelEn}
+                    {lang === 'tr' ? b.labelTr : b.labelEn}
                   </option>
                 ))}
               </optgroup>

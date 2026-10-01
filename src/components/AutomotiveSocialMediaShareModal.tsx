@@ -19,7 +19,14 @@ import {
   Eye,
   Car,
   Gauge,
-  Flame
+  Flame,
+  User,
+  Phone,
+  Camera,
+  Palette,
+  Megaphone,
+  PenTool,
+  Crown
 } from "lucide-react";
 import { formatFuelType, formatTransmission } from "../utils/formatUtils";
 
@@ -435,10 +442,13 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                     {/* TOP CONSULTANT BAR */}
                     <div className="relative z-20 flex justify-between items-center px-2.5 py-1.5 mx-2.5 mt-3 mb-1 text-[9px] font-black tracking-wider text-white shrink-0">
                       <div className="flex items-center gap-1.5 min-w-0 max-w-[60%]">
-                        <span className="shrink-0 text-[9px]">👤</span>
+                        <User className="w-3 h-3 shrink-0 text-slate-300" />
                         <span className="truncate leading-normal text-[9px] font-black py-0.5 inline-block">{brokerName}</span>
                       </div>
-                      <div className={`shrink-0 ${previewColors.textAccent} leading-normal text-[9px] font-black ml-1 py-0.5 inline-block`}>📞 {brokerPhone}</div>
+                      <div className={`shrink-0 ${previewColors.textAccent} leading-normal text-[9px] font-black ml-1 py-0.5 inline-flex items-center gap-1`}>
+                        <Phone className="w-2.5 h-2.5" />
+                        {brokerPhone}
+                      </div>
                     </div>
 
                     {/* FRAMED IMAGE AREA */}
@@ -455,7 +465,9 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
-                              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">🚗</div>
+                              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                                <Car className="w-6 h-6 text-slate-500" />
+                              </div>
                             )}
                           </div>
                           {/* Right stacked (33%) */}
@@ -469,7 +481,9 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                                   referrerPolicy="no-referrer"
                                 />
                               ) : (
-                                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">📸</div>
+                                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">
+                                  <Camera className="w-4 h-4 text-slate-500" />
+                                </div>
                               )}
                             </div>
                             <div className="flex-1 relative overflow-hidden">
@@ -481,7 +495,9 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                                   referrerPolicy="no-referrer"
                                 />
                               ) : (
-                                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">📸</div>
+                                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">
+                                  <Camera className="w-4 h-4 text-slate-500" />
+                                </div>
                               )}
                             </div>
                           </div>
@@ -497,7 +513,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
-                            <span className="text-2xl">🚗</span>
+                            <Car className="w-10 h-10 text-slate-600" />
                           </div>
                         )
                       )}
@@ -524,12 +540,12 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
                     {/* DETAILS AREA BELOW FRAME */}
                     <div className="relative z-20 flex flex-col items-center justify-center py-1.5 text-center text-white shrink-0">
-                      <div className="text-[9.5px] font-black truncate max-w-full leading-tight">
-                        🏎️ {vehicle.brand.toUpperCase()} {vehicle.model.toUpperCase()} ({vehicle.year})
+                      <div className="text-[9.5px] font-black truncate max-w-full leading-tight tracking-wide">
+                        {vehicle.brand.toUpperCase()} {vehicle.model.toUpperCase()} ({vehicle.year})
                       </div>
                       
-                      <div className={`text-[8px] font-extrabold mt-0.5 truncate max-w-full leading-tight ${previewColors.textMuted}`}>
-                        🚗 {vehicle.body_type || 'Vasıta'}  •  ⚙️ {transmissionText}  •  ⛽ {fuelText}  •  📐 {mileageText || '0 km'}
+                      <div className={`text-[8px] font-medium mt-0.5 truncate max-w-full leading-tight ${previewColors.textMuted}`}>
+                        {vehicle.body_type || 'Vasıta'} · {transmissionText} · {fuelText} · {mileageText || '0 km'}
                       </div>
                     </div>
 
@@ -563,7 +579,10 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
           {/* Controls for Template styles */}
           <div className="mt-4">
-            <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">🎨 SEKTÖREL GÖRSEL ŞABLONLAR</span>
+            <span className="flex items-center gap-1.5 text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">
+              <Palette className="w-3.5 h-3.5 text-indigo-500" />
+              Sektörel Görsel Şablonlar
+            </span>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <button 
                 onClick={() => setSelectedTheme('luxury_dark')}
@@ -609,7 +628,10 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
               </button>
             </div>
 
-            <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2 mt-4">📢 DURUM ETİKETİ (OPSİYONEL)</span>
+            <span className="flex items-center gap-1.5 text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2 mt-4">
+              <Megaphone className="w-3.5 h-3.5 text-indigo-500" />
+              Durum Etiketi (Opsiyonel)
+            </span>
             <div className="grid grid-cols-4 gap-2 mb-4">
               <button 
                 onClick={() => setForcedStatus(null)}
@@ -682,25 +704,31 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
             {/* Tone Selector */}
             <div className="mb-4">
-              <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">✍️ PAYLAŞIM TEMA & ÜSLUBU</span>
+              <span className="flex items-center gap-1.5 text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">
+                <PenTool className="w-3.5 h-3.5 text-indigo-500" />
+                Paylaşım Tema & Üslubu
+              </span>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
                 <button 
                   onClick={() => setSelectedTone('luxury')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${selectedTone === 'luxury' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900'}`}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedTone === 'luxury' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-500 hover:text-slate-900'}`}
                 >
-                  ⚜️ Lüks / Prestij
+                  <Crown className="w-3.5 h-3.5 text-amber-500" />
+                  Lüks / Prestij
                 </button>
                 <button 
                   onClick={() => setSelectedTone('technical')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${selectedTone === 'technical' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900'}`}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedTone === 'technical' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-500 hover:text-slate-900'}`}
                 >
-                  🏎️ Performans / Donanım
+                  <Gauge className="w-3.5 h-3.5 text-red-500" />
+                  Performans / Donanım
                 </button>
                 <button 
                   onClick={() => setSelectedTone('friendly')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${selectedTone === 'friendly' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900'}`}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedTone === 'friendly' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-500 hover:text-slate-900'}`}
                 >
-                  ✨ Samimi & Sahibinden
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                  Samimi & Sahibinden
                 </button>
               </div>
             </div>
@@ -739,7 +767,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                 <p className="text-[10.5px] text-amber-800 leading-relaxed mt-1">
                   1. Sol panelden galerinizin havasını en iyi yansıtan temayı ve oranı seçip <strong>"Afiş Görselini İndir"</strong> butonuyla kaydedin. <br />
                   2. Sağ panelden araç piyasasına en uygun üslubu seçip <strong>"Metni Kopyala"</strong> ya basın. <br />
-                  3. Instagram, Facebook, Sahibinden veya WhatsApp'ı açarak kopyaladığınız metin ve görsel ile profesyonel paylaşımı tamamlayın! 🚀
+                  3. Instagram, Facebook, Sahibinden veya WhatsApp'ı açarak kopyaladığınız metin ve görsel ile profesyonel paylaşımı tamamlayın!
                 </p>
               </div>
             </div>

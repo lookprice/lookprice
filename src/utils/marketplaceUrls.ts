@@ -23,14 +23,21 @@ export function slugifyText(text: string): string {
   if (!text) return '';
   return text
     .toString()
+    .replace(/Ğ/g, 'g')
+    .replace(/ğ/g, 'g')
+    .replace(/Ü/g, 'u')
+    .replace(/ü/g, 'u')
+    .replace(/Ş/g, 's')
+    .replace(/ş/g, 's')
+    .replace(/İ/g, 'i')
+    .replace(/I/g, 'i')
+    .replace(/ı/g, 'i')
+    .replace(/Ö/g, 'o')
+    .replace(/ö/g, 'o')
+    .replace(/Ç/g, 'c')
+    .replace(/ç/g, 'c')
     .toLowerCase()
     .trim()
-    .replace(/ğ/g, 'g')
-    .replace(/ü/g, 'u')
-    .replace(/ş/g, 's')
-    .replace(/ı/g, 'i')
-    .replace(/ö/g, 'o')
-    .replace(/ç/g, 'c')
     .replace(/[^a-z0-9 -]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
@@ -207,16 +214,21 @@ export function getMarketplaceListingUrl(
     case 'n11': {
       const n11Data = mpData.n11 || {};
       const directUrl = n11Data.productUrl || n11Data.url || product.n11_url;
-      if (directUrl && String(directUrl).startsWith('http') && !directUrl.includes('/arama?')) {
+      if (directUrl && String(directUrl).startsWith('http') && !directUrl.includes('/arama?') && !directUrl.includes('-PUBLISHED') && !directUrl.endsWith('/PUBLISHED')) {
+        if (!directUrl.includes('?magaza=') && !directUrl.includes('&magaza=')) {
+          return `${directUrl}${directUrl.includes('?') ? '&' : '?'}magaza=enrakipsiz`;
+        }
         return directUrl;
       }
 
-      const n11Id = product.n11_id || n11Data.productId || n11Data.id;
-      if (n11Id && String(n11Id).trim().length >= 3) {
+      const catalogId = n11Data.n11CatalogId || n11Data.catalogId || n11Data.n11CatalogGroupId;
+      const n11Id = catalogId || product.n11_id || n11Data.productId || n11Data.id || n11Data.n11Id;
+      if (n11Id && /^\d+$/.test(String(n11Id).trim())) {
         const cleanN11Id = String(n11Id).trim();
-        return slug 
-          ? `https://www.n11.com/urun/${slug}-${cleanN11Id}` 
-          : `https://www.n11.com/urun/${cleanN11Id}`;
+        const n11Slug = slugifyText(n11Data.title || product.name || '');
+        return n11Slug 
+          ? `https://www.n11.com/urun/${n11Slug}-${cleanN11Id}?magaza=enrakipsiz` 
+          : `https://www.n11.com/urun/${cleanN11Id}?magaza=enrakipsiz`;
       }
 
       if (!fallbackToSearch) return null;

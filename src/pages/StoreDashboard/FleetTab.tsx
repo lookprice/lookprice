@@ -204,7 +204,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
           market_story: res.text,
           technical_description: res.text 
         }));
-        setVehicleAiNotice("✅ Araç portföy hikayesi ve teknik açıklama yapay zeka tarafından başarıyla oluşturuldu!");
+        setVehicleAiNotice("Araç portföy hikayesi ve teknik açıklama yapay zeka tarafından başarıyla oluşturuldu.");
         setTimeout(() => setVehicleAiNotice(null), 5000);
       }
     } catch (err) {
