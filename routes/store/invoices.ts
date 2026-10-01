@@ -3,7 +3,7 @@ import { pool, addStockMovement } from "../../models/db";
 import { getAuthorizedStoreId } from "../../middleware/auth";
 import { getEInvoiceService } from "../einvoice";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
-import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification, revertInvoiceStockAndProducts, detectExpenseCategory } from "./invoiceMatching";
+import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification, revertInvoiceStockAndProducts, detectExpenseCategory, generateTempBarcode } from "./invoiceMatching";
 import { mergeProducts } from "./products";
 import { syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
 
@@ -1714,17 +1714,15 @@ router.get("/purchase/:id", async (req: any, res) => {
                    if (match) {
                      productId = match.productId;
                      finalProductCode = match.productCode || sellerCode || buyerCode || null;
-                     if (isValidStandardBarcode(match.barcode)) {
+                     const incomingSanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, finalProductCode);
+                     if (isValidStandardBarcode(incomingSanitized.barcode) && !incomingSanitized.isTempBarcode) {
+                       finalBarcode = incomingSanitized.barcode;
+                     } else if (isValidStandardBarcode(match.barcode)) {
                        finalBarcode = match.barcode;
                      } else {
-                       const sanitized = sanitizeInvoiceItemCodes(match.barcode, sellerCode, buyerCode, finalProductCode);
-                       finalBarcode = sanitized.barcode;
-                       if (!finalProductCode) finalProductCode = sanitized.productCode;
-                       await pool.query(
-                         "UPDATE products SET barcode = $1, product_code = COALESCE(product_code, $2), sku = COALESCE(sku, $2) WHERE id = $3",
-                         [finalBarcode, finalProductCode, productId]
-                       );
+                       finalBarcode = incomingSanitized.barcode;
                      }
+                     if (!finalProductCode) finalProductCode = incomingSanitized.productCode;
                    } else {
                      const sanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, null);
                      finalBarcode = sanitized.barcode;
@@ -3050,25 +3048,374 @@ router.post("/purchase/auto-repair-expenses", async (req: any, res) => {
   }
 });
 
-// Update a purchase invoice item's matched product_id, barcode or product_code
+// Update a purchase invoice item's matched product_id, barcode or product_code with complete stock movement & inventory synchronization
 router.put("/purchase/items/:itemId", async (req: any, res) => {
+  const client = await pool.connect();
   try {
     const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
     const itemId = req.params.itemId;
-    const { product_id, barcode, product_code } = req.body;
+    const { product_id, barcode, product_code, adjust_stock = true } = req.body;
 
-    await pool.query(
+    await client.query("BEGIN");
+
+    const itemRes = await client.query(
+      `SELECT pii.*, pi.invoice_number, pi.store_id, pi.is_expense, pi.tax_number as supplier_vkn, pi.currency, pi.supplier_name
+       FROM purchase_invoice_items pii
+       JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+       WHERE pii.id = $1 AND pi.store_id = $2`,
+      [itemId, storeId]
+    );
+
+    if (itemRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Fatura kalemi bulunamadı." });
+    }
+
+    const currentItem = itemRes.rows[0];
+    const oldProductId = currentItem.product_id ? Number(currentItem.product_id) : null;
+    const newProductId = product_id !== undefined ? (product_id ? Number(product_id) : null) : oldProductId;
+    const itemQty = currentItem.system_quantity != null ? Number(currentItem.system_quantity) : Number(currentItem.quantity || 1);
+    const unitPrice = Number(currentItem.unit_price) || 0;
+    const isExpense = currentItem.is_expense === true;
+
+    await client.query(
       `UPDATE purchase_invoice_items 
-       SET product_id = COALESCE($1, product_id), 
+       SET product_id = $1, 
            barcode = COALESCE($2, barcode), 
            product_code = COALESCE($3, product_code) 
        WHERE id = $4`,
-      [product_id || null, barcode || null, product_code || null, itemId]
+      [newProductId, barcode || null, product_code || null, itemId]
     );
 
-    res.json({ success: true });
+    // If not expense invoice and product link changed, synchronize inventory & stock movements!
+    if (!isExpense && adjust_stock && oldProductId !== newProductId) {
+      // 1. Revert stock from old product
+      if (oldProductId) {
+        await client.query(
+          "UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id = $2 AND store_id = $3",
+          [itemQty, oldProductId, storeId]
+        );
+        // Remove or adjust old stock movement
+        await client.query(
+          `DELETE FROM stock_movements 
+           WHERE id IN (
+             SELECT id FROM stock_movements 
+             WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND source = 'purchase_invoice' 
+             LIMIT 1
+           )`,
+          [storeId, currentItem.purchase_invoice_id, oldProductId]
+        );
+      }
+
+      // 2. Add stock to new product
+      if (newProductId) {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5",
+          [itemQty, unitPrice, currentItem.currency || 'TRY', newProductId, storeId]
+        );
+        // Insert new stock movement
+        await client.query(
+          `INSERT INTO stock_movements 
+           (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number) 
+           VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, NOW(), $8, 'purchase', $9)`,
+          [
+            storeId,
+            newProductId,
+            itemQty,
+            `Alış Faturası Kalem Eşleştirme / Revizyon: ${currentItem.invoice_number || currentItem.purchase_invoice_id}`,
+            unitPrice,
+            currentItem.supplier_name || 'Tedarikçi',
+            currentItem.currency || 'TRY',
+            currentItem.purchase_invoice_id,
+            currentItem.invoice_number
+          ]
+        );
+      }
+
+      // 3. Update supplier product mapping for future invoices
+      if (currentItem.supplier_vkn && currentItem.product_name && newProductId) {
+        await saveSupplierMapping(
+          client,
+          storeId,
+          currentItem.supplier_vkn,
+          currentItem.product_name,
+          newProductId,
+          product_code || currentItem.product_code
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Fatura kalemi ve stok eşleştirmesi başarıyla güncellendi." });
   } catch (err: any) {
+    await client.query("ROLLBACK");
     console.error("Error updating purchase invoice item:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Create a dedicated product directly from an invoice item and link it
+router.post("/purchase/items/:itemId/create-product", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+    const itemId = req.params.itemId;
+    const { name, barcode, product_code, price, cost_price } = req.body;
+
+    await client.query("BEGIN");
+
+    const itemRes = await client.query(
+      `SELECT pii.*, pi.invoice_number, pi.store_id, pi.is_expense, pi.tax_number as supplier_vkn, pi.currency, pi.supplier_name
+       FROM purchase_invoice_items pii
+       JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+       WHERE pii.id = $1 AND pi.store_id = $2`,
+      [itemId, storeId]
+    );
+
+    if (itemRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Fatura kalemi bulunamadı." });
+    }
+
+    const currentItem = itemRes.rows[0];
+    const oldProductId = currentItem.product_id ? Number(currentItem.product_id) : null;
+    const itemQty = currentItem.system_quantity != null ? Number(currentItem.system_quantity) : Number(currentItem.quantity || 1);
+    const unitPrice = cost_price != null ? Number(cost_price) : (Number(currentItem.unit_price) || 0);
+    const sellingPrice = price != null ? Number(price) : (unitPrice * 1.25);
+    const taxRate = Number(currentItem.tax_rate) || 20;
+
+    const prodName = (name || currentItem.product_name || 'Yeni Ürün').trim();
+    const finalBarcode = (barcode || currentItem.barcode || generateTempBarcode()).trim();
+    const finalCode = (product_code || currentItem.product_code || null);
+
+    // Create new product
+    const newProdRes = await client.query(
+      `INSERT INTO products 
+       (store_id, name, barcode, product_code, sku, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
+       VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, 'product', JSON.stringify(["fatura_kalem_revizyon"])) 
+       RETURNING id`,
+      [storeId, prodName, finalBarcode, finalCode, sellingPrice, unitPrice, taxRate, itemQty, currentItem.currency || 'TRY']
+    );
+
+    const newProductId = newProdRes.rows[0].id;
+
+    // Update purchase_invoice_items
+    await client.query(
+      `UPDATE purchase_invoice_items 
+       SET product_id = $1, barcode = $2, product_code = $3, product_name = $4 
+       WHERE id = $5`,
+      [newProductId, finalBarcode, finalCode, prodName, itemId]
+    );
+
+    // If old product existed, deduct stock
+    if (oldProductId && oldProductId !== newProductId) {
+      await client.query(
+        "UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id = $2 AND store_id = $3",
+        [itemQty, oldProductId, storeId]
+      );
+      await client.query(
+        `DELETE FROM stock_movements 
+         WHERE id IN (
+           SELECT id FROM stock_movements 
+           WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND source = 'purchase_invoice' 
+           LIMIT 1
+         )`,
+        [storeId, currentItem.purchase_invoice_id, oldProductId]
+      );
+    }
+
+    // Insert stock movement for new product
+    await client.query(
+      `INSERT INTO stock_movements 
+       (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number) 
+       VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, NOW(), $8, 'purchase', $9)`,
+      [
+        storeId,
+        newProductId,
+        itemQty,
+        `Alış Faturası Yeni Ürün Kartı: ${currentItem.invoice_number || currentItem.purchase_invoice_id}`,
+        unitPrice,
+        currentItem.supplier_name || 'Tedarikçi',
+        currentItem.currency || 'TRY',
+        currentItem.purchase_invoice_id,
+        currentItem.invoice_number
+      ]
+    );
+
+    // Update supplier product mapping
+    if (currentItem.supplier_vkn && prodName) {
+      await saveSupplierMapping(
+        client,
+        storeId,
+        currentItem.supplier_vkn,
+        prodName,
+        newProductId,
+        finalCode
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, product_id: newProductId, message: "Yeni ürün kartı oluşturuldu ve fatura kalemi başarıyla bağlandı." });
+  } catch (err: any) {
+    await client.query("ROLLBACK");
+    console.error("Error creating product from purchase invoice item:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Re-sync an existing purchase invoice lines and matching from official e-invoice service details
+router.post("/purchase/:id/re-sync-matching", async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+  const { id } = req.params;
+
+  try {
+    const invRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+    const invoice = invRes.rows[0];
+
+    if (!invoice.ettn) {
+      return res.status(400).json({ error: "Bu faturaya ait ETTN numarası bulunamadı." });
+    }
+
+    const service = await getEInvoiceService(storeId);
+    if (!service) {
+      return res.status(400).json({ error: "E-Fatura entegratör servisi bulunamadı." });
+    }
+
+    const details = await service.getInvoiceDetailsByUuid(invoice.ettn);
+    if (!details) {
+      return res.status(404).json({ error: "Entegratörden fatura kalemleri çekilemedi." });
+    }
+
+    let rawLines = details.detailList || details.InvoiceLines || details.lines || details.InvoiceLine || details.Lines || details.invoiceLines || [];
+    if (rawLines && !Array.isArray(rawLines)) rawLines = [rawLines];
+
+    if (!Array.isArray(rawLines) || rawLines.length === 0) {
+      return res.status(400).json({ error: "Fatura içerisinde ürün satırı bulunamadı." });
+    }
+
+    // Revert existing stock movements and auto-created products for this invoice
+    await revertInvoiceStockAndProducts(pool, storeId, Number(invoice.id));
+    await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [invoice.id]);
+
+    let processedCount = 0;
+    for (const line of rawLines) {
+      const productName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || line.Name || line.name || 'Bilinmeyen Ürün';
+      
+      const sellerCodeRaw = line.detailItem?.sellersItemIdentificationId || line.detailItem?.sellersItemIdentification || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.sellersItemIdentification;
+      const sellerCode = typeof sellerCodeRaw === 'string' ? sellerCodeRaw.trim() : (typeof sellerCodeRaw === 'number' ? String(sellerCodeRaw) : null);
+
+      const buyerCodeRaw = line.detailItem?.buyersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.buyersItemIdentification;
+      const buyerCode = typeof buyerCodeRaw === 'string' ? buyerCodeRaw.trim() : (typeof buyerCodeRaw === 'number' ? String(buyerCodeRaw) : null);
+
+      const barcodeRaw = line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.ItemInstance?.ProductTraceID;
+      const barcode = typeof barcodeRaw === 'string' ? barcodeRaw.trim() : (typeof barcodeRaw === 'number' ? String(barcodeRaw) : null);
+
+      const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 1;
+      const qty = Number(String(qtyRaw).replace(',', '.')) || 1;
+      
+      const upRaw = line.unitPrice || line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
+      const up = Number(String(upRaw).replace(',', '.')) || 0;
+      
+      const trRaw = line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 20;
+      const tr = Number(String(trRaw).replace(',', '.')) || 20;
+      
+      const lineTotal = qty * up;
+      const taxAmount = (lineTotal * tr) / 100;
+
+      // Match product with robust capacity-aware engine
+      const match = await findMatchingProduct(pool, storeId, {
+        supplierVkn: invoice.tax_number,
+        productName,
+        barcode,
+        productCode: sellerCode || buyerCode,
+        sellerCode,
+        buyerCode
+      });
+
+      let productId = match ? match.productId : null;
+      let finalBarcode: string;
+      let finalProductCode: string | null = match?.productCode || sellerCode || buyerCode || null;
+
+      const incomingSanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, finalProductCode);
+
+      if (match) {
+        productId = match.productId;
+        if (isValidStandardBarcode(incomingSanitized.barcode) && !incomingSanitized.isTempBarcode) {
+          finalBarcode = incomingSanitized.barcode;
+        } else if (isValidStandardBarcode(match.barcode)) {
+          finalBarcode = match.barcode;
+        } else {
+          finalBarcode = incomingSanitized.barcode;
+        }
+      } else {
+        finalBarcode = incomingSanitized.barcode;
+        finalProductCode = incomingSanitized.productCode || finalProductCode;
+
+        const existingProd = await pool.query(
+          "SELECT id, barcode, product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR (product_code IS NOT NULL AND product_code = $3))",
+          [storeId, finalBarcode, finalProductCode || '__NONE__']
+        );
+        if (existingProd.rows.length > 0) {
+          productId = existingProd.rows[0].id;
+          finalBarcode = existingProd.rows[0].barcode;
+          finalProductCode = existingProd.rows[0].product_code || finalProductCode;
+        } else {
+          const newProdRes = await pool.query(
+            `INSERT INTO products 
+             (store_id, name, barcode, product_code, sku, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
+             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, 'product', $10) 
+             RETURNING id`,
+            [storeId, productName, finalBarcode, finalProductCode, up * 1.25, up, tr, qty, invoice.currency || 'TRY', JSON.stringify(["yeni_fatura_urunu"])]
+          );
+          productId = newProdRes.rows[0].id;
+        }
+      }
+
+      if (invoice.tax_number && productName && productId) {
+        await saveSupplierMapping(pool, storeId, invoice.tax_number, productName, productId, finalProductCode);
+      }
+
+      await pool.query(
+        `INSERT INTO purchase_invoice_items 
+         (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [invoice.id, productId, productName, finalBarcode, finalProductCode, qty, up, tr, taxAmount, lineTotal]
+      );
+
+      // Add stock movement
+      if (productId) {
+        await addStockMovement(
+          pool,
+          storeId,
+          productId,
+          'in',
+          qty,
+          'purchase_invoice',
+          `E-Fatura Senkronize / Eşleştirme: ${invoice.invoice_number}`,
+          up,
+          invoice.supplier_name,
+          invoice.currency || 'TRY',
+          null,
+          invoice.id,
+          'purchase',
+          invoice.invoice_number
+        );
+      }
+      processedCount++;
+    }
+
+    res.json({
+      success: true,
+      message: `${processedCount} adet fatura kalemi başarıyla güncellendi ve ürünlerle doğru eşleştirildi.`,
+      processedCount
+    });
+  } catch (err: any) {
+    console.error("Error re-syncing invoice matching:", err);
     res.status(500).json({ error: err.message });
   }
 });

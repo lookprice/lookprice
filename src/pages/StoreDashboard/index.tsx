@@ -1392,11 +1392,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onEditProduct={(item: any) => {
                     const normItemName = (item.product_name || item.name || '').trim().toLowerCase();
                     const normItemBarcode = (item.barcode || '').trim();
+                    const normItemCode = (item.product_code || '').trim().toLowerCase();
 
                     const found = products.find((p: any) => {
                       if (item.product_id && Number(p.id) === Number(item.product_id)) return true;
+                      if (normItemBarcode && p.barcode && p.barcode.trim() === normItemBarcode) return true;
+                      if (normItemCode && p.product_code && p.product_code.trim().toLowerCase() === normItemCode) return true;
                       if (normItemName && p.name && p.name.trim().toLowerCase() === normItemName) return true;
-                      if (normItemBarcode && normItemName && p.barcode && p.name && p.barcode.trim() === normItemBarcode && p.name.trim().toLowerCase() === normItemName) return true;
                       return false;
                     });
 
@@ -1411,8 +1413,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         _purchaseInvoiceItemId: item.id,
                         name: item.product_name || item.name || '',
                         barcode: item.barcode || '',
+                        product_code: item.product_code || '',
                         cost_price: Number(item.unit_price) || 0,
-                        price: Number(item.unit_price) * 1.2 || 0,
+                        price: Number(item.unit_price) * 1.25 || 0,
                         tax_rate: Number(item.tax_rate) || 20,
                         stock_quantity: Number(item.quantity) || 0
                       } as any);

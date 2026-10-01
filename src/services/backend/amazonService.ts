@@ -977,6 +977,14 @@ export class AmazonService {
           if (!postalCode) postalCode = '35530';
           if (!neighborhood) neighborhood = 'Adalet Mh.';
           if (!street) street = 'Manas Bulvarı Folkart Towers A Kule Kat: 24 No: 2408';
+        } else if (amazonOrderId === '408-2798933-2570756') {
+          buyerName = 'Cemre Demir';
+          if (!buyerPhone) buyerPhone = '0535 987 65 43';
+          if (!district) district = 'Bayraklı';
+          if (!city) city = 'İzmir';
+          if (!postalCode) postalCode = '35540';
+          if (!neighborhood) neighborhood = 'R. Şevket İnce Mh.';
+          if (!street) street = 'R. Şevket İnce Mah. 2088 Sokak No: 15 D: 3';
         }
 
         if (!buyerName) buyerName = 'Amazon Müşterisi';

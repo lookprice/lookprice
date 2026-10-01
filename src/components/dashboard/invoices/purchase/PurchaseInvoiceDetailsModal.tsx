@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   Printer, 
@@ -13,9 +13,13 @@ import {
   Clock,
   Eye,
   CreditCard,
-  Layers
+  Layers,
+  RefreshCw,
+  Edit3
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
+import { api } from '../../../../services/api';
 
 interface PurchaseInvoiceDetailsModalProps {
   isOpen: boolean;
@@ -26,6 +30,8 @@ interface PurchaseInvoiceDetailsModalProps {
   onEditProduct?: (item: any) => void;
   handleConvertToStock?: (id: number) => void;
   handleConvertToExpense?: (id: number) => void;
+  onRefresh?: () => void;
+  storeId?: number;
 }
 
 export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalProps> = ({
@@ -36,9 +42,32 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
   handleViewHtml,
   onEditProduct,
   handleConvertToStock,
-  handleConvertToExpense
+  handleConvertToExpense,
+  onRefresh,
+  storeId
 }) => {
+  const [syncing, setSyncing] = useState(false);
   if (!isOpen || !invoice) return null;
+
+  const handleReSync = async () => {
+    if (!invoice.ettn) return;
+    const confirmMsg = isTr 
+      ? 'Bu faturanın tüm kalemleri resmi e-fatura detaylarıyla yeniden taranacak ve ürün stokları hassas olarak senkronize edilecek. Devam edilsin mi?'
+      : 'Re-sync all invoice items and stocks from official e-invoice?';
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setSyncing(true);
+      const res = await api.reSyncPurchaseInvoiceMatching(invoice.id, storeId);
+      toast.success(res?.message || (isTr ? 'Fatura kalemleri ve stoklar başarıyla senkronize edildi.' : 'Invoice items synchronized.'));
+      if (onRefresh) onRefresh();
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? 'Senkronizasyon hatası' : 'Sync error'));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -87,6 +116,17 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                 >
                   <Layers className="h-4 w-4" />
                   {isTr ? "GİDER FATURASINA DÖNÜŞTÜR" : "CONVERT TO EXPENSE"}
+                </button>
+             )}
+             {invoice.ettn && (
+                <button
+                  onClick={handleReSync}
+                  disabled={syncing}
+                  className="px-3.5 py-2 bg-slate-800 text-white rounded-xl text-xs font-black hover:bg-slate-700 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                  title={isTr ? "Resmi e-fatura detaylarından kalemleri ve stokları yeniden senkronize et" : "Re-sync from official invoice"}
+                >
+                  <RefreshCw className={`h-4 w-4 text-cyan-400 ${syncing ? 'animate-spin' : ''}`} />
+                  {isTr ? "EŞLEŞTİRMEYİ YENİLE" : "RE-SYNC"}
                 </button>
              )}
              {handleViewHtml && (
@@ -197,16 +237,29 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                           return (
                             <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                <td className="p-4">
-                                  <button 
-                                    type="button"
-                                    onClick={() => {
-                                      if (onEditProduct) onEditProduct(item);
-                                    }}
-                                    className={`text-left text-sm font-black text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
-                                  >
-                                    {item.product_name}
-                                  </button>
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <button 
+                                      type="button"
+                                      onClick={() => {
+                                        if (onEditProduct) onEditProduct(item);
+                                      }}
+                                      className={`text-left text-sm font-black text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                                    >
+                                      {item.product_name}
+                                    </button>
+                                    {onEditProduct && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onEditProduct(item)}
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
+                                        title={isTr ? "Ürün kartını düzenle, yeni kart aç veya eşleştirmeyi revize et" : "Edit product or revise matching"}
+                                      >
+                                        <Edit3 className="w-2.5 h-2.5" />
+                                        {isTr ? "Düzenle / Eşleştir" : "Edit / Match"}
+                                      </button>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
                                     {item.barcode || '-'}{item.product_code ? ` • Kod: ${item.product_code}` : ''}
                                   </p>
                                </td>

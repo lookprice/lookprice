@@ -1959,19 +1959,16 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               if (match) {
                 productId = match.productId;
                 finalProductCode = match.productCode || sellerCode || buyerCode || null;
-                // If matched product has valid standard barcode, keep it, else sanitize
-                if (isValidStandardBarcode(match.barcode)) {
+                // If incoming invoice line has its own valid standard barcode, ALWAYS preserve it
+                const incomingSanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, finalProductCode);
+                if (isValidStandardBarcode(incomingSanitized.barcode) && !incomingSanitized.isTempBarcode) {
+                  finalBarcode = incomingSanitized.barcode;
+                } else if (isValidStandardBarcode(match.barcode)) {
                   finalBarcode = match.barcode;
                 } else {
-                  const sanitized = sanitizeInvoiceItemCodes(match.barcode, sellerCode, buyerCode, finalProductCode);
-                  finalBarcode = sanitized.barcode;
-                  if (!finalProductCode) finalProductCode = sanitized.productCode;
-                  // Repair matched product in DB if old barcode was non-standard
-                  await pool.query(
-                    "UPDATE products SET barcode = $1, product_code = COALESCE(product_code, $2), sku = COALESCE(sku, $2) WHERE id = $3",
-                    [finalBarcode, finalProductCode, productId]
-                  );
+                  finalBarcode = incomingSanitized.barcode;
                 }
+                if (!finalProductCode) finalProductCode = incomingSanitized.productCode;
               } else {
                 // Sanitize code values: non-standard strings like "TRU16977" become product_code, and a valid temp numeric barcode is generated
                 const sanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, null);

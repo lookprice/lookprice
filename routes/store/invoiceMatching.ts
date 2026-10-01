@@ -107,13 +107,61 @@ export function normalizeText(text: string | null | undefined): string {
 }
 
 /**
- * Extracts alphanumeric model tokens (e.g. "MZ-V9P1T0BW", "TRU16977", "16977", "C9370A", "990PRO")
+ * Extracts storage / memory / size / power capacities from product titles or codes.
+ * E.g. "32GB", "64 GB", "128GB", "1 TB", "2TB", "512 GB", "65W", "100W", "20W", "65 ml", etc.
+ */
+export function extractProductCapacities(text: string | null | undefined): string[] {
+  if (!text) return [];
+  const normalized = text.toLowerCase()
+    .replace(/(\d+)\s*(tb|gb|mb|watt|w|kva|mah|ah|ml|lt|kg|gr|inch|inç|cm|mm)\b/gi, '$1$2');
+  const matches = normalized.match(/\b\d+(?:\.\d+)?(?:tb|gb|mb|watt|w|kva|mah|ah|ml|lt|kg|gr|inch|inç|cm|mm)\b/gi) || [];
+  return Array.from(new Set(matches.map(m => m.toLowerCase())));
+}
+
+/**
+ * Checks if two product descriptions have conflicting capacities or specifications.
+ * E.g. one has "32gb" and other has "64gb" or "128gb" -> CONFLICT!
+ * If both have capacities and there is no overlap, returns true (has conflict).
+ */
+export function hasCapacityConflict(text1: string | null | undefined, text2: string | null | undefined): boolean {
+  const caps1 = extractProductCapacities(text1);
+  const caps2 = extractProductCapacities(text2);
+  if (caps1.length > 0 && caps2.length > 0) {
+    const hasOverlap = caps1.some(c1 => caps2.includes(c1));
+    if (!hasOverlap) {
+      return true; // Conflicting capacities! E.g. 32gb vs 128gb
+    }
+  }
+  return false;
+}
+
+/**
+ * Extracts alphanumeric model tokens (e.g. "MZ-V9P1T0BW", "TRU16977", "TRU24947", "C9370A", "990PRO", "E307C")
+ * Strictly requires at least one digit and ignores generic tech keywords or pure dictionary words.
  */
 export function extractModelTokens(text: string | null | undefined): string[] {
   if (!text) return [];
-  // Match tokens with alphanumeric mix, or numbers at least 4 digits
-  const tokens = text.match(/[A-Za-z0-9]+(?:[-_/][A-Za-z0-9]+)+|[A-Za-z]{2,}[0-9]{3,}|[0-9]{4,}[A-Za-z]+|[A-Za-z0-9]{5,}/g) || [];
-  return Array.from(new Set(tokens.map(t => t.trim()))).filter(t => t.length >= 4 && !t.startsWith("AUTO-"));
+  
+  // Generic tech terms / interface types to ignore:
+  const genericTerms = new Set([
+    'usb3.0', 'usb3.1', 'usb3.2', 'usb2.0', 'type-c', 'typec', 'usbc', 'usb-c',
+    'ddr3', 'ddr4', 'ddr5', 'pcie', 'pcie3', 'pcie4', 'pcie5', 'nvme', 'sata', 'sata3',
+    'hdmi', 'wifi', 'bluetooth', 'cat6', 'cat7', '1080p', '2160p', '4k', '8k', '64bit', '32bit'
+  ]);
+
+  const rawMatches = text.match(/[A-Za-z0-9]+(?:[-_/][A-Za-z0-9]+)+|[A-Za-z]+[0-9]+[A-Za-z0-9]*|[0-9]+[A-Za-z]+[A-Za-z0-9]*/g) || [];
+  
+  const validTokens: string[] = [];
+  for (const m of rawMatches) {
+    const clean = m.trim();
+    if (clean.length < 4 || clean.startsWith("AUTO-") || clean.startsWith("TEMP-")) continue;
+    // Must have at least one digit to be a model/code token
+    if (!/[0-9]/.test(clean)) continue;
+    if (genericTerms.has(clean.toLowerCase())) continue;
+    validTokens.push(clean);
+  }
+
+  return Array.from(new Set(validTokens));
 }
 
 /**
@@ -147,6 +195,7 @@ export async function findMatchingProduct(
     .map(c => String(c).trim())
     .filter(c => c.length > 0 && !c.startsWith("AUTO-"));
   const candidateCodes = Array.from(new Set(rawCodes));
+  const incomingStandardBarcode = candidateCodes.find(c => isValidStandardBarcode(c)) || null;
 
   // 1. Tier 1: Check Supplier Product Mappings (Prior manual or confirmed links)
   if (supplierVkn && cleanName) {
@@ -165,13 +214,19 @@ export async function findMatchingProduct(
       );
       if (mappingRes.rows.length > 0) {
         const row = mappingRes.rows[0];
-        return {
-          productId: row.product_id,
-          barcode: row.barcode,
-          productCode: row.product_code,
-          name: row.name,
-          matchType: 'supplier_mapping'
-        };
+        const hasCapConflict = hasCapacityConflict(cleanName, row.name);
+        const hasBarConflict = Boolean(
+          incomingStandardBarcode && isValidStandardBarcode(row.barcode) && incomingStandardBarcode !== row.barcode
+        );
+        if (!hasCapConflict && !hasBarConflict) {
+          return {
+            productId: row.product_id,
+            barcode: row.barcode,
+            productCode: row.product_code,
+            name: row.name,
+            matchType: 'supplier_mapping'
+          };
+        }
       }
     } catch (err) {
       console.error("Error checking supplier_product_mappings:", err);
@@ -214,13 +269,19 @@ export async function findMatchingProduct(
     );
     if (codeRes.rows.length > 0) {
       const row = codeRes.rows[0];
-      return {
-        productId: row.id,
-        barcode: row.barcode,
-        productCode: row.product_code,
-        name: row.name,
-        matchType: 'product_code'
-      };
+      const hasCapConflict = hasCapacityConflict(cleanName, row.name);
+      const hasBarConflict = Boolean(
+        incomingStandardBarcode && isValidStandardBarcode(row.barcode) && incomingStandardBarcode !== row.barcode
+      );
+      if (!hasCapConflict && !hasBarConflict) {
+        return {
+          productId: row.id,
+          barcode: row.barcode,
+          productCode: row.product_code,
+          name: row.name,
+          matchType: 'product_code'
+        };
+      }
     }
   }
 
@@ -236,13 +297,18 @@ export async function findMatchingProduct(
     );
     if (exactNameRes.rows.length > 0) {
       const row = exactNameRes.rows[0];
-      return {
-        productId: row.id,
-        barcode: row.barcode,
-        productCode: row.product_code,
-        name: row.name,
-        matchType: 'exact_name'
-      };
+      const hasBarConflict = Boolean(
+        incomingStandardBarcode && isValidStandardBarcode(row.barcode) && incomingStandardBarcode !== row.barcode
+      );
+      if (!hasBarConflict) {
+        return {
+          productId: row.id,
+          barcode: row.barcode,
+          productCode: row.product_code,
+          name: row.name,
+          matchType: 'exact_name'
+        };
+      }
     }
 
     // 4b. Normalized name match (stripping spaces, symbols, turkish chars)
@@ -256,13 +322,19 @@ export async function findMatchingProduct(
       for (const p of allStoreProducts.rows) {
         const normP = normalizeText(p.name);
         if (normP && (normP === normalizedItemName || (normP.length > 8 && normalizedItemName.length > 8 && (normP.includes(normalizedItemName) || normalizedItemName.includes(normP))))) {
-          return {
-            productId: p.id,
-            barcode: p.barcode,
-            productCode: p.product_code,
-            name: p.name,
-            matchType: 'normalized_name'
-          };
+          const hasCapConflict = hasCapacityConflict(cleanName, p.name);
+          const hasBarConflict = Boolean(
+            incomingStandardBarcode && isValidStandardBarcode(p.barcode) && incomingStandardBarcode !== p.barcode
+          );
+          if (!hasCapConflict && !hasBarConflict) {
+            return {
+              productId: p.id,
+              barcode: p.barcode,
+              productCode: p.product_code,
+              name: p.name,
+              matchType: 'normalized_name'
+            };
+          }
         }
       }
     }
@@ -273,29 +345,37 @@ export async function findMatchingProduct(
   // System has "Trust 16977 Mouse Pad".
   // E.g. Invoice says "... 990 PRO ... MZ-V9P1T0BW". System has "Samsung 1Tb 990 Pro Mz-V9P1T0Bw ...".
   const tokensToSearch = Array.from(new Set([
-    ...candidateCodes,
+    ...candidateCodes.filter(c => !isValidStandardBarcode(c)),
     ...extractModelTokens(cleanName),
     ...candidateCodes.flatMap(c => extractModelTokens(c))
-  ])).filter(t => t.length >= 4);
+  ])).filter(t => t.length >= 4 && !t.startsWith("AUTO-"));
 
   for (const token of tokensToSearch) {
-    // Try matching model token inside products name, barcode, product_code or sku
+    // Try matching model token inside products name, product_code or sku (skip numeric barcode search)
     const tokenQuery = await clientOrPool.query(
       `SELECT id, barcode, COALESCE(product_code, sku, '') as product_code, name 
        FROM products 
        WHERE store_id = $1 AND (
          LOWER(name) LIKE '%' || LOWER($2) || '%' 
-         OR LOWER(barcode) LIKE '%' || LOWER($2) || '%' 
          OR LOWER(product_code) LIKE '%' || LOWER($2) || '%' 
          OR LOWER(sku) LIKE '%' || LOWER($2) || '%'
        )
-       LIMIT 3`,
+       LIMIT 5`,
       [storeId, token]
     );
 
-    if (tokenQuery.rows.length === 1) {
+    // Apply strict capacity and barcode conflict filters
+    const validRows = tokenQuery.rows.filter((row: any) => {
+      if (hasCapacityConflict(cleanName, row.name)) return false;
+      if (incomingStandardBarcode && isValidStandardBarcode(row.barcode) && incomingStandardBarcode !== row.barcode) {
+        return false;
+      }
+      return true;
+    });
+
+    if (validRows.length === 1) {
       // Exactly 1 product matched this distinct model token!
-      const row = tokenQuery.rows[0];
+      const row = validRows[0];
       return {
         productId: row.id,
         barcode: row.barcode,
@@ -303,12 +383,12 @@ export async function findMatchingProduct(
         name: row.name,
         matchType: 'model_token'
       };
-    } else if (tokenQuery.rows.length > 1) {
+    } else if (validRows.length > 1) {
       // If multiple matched, find the one with highest brand/name similarity
       const cleanLower = cleanName.toLowerCase();
       let bestMatch: any = null;
       let maxOverlap = 0;
-      for (const row of tokenQuery.rows) {
+      for (const row of validRows) {
         const pLower = row.name.toLowerCase();
         // Count shared word tokens
         const invoiceWords = cleanLower.split(/\s+/).filter((w: string) => w.length > 2);
