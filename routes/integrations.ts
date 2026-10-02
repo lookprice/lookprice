@@ -131,15 +131,17 @@ router.post("/amazon/bulk-sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
   try {
-    const storeRes = await pool.query("SELECT amazon_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.amazon_settings;
+    const storeRes = await pool.query("SELECT amazon_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+    const row = storeRes.rows[0];
+    const settings = row?.amazon_settings || row?.branding?.amazon_settings;
+    const rates = row?.currency_rates || row?.branding?.currency_rates || {};
 
     if (!settings || (!settings.refresh_token && !settings.clientId)) {
       return res.status(400).json({ error: "Amazon hesabı bağlı veya ayarları tam değil" });
     }
 
     const prodRes = await pool.query(
-      `SELECT id, name, sku, barcode, price, sale_price, stock_quantity, currency, category, sub_category, amazon_asin, amazon_sku, is_amazon_active 
+      `SELECT id, name, sku, barcode, price, stock_quantity, currency, category, sub_category, amazon_asin, amazon_sku, is_amazon_active, marketplace_data 
        FROM products 
        WHERE store_id = $1 AND (is_amazon_active = true OR (amazon_asin IS NOT NULL AND amazon_asin != '' AND amazon_asin NOT LIKE 'http%'))`,
       [storeId]
@@ -147,7 +149,7 @@ router.post("/amazon/bulk-sync", authenticate, async (req: any, res) => {
     const products = prodRes.rows || [];
 
     const amazonService = new AmazonService(settings, storeId);
-    const result = await amazonService.bulkSyncInventory(products);
+    const result = await amazonService.bulkSyncInventory(products, { rates });
 
     const newSettings = { ...settings, last_sync: new Date().toISOString() };
     await pool.query("UPDATE stores SET amazon_settings = $1 WHERE id = $2", [newSettings, storeId]);

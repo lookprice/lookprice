@@ -291,9 +291,18 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
           if (typeof mpData === "string") {
             try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
           }
+          mpData = mpData || {};
+          if (!mpData.hepsiburada) mpData.hepsiburada = {};
+          if (!mpData.hepsiburada.attributes) mpData.hepsiburada.attributes = {};
+          mpData.hepsiburada.attributes.price = String(effectivePrice);
+          mpData.hepsiburada.lastSync = new Date().toISOString();
+          p.marketplace_data = mpData;
+
           const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode;
 
           return {
+            productId: p.id,
+            marketplaceData: mpData,
             MerchantSku: hbMerchantSku,
             HepsiburadaSku: p.hepsiburada_sku || "",
             Price: effectivePrice,
@@ -302,15 +311,19 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
           };
         });
 
-        const updateRes = await hbService.updatePriceAndStock(inventoryItems);
+        const updateRes = await hbService.updatePriceAndStock(inventoryItems.map(({ MerchantSku, HepsiburadaSku, Price, AvailableStock, DispatchTime }) => ({
+          MerchantSku, HepsiburadaSku, Price, AvailableStock, DispatchTime
+        })));
         console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): Hepsiburada ${inventoryItems.length} ürünün döviz bazlı fiyatı güncellendi. Sonuç:`, updateRes?.success ? 'BAŞARILI' : 'TAMAMLANDI');
         
-        await pool.query(
-          `UPDATE products 
-           SET hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL 
-           WHERE store_id = $1 AND (is_hepsiburada_active = true OR hepsiburada_sku IS NOT NULL)`,
-          [storeId]
-        );
+        for (const it of inventoryItems) {
+          await pool.query(
+            `UPDATE products 
+             SET hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL, marketplace_data = $1 
+             WHERE id = $2`,
+            [JSON.stringify(it.marketplaceData), it.productId]
+          );
+        }
       }
     }
 
@@ -348,20 +361,71 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
           const sellerSku = p.amazon_sku || p.sku || p.barcode;
           const stock = parseInt(p.stock_quantity || "0", 10);
 
+          let mpData: any = p.marketplace_data;
+          if (typeof mpData === "string") {
+            try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+          }
+          mpData = mpData || {};
+          if (!mpData.amazon) mpData.amazon = {};
+          if (!mpData.amazon.attributes) mpData.amazon.attributes = {};
+          mpData.amazon.attributes.price = String(effectivePrice);
+          mpData.amazon.lastSync = new Date().toISOString();
+          if (!mpData.attributes) mpData.attributes = {};
+          mpData.attributes.price = String(effectivePrice);
+
           if (sellerSku && effectivePrice > 0) {
             const res = await amzService.updateListingsItem(sellerSku, effectivePrice, stock);
-            if (res.success) {
-              await pool.query(
-                "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = NULL WHERE id = $1",
-                [p.id]
-              );
-            }
+            await pool.query(
+              "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = $1, marketplace_data = $2 WHERE id = $3",
+              [res.success ? null : res.message, JSON.stringify(mpData), p.id]
+            );
           }
         } catch (itemErr: any) {
           console.warn(`[CRON-CURRENCY-AMZ] Product #${p.id} update error:`, itemErr.message);
         }
       }
       console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): Amazon TR ${amzProductsRes.rows.length} ürünün fiyat ve stoğu güncellendi.`);
+    }
+
+    // 3. Update marketplace_data prices for other active channels (Trendyol, N11, Pazarama)
+    const otherProductsRes = await pool.query(
+      `SELECT id, name, category, sub_category, price, currency, marketplace_data 
+       FROM products 
+       WHERE store_id = $1 AND currency IN ('USD', 'EUR', 'GBP')`,
+      [storeId]
+    );
+
+    const hbHelper = new HepsiburadaService(hbSettings || {}, storeId);
+    for (const p of otherProductsRes.rows) {
+      let rawPrice = parseFloat(p.price || "0");
+      const curr = (p.currency || "TRY").toUpperCase();
+      if (curr === "USD" && effectiveRates!.USD) rawPrice *= Number(effectiveRates!.USD);
+      else if (curr === "EUR" && effectiveRates!.EUR) rawPrice *= Number(effectiveRates!.EUR);
+      else if (curr === "GBP" && effectiveRates!.GBP) rawPrice *= Number(effectiveRates!.GBP);
+
+      const calculatedPrice = hbHelper.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+      if (calculatedPrice > 0) {
+        let mpData: any = p.marketplace_data;
+        if (typeof mpData === "string") {
+          try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+        }
+        mpData = mpData || {};
+        
+        ['trendyol', 'n11', 'pazarama', 'attributes'].forEach((ch) => {
+          if (!mpData[ch]) mpData[ch] = {};
+          if (ch === 'attributes') {
+            mpData.attributes.price = String(calculatedPrice);
+          } else {
+            if (!mpData[ch].attributes) mpData[ch].attributes = {};
+            mpData[ch].attributes.price = String(calculatedPrice);
+          }
+        });
+
+        await pool.query(
+          "UPDATE products SET marketplace_data = $1 WHERE id = $2",
+          [JSON.stringify(mpData), p.id]
+        );
+      }
     }
   } catch (err: any) {
     console.error(`[CRON-CURRENCY] Store #${storeId} pazaryeri fiyat revizyonu hatası:`, err.message || err);

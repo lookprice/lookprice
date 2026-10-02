@@ -209,15 +209,34 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
 
       {/* Price & Stock */}
       <td className="py-3 px-4 whitespace-nowrap">
-        <div className="font-semibold text-slate-900 dark:text-slate-100 text-xs font-mono tabular-nums">
-          {parseFloat(p.price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {p.currency || 'TL'}
-        </div>
-        <div className="text-[10px] font-medium text-slate-400 mt-0.5 font-mono">
-          {isTr ? "Stok:" : "Stock:"}{" "}
-          <span className={`font-semibold ${Number(p.stock_quantity || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
-            {p.stock_quantity || 0}
-          </span>
-        </div>
+        {(() => {
+          let mpData = p.marketplace_data;
+          if (typeof mpData === 'string') {
+            try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+          }
+          const mpSpecificPrice = selectedMarketplace !== 'all' 
+            ? (mpData?.[selectedMarketplace]?.attributes?.price || mpData?.[selectedMarketplace]?.price)
+            : (mpData?.amazon?.attributes?.price || mpData?.hepsiburada?.attributes?.price || mpData?.attributes?.price);
+          
+          return (
+            <div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100 text-xs font-mono tabular-nums">
+                {parseFloat(p.price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {p.currency || 'TL'}
+              </div>
+              {mpSpecificPrice && Number(mpSpecificPrice) > 0 && (
+                <div className="text-[10px] font-bold text-orange-600 dark:text-orange-400 font-mono" title={isTr ? "E-Market Satış Fiyatı" : "Marketplace Selling Price"}>
+                  PZ: {Number(mpSpecificPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                </div>
+              )}
+              <div className="text-[10px] font-medium text-slate-400 mt-0.5 font-mono">
+                {isTr ? "Stok:" : "Stock:"}{" "}
+                <span className={`font-semibold ${Number(p.stock_quantity || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
+                  {p.stock_quantity || 0}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
       </td>
 
       {/* Marketplace Status Badges */}
