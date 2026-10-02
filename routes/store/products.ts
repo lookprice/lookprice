@@ -1347,7 +1347,8 @@ router.put("/:id", async (req: any, res) => {
     );
 
     // Auto-sync revised price & stock to Hepsiburada if product is active on HB
-    if (existingProductRes.rows[0]?.is_hepsiburada_active) {
+    const isHbActive = existingProductRes.rows[0]?.is_hepsiburada_active || existingProductRes.rows[0]?.hepsiburada_sku;
+    if (isHbActive) {
       (async () => {
         try {
           const storeRes = await pool.query("SELECT hepsiburada_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
@@ -1389,7 +1390,8 @@ router.put("/:id", async (req: any, res) => {
       })();
     }
 
-    if (existingProductRes.rows[0]?.is_amazon_active) {
+    const isAmzActive = existingProductRes.rows[0]?.is_amazon_active || existingProductRes.rows[0]?.amazon_asin;
+    if (isAmzActive) {
       (async () => {
         try {
           const storeRes = await pool.query("SELECT amazon_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
@@ -1427,6 +1429,37 @@ router.put("/:id", async (req: any, res) => {
             "UPDATE products SET amazon_last_error = $1 WHERE id = $2",
             [amzSyncErr.message, id]
           );
+        }
+      })();
+    }
+
+    // Auto-sync N11 and other marketplaces data
+    const isN11Active = existingProductRes.rows[0]?.is_n11_active || (finalMarketplaceData?.n11?.status === 'ACTIVE');
+    if (isN11Active) {
+      (async () => {
+        try {
+          const storeRes = await pool.query("SELECT n11_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+          const st = storeRes.rows[0];
+          const n11Settings = st?.n11_settings || st?.branding?.n11_settings;
+          if (n11Settings?.appKey && n11Settings?.appSecret) {
+            const { N11Service } = await import("../../src/services/backend/n11Service.js");
+            const auth = { appKey: n11Settings.appKey.trim(), appSecret: n11Settings.appSecret.trim() };
+            const rates = st?.currency_rates || st?.branding?.currency_rates || {};
+            let rawPrice = parseFloat(String(finalPrice || "0"));
+            const curr = (currency || "TRY").toUpperCase();
+            if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+            else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+            else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+
+            const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, category, sub_category, n11Settings);
+            const sellerCode = finalBarcode || existingProductRes.rows[0]?.sku;
+
+            if (sellerCode && effectivePrice > 0) {
+              await N11Service.updatePriceAndStock(auth, sellerCode, effectivePrice, parseInt(String(newStock || 0), 10));
+            }
+          }
+        } catch (n11SyncErr: any) {
+          console.warn(`[Background N11 Sync] Failed for product ${id}:`, n11SyncErr.message);
         }
       })();
     }

@@ -773,7 +773,7 @@ export class AmazonService {
   /**
    * Update Price & Stock for a single SKU via Listings Items API
    */
-  async updateListingsItem(sku: string, price: number, quantity: number): Promise<{ success: boolean; sku: string; message?: string }> {
+  async updateListingsItem(sku: string, price: number, quantity: number, maxRetries = 3): Promise<{ success: boolean; sku: string; message?: string }> {
     const accessToken = await this.getAccessToken();
     const sellerId = this.settings.sellerId;
 
@@ -815,18 +815,33 @@ export class AmazonService {
       ],
     };
 
-    try {
-      const response = await axios.patch(url, patchBody, {
-        headers: {
-          "x-amz-access-token": accessToken,
-          "Content-Type": "application/json",
-        },
-      });
-      return { success: true, sku, message: response.data?.status || "Updated" };
-    } catch (err: any) {
-      const errMsg = err.response?.data?.errors?.[0]?.message || err.response?.data?.message || err.message;
-      return { success: false, sku, message: errMsg };
+    let attempt = 0;
+    while (attempt <= maxRetries) {
+      try {
+        const response = await axios.patch(url, patchBody, {
+          headers: {
+            "x-amz-access-token": accessToken,
+            "Content-Type": "application/json",
+          },
+          timeout: 15000,
+        });
+        return { success: true, sku, message: response.data?.status || "Updated" };
+      } catch (err: any) {
+        const status = err.response?.status;
+        const errMsg = err.response?.data?.errors?.[0]?.message || err.response?.data?.message || err.message;
+        
+        // If rate limit (429 or quota exceeded), back off and retry
+        if ((status === 429 || String(errMsg).toLowerCase().includes('quota')) && attempt < maxRetries) {
+          attempt++;
+          const waitMs = 500 * Math.pow(2, attempt); // 1000ms, 2000ms, 4000ms
+          await new Promise(resolve => setTimeout(resolve, waitMs));
+          continue;
+        }
+
+        return { success: false, sku, message: errMsg };
+      }
     }
+    return { success: false, sku, message: "Amazon SP-API istek kotası aşıldı." };
   }
 
   /**
@@ -857,18 +872,32 @@ export class AmazonService {
 
       if (!sku || effectivePrice <= 0) continue;
 
+      // Add pacing delay to respect Amazon SP-API 5 req/sec quota
+      await new Promise(resolve => setTimeout(resolve, 250));
+
       const res = await this.updateListingsItem(String(sku).trim(), effectivePrice, stock);
+      
+      let mpData: any = prod.marketplace_data;
+      if (typeof mpData === "string") {
+        try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+      }
+      mpData = mpData || {};
+      if (!mpData.amazon) mpData.amazon = {};
+      if (!mpData.amazon.attributes) mpData.amazon.attributes = {};
+      mpData.amazon.attributes.price = String(effectivePrice);
+      mpData.amazon.lastSync = new Date().toISOString();
+
       if (res.success) {
         syncedCount++;
         await pool.query(
-          "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = NULL WHERE id = $1",
-          [prod.id]
+          "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = NULL, marketplace_data = $1 WHERE id = $2",
+          [JSON.stringify(mpData), prod.id]
         );
       } else {
         errorsCount++;
         await pool.query(
-          "UPDATE products SET amazon_last_error = $1 WHERE id = $2",
-          [res.message, prod.id]
+          "UPDATE products SET amazon_last_error = $1, marketplace_data = $2 WHERE id = $3",
+          [res.message, JSON.stringify(mpData), prod.id]
         );
       }
       details.push(res);

@@ -387,7 +387,67 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
       console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): Amazon TR ${amzProductsRes.rows.length} ürünün fiyat ve stoğu güncellendi.`);
     }
 
-    // 3. Update marketplace_data prices for other active channels (Trendyol, N11, Pazarama)
+    // 3. N11 Live Price & Stock Push
+    let n11Settings = store.n11_settings;
+    if (typeof n11Settings === 'string') {
+      try { n11Settings = JSON.parse(n11Settings); } catch(e) { n11Settings = {}; }
+    }
+    if (!n11Settings?.appKey) {
+      n11Settings = store.branding?.n11_settings || n11Settings || {};
+    }
+
+    if (n11Settings?.appKey && n11Settings?.appSecret) {
+      try {
+        const { N11Service } = await import("./backend/n11Service.js");
+        const auth = { appKey: n11Settings.appKey.trim(), appSecret: n11Settings.appSecret.trim() };
+        const n11ProductsRes = await pool.query(
+          `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, marketplace_data 
+           FROM products 
+           WHERE store_id = $1 AND (is_n11_active = true OR (marketplace_data->'n11'->>'status' = 'ACTIVE')) AND barcode IS NOT NULL AND barcode != ''`,
+          [storeId]
+        );
+
+        for (const p of n11ProductsRes.rows) {
+          try {
+            let rawPrice = parseFloat(p.price || "0");
+            const curr = (p.currency || "TRY").toUpperCase();
+            if (curr === "USD" && effectiveRates!.USD) rawPrice *= Number(effectiveRates!.USD);
+            else if (curr === "EUR" && effectiveRates!.EUR) rawPrice *= Number(effectiveRates!.EUR);
+            else if (curr === "GBP" && effectiveRates!.GBP) rawPrice *= Number(effectiveRates!.GBP);
+
+            const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, n11Settings);
+            const sellerCode = p.barcode || p.sku;
+            const stock = parseInt(p.stock_quantity || "0", 10);
+
+            let mpData: any = p.marketplace_data;
+            if (typeof mpData === "string") {
+              try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+            }
+            mpData = mpData || {};
+            if (!mpData.n11) mpData.n11 = {};
+            if (!mpData.n11.attributes) mpData.n11.attributes = {};
+            mpData.n11.attributes.price = String(effectivePrice);
+            mpData.n11.lastSync = new Date().toISOString();
+
+            if (sellerCode && effectivePrice > 0) {
+              await new Promise(r => setTimeout(r, 100));
+              const n11Res = await N11Service.updatePriceAndStock(auth, sellerCode, effectivePrice, stock);
+              await pool.query(
+                "UPDATE products SET marketplace_data = $1 WHERE id = $2",
+                [JSON.stringify(mpData), p.id]
+              );
+            }
+          } catch (n11Err: any) {
+            console.warn(`[CRON-CURRENCY-N11] Product #${p.id} update error:`, n11Err.message);
+          }
+        }
+        console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): N11 ${n11ProductsRes.rows.length} ürünün fiyat ve stoğu güncellendi.`);
+      } catch (n11InitErr: any) {
+        console.warn(`[CRON-CURRENCY-N11] N11 sync init error:`, n11InitErr.message);
+      }
+    }
+
+    // 4. Update marketplace_data prices for other active channels (Trendyol, N11, Pazarama)
     const otherProductsRes = await pool.query(
       `SELECT id, name, category, sub_category, price, currency, marketplace_data 
        FROM products 

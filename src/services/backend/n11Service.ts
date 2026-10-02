@@ -89,6 +89,56 @@ export class N11Service {
   }
 
   /**
+   * Calculate effective N11 price using the net margin protection formula:
+   * P_N11 = (P_Web + FixedFee) / (1 - (CommissionRate / 100))
+   */
+  static calculateMarketplacePrice(webPrice: number, category?: string, subCategory?: string, config?: any): number {
+    const rawPrice = Number(webPrice) || 0;
+    if (rawPrice <= 0) return 0;
+
+    const settings: any = config || {};
+    const categoryMarkups = settings.categoryMarkups || {};
+
+    let commissionRate = settings.defaultCommissionRate !== undefined && settings.defaultCommissionRate !== null
+      ? Number(settings.defaultCommissionRate) 
+      : 15;
+    let fixedFee = settings.defaultFixedFee !== undefined && settings.defaultFixedFee !== null 
+      ? Number(settings.defaultFixedFee) 
+      : 80;
+
+    const cat1 = category ? String(category).trim() : '';
+    const sub1 = subCategory ? String(subCategory).trim() : '';
+    const subKey = cat1 && sub1 ? `${cat1} > ${sub1}` : '';
+
+    if (subKey && categoryMarkups[subKey]) {
+      const cm = categoryMarkups[subKey];
+      if (cm.commissionRate !== undefined && cm.commissionRate !== null && cm.commissionRate !== '') {
+        commissionRate = Number(cm.commissionRate);
+      }
+      if (cm.fixedFee !== undefined && cm.fixedFee !== null && cm.fixedFee !== '') {
+        fixedFee = Number(cm.fixedFee);
+      }
+    } else if (cat1 && categoryMarkups[cat1]) {
+      const cm = categoryMarkups[cat1];
+      if (cm.commissionRate !== undefined && cm.commissionRate !== null && cm.commissionRate !== '') {
+        commissionRate = Number(cm.commissionRate);
+      }
+      if (cm.fixedFee !== undefined && cm.fixedFee !== null && cm.fixedFee !== '') {
+        fixedFee = Number(cm.fixedFee);
+      }
+    }
+
+    const priceWithFee = rawPrice + fixedFee;
+    let finalPrice = priceWithFee;
+
+    if (commissionRate > 0 && commissionRate < 100) {
+      finalPrice = priceWithFee / (1 - (commissionRate / 100));
+    }
+
+    return Number(finalPrice.toFixed(2));
+  }
+
+  /**
    * Test N11 API credentials by fetching shipment templates
    */
   static async testConnection(auth: N11Auth): Promise<{ success: boolean; message: string }> {
