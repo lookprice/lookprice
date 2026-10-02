@@ -198,7 +198,7 @@ router.put("/:companyId/transactions/:id", async (req: any, res) => {
   let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
   const { companyId, id } = req.params;
-  const { type, amount, description, transaction_date, payment_method, currency, exchange_rate } = req.body;
+  const { type, amount, description, transaction_date, payment_method, currency, exchange_rate, new_company_id } = req.body;
 
   try {
     let checkQuery = "SELECT * FROM current_account_transactions WHERE id = $1 AND company_id = $2";
@@ -214,22 +214,46 @@ router.put("/:companyId/transactions/:id", async (req: any, res) => {
 
     const currentTx = checkRes.rows[0];
     const newType = type || currentTx.type;
-    const newAmount = amount !== undefined && amount !== null && amount !== "" ? Number(String(amount).replace(',', '.')) : currentTx.amount;
+    
+    // Clean parse amount
+    let newAmount = currentTx.amount;
+    if (amount !== undefined && amount !== null && amount !== "") {
+      const s = String(amount).trim().replace(/\s/g, '');
+      if (s.includes(',') && s.includes('.')) {
+        newAmount = s.lastIndexOf(',') > s.lastIndexOf('.') ? parseFloat(s.replace(/\./g, '').replace(',', '.')) : parseFloat(s.replace(/,/g, ''));
+      } else if (s.includes(',')) {
+        newAmount = parseFloat(s.replace(',', '.'));
+      } else {
+        newAmount = parseFloat(s);
+      }
+      if (isNaN(newAmount)) newAmount = currentTx.amount;
+    }
+
     const newDescription = description !== undefined ? description : currentTx.description;
     const newPaymentMethod = payment_method !== undefined ? payment_method : currentTx.payment_method;
     const newCurrency = currency !== undefined ? currency : currentTx.currency;
-    const newExchangeRate = exchange_rate !== undefined && exchange_rate !== null && exchange_rate !== "" ? Number(String(exchange_rate).replace(',', '.')) : currentTx.exchange_rate;
+    
+    let newExchangeRate = currentTx.exchange_rate;
+    if (exchange_rate !== undefined && exchange_rate !== null && exchange_rate !== "") {
+      const s = String(exchange_rate).trim().replace(/\s/g, '').replace(',', '.');
+      const parsedRate = parseFloat(s);
+      if (!isNaN(parsedRate)) newExchangeRate = parsedRate;
+    }
+
+    const targetCompanyId = (new_company_id !== undefined && new_company_id !== null && new_company_id !== '') ? Number(new_company_id) : companyId;
+
     let newDate = currentTx.transaction_date;
     if (transaction_date) {
-      newDate = new Date(transaction_date);
+      const d = new Date(transaction_date);
+      if (!isNaN(d.getTime())) newDate = d;
     }
 
     const updateRes = await pool.query(
       `UPDATE current_account_transactions 
-       SET type = $1, amount = $2, description = $3, transaction_date = $4, payment_method = $5, currency = $6, exchange_rate = $7
-       WHERE id = $8 AND company_id = $9
+       SET type = $1, amount = $2, description = $3, transaction_date = $4, payment_method = $5, currency = $6, exchange_rate = $7, company_id = $8
+       WHERE id = $9
        RETURNING *`,
-      [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, id, companyId]
+      [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, targetCompanyId, id]
     );
 
     res.json({ success: true, transaction: updateRes.rows[0] });

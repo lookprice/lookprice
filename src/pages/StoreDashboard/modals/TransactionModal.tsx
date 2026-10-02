@@ -1,6 +1,10 @@
 import React from "react";
 import { motion } from "motion/react";
-import { X, Plus, History, FileDown, Calculator, FileCheck, Edit2, Trash2 } from "lucide-react";
+import { 
+  X, Plus, History, FileDown, Calculator, FileCheck, Edit2, Trash2, 
+  ArrowUpRight, ArrowDownLeft, Building2, Receipt, Calendar, CreditCard, 
+  Banknote, Landmark, Clock, AlertCircle, Save, CheckCircle2 
+} from "lucide-react";
 import { api } from "../../../services/api";
 
 interface TransactionModalProps {
@@ -87,6 +91,139 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   handleAddTransaction
 }) => {
   const isTr = lang === 'tr';
+  const [editingTransaction, setEditingTransaction] = React.useState<any | null>(null);
+
+  // Comprehensive Form State
+  const [formCompanyId, setFormCompanyId] = React.useState<number>(selectedCompany?.id || 0);
+  const [formType, setFormType] = React.useState<'credit' | 'debt'>('credit');
+  const [formAmount, setFormAmount] = React.useState<string>('');
+  const [formCurrency, setFormCurrency] = React.useState<string>('TRY');
+  const [formExchangeRate, setFormExchangeRate] = React.useState<string>('1');
+  const [formPaymentMethod, setFormPaymentMethod] = React.useState<'cash' | 'credit_card' | 'bank' | 'term'>('cash');
+  const [formDocumentNo, setFormDocumentNo] = React.useState<string>('');
+  const [formDescription, setFormDescription] = React.useState<string>('');
+  const [formDate, setFormDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
+
+  // Clean Number Parser (supports Turkish 1.250,50 and 1,250.50 formats)
+  const parseAmount = (val: string | number): number => {
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    if (!val) return 0;
+    const clean = String(val).trim().replace(/\s/g, '');
+    if (clean.includes(',') && clean.includes('.')) {
+      if (clean.lastIndexOf(',') > clean.lastIndexOf('.')) {
+        return parseFloat(clean.replace(/\./g, '').replace(',', '.')) || 0;
+      } else {
+        return parseFloat(clean.replace(/,/g, '')) || 0;
+      }
+    }
+    if (clean.includes(',')) {
+      return parseFloat(clean.replace(',', '.')) || 0;
+    }
+    const n = parseFloat(clean);
+    return isNaN(n) ? 0 : n;
+  };
+
+  const getSuggestedRate = (curr: string): number => {
+    if (!curr || curr === 'TRY') return 1;
+    const rates = branding?.currency_rates || {};
+    return Number(rates[curr]) || 1;
+  };
+
+  const handleCloseAddOrEditModal = () => {
+    setShowAddTransactionModal(false);
+    setEditingTransaction(null);
+  };
+
+  const handleOpenNewTransaction = () => {
+    setEditingTransaction(null);
+    setFormCompanyId(selectedCompany?.id || companies[0]?.id || 0);
+    setFormType('credit');
+    setFormAmount('');
+    const defCurr = selectedCurrency || branding?.default_currency || 'TRY';
+    setFormCurrency(defCurr);
+    setFormExchangeRate(String(getSuggestedRate(defCurr) || 1));
+    setFormPaymentMethod('cash');
+    setFormDocumentNo('');
+    setFormDescription('');
+    setFormDate(new Date().toISOString().split('T')[0]);
+    setShowAddTransactionModal(true);
+  };
+
+  const handleOpenEditTransaction = (tx: any) => {
+    setEditingTransaction(tx);
+    setFormCompanyId(tx.company_id || selectedCompany?.id || 0);
+    setFormType(tx.type === 'debt' ? 'debt' : 'credit');
+    
+    // Extract document no if exists in description like [Belge: XYZ] or [Evrak: XYZ]
+    let desc = tx.description || '';
+    let docNo = '';
+    const match = desc.match(/^\[(?:Belge|Evrak|Ref|Dekont):\s*([^\]]+)\]\s*(.*)$/i);
+    if (match) {
+      docNo = match[1].trim();
+      desc = match[2].trim();
+    }
+    setFormDocumentNo(docNo);
+    setFormDescription(desc);
+    
+    setFormAmount(tx.amount !== undefined && tx.amount !== null ? String(tx.amount) : '');
+    const txCurr = tx.currency || selectedCurrency || branding?.default_currency || 'TRY';
+    setFormCurrency(txCurr);
+    setFormExchangeRate(String(tx.exchange_rate || getSuggestedRate(txCurr) || '1'));
+    setFormPaymentMethod(tx.payment_method || 'cash');
+    
+    let dStr = new Date().toISOString().split('T')[0];
+    if (tx.transaction_date) {
+      try {
+        const d = new Date(tx.transaction_date);
+        if (!isNaN(d.getTime())) dStr = d.toISOString().split('T')[0];
+      } catch {}
+    } else if (tx.date) {
+      try {
+        const d = new Date(tx.date);
+        if (!isNaN(d.getTime())) dStr = d.toISOString().split('T')[0];
+      } catch {}
+    }
+    setFormDate(dStr);
+    setShowAddTransactionModal(true);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedAmt = parseAmount(formAmount);
+    if (parsedAmt <= 0) {
+      alert(isTr ? "Lütfen geçerli bir işlem tutarı giriniz." : "Please enter a valid amount.");
+      return;
+    }
+    const parsedRate = parseAmount(formExchangeRate) || 1;
+    const fullDesc = formDocumentNo.trim() 
+      ? `[Belge: ${formDocumentNo.trim()}] ${formDescription.trim()}`.trim() 
+      : formDescription.trim();
+
+    if (editingTransaction) {
+      handleEditTransaction(editingTransaction.id, {
+        company_id: formCompanyId,
+        type: formType,
+        amount: parsedAmt,
+        currency: formCurrency,
+        exchange_rate: parsedRate,
+        payment_method: formPaymentMethod,
+        description: fullDesc,
+        transaction_date: formDate
+      });
+      handleCloseAddOrEditModal();
+    } else {
+      setNewTransactionType(formType);
+      setNewTransactionAmount(String(parsedAmt));
+      setNewTransactionCurrency(formCurrency);
+      setNewTransactionExchangeRate(String(parsedRate));
+      setNewTransactionPaymentMethod(formPaymentMethod);
+      setNewTransactionDescription(fullDesc);
+      setNewTransactionDate(formDate);
+
+      handleAddTransaction(e);
+      handleCloseAddOrEditModal();
+    }
+  };
 
   return (
     <>
@@ -120,11 +257,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button 
-                  onClick={() => setShowAddTransactionModal(true)}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                  onClick={handleOpenNewTransaction}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  <span>{t.newTransaction || "Yeni Hareket"}</span>
+                  <span>{t.newTransaction || (isTr ? "Yeni İşlem" : "New Transaction")}</span>
                 </button>
                 <button 
                   onClick={() => setShowTransactionModal(false)} 
@@ -566,13 +703,33 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                         runningBalance -= amt;
                                       }
                                       const isDebt = tx.type === 'debt';
+                                      const isInvoice = Boolean(tx.sales_invoice_id || tx.purchase_invoice_id || tx.sales_invoice_number || tx.purchase_invoice_number);
+                                      const isPosSale = Boolean(tx.sale_id && !isInvoice);
+
                                       return (
-                                        <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
+                                        <tr key={tx.id} className="hover:bg-slate-50 transition-colors group">
                                           <td className="py-2 px-3.5 whitespace-nowrap text-slate-600 font-mono text-[11px]">
                                             {new Date(tx.transaction_date || tx.date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}
                                           </td>
-                                          <td className="py-2 px-3.5 text-slate-900 font-medium max-w-xs sm:max-w-md truncate">
-                                            {tx.description || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit'))}
+                                          <td className="py-2 px-3.5 text-slate-900 font-medium max-w-xs sm:max-w-md">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="truncate">{tx.description || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit'))}</span>
+                                              {tx.sales_invoice_number && (
+                                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                                                  Satış Fat: {tx.sales_invoice_number}
+                                                </span>
+                                              )}
+                                              {tx.purchase_invoice_number && (
+                                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
+                                                  Alış Fat: {tx.purchase_invoice_number}
+                                                </span>
+                                              )}
+                                              {isPosSale && (
+                                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                                  Satış #{tx.sale_id}
+                                                </span>
+                                              )}
+                                            </div>
                                           </td>
                                           <td className="py-2 px-3.5 text-right font-mono font-bold whitespace-nowrap text-rose-600">
                                             {isDebt ? amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 }) : '-'}
@@ -589,24 +746,18 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                           <td className="py-2 px-3.5 text-right whitespace-nowrap">
                                             <div className="flex justify-end items-center gap-1">
                                               <button 
-                                                onClick={() => {
-                                                  const newDesc = prompt(isTr ? 'Yeni açıklama:' : 'New description:', tx.description || '');
-                                                  const newAmount = prompt(isTr ? 'Yeni tutar:' : 'New amount:', tx.amount);
-                                                  if (newDesc !== null && newAmount !== null && newAmount.trim() !== '') {
-                                                    const cleanAmount = String(newAmount).trim().replace(/\s/g, '').replace(',', '.');
-                                                    const parsedAmt = Number(cleanAmount);
-                                                    if (!isNaN(parsedAmt) && parsedAmt >= 0) {
-                                                      handleEditTransaction(tx.id, { description: newDesc, amount: parsedAmt, type: tx.type });
-                                                    }
-                                                  }
-                                                }}
+                                                onClick={() => handleOpenEditTransaction(tx)}
                                                 className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors cursor-pointer"
-                                                title={isTr ? 'İşlemi Düzenle' : 'Edit Transaction'}
+                                                title={isTr ? 'İşlemi Düzenle / Revize Et' : 'Edit Transaction'}
                                               >
                                                 <Edit2 className="h-3.5 w-3.5" />
                                               </button>
                                               <button 
-                                                onClick={() => handleDeleteTransaction(tx.id)}
+                                                onClick={() => {
+                                                  if (window.confirm(isTr ? "Bu cari hesap hareketini silmek istediğinize emin misiniz?" : "Are you sure you want to delete this transaction?")) {
+                                                    handleDeleteTransaction(tx.id);
+                                                  }
+                                                }}
                                                 className="p-1 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
                                                 title={isTr ? 'İşlemi Sil' : 'Delete Transaction'}
                                               >
@@ -646,130 +797,279 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         </div>
       )}
 
-      {/* Add Transaction Modal */}
-      {showAddTransactionModal && selectedCompany && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      {/* Add / Edit Transaction Modal (Comprehensive ERP Revision Standard) */}
+      {showAddTransactionModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg xl:max-w-xl overflow-hidden max-h-[92vh] flex flex-col border border-slate-200"
           >
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <div className="flex flex-col">
-                <h3 className="text-xl font-bold text-gray-900">{t.addNewTransaction}</h3>
-                <p className="text-xs text-gray-500 font-medium">{selectedCompany.title || selectedCompany.name}</p>
+            {/* Header */}
+            <div className="px-5 py-3.5 border-b border-slate-800 flex justify-between items-center bg-slate-900 text-white shrink-0">
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                  {editingTransaction ? (
+                    <Edit2 className="h-4 w-4 text-amber-400 shrink-0" />
+                  ) : (
+                    <Plus className="h-4 w-4 text-indigo-400 shrink-0" />
+                  )}
+                  <h3 className="text-sm sm:text-base font-black text-white truncate">
+                    {editingTransaction 
+                      ? (isTr ? "Cari İşlemi Düzenle / Revize Et" : "Edit Account Transaction") 
+                      : (t.addNewTransaction || (isTr ? "Yeni Cari Hesap İşlemi" : "New Account Transaction"))}
+                  </h3>
+                  {editingTransaction && (
+                    <span className="font-mono text-amber-300 bg-amber-400/20 px-1.5 py-0.5 rounded text-[10px] font-bold border border-amber-400/30">
+                      ID #{editingTransaction.id}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-slate-300 font-medium truncate max-w-xs">
+                    {(companies.find(c => c.id === formCompanyId) || selectedCompany)?.title || (companies.find(c => c.id === formCompanyId) || selectedCompany)?.name}
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setShowAddTransactionModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
-                <X className="h-5 w-5 text-gray-400" />
+              <button 
+                type="button"
+                onClick={handleCloseAddOrEditModal} 
+                className="p-1.5 hover:bg-white/10 text-slate-300 hover:text-white rounded-full transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleAddTransaction} className="p-6 space-y-4">
+
+            {/* Linked Invoice Info Banner */}
+            {editingTransaction && (editingTransaction.sales_invoice_id || editingTransaction.purchase_invoice_id || editingTransaction.sale_id) && (
+              <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center gap-2 text-xs text-amber-900">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span className="text-[11px]">
+                  {editingTransaction.sales_invoice_number 
+                    ? `Bu hareket Satış Faturası (${editingTransaction.sales_invoice_number}) bağlantılıdır. Belge açıklamasını veya ödeme yöntemini buradan revize edebilirsiniz.` 
+                    : editingTransaction.purchase_invoice_number
+                    ? `Bu hareket Alış Faturası (${editingTransaction.purchase_invoice_number}) bağlantılıdır. Belge açıklamasını veya ödeme yöntemini buradan revize edebilirsiniz.`
+                    : `Bu hareket Satış (#${editingTransaction.sale_id}) bağlantılıdır.`}
+                </span>
+              </div>
+            )}
+
+            <form onSubmit={handleFormSubmit} className="p-4 sm:p-5 space-y-3.5 overflow-y-auto text-xs">
+              {/* Cari / Firma Seçimi */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-1">
+                  <Building2 className="h-3 w-3 text-slate-400" />
+                  <span>{isTr ? 'Cari Hesap / Müşteri' : 'Account / Company'}</span>
+                </label>
+                <select
+                  value={formCompanyId}
+                  onChange={(e) => setFormCompanyId(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-bold text-slate-800 cursor-pointer"
+                >
+                  {companies && companies.length > 0 ? (
+                    companies.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title || c.name} {c.tax_number ? `(${c.tax_number})` : ''}
+                      </option>
+                    ))
+                  ) : (
+                    selectedCompany && <option value={selectedCompany.id}>{selectedCompany.title || selectedCompany.name}</option>
+                  )}
+                </select>
+              </div>
+
+              {/* Type Selection (Tahsilat vs Ödeme) */}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setNewTransactionType('credit')}
-                  className={`px-4 py-3 rounded-xl font-bold text-sm transition-all border-2 cursor-pointer ${
-                    newTransactionType === 'credit' 
-                      ? 'bg-green-600 border-green-600 text-white' 
-                      : 'bg-white border-gray-100 text-gray-600'
+                  onClick={() => setFormType('credit')}
+                  className={`px-3 py-2 rounded-xl font-bold text-xs transition-all border-2 cursor-pointer flex items-center justify-center gap-1.5 ${
+                    formType === 'credit' 
+                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  {isTr ? 'Tahsilat (Giriş)' : 'Collection (In)'}
+                  <ArrowDownLeft className="h-3.5 w-3.5" />
+                  <span>{isTr ? 'Tahsilat (Alacak / Giriş)' : 'Collection (Credit / In)'}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setNewTransactionType('debt')}
-                  className={`px-4 py-3 rounded-xl font-bold text-sm transition-all border-2 cursor-pointer ${
-                    newTransactionType === 'debt' 
-                      ? 'bg-red-600 border-red-600 text-white' 
-                      : 'bg-white border-gray-100 text-gray-600'
+                  onClick={() => setFormType('debt')}
+                  className={`px-3 py-2 rounded-xl font-bold text-xs transition-all border-2 cursor-pointer flex items-center justify-center gap-1.5 ${
+                    formType === 'debt' 
+                      ? 'bg-rose-600 border-rose-600 text-white shadow-xs' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  {isTr ? 'Ödeme (Çıkış)' : 'Payment (Out)'}
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  <span>{isTr ? 'Ödeme (Borç / Çıkış)' : 'Payment (Debit / Out)'}</span>
                 </button>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-400 uppercase">{isTr ? 'Tutar' : 'Amount'}</label>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    required 
-                    value={newTransactionAmount}
-                    onChange={(e) => setNewTransactionAmount(e.target.value)}
-                    className="flex-1 px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 text-xs font-bold" 
-                    placeholder="0.00"
-                  />
+              {/* Amount & Currency Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{isTr ? 'İşlem Tutarı' : 'Amount'}</label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      required 
+                      value={formAmount}
+                      onChange={(e) => setFormAmount(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-black text-slate-900" 
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{isTr ? 'Para Birimi' : 'Currency'}</label>
                   <select
-                    value={newTransactionCurrency}
-                    onChange={(e) => setNewTransactionCurrency(e.target.value)}
-                    className="w-24 px-2 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 text-xs font-bold cursor-pointer"
+                    value={formCurrency}
+                    onChange={(e) => {
+                      const newCurr = e.target.value;
+                      setFormCurrency(newCurr);
+                      setFormExchangeRate(String(getSuggestedRate(newCurr) || 1));
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-black text-slate-800 cursor-pointer"
                   >
-                    <option value="TRY">TRY</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
+                    <option value="TRY">TRY (₺)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
                   </select>
                 </div>
               </div>
 
-              {newTransactionCurrency !== (branding?.default_currency || 'TRY') && (
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase">{isTr ? 'Döviz Kuru' : 'Exchange Rate'}</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={newTransactionExchangeRate}
-                    onChange={(e) => setNewTransactionExchangeRate(e.target.value.replace(',', '.'))}
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 text-xs font-bold" 
-                    placeholder="1.00"
-                  />
+              {/* Exchange Rate & Live TRY Preview if not TRY */}
+              {formCurrency !== 'TRY' && (
+                <div className="p-2.5 bg-indigo-50/60 border border-indigo-100 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-[10px] font-bold text-indigo-900 uppercase tracking-tight">{isTr ? 'Döviz Alış Kuru (TCMB)' : 'Exchange Rate'}</label>
+                    <span className="text-[10px] text-indigo-600 font-mono font-bold">
+                      {formCurrency}/TRY
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="text" 
+                      required 
+                      value={formExchangeRate}
+                      onChange={(e) => setFormExchangeRate(e.target.value.replace(',', '.'))}
+                      className="w-32 px-3 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500" 
+                      placeholder="1.0000"
+                    />
+                    <div className="flex-1 text-right font-mono text-[11px] font-black text-indigo-950">
+                      Karşılık: ~{(parseAmount(formAmount) * (parseAmount(formExchangeRate) || 1)).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-400 uppercase">{t.paymentMethod || 'Ödeme Yöntemi'}</label>
-                <select
-                  value={newTransactionPaymentMethod}
-                  onChange={(e) => setNewTransactionPaymentMethod(e.target.value as any)}
-                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm font-bold cursor-pointer"
-                >
-                  <option value="cash">{t.cash}</option>
-                  <option value="credit_card">{t.credit_card}</option>
-                  <option value="bank">{t.bank}</option>
-                  <option value="term">{t.term}</option>
-                </select>
+              {/* Payment Method & Document No */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-1">
+                    <CreditCard className="h-3 w-3 text-slate-400" />
+                    <span>{t.paymentMethod || (isTr ? 'Ödeme Yöntemi / Kasa' : 'Payment Method')}</span>
+                  </label>
+                  <select
+                    value={formPaymentMethod}
+                    onChange={(e) => setFormPaymentMethod(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-bold text-slate-800 cursor-pointer"
+                  >
+                    <option value="cash">{t.cash || (isTr ? 'Nakit Kasa (Elden)' : 'Cash')}</option>
+                    <option value="bank">{t.bank || (isTr ? 'Banka Transferi (Havale/EFT/FAST)' : 'Bank Transfer')}</option>
+                    <option value="credit_card">{t.credit_card || (isTr ? 'Kredi Kartı / POS Çekimi' : 'Credit Card / POS')}</option>
+                    <option value="term">{t.term || (isTr ? 'Vadeli / Açık Hesap / Çek' : 'Term / Open Account')}</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-1">
+                    <Receipt className="h-3 w-3 text-slate-400" />
+                    <span>{isTr ? 'Belge / Fiş / Dekont No' : 'Doc / Voucher No'}</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    value={formDocumentNo}
+                    onChange={(e) => setFormDocumentNo(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-semibold text-slate-900" 
+                    placeholder={isTr ? "Örn: DEK-2026/041, TAH-1049" : "Receipt / ref #"}
+                  />
+                </div>
               </div>
 
+              {/* Date */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-400 uppercase">{t.statements?.description || "Açıklama"}</label>
-                <textarea 
-                  required
-                  value={newTransactionDescription}
-                  onChange={(e) => setNewTransactionDescription(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 resize-none text-xs" 
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-400 uppercase">{t.statements?.date || "Tarih"}</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-1">
+                  <Calendar className="h-3 w-3 text-slate-400" />
+                  <span>{t.statements?.date || (isTr ? 'İşlem Tarihi' : 'Transaction Date')}</span>
+                </label>
                 <input 
                   type="date" 
                   required 
-                  value={newTransactionDate}
-                  onChange={(e) => setNewTransactionDate(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 text-xs font-bold" 
+                  value={formDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-bold text-slate-900 cursor-pointer" 
                 />
               </div>
 
-              <button 
-                type="submit" 
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all mt-4 text-xs cursor-pointer"
-              >
-                {t.save}
-              </button>
+              {/* Description */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{t.statements?.description || (isTr ? 'İşlem Açıklaması' : 'Description')}</label>
+                <textarea 
+                  required
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white resize-none text-xs text-slate-900" 
+                  rows={2}
+                  placeholder={isTr ? "İşlem açıklaması, banka referansı veya dekont notu..." : "Transaction notes..."}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                {editingTransaction ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(isTr ? "Bu cari hesap hareketini silmek istediğinize emin misiniz? Bu işlem geri alınamaz." : "Are you sure you want to delete this transaction?")) {
+                        handleDeleteTransaction(editingTransaction.id);
+                        handleCloseAddOrEditModal();
+                      }
+                    }}
+                    className="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>{isTr ? "Sil" : "Delete"}</span>
+                  </button>
+                ) : (
+                  <div></div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCloseAddOrEditModal}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all cursor-pointer"
+                  >
+                    {t.cancel || (isTr ? "Vazgeç" : "Cancel")}
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold tracking-wide shadow-md shadow-indigo-100 transition-all text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <FileCheck className="h-4 w-4" />
+                    <span>
+                      {editingTransaction 
+                        ? (isTr ? "Değişiklikleri Kaydet & Revize Et" : "Save Changes") 
+                        : (t.save || (isTr ? "İşlemi Kaydet" : "Save Transaction"))}
+                    </span>
+                  </button>
+                </div>
+              </div>
             </form>
           </motion.div>
         </div>

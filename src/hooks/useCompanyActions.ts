@@ -88,35 +88,60 @@ export const useCompanyActions = (
       const res = await api.updateTransaction(id, data, targetStoreId);
       if (selectedCompany) {
         handleFetchTransactions(selectedCompany.id, targetStoreId);
-        fetchCompanies();
       }
+      if (data.company_id && selectedCompany && Number(data.company_id) !== Number(selectedCompany.id)) {
+        handleFetchTransactions(data.company_id, targetStoreId);
+      }
+      fetchCompanies();
       return res;
     })();
 
     toast.promise(editPromise, {
-      loading: lang === 'tr' ? "Güncelleniyor..." : "Updating...",
-      success: lang === 'tr' ? "Güncellendi" : "Updated",
-      error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+      loading: lang === 'tr' ? "Cari işlem revize ediliyor..." : "Updating transaction...",
+      success: lang === 'tr' ? "Cari işlem başarıyla revize edildi" : "Transaction updated successfully",
+      error: lang === 'tr' ? "İşlem revize edilirken hata oluştu" : "Error updating transaction"
     });
   };
 
-  const handleAddTransaction = async (e: React.FormEvent, newTransactionType: 'debt' | 'credit', newTransactionAmount: string, newTransactionDescription: string, newTransactionDate: string, newTransactionPaymentMethod: 'cash' | 'credit_card' | 'bank' | 'term', newTransactionCurrency: string, newTransactionExchangeRate: string) => {
+  const handleAddTransaction = async (e: React.FormEvent, newTransactionType: 'debt' | 'credit', newTransactionAmount: string, newTransactionDescription: string, newTransactionDate: string, newTransactionPaymentMethod: 'cash' | 'credit_card' | 'bank' | 'term', newTransactionCurrency: string, newTransactionExchangeRate: string, targetCompanyId?: number) => {
     e.preventDefault();
-    if (!selectedCompany) return;
+    const effectiveCompanyId = targetCompanyId || selectedCompany?.id;
+    if (!effectiveCompanyId) return;
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
 
+    // Parse amount cleanly
+    let parsedAmount = 0;
+    const cleanStr = String(newTransactionAmount).trim().replace(/\s/g, '');
+    if (cleanStr.includes(',') && cleanStr.includes('.')) {
+      parsedAmount = cleanStr.lastIndexOf(',') > cleanStr.lastIndexOf('.') 
+        ? parseFloat(cleanStr.replace(/\./g, '').replace(',', '.')) 
+        : parseFloat(cleanStr.replace(/,/g, ''));
+    } else if (cleanStr.includes(',')) {
+      parsedAmount = parseFloat(cleanStr.replace(',', '.'));
+    } else {
+      parsedAmount = parseFloat(cleanStr);
+    }
+    if (isNaN(parsedAmount)) parsedAmount = 0;
+
+    let parsedRate = 1;
+    if (newTransactionExchangeRate) {
+      const cleanRate = String(newTransactionExchangeRate).trim().replace(/\s/g, '').replace(',', '.');
+      const pr = parseFloat(cleanRate);
+      if (!isNaN(pr) && pr > 0) parsedRate = pr;
+    }
+
     const addPromise = (async () => {
-      const res = await api.addCompanyTransaction(selectedCompany.id, {
+      const res = await api.addCompanyTransaction(effectiveCompanyId, {
         type: newTransactionType,
-        amount: Number(String(newTransactionAmount).replace(',', '.')),
+        amount: parsedAmount,
         description: newTransactionDescription,
         transaction_date: newTransactionDate,
         payment_method: newTransactionPaymentMethod,
         currency: newTransactionCurrency,
-        exchange_rate: Number(String(newTransactionExchangeRate).replace(',', '.')) || 1
+        exchange_rate: parsedRate
       }, targetStoreId);
       
-      handleFetchTransactions(selectedCompany.id, targetStoreId);
+      handleFetchTransactions(effectiveCompanyId, targetStoreId);
       fetchCompanies();
       return res;
     })();
@@ -128,8 +153,8 @@ export const useCompanyActions = (
     setNewTransactionExchangeRate('1');
 
     toast.promise(addPromise, {
-      loading: lang === 'tr' ? "İşlem ekleniyor..." : "Adding transaction...",
-      success: lang === 'tr' ? "İşlem eklendi" : "Transaction added",
+      loading: lang === 'tr' ? "Cari işlem kaydediliyor..." : "Adding transaction...",
+      success: lang === 'tr' ? "Cari işlem başarıyla eklendi" : "Transaction added successfully",
       error: lang === 'tr' ? "İşlem eklenirken hata oluştu" : "Error adding transaction"
     });
   };
