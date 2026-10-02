@@ -139,7 +139,9 @@ router.post("/amazon/bulk-sync", authenticate, async (req: any, res) => {
     }
 
     const prodRes = await pool.query(
-      "SELECT id, name, sku, barcode, price, sale_price, stock_quantity FROM products WHERE store_id = $1 AND (is_active = true OR is_active IS NULL)",
+      `SELECT id, name, sku, barcode, price, sale_price, stock_quantity, currency, category, sub_category, amazon_asin, amazon_sku, is_amazon_active 
+       FROM products 
+       WHERE store_id = $1 AND (is_amazon_active = true OR (amazon_asin IS NOT NULL AND amazon_asin != '' AND amazon_asin NOT LIKE 'http%'))`,
       [storeId]
     );
     const products = prodRes.rows || [];

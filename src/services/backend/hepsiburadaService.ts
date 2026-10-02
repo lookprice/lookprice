@@ -862,13 +862,19 @@ export class HepsiburadaService {
       return Number(rawPrice.toFixed(2));
     }
 
-    // Protection against division by zero or negative divisor
-    if (commissionRate >= 100) {
-      commissionRate = 99.9;
-    }
+    const method = settings.priceCalculationMethod || settings.priceCalculation || 'markup';
+    let calculatedPrice: number;
 
-    const divisor = 1 - (commissionRate / 100);
-    const calculatedPrice = (rawPrice + fixedFee) / divisor;
+    if (method === 'margin') {
+      if (commissionRate >= 100) {
+        commissionRate = 99.9;
+      }
+      const divisor = 1 - (commissionRate / 100);
+      calculatedPrice = (rawPrice + fixedFee) / divisor;
+    } else {
+      // Standard Turkish e-commerce markup formula: P_satış = (P_web * (1 + komisyon / 100)) + sabit_bedel
+      calculatedPrice = (rawPrice * (1 + (commissionRate / 100))) + fixedFee;
+    }
 
     return Number(calculatedPrice.toFixed(2));
   }

@@ -96,10 +96,11 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
     const hbSettings = branding?.hepsiburada_settings || {};
     const hbCommRate = Number(hbSettings.defaultCommissionRate ?? 18);
     const hbFixedFee = Number(hbSettings.defaultFixedFee ?? 0);
+    const hbMethod = hbSettings.priceCalculationMethod || hbSettings.priceCalculation || 'markup';
     const hbDivisor = 1 - (hbCommRate / 100);
-    const hbTargetPrice = hbDivisor > 0 
-      ? Math.round(((webPriceTry + hbFixedFee) / hbDivisor) * 100) / 100 
-      : Math.round(webPriceTry * 100) / 100;
+    const hbTargetPrice = hbMethod === 'margin'
+      ? (hbDivisor > 0 ? Math.round(((webPriceTry + hbFixedFee) / hbDivisor) * 100) / 100 : Math.round(webPriceTry * 100) / 100)
+      : Math.round(((webPriceTry * (1 + (hbCommRate / 100))) + hbFixedFee) * 100) / 100;
 
     let hbLivePrice = 0;
     let isHbExplicit = false;
@@ -121,10 +122,11 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
     const amzSettings = branding?.amazon_settings || {};
     const amzCommRate = Number(amzSettings.defaultCommissionRate ?? 15);
     const amzFixedFee = Number(amzSettings.defaultFixedFee ?? 0);
+    const amzMethod = amzSettings.priceCalculationMethod || amzSettings.priceCalculation || 'markup';
     const amzDivisor = 1 - (amzCommRate / 100);
-    const amzTargetPrice = amzDivisor > 0
-      ? Math.round(((webPriceTry + amzFixedFee) / amzDivisor) * 100) / 100
-      : Math.round(webPriceTry * 100) / 100;
+    const amzTargetPrice = amzMethod === 'margin'
+      ? (amzDivisor > 0 ? Math.round(((webPriceTry + amzFixedFee) / amzDivisor) * 100) / 100 : Math.round(webPriceTry * 100) / 100)
+      : Math.round(((webPriceTry * (1 + (amzCommRate / 100))) + amzFixedFee) * 100) / 100;
 
     const cleanAmzAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim() : null;
     const isAmzLive = Boolean(p.is_amazon_active && cleanAmzAsin);

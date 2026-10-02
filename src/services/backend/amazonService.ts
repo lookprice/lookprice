@@ -753,12 +753,19 @@ export class AmazonService {
       return Number(rawPrice.toFixed(2));
     }
 
-    if (commissionRate >= 100) {
-      commissionRate = 99.9;
-    }
+    const method = settings.priceCalculationMethod || settings.priceCalculation || 'markup';
+    let calculatedPrice: number;
 
-    const divisor = 1 - (commissionRate / 100);
-    const calculatedPrice = (rawPrice + fixedFee) / divisor;
+    if (method === 'margin') {
+      if (commissionRate >= 100) {
+        commissionRate = 99.9;
+      }
+      const divisor = 1 - (commissionRate / 100);
+      calculatedPrice = (rawPrice + fixedFee) / divisor;
+    } else {
+      // Standard Turkish e-commerce markup formula: P_satış = (P_web * (1 + komisyon / 100)) + sabit_bedel
+      calculatedPrice = (rawPrice * (1 + (commissionRate / 100))) + fixedFee;
+    }
 
     return Number(calculatedPrice.toFixed(2));
   }
@@ -825,23 +832,44 @@ export class AmazonService {
   /**
    * Bulk Sync Products Stock & Price
    */
-  async bulkSyncInventory(products: any[]): Promise<{ syncedCount: number; errorsCount: number; details: any[] }> {
+  async bulkSyncInventory(products: any[], options?: { rates?: any }): Promise<{ syncedCount: number; errorsCount: number; details: any[] }> {
     let syncedCount = 0;
     let errorsCount = 0;
     const details: any[] = [];
 
+    let rates = options?.rates;
+    if (!rates) {
+      const storeRes = await pool.query("SELECT currency_rates, branding FROM stores WHERE id = $1", [this.storeId]);
+      const st = storeRes.rows[0];
+      rates = st?.currency_rates || st?.branding?.currency_rates || {};
+    }
+
     for (const prod of products) {
-      const sku = prod.sku || prod.barcode;
-      const price = parseFloat(prod.sale_price || prod.price || 0);
-      const stock = parseInt(prod.stock_quantity || prod.stock || 0, 10);
+      const sku = prod.amazon_sku || prod.sku || prod.barcode;
+      let rawPrice = parseFloat(prod.price || prod.sale_price || 0);
+      const curr = String(prod.currency || 'TRY').toUpperCase();
+      if (curr === 'USD' && rates.USD) rawPrice *= Number(rates.USD);
+      else if (curr === 'EUR' && rates.EUR) rawPrice *= Number(rates.EUR);
+      else if (curr === 'GBP' && rates.GBP) rawPrice *= Number(rates.GBP);
 
-      if (!sku || price <= 0) continue;
+      const effectivePrice = this.calculateMarketplacePrice(rawPrice, prod.category, prod.sub_category);
+      const stock = Math.max(0, parseInt(prod.stock_quantity || prod.stock || 0, 10));
 
-      const res = await this.updateListingsItem(sku, price, stock);
+      if (!sku || effectivePrice <= 0) continue;
+
+      const res = await this.updateListingsItem(String(sku).trim(), effectivePrice, stock);
       if (res.success) {
         syncedCount++;
+        await pool.query(
+          "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = NULL WHERE id = $1",
+          [prod.id]
+        );
       } else {
         errorsCount++;
+        await pool.query(
+          "UPDATE products SET amazon_last_error = $1 WHERE id = $2",
+          [res.message, prod.id]
+        );
       }
       details.push(res);
     }
