@@ -555,7 +555,7 @@ router.get("/sales", async (req: any, res) => {
     const { startDate, endDate, status, search } = req.query;
 
     let query = `
-      SELECT si.*, 
+       SELECT si.*, 
              COALESCE(
                NULLIF(c.title, 'Bireysel Web Müşterisi'),
                NULLIF(NULLIF(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
@@ -563,8 +563,8 @@ router.get("/sales", async (req: any, res) => {
                NULLIF(NULLIF(s.customer_name, ''), 'Amazon Müşterisi'),
                NULLIF(NULLIF(si.customer_name, ''), 'Amazon Müşterisi'),
                NULLIF(si.company_title, 'Bireysel Web Müşterisi'),
-               s.customer_name,
-               si.customer_name,
+               NULLIF(s.customer_name, 'Amazon Müşterisi'),
+               NULLIF(si.customer_name, 'Amazon Müşterisi'),
                'Müşteri'
              ) as company_title,
              COALESCE(
@@ -574,7 +574,7 @@ router.get("/sales", async (req: any, res) => {
                NULLIF(NULLIF(s.customer_name, ''), 'Amazon Müşterisi'),
                NULLIF(NULLIF(si.customer_name, ''), 'Amazon Müşterisi'),
                NULLIF(si.company_title, 'Bireysel Web Müşterisi'),
-               si.customer_name,
+               NULLIF(si.customer_name, 'Amazon Müşterisi'),
                'Müşteri'
              ) as customer_name,
              s.customer_name as sale_customer_name,

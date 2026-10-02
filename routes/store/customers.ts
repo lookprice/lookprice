@@ -94,6 +94,17 @@ router.put("/:id", async (req: any, res) => {
       [calculatedFullName, firstNameVal, surnameVal, email, phone, address, tax_number, tax_office, id, storeId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: "Customer not found" });
+
+    // Sync updated customer name & details to linked invoices and sales
+    await pool.query(
+      "UPDATE sales_invoices SET customer_name = $1, address = COALESCE(NULLIF($2, ''), address), tax_number = COALESCE(NULLIF($3, ''), tax_number), tax_office = COALESCE(NULLIF($4, ''), tax_office), customer_email = COALESCE(NULLIF($5, ''), customer_email) WHERE customer_id = $6 AND store_id = $7",
+      [calculatedFullName, address || '', tax_number || '', tax_office || '', email || '', id, storeId]
+    );
+    await pool.query(
+      "UPDATE sales SET customer_name = $1, customer_address = COALESCE(NULLIF($2, ''), customer_address), customer_phone = COALESCE(NULLIF($3, ''), customer_phone) WHERE customer_id = $4 AND store_id = $5",
+      [calculatedFullName, address || '', phone || '', id, storeId]
+    );
+
     res.json(result.rows[0]);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
