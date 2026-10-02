@@ -22,8 +22,8 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     ...actions,
     ...exporter,
     handleAddCompany: (e: React.FormEvent) => actions.handleAddCompany(e, ui.editingCompany),
-    handleAddTransaction: (e: React.FormEvent) => actions.handleAddTransaction(
-        e, ui.newTransactionType, ui.newTransactionAmount, ui.newTransactionDescription,
+    handleAddTransaction: (eOrData: any) => actions.handleAddTransaction(
+        eOrData, ui.newTransactionType, ui.newTransactionAmount, ui.newTransactionDescription,
         ui.newTransactionDate, ui.newTransactionPaymentMethod, ui.newTransactionCurrency, ui.newTransactionExchangeRate
     ),
     handleFetchTransactions: (companyId: number) => 

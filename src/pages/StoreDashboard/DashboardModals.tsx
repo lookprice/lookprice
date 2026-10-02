@@ -100,7 +100,7 @@ export interface DashboardModalsProps {
   setNewTransactionDescription: (d: string) => void;
   newTransactionDate: string;
   setNewTransactionDate: (d: string) => void;
-  handleAddTransaction: (e: React.FormEvent) => void;
+  handleAddTransaction: (eOrData: any) => void;
 
   // Sale Modal (Confirm Sale from Quotation)
   showSaleModal: boolean;

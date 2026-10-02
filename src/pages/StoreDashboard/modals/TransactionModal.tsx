@@ -47,7 +47,7 @@ interface TransactionModalProps {
   setNewTransactionDescription: (d: string) => void;
   newTransactionDate: string;
   setNewTransactionDate: (d: string) => void;
-  handleAddTransaction: (e: React.FormEvent) => void;
+  handleAddTransaction: (eOrData: any) => void;
 }
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({
@@ -199,6 +199,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       ? `[Belge: ${formDocumentNo.trim()}] ${formDescription.trim()}`.trim() 
       : formDescription.trim();
 
+    if (formCurrency && formCurrency !== selectedCurrency) {
+      setSelectedCurrency(formCurrency);
+    }
+
     if (editingTransaction) {
       handleEditTransaction(editingTransaction.id, {
         company_id: formCompanyId,
@@ -212,15 +216,16 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       });
       handleCloseAddOrEditModal();
     } else {
-      setNewTransactionType(formType);
-      setNewTransactionAmount(String(parsedAmt));
-      setNewTransactionCurrency(formCurrency);
-      setNewTransactionExchangeRate(String(parsedRate));
-      setNewTransactionPaymentMethod(formPaymentMethod);
-      setNewTransactionDescription(fullDesc);
-      setNewTransactionDate(formDate);
-
-      handleAddTransaction(e);
+      handleAddTransaction({
+        company_id: formCompanyId,
+        type: formType,
+        amount: parsedAmt,
+        currency: formCurrency,
+        exchange_rate: parsedRate,
+        payment_method: formPaymentMethod,
+        description: fullDesc,
+        transaction_date: formDate
+      } as any);
       handleCloseAddOrEditModal();
     }
   };

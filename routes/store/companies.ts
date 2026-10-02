@@ -171,24 +171,59 @@ router.post("/:id/transactions", async (req: any, res) => {
   try {
     const storeRes = await pool.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
     const branding = storeRes.rows[0]?.branding || {};
+    
+    // Clean parse amount
+    let cleanAmount = 0;
+    if (amount !== undefined && amount !== null && amount !== '') {
+      if (typeof amount === 'number') {
+        cleanAmount = isNaN(amount) ? 0 : amount;
+      } else {
+        const s = String(amount).trim().replace(/\s/g, '');
+        if (s.includes(',') && s.includes('.')) {
+          cleanAmount = s.lastIndexOf(',') > s.lastIndexOf('.') ? parseFloat(s.replace(/\./g, '').replace(',', '.')) : parseFloat(s.replace(/,/g, ''));
+        } else if (s.includes(',')) {
+          cleanAmount = parseFloat(s.replace(',', '.'));
+        } else {
+          cleanAmount = parseFloat(s);
+        }
+      }
+    }
+    if (isNaN(cleanAmount) || cleanAmount <= 0) {
+      return res.status(400).json({ error: "Geçerli bir işlem tutarı girilmelidir." });
+    }
+
+    let cleanExchangeRate = 1;
+    if (exchange_rate !== undefined && exchange_rate !== null && exchange_rate !== '') {
+      const s = String(exchange_rate).trim().replace(/\s/g, '').replace(',', '.');
+      const pr = parseFloat(s);
+      if (!isNaN(pr) && pr > 0) cleanExchangeRate = pr;
+    }
+
     let finalDate = new Date();
     if (transaction_date) {
       const providedDate = new Date(transaction_date);
-      const now = new Date();
-      if (providedDate.toDateString() === now.toDateString()) {
-        finalDate = now;
-      } else {
-        providedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
-        finalDate = providedDate;
+      if (!isNaN(providedDate.getTime())) {
+        const now = new Date();
+        if (providedDate.toDateString() === now.toDateString()) {
+          finalDate = now;
+        } else {
+          providedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+          finalDate = providedDate;
+        }
       }
     }
 
+    const finalCurrency = (currency || branding?.default_currency || 'TRY').toUpperCase();
+    const finalType = type === 'debt' ? 'debt' : 'credit';
+    const finalPaymentMethod = payment_method || 'cash';
+
     const result = await pool.query(
       "INSERT INTO current_account_transactions (store_id, company_id, type, amount, description, transaction_date, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
-      [storeId, req.params.id, type, amount, description, finalDate, payment_method, currency || branding?.default_currency || 'TRY', exchange_rate || 1]
+      [storeId, req.params.id, finalType, cleanAmount, description || '', finalDate, finalPaymentMethod, finalCurrency, cleanExchangeRate]
     );
     res.json(result.rows[0]);
   } catch (err: any) {
+    console.error("Error creating company transaction:", err);
     res.status(500).json({ error: err.message });
   }
 });

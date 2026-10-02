@@ -103,45 +103,85 @@ export const useCompanyActions = (
     });
   };
 
-  const handleAddTransaction = async (e: React.FormEvent, newTransactionType: 'debt' | 'credit', newTransactionAmount: string, newTransactionDescription: string, newTransactionDate: string, newTransactionPaymentMethod: 'cash' | 'credit_card' | 'bank' | 'term', newTransactionCurrency: string, newTransactionExchangeRate: string, targetCompanyId?: number) => {
-    e.preventDefault();
-    const effectiveCompanyId = targetCompanyId || selectedCompany?.id;
+  const handleAddTransaction = async (
+    eOrData: any,
+    newTransactionType?: 'debt' | 'credit',
+    newTransactionAmount?: string | number,
+    newTransactionDescription?: string,
+    newTransactionDate?: string,
+    newTransactionPaymentMethod?: 'cash' | 'credit_card' | 'bank' | 'term',
+    newTransactionCurrency?: string,
+    newTransactionExchangeRate?: string | number,
+    targetCompanyId?: number
+  ) => {
+    if (eOrData && typeof eOrData.preventDefault === 'function') {
+      eOrData.preventDefault();
+    }
+
+    // Determine if eOrData is a payload object
+    const isDirectPayload = Boolean(eOrData && typeof eOrData === 'object' && !eOrData.nativeEvent && ('amount' in eOrData || 'type' in eOrData || 'company_id' in eOrData));
+    const payload = isDirectPayload ? eOrData : null;
+
+    const rawCompanyId = payload?.company_id || targetCompanyId || selectedCompany?.id;
+    const effectiveCompanyId = Number(rawCompanyId);
     if (!effectiveCompanyId) return;
+
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    const rawType = payload?.type || newTransactionType || 'credit';
+    const rawAmount = payload?.amount !== undefined ? payload.amount : newTransactionAmount;
+    const rawDesc = payload?.description !== undefined ? payload.description : newTransactionDescription;
+    const rawDate = payload?.transaction_date || newTransactionDate || new Date().toISOString().split('T')[0];
+    const rawPaymentMethod = payload?.payment_method || newTransactionPaymentMethod || 'cash';
+    const rawCurrency = (payload?.currency || newTransactionCurrency || branding?.default_currency || 'TRY').toUpperCase();
+    const rawExchangeRate = payload?.exchange_rate !== undefined ? payload.exchange_rate : newTransactionExchangeRate;
 
     // Parse amount cleanly
     let parsedAmount = 0;
-    const cleanStr = String(newTransactionAmount).trim().replace(/\s/g, '');
-    if (cleanStr.includes(',') && cleanStr.includes('.')) {
-      parsedAmount = cleanStr.lastIndexOf(',') > cleanStr.lastIndexOf('.') 
-        ? parseFloat(cleanStr.replace(/\./g, '').replace(',', '.')) 
-        : parseFloat(cleanStr.replace(/,/g, ''));
-    } else if (cleanStr.includes(',')) {
-      parsedAmount = parseFloat(cleanStr.replace(',', '.'));
-    } else {
-      parsedAmount = parseFloat(cleanStr);
+    if (typeof rawAmount === 'number') {
+      parsedAmount = isNaN(rawAmount) ? 0 : rawAmount;
+    } else if (rawAmount) {
+      const cleanStr = String(rawAmount).trim().replace(/\s/g, '');
+      if (cleanStr.includes(',') && cleanStr.includes('.')) {
+        parsedAmount = cleanStr.lastIndexOf(',') > cleanStr.lastIndexOf('.') 
+          ? parseFloat(cleanStr.replace(/\./g, '').replace(',', '.')) 
+          : parseFloat(cleanStr.replace(/,/g, ''));
+      } else if (cleanStr.includes(',')) {
+        parsedAmount = parseFloat(cleanStr.replace(',', '.'));
+      } else {
+        parsedAmount = parseFloat(cleanStr);
+      }
     }
-    if (isNaN(parsedAmount)) parsedAmount = 0;
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast.error(lang === 'tr' ? "Lütfen geçerli bir işlem tutarı giriniz." : "Please enter a valid amount.");
+      return;
+    }
 
     let parsedRate = 1;
-    if (newTransactionExchangeRate) {
-      const cleanRate = String(newTransactionExchangeRate).trim().replace(/\s/g, '').replace(',', '.');
-      const pr = parseFloat(cleanRate);
-      if (!isNaN(pr) && pr > 0) parsedRate = pr;
+    if (rawExchangeRate !== undefined && rawExchangeRate !== null && rawExchangeRate !== '') {
+      if (typeof rawExchangeRate === 'number') {
+        parsedRate = isNaN(rawExchangeRate) ? 1 : rawExchangeRate;
+      } else {
+        const cleanRate = String(rawExchangeRate).trim().replace(/\s/g, '').replace(',', '.');
+        const pr = parseFloat(cleanRate);
+        if (!isNaN(pr) && pr > 0) parsedRate = pr;
+      }
     }
 
     const addPromise = (async () => {
       const res = await api.addCompanyTransaction(effectiveCompanyId, {
-        type: newTransactionType,
+        type: rawType,
         amount: parsedAmount,
-        description: newTransactionDescription,
-        transaction_date: newTransactionDate,
-        payment_method: newTransactionPaymentMethod,
-        currency: newTransactionCurrency,
+        description: rawDesc || '',
+        transaction_date: rawDate,
+        payment_method: rawPaymentMethod,
+        currency: rawCurrency,
         exchange_rate: parsedRate
       }, targetStoreId);
       
       handleFetchTransactions(effectiveCompanyId, targetStoreId);
+      if (selectedCompany && Number(selectedCompany.id) !== effectiveCompanyId) {
+        handleFetchTransactions(selectedCompany.id, targetStoreId);
+      }
       fetchCompanies();
       return res;
     })();
