@@ -99,7 +99,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto min-h-[360px]">
         <table className="w-full text-left border-collapse min-w-[1050px]">
           <thead>
             <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-200">
@@ -145,7 +145,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                 </td>
               </tr>
             ) : (
-              invoices.map((invoice: any) => {
+              invoices.map((invoice: any, idx: number) => {
                 const isExpanded = expandedRowIds.includes(invoice.id);
                 const items = itemsCache[invoice.id] || invoice.items || [];
                 const isRowLoading = loadingRowId === invoice.id;
@@ -154,6 +154,8 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                   <React.Fragment key={invoice.id}>
                     <tr 
                       className={`hover:bg-slate-50/70 transition-colors ${
+                        openActionMenuId === invoice.id ? 'relative z-30' : ''
+                      } ${
                         invoice.is_out_of_sequence 
                           ? 'bg-amber-50/60 hover:bg-amber-100/70 border-l-4 border-l-amber-500' 
                           : invoice.is_read === false 
@@ -346,7 +348,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           </button>
 
                           {/* Lookprice Standard Dropdown Menu */}
-                          <div className="relative inline-block text-left">
+                          <div className="relative inline-block text-left z-40">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -366,7 +368,9 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
 
                             {openActionMenuId === invoice.id && (
                               <div 
-                                className="absolute right-0 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 top-full mt-1.5 origin-top-right"
+                                className={`absolute right-0 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 ${
+                                  (invoices.length >= 4 && idx >= invoices.length - 2) ? 'bottom-full mb-1.5 origin-bottom-right' : 'top-full mt-1.5 origin-top-right'
+                                }`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">

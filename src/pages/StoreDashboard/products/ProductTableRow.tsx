@@ -183,6 +183,8 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
       <tr 
         id={`product-row-${p.id}`}
         className={`transition-all duration-300 group cursor-default ${
+          openActionMenuId === p.id ? 'relative z-30' : ''
+        } ${
           highlightedProductId === p.id 
             ? 'bg-orange-50/90 ring-2 ring-orange-400 ring-inset shadow-xs' 
             : selectedIds.includes(p.id) 
@@ -726,7 +728,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                 </button>
 
                 {/* Collapsible Actions Dropdown Menu Trigger */}
-                <div className="relative inline-block text-left">
+                <div className="relative inline-block text-left z-40">
                   <button
                     type="button"
                     onClick={(e) => {

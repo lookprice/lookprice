@@ -139,7 +139,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto min-h-[360px]">
         <table className="w-full text-left border-collapse min-w-[760px] sm:min-w-[840px]">
           <thead>
             <tr className="bg-slate-50/70 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
@@ -202,6 +202,8 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                   <React.Fragment key={inv.id}>
                     <tr 
                       className={`transition-colors group ${
+                        openActionMenuId === inv.id ? 'relative z-30' : ''
+                      } ${
                         lastEditedId === inv.id ? 'bg-indigo-100/50 ring-1 ring-inset ring-indigo-300' :
                         isExpanded ? 'bg-indigo-50/40 border-l-2 border-l-indigo-600' :
                         isApproved ? 'bg-emerald-50/50' : 
@@ -442,7 +444,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           </button>
 
                           {/* Collapsible Actions Dropdown Menu Trigger */}
-                          <div className="relative inline-block text-left">
+                          <div className="relative inline-block text-left z-40">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -464,7 +466,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             {openActionMenuId === inv.id && (
                               <div 
                                 className={`action-menu-dropdown absolute right-0 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 ${
-                                  idx >= invoices.length - 2 ? 'bottom-full mb-1.5 origin-bottom-right' : 'top-full mt-1.5 origin-top-right'
+                                  (invoices.length >= 4 && idx >= invoices.length - 2) ? 'bottom-full mb-1.5 origin-bottom-right' : 'top-full mt-1.5 origin-top-right'
                                 }`}
                                 onClick={(e) => e.stopPropagation()}
                               >

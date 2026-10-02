@@ -1109,7 +1109,7 @@ export class N11Service {
   }
 
   /**
-   * Update Product Price & Stock in N11
+   * Update Product Price & Stock in N11 using the modern REST API or SOAP fallback
    */
   static async updatePriceAndStock(
     auth: N11Auth,
@@ -1117,35 +1117,66 @@ export class N11Service {
     price: number,
     quantity: number
   ): Promise<{ success: boolean; message?: string }> {
+    const payload = {
+      productSellerCode: productSellerCode,
+      price: price,
+      stockItems: [
+        {
+          sellerStockCode: productSellerCode,
+          quantity: quantity
+        }
+      ]
+    };
+
+    // 1. Try modern N11 REST API
+    try {
+      const res = await axios.post("https://api.n11.com/ms/product/tasks/product-update", payload, {
+        headers: {
+          "appKey": auth.appKey.trim(),
+          "appSecret": auth.appSecret.trim(),
+          "Content-Type": "application/json"
+        },
+        timeout: 10000
+      });
+
+      if (res.status === 200 || res.status === 201 || res.status === 202) {
+        return { 
+          success: true, 
+          message: `N11 REST API fiyat ve stok güncelleme görevi oluşturuldu. Task ID: ${res.data?.taskId || "N/A"}` 
+        };
+      }
+    } catch (restErr: any) {
+      const errMsg = restErr.response?.data?.errorMessage || restErr.response?.data?.message || restErr.message;
+      console.warn(`[N11-REST-UPDATE-FALLBACK] Modern RestAPI update failed for ${productSellerCode}, attempting SOAP fallback:`, errMsg);
+    }
+
+    // 2. SOAP Fallback (using SOAP UpdateProductPriceBySellerCode)
     const innerBody = `
-       <productSellerCode>${productSellerCode}</productSellerCode>
+       <productSellerCode><![CDATA[${productSellerCode}]]></productSellerCode>
        <price>${price}</price>
        <currencyType>TL</currencyType>
-       <stockItems>
-          <stockItem>
-             <sellerStockCode>${productSellerCode}</sellerStockCode>
-             <quantity>${quantity}</quantity>
-          </stockItem>
-       </stockItems>
     `;
 
     const xml = this.buildSoapEnvelope(
-      "UpdateProductPriceByIdOrSellerCode",
+      "UpdateProductPriceBySellerCode",
       auth,
       innerBody
     );
 
     try {
-      const res = await this.executeSoapRequest("ProductService", "UpdateProductPriceByIdOrSellerCode", xml);
+      const res = await this.executeSoapRequest("ProductService", "UpdateProductPriceBySellerCode", xml);
 
       if (res?.result?.status === "failure") {
-        return { success: false, message: res.result.errorMessage || "Fiyat/stok güncellenemedi." };
+        return { success: false, message: res.result.errorMessage || "Fiyat güncellenemedi." };
       }
 
-      return { success: true, message: "N11 fiyat ve stok güncellendi." };
+      return { success: true, message: "N11 ürün fiyatı güncellendi." };
     } catch (err: any) {
-      console.error("[N11-SERVICE] Update Price/Stock Error:", err.message);
-      return { success: false, message: err.message };
+      console.warn("[N11-SERVICE] SOAP Update Price/Stock Fallback Error:", err.message);
+      return { 
+        success: false, 
+        message: `N11 güncelleme tamamlanamadı. (RestAPI ve SOAP servisleri devre dışı veya ürün katalogda yok)` 
+      };
     }
   }
 

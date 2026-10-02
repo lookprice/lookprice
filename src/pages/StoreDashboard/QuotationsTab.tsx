@@ -126,7 +126,7 @@ const QuotationsTab = ({
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden zebra-border">
         {/* Table View */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto min-h-[360px]">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
@@ -145,8 +145,8 @@ const QuotationsTab = ({
                   </td>
                 </tr>
               ) : (
-                paginatedQuotations.map((q) => (
-                  <tr key={q.id} className="hover:bg-slate-50/80 transition-colors group">
+                paginatedQuotations.map((q, idx) => (
+                  <tr key={q.id} className={`hover:bg-slate-50/80 transition-colors group ${openActionMenuId === q.id ? 'relative z-30' : ''}`}>
                     <td className="px-6 py-4">
                       <div className="text-sm font-semibold text-slate-900">{q.customer_name}</div>
                       {q.customer_title && <div className="text-xs text-slate-400 truncate max-w-[240px] mt-0.5">{q.customer_title}</div>}
@@ -210,7 +210,7 @@ const QuotationsTab = ({
                           </button>
 
                           {/* Lookprice Standard Dropdown Menu */}
-                          <div className="relative inline-block text-left">
+                          <div className="relative inline-block text-left z-40">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -230,7 +230,9 @@ const QuotationsTab = ({
 
                             {openActionMenuId === q.id && (
                               <div 
-                                className="absolute right-0 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 top-full mt-1.5 origin-top-right"
+                                className={`absolute right-0 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 ${
+                                  (paginatedQuotations.length >= 4 && idx >= paginatedQuotations.length - 2) ? 'bottom-full mb-1.5 origin-bottom-right' : 'top-full mt-1.5 origin-top-right'
+                                }`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">

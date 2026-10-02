@@ -104,7 +104,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   return (
     <div className="os-panel overflow-hidden">
       {/* Table View */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto min-h-[360px]">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-200">
