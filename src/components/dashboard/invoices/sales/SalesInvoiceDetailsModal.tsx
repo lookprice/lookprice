@@ -125,7 +125,16 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-600 text-center">%{item.tax_rate}</td>
                         <td className="px-4 py-3 text-sm font-medium text-slate-800 text-right">
-                          {(Number(item.total_price) + Number(item.tax_amount)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}
+                          {(() => {
+                            const qty = Number(item.quantity) || 1;
+                            const unitPrice = Number(item.unit_price) || 0;
+                            const totalPrice = Number(item.total_price) || 0;
+                            const taxAmt = Number(item.tax_amount) || 0;
+                            const grossLine = Math.abs(totalPrice - (qty * unitPrice)) < 0.05 && invoice.is_tax_inclusive !== false
+                              ? totalPrice
+                              : totalPrice + taxAmt;
+                            return `${grossLine.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${invoice.currency}`;
+                          })()}
                         </td>
                       </tr>
                     ))}

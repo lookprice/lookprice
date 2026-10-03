@@ -145,7 +145,7 @@ export async function processMarketplaceOrderLines(
 
     await client.query(
       "INSERT INTO sales_invoice_items (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-      [salesInvoiceId, productId, name, finalBarcode, quantity, price, taxRate, taxAmount, total]
+      [salesInvoiceId, productId, name, finalBarcode, quantity, price, taxRate, taxAmount, subtotal]
     );
 
     if (productId) {

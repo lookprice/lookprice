@@ -995,23 +995,11 @@ export class AmazonService {
 
       // Check if already synced with sale_id
       const existing = await pool.query(
-        "SELECT id, sale_id FROM amazon_orders WHERE store_id = $1 AND amazon_order_id = $2",
+        "SELECT id, sale_id, sales_invoice_id FROM amazon_orders WHERE store_id = $1 AND amazon_order_id = $2",
         [this.storeId, amazonOrderId]
       );
       if (existing.rows.length > 0 && existing.rows[0].sale_id) {
-        // Update status if changed
-        await pool.query(
-          "UPDATE amazon_orders SET status = $1, order_data = $2 WHERE store_id = $3 AND amazon_order_id = $4",
-          [orderStatus, order, this.storeId, amazonOrderId]
-        );
-        continue;
-      }
-
-      const client = await pool.connect();
-      try {
-        await client.query("BEGIN");
-
-        // Customer Details Resolution
+        const exRow = existing.rows[0];
         let buyerInfo = order.BuyerInfo || {};
         let shippingAddress = order.ShippingAddress || {};
 
@@ -1025,74 +1013,159 @@ export class AmazonService {
           if (fetchedBuyer) buyerInfo = { ...buyerInfo, ...fetchedBuyer };
         } catch (e) {}
 
-        let buyerName = (shippingAddress.Name || buyerInfo.BuyerName || '').trim();
+        const enrichedOrder = {
+          ...order,
+          ShippingAddress: Object.keys(shippingAddress).length > 0 ? shippingAddress : order.ShippingAddress,
+          BuyerInfo: Object.keys(buyerInfo).length > 0 ? buyerInfo : order.BuyerInfo
+        };
+
+        await pool.query(
+          "UPDATE amazon_orders SET status = $1, order_data = $2 WHERE store_id = $3 AND amazon_order_id = $4",
+          [orderStatus, enrichedOrder, this.storeId, amazonOrderId]
+        );
+
+        // If Amazon now provides unmasked name, street or district/city, update customer & invoice if currently generic
+        const district = (shippingAddress.Municipality || shippingAddress.District || '').trim();
+        const neighborhood = (shippingAddress.County || '').trim();
+        const city = (shippingAddress.City || shippingAddress.StateOrRegion || '').trim();
+        const postalCode = (shippingAddress.PostalCode || '').trim();
+        const street = [shippingAddress.AddressLine1, shippingAddress.AddressLine2, shippingAddress.AddressLine3]
+          .map(s => String(s || '').trim())
+          .filter(s => s && s.toLowerCase() !== 'null')
+          .join(' ');
+        const addressParts = [
+          street || null,
+          neighborhood && neighborhood.toLowerCase() !== district.toLowerCase() ? neighborhood : null,
+          district ? `${district}${city ? ` / ${city.toUpperCase()}` : ''}` : (city ? city.toUpperCase() : null),
+          postalCode ? `(PK: ${postalCode})` : null
+        ].filter(Boolean);
+        const resolvedAddr = addressParts.join(' ');
+
+        const realApiName = (
+          buyerInfo.BuyerTaxInfo?.CompanyLegalName ||
+          shippingAddress.Name ||
+          buyerInfo.BuyerName ||
+          ''
+        ).trim();
+
+        const taxClassifications = Array.isArray(buyerInfo.BuyerTaxInfo?.TaxClassifications)
+          ? buyerInfo.BuyerTaxInfo.TaxClassifications
+          : [];
+        const extractedTaxNum = (
+          taxClassifications[0]?.Value ||
+          buyerInfo.TaxIdentificationNumber ||
+          shippingAddress.TaxIdentificationNumber ||
+          ''
+        ).trim();
+        const extractedTaxOffice = (
+          taxClassifications[1]?.Value ||
+          buyerInfo.BuyerTaxInfo?.TaxingRegion ||
+          ''
+        ).trim();
+
+        if (exRow.sales_invoice_id) {
+          const fakeNames = [
+            'Ahmet Yıldırım', 'Mehmet Öztürk', 'Mustafa Demir', 'Ali Çelik', 'Emre Kaya',
+            'Canan Aydın', 'Burak Şahin', 'Selin Koç', 'Deniz Arslan', 'Onur Doğan',
+            'Serkan Çakır', 'Gökhan Karabulut', 'Cemre Demir', 'Murat Yılmaz', 'Tolga Özdemir'
+          ];
+          const isBusinessPref = order.BuyerInvoicePreference === 'BUSINESS' || order.IsBusinessOrder === true;
+          const fallbackLabel = realApiName || (
+            isBusinessPref
+              ? `Amazon Kurumsal Alıcı (${district || city || 'TR'} #${amazonOrderId})`
+              : `Amazon Alıcısı (${district || city || 'TR'} #${amazonOrderId})`
+          );
+
+          await pool.query(
+            `UPDATE sales_invoices SET
+               address = CASE WHEN (address IS NULL OR address = '' OR address = 'Amazon Türkiye Teslimat Adresi' OR $1 != '') THEN COALESCE(NULLIF($1, ''), address) ELSE address END,
+               customer_name = CASE WHEN ($2 != '' OR customer_name = ANY($5)) THEN $3 ELSE customer_name END,
+               company_title = CASE WHEN ($2 != '' OR company_title = ANY($5)) THEN $3 ELSE company_title END,
+               tax_number = CASE WHEN $4 != '' THEN $4 ELSE tax_number END,
+               tax_office = CASE WHEN $6 != '' THEN $6 ELSE tax_office END
+             WHERE id = $7 AND store_id = $8`,
+            [resolvedAddr, realApiName, fallbackLabel, extractedTaxNum, fakeNames, extractedTaxOffice, exRow.sales_invoice_id, this.storeId]
+          );
+
+          await pool.query(
+            `UPDATE customers SET
+               address = CASE WHEN (address IS NULL OR address = '' OR address = 'Amazon Türkiye Teslimat Adresi' OR $1 != '') THEN COALESCE(NULLIF($1, ''), address) ELSE address END,
+               city = COALESCE(NULLIF($2, ''), city),
+               full_name = CASE WHEN ($3 != '' OR full_name = ANY($5)) THEN $4 ELSE full_name END,
+               tax_number = CASE WHEN $6 != '' THEN $6 ELSE tax_number END,
+               tax_office = CASE WHEN $7 != '' THEN $7 ELSE tax_office END
+             WHERE id = (SELECT customer_id FROM sales_invoices WHERE id = $8) AND store_id = $9`,
+            [resolvedAddr, city, realApiName, fallbackLabel, fakeNames, extractedTaxNum, extractedTaxOffice, exRow.sales_invoice_id, this.storeId]
+          );
+        }
+        continue;
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        // Customer Details Resolution from Amazon SP-API
+        let buyerInfo = order.BuyerInfo || {};
+        let shippingAddress = order.ShippingAddress || {};
+
+        try {
+          const fetchedAddress = await this.fetchOrderAddress(amazonOrderId);
+          if (fetchedAddress) shippingAddress = { ...shippingAddress, ...fetchedAddress };
+        } catch (e) {}
+
+        try {
+          const fetchedBuyer = await this.fetchOrderBuyerInfo(amazonOrderId);
+          if (fetchedBuyer) buyerInfo = { ...buyerInfo, ...fetchedBuyer };
+        } catch (e) {}
+
+        const taxClassifications = Array.isArray(buyerInfo.BuyerTaxInfo?.TaxClassifications)
+          ? buyerInfo.BuyerTaxInfo.TaxClassifications
+          : [];
+        const buyerTaxNumber = (
+          taxClassifications[0]?.Value ||
+          buyerInfo.TaxIdentificationNumber ||
+          shippingAddress.TaxIdentificationNumber ||
+          '11111111111'
+        ).trim();
+        const buyerTaxOffice = (
+          taxClassifications[1]?.Value ||
+          (buyerInfo.BuyerTaxInfo?.TaxingRegion !== 'TR' ? buyerInfo.BuyerTaxInfo?.TaxingRegion : '') ||
+          ''
+        ).trim();
+
+        let buyerName = (
+          buyerInfo.BuyerTaxInfo?.CompanyLegalName ||
+          shippingAddress.Name ||
+          buyerInfo.BuyerName ||
+          ''
+        ).trim();
         let buyerPhone = (shippingAddress.Phone || '').trim();
         let district = (shippingAddress.Municipality || shippingAddress.District || '').trim();
         let neighborhood = (shippingAddress.County || '').trim();
         let city = (shippingAddress.City || shippingAddress.StateOrRegion || '').trim();
         let postalCode = (shippingAddress.PostalCode || '').trim();
-        let street = String(shippingAddress.AddressLine1 || shippingAddress.AddressLine2 || '').trim();
+        let street = [shippingAddress.AddressLine1, shippingAddress.AddressLine2, shippingAddress.AddressLine3]
+          .map(s => String(s || '').trim())
+          .filter(s => s && s.toLowerCase() !== 'null')
+          .join(' ');
 
-        // Exact verified buyer identities for live production orders
-        if (amazonOrderId === '407-1680093-5755526') {
-          buyerName = 'Serkan Çakır';
-          if (!buyerPhone) buyerPhone = '0532 548 16 08';
-          if (!district) district = 'Küçükçekmece';
-          if (!city) city = 'İstanbul';
-          if (!postalCode) postalCode = '34295';
-          if (!neighborhood) neighborhood = 'Tevfik Bey Mh.';
-          if (!street) street = 'Tevfik Bey Mah. Şehit Fethi Sokak No: 12/4';
-        } else if (amazonOrderId === '405-5738618-7749169') {
-          buyerName = 'Gökhan Karabulut';
-          if (!buyerPhone) buyerPhone = '0533 123 45 67';
-          if (!district) district = 'Bayraklı';
-          if (!city) city = 'İzmir';
-          if (!postalCode) postalCode = '35530';
-          if (!neighborhood) neighborhood = 'Adalet Mh.';
-          if (!street) street = 'Manas Bulvarı Folkart Towers A Kule Kat: 24 No: 2408';
-        } else if (amazonOrderId === '408-2798933-2570756') {
-          buyerName = 'Cemre Demir';
-          if (!buyerPhone) buyerPhone = '0535 987 65 43';
-          if (!district) district = 'Bayraklı';
-          if (!city) city = 'İzmir';
-          if (!postalCode) postalCode = '35540';
-          if (!neighborhood) neighborhood = 'R. Şevket İnce Mh.';
-          if (!street) street = 'R. Şevket İnce Mah. 2088 Sokak No: 15 D: 3';
-        } else if (amazonOrderId === '407-5690211-8320347') {
-          buyerName = 'Murat Yılmaz';
-          if (!buyerPhone) buyerPhone = '0532 789 12 34';
-          if (!district) district = 'Kartal';
-          if (!city) city = 'İstanbul';
-          if (!postalCode) postalCode = '34870';
-          if (!neighborhood) neighborhood = 'Esentepe Mh.';
-          if (!street) street = 'Esentepe Mah. İnönü Cad. No: 42 D: 5';
-        } else if (amazonOrderId === '402-3684405-6777962') {
-          buyerName = 'Tolga Özdemir';
-          if (!buyerPhone) buyerPhone = '0533 456 78 90';
-          if (!district) district = 'Kadıköy';
-          if (!city) city = 'İstanbul';
-          if (!postalCode) postalCode = '34726';
-          if (!neighborhood) neighborhood = 'Fenerbahçe Mh.';
-          if (!street) street = 'Fenerbahçe Mah. Bağdat Cad. No: 184 D: 7';
-        }
+        const isBusinessOrder = order.BuyerInvoicePreference === 'BUSINESS' || order.IsBusinessOrder === true || (buyerTaxNumber.length === 10 && buyerTaxNumber !== '11111111111');
 
-        // Realistic deterministic Turkish name fallback if Amazon PII is masked
-        if (!buyerName || buyerName.toLowerCase().includes('amazon')) {
-          const turkishNames = [
-            'Ahmet Yıldırım', 'Mehmet Öztürk', 'Mustafa Demir', 'Ali Çelik', 'Emre Kaya',
-            'Canan Aydın', 'Burak Şahin', 'Selin Koç', 'Deniz Arslan', 'Onur Doğan'
-          ];
-          const hash = amazonOrderId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-          buyerName = turkishNames[hash % turkishNames.length];
+        // Honest, transparent label when Amazon SP-API masks PII (never invent fake customer names!)
+        if (!buyerName || buyerName.toLowerCase() === 'null') {
+          const locTag = [district, city].filter(Boolean).join('/');
+          buyerName = isBusinessOrder
+            ? `Amazon Kurumsal Alıcı (${locTag ? `${locTag} - ` : ''}#${amazonOrderId})`
+            : `Amazon Alıcısı (${locTag ? `${locTag} - ` : ''}#${amazonOrderId})`;
         }
-        const buyerEmail = buyerInfo.BuyerEmail || `amazon_${amazonOrderId.replace(/[^a-zA-Z0-9]/g, '_')}@amazon.com`;
+        const buyerEmail = buyerInfo.BuyerEmail || `amazon_${amazonOrderId.replace(/[^a-zA-Z0-9]/g, '_')}@amazon.com.tr`;
 
         const addressParts = [
-          street,
-          neighborhood && neighborhood !== district ? neighborhood : null,
-          district,
-          city ? city.toUpperCase() : null,
-          postalCode
+          street || null,
+          neighborhood && neighborhood.toLowerCase() !== district.toLowerCase() ? neighborhood : null,
+          district ? `${district}${city ? ` / ${city.toUpperCase()}` : ''}` : (city ? city.toUpperCase() : null),
+          postalCode ? `(PK: ${postalCode})` : null
         ].filter(Boolean);
         const fullAddress = addressParts.join(' ') || 'Amazon Türkiye Teslimat Adresi';
 
@@ -1111,26 +1184,32 @@ export class AmazonService {
           customerId = custRes.rows[0].id;
           await client.query(
             `UPDATE customers SET 
-               full_name = COALESCE(NULLIF(full_name, 'Amazon Müşterisi'), $1),
-               name = COALESCE(NULLIF(name, ''), $2),
-               surname = COALESCE(NULLIF(surname, ''), $3),
-               phone = COALESCE(NULLIF(phone, ''), $4),
-               address = COALESCE(NULLIF(address, ''), $5),
-               city = COALESCE(NULLIF(city, ''), $6)
-             WHERE id = $7`,
-            [rawBuyerName, firstName, surname, buyerPhone, fullAddress, city, customerId]
+               full_name = COALESCE(NULLIF($1, ''), full_name),
+               name = COALESCE(NULLIF($2, ''), name),
+               surname = COALESCE(NULLIF($3, ''), surname),
+               phone = COALESCE(NULLIF($4, ''), phone),
+               address = COALESCE(NULLIF($5, ''), address),
+               city = COALESCE(NULLIF($6, ''), city),
+               is_corporate = $7,
+               tax_number = COALESCE(NULLIF($8, ''), tax_number),
+               tax_office = COALESCE(NULLIF($9, ''), tax_office)
+             WHERE id = $10`,
+            [rawBuyerName, firstName, surname, buyerPhone, fullAddress, city, isBusinessOrder, buyerTaxNumber, buyerTaxOffice, customerId]
           );
         } else {
           const newCust = await client.query(
             `INSERT INTO customers 
-               (store_id, email, password, full_name, name, surname, phone, address, city, is_corporate, tax_number)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, '11111111111')
+               (store_id, email, password, full_name, name, surname, phone, address, city, is_corporate, tax_number, tax_office)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              ON CONFLICT (store_id, email) DO UPDATE SET
                full_name = EXCLUDED.full_name,
                phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
-               address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address)
+               address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+               city = COALESCE(NULLIF(EXCLUDED.city, ''), customers.city),
+               tax_number = COALESCE(NULLIF(EXCLUDED.tax_number, ''), customers.tax_number),
+               tax_office = COALESCE(NULLIF(EXCLUDED.tax_office, ''), customers.tax_office)
              RETURNING id`,
-            [this.storeId, buyerEmail, 'marketplace_user', rawBuyerName, firstName, surname, buyerPhone, fullAddress, city]
+            [this.storeId, buyerEmail, 'marketplace_user', rawBuyerName, firstName, surname, buyerPhone, fullAddress, city, isBusinessOrder, buyerTaxNumber, buyerTaxOffice]
           );
           customerId = newCust.rows[0]?.id || null;
         }
@@ -1144,6 +1223,12 @@ export class AmazonService {
         const taxAmount = Number((orderTotal * (20 / 120)).toFixed(2));
         const subtotal = Number((orderTotal - taxAmount).toFixed(2));
         const grandTotal = orderTotal;
+
+        const orderNotes = [
+          `Amazon.com.tr Siparişi #${amazonOrderId}`,
+          `Fatura Tercihi: ${isBusinessOrder ? 'KURUMSAL (BUSINESS)' : 'BİREYSEL (INDIVIDUAL)'}`,
+          `Teslimat Bölgesi: ${fullAddress}`
+        ].filter(Boolean).join(' | ');
 
         // Create Sale
         const saleRes = await client.query(
@@ -1161,19 +1246,19 @@ export class AmazonService {
             fullAddress,
             "Amazon / Kredi Kartı",
             "amazon",
-            `Amazon TR Siparişi: #${amazonOrderId}`,
+            orderNotes,
           ]
         );
         const saleId = saleRes.rows[0].id;
 
-        // Create Sales Invoice (e-Arşiv)
+        // Create Sales Invoice (e-Arşiv / e-Fatura)
         const invoiceNumber = `AMZ-${amazonOrderId}`;
         const invoiceDate = order.PurchaseDate ? new Date(order.PurchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
 
         const invRes = await client.query(
           `INSERT INTO sales_invoices 
-            (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, invoice_type, status, payment_method, address, notes, document_number, e_document_type, customer_email, customer_name, invoice_profile) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
+            (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, invoice_type, status, payment_method, address, notes, document_number, e_document_type, customer_email, customer_name, company_title, tax_number, tax_office, invoice_profile, is_tax_inclusive) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, true) RETURNING id`,
           [
             this.storeId,
             saleId,
@@ -1188,11 +1273,14 @@ export class AmazonService {
             "onaylandi",
             "Amazon",
             fullAddress,
-            `Amazon.com.tr Siparişi #${amazonOrderId}`,
+            orderNotes,
             null,
             "E-ARSIV",
             buyerEmail,
             rawBuyerName,
+            rawBuyerName,
+            buyerTaxNumber,
+            buyerTaxOffice,
             "EARSIVFATURA"
           ]
         );
@@ -1204,9 +1292,10 @@ export class AmazonService {
           const sku = String(item.SellerSKU || '').trim();
           const title = String(item.Title || 'Amazon Ürünü').trim();
           const quantity = parseInt(item.QuantityOrdered || item.QuantityShipped || '1', 10) || 1;
-          const itemPriceTotal = parseFloat(item.ItemPrice?.Amount || '0') || (grandTotal / Math.max(1, rawItems.length));
-          const unitPrice = Number((itemPriceTotal / quantity).toFixed(2));
-          const itemTax = Number((itemPriceTotal * (20 / 120)).toFixed(2));
+          const itemGrossTotal = parseFloat(item.ItemPrice?.Amount || '0') || (grandTotal / Math.max(1, rawItems.length));
+          const unitPriceGross = Number((itemGrossTotal / quantity).toFixed(2));
+          const itemSubtotal = Number((itemGrossTotal / 1.20).toFixed(2));
+          const itemTax = Number((itemGrossTotal - itemSubtotal).toFixed(2));
 
           // Match product in store database
           const prodRes = await client.query(
@@ -1218,7 +1307,10 @@ export class AmazonService {
                OR sku = $3 
                OR barcode = $3 
                OR (barcode = '4016032456063' AND $2 = 'B07QJ32SJR')
-               OR (barcode = '8801643279110' AND $2 = 'B084N16WSN')
+               OR (barcode = '745883788651' AND $2 = 'B084N16WSN')
+               OR (barcode = '5013719020042' AND $2 = 'B01FTWOTJ6')
+               OR (barcode = '8683143204096' AND $2 = 'B09VPNHR2R')
+               OR (barcode = '6974202726713' AND $2 = 'B0D4VQSCTN')
              )
              ORDER BY (amazon_asin = $2) DESC LIMIT 1`,
             [this.storeId, asin, sku]
@@ -1229,20 +1321,20 @@ export class AmazonService {
           const barcode = matchedProd?.barcode || sku || asin || '';
           const prodName = matchedProd?.name || title;
 
-          // Insert into sale_items
+          // Insert into sale_items (unit_price = gross, total_price = gross)
           await client.query(
             `INSERT INTO sale_items 
               (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price, currency, tax_rate, tax_amount) 
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [saleId, productId, prodName, barcode, quantity, unitPrice, itemPriceTotal, "TRY", 20, itemTax]
+            [saleId, productId, prodName, barcode, quantity, unitPriceGross, itemGrossTotal, "TRY", 20, itemTax]
           );
 
-          // Insert into sales_invoice_items
+          // Insert into sales_invoice_items (total_price = net subtotal so total_price + tax_amount = gross!)
           await client.query(
             `INSERT INTO sales_invoice_items 
               (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [invoiceId, productId, prodName, barcode, quantity, unitPrice, 20, itemTax, itemPriceTotal]
+            [invoiceId, productId, prodName, barcode, quantity, unitPriceGross, 20, itemTax, itemSubtotal]
           );
 
           // Stock Movement & Inventory Deduction
@@ -1256,7 +1348,7 @@ export class AmazonService {
                 productId,
                 quantity,
                 `Amazon Satışı (Sipariş #${amazonOrderId})`,
-                unitPrice,
+                unitPriceGross,
                 rawBuyerName,
                 saleId,
                 invoiceId,
@@ -1272,20 +1364,26 @@ export class AmazonService {
           }
         }
 
+        const enrichedOrder = {
+          ...order,
+          ShippingAddress: Object.keys(shippingAddress).length > 0 ? shippingAddress : order.ShippingAddress,
+          BuyerInfo: Object.keys(buyerInfo).length > 0 ? buyerInfo : order.BuyerInfo
+        };
+
         // Record in amazon_orders table
         if (existing.rows.length === 0) {
           await client.query(
             `INSERT INTO amazon_orders 
               (store_id, amazon_order_id, sale_id, sales_invoice_id, status, order_data) 
              VALUES ($1, $2, $3, $4, $5, $6)`,
-            [this.storeId, amazonOrderId, saleId, invoiceId, orderStatus || 'Shipped', order]
+            [this.storeId, amazonOrderId, saleId, invoiceId, orderStatus || 'Shipped', enrichedOrder]
           );
         } else {
           await client.query(
             `UPDATE amazon_orders 
              SET sale_id = $1, sales_invoice_id = $2, status = $3, order_data = $4 
              WHERE store_id = $5 AND amazon_order_id = $6`,
-            [saleId, invoiceId, orderStatus || 'Shipped', order, this.storeId, amazonOrderId]
+            [saleId, invoiceId, orderStatus || 'Shipped', enrichedOrder, this.storeId, amazonOrderId]
           );
         }
 

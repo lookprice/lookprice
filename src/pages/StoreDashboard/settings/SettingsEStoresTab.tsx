@@ -1398,6 +1398,23 @@ export const SettingsEStoresTab = ({
                   </div>
                 </div>
 
+                <div className="flex items-start space-x-3 p-3 bg-indigo-50/80 rounded-xl border border-indigo-200">
+                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0">5</div>
+                  <div>
+                    <h5 className="font-semibold text-indigo-950">Tam Müşteri Adı, Açık Adres ve Vergi Bilgisi (PII / RDT Yetkisi)</h5>
+                    <p className="mt-1 text-indigo-900 leading-normal text-[11px]">
+                      Amazon SP-API güvenlik politikası gereği; siparişlerdeki <span className="font-semibold">Müşteri Adı-Soyadı, Sokak/Kapı No ve Kurumsal VKN/TCKN</span> verilerinin API üzerinden açık (maskesiz) gelmesi için Developer Central / Solution Provider Portal üzerindeki uygulama profilinizde (App Configuration &gt; Roles):
+                    </p>
+                    <ul className="mt-1.5 list-disc list-inside space-y-1 text-[11px] text-indigo-950 font-medium">
+                      <li><span className="font-bold">Direct-to-Consumer Shipping (Restricted)</span> — Açık teslimat adresi ve alıcı adı için</li>
+                      <li><span className="font-bold">Tax Invoicing / Tax Remittance (Restricted)</span> — Fatura ünvanı ve VKN/TCKN için</li>
+                    </ul>
+                    <p className="mt-1 text-[11px] text-indigo-800">
+                      rollerinin işaretli olması gerekir. Bu roller onaylanana kadar Amazon SP-API yalnızca <span className="font-semibold">İl, İlçe, Mahalle, Posta Kodu, Fatura Tipi (Bireysel/Kurumsal) ve Ürün/Tutar</span> verilerini iletir; sistemimiz bu verileri RDT (Restricted Data Token) protokolüyle otomatik olarak çeker.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">5</div>
                   <div>

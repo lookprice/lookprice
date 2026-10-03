@@ -392,6 +392,11 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                 {inv.tax_office && <span className="truncate max-w-[90px]">({inv.tax_office})</span>}
                               </div>
                             )}
+                            {(inv.address || inv.customer_address) && (inv.address || inv.customer_address) !== 'Amazon Türkiye Teslimat Adresi' && (
+                              <div className="text-[10px] text-slate-500 truncate max-w-[160px] sm:max-w-[200px] lg:max-w-[240px] mt-0.5" title={inv.address || inv.customer_address}>
+                                {inv.address || inv.customer_address}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -712,7 +717,10 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                       const unitPrice = Number(item.unit_price) || 0;
                                       const taxRate = Number(item.tax_rate) || 0;
                                       const taxAmt = Number(item.tax_amount) || ((qty * unitPrice * taxRate) / 100);
-                                      const lineTotal = Number(item.total_price) || (qty * unitPrice);
+                                      const rawTotalPrice = Number(item.total_price) || 0;
+                                      const lineTotal = rawTotalPrice > 0
+                                        ? (Math.abs(rawTotalPrice - (qty * unitPrice)) < 0.05 && inv.is_tax_inclusive !== false ? rawTotalPrice : rawTotalPrice + taxAmt)
+                                        : (qty * unitPrice);
 
                                       return (
                                         <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
