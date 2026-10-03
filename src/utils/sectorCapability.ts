@@ -272,7 +272,7 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     return "HORECA";
   }
 
-  // 6. BookLP (Kitapçı / Yayınevi) Tespiti (Sadece perakende alt dalı olarak)
+  // 6. BookLP (Kitapçı / Yayınevi) Tespiti (Sadece perakende alt dalı olarak - Kesin İzolasyon Kuralı)
   const isBookActive = Boolean(
     s.bookstore_module_enabled === true ||
     s.branding?.bookstore_module_enabled === true ||
@@ -285,22 +285,8 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     s.theme_config?.bookstore_mode === true ||
     s.branding?.theme_config?.bookstore_mode === true ||
     rawStoreType === "bookstore" ||
-    rawStoreType === "kitap" ||
-    rawStoreType === "sahaf" ||
     rawSector === "bookstore" ||
-    rawSector === "kitap" ||
-    rawSector === "sahaf" ||
-    rawSubSector === "bookstore" ||
-    rawSubSector === "kitap" ||
-    name.includes("BOOK") ||
-    name.includes("KITAP") ||
-    name.includes("KİTAP") ||
-    name.includes("SAHAF") ||
-    name.includes("YAYIN") ||
-    slug.includes("book") ||
-    slug.includes("kitap") ||
-    slug.includes("dgbook") ||
-    slug.includes("dgkitap")
+    rawSubSector === "bookstore"
   );
 
   if (isBookActive) {

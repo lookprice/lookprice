@@ -748,7 +748,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                           >
                             {book.name}
                           </h4>
-                          <p className="text-[11px] text-slate-500 truncate">{book.author || 'Seçkin Yazar'}</p>
+                          <p className="text-[11px] text-slate-500 truncate">{book.brand || book.author || book.category || ''}</p>
                           <p className="font-black text-xs text-red-600 mt-1">
                             {Number(book.price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {book.currency || 'TRY'}
                           </p>

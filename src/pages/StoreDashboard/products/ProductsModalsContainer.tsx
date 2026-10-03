@@ -3,6 +3,8 @@ import { ProductMovementModal } from "@/components/ProductMovementModal";
 import { RecipeModal } from "@/pages/StoreDashboard/modals/RecipeModal";
 import { ProductSocialMediaShareModal } from "@/components/ProductSocialMediaShareModal";
 import { DuplicateMergeModal } from "@/components/DuplicateMergeModal";
+import { EanEnrichmentModal } from "@/components/EanEnrichmentModal";
+import { SectorTaxonomyModal } from "@/components/SectorTaxonomyModal";
 import AiMenuScanModal from "@/pages/StoreDashboard/modals/AiMenuScanModal";
 import { MarketplaceBulkPublishModal } from "@/components/marketplace/MarketplaceBulkPublishModal";
 import { MarketplaceListingsModal } from "@/components/marketplace/MarketplaceListingsModal";
@@ -21,6 +23,10 @@ interface ProductsModalsContainerProps {
   setSharingProduct: (p: any) => void;
   isMergeModalOpen: boolean;
   setIsMergeModalOpen: (open: boolean) => void;
+  isEanModalOpen?: boolean;
+  setIsEanModalOpen?: (open: boolean) => void;
+  isTaxonomyModalOpen?: boolean;
+  setIsTaxonomyModalOpen?: (open: boolean) => void;
   isAiMenuModalOpen: boolean;
   setIsAiMenuModalOpen: (open: boolean) => void;
   showBulkPublishModal: boolean;
@@ -49,6 +55,10 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
   setSharingProduct,
   isMergeModalOpen,
   setIsMergeModalOpen,
+  isEanModalOpen,
+  setIsEanModalOpen,
+  isTaxonomyModalOpen,
+  setIsTaxonomyModalOpen,
   isAiMenuModalOpen,
   setIsAiMenuModalOpen,
   showBulkPublishModal,
@@ -107,6 +117,30 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
           }}
           storeId={currentStoreId}
           initialSelectedIds={selectedIds}
+          allStoreProducts={products}
+        />
+      )}
+
+      {isEanModalOpen && setIsEanModalOpen && (
+        <EanEnrichmentModal
+          isOpen={isEanModalOpen}
+          onClose={() => setIsEanModalOpen(false)}
+          onSuccess={() => {
+            if (onRefresh) onRefresh();
+          }}
+          storeId={currentStoreId}
+        />
+      )}
+
+      {isTaxonomyModalOpen && setIsTaxonomyModalOpen && (
+        <SectorTaxonomyModal
+          isOpen={isTaxonomyModalOpen}
+          onClose={() => setIsTaxonomyModalOpen(false)}
+          onSuccess={() => {
+            if (onRefresh) onRefresh();
+          }}
+          storeId={currentStoreId}
+          storeName={branding?.name || branding?.store_name}
         />
       )}
 

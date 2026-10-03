@@ -348,8 +348,13 @@ This file outlines strict engineering, performance, and naming directives that m
   - Web sitelerinde ve yönetim panellerinde, sayfa yenilendiğinde (F5, Ctrl+Alt+F5) kullanıcının bulunduğu sekme, kategori, alt kategori, sıralama ve rozet filtresi (`tab`, `category`, `subCategory`, `badge`, `brand`, `sort`) URL parametreleri ve `localStorage` ile %100 senkronize tutulmalıdır. Sayfa yenilendiğinde kullanıcı bulunduğu görünümde kalmalıdır.
 
 - **Geri Tuşu ile Modal / Katman Kapatma Güvencesi (Browser Back Modal Shield)**:
-  - Ürün detay modalı (`ProductDetailModal`), sepet drawer'ı, hızlı bakış veya herhangi bir açılır katman açıldığında, tarayıcı geçmişine modal durumu işlenmelidir (`history.pushState` / URL `?product=ID`).
+  - Ürün detay modalı (`ProductDetailModal`), sepet drawer'ı, hızlı bakış veya herhangi bir açılır katman ilk açıldığında, tarayıcı geçmişine modal durumu işlenmelidir (`history.pushState` / URL `?product=ID`).
   - Kullanıcı tarayıcının veya cihazın "Geri" tuşuna bastığında, web sitesinden atılıp dışarı gönderilmemeli; sadece açık olan modal/katman kapanmalı ve kullanıcı o anki sayfa görünümünde kalmalıdır.
+
+- **Modal İçi Ürün Gezintisi & Anında Kapatma Standardı (Single-History Modal Standard)**:
+  - Ürün detay modalı açıkken modal içerisinde sonraki/önceki veya ilişkili ürünler arasında gezinti yapıldığında, tarayıcı geçmişine her ürün için üst üste yeni sayfa biriktirilmesi YASAKTIR.
+  - Açık modal içerisindeki ürün değişimlerinde mevcut modal URL kaydı ezilmelidir (`{ replace: true }`).
+  - Kullanıcının "X" kapatma butonuna basması veya dış karartıya (backdrop) tıklaması durumunda `window.history.back()` döngüsüne girilmeden modal **TEK TIKLA ANINDA KAPANMALIDIR**. Gezilen tüm ürünlerin geçmişte tek tek geriye doğru oynatılması ve kapatılamaması sorunu engellenmiştir.
 
 - **Kullanıcı Yönlendirme & Belirgin Geri Dönüş Standardı**:
   - "Tümünü Gör" veya koleksiyon kartları üzerinden katalog görünümüne geçildiğinde, tecrübesiz kullanıcıların dahi ana akışa kolayca dönebilmesi için belirgin bir **"<- Ana Sayfaya Dön / Ana Görünüme Dön"** butonu ve kırıntı (breadcrumb) navigasyonu sunulmalıdır.

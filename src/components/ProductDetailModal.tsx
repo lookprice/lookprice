@@ -876,20 +876,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             {/* Metadata Badges (Category, Author, Publisher, Brand, Stock) */}
             {(() => {
               const isStoreBookstore = isBookstoreStore(store);
-              const hasExplicitBookData = Boolean(
-                (product.sector_data as any)?.isbn ||
-                (product.sector_data as any)?.author ||
-                (product.sector_data as any)?.publisher ||
-                (product.sector_data as any)?.page_count ||
-                (product.sector_data as any)?.cover_type ||
-                (product.sector_data as any)?.synopsis ||
-                (product.sector_data as any)?.translator
-              );
-              const isBook = isStoreBookstore || hasExplicitBookData;
-
-              const authorName = (product.author || (product.sector_data as any)?.author || "").trim();
-              const publisherName = ((product.sector_data as any)?.publisher || (isBook && authorName ? product.brand : "") || "").trim();
-              const brandName = (publisherName ? "" : product.brand || "")?.trim();
+              // Strict sectoral isolation: Books / Authors / Publishers ONLY exist if the store itself is a bookstore
+              const authorName = isStoreBookstore ? (product.author || (product.sector_data as any)?.author || "").trim() : "";
+              const publisherName = isStoreBookstore ? ((product.sector_data as any)?.publisher || (authorName ? product.brand : "") || "").trim() : "";
+              const brandName = (product.brand || "")?.trim();
 
               return (
                 <div className="flex flex-wrap gap-1.5 items-center">
@@ -916,8 +906,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       : (product.category || t.dashboard.uncategorized)}
                   </span>
 
-                  {/* Author Badge */}
-                  {authorName && (
+                  {/* Author Badge (ONLY for Bookstore) */}
+                  {isStoreBookstore && authorName && (
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-900 border border-indigo-200/80 flex items-center gap-1.5 shadow-2xs">
                       <Feather className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
                       <span className="text-indigo-600/90 font-medium">{lang === "tr" ? "Yazar:" : "Author:"}</span>
@@ -925,8 +915,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </span>
                   )}
 
-                  {/* Publisher Badge */}
-                  {publisherName && (
+                  {/* Publisher Badge (ONLY for Bookstore) */}
+                  {isStoreBookstore && publisherName && (
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200/90 flex items-center gap-1.5 shadow-2xs">
                       <Building2 className="w-2.5 h-2.5 text-slate-500 shrink-0" />
                       <span className="text-slate-500 font-medium">{lang === "tr" ? "Yayınevi:" : "Publisher:"}</span>
@@ -934,10 +924,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </span>
                   )}
 
-                  {/* Non-Book Brand */}
-                  {brandName && product.type !== "real_estate" && (
+                  {/* Standard Brand (for Retail / shopLP / Technology / General stores) */}
+                  {!isStoreBookstore && brandName && product.type !== "real_estate" && (
                     <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-slate-700 whitespace-nowrap">
-                      {brandLabel}: {brandName}
+                      {lang === "tr" ? "Marka" : "Brand"}: {brandName}
                     </span>
                   )}
 

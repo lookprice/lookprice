@@ -797,6 +797,20 @@ export async function initDb() {
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS is_tax_inclusive BOOLEAN DEFAULT TRUE;
       ALTER TABLE quotations ADD COLUMN IF NOT EXISTS is_tax_inclusive BOOLEAN DEFAULT TRUE;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS is_tax_inclusive BOOLEAN DEFAULT FALSE;
+      CREATE TABLE IF NOT EXISTS marketplace_master_taxonomies (
+        id SERIAL PRIMARY KEY,
+        marketplace VARCHAR(50) NOT NULL DEFAULT 'hepsiburada',
+        category_id VARCHAR(100) NOT NULL,
+        parent_id VARCHAR(100),
+        name VARCHAR(255) NOT NULL,
+        path TEXT NOT NULL,
+        leaf BOOLEAN DEFAULT true,
+        sector VARCHAR(50) DEFAULT 'technology',
+        attributes JSONB DEFAULT '[]'::jsonb,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(marketplace, category_id)
+      );
+
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS phone TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS country TEXT;
       ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'TR';

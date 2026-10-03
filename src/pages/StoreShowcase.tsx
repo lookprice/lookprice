@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
@@ -268,38 +268,60 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const productParam = searchParams.get("product");
   const modalParam = searchParams.get("modal");
 
+  // Track if product modal was initially opened or navigating internally
+  const isProductModalOpenRef = useRef(false);
+
   // Sync selectedProduct with URL parameter '?product=id'
   useEffect(() => {
     if (selectedProduct) {
       const currentId = String(selectedProduct.id);
       if (searchParams.get("product") !== currentId) {
         setSearchParams(prev => {
-          prev.set("product", currentId);
-          return prev;
-        }, { replace: false });
+          const next = new URLSearchParams(prev);
+          next.set("product", currentId);
+          return next;
+        }, { replace: isProductModalOpenRef.current });
+        isProductModalOpenRef.current = true;
       }
     } else {
+      isProductModalOpenRef.current = false;
       if (searchParams.has("product")) {
         setSearchParams(prev => {
-          prev.delete("product");
-          return prev;
+          const next = new URLSearchParams(prev);
+          next.delete("product");
+          return next;
         }, { replace: true });
       }
     }
   }, [selectedProduct]);
 
-  // Sync back from URL parameter '?product=id' to state
+  // Direct modal close handler that immediately clears state and URL params on X / backdrop click
+  const handleCloseProductModal = useCallback(() => {
+    setSelectedProduct(null);
+    isProductModalOpenRef.current = false;
+    if (searchParams.has("product")) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete("product");
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Sync back from URL parameter '?product=id' to state (e.g. browser back button press)
   useEffect(() => {
     if (productParam) {
       if (!selectedProduct || String(selectedProduct.id) !== productParam) {
         const found = products.find(p => String(p.id) === productParam);
         if (found) {
           setSelectedProduct(found);
+          isProductModalOpenRef.current = true;
         }
       }
     } else {
       if (selectedProduct) {
         setSelectedProduct(null);
+        isProductModalOpenRef.current = false;
       }
     }
   }, [productParam, products]);
@@ -905,13 +927,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             {selectedProduct && (
               <ProductDetailModal
                 product={selectedProduct} store={store} t={t} slug={slug}
-                onClose={() => {
-                  if (searchParams.has("product")) {
-                    window.history.back();
-                  } else {
-                    setSelectedProduct(null);
-                  }
-                }} addToBasket={addToBasket}
+                onClose={handleCloseProductModal} addToBasket={addToBasket}
                 primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
                 showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
                 allProducts={products} onNavigateProduct={setSelectedProduct}
@@ -1116,13 +1132,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           {selectedProduct && (
             <ProductDetailModal
               product={selectedProduct} store={store} t={t} slug={slug}
-              onClose={() => {
-                if (searchParams.has("product")) {
-                  window.history.back();
-                } else {
-                  setSelectedProduct(null);
-                }
-              }} addToBasket={addToBasket}
+              onClose={handleCloseProductModal} addToBasket={addToBasket}
               primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
               showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
               allProducts={activeModalProducts.length > 0 ? activeModalProducts : products} onNavigateProduct={setSelectedProduct}

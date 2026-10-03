@@ -5,6 +5,7 @@ import { isValidStandardBarcode } from "./invoiceMatching";
 import { GoogleGenAI } from "@google/genai";
 import XLSX from "xlsx";
 import { masterBookLookup, generateHighResBookCoverSvg } from "./bookLookupService";
+import { getPredefinedSectorPackages, seedStoreSectorTaxonomy, autoBridgeStoreCategories, populateMarketplaceMasterTaxonomies } from "./hepsiburadaTaxonomyService";
 
 export function cleanMpString(val: any): string | null {
   if (val === undefined || val === null) return null;
@@ -152,6 +153,10 @@ export async function mergeProducts(clientOrPool: any, sourceId: number, targetI
     }
 
     // 14. Calculate combined stock & cost price for target product
+    const targetIsInternalBarcode = !target.barcode || /^(2[0-9]{7,13}|TEMP|AUTO|M-|P-|LP-)/i.test(target.barcode);
+    const sourceIsRealBarcode = isValidStandardBarcode(source.barcode) && !/^(2[0-9]{7,13}|TEMP|AUTO|M-|P-|LP-)/i.test(source.barcode);
+    const finalBarcode = (targetIsInternalBarcode && sourceIsRealBarcode) ? source.barcode : target.barcode;
+
     const newStock = Number(target.stock_quantity || 0) + Number(source.stock_quantity || 0);
     let newCost = Number(target.cost_price || 0);
     if (newCost <= 0 && Number(source.cost_price || 0) > 0) {
@@ -166,24 +171,25 @@ export async function mergeProducts(clientOrPool: any, sourceId: number, targetI
     const newPrice = Number(target.price || 0) > 0 ? Number(target.price) : Number(source.price || 0);
     const newImage = target.image_url || source.image_url || null;
 
+    // 15. Delete duplicate source product first so its barcode is completely freed
+    await client.query("DELETE FROM products WHERE id = $1", [source.id]);
+
     await client.query(`
       UPDATE products 
-      SET stock_quantity = $1,
-          cost_price = $2,
-          cost_currency = $3,
-          product_code = COALESCE(product_code, $4),
-          sku = COALESCE(sku, $5),
-          brand = COALESCE(brand, $6),
-          category = COALESCE(category, $7),
-          sub_category = COALESCE(sub_category, $8),
-          price = CASE WHEN price > 0 THEN price ELSE $9 END,
-          image_url = COALESCE(image_url, $10),
+      SET barcode = $1,
+          stock_quantity = $2,
+          cost_price = $3,
+          cost_currency = $4,
+          product_code = COALESCE(product_code, $5),
+          sku = COALESCE(sku, $6),
+          brand = COALESCE(brand, $7),
+          category = COALESCE(category, $8),
+          sub_category = COALESCE(sub_category, $9),
+          price = CASE WHEN price > 0 THEN price ELSE $10 END,
+          image_url = COALESCE(image_url, $11),
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = $11
-    `, [newStock, newCost, newCurrency, newCode, newSku, newBrand, newCategory, newSubCat, newPrice, newImage, target.id]);
-
-    // 15. Delete duplicate source product safely
-    await client.query("DELETE FROM products WHERE id = $1", [source.id]);
+      WHERE id = $12
+    `, [finalBarcode, newStock, newCost, newCurrency, newCode, newSku, newBrand, newCategory, newSubCat, newPrice, newImage, target.id]);
 
     if (mustCommit) {
       await client.query("COMMIT");
@@ -256,19 +262,25 @@ function scoreProductAsTarget(p: any): number {
   if (p.is_sellable !== false) score += 100;
   else score -= 50;
 
-  // 2. Barcode validity
+  // 2. Barcode quality - Real international manufacturer barcodes get highest priority
   const bar = (p.barcode || "").trim();
-  if (isValidStandardBarcode(bar)) score += 80;
-  else if (!bar || bar.startsWith("200") || bar.startsWith("TEMP")) score -= 30;
+  const isInternal = !bar || /^(2[0-9]{7,13}|TEMP|AUTO|M-|P-|LP-)/i.test(bar);
+  if (isValidStandardBarcode(bar) && !isInternal) {
+    score += 150; // Real global manufacturer barcode (e.g. 8806090527456, 869..., 400...)
+  } else if (isValidStandardBarcode(bar)) {
+    score += 30; // Internal retail/scale barcode (e.g. 2806090527456, 200...)
+  } else {
+    score -= 50; // No barcode or temp prefix
+  }
 
   // 3. Stock quantity (positive stock preferred over negative stock)
   const stock = Number(p.stock_quantity) || 0;
-  if (stock > 0) score += 60 + Math.min(stock, 20);
+  if (stock > 0) score += 40 + Math.min(stock, 10);
   else if (stock < 0) score -= 40;
 
   // 4. Selling price active
   const price = Number(p.price) || 0;
-  if (price > 0) score += 40;
+  if (price > 0) score += 30;
 
   // 5. Cost price defined
   if (Number(p.cost_price) > 0) score += 15;
@@ -547,6 +559,62 @@ router.post("/sync-names", async (req: any, res) => {
   }
 });
 
+// GET /products/categories/sector-packages
+router.get("/categories/sector-packages", async (req: any, res) => {
+  try {
+    const packages = getPredefinedSectorPackages();
+    res.json({ success: true, packages });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /products/categories/seed-sector-taxonomy
+router.post("/categories/seed-sector-taxonomy", async (req: any, res) => {
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+  const { packageIds } = req.body;
+  if (!Array.isArray(packageIds) || packageIds.length === 0) {
+    return res.status(400).json({ error: "Lütfen en az bir sektör kategorisi seçiniz." });
+  }
+
+  try {
+    const result = await seedStoreSectorTaxonomy(storeId, packageIds, req.user?.id);
+    res.json(result);
+  } catch (err: any) {
+    console.error("Seed sector taxonomy error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /products/categories/auto-bridge
+router.post("/categories/auto-bridge", async (req: any, res) => {
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+  try {
+    const result = await autoBridgeStoreCategories(storeId);
+    res.json(result);
+  } catch (err: any) {
+    console.error("Auto bridge categories error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /products/categories/sync-master-taxonomy
+router.post("/categories/sync-master-taxonomy", async (req: any, res) => {
+  try {
+    const result = await populateMarketplaceMasterTaxonomies();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    console.error("Sync master taxonomy error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /products/categories
 router.get("/categories", async (req: any, res) => {
   const currentStoreId = req.user.store_id;
@@ -588,6 +656,31 @@ router.get("/categories", async (req: any, res) => {
         if (s2) catMap.get(c2)!.add(s2);
       }
     });
+
+    // Also include store predefined categories from branding.category_specs / custom_categories
+    try {
+      const storeRes = await pool.query("SELECT branding FROM stores WHERE id = $1", [storeIdNum]);
+      if (storeRes.rows.length > 0 && storeRes.rows[0].branding) {
+        let branding = storeRes.rows[0].branding;
+        if (typeof branding === "string") {
+          try { branding = JSON.parse(branding); } catch (e) {}
+        }
+        if (branding?.category_specs && typeof branding.category_specs === "object") {
+          for (const [cat, spec] of Object.entries<any>(branding.category_specs)) {
+            if (cat && typeof cat === "string") {
+              if (!catMap.has(cat)) catMap.set(cat, new Set<string>());
+              if (Array.isArray(spec?.sub_categories)) {
+                spec.sub_categories.forEach((s: string) => {
+                  if (s && typeof s === "string") catMap.get(cat)!.add(s);
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (storeCatErr) {
+      console.warn("Could not load branding categories for store:", storeCatErr);
+    }
 
     const response = Array.from(catMap.entries()).map(([category, subs]) => ({
       category,
@@ -989,6 +1082,8 @@ router.put("/bulk-recalculate-price2", async (req: any, res) => {
   }
 });
 
+import { getEanEnrichmentCandidates, applyEanEnrichment } from "./eanEnrichmentService";
+
 // GET /products/duplicate-candidates
 router.get("/duplicate-candidates", async (req: any, res) => {
   const requestedId = req.query.storeId;
@@ -1085,6 +1180,82 @@ router.post("/auto-merge-duplicates", async (req: any, res) => {
     });
   } catch (error: any) {
     console.error("Auto merge error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /products/ean-enrichment-candidates
+router.get("/ean-enrichment-candidates", async (req: any, res) => {
+  const requestedId = req.query.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+  try {
+    const candidates = await getEanEnrichmentCandidates(storeId);
+    res.json({
+      success: true,
+      count: candidates.length,
+      candidates
+    });
+  } catch (error: any) {
+    console.error("EAN enrichment candidates error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /products/apply-ean-enrichment
+router.post("/apply-ean-enrichment", async (req: any, res) => {
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+  const { productId, newEan } = req.body;
+  if (!productId || !newEan) {
+    return res.status(400).json({ error: "productId ve newEan parametreleri zorunludur." });
+  }
+
+  try {
+    const result = await applyEanEnrichment(storeId, Number(productId), String(newEan), req.user?.id);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Apply EAN enrichment error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /products/auto-apply-ean-enrichment
+router.post("/auto-apply-ean-enrichment", async (req: any, res) => {
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+  try {
+    const candidates = await getEanEnrichmentCandidates(storeId);
+    const highConfidence = candidates.filter(c => c.confidence >= 95);
+    const appliedResults: any[] = [];
+
+    for (const item of highConfidence) {
+      try {
+        const result = await applyEanEnrichment(storeId, item.id, item.suggestedEan, req.user?.id);
+        appliedResults.push({
+          productId: item.id,
+          productName: item.name,
+          oldBarcode: item.currentBarcode,
+          newEan: item.suggestedEan,
+          result
+        });
+      } catch (err: any) {
+        console.warn(`[Auto EAN Apply] Skip item #${item.id}:`, err.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      appliedCount: appliedResults.length,
+      appliedResults
+    });
+  } catch (error: any) {
+    console.error("Auto apply EAN error:", error);
     res.status(500).json({ error: error.message });
   }
 });
