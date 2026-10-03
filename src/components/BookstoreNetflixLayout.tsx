@@ -77,15 +77,58 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   setShowAuthModal
 }) => {
   const isTr = lang === "tr";
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string>("all");
-  const [selectedAuthor, setSelectedAuthor] = useState<string>("all");
-  const [selectedPublisher, setSelectedPublisher] = useState<string>("all");
-  const [selectedBadge, setSelectedBadge] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"home" | "catalog" | "bestsellers">("home");
+  
+  // Load initial states from URL search params to preserve operator workflow on refresh (Rule 7)
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("q") || "";
+  });
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("category") || "all";
+  });
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("sub_category") || "all";
+  });
+  const [selectedAuthor, setSelectedAuthor] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("author") || "all";
+  });
+  const [selectedPublisher, setSelectedPublisher] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("publisher") || "all";
+  });
+  const [selectedBadge, setSelectedBadge] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("badge") || "all";
+  });
+  const [activeTab, setActiveTab] = useState<"home" | "catalog" | "bestsellers">((() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab === "home" || tab === "catalog" || tab === "bestsellers") return tab;
+    return "home";
+  })());
+
   const [favCount, setFavCount] = useState<number>(() => bookstoreInteraction.getFavorites(store?.id).length);
   const [visibleCount, setVisibleCount] = useState<number>(30);
+
+  // Synchronize state changes to URL search params (Rule 7: Operator UX Continuity & Persistence)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    
+    if (searchQuery) params.set("q", searchQuery); else params.delete("q");
+    if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory); else params.delete("category");
+    if (selectedSubCategory && selectedSubCategory !== "all") params.set("sub_category", selectedSubCategory); else params.delete("sub_category");
+    if (selectedAuthor && selectedAuthor !== "all") params.set("author", selectedAuthor); else params.delete("author");
+    if (selectedPublisher && selectedPublisher !== "all") params.set("publisher", selectedPublisher); else params.delete("publisher");
+    if (selectedBadge && selectedBadge !== "all") params.set("badge", selectedBadge); else params.delete("badge");
+    if (activeTab && activeTab !== "home") params.set("tab", activeTab); else params.delete("tab");
+    
+    const newSearch = params.toString();
+    const newUrl = `${window.location.pathname}${newSearch ? "?" + newSearch : ""}`;
+    window.history.replaceState(window.history.state, "", newUrl);
+  }, [searchQuery, selectedCategory, selectedSubCategory, selectedAuthor, selectedPublisher, selectedBadge, activeTab]);
 
   // Reset visibleCount on filter change
   useEffect(() => {

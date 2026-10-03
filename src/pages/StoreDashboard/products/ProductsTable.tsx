@@ -204,6 +204,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                 />
               ))
             )}
+            {openActionMenuId !== null && paginatedProducts.length < 4 && (
+              <tr className="border-none hover:bg-transparent bg-transparent">
+                <td colSpan={15} className="p-0 border-none bg-transparent">
+                  <div className="h-48 bg-transparent pointer-events-none" />
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

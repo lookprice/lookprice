@@ -1118,19 +1118,21 @@ export class N11Service {
     quantity: number
   ): Promise<{ success: boolean; message?: string }> {
     const payload = {
-      productSellerCode: productSellerCode,
-      price: price,
-      stockItems: [
+      integrator: "LookPrice",
+      skus: [
         {
-          sellerStockCode: productSellerCode,
-          quantity: quantity
+          stockCode: productSellerCode,
+          listPrice: price,
+          salePrice: price,
+          quantity: quantity,
+          currencyType: "TL"
         }
       ]
     };
 
-    // 1. Try modern N11 REST API
+    // 1. Try modern N11 REST API (price-stock-update)
     try {
-      const res = await axios.post("https://api.n11.com/ms/product/tasks/product-update", payload, {
+      const res = await axios.post("https://api.n11.com/ms/product/tasks/price-stock-update", payload, {
         headers: {
           "appKey": auth.appKey.trim(),
           "appSecret": auth.appSecret.trim(),
@@ -1146,8 +1148,8 @@ export class N11Service {
         };
       }
     } catch (restErr: any) {
-      const errMsg = restErr.response?.data?.errorMessage || restErr.response?.data?.message || restErr.message;
-      console.warn(`[N11-REST-UPDATE-FALLBACK] Modern RestAPI update failed for ${productSellerCode}, attempting SOAP fallback:`, errMsg);
+      const errMsg = restErr.response?.data?.errorMessage || restErr.response?.data?.message || restErr.message || "Undefined error";
+      console.info(`[N11-REST-UPDATE-FALLBACK] Modern RestAPI update failed for ${productSellerCode}, attempting SOAP fallback:`, errMsg);
     }
 
     // 2. SOAP Fallback (using SOAP UpdateProductPriceBySellerCode)

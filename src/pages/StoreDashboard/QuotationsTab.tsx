@@ -337,6 +337,13 @@ const QuotationsTab = ({
                   </tr>
                 ))
               )}
+              {openActionMenuId !== null && paginatedQuotations.length < 4 && (
+                <tr className="border-none hover:bg-transparent bg-transparent">
+                  <td colSpan={10} className="p-0 border-none bg-transparent">
+                    <div className="h-48 bg-transparent pointer-events-none" />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -329,15 +329,35 @@ This file outlines strict engineering, performance, and naming directives that m
 
 ---
 
-## 25. İlkel OS/Browser Emojileri Yerine Yeni Nesil Vektörel İkon ve Özel Açılır Menü Standardı (Contemporary Vector Icon Protocol)
+## 25. İlkel OS/Browser Emojileri Yerine Yeni Nesil Vektörel İkon Standardı ("İkonlar Çağ Dışı Olmayacak" Anayasa Kuralı)
 
-- **İlkel OS/Browser Emojili Seçim Elemanı Yasağı**:
-  - Sistem genelinde (yönetim panelleri, filtre menüleri, butonlar, modallar vb.) eski tip 16-bit işletim sistemi emojileri (örn. `🛍️`, `🌐`, `🧡`, `📦`, `🔴`) ikon olarak KESİNLİKLE KULLANILAMAZ.
-  - HTML'in yerel `<select>` ve `<option>` etiketleri tarayıcıya göre işletim sisteminin antik çağdan kalma emojilerini bastığı için, filtreler ve seçim elemanları daima **özel tasarlanmış vektörel açılır menüler (custom dropdown popover)** ve yüksek çözünürlüklü Lucide vector ikonları / SVG marka rozetleri ile sunulmalıdır.
+- **İlkel OS/Browser Emojili Başlık ve Buton Yasağı (Anti-Antik İkon Standardı)**:
+  - Sistem genelinde (web siteleri, vitrinler, yönetim panelleri, filtre menüleri, bölüm başlıkları, butonlar, modallar vb.) eski tip antik OS metin emojileri (örn. `⭐`, `🔥`, `🏷️`, `✨`, `📦`, `🛍️`, `🌐`, `🧡`, `🔴`) ikon veya başlık öneki olarak KESİNLİKLE KULLANILAMAZ.
+  - "İkonlar çağ dışı olmayacak" kuralı gereğince; tüm başlıklar, menüler, etiketler ve seçim elemanları daima **yeni nesil vektörel SVG ikonlar (Lucide React vektör ikonları: `<Sparkles />`, `<Flame />`, `<Tag />`, `<Star />`, `<Package />`, vb.)** ile yüksek çözünürlüklü, modern ve uyarlanabilir (adaptive dark/light) yapıda sunulmalıdır.
+  - HTML'in yerel `<select>` ve `<option>` etiketlerinde veya bölüm başlıklarında ham emoji metin önekleri yer alamaz; tüm ikonlar bileşen seviyesinde dinamik SVG vektör elemanı olarak giydirilmelidir.
 
 - **Kesin Pazaryeri Fatura Filtreleme Standardı (Strict Marketplace Filtering Protocol)**:
   - Fatura listesi filtrelemelerinde (`matchesMarketplaceFilter`), sadece metin içinde geçen genel kelimeler (örn. notlar içinde "Amazon TR" geçmesi) üzerinden geniş arama KULLANILAMAZ.
   - Pazaryeri satış faturaları yalnızca **pazaryeri özel fatura numarası önekleri (`AMZ-`, `TY-`, `HB-`, `N11-`, `PZR-`)**, ödeme yöntemi (`Amazon Satış`, `Trendyol Satış`, vb.) veya `invoice_type === 'marketplace'` ile tam örtüşen kesin kriterler doğrultusunda süzülmelidir. Bu sayede manuel veya kurumsal faturaların pazaryeri satışlarıyla karışması %100 önlenmiştir.
+
+---
+
+## 26. Navigasyon ve Yenileme / Geri Tuşu Bütünlüğü (Navigation & Refresh Preservation Protocol)
+
+- **Sayfa Yenileme Durum Koruma (F5 / Refresh Preservation)**:
+  - Web sitelerinde ve yönetim panellerinde, sayfa yenilendiğinde (F5, Ctrl+Alt+F5) kullanıcının bulunduğu sekme, kategori, alt kategori, sıralama ve rozet filtresi (`tab`, `category`, `subCategory`, `badge`, `brand`, `sort`) URL parametreleri ve `localStorage` ile %100 senkronize tutulmalıdır. Sayfa yenilendiğinde kullanıcı bulunduğu görünümde kalmalıdır.
+
+- **Geri Tuşu ile Modal / Katman Kapatma Güvencesi (Browser Back Modal Shield)**:
+  - Ürün detay modalı (`ProductDetailModal`), sepet drawer'ı, hızlı bakış veya herhangi bir açılır katman açıldığında, tarayıcı geçmişine modal durumu işlenmelidir (`history.pushState` / URL `?product=ID`).
+  - Kullanıcı tarayıcının veya cihazın "Geri" tuşuna bastığında, web sitesinden atılıp dışarı gönderilmemeli; sadece açık olan modal/katman kapanmalı ve kullanıcı o anki sayfa görünümünde kalmalıdır.
+
+- **Kullanıcı Yönlendirme & Belirgin Geri Dönüş Standardı**:
+  - "Tümünü Gör" veya koleksiyon kartları üzerinden katalog görünümüne geçildiğinde, tecrübesiz kullanıcıların dahi ana akışa kolayca dönebilmesi için belirgin bir **"<- Ana Sayfaya Dön / Ana Görünüme Dön"** butonu ve kırıntı (breadcrumb) navigasyonu sunulmalıdır.
+
+- **Boş Sayfa ve Boş Link Yasağı (Zero-Empty Link Constitution)**:
+  - Web sitesindeki hiçbir menü veya koleksiyon linki (Fırsatlar, Öne Çıkanlar, Kampanyalı Ürünler vb.) kesinlikle BOŞ içerik döndüremez.
+  - Eğer mağaza verisinde ilgili etiketle eşleşen özel ürün bulunmuyorsa, sistem akıllı fallback algoritmalarıyla (en çok incelenen, indirimli, fiyatı en uygun veya en yeni ürünlerle) sayfayı ve listeyi her zaman dolu, zengin ve çekici şekilde sunmalıdır.
+
 
 
 

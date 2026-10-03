@@ -739,9 +739,27 @@ function sanitizeFilename(originalName: string): string {
   const storageRamCache = new Map<string, { buffer: Buffer; contentType: string; contentLength: number; etag: string; timestamp: number }>();
 
   app.get("/api/storage/*", async (req, res) => {
+    // Add CORS headers to prevent cross-origin blocks for custom domains
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Range");
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
     const rawFilePath = req.params[0] || '';
+    
+    // Safely URL-decode path to resolve spaces and Turkish characters stored correctly in database
+    let decodedPath = rawFilePath;
+    try {
+      decodedPath = decodeURIComponent(rawFilePath);
+    } catch (e) {
+      // Safe fallback if decode fails
+    }
+
     // Path traversal sanitization: normalize and strip any leading or relative traversal patterns
-    const safeFilePath = path.normalize(rawFilePath).replace(/^(\.\.[\/\\])+/, '').replace(/^[\\\/]+/, '');
+    const safeFilePath = path.normalize(decodedPath).replace(/^(\.\.[\/\\])+/, '').replace(/^[\\\/]+/, '');
     if (!safeFilePath || safeFilePath.includes('..')) {
       return res.status(403).json({ error: "Access forbidden: Invalid file path" });
     }

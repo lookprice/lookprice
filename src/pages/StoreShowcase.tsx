@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
 import {
@@ -70,6 +70,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const slug = customSlug || urlSlug;
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { lang } = useLanguage();
   const t = translations[lang];
   const isTr = lang === "tr";
@@ -262,6 +263,112 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       localStorage.setItem(`basket_${slug}`, JSON.stringify(basket));
     }
   }, [basket, slug]);
+
+  // React Router-compliant modal and overlay history tracking (Rule 7 & UX Enhancement)
+  const productParam = searchParams.get("product");
+  const modalParam = searchParams.get("modal");
+
+  // Sync selectedProduct with URL parameter '?product=id'
+  useEffect(() => {
+    if (selectedProduct) {
+      const currentId = String(selectedProduct.id);
+      if (searchParams.get("product") !== currentId) {
+        setSearchParams(prev => {
+          prev.set("product", currentId);
+          return prev;
+        }, { replace: false });
+      }
+    } else {
+      if (searchParams.has("product")) {
+        setSearchParams(prev => {
+          prev.delete("product");
+          return prev;
+        }, { replace: true });
+      }
+    }
+  }, [selectedProduct]);
+
+  // Sync back from URL parameter '?product=id' to state
+  useEffect(() => {
+    if (productParam) {
+      if (!selectedProduct || String(selectedProduct.id) !== productParam) {
+        const found = products.find(p => String(p.id) === productParam);
+        if (found) {
+          setSelectedProduct(found);
+        }
+      }
+    } else {
+      if (selectedProduct) {
+        setSelectedProduct(null);
+      }
+    }
+  }, [productParam, products]);
+
+  // Map of other active modals/overlays to '?modal=overlayName'
+  const activeModalName = showProfileModal ? 'profile'
+                        : selectedBlogPost ? 'blog_post'
+                        : showDiscoverModal ? 'discover'
+                        : showAboutModal ? 'about'
+                        : showStoreLocatorModal ? 'store_locator'
+                        : showFaq ? 'faq'
+                        : showBlog ? 'blog'
+                        : showLegal ? `legal_${showLegal}`
+                        : isCheckoutModalOpen ? 'checkout'
+                        : showAuthModal ? 'auth'
+                        : null;
+
+  useEffect(() => {
+    if (activeModalName) {
+      if (searchParams.get("modal") !== activeModalName) {
+        setSearchParams(prev => {
+          prev.set("modal", activeModalName);
+          return prev;
+        }, { replace: false });
+      }
+    } else {
+      if (searchParams.has("modal")) {
+        setSearchParams(prev => {
+          prev.delete("modal");
+          return prev;
+        }, { replace: true });
+      }
+    }
+  }, [activeModalName]);
+
+  // Sync back from URL parameter '?modal=overlayName' to state
+  useEffect(() => {
+    if (!modalParam) {
+      // Close all non-product overlays
+      setShowProfileModal(false);
+      setSelectedBlogPost(null);
+      setShowDiscoverModal(false);
+      setShowAboutModal(false);
+      setShowStoreLocatorModal(false);
+      setShowFaq(false);
+      setShowBlog(false);
+      setShowLegal(null);
+      setIsCheckoutModalOpen(false);
+      setShowAuthModal(false);
+    } else {
+      if (modalParam === "profile" && !showProfileModal) setShowProfileModal(true);
+      if (modalParam === "blog_post" && !selectedBlogPost) {
+        // Find blog post if store loaded
+        const found = store?.blog_posts?.find((b: any) => String(b.id) === modalParam || b.slug === modalParam);
+        if (found) setSelectedBlogPost(found);
+      }
+      if (modalParam === "discover" && !showDiscoverModal) setShowDiscoverModal(true);
+      if (modalParam === "about" && !showAboutModal) setShowAboutModal(true);
+      if (modalParam === "store_locator" && !showStoreLocatorModal) setShowStoreLocatorModal(true);
+      if (modalParam === "faq" && !showFaq) setShowFaq(true);
+      if (modalParam === "blog" && !showBlog) setShowBlog(true);
+      if (modalParam === "checkout" && !isCheckoutModalOpen) setIsCheckoutModalOpen(true);
+      if (modalParam === "auth" && !showAuthModal) setShowAuthModal(true);
+      if (modalParam.startsWith("legal_")) {
+        const type = modalParam.replace("legal_", "") as "sales" | "kvkk" | "pre_info";
+        if (showLegal !== type) setShowLegal(type);
+      }
+    }
+  }, [modalParam, store?.blog_posts]);
 
   // Sync cart with DB on change
   useEffect(() => {
@@ -798,7 +905,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             {selectedProduct && (
               <ProductDetailModal
                 product={selectedProduct} store={store} t={t} slug={slug}
-                onClose={() => setSelectedProduct(null)} addToBasket={addToBasket}
+                onClose={() => {
+                  if (searchParams.has("product")) {
+                    window.history.back();
+                  } else {
+                    setSelectedProduct(null);
+                  }
+                }} addToBasket={addToBasket}
                 primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
                 showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
                 allProducts={products} onNavigateProduct={setSelectedProduct}
@@ -925,7 +1038,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
         <CustomerProfileModal
           isOpen={showProfileModal}
-          onClose={() => setShowProfileModal(false)}
+          onClose={() => {
+            if (searchParams.get("modal") === "profile") {
+              window.history.back();
+            } else {
+              setShowProfileModal(false);
+            }
+          }}
           customer={customer}
           lang={lang}
           initialTab={profileModalTab}
@@ -952,17 +1071,41 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           )}
         </AnimatePresence>
 
-        <FAQModal isOpen={showFaq} onClose={() => setShowFaq(false)} faq={store?.faq || []} lang={lang} />
+        <FAQModal isOpen={showFaq} onClose={() => {
+          if (searchParams.get("modal") === "faq") {
+            window.history.back();
+          } else {
+            setShowFaq(false);
+          }
+        }} faq={store?.faq || []} lang={lang} />
         <BlogModal
-          isOpen={showBlog} onClose={() => setShowBlog(false)} lang={lang} isTr={isTr}
+          isOpen={showBlog} onClose={() => {
+            if (searchParams.get("modal") === "blog") {
+              window.history.back();
+            } else {
+              setShowBlog(false);
+            }
+          }} lang={lang} isTr={isTr}
           selectedBlogPost={selectedBlogPost} setSelectedBlogPost={setSelectedBlogPost} blogPosts={store?.blog_posts}
         />
-        <LegalModal isOpen={showLegal} onClose={() => setShowLegal(null)} lang={lang} legalPages={store?.legal_pages} />
+        <LegalModal isOpen={showLegal} onClose={() => {
+          if (searchParams.get("modal")?.startsWith("legal_")) {
+            window.history.back();
+          } else {
+            setShowLegal(null);
+          }
+        }} lang={lang} legalPages={store?.legal_pages} />
 
         <AnimatePresence>
           {showAuthModal && (
             <AuthModal
-              isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} authMode={authMode}
+              isOpen={showAuthModal} onClose={() => {
+                if (searchParams.get("modal") === "auth") {
+                  window.history.back();
+                } else {
+                  setShowAuthModal(false);
+                }
+              }} authMode={authMode}
               setAuthMode={setAuthMode} lang={lang} customerInfo={customerInfo} setCustomerInfo={setCustomerInfo}
               onLogin={handleCustomerLogin} onRegister={handleCustomerRegister} theme={{}}
             />
@@ -973,7 +1116,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           {selectedProduct && (
             <ProductDetailModal
               product={selectedProduct} store={store} t={t} slug={slug}
-              onClose={() => setSelectedProduct(null)} addToBasket={addToBasket}
+              onClose={() => {
+                if (searchParams.has("product")) {
+                  window.history.back();
+                } else {
+                  setSelectedProduct(null);
+                }
+              }} addToBasket={addToBasket}
               primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
               showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
               allProducts={activeModalProducts.length > 0 ? activeModalProducts : products} onNavigateProduct={setSelectedProduct}
@@ -984,7 +1133,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         <AnimatePresence>
           {isCheckoutModalOpen && (
             <CheckoutModal
-              isOpen={isCheckoutModalOpen} onClose={() => setIsCheckoutModalOpen(false)} store={store}
+              isOpen={isCheckoutModalOpen} onClose={() => {
+                if (searchParams.get("modal") === "checkout") {
+                  window.history.back();
+                } else {
+                  setIsCheckoutModalOpen(false);
+                }
+              }} store={store}
               lang={lang} currency={store?.currency || 'TL'} customerInfo={customerInfo}
               setCustomerInfo={setCustomerInfo} basketByBranch={basketByBranch} basketTotal={basketTotal}
               basketSubtotal={basketSubtotal} basketShippingTotal={basketShippingTotal} setBasket={setBasket}
@@ -1003,7 +1158,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           </div>
         )}
 
-        <AboutModal isOpen={showAboutModal} onClose={() => setShowAboutModal(false)} lang={lang} store={store} />
+        <AboutModal isOpen={showAboutModal} onClose={() => {
+          if (searchParams.get("modal") === "about") {
+            window.history.back();
+          } else {
+            setShowAboutModal(false);
+          }
+        }} lang={lang} store={store} />
       </div>
     </ErrorBoundary>
   );
