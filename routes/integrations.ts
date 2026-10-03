@@ -1906,18 +1906,32 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "N11 API anahtarları (App Key / App Secret) tanımlı değil." });
     }
 
-    // Resolve N11 Category ID from request, product marketplace_data, or store categoryMappings
+    // Resolve N11 Category ID from request, product marketplace_data, store categoryMappings, or smart leaf category resolver
     const catMappings = settings.categoryMappings || {};
     const catKey = product.category ? String(product.category).trim() : "";
     const subKey = product.sub_category ? String(product.sub_category).trim() : "";
     const compKey = catKey && subKey ? `${catKey} > ${subKey}` : "";
-    const mappedCatId =
+    const explicitCatId =
       categoryId ||
       mpData?.n11?.categoryId ||
       (compKey && catMappings[compKey]) ||
       (subKey && catMappings[subKey]) ||
-      (catKey && catMappings[catKey]) ||
-      1000280;
+      (catKey && catMappings[catKey]);
+    const mappedCatId = N11Service.resolveCategoryIdForProduct(
+      product.name,
+      catKey,
+      subKey,
+      explicitCatId
+    );
+
+    const resolvedBrand =
+      String(
+        product.brand ||
+        mpData?.n11?.attributes?.Marka ||
+        mpData?.attributes?.Marka ||
+        mpData?.hepsiburada?.attributes?.Marka ||
+        ""
+      ).trim() || undefined;
 
     let n11Id = "";
     let apiMessage = "";
@@ -1929,10 +1943,13 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
         productSellerCode: sellerCode,
         productMainId: mpData?.n11?.attributes?.VaryantGroupID || `GRP-${sellerCode}`,
         barcode: product.barcode || sellerCode,
+        brand: resolvedBrand,
+        categoryName: catKey,
+        subCategoryName: subKey,
         title: product.name,
         subtitle: (product.name || "").substring(0, 45),
         description: product.description || product.name,
-        category: { id: Number(mappedCatId || 1000280) },
+        category: { id: Number(mappedCatId || 1000212) },
         price: finalN11Price,
         currencyType: "TL",
         vatRate: Number(product.vat_rate ?? 20),
@@ -2719,13 +2736,21 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
 
     // Prepare catalog attributes
     const userAttrs = hbData.attributes || mpData.attributes || {};
+    const inferredHbBrand =
+      String(
+        p.brand ||
+        userAttrs.Marka ||
+        mpData?.n11?.attributes?.Marka ||
+        (p.name ? String(p.name).trim().split(/\s+/)[0] : "") ||
+        "Diğer"
+      ).trim();
     const attributes: Record<string, any> = {
       merchantSku: p.barcode.trim(),
       VaryantGroupID: `GRP-${p.barcode.trim()}`,
       Barcode: p.barcode.trim(),
       UrunAdi: p.name,
       UrunAciklamasi: `<p>${p.description || p.name}</p>`,
-      Marka: p.brand || userAttrs.Marka || "Kingston",
+      Marka: inferredHbBrand,
       GarantiSuresi: userAttrs.GarantiSuresi ? parseInt(userAttrs.GarantiSuresi, 10) : 24,
       tax_vat_rate: String(p.tax_rate || userAttrs.tax_vat_rate || 20),
       price: effectivePrice.toFixed(2),
