@@ -131,33 +131,47 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     "gallery",
   );
 
-  // Premium dynamic image gallery integration
+  // Premium dynamic image gallery integration with guaranteed non-empty fallback
   const productImages = React.useMemo(() => {
     const list: string[] = [];
-    if (product?.image_url) {
-      list.push(product.image_url);
+    if (product?.image_url && typeof product.image_url === "string" && product.image_url.trim()) {
+      list.push(product.image_url.trim());
     }
     const rawImages = (product as any)?.images;
     if (rawImages) {
       if (Array.isArray(rawImages)) {
         rawImages.forEach((img: any) => {
-          if (img && typeof img === "string" && !list.includes(img)) {
-            list.push(img);
+          if (img && typeof img === "string" && img.trim() && !list.includes(img.trim())) {
+            list.push(img.trim());
           }
         });
-      } else if (typeof rawImages === "string") {
+      } else if (typeof rawImages === "string" && rawImages.trim()) {
         try {
           const parsed = JSON.parse(rawImages);
           if (Array.isArray(parsed)) {
             parsed.forEach((img: any) => {
-              if (img && typeof img === "string" && !list.includes(img)) {
-                list.push(img);
+              if (img && typeof img === "string" && img.trim() && !list.includes(img.trim())) {
+                list.push(img.trim());
               }
             });
           }
-        } catch (e) {}
+        } catch (e) {
+          if ((rawImages.startsWith("http") || rawImages.startsWith("/")) && !list.includes(rawImages.trim())) {
+            list.push(rawImages.trim());
+          }
+        }
       }
     }
+
+    const rawPhotos = (product as any)?.photos;
+    if (Array.isArray(rawPhotos)) {
+      rawPhotos.forEach((img: any) => {
+        if (img && typeof img === "string" && img.trim() && !list.includes(img.trim())) {
+          list.push(img.trim());
+        }
+      });
+    }
+
     // Also include images from variants if they exist
     if (product?.variants) {
       let vars = product.variants;
@@ -166,12 +180,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       }
       if (Array.isArray(vars)) {
         vars.forEach((v: any) => {
-          if (v?.image_url && typeof v.image_url === 'string' && !list.includes(v.image_url)) {
-            list.push(v.image_url);
+          if (v?.image_url && typeof v.image_url === 'string' && v.image_url.trim() && !list.includes(v.image_url.trim())) {
+            list.push(v.image_url.trim());
           }
         });
       }
     }
+
+    if (list.length === 0) {
+      list.push("https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80");
+    }
+
     return list;
   }, [product]);
 
@@ -744,9 +763,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   onError={(e) => {
                     const target = e.currentTarget;
                     const src = productImages[activeImageIdx];
-                    if (!target.dataset.fallback && src && src.startsWith('http') && !src.includes('/api/proxy-image')) {
-                      target.dataset.fallback = 'proxy';
-                      target.src = `/api/proxy-image?url=${encodeURIComponent(src)}`;
+                    if (!target.dataset.fallback && src) {
+                      if (src.startsWith('/api/storage/') || src.startsWith('uploads/')) {
+                        target.dataset.fallback = 'relative';
+                        target.src = `${window.location.origin}${src.startsWith('/') ? '' : '/'}${src}?v=${Date.now()}`;
+                      } else if (src.startsWith('http') && !src.includes('/api/proxy-image')) {
+                        target.dataset.fallback = 'proxy';
+                        target.src = `/api/proxy-image?url=${encodeURIComponent(src)}`;
+                      } else {
+                        target.onerror = null;
+                        target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+                      }
                     } else {
                       target.onerror = null;
                       target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
@@ -808,9 +835,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         referrerPolicy="no-referrer"
                         onError={(e) => {
                           const target = e.currentTarget;
-                          if (!target.dataset.fallback && img && img.startsWith('http') && !img.includes('/api/proxy-image')) {
-                            target.dataset.fallback = 'proxy';
-                            target.src = `/api/proxy-image?url=${encodeURIComponent(img)}`;
+                          if (!target.dataset.fallback && img) {
+                            if (img.startsWith('/api/storage/') || img.startsWith('uploads/')) {
+                              target.dataset.fallback = 'relative';
+                              target.src = `${window.location.origin}${img.startsWith('/') ? '' : '/'}${img}?v=${Date.now()}`;
+                            } else if (img.startsWith('http') && !img.includes('/api/proxy-image')) {
+                              target.dataset.fallback = 'proxy';
+                              target.src = `/api/proxy-image?url=${encodeURIComponent(img)}`;
+                            } else {
+                              target.onerror = null;
+                              target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+                            }
                           } else {
                             target.onerror = null;
                             target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";

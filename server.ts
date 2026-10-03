@@ -675,9 +675,9 @@ function sanitizeFilename(originalName: string): string {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // Check file size (2MB limit)
-    if (req.file.size > 2 * 1024 * 1024) {
-      return res.status(400).json({ error: "File size exceeds 2MB limit" });
+    // Check file size (15MB limit for high-resolution mobile camera uploads)
+    if (req.file.size > 15 * 1024 * 1024) {
+      return res.status(400).json({ error: "File size exceeds 15MB limit" });
     }
 
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);

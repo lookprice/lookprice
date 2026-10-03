@@ -799,9 +799,17 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                       onError={(e) => {
                         const target = e.currentTarget;
                         const originalSrc = getProductImageUrl(currentHero);
-                        if (!target.dataset.fallback && originalSrc && originalSrc.startsWith('http') && !originalSrc.includes('/api/proxy-image')) {
-                          target.dataset.fallback = 'proxy';
-                          target.src = `/api/proxy-image?url=${encodeURIComponent(originalSrc)}`;
+                        if (!target.dataset.fallback && originalSrc) {
+                          if (originalSrc.startsWith('/api/storage/') || originalSrc.startsWith('uploads/')) {
+                            target.dataset.fallback = 'relative';
+                            target.src = `${window.location.origin}${originalSrc.startsWith('/') ? '' : '/'}${originalSrc}?v=${Date.now()}`;
+                          } else if (originalSrc.startsWith('http') && !originalSrc.includes('/api/proxy-image')) {
+                            target.dataset.fallback = 'proxy';
+                            target.src = `/api/proxy-image?url=${encodeURIComponent(originalSrc)}`;
+                          } else {
+                            target.onerror = null;
+                            target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+                          }
                         } else {
                           target.onerror = null;
                           target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
@@ -1287,9 +1295,17 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
           referrerPolicy="no-referrer"
           onError={(e) => {
             const target = e.currentTarget;
-            if (!target.dataset.fallback && coverImg && coverImg.startsWith('http') && !coverImg.includes('/api/proxy-image')) {
-              target.dataset.fallback = 'proxy';
-              target.src = `/api/proxy-image?url=${encodeURIComponent(coverImg)}`;
+            if (!target.dataset.fallback && coverImg) {
+              if (coverImg.startsWith('/api/storage/') || coverImg.startsWith('uploads/')) {
+                target.dataset.fallback = 'relative';
+                target.src = `${window.location.origin}${coverImg.startsWith('/') ? '' : '/'}${coverImg}?v=${Date.now()}`;
+              } else if (coverImg.startsWith('http') && !coverImg.includes('/api/proxy-image')) {
+                target.dataset.fallback = 'proxy';
+                target.src = `/api/proxy-image?url=${encodeURIComponent(coverImg)}`;
+              } else {
+                target.onerror = null;
+                target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+              }
             } else {
               target.onerror = null;
               target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";

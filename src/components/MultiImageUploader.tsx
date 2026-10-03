@@ -31,11 +31,11 @@ export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({ onImages
         console.error("Client side compression error:", err);
       }
 
-      if (file.size > 2 * 1024 * 1024) {
+      if (file.size > 10 * 1024 * 1024) {
         alert(
           lang === 'tr' 
-            ? `"${file.name}" adlı dosya sıkıştırılmasına rağmen boyutu 2MB'den büyük olduğu için yüklenemedi. Lütfen fotoğrafları küçülterek tekrar deneyin.`
-            : `"${file.name}" could not be uploaded because its size is over 2MB even after compression. Please resize and try again.`
+            ? `"${file.name}" adlı fotoğraf boyutu çok yüksek olduğu için yüklenemedi. Lütfen tekrar deneyin.`
+            : `"${file.name}" could not be uploaded because its file size is too large. Please try again.`
         );
         continue;
       }
