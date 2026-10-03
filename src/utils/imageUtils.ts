@@ -115,3 +115,34 @@ export const compressImageToWebP = (
     reader.onerror = () => resolve(file);
   });
 };
+
+/**
+ * Normalizes absolute storage domain links into clean relative /api/storage/ paths
+ * so image requests load directly from the current domain without cross-origin or DNS issues.
+ */
+export const normalizeImageUrl = (url?: string | null): string => {
+  if (!url || typeof url !== 'string') return '';
+  let trimmed = url.trim();
+  if (!trimmed) return '';
+  if (trimmed.includes('/api/storage/')) {
+    return trimmed.replace(/^https?:\/\/[^\/]+\/api\/storage\//, '/api/storage/');
+  }
+  if (trimmed.includes('/uploads/')) {
+    return trimmed.replace(/^https?:\/\/[^\/]+\/uploads\//, '/uploads/');
+  }
+  return trimmed;
+};
+
+/**
+ * Robust image URL fallback resolver for products
+ */
+export const getProductImageUrl = (product: any, fallbackUrl?: string): string => {
+  if (!product) return fallbackUrl || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+  
+  const rawUrl = product.image_url || product.image || (Array.isArray(product.images) ? product.images[0] : null) || (Array.isArray(product.photos) ? product.photos[0] : null);
+  if (rawUrl) {
+    const normalized = normalizeImageUrl(String(rawUrl));
+    if (normalized) return normalized;
+  }
+  return fallbackUrl || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+};

@@ -499,6 +499,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   // Helper to get annotated image URL for Sold/Rented status
   const getAnnotatedImageUrl = (originalUrl: string) => {
     if (!product || !originalUrl) return originalUrl;
+    let url = originalUrl;
+    if (url.includes("/api/storage/")) {
+      url = url.replace(/^https?:\/\/[^\/]+\/api\/storage\//, '/api/storage/');
+    }
+
     const status = (product as any).status || product.sector_data?.status;
     const labels = getLabels(product.labels).map(l => l.toLowerCase());
     
@@ -509,15 +514,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       const normalizedStatus = isSold ? 'sold' : 'rented';
       const origin = window.location.origin;
       // Force absolute URL for sharing bots
-      const absoluteUrl = originalUrl.startsWith('http') ? originalUrl : `${origin}${originalUrl.startsWith('/') ? '' : '/'}${originalUrl}`;
+      const absoluteUrl = url.startsWith('http') ? url : `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
       return `${origin}/api/annotate-image?imageUrl=${encodeURIComponent(absoluteUrl)}&status=${normalizedStatus}`;
     }
 
     // Pre-emptively proxy domains known to enforce strict Hotlink / NotSameOrigin 403 blocks
-    if (originalUrl && (originalUrl.includes("extrememobiles.com.cy") || originalUrl.includes("wp-content/uploads/woocommerce"))) {
-      return `/api/proxy-image?url=${encodeURIComponent(originalUrl)}`;
+    if (url && (url.includes("extrememobiles.com.cy") || url.includes("wp-content/uploads/woocommerce"))) {
+      return `/api/proxy-image?url=${encodeURIComponent(url)}`;
     }
-    return originalUrl;
+    return url;
   };
 
   const productUrl = React.useMemo(() => {

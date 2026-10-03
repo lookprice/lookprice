@@ -403,7 +403,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
         const n11ProductsRes = await pool.query(
           `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, marketplace_data 
            FROM products 
-           WHERE store_id = $1 AND (is_n11_active = true OR (marketplace_data->'n11'->>'status' = 'ACTIVE')) AND barcode IS NOT NULL AND barcode != ''`,
+           WHERE store_id = $1 AND (is_n11_active = true OR (marketplace_data->'n11'->>'status' = 'ACTIVE'))`,
           [storeId]
         );
 
@@ -416,14 +416,23 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
             else if (curr === "GBP" && effectiveRates!.GBP) rawPrice *= Number(effectiveRates!.GBP);
 
             const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, n11Settings);
-            const sellerCode = p.barcode || p.sku;
-            const stock = parseInt(p.stock_quantity || "0", 10);
-
             let mpData: any = p.marketplace_data;
             if (typeof mpData === "string") {
               try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
             }
             mpData = mpData || {};
+
+            const sellerCode = (
+              mpData?.n11?.attributes?.merchantSku || 
+              mpData?.n11?.attributes?.stockCode || 
+              mpData?.n11?.attributes?.Barcode || 
+              p.barcode || 
+              p.sku || 
+              ""
+            ).trim();
+
+            const stock = parseInt(p.stock_quantity || "0", 10);
+
             if (!mpData.n11) mpData.n11 = {};
             if (!mpData.n11.attributes) mpData.n11.attributes = {};
             mpData.n11.attributes.price = String(effectivePrice);
@@ -432,6 +441,12 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
             if (sellerCode && effectivePrice > 0) {
               await new Promise(r => setTimeout(r, 100));
               const n11Res = await N11Service.updatePriceAndStock(auth, sellerCode, effectivePrice, stock);
+              if (n11Res.success) {
+                mpData.n11.status = 'ACTIVE';
+                mpData.n11.lastError = null;
+              } else {
+                mpData.n11.lastError = n11Res.message;
+              }
               await pool.query(
                 "UPDATE products SET marketplace_data = $1 WHERE id = $2",
                 [JSON.stringify(mpData), p.id]

@@ -59,6 +59,13 @@ export const getProductImageUrl = (p: Product): string => {
     }
   }
 
+  if (!url) return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+
+  // Normalize absolute domain URLs containing /api/storage/ to relative path so it loads from active domain
+  if (url.includes("/api/storage/")) {
+    url = url.replace(/^https?:\/\/[^\/]+\/api\/storage\//, '/api/storage/');
+  }
+
   // Pre-emptively proxy domains known to enforce strict Hotlink / NotSameOrigin 403 blocks
   if (url && (url.includes("extrememobiles.com.cy") || url.includes("wp-content/uploads/woocommerce"))) {
     return `/api/proxy-image?url=${encodeURIComponent(url)}`;

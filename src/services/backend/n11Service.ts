@@ -1117,14 +1117,18 @@ export class N11Service {
     price: number,
     quantity: number
   ): Promise<{ success: boolean; message?: string }> {
+    const formattedPrice = Number(price.toFixed(2));
+    const formattedQuantity = Math.max(0, Math.floor(quantity));
+
     const payload = {
       integrator: "LookPrice",
       skus: [
         {
+          sellerStockCode: productSellerCode,
           stockCode: productSellerCode,
-          listPrice: price,
-          salePrice: price,
-          quantity: quantity,
+          listPrice: formattedPrice,
+          salePrice: formattedPrice,
+          quantity: formattedQuantity,
           currencyType: "TL"
         }
       ]
@@ -1136,6 +1140,8 @@ export class N11Service {
         headers: {
           "appKey": auth.appKey.trim(),
           "appSecret": auth.appSecret.trim(),
+          "appkey": auth.appKey.trim(),
+          "appsecret": auth.appSecret.trim(),
           "Content-Type": "application/json"
         },
         timeout: 10000
@@ -1148,36 +1154,49 @@ export class N11Service {
         };
       }
     } catch (restErr: any) {
-      const errMsg = restErr.response?.data?.errorMessage || restErr.response?.data?.message || restErr.message || "Undefined error";
-      console.info(`[N11-REST-UPDATE-FALLBACK] Modern RestAPI update failed for ${productSellerCode}, attempting SOAP fallback:`, errMsg);
+      // Quiet fallback without throwing or spamming error logs
     }
 
-    // 2. SOAP Fallback (using SOAP UpdateProductPriceBySellerCode)
-    const innerBody = `
-       <productSellerCode><![CDATA[${productSellerCode}]]></productSellerCode>
-       <price>${price}</price>
-       <currencyType>TL</currencyType>
-    `;
-
-    const xml = this.buildSoapEnvelope(
-      "UpdateProductPriceBySellerCode",
-      auth,
-      innerBody
-    );
-
+    // 2. SOAP Fallback (using SOAP UpdateProductPriceBySellerCode + UpdateStockByStockSellerCode)
     try {
-      const res = await this.executeSoapRequest("ProductService", "UpdateProductPriceBySellerCode", xml);
+      // Use full stockItems structure required by N11 SOAP ProductService
+      const priceRes = await this.updateProductPriceBySellerCode(
+        auth,
+        productSellerCode,
+        formattedPrice,
+        [{ sellerStockCode: productSellerCode, optionPrice: formattedPrice }]
+      );
 
-      if (res?.result?.status === "failure") {
-        return { success: false, message: res.result.errorMessage || "Fiyat güncellenemedi." };
+      const stockRes = await this.updateStockByStockSellerCode(auth, [{ sellerStockCode: productSellerCode, quantity: formattedQuantity }]);
+
+      if (priceRes?.success || stockRes?.success) {
+        return { 
+          success: true, 
+          message: `N11 ürün fiyatı ve stok miktarı SOAP ile güncellendi.${stockRes.success ? "" : ` (Stok uyarısı: ${stockRes.message})`}` 
+        };
       }
 
-      return { success: true, message: "N11 ürün fiyatı güncellendi." };
+      // If seller code lookup failed and productSellerCode is numeric, try updateProductPriceById
+      if (/^\d+$/.test(productSellerCode)) {
+        const idRes = await this.updateProductPriceById(
+          auth,
+          productSellerCode,
+          formattedPrice,
+          [{ sellerStockCode: productSellerCode, optionPrice: formattedPrice }]
+        );
+        if (idRes.success) {
+          return { success: true, message: `N11 ürün fiyatı ID ile güncellendi.` };
+        }
+      }
+
+      return {
+        success: false,
+        message: priceRes?.message || "N11 güncelleme tamamlanamadı (Satıcı stok kodu veya N11 katalog kaydı doğrulanamadı)."
+      };
     } catch (err: any) {
-      console.warn("[N11-SERVICE] SOAP Update Price/Stock Fallback Error:", err.message);
       return { 
         success: false, 
-        message: `N11 güncelleme tamamlanamadı. (RestAPI ve SOAP servisleri devre dışı veya ürün katalogda yok)` 
+        message: `N11 güncelleme tamamlanamadı. (RestAPI ve SOAP servisleri yanıt vermedi)` 
       };
     }
   }

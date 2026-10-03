@@ -746,25 +746,33 @@ export class HepsiburadaService {
       },
     ];
 
-    let lastError: any = null;
-    for (const ep of endpoints) {
-      try {
-        const response = await axios.post(ep.url, ep.data, { headers, timeout: 30000 });
-        const trackingId =
-          response.data?.trackingId ||
-          response.data?.id ||
-          response.data?.taskId ||
-          response.data?.data?.trackingId;
+    const headersList = [
+      this.getHeaders(),
+      ...(this.config.apiKey && this.config.apiKey.trim() !== (this.config.merchantId || "").trim() ? [this.getHeaders(this.config.apiKey.trim())] : [])
+    ];
 
-        return {
-          success: true,
-          trackingId,
-          message: `${items.length} adet ürün fiyat/stok güncellemesi Hepsiburada (${ep.name}) kuyruğuna iletildi.`,
-          details: response.data,
-        };
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`[HB updatePriceAndStock] ${ep.name} denemesi başarısız oldu:`, err.response?.data || err.message);
+    let lastError: any = null;
+
+    for (const headers of headersList) {
+      for (const ep of endpoints) {
+        try {
+          const response = await axios.post(ep.url, ep.data, { headers, timeout: 30000 });
+          const trackingId =
+            response.data?.trackingId ||
+            response.data?.id ||
+            response.data?.taskId ||
+            response.data?.data?.trackingId;
+
+          return {
+            success: true,
+            trackingId,
+            message: `${items.length} adet ürün fiyat/stok güncellemesi Hepsiburada (${ep.name}) kuyruğuna iletildi.`,
+            details: response.data,
+          };
+        } catch (err: any) {
+          lastError = err;
+          console.warn(`[HB updatePriceAndStock] ${ep.name} denemesi başarısız oldu:`, err.response?.data || err.message);
+        }
       }
     }
 
