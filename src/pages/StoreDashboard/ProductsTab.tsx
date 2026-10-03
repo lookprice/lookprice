@@ -482,7 +482,18 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
             (!isPzr && isRealErr(p.pazarama_last_error))
           );
         } else if (marketplaceFilter === 'not_listed') {
-          matchesMarketplace = !isAnyActive;
+          let vars: any[] = [];
+          if (p.variants) {
+            if (typeof p.variants === 'string') {
+              try { vars = JSON.parse(p.variants); } catch (e) { vars = []; }
+            } else if (Array.isArray(p.variants)) {
+              vars = p.variants;
+            }
+          }
+          const effectiveStock = vars.length > 0
+            ? vars.reduce((sum, v) => sum + (Number(v.stock_quantity) || Number(v.stock) || 0), 0)
+            : Number(p.stock_quantity ?? p.stock ?? 0) || 0;
+          matchesMarketplace = !isAnyActive && effectiveStock > 0;
         }
       }
 

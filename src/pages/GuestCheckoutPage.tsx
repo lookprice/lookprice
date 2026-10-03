@@ -41,9 +41,24 @@ export default function GuestCheckoutPage() {
       });
 
       if (res.success) {
-        if (res.paymentPageUrl) {
-           // Modal içinde kalmamak için PaymentGatewayPage sayfasına yönlendiriyoruz
-           navigate('/payment-gateway', { state: { paymentPageUrl: res.paymentPageUrl } });
+        if (res.paymentProvider === "iyzico" && res.initializeUrl) {
+          const initRes = await fetch(res.initializeUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ saleId: res.saleId, paymentMethod: "iyzico" }),
+          });
+          const initData = await initRes.json();
+          if (initData.success && (initData.paymentPageUrl || initData.payWithIyzicoPageUrl)) {
+            window.location.href = initData.paymentPageUrl || initData.payWithIyzicoPageUrl;
+            return;
+          } else {
+            setError(initData.error || initData.details || "Ödeme başlatılamadı");
+            setLoading(false);
+            return;
+          }
+        } else if (res.paymentPageUrl) {
+          // Modal içinde kalmamak için PaymentGatewayPage sayfasına yönlendiriyoruz
+          navigate('/payment-gateway', { state: { paymentPageUrl: res.paymentPageUrl } });
         } else {
           navigate('/checkout/success');
         }

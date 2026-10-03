@@ -464,12 +464,29 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     return Array.from(cats);
   }, [cleanedLocalProducts]);
 
+  // Helper to compute effective stock of a product (supporting variants)
+  const getEffectiveStock = (p: any): number => {
+    let vars: any[] = [];
+    if (p?.variants) {
+      if (typeof p.variants === 'string') {
+        try { vars = JSON.parse(p.variants); } catch (e) { vars = []; }
+      } else if (Array.isArray(p.variants)) {
+        vars = p.variants;
+      }
+    }
+    if (vars.length > 0) {
+      return vars.reduce((sum, v) => sum + (Number(v.stock_quantity ?? v.stock ?? 0) || 0), 0);
+    }
+    return Number(p?.stock_quantity ?? p?.stock ?? 0) || 0;
+  };
+
   // Global counts for metrics
   const metrics = useMemo<MarketplaceMetrics>(() => {
     const total = cleanedLocalProducts.length;
     let active = 0;
     let errors = 0;
     let pending = 0;
+    let inactive = 0;
 
     cleanedLocalProducts.forEach(p => {
       if (isProductActive(p, selectedMarketplace)) {
@@ -478,10 +495,11 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         errors++;
       } else if (isProductPending(p, selectedMarketplace)) {
         pending++;
+      } else if (getEffectiveStock(p) > 0) {
+        inactive++;
       }
     });
 
-    const inactive = total - active - errors - pending;
     return { total, active, errors, pending, inactive };
   }, [cleanedLocalProducts, selectedMarketplace]);
 
@@ -514,7 +532,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         return Boolean(error) && !active;
       }
       if (selectedStatus === 'inactive') {
-        return !active && !error && !pending;
+        return !active && !error && !pending && getEffectiveStock(p) > 0;
       }
 
       return true;

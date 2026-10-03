@@ -1,5 +1,6 @@
 import express from "express";
 import Iyzipay from "iyzipay";
+import axios from "axios";
 import { pool } from "../models/db";
 
 const router = express.Router();
@@ -7,6 +8,235 @@ const getIyzipay = (s: any) => new Iyzipay({
   apiKey: s.apiKey || s.api_key || s.iyzico_api_key,
   secretKey: s.secretKey || s.secret_key || s.iyzico_secret_key,
   uri: s.iyzico_sandbox ? 'https://sandbox-api.iyzipay.com' : 'https://api.iyzipay.com',
+});
+
+// Simple in-memory cache for static iyzico CDN assets (bundle.js, chunks, fonts, SVGs)
+const cdnAssetCache = new Map<string, { data: Buffer | string; contentType: string; timestamp: number }>();
+const CDN_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+
+function getMimeType(assetPath: string, fallback?: string): string {
+  const clean = assetPath.split("?")[0].toLowerCase();
+  if (clean.endsWith(".js")) return "application/javascript; charset=utf-8";
+  if (clean.endsWith(".css")) return "text/css; charset=utf-8";
+  if (clean.endsWith(".svg")) return "image/svg+xml";
+  if (clean.endsWith(".png")) return "image/png";
+  if (clean.endsWith(".jpg") || clean.endsWith(".jpeg")) return "image/jpeg";
+  if (clean.endsWith(".gif")) return "image/gif";
+  if (clean.endsWith(".ico")) return "image/x-icon";
+  if (clean.endsWith(".ttf")) return "font/ttf";
+  if (clean.endsWith(".woff")) return "font/woff";
+  if (clean.endsWith(".woff2")) return "font/woff2";
+  return fallback || "application/octet-stream";
+}
+
+function rewriteIyzicoUrls(content: string): string {
+  return content
+    .replace(/https?:\/\/cdn\.iyzipay\.com/g, "/api/payment/iyzico-cdn")
+    .replace(/https?:\/\/cdn-cpp\.iyzipay\.com/g, "/api/payment/iyzico-cpp-cdn")
+    .replace(/https?:\/\/api\.iyzipay\.com/g, "/api/payment/iyzico-api")
+    .replace(/https?:\/\/sandbox-api\.iyzipay\.com/g, "/api/payment/iyzico-sandbox-api")
+    .replace(/https?:\/\/merchant-gateway\.iyzipay\.com/g, "/api/payment/iyzico-merchant-gw")
+    .replace(/https?:\/\/consumerapigw\.iyzipay\.com/g, "/api/payment/iyzico-consumer-gw")
+    .replace(/https?:\/\/countly\.iyzico\.com/g, "/api/payment/iyzico-telemetry")
+    .replace(/https?:\/\/www\.clarity\.ms/g, "/api/payment/iyzico-telemetry");
+}
+
+// Proxy for cdn.iyzipay.com/*
+router.get("/iyzico-cdn/*", async (req, res) => {
+  try {
+    const subPath = (req.params as any)[0] || "";
+    const queryStr = req.originalUrl.includes("?") ? req.originalUrl.substring(req.originalUrl.indexOf("?")) : "";
+    const targetUrl = `https://cdn.iyzipay.com/${subPath}${queryStr}`;
+    const cacheKey = `cdn:${subPath}${queryStr}`;
+
+    const cached = cdnAssetCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CDN_CACHE_TTL) {
+      res.setHeader("Content-Type", cached.contentType);
+      res.setHeader("Cache-Control", "public, max-age=1800");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.send(cached.data);
+    }
+
+    const isText = subPath.endsWith(".js") || subPath.endsWith(".css") || subPath.endsWith(".svg");
+    const response = await axios.get(targetUrl, {
+      responseType: isText ? "text" : "arraybuffer",
+      timeout: 15000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Accept": "*/*"
+      }
+    });
+
+    const contentType = getMimeType(subPath, response.headers["content-type"]);
+    let payload: Buffer | string = response.data;
+    if (isText && typeof payload === "string") {
+      payload = rewriteIyzicoUrls(payload);
+    }
+
+    cdnAssetCache.set(cacheKey, { data: payload, contentType, timestamp: Date.now() });
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=1800");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    return res.send(payload);
+  } catch (err: any) {
+    console.error("[Iyzico CDN Proxy Error]:", req.originalUrl, err.message);
+    return res.status(err.response?.status || 502).send("Asset unavailable");
+  }
+});
+
+// Proxy for cdn-cpp.iyzipay.com/*
+router.get("/iyzico-cpp-cdn/*", async (req, res) => {
+  try {
+    const subPath = (req.params as any)[0] || "";
+    const queryStr = req.originalUrl.includes("?") ? req.originalUrl.substring(req.originalUrl.indexOf("?")) : "";
+    const targetUrl = `https://cdn-cpp.iyzipay.com/${subPath}${queryStr}`;
+    const cacheKey = `cpp:${subPath}${queryStr}`;
+
+    const cached = cdnAssetCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CDN_CACHE_TTL) {
+      res.setHeader("Content-Type", cached.contentType);
+      res.setHeader("Cache-Control", "public, max-age=1800");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.send(cached.data);
+    }
+
+    const isText = subPath.endsWith(".js") || subPath.endsWith(".css") || subPath.endsWith(".svg");
+    const response = await axios.get(targetUrl, {
+      responseType: isText ? "text" : "arraybuffer",
+      timeout: 15000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Accept": "*/*"
+      }
+    });
+
+    const contentType = getMimeType(subPath, response.headers["content-type"]);
+    let payload: Buffer | string = response.data;
+    if (isText && typeof payload === "string") {
+      payload = rewriteIyzicoUrls(payload);
+    }
+
+    cdnAssetCache.set(cacheKey, { data: payload, contentType, timestamp: Date.now() });
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=1800");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    return res.send(payload);
+  } catch (err: any) {
+    console.error("[Iyzico CPP CDN Proxy Error]:", req.originalUrl, err.message);
+    return res.status(err.response?.status || 502).send("Asset unavailable");
+  }
+});
+
+// Silent no-op for optional telemetry (countly / clarity) so adblockers or DNS blocks never throw console errors
+router.all("/iyzico-telemetry*", (req, res) => {
+  res.status(200).json({ result: "Success" });
+});
+
+// Helper to proxy API requests to iyzico gateways
+async function proxyIyzicoApi(req: express.Request, res: express.Response, targetBase: string) {
+  try {
+    const subPath = (req.params as any)[0] || "";
+    const queryStr = req.originalUrl.includes("?") ? req.originalUrl.substring(req.originalUrl.indexOf("?")) : "";
+    const targetUrl = `${targetBase}/${subPath}${queryStr}`;
+
+    const forwardHeaders: Record<string, string> = {
+      "Content-Type": req.headers["content-type"] || "application/json",
+      "Accept": req.headers["accept"] || "application/json",
+      "Origin": "https://cpp.iyzipay.com",
+      "Referer": "https://cpp.iyzipay.com/",
+      "User-Agent": req.headers["user-agent"] || "Mozilla/5.0"
+    };
+
+    if (req.headers["x-iyzi-token"]) forwardHeaders["X-IYZI-TOKEN"] = String(req.headers["x-iyzi-token"]);
+    if (req.headers["authorization"]) forwardHeaders["Authorization"] = String(req.headers["authorization"]);
+    if (req.headers["iyzi_lc"]) forwardHeaders["IYZI_LC"] = String(req.headers["iyzi_lc"]);
+    if (req.headers["x-forwarded-for"]) forwardHeaders["X-Forwarded-For"] = String(req.headers["x-forwarded-for"]);
+
+    const response = await axios({
+      method: req.method as any,
+      url: targetUrl,
+      headers: forwardHeaders,
+      data: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
+      timeout: 30000,
+      validateStatus: () => true
+    });
+
+    if (response.headers["iyzi_lc"]) {
+      res.setHeader("iyzi_lc", response.headers["iyzi_lc"]);
+      res.setHeader("Access-Control-Expose-Headers", "iyzi_lc");
+    }
+    if (response.headers["content-type"]) {
+      res.setHeader("Content-Type", response.headers["content-type"]);
+    }
+    return res.status(response.status).send(response.data);
+  } catch (err: any) {
+    console.error(`[Iyzico API Proxy Error -> ${targetBase}]:`, err.message);
+    return res.status(502).json({ status: "failure", errorMessage: "Ödeme servisine bağlanılamadı." });
+  }
+}
+
+router.all("/iyzico-api/*", (req, res) => proxyIyzicoApi(req, res, "https://api.iyzipay.com"));
+router.all("/iyzico-sandbox-api/*", (req, res) => proxyIyzicoApi(req, res, "https://sandbox-api.iyzipay.com"));
+router.all("/iyzico-merchant-gw/*", (req, res) => proxyIyzicoApi(req, res, "https://merchant-gateway.iyzipay.com"));
+router.all("/iyzico-consumer-gw/*", (req, res) => proxyIyzicoApi(req, res, "https://consumerapigw.iyzipay.com"));
+
+// Self-hosted Iyzico Checkout Page (Eliminates client-side DNS failures on cpp.iyzipay.com / cdn.iyzipay.com)
+router.get("/iyzico-checkout", async (req, res) => {
+  try {
+    const token = String(req.query.token || "").trim();
+    const saleId = String(req.query.saleId || "").trim();
+    const lang = String(req.query.lang || "tr").trim();
+
+    if (!token) {
+      return res.status(400).send("Geçersiz ödeme oturumu (Token bulunamadı).");
+    }
+
+    // Fetch cpp.iyzipay.com HTML server-side
+    const cppUrl = `https://cpp.iyzipay.com?token=${encodeURIComponent(token)}&lang=${encodeURIComponent(lang)}`;
+    const cppRes = await axios.get(cppUrl, {
+      responseType: "text",
+      timeout: 15000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      }
+    });
+
+    let html = String(cppRes.data || "");
+
+    // Strip third-party security/telemetry scripts that cause CSP blob worker blocks or unnecessary external calls
+    html = html.replace(/<script[^>]*src="https:\/\/js\.sentry-cdn\.com[^"]*"[^>]*><\/script>/gi, "");
+    html = html.replace(/<script[^>]*src="https:\/\/cdn\.iyzipay\.com\/plugins\/agent\.js"[^>]*><\/script>/gi, "");
+    html = html.replace(/Sentry\?\.init\([\s\S]*?\}\);/g, "");
+    html = html.replace(/<script>NS_CSM_td=[\s\S]*?<\/script><script type="text\/javascript">function sendTimingInfoInit\(\)[\s\S]*?<\/script>/g, "");
+
+    // Rewrite all iyzico CDN and API URLs to route through our server-side proxy
+    html = rewriteIyzicoUrls(html);
+
+    // Relax CSP for this checkout page so 3DS bank forms, inline styles, and workers work without restriction
+    res.removeHeader("Content-Security-Policy");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; " +
+      "script-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src 'self' https: data: 'unsafe-inline'; " +
+      "img-src 'self' https: http: data: blob:; " +
+      "font-src 'self' https: data:; " +
+      "connect-src 'self' https: wss:; " +
+      "worker-src 'self' blob:; " +
+      "frame-src 'self' https:; " +
+      "form-action 'self' https: http:;"
+    );
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(html);
+  } catch (err: any) {
+    console.error("[Iyzico Hosted Checkout Proxy Error]:", err.message);
+    const token = String(req.query.token || "").trim();
+    if (token) {
+      return res.redirect(`https://cpp.iyzipay.com?token=${encodeURIComponent(token)}&lang=tr`);
+    }
+    return res.status(500).send("Ödeme sayfası yüklenirken bir hata oluştu. Lütfen sayfayı yenileyiniz.");
+  }
 });
 
 // POST /api/payment/initialize
@@ -179,9 +409,11 @@ router.post("/initialize", async (req, res) => {
       }
 
       console.log(`[Iyzico] Checkout form created successfully for Sale #${saleId}. Payment URL generated.`);
+      const hostedCheckoutUrl = `${protocol}://${host}/api/payment/iyzico-checkout?token=${encodeURIComponent(result.token)}&saleId=${encodeURIComponent(String(saleId))}&lang=tr`;
       res.json({ 
         success: true, 
-        paymentPageUrl: result.paymentPageUrl,
+        paymentPageUrl: hostedCheckoutUrl,
+        rawPaymentPageUrl: result.paymentPageUrl,
         payWithIyzicoPageUrl: result.payWithIyzicoPageUrl,
         token: result.token
       });
@@ -205,7 +437,7 @@ const webhookHandler = async (req: express.Request, res: express.Response) => {
   console.log("Body Params (Keys):", Object.keys(req.body || {}));
 
   const token = req.body?.token || req.query?.token;
-  let saleId = req.query.saleId;
+  let saleId: any = req.query.saleId;
 
   if (!token) {
     console.error("WEBHOOK ERROR: Token missing");
@@ -214,13 +446,17 @@ const webhookHandler = async (req: express.Request, res: express.Response) => {
 
   try {
     // If saleId missing from query, we will try to find it later from Iyzico's result.conversationId
-    if (!saleId) {
-       console.warn("WEBHOOK WARN: saleId missing from query, attempting to peek it from DB or conversationId later");
-       saleId = req.body.conversationId;
+    if (!saleId && req.body?.conversationId) {
+      console.warn("WEBHOOK WARN: saleId missing from query, extracting from body.conversationId");
+      saleId = String(req.body.conversationId).split('-')[0];
+    }
+
+    if (saleId) {
+      saleId = String(saleId).split('-')[0];
     }
 
     if (!saleId) {
-        throw new Error("Sipariş ID (saleId) bulunamadı. Webhook doğrulanamıyor.");
+      throw new Error("Sipariş ID (saleId) bulunamadı. Webhook doğrulanamıyor.");
     }
 
     const saleRes = await pool.query("SELECT store_id, status FROM sales WHERE id = $1", [saleId]);
@@ -233,9 +469,21 @@ const webhookHandler = async (req: express.Request, res: express.Response) => {
         return res.redirect(`${protocol}://${req.headers.host}/checkout/success?saleId=${saleId}`);
     }
 
-    const storeRes = await pool.query("SELECT payment_settings FROM stores WHERE id = $1", [saleRes.rows[0].store_id]);
-    const settingsRaw = storeRes.rows[0].payment_settings;
-    let s = typeof settingsRaw === 'string' ? JSON.parse(settingsRaw) : settingsRaw;
+    const storeRes = await pool.query("SELECT payment_settings, branding FROM stores WHERE id = $1", [saleRes.rows[0].store_id]);
+    const storeRow = storeRes.rows[0];
+    const rawPayment = storeRow?.payment_settings;
+    const brandingPayment = storeRow?.branding?.payment_settings;
+    let s: any = {};
+    if (typeof rawPayment === 'string') {
+      try { s = JSON.parse(rawPayment); } catch (e) {}
+    } else if (rawPayment && typeof rawPayment === 'object') {
+      s = { ...rawPayment };
+    }
+    if (typeof brandingPayment === 'string') {
+      try { s = { ...s, ...JSON.parse(brandingPayment) }; } catch (e) {}
+    } else if (brandingPayment && typeof brandingPayment === 'object') {
+      s = { ...s, ...brandingPayment };
+    }
     
     console.log("Iyzico Settings Mode:", s.iyzico_sandbox ? 'SANDBOX' : 'PRODUCTION');
     const iyzipay = getIyzipay(s);
@@ -262,10 +510,13 @@ const webhookHandler = async (req: express.Request, res: express.Response) => {
         return res.redirect(failUrl);
     }
 
-    // Double check saleId from conversationId if they mismatched for some reason
-    if (result.conversationId && result.conversationId !== saleId.toString()) {
-        console.warn(`ConversationId mismatch: Query=${saleId}, Iyzico=${result.conversationId}`);
-        saleId = result.conversationId; 
+    // Double check saleId from conversationId (format: `${saleId}-${timestamp}`)
+    if (result.conversationId) {
+        const extractedSaleId = String(result.conversationId).split('-')[0];
+        if (extractedSaleId && extractedSaleId !== String(saleId)) {
+            console.warn(`ConversationId mismatch: Query=${saleId}, Extracted=${extractedSaleId}`);
+            saleId = extractedSaleId;
+        }
     }
 
     console.log("Payment Verified Successfully. Updating DB for SaleId:", saleId);
