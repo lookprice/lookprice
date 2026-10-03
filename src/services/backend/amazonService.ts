@@ -24,6 +24,8 @@ export const AMAZON_SANDBOX_API_ENDPOINT = "https://sandbox.sellingpartnerapi-eu
 export class AmazonService {
   private settings: AmazonSettings;
   private storeId: number;
+  private rdtAddressDenied: boolean = false;
+  private rdtBuyerInfoDenied: boolean = false;
 
   constructor(settings: AmazonSettings, storeId: number = 1) {
     this.settings = settings || {};
@@ -44,18 +46,38 @@ export class AmazonService {
    * Get LWA (Login with Amazon) Access Token using Refresh Token
    */
   async getAccessToken(): Promise<string> {
-    const clientId = this.settings.clientId || process.env.AMAZON_CLIENT_ID;
-    const clientSecret = this.settings.clientSecret || process.env.AMAZON_CLIENT_SECRET;
+    let clientId = this.settings.clientId || process.env.AMAZON_CLIENT_ID;
+    let clientSecret = this.settings.clientSecret || process.env.AMAZON_CLIENT_SECRET;
     const refreshToken = this.settings.refresh_token || (this.settings as any).refreshToken;
 
+    if (!clientId || !clientSecret) {
+      try {
+        const masterRes = await pool.query(
+          `SELECT amazon_settings FROM stores 
+           WHERE amazon_settings->>'clientId' IS NOT NULL 
+             AND amazon_settings->>'clientId' != '' 
+             AND amazon_settings->>'clientSecret' IS NOT NULL 
+             AND amazon_settings->>'clientSecret' != ''
+           ORDER BY CASE WHEN id = 2 THEN 0 ELSE 1 END, id ASC LIMIT 1`
+        );
+        const master = masterRes.rows[0]?.amazon_settings;
+        if (master) {
+          if (!clientId && master.clientId) clientId = String(master.clientId).trim();
+          if (!clientSecret && master.clientSecret) clientSecret = String(master.clientSecret).trim();
+        }
+      } catch (e) {
+        // ignore fallback query error
+      }
+    }
+
     if (!clientId) {
-      throw new Error("LWA Client ID (Application ID) bulunamadı. Lütfen Amazon LWA Client ID giriniz.");
+      throw new Error("LookPrice Merkezi LWA Client ID bulunamadı.");
     }
     if (!clientSecret) {
-      throw new Error("LWA Client Secret bulunamadı. Lütfen Amazon LWA Client Secret giriniz.");
+      throw new Error("LookPrice Merkezi LWA Client Secret bulunamadı.");
     }
     if (!refreshToken) {
-      throw new Error("Amazon LWA Refresh Token bulunamadı. Lütfen Refresh Token giriniz veya OAuth yetkilendirmesi yapınız.");
+      throw new Error("Amazon OAuth Refresh Token bulunamadı. Lütfen 'Tek Tıkla Amazon'dan Yetki Al (OAuth)' butonunu kullanarak mağazanızı yetkilendiriniz.");
     }
 
     const payload = {
@@ -137,7 +159,8 @@ export class AmazonService {
         const orders = response.data?.payload?.Orders || [];
         if (orders && orders.length > 0) return orders;
       } catch (err: any) {
-        console.warn("[AmazonService] Sandbox order query note:", err.response?.data || err.message);
+        const msg = err.response?.data?.errors?.[0]?.message || err.message;
+        console.info("[AmazonService] Sandbox order query note:", msg);
       }
       
       // Sandbox fallback order to test synchronization without errors
@@ -186,7 +209,7 @@ export class AmazonService {
       return response.data?.payload?.Orders || [];
     } catch (err: any) {
       const errMsg = err.response?.data?.errors?.[0]?.message || err.response?.data?.message || err.message;
-      console.error("[AmazonService] Live fetchOrders error:", err.response?.data || err.message);
+      console.warn("[AmazonService] Live fetchOrders error:", errMsg);
       throw new Error(`Amazon Sipariş Çekme Hatası: ${errMsg}. Lütfen Seller Central paneli üzerinden yetkilendirmeyi kontrol ediniz.`);
     }
   }
@@ -204,7 +227,7 @@ export class AmazonService {
         const items = response.data?.payload?.OrderItems || [];
         if (items && items.length > 0) return items;
       } catch (err: any) {
-        console.warn("[AmazonService] Sandbox order items fetch note:", err.message);
+        console.info("[AmazonService] Sandbox order items fetch note:", err.message);
       }
 
       return [
@@ -230,7 +253,7 @@ export class AmazonService {
       });
       return response.data?.payload?.OrderItems || [];
     } catch (err: any) {
-      console.warn(`[AmazonService] Order items fetch error for ${amazonOrderId}:`, err.message);
+      console.info(`[AmazonService] Order items fetch note for ${amazonOrderId}:`, err.message);
       return [];
     }
   }
@@ -250,12 +273,11 @@ export class AmazonService {
             "x-amz-access-token": accessToken,
             "Content-Type": "application/json",
           },
-          timeout: 2000,
+          timeout: 2500,
         }
       );
       return response.data?.restrictedDataToken || null;
     } catch (err: any) {
-      console.warn("[AmazonService] RDT token creation note:", err.response?.data || err.message);
       return null;
     }
   }
@@ -277,22 +299,24 @@ export class AmazonService {
       };
     }
 
+    if (this.rdtAddressDenied) return null;
+
     try {
-      let token = await this.getRestrictedDataToken([
+      const rdtToken = await this.getRestrictedDataToken([
         { method: "GET", path: `/orders/v0/orders/${amazonOrderId}/address`, dataElements: ["shippingAddress"] }
       ]);
-      if (!token) {
-        token = await this.getAccessToken();
-      }
+      const token = rdtToken || (await this.getAccessToken());
 
       const response = await axios.get(`${this.getApiEndpoint()}/orders/v0/orders/${amazonOrderId}/address`, {
         headers: { "x-amz-access-token": token },
-        timeout: 10000,
+        timeout: 6000,
       });
 
       return response.data?.payload?.ShippingAddress || null;
     } catch (err: any) {
-      console.warn(`[AmazonService] Order address fetch fallback for ${amazonOrderId}:`, err.response?.data || err.message);
+      if (err.response?.status === 403) {
+        this.rdtAddressDenied = true;
+      }
       return null;
     }
   }
@@ -312,22 +336,24 @@ export class AmazonService {
       };
     }
 
+    if (this.rdtBuyerInfoDenied) return null;
+
     try {
-      let token = await this.getRestrictedDataToken([
+      const rdtToken = await this.getRestrictedDataToken([
         { method: "GET", path: `/orders/v0/orders/${amazonOrderId}/buyerInfo`, dataElements: ["buyerInfo"] }
       ]);
-      if (!token) {
-        token = await this.getAccessToken();
-      }
+      const token = rdtToken || (await this.getAccessToken());
 
       const response = await axios.get(`${this.getApiEndpoint()}/orders/v0/orders/${amazonOrderId}/buyerInfo`, {
         headers: { "x-amz-access-token": token },
-        timeout: 10000,
+        timeout: 6000,
       });
 
       return response.data?.payload || null;
     } catch (err: any) {
-      console.warn(`[AmazonService] Order buyerInfo fetch fallback for ${amazonOrderId}:`, err.response?.data || err.message);
+      if (err.response?.status === 403) {
+        this.rdtBuyerInfoDenied = true;
+      }
       return null;
     }
   }
@@ -617,7 +643,7 @@ export class AmazonService {
             finalIsActive,
             cleanAsin || null,
             sku || matchedProd.amazon_sku || null,
-            !hasValidAsin ? "ASIN kodu bulunamadığı için Amazon'da satışa açılamaz." : (finalIsActive ? null : (isManuallyUnpublished ? "Operatör tarafından satışa kapatıldı." : "Fiyat veya stok yetersiz")),
+            !hasValidAsin ? "ASIN kodu bulunamadığı için Amazon'da satışa açılamaz." : null,
             JSON.stringify(mpData),
             matchedProd.id,
             this.storeId
@@ -860,7 +886,12 @@ export class AmazonService {
     }
 
     for (const prod of products) {
-      const sku = prod.amazon_sku || prod.sku || prod.barcode;
+      let mpData: any = prod.marketplace_data;
+      if (typeof mpData === "string") {
+        try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+      }
+      mpData = mpData || {};
+      const sku = prod.amazon_sku || mpData?.amazon?.sku || prod.sku || prod.barcode;
       let rawPrice = parseFloat(prod.price || prod.sale_price || 0);
       const curr = String(prod.currency || 'TRY').toUpperCase();
       if (curr === 'USD' && rates.USD) rawPrice *= Number(rates.USD);
@@ -877,11 +908,6 @@ export class AmazonService {
 
       const res = await this.updateListingsItem(String(sku).trim(), effectivePrice, stock);
       
-      let mpData: any = prod.marketplace_data;
-      if (typeof mpData === "string") {
-        try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
-      }
-      mpData = mpData || {};
       if (!mpData.amazon) mpData.amazon = {};
       if (!mpData.amazon.attributes) mpData.amazon.attributes = {};
       mpData.amazon.attributes.price = String(effectivePrice);

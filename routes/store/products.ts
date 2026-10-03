@@ -1443,6 +1443,18 @@ router.put("/:id", async (req: any, res) => {
     ]);
 
     const newStock = parseFloat(stock_quantity !== undefined ? stock_quantity : oldStock) || 0;
+    if (finalPrice > 0 && newStock > 0) {
+      await pool.query(
+        `UPDATE products
+         SET hepsiburada_last_error = CASE WHEN hepsiburada_last_error ILIKE '%yetersiz%' OR hepsiburada_last_error ILIKE '%kapatıldı%' THEN NULL ELSE hepsiburada_last_error END,
+             trendyol_last_error = CASE WHEN trendyol_last_error ILIKE '%yetersiz%' OR trendyol_last_error ILIKE '%kapatıldı%' THEN NULL ELSE trendyol_last_error END,
+             n11_last_error = CASE WHEN n11_last_error ILIKE '%yetersiz%' OR n11_last_error ILIKE '%kapatıldı%' THEN NULL ELSE n11_last_error END,
+             amazon_last_error = CASE WHEN amazon_last_error ILIKE '%yetersiz%' OR amazon_last_error ILIKE '%kapatıldı%' THEN NULL ELSE amazon_last_error END,
+             pazarama_last_error = CASE WHEN pazarama_last_error ILIKE '%yetersiz%' OR pazarama_last_error ILIKE '%kapatıldı%' THEN NULL ELSE pazarama_last_error END
+         WHERE id = $1 AND store_id = $2`,
+        [id, storeId]
+      );
+    }
     const diff = newStock - oldStock;
     if (Math.abs(diff) > 0.001) {
       try {
@@ -1568,7 +1580,7 @@ router.put("/:id", async (req: any, res) => {
           const storeRes = await pool.query("SELECT amazon_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
           const st = storeRes.rows[0];
           const amzSettings = st?.amazon_settings || st?.branding?.amazon_settings;
-          if (amzSettings?.sellerId && amzSettings?.clientId && amzSettings?.clientSecret && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
+          if (amzSettings?.sellerId && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
             const { AmazonService } = await import("../../src/services/backend/amazonService.js");
             const amzService = new AmazonService(amzSettings, storeId);
             
@@ -1580,7 +1592,7 @@ router.put("/:id", async (req: any, res) => {
             else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
 
             const effectivePrice = amzService.calculateMarketplacePrice(rawPrice, category, sub_category);
-            const amzSku = existingProductRes.rows[0]?.amazon_sku || finalBarcode;
+            const amzSku = existingProductRes.rows[0]?.amazon_sku || finalMarketplaceData?.amazon?.sku || existingProductRes.rows[0]?.sku || finalBarcode;
 
             if (amzSku) {
               await amzService.updateListingsItem(

@@ -1642,12 +1642,20 @@ export class N11Service {
 
     let matchedCount = 0;
     let importedCount = 0;
+    const matchedLocalIds = new Set<number>();
+
+    // First clear any legacy fake 'PUBLISHED' placeholder IDs
+    await poolInstance.query(
+      "UPDATE products SET n11_id = NULL, is_n11_active = false WHERE store_id = $1 AND n11_id = 'PUBLISHED'",
+      [storeId]
+    );
 
     for (const rp of remoteProducts) {
       const rpId = String(rp.id || rp.productId || '');
       const rpCode = String(rp.productSellerCode || rp.stockCode || rp.barcode || '').trim().toLowerCase();
       const rpBarcode = String(rp.barcode || '').trim().toLowerCase();
       const rpTitle = String(rp.title || rp.name || '').trim().toLowerCase();
+      const isSaleActiveOnN11 = String(rp.saleStatus || '2') === '2' && String(rp.approvalStatus || '1') === '1';
 
       // Extract GTINs and sellerStockCodes from stockItems
       const stockItemsRaw = rp.stockItems?.stockItem || [];
@@ -1656,12 +1664,15 @@ export class N11Service {
       const rpSellerCodes = stockItemsList.map((si: any) => String(si.sellerStockCode || '').trim().toLowerCase()).filter(Boolean);
 
       let matchedLocal = localProducts.find((lp: any) => {
+        if (matchedLocalIds.has(lp.id)) return false;
+        if (String(lp.n11_id || '') === rpId) return true;
         const lpSku = String(lp.sku || '').trim().toLowerCase();
+        const lpProdCode = String(lp.product_code || '').trim().toLowerCase();
         const lpBarcode = String(lp.barcode || '').trim().toLowerCase();
         const lpCleanBarcode = lpBarcode.replace(/^0+/, '');
         const lpName = String(lp.name || '').trim().toLowerCase();
 
-        if (rpCode && lpSku && rpCode === lpSku) return true;
+        if (rpCode && ((lpSku && rpCode === lpSku) || (lpProdCode && rpCode === lpProdCode))) return true;
         if (rpBarcode && lpBarcode && rpBarcode === lpBarcode) return true;
         if (rpCode && lpBarcode && rpCode === lpBarcode) return true;
         if (rpBarcode && lpSku && rpBarcode === lpSku) return true;
@@ -1673,14 +1684,24 @@ export class N11Service {
         }
 
         for (const sc of rpSellerCodes) {
-          if (sc === lpSku || sc === lpBarcode) return true;
+          if (sc === lpSku || sc === lpBarcode || sc === lpProdCode) return true;
         }
 
         if (rpTitle && lpName && rpTitle === lpName) return true;
+
+        // Model code / token matching
+        if (rpCode && rpCode.length >= 4) {
+          const cleanCode = rpCode.replace(/^(tru|per)/, '').replace(/_[0-9_]+$/, '').replace(/[-_\s]/g, '');
+          const cleanLpName = lpName.replace(/[-_\s]/g, '');
+          if (cleanCode.length >= 4 && (cleanLpName.includes(cleanCode) || lpBarcode.includes(cleanCode))) {
+            return true;
+          }
+        }
         return false;
       });
 
       if (matchedLocal) {
+        matchedLocalIds.add(matchedLocal.id);
         let mpData: any = matchedLocal.marketplace_data;
         if (typeof mpData === 'string') { try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; } }
         mpData = mpData || {};
@@ -1706,6 +1727,10 @@ export class N11Service {
           ? `https://www.n11.com/urun/${catalogSlug}-${publicId}?magaza=enrakipsiz` 
           : `https://www.n11.com/urun/${catalogSlug}-${rpId}?magaza=enrakipsiz`;
 
+        const pPrice = Number(matchedLocal.price || 0);
+        const pStock = Number(matchedLocal.stock_quantity || 0);
+        const finalActive = isSaleActiveOnN11 && pPrice > 0 && pStock > 0;
+
         mpData.n11 = {
           ...(mpData.n11 || {}),
           n11Id: rpId,
@@ -1713,14 +1738,16 @@ export class N11Service {
           n11CatalogId: stockItemsList[0]?.n11CatalogId || undefined,
           n11CatalogGroupId: rp.n11CatalogGroupId || undefined,
           title: n11Title,
-          status: 'ACTIVE',
+          status: finalActive ? 'ACTIVE' : 'INACTIVE',
+          saleStatus: rp.saleStatus,
           productUrl,
-          lastSync: new Date().toISOString()
+          lastSync: new Date().toISOString(),
+          lastError: null
         };
 
         await poolInstance.query(
-          "UPDATE products SET n11_id = $1, is_n11_active = true, marketplace_data = $2 WHERE id = $3 AND store_id = $4",
-          [rpId, JSON.stringify(mpData), matchedLocal.id, storeId]
+          "UPDATE products SET n11_id = $1, is_n11_active = $2, n11_last_error = NULL, marketplace_data = $3 WHERE id = $4 AND store_id = $5",
+          [rpId, finalActive, JSON.stringify(mpData), matchedLocal.id, storeId]
         );
         matchedCount++;
       } else if (options.importMissing) {
@@ -1745,6 +1772,20 @@ export class N11Service {
         );
         importedCount++;
       }
+    }
+
+    // Ensure any product not matched to a live N11 listing does not remain falsely marked active
+    const matchedIdsArray = Array.from(matchedLocalIds);
+    if (matchedIdsArray.length > 0) {
+      await poolInstance.query(
+        "UPDATE products SET is_n11_active = false WHERE store_id = $1 AND is_n11_active = true AND NOT (id = ANY($2::int[]))",
+        [storeId, matchedIdsArray]
+      );
+    } else if (remoteProducts.length === 0) {
+      await poolInstance.query(
+        "UPDATE products SET is_n11_active = false WHERE store_id = $1 AND (n11_id IS NULL OR n11_id = 'PUBLISHED')",
+        [storeId]
+      );
     }
 
     return {

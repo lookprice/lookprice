@@ -27,26 +27,53 @@ const AMAZON_TR_MARKETPLACE_ID = "A33AVAJ2PDY3EV";
 const AMAZON_AUTH_ENDPOINT = "https://sellercentral.amazon.com.tr/apps/authorize/consent";
 const AMAZON_TOKEN_ENDPOINT = "https://api.amazon.com/auth/o2/token";
 const AMAZON_API_ENDPOINT = "https://sellingpartnerapi-eu.amazon.com";
+const DEFAULT_LOOKPRICE_AMAZON_APP_ID = "amzn1.sp.solution.d6950e6e-a94f-4d43-a258-a6e0cbd2d3e9";
+
+async function getCentralAmazonCredentials() {
+  let appId = process.env.AMAZON_APP_ID || DEFAULT_LOOKPRICE_AMAZON_APP_ID;
+  let clientId = process.env.AMAZON_CLIENT_ID || "";
+  let clientSecret = process.env.AMAZON_CLIENT_SECRET || "";
+
+  if (!clientId || !clientSecret) {
+    try {
+      const res = await pool.query(
+        `SELECT amazon_settings FROM stores 
+         WHERE amazon_settings->>'clientId' IS NOT NULL 
+           AND amazon_settings->>'clientId' != '' 
+           AND amazon_settings->>'clientSecret' IS NOT NULL 
+           AND amazon_settings->>'clientSecret' != ''
+         ORDER BY CASE WHEN id = 2 THEN 0 ELSE 1 END, id ASC LIMIT 1`
+      );
+      const master = res.rows[0]?.amazon_settings;
+      if (master) {
+        if (!clientId && master.clientId) clientId = String(master.clientId).trim();
+        if (!clientSecret && master.clientSecret) clientSecret = String(master.clientSecret).trim();
+        if (master.appId) appId = String(master.appId).trim();
+      }
+    } catch (e) {
+      // ignore fallback query error
+    }
+  }
+
+  return { appId, clientId, clientSecret };
+}
 
 // 1. Get Amazon Auth URL
 router.get("/amazon/auth-url", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-  const storeRes = await pool.query("SELECT amazon_settings FROM stores WHERE id = $1", [storeId]);
+  const storeRes = await pool.query("SELECT slug, amazon_settings FROM stores WHERE id = $1", [storeId]);
   const storeSettings = storeRes.rows[0]?.amazon_settings || {};
-  const appId = storeSettings.appId || process.env.AMAZON_APP_ID;
-  
-  if (!appId) {
-    return res.status(400).json({ error: "Amazon App ID bulunamadı. Lütfen Amazon App ID'nizi veya LWA kimlik bilgilerinizi tanımlayınız." });
-  }
+  const slug = storeRes.rows[0]?.slug || "store";
+  const central = await getCentralAmazonCredentials();
+  const appId = storeSettings.appId || central.appId || DEFAULT_LOOKPRICE_AMAZON_APP_ID;
 
-  const state = Buffer.from(JSON.stringify({ storeId })).toString('base64');
-  const authUrl = `${AMAZON_AUTH_ENDPOINT}?application_id=${appId}&state=${state}&version=beta`;
+  const state = Buffer.from(JSON.stringify({ storeId, slug })).toString('base64');
+  const authUrl = `${AMAZON_AUTH_ENDPOINT}?application_id=${encodeURIComponent(appId)}&state=${encodeURIComponent(state)}&version=beta`;
   
-  res.json({ url: authUrl });
+  res.json({ url: authUrl, appId });
 });
 
-// 2. Save Amazon Settings (Manual)
-// Amazon Settings Endpoint
+// 2. Save Amazon Settings (Manual or Central OAuth)
 router.post("/amazon/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   const { appId, clientId, clientSecret, refreshToken, sellerId, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee, isSandbox } = req.body;
@@ -59,15 +86,16 @@ router.post("/amazon/settings", authenticate, async (req: any, res) => {
       try { br = JSON.parse(br); } catch (e) { br = {}; }
     }
 
-    const finalAppId = appId ? String(appId).trim() : (prev.appId || "");
-    const finalClientId = clientId ? String(clientId).trim() : (prev.clientId || "");
-    const finalClientSecret = clientSecret ? String(clientSecret).trim() : (prev.clientSecret || "");
+    const central = await getCentralAmazonCredentials();
+    const finalAppId = appId ? String(appId).trim() : (prev.appId || central.appId || DEFAULT_LOOKPRICE_AMAZON_APP_ID);
+    const finalClientId = clientId ? String(clientId).trim() : (prev.clientId || central.clientId || "");
+    const finalClientSecret = clientSecret ? String(clientSecret).trim() : (prev.clientSecret || central.clientSecret || "");
     const finalRefreshToken = refreshToken ? String(refreshToken).trim() : (prev.refresh_token || "");
     const finalSellerId = sellerId ? String(sellerId).trim() : (prev.sellerId || "");
 
     const settings = {
       ...prev,
-      connected: !!((finalClientId && finalClientSecret && finalRefreshToken) || (finalClientId && finalSellerId)),
+      connected: !!((finalClientId && finalClientSecret && finalRefreshToken) || (finalRefreshToken && finalSellerId)),
       appId: finalAppId,
       clientId: finalClientId,
       clientSecret: finalClientSecret,
@@ -99,10 +127,11 @@ router.post("/amazon/test-connection", authenticate, async (req: any, res) => {
   try {
     const storeRes = await pool.query("SELECT amazon_settings FROM stores WHERE id = $1", [storeId]);
     const prev = storeRes.rows[0]?.amazon_settings || {};
+    const central = await getCentralAmazonCredentials();
 
     const settings = {
-      clientId: clientId ? String(clientId).trim() : (prev.clientId || process.env.AMAZON_CLIENT_ID || ""),
-      clientSecret: clientSecret ? String(clientSecret).trim() : (prev.clientSecret || process.env.AMAZON_CLIENT_SECRET || ""),
+      clientId: clientId ? String(clientId).trim() : (prev.clientId || central.clientId || ""),
+      clientSecret: clientSecret ? String(clientSecret).trim() : (prev.clientSecret || central.clientSecret || ""),
       refresh_token: refreshToken ? String(refreshToken).trim() : (prev.refresh_token || ""),
       sellerId: sellerId ? String(sellerId).trim() : (prev.sellerId || ""),
       isSandbox: typeof isSandbox === 'boolean' ? isSandbox : (prev.isSandbox || false)
@@ -235,8 +264,9 @@ router.get("/amazon/callback", async (req: any, res) => {
     }
     const brandingAmz = branding.amazon_settings || {};
 
-    const clientId = currentSettings.clientId || brandingAmz.clientId || process.env.AMAZON_CLIENT_ID;
-    const clientSecret = currentSettings.clientSecret || brandingAmz.clientSecret || process.env.AMAZON_CLIENT_SECRET;
+    const central = await getCentralAmazonCredentials();
+    const clientId = currentSettings.clientId || brandingAmz.clientId || central.clientId;
+    const clientSecret = currentSettings.clientSecret || brandingAmz.clientSecret || central.clientSecret;
     const sellerId = String(selling_partner_id || currentSettings.sellerId || brandingAmz.sellerId || "").trim();
 
     let refreshToken = currentSettings.refresh_token || brandingAmz.refresh_token;
@@ -266,7 +296,7 @@ router.get("/amazon/callback", async (req: any, res) => {
       connected: Boolean(refreshToken && refreshToken.trim() !== ""),
       refresh_token: refreshToken || null,
       sellerId: sellerId || currentSettings.sellerId,
-      appId: currentSettings.appId || brandingAmz.appId || "amzn1.sp.solution.d6950e6e-a94f-4d43-a258-a6e0cbd2d3e9",
+      appId: currentSettings.appId || brandingAmz.appId || central.appId || DEFAULT_LOOKPRICE_AMAZON_APP_ID,
       clientId: clientId || currentSettings.clientId,
       clientSecret: clientSecret || currentSettings.clientSecret,
       marketplace_id: AMAZON_TR_MARKETPLACE_ID,
@@ -300,22 +330,25 @@ router.get("/amazon/callback", async (req: any, res) => {
 </head>
 <body>
   <div class="card">
-    <div class="badge">✓ Amazon Yetkisi Onaylandı</div>
-    <h1>${store.name || "GAP BİLİŞİM"} Hesabı Yetkilendirildi</h1>
-    <p>Amazon Seller Central mağaza izinleriniz LookPrice SP-API altyapısına başarıyla iletildi.</p>
+    <div class="badge">✓ Amazon OAuth 2.0 Yetkisi Onaylandı</div>
+    <h1>${store.name || "Mağaza"} Hesabı Yetkilendirildi</h1>
+    <p>Amazon Seller Central mağaza izinleriniz LookPrice Merkezi SP-API altyapısına başarıyla bağlandı.</p>
     <div class="info-box">
-      <div class="info-row"><span class="info-label">Satıcı Kimliği:</span> <span class="info-val">${sellerId || "A2M0PNCK7GMIY6"}</span></div>
+      <div class="info-row"><span class="info-label">Satıcı Kimliği (Seller ID):</span> <span class="info-val">${sellerId || "-"}</span></div>
       <div class="info-row"><span class="info-label">Pazaryeri:</span> <span class="info-val">Amazon Türkiye (TR)</span></div>
       <div class="info-row"><span class="info-label">Bağlantı Durumu:</span> <span class="info-val" style="color:#34d399;">${isConnected ? "Aktif / Bağlı" : "Yetki Alındı"}</span></div>
     </div>
     <a href="/admin?tab=estores" class="btn">Mağaza Paneline Dön</a>
     <script>
-      setTimeout(() => {
-        if (window.opener) {
-          window.opener.postMessage({ type: 'AMAZON_AUTH_SUCCESS', sellerId: '${sellerId}' }, '*');
-          window.close();
-        }
-      }, 3500);
+      if (window.opener) {
+        window.opener.postMessage({
+          type: 'AMAZON_AUTH_SUCCESS',
+          sellerId: ${JSON.stringify(sellerId || "")},
+          refreshToken: ${JSON.stringify(refreshToken || "")},
+          connected: ${JSON.stringify(isConnected)}
+        }, '*');
+        setTimeout(() => { window.close(); }, 2000);
+      }
     </script>
   </div>
 </body>
@@ -347,6 +380,14 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
     if (!settings || !settings.refresh_token) {
       return res.status(400).json({ error: "Amazon hesabı bağlı değil" });
     }
+
+    const central = await getCentralAmazonCredentials();
+    settings = {
+      ...settings,
+      clientId: settings.clientId || central.clientId,
+      clientSecret: settings.clientSecret || central.clientSecret,
+      appId: settings.appId || central.appId
+    };
 
     const amazonService = new AmazonService(settings, storeId);
     const { syncedCount, errors } = await amazonService.syncOrdersToDatabase({ days: 30 });
@@ -1802,48 +1843,48 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
 
     const sellerCode = product.sku || product.barcode || `PRD-${product.id}`;
     const productImages = Array.isArray(product.images) ? product.images : (product.image_url ? [product.image_url] : ["https://via.placeholder.com/600"]);
-    const shipmentTemplate = settings.shipmentTemplate || "AGT";
+    const shipmentTemplate = settings.shipmentTemplate || "GAP0";
 
-    let n11Id = 'PUBLISHED';
-    let apiSuccess = false;
+    if (!settings.appKey || !settings.appSecret) {
+      return res.status(400).json({ error: "N11 API anahtarları (App Key / App Secret) tanımlı değil." });
+    }
+
+    let n11Id = "";
     let apiMessage = "";
 
-    if (settings.appKey && settings.appSecret) {
-      try {
-        const { N11Service } = await import("../src/services/backend/n11Service");
-        const saveRes = await N11Service.saveProduct(settings, {
-          productSellerCode: sellerCode,
-          title: product.name,
-          subtitle: (product.name || "").substring(0, 45),
-          description: product.description || product.name,
-          category: { id: Number(categoryId || '1000001') },
-          price: price,
-          currencyType: "1",
-          images: productImages,
-          shipmentTemplate: shipmentTemplate,
-          preparingDay: settings.preparingDay ? Number(settings.preparingDay) : 1,
-          attributes: Array.isArray(attributes) ? attributes : undefined,
-          stockItems: [
-            {
-              sellerStockCode: sellerCode,
-              quantity: stock,
-              gtin: product.barcode || undefined
-            }
-          ]
-        });
-        if (saveRes.success) {
-          apiSuccess = true;
-          n11Id = saveRes.n11Id || 'PUBLISHED';
-          apiMessage = saveRes.message || "Ürün N11 kataloğuna başarıyla eklendi.";
-        } else {
-          apiMessage = saveRes.message || "N11 ürün kaydı başarısız.";
-        }
-      } catch (apiErr: any) {
-        console.warn("[N11 API Publish Warning / Fallback]:", apiErr.message);
-        apiMessage = apiErr.message || "N11 API bağlantı uyarısı";
+    try {
+      const { N11Service } = await import("../src/services/backend/n11Service");
+      const saveRes = await N11Service.saveProduct(settings, {
+        productSellerCode: sellerCode,
+        title: product.name,
+        subtitle: (product.name || "").substring(0, 45),
+        description: product.description || product.name,
+        category: { id: Number(categoryId || '1000280') },
+        price: price,
+        currencyType: "1",
+        images: productImages,
+        shipmentTemplate: shipmentTemplate,
+        preparingDay: settings.preparingDay ? Number(settings.preparingDay) : 1,
+        attributes: Array.isArray(attributes) ? attributes : undefined,
+        stockItems: [
+          {
+            sellerStockCode: sellerCode,
+            quantity: stock,
+            gtin: product.barcode || undefined
+          }
+        ]
+      });
+      if (!saveRes.success || !saveRes.n11Id) {
+        const errMsg = saveRes.message || "N11 ürün kaydı başarısız oldu.";
+        await pool.query("UPDATE products SET n11_last_error = $1 WHERE id = $2 AND store_id = $3", [errMsg, productId, storeId]);
+        return res.status(400).json({ error: errMsg });
       }
-    } else {
-      apiMessage = "N11 API anahtarları tanımlı değil; ürün yerel olarak N11 mağaza listesine eklendi.";
+      n11Id = String(saveRes.n11Id);
+      apiMessage = saveRes.message || "Ürün N11 kataloğuna başarıyla eklendi.";
+    } catch (apiErr: any) {
+      const errMsg = apiErr.message || "N11 API bağlantı hatası";
+      await pool.query("UPDATE products SET n11_last_error = $1 WHERE id = $2 AND store_id = $3", [errMsg, productId, storeId]);
+      return res.status(400).json({ error: errMsg });
     }
 
     let mpData: any = product.marketplace_data;
@@ -1855,11 +1896,12 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
       ...(mpData.n11 || {}),
       status: 'ACTIVE',
       n11Id,
-      lastSync: new Date().toISOString()
+      lastSync: new Date().toISOString(),
+      lastError: null
     };
 
     await pool.query(
-      "UPDATE products SET n11_id = $1, is_n11_active = true, marketplace_data = $2 WHERE id = $3 AND store_id = $4",
+      "UPDATE products SET n11_id = $1, is_n11_active = true, n11_last_error = NULL, marketplace_data = $2 WHERE id = $3 AND store_id = $4",
       [n11Id, JSON.stringify(mpData), productId, storeId]
     );
 
@@ -1905,21 +1947,9 @@ router.post("/n11/match-listings", authenticate, async (req: any, res) => {
     const { N11Service } = await import("../src/services/backend/n11Service");
 
     if (!cleanSettings.appKey || !cleanSettings.appSecret) {
-      const localProdRes = await pool.query("SELECT * FROM products WHERE store_id = $1", [storeId]);
-      const localProducts = localProdRes.rows || [];
-      let matchedCount = 0;
-      for (const p of localProducts) {
-        if (p.barcode || p.sku) {
-          await pool.query("UPDATE products SET is_n11_active = true WHERE id = $1 AND store_id = $2", [p.id, storeId]);
-          matchedCount++;
-        }
-      }
-      return res.json({
-        success: true,
-        matchedCount,
-        importedCount: 0,
-        totalRemote: localProducts.length,
-        message: `N11 API anahtarları girilmediği için yerel katalog barkod ve SKU bazında N11 (enrakipsiz) ile senkronize edildi (${matchedCount} ürün).`
+      return res.status(400).json({
+        success: false,
+        error: "N11 API anahtarları (App Key ve App Secret) tanımlı değil. Lütfen önce N11 ayarlarını kaydedin."
       });
     }
 
@@ -2547,14 +2577,34 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     
     // 3. Normalize deprecated/virtual category IDs or infer fallback ONLY if categoryId is completely absent
     const catSearchStr = `${p.name} ${p.category || ""} ${p.sub_category || ""}`.toLowerCase();
-    if (String(categoryId) === "1000101") {
-      categoryId = 970;
-    } else if (String(categoryId) === "1000102") {
-      categoryId = 698;
-    } else if (String(categoryId) === "1000103") {
-      categoryId = 1100011;
-    } else if (String(categoryId) === "1000124") {
-      categoryId = 106861; // Active HB Leaf: Notebook Standları
+    const catIdStr = String(categoryId || "");
+    if (catIdStr === "1000101") {
+      categoryId = 970; // Usb Bellek
+    } else if (catIdStr === "1000102") {
+      categoryId = 698; // Kart Okuyucular
+    } else if (catIdStr === "1000103") {
+      categoryId = 1100011; // Sd Kartlar
+    } else if (catIdStr === "1000124") {
+      categoryId = 106861; // Notebook Standları
+    } else if (catIdStr === "1000108") {
+      categoryId = 47; // Bellek (Ram)
+    } else if (catIdStr === "1000118") {
+      if (catSearchStr.includes("set")) categoryId = 3007055; // Klavye & Mouse Setler
+      else if (catSearchStr.includes("mouse pad") || catSearchStr.includes("mousepad")) categoryId = 29; // Mouse Pad
+      else if (catSearchStr.includes("mouse") || catSearchStr.includes("fare")) categoryId = 52; // Mouse
+      else categoryId = 51; // Klavye
+    } else if (catIdStr === "1000126") {
+      categoryId = catSearchStr.includes("router") ? 60001272 : 103939; // Wireless Adaptör / Router
+    } else if (catIdStr === "1000139") {
+      categoryId = 52; // Mouse / Sunum Kumandası
+    } else if (catIdStr === "1000115") {
+      categoryId = 111001; // Mini Masaüstü
+    } else if (catIdStr === "1000123" || catIdStr === "1000136") {
+      categoryId = 676; // Notebook Çantaları
+    } else if (catIdStr === "371966") {
+      categoryId = 16113; // Şarj Cihazları (Leaf)
+    } else if (catIdStr === "371969") {
+      categoryId = 29010123; // Şarj Kabloları (Leaf)
     } else if (!categoryId) {
       if (catSearchStr.includes("usb flash") || catSearchStr.includes("flash bellek") || (catSearchStr.includes("usb") && catSearchStr.includes("bellek"))) {
         categoryId = 970; // Active HB Leaf: Usb Bellek
@@ -2564,6 +2614,14 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
         categoryId = 1100011; // Active HB Leaf: Sd Kartlar
       } else if (catSearchStr.includes("notebook stand") || catSearchStr.includes("laptop stand")) {
         categoryId = 106861; // Active HB Leaf: Notebook Standları
+      } else if (catSearchStr.includes("klavye") && catSearchStr.includes("mouse")) {
+        categoryId = 3007055; // Active HB Leaf: Klavye & Mouse Setler
+      } else if (catSearchStr.includes("mouse") || catSearchStr.includes("fare") || catSearchStr.includes("sunum kumanda")) {
+        categoryId = 52; // Active HB Leaf: Mouse
+      } else if (catSearchStr.includes("klavye")) {
+        categoryId = 51; // Active HB Leaf: Klavye
+      } else if (catSearchStr.includes("ram") || catSearchStr.includes("ddr4") || catSearchStr.includes("ddr5")) {
+        categoryId = 47; // Active HB Leaf: Bellek (Ram)
       }
     }
 
@@ -3841,13 +3899,21 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
     };
 
     try {
-      const response = await axios.post(`https://api.trendyol.com/sapigw/suppliers/${settings.merchantId}/v2/products`, payload, {
-        auth: { username: settings.apiKey, password: settings.apiSecret }
+      const response = await axios.post(`https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId}/products`, payload, {
+        auth: { username: settings.apiKey, password: settings.apiSecret },
+        headers: {
+          "User-Agent": `${settings.merchantId} - SelfIntegration`,
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        }
       });
-      await pool.query("UPDATE products SET is_trendyol_active = true, trendyol_id = $1 WHERE id = $2", [response.data.batchRequestId, productId]);
+      await pool.query("UPDATE products SET is_trendyol_active = true, trendyol_id = $1, trendyol_last_error = NULL WHERE id = $2", [response.data.batchRequestId, productId]);
       res.json({ success: true, batchRequestId: response.data.batchRequestId });
     } catch (e: any) {
-      const errMsg = e.response?.data?.errors?.[0]?.message || e.message;
+      const rawErr = e.response?.data?.errors?.[0]?.message || e.message;
+      const errMsg = (typeof e.response?.data === "string" && e.response.data.includes("Cloudflare"))
+        ? "Trendyol API güvenlik duvarı (Cloudflare 403) engeli."
+        : rawErr;
       await pool.query("UPDATE products SET trendyol_last_error = $1 WHERE id = $2", [errMsg, productId]);
       res.status(400).json({ error: errMsg });
     }
@@ -3856,10 +3922,123 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
   }
 });
 
+// 5b. Match Trendyol Listings with Store Products
+router.post("/trendyol/match-listings", authenticate, async (req: any, res) => {
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin"
+    ? Number(rawStoreId || req.user.store_id || 1)
+    : Number(req.user.store_id || rawStoreId);
+
+  try {
+    const storeRes = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+    const row = storeRes.rows[0];
+    let settings = row?.trendyol_settings || row?.branding?.trendyol_settings || {};
+    if (typeof settings === "string") { try { settings = JSON.parse(settings); } catch (e) { settings = {}; } }
+
+    if (!settings?.apiKey || !settings?.apiSecret || !settings?.merchantId) {
+      return res.status(400).json({ error: "Trendyol API bilgileri (Satıcı ID, API Key, API Secret) eksik." });
+    }
+
+    const tyRes = await axios.get(`https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId}/products?size=500`, {
+      auth: { username: settings.apiKey.trim(), password: settings.apiSecret.trim() },
+      headers: {
+        "User-Agent": `${settings.merchantId.trim()} - SelfIntegration`,
+        "Accept": "application/json"
+      }
+    });
+
+    const remoteProducts = tyRes.data?.content || [];
+    const localProdRes = await pool.query("SELECT * FROM products WHERE store_id = $1", [storeId]);
+    const localProducts = localProdRes.rows || [];
+
+    let matchedCount = 0;
+    const matchedLocalIds = new Set<number>();
+
+    for (const rp of remoteProducts) {
+      const rpBarcode = String(rp.barcode || "").trim().toLowerCase();
+      const rpCleanBarcode = rpBarcode.replace(/^0+/, "");
+      const rpStockCode = String(rp.stockCode || rp.productMainId || "").trim().toLowerCase();
+      const rpTitle = String(rp.title || "").trim().toLowerCase();
+      const rpContentId = String(rp.productContentId || rp.productCode || rp.id || "");
+      const isSaleActive = Boolean(rp.onSale) && Number(rp.quantity || 0) > 0 && Number(rp.salePrice || 0) > 0;
+
+      const matchedLocal = localProducts.find((lp: any) => {
+        if (matchedLocalIds.has(lp.id)) return false;
+        const lpBarcode = String(lp.barcode || "").trim().toLowerCase();
+        const lpCleanBarcode = lpBarcode.replace(/^0+/, "");
+        const lpSku = String(lp.sku || lp.product_code || "").trim().toLowerCase();
+        const lpName = String(lp.name || "").trim().toLowerCase();
+
+        if (rpBarcode && (rpBarcode === lpBarcode || (rpCleanBarcode && rpCleanBarcode === lpCleanBarcode) || rpBarcode === lpSku)) return true;
+        if (rpStockCode && (rpStockCode === lpBarcode || rpStockCode === lpSku)) return true;
+        if (rpTitle && lpName && rpTitle === lpName) return true;
+        return false;
+      });
+
+      if (matchedLocal) {
+        matchedLocalIds.add(matchedLocal.id);
+        let mpData: any = matchedLocal.marketplace_data;
+        if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; } }
+        mpData = mpData || {};
+
+        const pPrice = Number(matchedLocal.price || 0);
+        const pStock = Number(matchedLocal.stock_quantity || 0);
+        const finalActive = isSaleActive && pPrice > 0 && pStock > 0;
+
+        mpData.trendyol = {
+          ...(mpData.trendyol || {}),
+          contentId: rpContentId,
+          productCode: rp.productCode,
+          barcode: rp.barcode,
+          title: rp.title,
+          onSale: Boolean(rp.onSale),
+          status: finalActive ? "ACTIVE" : "INACTIVE",
+          productUrl: rp.productUrl || undefined,
+          lastSync: new Date().toISOString(),
+          lastError: null
+        };
+
+        await pool.query(
+          "UPDATE products SET trendyol_id = $1, is_trendyol_active = $2, trendyol_last_error = NULL, marketplace_data = $3 WHERE id = $4 AND store_id = $5",
+          [rpContentId, finalActive, JSON.stringify(mpData), matchedLocal.id, storeId]
+        );
+        matchedCount++;
+      }
+    }
+
+    const matchedIdsArray = Array.from(matchedLocalIds);
+    if (matchedIdsArray.length > 0) {
+      await pool.query(
+        "UPDATE products SET is_trendyol_active = false WHERE store_id = $1 AND is_trendyol_active = true AND NOT (id = ANY($2::int[]))",
+        [storeId, matchedIdsArray]
+      );
+    }
+
+    // Clear stale Cloudflare 403 errors
+    await pool.query(
+      "UPDATE products SET trendyol_last_error = NULL WHERE store_id = $1 AND trendyol_last_error ILIKE '%403%'",
+      [storeId]
+    );
+
+    res.json({
+      success: true,
+      matchedCount,
+      totalRemote: remoteProducts.length,
+      message: `Trendyol mağazası tarandı: ${matchedCount} ürün yerel kataloğunuzla eşleştirildi.`
+    });
+  } catch (error: any) {
+    console.error("[Trendyol Match Error]:", error?.message || error);
+    res.status(400).json({ error: error.message || "Trendyol ürünleri eşleştirilemedi." });
+  }
+});
+
 // 6. Get Trendyol Categories
 router.get("/trendyol/categories", authenticate, async (req: any, res) => {
   try {
-    const response = await axios.get("https://api.trendyol.com/sapigw/product-categories");
+    const response = await axios.get("https://apigw.trendyol.com/integration/product/product-categories", {
+      headers: { "User-Agent": "LookPrice - SelfIntegration", "Accept": "application/json" }
+    });
     res.json(response.data.categories || []);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -3871,7 +4050,9 @@ router.get("/trendyol/brands", authenticate, async (req: any, res) => {
   const page = req.query.page || 0;
   const size = req.query.size || 1000;
   try {
-    const response = await axios.get(`https://api.trendyol.com/sapigw/brands?page=${page}&size=${size}`);
+    const response = await axios.get(`https://apigw.trendyol.com/integration/product/brands?page=${page}&size=${size}`, {
+      headers: { "User-Agent": "LookPrice - SelfIntegration", "Accept": "application/json" }
+    });
     res.json(response.data.brands || []);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

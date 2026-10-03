@@ -946,7 +946,7 @@ export class HepsiburadaService {
         `UPDATE products 
          SET is_hepsiburada_active = (CASE WHEN CAST(price AS NUMERIC) > 0 AND stock_quantity > 0 AND is_hepsiburada_active = true THEN true ELSE false END), 
              hepsiburada_last_sync = NOW(), 
-             hepsiburada_last_error = (CASE WHEN CAST(price AS NUMERIC) <= 0 OR stock_quantity <= 0 THEN 'Fiyat (0₺) veya Stok (0/negatif) yetersiz olduğu için pasife alındı.' ELSE NULL END) 
+             hepsiburada_last_error = NULL 
          WHERE store_id = $1 AND barcode = ANY($2)`,
         [this.storeId, inventoryItems.map((i) => i.MerchantSku)]
       );
@@ -1391,13 +1391,12 @@ export class HepsiburadaService {
            SET is_hepsiburada_active = $1,
                hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
                hepsiburada_last_sync = NOW(),
-               hepsiburada_last_error = $3,
-               marketplace_data = $4
-           WHERE id = $5 AND store_id = $6`,
+               hepsiburada_last_error = NULL,
+               marketplace_data = $3
+           WHERE id = $4 AND store_id = $5`,
           [
             isValidForListing,
             hbSku || null,
-            isManuallyUnpublished ? "Operatör tarafından satışa kapatıldı." : (isValidForListing ? null : "Fiyat (0₺) veya Stok (0/negatif) yetersiz olduğu için pasife alındı."),
             JSON.stringify(mpData),
             matchedProd.id,
             this.storeId

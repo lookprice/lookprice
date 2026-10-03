@@ -66,6 +66,17 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   });
 
   useEffect(() => {
+    if (isOpen) {
+      if (initialMarketplace) {
+        setSelectedMarketplace(initialMarketplace);
+      }
+      if (initialStatus) {
+        setSelectedStatus(initialStatus);
+      }
+    }
+  }, [isOpen, initialMarketplace, initialStatus]);
+
+  useEffect(() => {
     if (isOpen && typeof window !== 'undefined') {
       localStorage.setItem('showMarketplaceListingsModal', 'true');
       localStorage.setItem('marketplaceModalTab', selectedMarketplace);
@@ -255,6 +266,14 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       return Boolean(p.is_amazon_active);
     }
 
+    if (mpKey === 'n11') {
+      const cleanN11Id = p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED' ? String(p.n11_id).trim() : null;
+      if (!cleanN11Id) {
+        return false;
+      }
+      return Boolean(p.is_n11_active);
+    }
+
     if (mpKey === 'all') {
       let mpData = p.marketplace_data;
       if (typeof mpData === 'string') {
@@ -272,10 +291,13 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       const cleanAmzAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim().toUpperCase() : null;
       const isAmzActive = Boolean(p.is_amazon_active) && Boolean(cleanAmzAsin && cleanAmzAsin.length >= 9);
 
+      const cleanN11Id = p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED' ? String(p.n11_id).trim() : null;
+      const isN11Active = Boolean(p.is_n11_active) && Boolean(cleanN11Id);
+
       return Boolean(
         isHbActive ||
         p.is_trendyol_active ||
-        p.is_n11_active ||
+        isN11Active ||
         isAmzActive ||
         p.is_pazarama_active
       );
@@ -383,22 +405,54 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   const getProductError = (p: any, mpKey: MarketplaceKey): string | null => {
     const priceVal = parseFloat(p.price || 0);
     const stockVal = parseInt(p.stock_quantity ?? 0, 10);
+    // Zero or negative stock/price is NOT a marketplace error — such products are simply out of stock (inactive)
     if (priceVal <= 0 || stockVal <= 0) {
-      const reasons = [];
-      if (priceVal <= 0) reasons.push("Fiyat (0₺)");
-      if (stockVal <= 0) reasons.push(`Stok (${stockVal})`);
-      return `${reasons.join(" ve ")} yetersiz - İlana çıkılamaz.`;
+      return null;
     }
+
+    // If a product is already active in the specific marketplace, do not classify it as error
+    if (mpKey !== 'all' && isProductActive(p, mpKey)) {
+      return null;
+    }
+
+    const cleanStaleError = (err: string | null | undefined): string | null => {
+      if (!err) return null;
+      const lower = String(err).toLowerCase();
+      // Any error claiming price or stock is insufficient is not a real API error!
+      if ((lower.includes("fiyat") || lower.includes("stok") || lower.includes("stoğu")) && (lower.includes("yetersiz") || lower.includes("pasife") || lower.includes("kapalı"))) {
+        return null;
+      }
+      if (lower.includes("operatör tarafından satışa kapatıldı")) {
+        return null;
+      }
+      return err;
+    };
+
     if (mpKey === 'all') {
-      return p.hepsiburada_last_error ||
-        p.trendyol_last_error ||
-        p.n11_last_error ||
-        p.amazon_last_error ||
-        p.pazarama_last_error ||
-        null;
+      if (!isProductActive(p, 'hepsiburada')) {
+        const hbErr = cleanStaleError(p.hepsiburada_last_error);
+        if (hbErr) return `[HB] ${hbErr}`;
+      }
+      if (!isProductActive(p, 'trendyol')) {
+        const tyErr = cleanStaleError(p.trendyol_last_error);
+        if (tyErr) return `[TY] ${tyErr}`;
+      }
+      if (!isProductActive(p, 'n11')) {
+        const n11Err = cleanStaleError(p.n11_last_error);
+        if (n11Err) return `[N11] ${n11Err}`;
+      }
+      if (!isProductActive(p, 'amazon')) {
+        const amzErr = cleanStaleError(p.amazon_last_error);
+        if (amzErr) return `[AMZ] ${amzErr}`;
+      }
+      if (!isProductActive(p, 'pazarama')) {
+        const pzErr = cleanStaleError(p.pazarama_last_error);
+        if (pzErr) return `[PZR] ${pzErr}`;
+      }
+      return null;
     }
     const cfg = MARKETPLACES.find(m => m.key === mpKey);
-    return cfg ? (p[cfg.errorField] || null) : null;
+    return cfg ? cleanStaleError(p[cfg.errorField]) : null;
   };
 
   // Categories list from cleanedLocalProducts

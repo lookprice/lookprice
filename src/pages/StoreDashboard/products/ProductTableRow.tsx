@@ -369,7 +369,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       TY ↗
                     </a>
                   )}
-                  {isShopLp && connectedMarketplaces.n11 && p.is_n11_active && (
+                  {isShopLp && connectedMarketplaces.n11 && p.is_n11_active && p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED' && (
                     <a
                       href={getN11Url(p) || undefined}
                       target="_blank"

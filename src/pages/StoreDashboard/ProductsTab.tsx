@@ -448,7 +448,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       if (isShopLp && marketplaceFilter !== 'all') {
         const isHb = Boolean(p.is_hepsiburada_active);
         const isTy = Boolean(p.is_trendyol_active);
-        const isN11 = Boolean(p.is_n11_active);
+        const isN11 = Boolean(p.is_n11_active && p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED');
         const isAmz = Boolean(p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && String(p.amazon_asin).trim().length >= 9 && !String(p.amazon_asin).startsWith('http'));
         const isPzr = Boolean(p.is_pazarama_active);
         const isAnyActive = isHb || isTy || isN11 || isAmz || isPzr;
@@ -466,7 +466,21 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         } else if (marketplaceFilter === 'pazarama') {
           matchesMarketplace = isPzr;
         } else if (marketplaceFilter === 'errors') {
-          matchesMarketplace = Boolean(p.hepsiburada_last_error || p.trendyol_last_error || p.n11_last_error);
+          const isRealErr = (err: any) => {
+            if (!err) return false;
+            const l = String(err).toLowerCase();
+            if ((l.includes('fiyat') || l.includes('stok') || l.includes('stoğu')) && (l.includes('yetersiz') || l.includes('pasife') || l.includes('kapalı'))) return false;
+            if (l.includes('operatör tarafından satışa kapatıldı')) return false;
+            return true;
+          };
+          const hasValidStockAndPrice = Number(p.price || 0) > 0 && Number(p.stock_quantity || 0) > 0;
+          matchesMarketplace = hasValidStockAndPrice && Boolean(
+            (!isHb && isRealErr(p.hepsiburada_last_error)) ||
+            (!isTy && isRealErr(p.trendyol_last_error)) ||
+            (!isN11 && isRealErr(p.n11_last_error)) ||
+            (!isAmz && isRealErr(p.amazon_last_error)) ||
+            (!isPzr && isRealErr(p.pazarama_last_error))
+          );
         } else if (marketplaceFilter === 'not_listed') {
           matchesMarketplace = !isAnyActive;
         }
@@ -497,7 +511,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     products.forEach(p => {
       const isHb = Boolean(p.is_hepsiburada_active);
       const isTy = Boolean(p.is_trendyol_active);
-      const isN11 = Boolean(p.is_n11_active);
+      const isN11 = Boolean(p.is_n11_active && p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED');
       const isAmz = Boolean(p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && String(p.amazon_asin).trim().length >= 9 && !String(p.amazon_asin).startsWith('http'));
       const isPzr = Boolean(p.is_pazarama_active);
 
@@ -507,7 +521,23 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       if (isAmz) amz++;
       if (isPzr) pzr++;
       if (isHb || isTy || isN11 || isAmz || isPzr) active++;
-      if (p.hepsiburada_last_error || p.trendyol_last_error || p.n11_last_error) err++;
+      const isRealErr = (errMsg: any) => {
+        if (!errMsg) return false;
+        const l = String(errMsg).toLowerCase();
+        if ((l.includes('fiyat') || l.includes('stok') || l.includes('stoğu')) && (l.includes('yetersiz') || l.includes('pasife') || l.includes('kapalı'))) return false;
+        if (l.includes('operatör tarafından satışa kapatıldı')) return false;
+        return true;
+      };
+      const hasValidStockAndPrice = Number(p.price || 0) > 0 && Number(p.stock_quantity || 0) > 0;
+      if (hasValidStockAndPrice && (
+        (!isHb && isRealErr(p.hepsiburada_last_error)) ||
+        (!isTy && isRealErr(p.trendyol_last_error)) ||
+        (!isN11 && isRealErr(p.n11_last_error)) ||
+        (!isAmz && isRealErr(p.amazon_last_error)) ||
+        (!isPzr && isRealErr(p.pazarama_last_error))
+      )) {
+        err++;
+      }
     });
 
     return {

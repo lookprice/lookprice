@@ -328,9 +328,36 @@ export const SettingsEStoresTab = ({
     if (pz.brandMappings) setPzBrandMappings(pz.brandMappings);
   }, [branding]);
 
+  // Listen for Amazon OAuth popup callback completion
+  useEffect(() => {
+    const handleOAuthMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'AMAZON_AUTH_SUCCESS') {
+        const { sellerId, refreshToken } = event.data;
+        if (sellerId) setAmazonSellerId(sellerId);
+        if (refreshToken) setAmazonRefreshToken(refreshToken);
+        const updated = {
+          ...(branding.amazon_settings || {}),
+          sellerId: sellerId || amazonSellerId,
+          refresh_token: refreshToken || amazonRefreshToken,
+          connected: true,
+          isSandbox: false
+        };
+        onBrandingChange('amazon_settings', updated);
+        toast.success(
+          lang === 'tr'
+            ? `Amazon Mağazanız OAuth 2.0 ile Başarıyla Yetkilendirildi! (Satıcı ID: ${sellerId || 'Onaylandı'})`
+            : `Amazon Store Authorized via OAuth 2.0! (${sellerId || 'Verified'})`
+        );
+        if (onRefresh) onRefresh();
+      }
+    };
+    window.addEventListener('message', handleOAuthMessage);
+    return () => window.removeEventListener('message', handleOAuthMessage);
+  }, [branding.amazon_settings, amazonSellerId, amazonRefreshToken, lang, onBrandingChange, onRefresh]);
+
   // Derived connection status flags
   const amazonSettings = branding.amazon_settings || {};
-  const isAmazonConnected = !!(amazonSettings.connected || amazonSettings.refresh_token || (amazonClientId && amazonSellerId));
+  const isAmazonConnected = !!(amazonSettings.connected || amazonSettings.refresh_token || amazonRefreshToken || (amazonClientId && amazonSellerId));
 
   const n11Settings = branding.n11_settings || {};
   const isN11Connected = !!(n11Settings.connected || (n11AppKey && n11AppSecret));

@@ -357,15 +357,16 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
             rawPrice = rawPrice * Number(effectiveRates!.GBP);
           }
 
-          const effectivePrice = amzService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
-          const sellerSku = p.amazon_sku || p.sku || p.barcode;
-          const stock = parseInt(p.stock_quantity || "0", 10);
-
           let mpData: any = p.marketplace_data;
           if (typeof mpData === "string") {
             try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
           }
           mpData = mpData || {};
+
+          const effectivePrice = amzService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+          const sellerSku = p.amazon_sku || mpData?.amazon?.sku || p.sku || p.barcode;
+          const stock = parseInt(p.stock_quantity || "0", 10);
+
           if (!mpData.amazon) mpData.amazon = {};
           if (!mpData.amazon.attributes) mpData.amazon.attributes = {};
           mpData.amazon.attributes.price = String(effectivePrice);

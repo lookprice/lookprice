@@ -57,13 +57,8 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
   const isAmzActive = p.is_amazon_active;
   const isPzActive = p.is_pazarama_active;
 
-  const hbError = p.hepsiburada_last_error;
-  const tyError = p.trendyol_last_error;
-  const n11Error = p.n11_last_error;
-  const amzError = p.amazon_last_error;
-  const pzError = p.pazarama_last_error;
-
-  const hasAnyError = Boolean(hbError || tyError || n11Error || amzError || pzError);
+  const displayError = getProductError(p, selectedMarketplace);
+  const hasAnyError = Boolean(displayError);
 
   return (
     <tr 
@@ -153,7 +148,7 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                   (String(p.product_code || '').toUpperCase().startsWith('HBCV') ? p.product_code : '');
 
                 const tyId = p.trendyol_id || mpData?.trendyol?.contentId;
-                const n11Id = p.n11_id;
+                const n11Id = p.n11_id && String(p.n11_id).toUpperCase() !== 'PUBLISHED' && String(p.n11_id).toLowerCase() !== 'null' ? p.n11_id : null;
                 const pzrId = p.pazarama_id;
 
                 return (
@@ -197,9 +192,9 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
             {hasAnyError && (
               <div className="mt-1.5 p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-[10px] text-rose-700 dark:text-rose-300 flex items-start gap-1 max-w-sm">
                 <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0 mt-0.5" />
-                <div className="flex-1 truncate">
+                <div className="flex-1 truncate" title={displayError || undefined}>
                   <span className="font-semibold">{isTr ? "Hata:" : "Error:"} </span>
-                  {hbError || tyError || n11Error || amzError || pzError}
+                  {displayError}
                 </div>
               </div>
             )}

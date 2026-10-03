@@ -265,8 +265,12 @@ export async function syncHepsiburadaOrders(client: any, storeId: number, settin
 
 export async function syncTrendyolOrders(client: any, storeId: number, settings: any) {
     const response = await fetchWithRetry(async () => {
-        return await axios.get(`https://api.trendyol.com/sapigw/suppliers/${settings.merchantId}/orders`, {
+        return await axios.get(`https://apigw.trendyol.com/integration/order/sellers/${settings.merchantId}/orders`, {
             auth: { username: settings.apiKey, password: settings.apiSecret },
+            headers: {
+                "User-Agent": `${settings.merchantId} - SelfIntegration`,
+                "Accept": "application/json"
+            },
             timeout: 30000
         });
     }, "Trendyol", storeId);
@@ -381,8 +385,12 @@ export async function testHepsiburadaConnection(settings: any) {
 
 export async function testTrendyolConnection(settings: any) {
     try {
-      const response = await axios.get(`https://api.trendyol.com/sapigw/suppliers/${settings.merchantId}/orders`, {
+      const response = await axios.get(`https://apigw.trendyol.com/integration/order/sellers/${settings.merchantId}/orders?size=1`, {
         auth: { username: settings.apiKey, password: settings.apiSecret },
+        headers: {
+          "User-Agent": `${settings.merchantId} - SelfIntegration`,
+          "Accept": "application/json"
+        },
         timeout: 10000
       });
       return response.status === 200;
@@ -463,10 +471,14 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
             // Amazon Stock 0
             if (p.is_amazon_active) {
               const amzSettings = st?.amazon_settings || st?.branding?.amazon_settings;
-              if (amzSettings?.sellerId && amzSettings?.clientId && amzSettings?.clientSecret && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
+              if (amzSettings?.sellerId && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
                 const { AmazonService } = await import("./backend/amazonService.js");
                 const amzService = new AmazonService(amzSettings, storeId);
-                const sku = p.amazon_sku || p.barcode;
+                let mpData: any = p.marketplace_data;
+                if (typeof mpData === "string") {
+                  try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+                }
+                const sku = p.amazon_sku || mpData?.amazon?.sku || p.sku || p.barcode;
                 if (sku) {
                   await amzService.updateListingsItem(String(sku).trim(), 0, 0);
                 }
@@ -606,7 +618,7 @@ export async function syncProductStockToMarketplaces(
 
     // 3. Amazon Real-Time Sync
     const amzSettings = store.amazon_settings || branding.amazon_settings;
-    if (amzSettings?.sellerId && amzSettings?.clientId && amzSettings?.clientSecret && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
+    if (amzSettings?.sellerId && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
       const amzProducts = products.filter(p => {
         const cleanAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim().toUpperCase() : null;
         return Boolean(p.is_amazon_active) && Boolean(cleanAsin && cleanAsin.length >= 9);
@@ -618,7 +630,11 @@ export async function syncProductStockToMarketplaces(
           const amzService = new AmazonService(amzSettings, storeId);
 
           for (const p of amzProducts) {
-            const sku = p.amazon_sku || p.sku || p.barcode;
+            let mpData: any = p.marketplace_data;
+            if (typeof mpData === "string") {
+              try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+            }
+            const sku = p.amazon_sku || mpData?.amazon?.sku || p.sku || p.barcode;
             if (!sku) continue;
             const priceInTry = getPriceInTry(p);
             const effectiveAmzPrice = amzService.calculateMarketplacePrice(priceInTry, p.category, p.sub_category);
