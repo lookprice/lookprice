@@ -1824,44 +1824,118 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
   const { productId, categoryId, attributes } = req.body;
 
   try {
-    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.n11_settings || {};
+    const storeRes = await pool.query("SELECT n11_settings, branding, default_currency FROM stores WHERE id = $1", [storeId]);
+    const storeRow = storeRes.rows[0] || {};
+    let settings = storeRow.n11_settings || {};
+    if (typeof settings === "string") {
+      try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+    }
+    let branding = storeRow.branding || {};
+    if (typeof branding === "string") {
+      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+    }
+    if (!settings.appKey && branding?.n11_settings?.appKey) {
+      settings = { ...branding.n11_settings, ...settings };
+    }
 
     const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
     if (prodRes.rows.length === 0) return res.status(404).json({ error: "Ürün bulunamadı" });
     const product = prodRes.rows[0];
 
-    const price = Number(product.price || product.sale_price || 0);
+    const rawPrice = Number(product.price || product.sale_price || 0);
     const stock = Number(product.stock_quantity || 0);
 
-    if (price <= 0 || stock <= 0) {
+    if (rawPrice <= 0 || stock <= 0) {
       const reasons = [];
-      if (price <= 0) reasons.push("fiyatı 0₺");
+      if (rawPrice <= 0) reasons.push("fiyatı 0₺");
       if (stock <= 0) reasons.push("stoğu yetersiz (0/negatif)");
       return res.status(400).json({ error: `"${product.name}" ürününün ${reasons.join(" ve ")} olduğu için N11'de satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
-    const sellerCode = product.sku || product.barcode || `PRD-${product.id}`;
-    const productImages = Array.isArray(product.images) ? product.images : (product.image_url ? [product.image_url] : ["https://via.placeholder.com/600"]);
-    const shipmentTemplate = settings.shipmentTemplate || "GAP0";
+    let mpData: any = product.marketplace_data;
+    if (typeof mpData === "string") {
+      try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+    }
+    mpData = mpData || {};
+
+    // Resolve price in TL (with currency conversion + N11 commission/fixedFee markup or custom N11 price)
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const customN11Price = Number(mpData?.n11?.attributes?.price || mpData?.n11?.price || 0);
+    let finalN11Price = customN11Price;
+
+    if (finalN11Price <= 0) {
+      let webPriceTry = rawPrice;
+      const prodCurrency = String(product.currency || storeRow.default_currency || "TRY").toUpperCase();
+      if (prodCurrency !== "TRY" && prodCurrency !== "TL") {
+        const rates = branding?.currency_rates || {};
+        const rate = Number(rates[prodCurrency] || (prodCurrency === "USD" ? 38.5 : prodCurrency === "EUR" ? 41.5 : 1));
+        if (rate > 1) {
+          webPriceTry = rawPrice * rate;
+        }
+      }
+      finalN11Price = N11Service.calculateMarketplacePrice(
+        webPriceTry,
+        product.category,
+        product.sub_category,
+        settings
+      );
+    }
+
+    const sellerCode = String(product.sku || product.barcode || `PRD-${product.id}`).trim();
+    const baseOrigin = process.env.APP_URL || "https://lookprice.net";
+    const rawImages = Array.isArray(product.images) && product.images.length > 0
+      ? product.images
+      : (product.image_url ? [product.image_url] : []);
+
+    const productImages = rawImages
+      .filter((img: any) => typeof img === "string" && img.trim().length > 0)
+      .map((img: string) => {
+        const clean = img.trim();
+        if (clean.startsWith("http://") || clean.startsWith("https://")) return clean;
+        if (clean.startsWith("/")) return `${baseOrigin}${clean}`;
+        return `${baseOrigin}/${clean}`;
+      });
+
+    if (productImages.length === 0) {
+      productImages.push("https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=800&q=80");
+    }
+
+    const shipmentTemplate = settings.shipmentTemplate || "alici";
 
     if (!settings.appKey || !settings.appSecret) {
       return res.status(400).json({ error: "N11 API anahtarları (App Key / App Secret) tanımlı değil." });
     }
 
+    // Resolve N11 Category ID from request, product marketplace_data, or store categoryMappings
+    const catMappings = settings.categoryMappings || {};
+    const catKey = product.category ? String(product.category).trim() : "";
+    const subKey = product.sub_category ? String(product.sub_category).trim() : "";
+    const compKey = catKey && subKey ? `${catKey} > ${subKey}` : "";
+    const mappedCatId =
+      categoryId ||
+      mpData?.n11?.categoryId ||
+      (compKey && catMappings[compKey]) ||
+      (subKey && catMappings[subKey]) ||
+      (catKey && catMappings[catKey]) ||
+      1000280;
+
     let n11Id = "";
     let apiMessage = "";
+    let groupId: any = undefined;
+    let sellerNickname: any = undefined;
 
     try {
-      const { N11Service } = await import("../src/services/backend/n11Service");
       const saveRes = await N11Service.saveProduct(settings, {
         productSellerCode: sellerCode,
+        productMainId: mpData?.n11?.attributes?.VaryantGroupID || `GRP-${sellerCode}`,
+        barcode: product.barcode || sellerCode,
         title: product.name,
         subtitle: (product.name || "").substring(0, 45),
         description: product.description || product.name,
-        category: { id: Number(categoryId || '1000280') },
-        price: price,
-        currencyType: "1",
+        category: { id: Number(mappedCatId || 1000280) },
+        price: finalN11Price,
+        currencyType: "TL",
+        vatRate: Number(product.vat_rate ?? 20),
         images: productImages,
         shipmentTemplate: shipmentTemplate,
         preparingDay: settings.preparingDay ? Number(settings.preparingDay) : 1,
@@ -1880,6 +1954,8 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
         return res.status(400).json({ error: errMsg });
       }
       n11Id = String(saveRes.n11Id);
+      groupId = saveRes.groupId;
+      sellerNickname = saveRes.sellerNickname;
       apiMessage = saveRes.message || "Ürün N11 kataloğuna başarıyla eklendi.";
     } catch (apiErr: any) {
       const errMsg = apiErr.message || "N11 API bağlantı hatası";
@@ -1887,15 +1963,14 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: errMsg });
     }
 
-    let mpData: any = product.marketplace_data;
-    if (typeof mpData === "string") {
-      try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
-    }
-    mpData = mpData || {};
     mpData.n11 = {
       ...(mpData.n11 || {}),
       status: 'ACTIVE',
       n11Id,
+      productId: n11Id,
+      ...(groupId ? { n11CatalogGroupId: String(groupId) } : {}),
+      ...(sellerNickname ? { sellerNickname } : {}),
+      price: finalN11Price,
       lastSync: new Date().toISOString(),
       lastError: null
     };

@@ -10,15 +10,18 @@ export interface N11Auth {
 
 export interface N11ProductPayload {
   productSellerCode: string;
+  productMainId?: string;
+  barcode?: string;
   title: string;
   subtitle?: string;
   description: string;
   category: { id: number };
   price: number;
   currencyType?: string;
+  vatRate?: number;
   domestic?: boolean;
   preparingDay?: number;
-  attributes?: Array<{ name: string; value: string }>;
+  attributes?: Array<{ name?: string; value?: string; id?: number; valueId?: number; customValue?: string }>;
   stockItems: Array<{
     sellerStockCode: string;
     quantity: number;
@@ -320,83 +323,228 @@ export class N11Service {
   }
 
   /**
-   * Create or Save Product on N11 (SaveProduct)
+   * Create or Save Product on N11 using the official N11 REST API (/ms/product/tasks/product-create)
+   * with automatic task status verification and Slicer category adaptation
    */
-  static async saveProduct(auth: N11Auth, product: N11ProductPayload): Promise<{ success: boolean; n11Id?: string; message?: string }> {
-    const imageXml = product.images
-      .filter(Boolean)
-      .slice(0, 8)
-      .map((img, idx) => `<image><url>${img}</url><order>${idx + 1}</order></image>`)
-      .join("\n");
-
-    const attributesXml = (product.attributes && product.attributes.length > 0)
-      ? `<attributes>${product.attributes.map(a => `<attribute><name><![CDATA[${a.name}]]></name><value><![CDATA[${a.value}]]></value></attribute>`).join("\n")}</attributes>`
-      : "";
-
-    const stockItemsXml = product.stockItems
-      .map((st) => {
-        const itemAttrXml = (st.attributes && st.attributes.length > 0)
-          ? `<attributes>${st.attributes.map(a => `<attribute><name><![CDATA[${a.name}]]></name><value><![CDATA[${a.value}]]></value></attribute>`).join("\n")}</attributes>`
-          : "";
-        const gtinXml = st.gtin ? `<gtin>${st.gtin}</gtin>` : "";
-        const mpnXml = st.mpn ? `<mpn>${st.mpn}</mpn>` : "";
-        const oemXml = st.oem ? `<oem>${st.oem}</oem>` : "";
-        const optionPriceXml = st.optionPrice ? `<optionPrice>${st.optionPrice}</optionPrice>` : "";
-
-        return `<stockItem>
-          <sellerStockCode>${st.sellerStockCode}</sellerStockCode>
-          <quantity>${st.quantity}</quantity>
-          ${gtinXml}
-          ${mpnXml}
-          ${oemXml}
-          ${optionPriceXml}
-          ${itemAttrXml}
-        </stockItem>`;
-      })
-      .join("\n");
-
-    const innerBody = `
-       <product>
-          <productSellerCode>${product.productSellerCode}</productSellerCode>
-          <title><![CDATA[${product.title}]]></title>
-          <subtitle><![CDATA[${product.subtitle || ""}]]></subtitle>
-          <description><![CDATA[${product.description}]]></description>
-          <category>
-             <id>${product.category.id}</id>
-          </category>
-          <price>${product.price}</price>
-          <currencyType>${product.currencyType || "1"}</currencyType>
-          <domestic>${product.domestic !== false ? "true" : "false"}</domestic>
-          <preparingDay>${product.preparingDay || 1}</preparingDay>
-          ${attributesXml}
-          <images>
-             ${imageXml}
-          </images>
-          <stockItems>
-             ${stockItemsXml}
-          </stockItems>
-          <shipmentTemplate>${product.shipmentTemplate}</shipmentTemplate>
-          <approvalStatus>${product.approvalStatus || "1"}</approvalStatus>
-       </product>
-    `;
-
-    const xml = this.buildSoapEnvelope(
-      "SaveProduct",
-      auth,
-      innerBody
-    );
-
-    const res = await this.executeSoapRequest("ProductService", "SaveProduct", xml);
-
-    if (res?.result?.status === "failure") {
-      return { success: false, message: res.result.errorMessage || "Ürün N11'e kaydedilemedi." };
+  static async saveProduct(auth: N11Auth, product: N11ProductPayload): Promise<{
+    success: boolean;
+    n11Id?: string;
+    groupId?: string | number;
+    sellerNickname?: string;
+    taskId?: string | number;
+    message?: string;
+  }> {
+    const cleanAppKey = (auth.appKey || "").trim();
+    const cleanAppSecret = (auth.appSecret || "").trim();
+    if (!cleanAppKey || !cleanAppSecret) {
+      return { success: false, message: "N11 AppKey veya AppSecret bilgisi eksik." };
     }
 
-    return {
-      success: true,
-      n11Id: res?.product?.id,
-      message: "Ürün başarıyla N11 kataloğuna eklendi."
+    const stockItem = product.stockItems?.[0] || {
+      sellerStockCode: product.productSellerCode,
+      quantity: 1,
+      gtin: product.barcode
     };
+
+    const stockCode = (stockItem.sellerStockCode || product.productSellerCode || "").trim();
+    const barcode = (product.barcode || stockItem.gtin || stockCode).trim();
+    const formattedPrice = Number(Number(product.price || 0).toFixed(2));
+    const quantity = Math.max(0, Math.floor(Number(stockItem.quantity || 0)));
+
+    const validImages = (product.images || [])
+      .filter((img) => typeof img === "string" && img.trim().startsWith("http"))
+      .slice(0, 8)
+      .map((url, idx) => ({
+        url: url.trim(),
+        order: idx + 1
+      }));
+
+    if (validImages.length === 0) {
+      validImages.push({
+        url: "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=800&q=80",
+        order: 1
+      });
+    }
+
+    const currencyMap: Record<string, string> = {
+      "1": "TL",
+      "2": "USD",
+      "3": "EUR",
+      "TL": "TL",
+      "TRY": "TL",
+      "USD": "USD",
+      "EUR": "EUR"
+    };
+    const currencyType = currencyMap[String(product.currencyType || "TL").toUpperCase()] || "TL";
+
+    const executeRestCreate = async (catId: number, includeMainId: boolean) => {
+      const skuObj: any = {
+        stockCode,
+        barcode,
+        title: (product.title || "").substring(0, 65),
+        description: product.description ? `<p>${product.description}</p>` : `<p>${product.title}</p>`,
+        categoryId: catId,
+        currencyType,
+        listPrice: formattedPrice,
+        salePrice: formattedPrice,
+        quantity,
+        preparingDay: Number(product.preparingDay || 1),
+        shipmentTemplate: product.shipmentTemplate || "alici",
+        vatRate: Number(product.vatRate ?? 20),
+        images: validImages
+      };
+
+      if (includeMainId) {
+        skuObj.productMainId = product.productMainId || `GRP-${stockCode}`;
+      }
+
+      if (Array.isArray(product.attributes) && product.attributes.length > 0) {
+        const mappedAttrs = product.attributes
+          .filter((a: any) => a && (a.id || a.valueId || a.customValue))
+          .map((a: any) => ({
+            id: a.id,
+            valueId: a.valueId || null,
+            customValue: a.customValue || a.value || null
+          }));
+        if (mappedAttrs.length > 0) {
+          skuObj.attributes = mappedAttrs;
+        }
+      }
+
+      const createRes = await axios.post(
+        "https://api.n11.com/ms/product/tasks/product-create",
+        {
+          payload: {
+            integrator: "LookPrice",
+            skus: [skuObj]
+          }
+        },
+        {
+          headers: {
+            appkey: cleanAppKey,
+            appsecret: cleanAppSecret,
+            appKey: cleanAppKey,
+            appSecret: cleanAppSecret,
+            "Content-Type": "application/json"
+          },
+          timeout: 15000
+        }
+      );
+
+      const taskId = createRes.data?.id;
+      if (!taskId) {
+        return {
+          status: "FAIL",
+          reasons: [createRes.data?.errorMessage || "N11 görev ID'si alınamadı."],
+          sku: null,
+          taskId: null
+        };
+      }
+
+      // Poll task-details up to 3 times (total ~4.5s) to get immediate N11 Product ID or validation reason
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await new Promise((r) => setTimeout(r, attempt === 0 ? 1500 : 1500));
+        try {
+          const tdRes = await axios.post(
+            "https://api.n11.com/ms/product/task-details/page-query",
+            {
+              taskId,
+              pageable: { page: 0, size: 10 }
+            },
+            {
+              headers: {
+                appkey: cleanAppKey,
+                appsecret: cleanAppSecret,
+                appKey: cleanAppKey,
+                appSecret: cleanAppSecret,
+                "Content-Type": "application/json"
+              },
+              timeout: 10000
+            }
+          );
+
+          const taskStatus = tdRes.data?.status;
+          const skuContent = tdRes.data?.skus?.content?.[0];
+          const reasons: string[] = skuContent?.reasons || skuContent?.sku?.reasons || [];
+          const isStillQueued =
+            taskStatus === "IN_QUEUE" ||
+            reasons.some((r) => /işlenmeye alındı|kuyruğa alındı/i.test(String(r)));
+
+          if (!isStillQueued && taskStatus === "PROCESSED" && skuContent) {
+            return {
+              status: skuContent.status,
+              reasons,
+              sku: skuContent.sku || null,
+              taskId
+            };
+          }
+          if (taskStatus === "PROCESSED" && !skuContent) {
+            break;
+          }
+        } catch (pollErr) {
+          // Ignore transient poll error
+        }
+      }
+
+      return {
+        status: "IN_QUEUE",
+        reasons: ["Ürün N11 katalog kuyruğuna alındı."],
+        sku: null,
+        taskId
+      };
+    };
+
+    try {
+      let targetCatId = Number(product.category?.id || 1000280);
+      let attemptResult = await executeRestCreate(targetCatId, true);
+
+      // Check if N11 returned a specific category requirement or Slicer requirement
+      if (attemptResult.status === "FAIL") {
+        const joinedReasons = (attemptResult.reasons || []).join(" ");
+        // Example: "1000363 id li Mouse kategorisinde mainId girişi zorunludur." or "Slicer False olan kategorilerde mainId girilmemelidir"
+        const catMatch = joinedReasons.match(/(\d{5,9})\s*id\s*li/i);
+        if (catMatch && Number(catMatch[1]) !== targetCatId) {
+          targetCatId = Number(catMatch[1]);
+        }
+
+        if (/mainId\s*girilmemelidir|Slicer\s*False/i.test(joinedReasons)) {
+          attemptResult = await executeRestCreate(targetCatId, false);
+        } else if (catMatch) {
+          attemptResult = await executeRestCreate(targetCatId, true);
+        }
+      }
+
+      if (attemptResult.status === "FAIL") {
+        return {
+          success: false,
+          taskId: attemptResult.taskId || undefined,
+          message: (attemptResult.reasons || []).join(" | ") || "Ürün N11 tarafından reddedildi."
+        };
+      }
+
+      const n11ProductId = attemptResult.sku?.n11ProductId
+        ? String(attemptResult.sku.n11ProductId)
+        : String(attemptResult.taskId || stockCode);
+
+      return {
+        success: true,
+        n11Id: n11ProductId,
+        groupId: attemptResult.sku?.groupId,
+        sellerNickname: attemptResult.sku?.sellerNickname,
+        taskId: attemptResult.taskId || undefined,
+        message: (attemptResult.reasons || [])[0] || "Ürün başarıyla N11 kataloğuna eklendi."
+      };
+    } catch (err: any) {
+      const apiErrMsg =
+        err.response?.data?.errorMessage ||
+        err.response?.data?.reasons?.join?.(" | ") ||
+        err.message ||
+        "N11 API bağlantı hatası";
+      return {
+        success: false,
+        message: apiErrMsg
+      };
+    }
   }
 
   /**
@@ -1120,23 +1268,24 @@ export class N11Service {
     const formattedPrice = Number(price.toFixed(2));
     const formattedQuantity = Math.max(0, Math.floor(quantity));
 
-    const payload = {
-      integrator: "LookPrice",
-      skus: [
-        {
-          sellerStockCode: productSellerCode,
-          stockCode: productSellerCode,
-          listPrice: formattedPrice,
-          salePrice: formattedPrice,
-          quantity: formattedQuantity,
-          currencyType: "TL"
-        }
-      ]
+    const requestBody = {
+      payload: {
+        integrator: "LookPrice",
+        skus: [
+          {
+            stockCode: productSellerCode,
+            listPrice: formattedPrice,
+            salePrice: formattedPrice,
+            quantity: formattedQuantity,
+            currencyType: "TL"
+          }
+        ]
+      }
     };
 
     // 1. Try modern N11 REST API (price-stock-update)
     try {
-      const res = await axios.post("https://api.n11.com/ms/product/tasks/price-stock-update", payload, {
+      const res = await axios.post("https://api.n11.com/ms/product/tasks/price-stock-update", requestBody, {
         headers: {
           "appKey": auth.appKey.trim(),
           "appSecret": auth.appSecret.trim(),
@@ -1150,7 +1299,7 @@ export class N11Service {
       if (res.status === 200 || res.status === 201 || res.status === 202) {
         return { 
           success: true, 
-          message: `N11 REST API fiyat ve stok güncelleme görevi oluşturuldu. Task ID: ${res.data?.taskId || "N/A"}` 
+          message: `N11 REST API fiyat ve stok güncelleme görevi oluşturuldu. Task ID: ${res.data?.id || res.data?.taskId || "N/A"}` 
         };
       }
     } catch (restErr: any) {

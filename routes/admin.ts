@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { createClient } from "@supabase/supabase-js";
 import { pool } from "../models/db";
 import { authenticate } from "../middleware/auth";
+import { seedStoreSectorTaxonomy } from "./store/hepsiburadaTaxonomyService";
 
 const router = express.Router();
 
@@ -366,6 +367,18 @@ router.post("/stores", async (req: any, res) => {
     const hashedPassword = bcrypt.hashSync(admin_password, 10);
     await pool.query("INSERT INTO users (store_id, email, password, role) VALUES ($1, $2, $3, $4)", [storeId, admin_email, hashedPassword, "storeadmin"]);
     await pool.query("COMMIT");
+
+    if (!store_type || store_type === "product") {
+      const selectedPkgs = Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.length > 0
+        ? req.body.sector_taxonomy_packages
+        : ["tech_computer", "photography_camera", "small_appliances", "consumer_electronics"];
+      try {
+        await seedStoreSectorTaxonomy(storeId, selectedPkgs, req.user?.id);
+      } catch (taxErr) {
+        console.warn("Could not seed initial sector taxonomy for new store:", taxErr);
+      }
+    }
+
     res.json({ success: true, storeId });
   } catch (e: any) {
     await pool.query("ROLLBACK");
@@ -445,6 +458,15 @@ router.put("/stores/:id", async (req: any, res) => {
     }
 
     await pool.query("COMMIT");
+
+    if ((!store_type || store_type === "product") && Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.length > 0) {
+      try {
+        await seedStoreSectorTaxonomy(Number(req.params.id), req.body.sector_taxonomy_packages, req.user?.id);
+      } catch (taxErr) {
+        console.warn("Could not update sector taxonomy for store:", taxErr);
+      }
+    }
+
     res.json({ success: true });
   } catch (e: any) {
     await pool.query("ROLLBACK");

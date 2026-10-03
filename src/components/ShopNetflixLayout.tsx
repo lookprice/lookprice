@@ -258,15 +258,78 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
     });
   }, [products, isTr]);
 
-  // Extract distinct categories, subcategories, brands from processedProducts
-  const categories = useMemo(() => {
-    const set = new Set<string>();
+  // Extract distinct categories, subcategories, brands from processedProducts + store canonical taxonomy
+  const categoryTree = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+
+    if (store?.branding?.category_specs && typeof store.branding.category_specs === "object") {
+      Object.entries(store.branding.category_specs).forEach(([catName, spec]: [string, any]) => {
+        const cleanCat = catName.trim();
+        if (!cleanCat) return;
+        if (!map.has(cleanCat)) map.set(cleanCat, new Set());
+        if (spec && Array.isArray(spec.sub_categories)) {
+          spec.sub_categories.forEach((s: string) => {
+            if (s && s.trim()) map.get(cleanCat)!.add(s.trim());
+          });
+        }
+      });
+    }
+
     processedProducts.forEach((p) => {
-      if (p.category && typeof p.category === "string" && p.category.trim()) set.add(p.category.trim());
-      if (p.category_2 && typeof p.category_2 === "string" && p.category_2.trim()) set.add(p.category_2.trim());
+      if (p.category && typeof p.category === "string" && p.category.trim()) {
+        const c1 = p.category.trim();
+        if (!map.has(c1)) map.set(c1, new Set());
+        if (p.sub_category && typeof p.sub_category === "string" && p.sub_category.trim()) {
+          map.get(c1)!.add(p.sub_category.trim());
+        }
+      }
+      if (p.category_2 && typeof p.category_2 === "string" && p.category_2.trim()) {
+        const c2 = p.category_2.trim();
+        if (!map.has(c2)) map.set(c2, new Set());
+        const sub2 = (p as any).sub_category_2;
+        if (sub2 && typeof sub2 === "string" && sub2.trim()) {
+          map.get(c2)!.add(sub2.trim());
+        }
+      }
     });
-    return Array.from(set).sort();
-  }, [processedProducts]);
+
+    const tree: {
+      category: string;
+      count: number;
+      subCategories: { name: string; count: number }[];
+    }[] = [];
+
+    Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], "tr"))
+      .forEach(([cat, subsSet]) => {
+        const catProducts = processedProducts.filter(
+          (p) => p.category?.trim() === cat || p.category_2?.trim() === cat
+        );
+        if (catProducts.length > 0) {
+          const subsWithCounts = Array.from(subsSet)
+            .map((sub) => ({
+              name: sub,
+              count: catProducts.filter(
+                (p) => p.sub_category?.trim() === sub || (p as any).sub_category_2?.trim() === sub
+              ).length,
+            }))
+            .filter((s) => s.count > 0)
+            .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+
+          tree.push({
+            category: cat,
+            count: catProducts.length,
+            subCategories: subsWithCounts,
+          });
+        }
+      });
+
+    return tree;
+  }, [processedProducts, store?.branding]);
+
+  const categories = useMemo(() => {
+    return categoryTree.map((c) => c.category);
+  }, [categoryTree]);
 
   const subCategories = useMemo(() => {
     const set = new Set<string>();
@@ -276,7 +339,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
         if (sub && typeof sub === "string" && sub.trim()) set.add(sub.trim());
       }
     });
-    return Array.from(set).sort();
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
   }, [processedProducts, selectedCategory]);
 
   const brands = useMemo(() => {
@@ -990,89 +1053,216 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
             </div>
           </div>
 
-          {/* FILTER CHIPS */}
-          <div className="flex items-center gap-2 flex-wrap bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-            >
-              <option value="all">{isTr ? "Tüm Kategoriler" : "All Categories"}</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+          {/* MAIN CATALOG LAYOUT WITH HEPSIBURADA-STANDARD LEFT HIERARCHICAL FILTER SIDEBAR */}
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            {/* LEFT HIERARCHICAL CATEGORY & BRAND SIDEBAR */}
+            <aside className="w-full lg:w-64 shrink-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-5 shadow-xs">
+              <div>
+                <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-blue-600" />
+                    {isTr ? "Kategori Ağacı" : "Categories"}
+                  </span>
+                  {(selectedCategory !== "all" || selectedSubCategory !== "all") && (
+                    <button
+                      onClick={() => { setSelectedCategory("all"); setSelectedSubCategory("all"); }}
+                      className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
+                    >
+                      {isTr ? "Tümü" : "All"}
+                    </button>
+                  )}
+                </div>
 
-            {subCategories.length > 0 && (
-              <select
-                value={selectedSubCategory}
-                onChange={(e) => setSelectedSubCategory(e.target.value)}
-                className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-              >
-                <option value="all">{isTr ? "Tüm Alt Kategoriler" : "All Subcategories"}</option>
-                {subCategories.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            )}
+                <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1">
+                  <button
+                    onClick={() => { setSelectedCategory("all"); setSelectedSubCategory("all"); }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-between transition-colors cursor-pointer ${
+                      selectedCategory === "all"
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    <span>{isTr ? "Tüm Kategoriler" : "All Categories"}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedCategory === "all" ? "bg-blue-700 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>
+                      {processedProducts.length}
+                    </span>
+                  </button>
 
-            <select
-              value={selectedBrand}
-              onChange={(e) => setSelectedBrand(e.target.value)}
-              className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-            >
-              <option value="all">{isTr ? "Tüm Markalar" : "All Brands"}</option>
-              {brands.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
+                  {categoryTree.map((node) => {
+                    const isCatSelected = selectedCategory === node.category;
+                    return (
+                      <div key={node.category} className="space-y-1">
+                        <button
+                          onClick={() => {
+                            if (isCatSelected && selectedSubCategory === "all") {
+                              setSelectedCategory("all");
+                            } else {
+                              setSelectedCategory(node.category);
+                              setSelectedSubCategory("all");
+                            }
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-between transition-colors cursor-pointer ${
+                            isCatSelected
+                              ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60"
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          }`}
+                        >
+                          <span className="truncate pr-1">{node.category}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
+                            {node.count}
+                          </span>
+                        </button>
 
-            <select
-              value={selectedBadge}
-              onChange={(e) => setSelectedBadge(e.target.value)}
-              className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-            >
-              <option value="all">{isTr ? "Tüm Etiketler" : "All Badges"}</option>
-              <option value="bestseller">{isTr ? "Çok Satan" : "Bestseller"}</option>
-              <option value="featured">{isTr ? "Öne Çıkan" : "Featured"}</option>
-              <option value="discount">{isTr ? "İndirimli" : "Discounted"}</option>
-              <option value="new">{isTr ? "Yeni Gelenler" : "New Arrivals"}</option>
-            </select>
+                        {node.subCategories.length > 0 && isCatSelected && (
+                          <div className="pl-3 ml-2 border-l-2 border-blue-200 dark:border-blue-900 space-y-0.5 py-0.5">
+                            {node.subCategories.map((sub) => {
+                              const isSubSelected = selectedSubCategory === sub.name;
+                              return (
+                                <button
+                                  key={sub.name}
+                                  onClick={() => setSelectedSubCategory(isSubSelected ? "all" : sub.name)}
+                                  className={`w-full text-left px-2 py-1 rounded-md text-[11px] font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                                    isSubSelected
+                                      ? "bg-blue-600 text-white font-bold"
+                                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                  }`}
+                                >
+                                  <span className="truncate pr-1">↳ {sub.name}</span>
+                                  <span className={`text-[9px] px-1 rounded ${isSubSelected ? "bg-blue-700 text-white" : "text-slate-400"}`}>
+                                    {sub.count}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-            >
-              <option value="default">{isTr ? "Sıralama: Varsayılan" : "Sort: Default"}</option>
-              <option value="priceAsc">{isTr ? "Fiyat: Ucuzdan Pahalıya" : "Price: Low to High"}</option>
-              <option value="priceDesc">{isTr ? "Fiyat: Pahalıdan Ucuza" : "Price: High to Low"}</option>
-            </select>
+              {brands.length > 0 && (
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                      {isTr ? "Markalar" : "Brands"}
+                    </span>
+                    {selectedBrand !== "all" && (
+                      <button
+                        onClick={() => setSelectedBrand("all")}
+                        className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
+                      >
+                        {isTr ? "Temizle" : "Clear"}
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                    {brands.map((b) => (
+                      <button
+                        key={b}
+                        onClick={() => setSelectedBrand(selectedBrand === b ? "all" : b)}
+                        className={`w-full text-left px-2.5 py-1 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
+                          selectedBrand === b
+                            ? "bg-blue-600 text-white font-bold"
+                            : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        <span className="truncate">{b}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </aside>
+
+            {/* RIGHT CONTENT: FILTER CHIPS + PRODUCT GRID */}
+            <div className="flex-1 min-w-0 space-y-4 w-full">
+              {/* FILTER CHIPS */}
+              <div className="flex items-center gap-2 flex-wrap bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubCategory("all"); }}
+                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                >
+                  <option value="all">{isTr ? "Tüm Kategoriler" : "All Categories"}</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+
+                {subCategories.length > 0 && (
+                  <select
+                    value={selectedSubCategory}
+                    onChange={(e) => setSelectedSubCategory(e.target.value)}
+                    className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                  >
+                    <option value="all">{isTr ? "Tüm Alt Kategoriler" : "All Subcategories"}</option>
+                    {subCategories.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                )}
+
+                <select
+                  value={selectedBrand}
+                  onChange={(e) => setSelectedBrand(e.target.value)}
+                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                >
+                  <option value="all">{isTr ? "Tüm Markalar" : "All Brands"}</option>
+                  {brands.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+
+                <select
+                  value={selectedBadge}
+                  onChange={(e) => setSelectedBadge(e.target.value)}
+                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                >
+                  <option value="all">{isTr ? "Tüm Etiketler" : "All Badges"}</option>
+                  <option value="bestseller">{isTr ? "Çok Satan" : "Bestseller"}</option>
+                  <option value="featured">{isTr ? "Öne Çıkan" : "Featured"}</option>
+                  <option value="discount">{isTr ? "İndirimli" : "Discounted"}</option>
+                  <option value="new">{isTr ? "Yeni Gelenler" : "New Arrivals"}</option>
+                </select>
+
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                >
+                  <option value="default">{isTr ? "Sıralama: Varsayılan" : "Sort: Default"}</option>
+                  <option value="priceAsc">{isTr ? "Fiyat: Ucuzdan Pahalıya" : "Price: Low to High"}</option>
+                  <option value="priceDesc">{isTr ? "Fiyat: Pahalıdan Ucuza" : "Price: High to Low"}</option>
+                </select>
+              </div>
+
+              {/* GRID OF PRODUCTS */}
+              {finalProductsList.length === 0 ? (
+                <div className="p-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
+                  <Package className="h-12 w-12 text-slate-400 dark:text-slate-600 mx-auto" />
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{isTr ? "Aradığınız kriterlere uygun ürün bulunamadı." : "No products found matching your criteria."}</p>
+                  <button
+                    onClick={() => { setSelectedCategory('all'); setSelectedSubCategory('all'); setSelectedBrand('all'); setSelectedBadge('all'); setSearchQuery(''); }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+                  >
+                    {isTr ? "Filtreleri Sıfırla" : "Reset Filters"}
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {finalProductsList.map(product => (
+                    <NetflixProductCard
+                      key={product.id}
+                      product={product}
+                      onViewProduct={onViewProduct}
+                      addToBasket={addToBasket}
+                      allProducts={finalProductsList}
+                      enableHoverZoom={enableHoverZoom}
+                      showQuickAddCart={showQuickAddCart}
+                      showStockBadge={showStockBadge}
+                      showOldPrice={showOldPrice}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-
-          {/* GRID OF PRODUCTS */}
-          {finalProductsList.length === 0 ? (
-            <div className="p-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
-              <Package className="h-12 w-12 text-slate-400 dark:text-slate-600 mx-auto" />
-              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{isTr ? "Aradığınız kriterlere uygun ürün bulunamadı." : "No products found matching your criteria."}</p>
-              <button
-                onClick={() => { setSelectedCategory('all'); setSelectedSubCategory('all'); setSelectedBrand('all'); setSelectedBadge('all'); setSearchQuery(''); }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer"
-              >
-                {isTr ? "Filtreleri Sıfırla" : "Reset Filters"}
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {finalProductsList.map(product => (
-                <NetflixProductCard
-                  key={product.id}
-                  product={product}
-                  onViewProduct={onViewProduct}
-                  addToBasket={addToBasket}
-                  allProducts={finalProductsList}
-                  enableHoverZoom={enableHoverZoom}
-                  showQuickAddCart={showQuickAddCart}
-                  showStockBadge={showStockBadge}
-                  showOldPrice={showOldPrice}
-                />
-              ))}
-            </div>
-          )}
         </div>
       )}
 

@@ -549,6 +549,58 @@ export const EditStoreModal: React.FC<{
           </div>
         )}
 
+        {(store.store_type === 'product' || !store.store_type) && (
+          <div className="p-3.5 bg-indigo-50/70 rounded-xl border border-indigo-200/80 mt-2 space-y-2.5">
+            <div>
+              <span className="text-xs font-black text-indigo-950 block">🌳 Hepsiburada Kanonik Kategori & Sektör Taksonomisi (Sıfır Eşleştirme)</span>
+              <span className="text-[10px] text-indigo-800 font-medium block">
+                Seçilen sektörlerin Hepsiburada standart kategori ağacı, alt kategorileri ve zorunlu nitelikleri mağazaya otomatik yüklenir.
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {[
+                { id: "tech_computer", label: "💻 Teknoloji & Bilgisayar", desc: "Depolama, Bileşen, Çevre Birimleri, Ağ, Yazıcı" },
+                { id: "photography_camera", label: "📷 Fotoğraf & Kamera", desc: "Kamera, Aksiyon Kamera, Lens, Stüdyo & Işık" },
+                { id: "small_appliances", label: "☕ Küçük Ev Aletleri", desc: "Mutfak, Süpürge, Ütü & Kişisel Bakım" },
+                { id: "consumer_electronics", label: "📺 Elektronik & Akıllı Ev", desc: "TV, Ses Sistemleri, Güvenlik Kamerası" },
+              ].map((pkg) => {
+                const currentList: string[] = Array.isArray(store.sector_taxonomy_packages)
+                  ? store.sector_taxonomy_packages
+                  : (Array.isArray(store.branding?.sector_taxonomy_packages)
+                      ? store.branding.sector_taxonomy_packages
+                      : ["tech_computer", "photography_camera", "small_appliances", "consumer_electronics"]);
+                const isChecked = currentList.includes(pkg.id);
+                return (
+                  <label
+                    key={pkg.id}
+                    className={`flex items-start gap-2 p-2 rounded-lg border text-left cursor-pointer transition-all ${
+                      isChecked
+                        ? "bg-white border-indigo-400 shadow-2xs"
+                        : "bg-white/50 border-indigo-100 opacity-75"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-3.5 w-3.5 rounded text-indigo-600 focus:ring-indigo-500 border-indigo-300"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        const next = e.target.checked
+                          ? Array.from(new Set([...currentList, pkg.id]))
+                          : currentList.filter((id) => id !== pkg.id);
+                        setStore({ ...store, sector_taxonomy_packages: next });
+                      }}
+                    />
+                    <div className="min-w-0">
+                      <span className="text-[11px] font-bold text-slate-900 block leading-tight">{pkg.label}</span>
+                      <span className="text-[9px] text-slate-500 block truncate">{pkg.desc}</span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {store.store_type === 'motor_vehicle' && (
           <select 
             className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
@@ -832,6 +884,52 @@ export const AddStoreModal: React.FC<{
                           <span className="text-[10px] text-amber-800 font-medium block">Otel / Konaklama konsepti için oda adisyonu ve oda takibini aktif eder (Seçilmezse: Sadece Restoran / Kafe).</span>
                         </div>
                       </label>
+                    </div>
+                  )}
+                  {(newStore.store_type === 'product' || !newStore.store_type) && (
+                    <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200/80 mt-2 space-y-2">
+                      <div>
+                        <span className="text-xs font-black text-indigo-950 block">🌳 Hepsiburada Kategori & Sektör Şablonu</span>
+                        <span className="text-[10px] text-indigo-800 font-medium block">
+                          Mağaza açılışında Hepsiburada standart kategori ağacı, alt kategoriler ve dinamik filtreler otomatik tanımlanır.
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {[
+                          { id: "tech_computer", label: "💻 Teknoloji & Bilgisayar (Depolama, Bileşen, Çevre Birimleri, Ağ)" },
+                          { id: "photography_camera", label: "📷 Fotoğraf & Kamera (Kamera, Lens, Aksesuar & Stüdyo)" },
+                          { id: "small_appliances", label: "☕ Küçük Ev Aletleri (Mutfak, Süpürge, Ütü & Kişisel Bakım)" },
+                          { id: "consumer_electronics", label: "📺 Elektronik, TV, Ses & Akıllı Ev Güvenlik Sistemleri" },
+                        ].map((pkg) => {
+                          const currentList: string[] = Array.isArray(newStore.sector_taxonomy_packages)
+                            ? newStore.sector_taxonomy_packages
+                            : ["tech_computer", "photography_camera", "small_appliances", "consumer_electronics"];
+                          const isChecked = currentList.includes(pkg.id);
+                          return (
+                            <label
+                              key={pkg.id}
+                              className={`flex items-center gap-2 p-1.5 rounded-lg border cursor-pointer transition-all ${
+                                isChecked
+                                  ? "bg-white border-indigo-400 shadow-2xs"
+                                  : "bg-white/50 border-indigo-100 opacity-75"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="h-3.5 w-3.5 rounded text-indigo-600 focus:ring-indigo-500 border-indigo-300"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const next = e.target.checked
+                                    ? Array.from(new Set([...currentList, pkg.id]))
+                                    : currentList.filter((id) => id !== pkg.id);
+                                  setNewStore({ ...newStore, sector_taxonomy_packages: next });
+                                }}
+                              />
+                              <span className="text-[11px] font-bold text-slate-900 leading-tight">{pkg.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>

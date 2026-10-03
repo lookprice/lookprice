@@ -24,6 +24,8 @@ export interface EanEnrichmentCandidate {
   source: "product_code_cross" | "supplier_invoice_cross" | "marketplace_catalog" | "gemini_catalog_lookup";
   confidence: number;
   reason: string;
+  matchedModel?: string;
+  modelCode?: string;
   product_code?: string;
   sku?: string;
   brand?: string;
@@ -55,12 +57,15 @@ export const EanEnrichmentModal: React.FC<EanEnrichmentModalProps> = ({
   const fetchCandidates = async () => {
     setLoading(true);
     try {
-      const res = await api.getEanEnrichmentCandidates(storeId);
-      const list: EanEnrichmentCandidate[] = res.data?.candidates || [];
+      const res: any = await api.getEanEnrichmentCandidates(storeId);
+      if (res?.error) {
+        throw new Error(res.error);
+      }
+      const list: EanEnrichmentCandidate[] = res?.candidates || res?.data?.candidates || [];
       setCandidates(list);
     } catch (err: any) {
       console.error("EAN candidates fetch error:", err);
-      toast.error(err.response?.data?.error || "EAN adayları taranamadı.");
+      toast.error(err.response?.data?.error || err.message || "EAN adayları taranamadı.");
     } finally {
       setLoading(false);
     }
@@ -79,6 +84,7 @@ export const EanEnrichmentModal: React.FC<EanEnrichmentModalProps> = ({
       (item.name && item.name.toLowerCase().includes(q)) ||
       (item.currentBarcode && item.currentBarcode.toLowerCase().includes(q)) ||
       (item.suggestedEan && item.suggestedEan.toLowerCase().includes(q)) ||
+      (item.matchedModel && item.matchedModel.toLowerCase().includes(q)) ||
       (item.product_code && item.product_code.toLowerCase().includes(q)) ||
       (item.sku && item.sku.toLowerCase().includes(q)) ||
       (item.brand && item.brand.toLowerCase().includes(q)) ||
@@ -92,13 +98,16 @@ export const EanEnrichmentModal: React.FC<EanEnrichmentModalProps> = ({
   const handleApplySingle = async (productId: number, newEan: string) => {
     setApplyingId(productId);
     try {
-      const res = await api.applyEanEnrichment(productId, newEan, storeId);
-      toast.success(res.data?.message || "Barkod başarıyla güncellendi.");
+      const res: any = await api.applyEanEnrichment(productId, newEan, storeId);
+      if (res?.error) {
+        throw new Error(res.error);
+      }
+      toast.success(res?.message || res?.data?.message || "Barkod başarıyla güncellendi.");
       setCandidates(prev => prev.filter(c => c.id !== productId));
       onSuccess();
     } catch (err: any) {
       console.error("Apply EAN error:", err);
-      toast.error(err.response?.data?.error || "Barkod güncelleme başarısız oldu.");
+      toast.error(err.response?.data?.error || err.message || "Barkod güncelleme başarısız oldu.");
     } finally {
       setApplyingId(null);
     }
@@ -107,18 +116,21 @@ export const EanEnrichmentModal: React.FC<EanEnrichmentModalProps> = ({
   const handleAutoApplyAll = async () => {
     setAutoApplying(true);
     try {
-      const res = await api.autoApplyEanEnrichment(storeId);
-      const count = res.data?.appliedCount || 0;
+      const res: any = await api.autoApplyEanEnrichment(storeId);
+      if (res?.error) {
+        throw new Error(res.error);
+      }
+      const count = res?.appliedCount ?? res?.data?.appliedCount ?? 0;
       if (count > 0) {
-        toast.success(`${count} adet ürünün geçici barkodu gerçek üretici EAN barkoduna dönüştürüldü!`);
+        toast.success(`${count} adet ürünün geçici barkodu gerçek üretici EAN-13 barkoduna dönüştürüldü!`);
         onSuccess();
         fetchCandidates();
       } else {
-        toast("Otomatik güncellenecek yüksek güvenilirlikli EAN kaydı bulunamadı.");
+        toast.info("Otomatik güncellenecek doğrulanmış EAN kaydı bulunamadı.");
       }
     } catch (err: any) {
       console.error("Auto apply EAN error:", err);
-      toast.error(err.response?.data?.error || "Toplu barkod güncelleme sırasında hata oluştu.");
+      toast.error(err.response?.data?.error || err.message || "Toplu barkod güncelleme sırasında hata oluştu.");
     } finally {
       setAutoApplying(false);
     }
@@ -186,7 +198,7 @@ export const EanEnrichmentModal: React.FC<EanEnrichmentModalProps> = ({
               className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5" />
-              {autoApplying ? "Güncelleniyor..." : "Tüm Doğrulanmışları Güvenle Uygula"}
+              {autoApplying ? "Güncelleniyor..." : "Tüm Doğrulanmış EAN'leri Güncelle"}
             </button>
           )}
         </div>
@@ -248,8 +260,8 @@ export const EanEnrichmentModal: React.FC<EanEnrichmentModalProps> = ({
                     <span className="px-2 py-0.5 text-[11px] font-bold bg-blue-50 text-blue-700 rounded-md border border-blue-100">
                       {item.reason}
                     </span>
-                    <span className="text-[11px] font-bold text-slate-400">
-                      Güvenilirlik: %{item.confidence}
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      %{item.confidence} Eşleşme {(item.matchedModel || item.modelCode) ? `- Model: ${item.matchedModel || item.modelCode}` : ""}
                     </span>
                   </div>
                   <span className="text-[11px] font-mono text-slate-400">
@@ -257,14 +269,20 @@ export const EanEnrichmentModal: React.FC<EanEnrichmentModalProps> = ({
                   </span>
                 </div>
 
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 text-xs text-slate-700 leading-relaxed font-medium">
+                  <span className="font-bold text-slate-900">Bulunan Ürün:</span> {item.name}{" "}
+                  <span className="text-amber-700 font-semibold">(Mevcut Dahili Barkod: <span className="font-mono">{item.currentBarcode || "Yok"}</span>)</span>{" "}
+                  <span className="mx-1">➡️</span>{" "}
+                  <span className="text-emerald-700 font-bold">Hepsiburada/Amazon Kataloğundan Bulunan Gerçek EAN: <span className="font-mono underline">{item.suggestedEan}</span></span>{" "}
+                  <span className="text-blue-700 font-bold">(%{item.confidence} Eşleşme{(item.matchedModel || item.modelCode) ? ` - Model: ${item.matchedModel || item.modelCode}` : ""})</span>
+                </div>
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-xs sm:text-sm text-slate-900 line-clamp-1 mb-1" title={item.name}>
-                      {item.name}
-                    </div>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                       {item.category && <span>Kategori: <strong className="text-slate-700">{item.category}</strong></span>}
                       {item.brand && <span>Marka: <strong className="text-slate-700">{item.brand}</strong></span>}
+                      {(item.matchedModel || item.modelCode || item.product_code) && <span>Model Kodu: <strong className="text-slate-900 font-mono">{item.matchedModel || item.modelCode || item.product_code}</strong></span>}
                       <span>Stok: <strong className="text-slate-700">{item.stock_quantity} Adet</strong></span>
                       {item.price && <span>Fiyat: <strong className="text-slate-700">{item.price} TL</strong></span>}
                     </div>
@@ -297,7 +315,7 @@ export const EanEnrichmentModal: React.FC<EanEnrichmentModalProps> = ({
                       className="ml-2 px-3 py-1.5 bg-slate-900 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg transition-all active:scale-95 flex items-center gap-1 disabled:opacity-50 cursor-pointer shadow-xs"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      {applyingId === item.id ? "..." : "Uygula"}
+                      {applyingId === item.id ? "..." : "Onayla & Güncelle"}
                     </button>
                   </div>
                 </div>

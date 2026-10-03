@@ -59,8 +59,9 @@ export const SectorTaxonomyModal: React.FC<SectorTaxonomyModalProps> = ({
       setLoading(true);
       api.getSectorTaxonomyPackages()
         .then((res: any) => {
-          if (res.data?.packages) {
-            setPackages(res.data.packages);
+          const pkgList = res.packages || res.data?.packages || [];
+          if (pkgList.length > 0) {
+            setPackages(pkgList);
           }
         })
         .catch((err) => {
@@ -86,17 +87,19 @@ export const SectorTaxonomyModal: React.FC<SectorTaxonomyModalProps> = ({
 
     setApplying(true);
     try {
-      const res = await api.seedSectorTaxonomy(selectedPackageIds, storeId);
+      const res: any = await api.seedSectorTaxonomy(selectedPackageIds, storeId);
+      const addedCount = res.addedCategoriesCount ?? res.data?.addedCategoriesCount ?? 0;
+      const mappedProducts = res.mappedProductsCount ?? res.data?.mappedProductsCount ?? 0;
       toast.success(
-        res.data?.addedCategoriesCount > 0
-          ? `${res.data.addedCategoriesCount} adet standart Hepsiburada kategorisi ve alt kategorisi mağazanıza başarıyla tanımlandı!`
+        addedCount > 0 || mappedProducts > 0
+          ? `${addedCount} adet standart Hepsiburada kategorisi tanımlandı${mappedProducts > 0 ? ` ve ${mappedProducts} ürün otomatik olarak kanonik kategori ağacına yerleştirildi!` : "!"}`
           : "Kategori paketleri ve filtre taksonomisi güncellendi."
       );
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error("Apply taxonomy error:", err);
-      toast.error(err.response?.data?.error || "Kategori paketi uygulanamadı.");
+      toast.error(err.message || err.response?.data?.error || "Kategori paketi uygulanamadı.");
     } finally {
       setApplying(false);
     }
@@ -105,16 +108,18 @@ export const SectorTaxonomyModal: React.FC<SectorTaxonomyModalProps> = ({
   const handleAutoBridge = async () => {
     setBridging(true);
     try {
-      const res = await api.autoBridgeCategories(storeId);
-      if (res.data?.mappedCount > 0) {
-        toast.success(`${res.data.mappedCount} adet mevcut mağaza kategorisi arka planda Hepsiburada/Amazon kanonik ağacına köprülendi!`);
+      const res: any = await api.autoBridgeCategories(storeId);
+      const mappedCount = res.mappedCount ?? res.data?.mappedCount ?? 0;
+      const categorizedProductsCount = res.categorizedProductsCount ?? res.data?.categorizedProductsCount ?? 0;
+      if (mappedCount > 0 || categorizedProductsCount > 0) {
+        toast.success(`${mappedCount} kategori ve ${categorizedProductsCount} ürün Hepsiburada/Amazon kanonik ağacına köprülendi!`);
       } else {
-        toast.info("Tüm mevcut kategoriler zaten pazar yeri taksonomisine köprülü durumda.");
+        toast.info("Tüm mevcut kategoriler ve ürünler zaten pazar yeri taksonomisine köprülü durumda.");
       }
       onSuccess();
     } catch (err: any) {
       console.error("Auto bridge error:", err);
-      toast.error(err.response?.data?.error || "Kategori köprüleme başarısız oldu.");
+      toast.error(err.message || err.response?.data?.error || "Kategori köprüleme başarısız oldu.");
     } finally {
       setBridging(false);
     }

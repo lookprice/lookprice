@@ -164,18 +164,6 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
 
         {!isViewer && (
           <>
-            <button 
-              type="button"
-              onClick={handleSyncNamesFromInvoices}
-              disabled={isFixingNames}
-              className="os-btn-secondary p-2 text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all border border-indigo-200 hover:border-indigo-300 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              title={lang === 'tr' ? "Ürün İsimlerini Faturalarla Eşitle / Orijinal İsimleri Çek" : "Sync Product Names from Invoices"}
-            >
-              <Tag className="h-4 w-4 text-indigo-600 shrink-0" />
-              <span className="text-[11px] font-bold text-indigo-900 hidden lg:inline whitespace-nowrap">
-                {lang === 'tr' ? "İsimleri Eşitle" : "Sync Names"}
-              </span>
-            </button>
             {isBookstore && (
               <button
                 type="button"

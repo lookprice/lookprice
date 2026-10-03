@@ -133,13 +133,39 @@ export const MarketplaceProductFields = ({
   const prodSearchStr = `${product?.name || ''} ${catKey} ${subCatKey}`.toLowerCase();
   let resolvedCatId = marketData.categoryId ? String(marketData.categoryId) : (storeMappedCatId ? String(storeMappedCatId) : "");
   
-  if (!marketData.categoryId && !storeMappedCatId) {
-    if (prodSearchStr.includes("usb") && (prodSearchStr.includes("bellek") || prodSearchStr.includes("flash"))) {
+  if (!marketData.categoryId) {
+    if (prodSearchStr.includes("ssd") || prodSearchStr.includes("katı hal") || prodSearchStr.includes("nvme")) {
+      resolvedCatId = "1000107";
+    } else if (prodSearchStr.includes("taşınabilir disk") || prodSearchStr.includes("harici")) {
+      resolvedCatId = "100225";
+    } else if (prodSearchStr.includes("sabit disk") || prodSearchStr.includes("hdd")) {
+      resolvedCatId = "100221";
+    } else if (prodSearchStr.includes("usb") && (prodSearchStr.includes("bellek") || prodSearchStr.includes("flash"))) {
       resolvedCatId = "970";
     } else if (prodSearchStr.includes("kart okuyucu")) {
       resolvedCatId = "698";
-    } else if (prodSearchStr.includes("sd kart")) {
+    } else if (prodSearchStr.includes("sd kart") || prodSearchStr.includes("hafıza kartı")) {
       resolvedCatId = "1100011";
+    } else if (prodSearchStr.includes("ram") || prodSearchStr.includes("bellek")) {
+      resolvedCatId = "47";
+    } else if (prodSearchStr.includes("klavye") && prodSearchStr.includes("mouse")) {
+      resolvedCatId = "3007055";
+    } else if (prodSearchStr.includes("mouse") || prodSearchStr.includes("fare")) {
+      resolvedCatId = "52";
+    } else if (prodSearchStr.includes("klavye")) {
+      resolvedCatId = "51";
+    } else if (prodSearchStr.includes("monitör")) {
+      resolvedCatId = "57";
+    } else if (prodSearchStr.includes("kablo") || prodSearchStr.includes("dönüştürücü") || prodSearchStr.includes("adaptör")) {
+      resolvedCatId = "105307";
+    } else if (prodSearchStr.includes("modem") || prodSearchStr.includes("router") || prodSearchStr.includes("switch") || prodSearchStr.includes("ağ")) {
+      resolvedCatId = "410";
+    } else if (prodSearchStr.includes("yazıcı") || prodSearchStr.includes("tarayıcı")) {
+      resolvedCatId = "4";
+    } else if (prodSearchStr.includes("kulaklık") || prodSearchStr.includes("mikrofon")) {
+      resolvedCatId = "520";
+    } else if (prodSearchStr.includes("dizüstü") || prodSearchStr.includes("laptop") || prodSearchStr.includes("notebook")) {
+      resolvedCatId = "98";
     }
   }
 
@@ -148,6 +174,17 @@ export const MarketplaceProductFields = ({
   let activeCategory = [...searchResults, ...categories].find(
     (c) => String(c.id || c.categoryId) === String(effectiveCatId)
   );
+
+  if (!activeCategory && (catKey || subCatKey)) {
+    activeCategory = {
+      id: Number(effectiveCatId) || 1000107,
+      name: subCatKey || catKey,
+      displayName: subCatKey ? `${catKey} > ${subCatKey}` : catKey,
+      paths: subCatKey ? [catKey, subCatKey] : [catKey],
+      leaf: true,
+      available: true
+    };
+  }
 
   if (!activeCategory && effectiveCatId === "970") {
     activeCategory = {
@@ -160,10 +197,21 @@ export const MarketplaceProductFields = ({
     };
   }
 
-  // Load Dynamic Category Attributes from API whenever effectiveCatId changes
+  // Load Dynamic Category Attributes from API whenever effectiveCatId or category/sub_category changes
   useEffect(() => {
-    if (!effectiveCatId) {
+    if (!effectiveCatId && !catKey && !subCatKey) {
       setDynamicAttributes([]);
+      return;
+    }
+
+    const localFallback = getAttributesForCategory(
+      subCatKey || activeCategory?.name || activeCategory?.displayName || catKey || "",
+      activeCategory?.paths || (subCatKey ? [catKey, subCatKey] : [catKey]),
+      effectiveCatId
+    );
+
+    if (!effectiveCatId) {
+      setDynamicAttributes(localFallback);
       return;
     }
 
@@ -176,21 +224,15 @@ export const MarketplaceProductFields = ({
         if (Array.isArray(attrs) && attrs.length > 0) {
           setDynamicAttributes(attrs);
         } else {
-          const fallback = activeCategory 
-            ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [], effectiveCatId)
-            : [];
-          setDynamicAttributes(fallback);
+          setDynamicAttributes(localFallback);
         }
       })
       .catch((err) => {
         console.warn("Dynamic HB Attributes Fetch Error:", err);
-        const fallback = activeCategory 
-          ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [], effectiveCatId)
-          : [];
-        setDynamicAttributes(fallback);
+        setDynamicAttributes(localFallback);
       })
       .finally(() => setLoadingAttributes(false));
-  }, [effectiveCatId, activeCategory?.name]);
+  }, [effectiveCatId, catKey, subCatKey, activeCategory?.name]);
 
   // Live Category Search Handler with debounce
   useEffect(() => {

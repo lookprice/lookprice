@@ -292,6 +292,16 @@ export const ProductModal = ({
     if (isBookstore) {
       BOOKSTORE_CATEGORIES.forEach((c) => cats.add(c.mainCategory));
     }
+    if (branding?.custom_categories && Array.isArray(branding.custom_categories)) {
+      branding.custom_categories.forEach((c: string) => {
+        if (c && typeof c === "string") cats.add(c.trim());
+      });
+    }
+    if (branding?.category_specs && typeof branding.category_specs === "object") {
+      Object.keys(branding.category_specs).forEach((c) => {
+        if (c) cats.add(c.trim());
+      });
+    }
     if (products && Array.isArray(products)) {
       products.forEach((p: any) => {
         if (p.category) cats.add(p.category.trim());
@@ -299,7 +309,7 @@ export const ProductModal = ({
       });
     }
     return Array.from(cats).sort((a, b) => a.localeCompare(b, "tr"));
-  }, [products, isBookstore]);
+  }, [products, isBookstore, branding]);
 
   const subCategoriesMap = React.useMemo(() => {
     const map = new Map<string, Set<string>>();
@@ -307,6 +317,17 @@ export const ProductModal = ({
       BOOKSTORE_CATEGORIES.forEach((c) => {
         if (!map.has(c.mainCategory)) map.set(c.mainCategory, new Set());
         c.subCategories.forEach((s) => map.get(c.mainCategory)!.add(s));
+      });
+    }
+    if (branding?.category_specs && typeof branding.category_specs === "object") {
+      Object.entries(branding.category_specs).forEach(([catName, spec]: [string, any]) => {
+        const cat = catName.trim();
+        if (!map.has(cat)) map.set(cat, new Set());
+        if (spec && Array.isArray(spec.sub_categories)) {
+          spec.sub_categories.forEach((s: string) => {
+            if (s) map.get(cat)!.add(s.trim());
+          });
+        }
       });
     }
     if (products && Array.isArray(products)) {
@@ -326,7 +347,7 @@ export const ProductModal = ({
       });
     }
     return map;
-  }, [products, isBookstore]);
+  }, [products, isBookstore, branding]);
 
   useEffect(() => {
     if (showProductModal) {
@@ -801,7 +822,11 @@ export const ProductModal = ({
                       </span>
                     </div>
                     <MarketplaceProductFields
-                      product={editingProduct || {}}
+                      product={{
+                        ...(editingProduct || {}),
+                        category: selectedCategory || editingProduct?.category,
+                        sub_category: selectedSubCategory || editingProduct?.sub_category,
+                      }}
                       onUpdate={(updated) => {
                         if (editingProduct) setEditingProduct({ ...editingProduct, ...updated });
                       }}

@@ -147,7 +147,7 @@ export async function seedStoreSectorTaxonomy(
   storeId: number,
   packageIds: string[],
   userId?: number
-): Promise<{ success: boolean; addedCategoriesCount: number; packagesApplied: string[] }> {
+): Promise<{ success: boolean; addedCategoriesCount: number; mappedProductsCount: number; packagesApplied: string[] }> {
   const selectedPackages = SECTOR_TAXONOMY_PACKAGES.filter(p => packageIds.includes(p.id) || packageIds.includes("all"));
   if (selectedPackages.length === 0) {
     throw new Error("Geçerli bir sektör kategori paketi seçilmedi.");
@@ -168,6 +168,8 @@ export async function seedStoreSectorTaxonomy(
   // 1. Merge into branding.shipping_profiles / sector_categories
   const currentCategorySpecs = branding.category_specs || {};
   const currentCategoriesList = Array.isArray(branding.custom_categories) ? [...branding.custom_categories] : [];
+  const hbSettings = branding.hepsiburada_settings || {};
+  const hbMappings: Record<string, string> = hbSettings.categoryMappings || {};
 
   let totalCategoriesAdded = 0;
 
@@ -191,9 +193,20 @@ export async function seedStoreSectorTaxonomy(
         currentCategorySpecs[item.category].sub_categories = mergedSubs;
         currentCategorySpecs[item.category].package_id = pkg.id;
       }
+
+      if (item.hb_category_id) {
+        const hbIdStr = String(item.hb_category_id);
+        hbMappings[item.category] = hbIdStr;
+        for (const sub of item.sub_categories) {
+          hbMappings[`${item.category} > ${sub}`] = hbIdStr;
+          hbMappings[sub] = hbIdStr;
+        }
+      }
     }
   }
 
+  hbSettings.categoryMappings = hbMappings;
+  branding.hepsiburada_settings = hbSettings;
   branding.custom_categories = currentCategoriesList;
   branding.category_specs = currentCategorySpecs;
   branding.sector_taxonomy_packages = Array.from(new Set([
@@ -206,6 +219,9 @@ export async function seedStoreSectorTaxonomy(
     [JSON.stringify(branding), storeId]
   );
 
+  // Automatically bridge and categorize existing uncategorized/legacy products into the canonical tree
+  const bridgeRes = await autoBridgeStoreCategories(storeId);
+
   await logAction(
     storeId,
     userId || null,
@@ -213,12 +229,13 @@ export async function seedStoreSectorTaxonomy(
     "store",
     storeId,
     `Hepsiburada Standart Sektör Kategori Paketi Tanımlandı (${selectedPackages.map(p => p.name).join(", ")})`,
-    { packageIds, addedCategoriesCount: totalCategoriesAdded }
+    { packageIds, addedCategoriesCount: totalCategoriesAdded, mappedProductsCount: bridgeRes.categorizedProductsCount }
   );
 
   return {
     success: true,
-    addedCategoriesCount: totalCategoriesAdded,
+    addedCategoriesCount: totalCategoriesAdded || currentCategoriesList.length,
+    mappedProductsCount: bridgeRes.categorizedProductsCount,
     packagesApplied: selectedPackages.map(p => p.name)
   };
 }
@@ -274,7 +291,8 @@ export async function populateMarketplaceMasterTaxonomies(): Promise<{ totalInse
 export async function autoBridgeStoreCategories(storeId: number): Promise<{
   success: boolean;
   mappedCount: number;
-  bridge: Record<string, { canonicalCategory: string; hbCategoryId?: string; amazonCategoryId?: string }>;
+  categorizedProductsCount: number;
+  bridge: Record<string, { canonicalCategory: string; canonicalSubCategory?: string; hbCategoryId?: string; amazonCategoryId?: string }>;
 }> {
   const storeRes = await pool.query("SELECT id, name, branding FROM stores WHERE id = $1", [storeId]);
   if (storeRes.rows.length === 0) throw new Error("Mağaza bulunamadı.");
@@ -293,25 +311,52 @@ export async function autoBridgeStoreCategories(storeId: number): Promise<{
   `, [storeId]);
 
   const existingStoreCategories = catRes.rows.map(r => r.category);
-  const bridge: Record<string, { canonicalCategory: string; hbCategoryId?: string; amazonCategoryId?: string }> = branding.category_bridge || {};
+  const bridge: Record<string, { canonicalCategory: string; canonicalSubCategory?: string; hbCategoryId?: string; amazonCategoryId?: string }> = branding.category_bridge || {};
 
-  // Standard taxonomy dictionary for fuzzy bridge matching
-  const canonicalDict: { pattern: RegExp; canonical: string; hbId: string; amzId: string }[] = [
-    { pattern: /depolama|harddisk|ssd|hdd/i, canonical: "Depolama & Harddiskler", hbId: "1000107", amzId: "7000103" },
-    { pattern: /bellek|hafıza|kartı|flash|usb/i, canonical: "Depolama & Harddiskler > MicroSD / SD Hafıza Kartı", hbId: "1000101", amzId: "7000101" },
-    { pattern: /klavye|mouse|fare/i, canonical: "Çevre Birimleri & Aksesuarlar > Klavye & Mouse", hbId: "1000118", amzId: "7000108" },
-    { pattern: /kablo|dönüştürücü|adaptör/i, canonical: "Çevre Birimleri & Aksesuarlar > Kablo & Dönüştürücüler", hbId: "1000182", amzId: "371969" },
-    { pattern: /kulaklık|headset|tws/i, canonical: "Çevre Birimleri & Aksesuarlar > Kulaklık & Headset", hbId: "371967", amzId: "7000112" },
-    { pattern: /monitör/i, canonical: "Çevre Birimleri & Aksesuarlar > Monitör", hbId: "1000117", amzId: "7000110" },
-    { pattern: /modem|network|router|switch|wifi/i, canonical: "Ağ & Modem", hbId: "1000125", amzId: "7000117" },
-    { pattern: /notebook|laptop|dizüstü/i, canonical: "Bilgisayar Sistemleri > Dizüstü Bilgisayar (Laptop)", hbId: "1000114", amzId: "7000106" },
-    { pattern: /bilgisayar|pc|masaüstü/i, canonical: "Bilgisayar Sistemleri", hbId: "1000116", amzId: "7000106" },
-    { pattern: /ram/i, canonical: "Bilgisayar Bileşenleri > RAM (Bellek)", hbId: "1000108", amzId: "7000106" },
-    { pattern: /yazıcı|tarayıcı|printer|barkod/i, canonical: "Yazıcılar & Tarayıcılar", hbId: "1000129", amzId: "7000116" },
-    { pattern: /video|fotoğraf|kamera/i, canonical: "Fotoğraf & Kamera", hbId: "2000203", amzId: "7000111" },
-    { pattern: /ses|hoparlör|speaker|soundbar/i, canonical: "Ses & Müzik Sistemleri", hbId: "1000188", amzId: "7000303" },
-    { pattern: /güvenlik/i, canonical: "Akıllı Ev & Güvenlik", hbId: "2000103", amzId: "7000304" },
-    { pattern: /küçük ev aletleri/i, canonical: "Küçük Ev Aletleri", hbId: "1000130", amzId: "7000204" }
+  // Comprehensive Canonical Taxonomy Dictionary for categories & products
+  const canonicalRules: {
+    pattern: RegExp;
+    category: string;
+    subCategory: string;
+    hbId: string;
+    amzId: string;
+  }[] = [
+    { pattern: /\b(nvme|m\.2|ssd|katı hal)\b/i, category: "Depolama & Harddiskler", subCategory: "SSD (Katı Hal Sürücü)", hbId: "1000107", amzId: "7000103" },
+    { pattern: /\b(taşınabilir disk|harici disk|elements|my passport|expansion|external hdd|harici ssd)\b/i, category: "Depolama & Harddiskler", subCategory: "Taşınabilir Disk (Harici HDD/SSD)", hbId: "1000107", amzId: "7000103" },
+    { pattern: /\b(harddisk|hdd|sabit disk|barracuda|ironwolf|skyhawk|wd blue|wd purple|wd red|surveillance)\b/i, category: "Depolama & Harddiskler", subCategory: "Dahili Sabit Disk (HDD)", hbId: "1000107", amzId: "7000103" },
+    { pattern: /\b(microsd|micro sd|sdxc|sdhc|hafıza kartı|canvas select|canvas go)\b/i, category: "Depolama & Harddiskler", subCategory: "MicroSD / SD Hafıza Kartı", hbId: "1000107", amzId: "7000103" },
+    { pattern: /\b(usb bellek|flash bellek|flash sürücü|datatraveler|cruzer|dual drive|rainbow line)\b/i, category: "Depolama & Harddiskler", subCategory: "USB Flash Bellek", hbId: "1000107", amzId: "7000103" },
+    { pattern: /depolama|harddisk/i, category: "Depolama & Harddiskler", subCategory: "SSD (Katı Hal Sürücü)", hbId: "1000107", amzId: "7000103" },
+    { pattern: /bellek&hafıza/i, category: "Depolama & Harddiskler", subCategory: "USB Flash Bellek", hbId: "1000107", amzId: "7000103" },
+
+    { pattern: /\b(ddr4|ddr5|ddr3|sodimm|so-dimm|udimm|dimm|ram bellek|notebook ram|pc ram|twinmos.*gb.*mhz)\b/i, category: "Bilgisayar Bileşenleri", subCategory: "RAM (Bellek)", hbId: "1000108", amzId: "7000106" },
+    { pattern: /\b(anakart|motherboard|b550|b650|b760|h610|a520|x670|z790)\b/i, category: "Bilgisayar Bileşenleri", subCategory: "Anakart (Motherboard)", hbId: "1000108", amzId: "7000106" },
+    { pattern: /\b(ekran kartı|geforce|rtx|radeon|rx\s?\d{4}|gtx)\b/i, category: "Bilgisayar Bileşenleri", subCategory: "Ekran Kartı (GPU)", hbId: "1000108", amzId: "7000106" },
+    { pattern: /\b(işlemci|ryzen|core i3|core i5|core i7|core i9)\b/i, category: "Bilgisayar Bileşenleri", subCategory: "İşlemci (CPU)", hbId: "1000108", amzId: "7000106" },
+    { pattern: /\b(güç kaynağı|power supply|psu)\b/i, category: "Bilgisayar Bileşenleri", subCategory: "Güç Kaynağı (PSU)", hbId: "1000108", amzId: "7000106" },
+    { pattern: /\b(sıvı soğutma|işlemci soğutucu|kasa fanı|termal macun)\b/i, category: "Bilgisayar Bileşenleri", subCategory: "Soğutma Sistemleri & Fan", hbId: "1000108", amzId: "7000106" },
+
+    { pattern: /\b(monitör|monitor|curved|ips panel|va panel|\d{2}\s?inç.*hz)\b/i, category: "Çevre Birimleri & Aksesuarlar", subCategory: "Monitör", hbId: "1000118", amzId: "7000108" },
+    { pattern: /\b(klavye|mouse|fare|mk\d{3}|m171|m185|m190|m220|m330|g102|g213|g305|deathadder|sunum kumandası|r400|r500)\b/i, category: "Çevre Birimleri & Aksesuarlar", subCategory: "Klavye & Mouse", hbId: "1000118", amzId: "7000108" },
+    { pattern: /\b(kulaklık|headset|earbuds|airpods|buds|jbl tune|jbl wave|kafa üstü|kulak içi|mikrofon)\b/i, category: "Çevre Birimleri & Aksesuarlar", subCategory: "Kulaklık & Mikrofon", hbId: "1000118", amzId: "7000108" },
+    { pattern: /\b(webcam|web kamera|c270|c310|c920|brio)\b/i, category: "Çevre Birimleri & Aksesuarlar", subCategory: "Webcam (Web Kamera)", hbId: "1000118", amzId: "7000108" },
+    { pattern: /\b(usb hub|çoklayıcı|docking|kart okuyucu|card reader)\b/i, category: "Çevre Birimleri & Aksesuarlar", subCategory: "USB Hub & Çoklayıcı", hbId: "1000118", amzId: "7000108" },
+    { pattern: /\b(notebook çantası|laptop çantası|sırt çantası|laptop stand|soğutucu stand)\b/i, category: "Çevre Birimleri & Aksesuarlar", subCategory: "Notebook Çantası & Stand", hbId: "1000118", amzId: "7000108" },
+    { pattern: /\b(kablo|hdmi|displayport|vga|dvi|type-c|usb-c|lightning|cat6|cat5|patch cord|dönüştürücü|çevirici|adaptör|şarj aleti|şarj cihazı|powerbank|taşınabilir şarj|akım korumalı priz|uzatma kablo)\b/i, category: "Çevre Birimleri & Aksesuarlar", subCategory: "Kablo & Dönüştürücüler", hbId: "1000118", amzId: "7000108" },
+
+    { pattern: /\b(modem|router|access point|menzil genişletici|repeater|deco|mesh|keenetic|archer|aruba|switch|poe|wi-fi adaptör|wifi adaptör|ağ kartı)\b/i, category: "Ağ & Modem (Network)", subCategory: "Modem & Router", hbId: "1000125", amzId: "7000117" },
+
+    { pattern: /\b(yazıcı|printer|tanklı|lazer yazıcı|mürekkep püskürtmeli|tarayıcı|scanner|barkod okuyucu|termal yazıcı|etiket yazıcı|toner|kartuş|şerit)\b/i, category: "Yazıcı, Tarayıcı & Ofis", subCategory: "Lazer & Tanklı Yazıcılar", hbId: "1000129", amzId: "7000116" },
+
+    { pattern: /\b(laptop|notebook|dizüstü|macbook|thinkpad|ideapad|vivobook|zenbook|latitude|inspiron|probook|elitebook|vostro)\b/i, category: "Bilgisayar Sistemleri", subCategory: "Dizüstü Bilgisayar (Laptop)", hbId: "1000114", amzId: "7000106" },
+    { pattern: /\b(all in one|masaüstü bilgisayar|hazır sistem|mini pc|nuc|workstation)\b/i, category: "Bilgisayar Sistemleri", subCategory: "Masaüstü Bilgisayar (PC)", hbId: "1000114", amzId: "7000106" },
+    { pattern: /\b(tablet|ipad|galaxy tab|matepad)\b/i, category: "Bilgisayar Sistemleri", subCategory: "Tablet", hbId: "1000114", amzId: "7000106" },
+    { pattern: /\b(windows 11|windows 10|office 2021|office 365|antivirüs|lisans|oem|kutulu yazılım)\b/i, category: "Bilgisayar Sistemleri", subCategory: "Masaüstü Bilgisayar (PC)", hbId: "1000114", amzId: "7000106" },
+
+    { pattern: /\b(fotoğraf makinesi|kamera|tripod|hafıza|aksiyon kamera|gopro|insta360|gimbal|lens|objektif|softbox|ring light)\b/i, category: "Fotoğraf & Kamera", subCategory: "Aksiyon Kamera & Drone", hbId: "2000203", amzId: "7000111" },
+    { pattern: /\b(güvenlik kamerası|ip kamera|nvr|dvr|alarm|akıllı priz|akıllı ampul|bebek kamerası|tapo)\b/i, category: "Akıllı Ev & Güvenlik", subCategory: "Güvenlik Kamerası (IP/CCTV)", hbId: "2000103", amzId: "7000304" },
+    { pattern: /\b(hoparlör|speaker|soundbar|bluetooth hoparlör|ses sistemi|projeksiyon|tv askı|tv kutusu|android box|kumanda)\b/i, category: "TV, Ses & Görüntü Sistemleri", subCategory: "Bluetooth Hoparlör & Ses Sistemi", hbId: "1000188", amzId: "7000303" },
+    { pattern: /\b(kahve makinesi|çay makinesi|blender|mikser|airfryer|tost makinesi|su ısıtıcı|kettle|süpürge|ütü|tıraş makinesi|saç kurutma|tartı|baskül|vantilatör|ısıtıcı)\b/i, category: "Küçük Ev Aletleri", subCategory: "Mutfak Aletleri", hbId: "1000130", amzId: "7000204" }
   ];
 
   let mappedCount = 0;
@@ -319,18 +364,44 @@ export async function autoBridgeStoreCategories(storeId: number): Promise<{
   const hbMappings = hbSettings.categoryMappings || {};
 
   for (const rawCat of existingStoreCategories) {
-    if (!bridge[rawCat]) {
-      const matched = canonicalDict.find(d => d.pattern.test(rawCat));
+    const matched = canonicalRules.find(d => d.pattern.test(rawCat));
+    if (matched) {
+      bridge[rawCat] = {
+        canonicalCategory: matched.category,
+        canonicalSubCategory: matched.subCategory,
+        hbCategoryId: matched.hbId,
+        amazonCategoryId: matched.amzId
+      };
+      if (!hbMappings[rawCat]) {
+        hbMappings[rawCat] = matched.hbId;
+      }
+      mappedCount++;
+    }
+  }
+
+  // Also classify products whose category is empty, 'Genel', 'Hızlı Ekleme', or legacy ALL-CAPS without sub_category
+  const prodRes = await pool.query(`
+    SELECT id, name, category, sub_category, brand, product_code
+    FROM products
+    WHERE store_id = $1
+  `, [storeId]);
+
+  let categorizedProductsCount = 0;
+  for (const p of prodRes.rows) {
+    const rawCat = String(p.category || "").trim();
+    const rawSub = String(p.sub_category || "").trim();
+    const isGenericOrEmpty = !rawCat || /^(genel|hızlı ekleme|diger|diğer|kategorisiz)$/i.test(rawCat);
+    const isLegacyAllCaps = rawCat.length > 0 && rawCat === rawCat.toUpperCase() && !rawSub;
+
+    if (isGenericOrEmpty || isLegacyAllCaps) {
+      const searchStr = `${p.name || ""} ${rawCat} ${p.brand || ""}`;
+      const matched = canonicalRules.find(d => d.pattern.test(searchStr));
       if (matched) {
-        bridge[rawCat] = {
-          canonicalCategory: matched.canonical,
-          hbCategoryId: matched.hbId,
-          amazonCategoryId: matched.amzId
-        };
-        if (!hbMappings[rawCat]) {
-          hbMappings[rawCat] = matched.hbId;
-        }
-        mappedCount++;
+        await pool.query(
+          `UPDATE products SET category = $1, sub_category = $2 WHERE id = $3 AND store_id = $4`,
+          [matched.category, matched.subCategory, p.id, storeId]
+        );
+        categorizedProductsCount++;
       }
     }
   }
@@ -347,6 +418,7 @@ export async function autoBridgeStoreCategories(storeId: number): Promise<{
   return {
     success: true,
     mappedCount,
+    categorizedProductsCount,
     bridge
   };
 }

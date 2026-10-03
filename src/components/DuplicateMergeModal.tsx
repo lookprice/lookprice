@@ -86,7 +86,7 @@ export const DuplicateMergeModal: React.FC<DuplicateMergeModalProps> = ({
     setLoading(true);
     try {
       const res = await api.getDuplicateCandidates(storeId);
-      let list: DuplicateCandidate[] = res.data?.candidates || [];
+      let list: DuplicateCandidate[] = res.candidates || res.data?.candidates || [];
 
       // If operator explicitly selected 2 items from table
       if (initialSelectedIds && initialSelectedIds.length === 2) {
