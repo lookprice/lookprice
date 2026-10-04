@@ -163,8 +163,31 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
     return "home";
   })());
 
-  const [visibleCount, setVisibleCount] = useState<number>(30);
+  const [visibleCount, setVisibleCount] = useState<number>(32);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [brandSearchQuery, setBrandSearchQuery] = useState("");
+
+  const activeFilterCount =
+    (selectedCategory !== "all" ? 1 : 0) +
+    (selectedSubCategory !== "all" ? 1 : 0) +
+    (selectedBrand !== "all" ? 1 : 0) +
+    (selectedBadge !== "all" ? 1 : 0) +
+    (searchQuery.trim() ? 1 : 0);
+
+  const openCatalogWithReset = (opts: {
+    category?: string;
+    subCategory?: string;
+    brand?: string;
+    badge?: string;
+  }) => {
+    setSelectedCategory(opts.category ?? "all");
+    setSelectedSubCategory(opts.subCategory ?? "all");
+    setSelectedBrand(opts.brand ?? "all");
+    setSelectedBadge(opts.badge ?? "all");
+    setActiveTab("catalog");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // Synchronize state changes to URL search params (Rule 7: Operator UX Continuity & Persistence)
   useEffect(() => {
@@ -697,99 +720,97 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
         </div>
       )}
 
-      {/* MOBILE HORIZONTAL CHIP FILTER SCROLLER */}
-      <div className="md:hidden overflow-x-auto no-scrollbar px-3 py-2 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 flex items-center gap-1.5 shadow-2xs">
-        <button 
-          type="button"
-          onClick={() => { setActiveTab('home'); setSelectedCategory('all'); setSelectedBadge('all'); }} 
-          className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === 'home' && selectedCategory === 'all' && selectedBadge === 'all' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300'}`}
-        >
-          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-          <span>{isTr ? "Keşfet" : "Explore"}</span>
-        </button>
-        <button 
-          type="button"
-          onClick={() => { setActiveTab('catalog'); setSelectedCategory('all'); setSelectedBadge('all'); }} 
-          className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer ${activeTab === 'catalog' && selectedCategory === 'all' && selectedBadge === 'all' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300'}`}
-        >
-          {isTr ? "Tüm Ürünler" : "All"}
-        </button>
-        <button 
-          type="button"
-          onClick={() => { setActiveTab('catalog'); setSelectedBadge('bestseller'); }} 
-          className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer flex items-center gap-1.5 ${selectedBadge === 'bestseller' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300'}`}
-        >
-          <Flame className="h-3.5 w-3.5 text-amber-500" />
-          <span>{isTr ? "Çok Satanlar" : "Bestsellers"}</span>
-        </button>
-        <button 
-          type="button"
-          onClick={() => { setActiveTab('catalog'); setSelectedBadge('discount'); }} 
-          className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer flex items-center gap-1.5 ${selectedBadge === 'discount' ? 'bg-rose-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300'}`}
-        >
-          <Tag className="h-3.5 w-3.5 text-rose-400" />
-          <span>{isTr ? "Fırsatlar" : "Deals"}</span>
-        </button>
-        {categories.map(cat => (
-          <button 
-            key={cat} 
+      {/* MOBILE QUICK NAVIGATION BAR (ONLY ON HOME VIEW TO PREVENT DUPLICATE STACKING) */}
+      {activeTab === 'home' && !searchQuery && (
+        <div className="md:hidden overflow-x-auto no-scrollbar px-3 py-1.5 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 flex items-center gap-1.5">
+          <button
             type="button"
-            onClick={() => { setSelectedCategory(cat); setActiveTab('catalog'); }} 
-            className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer ${selectedCategory === cat && activeTab === 'catalog' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300'}`}
+            onClick={() => setIsFilterDrawerOpen(true)}
+            className="px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-colors cursor-pointer flex items-center gap-1 bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-2xs"
           >
-            {cat}
+            <SlidersHorizontal className="h-3 w-3" />
+            <span>{isTr ? "Kategoriler & Filtre" : "Filters"}</span>
           </button>
-        ))}
-      </div>
+          <button 
+            type="button"
+            onClick={() => openCatalogWithReset({})} 
+            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-colors cursor-pointer bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
+          >
+            {isTr ? "Tüm Ürünler" : "All"}
+          </button>
+          <button 
+            type="button"
+            onClick={() => openCatalogWithReset({ badge: 'bestseller' })} 
+            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-colors cursor-pointer flex items-center gap-1 bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
+          >
+            <Flame className="h-3 w-3 text-amber-500" />
+            <span>{isTr ? "Çok Satanlar" : "Bestsellers"}</span>
+          </button>
+          <button 
+            type="button"
+            onClick={() => openCatalogWithReset({ badge: 'discount' })} 
+            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-colors cursor-pointer flex items-center gap-1 bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
+          >
+            <Tag className="h-3 w-3 text-rose-500" />
+            <span>{isTr ? "Fırsatlar" : "Deals"}</span>
+          </button>
+          {categories.map(cat => (
+            <button 
+              key={cat} 
+              type="button"
+              onClick={() => openCatalogWithReset({ category: cat })} 
+              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-colors cursor-pointer bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* MAIN VIEW CONTENT */}
       {activeTab === 'home' && !searchQuery ? (
-        <div className="space-y-8 pb-20 md:pb-12">
+        <div className="space-y-6 sm:space-y-9 pb-24 md:pb-12">
           {/* MINIMALIST ILLUMINATED HERO SHOWCASE BANNER */}
           {showHero && currentHero && (
-            <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4 sm:pt-6">
-              <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50/90 via-indigo-50/30 to-white dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border border-slate-200/90 dark:border-slate-800 shadow-xl dark:shadow-2xl p-5 sm:p-7 md:p-9 min-h-[260px] sm:min-h-[300px] flex flex-col md:flex-row items-center justify-between gap-6 group transition-colors duration-200">
+            <div className="max-w-7xl mx-auto px-3 sm:px-8 pt-3 sm:pt-6">
+              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50/90 via-indigo-50/30 to-white dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border border-slate-200/90 dark:border-slate-800 shadow-lg dark:shadow-2xl p-3.5 sm:p-7 md:p-9 min-h-0 sm:min-h-[280px] flex flex-row items-center justify-between gap-3.5 sm:gap-6 group transition-colors duration-200">
                 {/* Luminous Ambient Background Glow & Atmospheric Blurred Photo Backdrop */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-3xl">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-2xl sm:rounded-3xl">
                   <img 
                     src={getProductImageUrl(currentHero)} 
                     alt="" 
-                    className="absolute -right-16 -bottom-16 w-[420px] h-[420px] object-cover opacity-20 dark:opacity-25 blur-3xl filter saturate-200 transform scale-125"
+                    className="absolute -right-16 -bottom-16 w-[320px] sm:w-[420px] h-[320px] sm:h-[420px] object-cover opacity-20 dark:opacity-25 blur-3xl filter saturate-200 transform scale-125"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-80 h-80 bg-blue-300/20 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
-                  <div className="absolute -top-10 -left-10 w-64 h-64 bg-indigo-300/15 dark:bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+                  <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-60 sm:w-80 h-60 sm:h-80 bg-blue-300/20 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
                   <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 to-transparent dark:from-slate-950/95 dark:via-slate-900/80 dark:to-transparent" />
                 </div>
 
                 {/* LEFT CONTENT */}
-                <div className="relative z-10 max-w-2xl space-y-3 w-full">
+                <div className="relative z-10 flex-1 min-w-0 max-w-2xl space-y-1.5 sm:space-y-3">
                   {showHeroBadges && (
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded-md font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                        <Sparkles className="h-3 w-3" />
-                        {isTr ? "Öne Çıkan Ürün" : "Featured Product"}
+                      <span className="px-2 py-0.5 bg-blue-600 text-white rounded-md font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        {isTr ? "Öne Çıkan" : "Featured"}
                       </span>
                       {currentHero.brand && (
-                        <span className="px-2 py-0.5 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 rounded-md font-bold text-[9px] border border-slate-200 dark:border-slate-700 shadow-2xs">
+                        <span className="px-2 py-0.5 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 rounded-md font-bold text-[9px] border border-slate-200 dark:border-slate-700">
                           {currentHero.brand}
                         </span>
                       )}
                       {currentHero.category && (
-                        <span className="px-2 py-0.5 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 rounded-md font-bold text-[9px] border border-slate-200 dark:border-slate-700 shadow-2xs">
+                        <span className="hidden sm:inline-block px-2 py-0.5 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 rounded-md font-bold text-[9px] border border-slate-200 dark:border-slate-700">
                           {currentHero.category}
                         </span>
                       )}
-                      {getLabels(currentHero.labels || (currentHero as any).tags || (currentHero as any).badges).slice(0, 2).map((lbl, idx) => (
-                        <span key={idx} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-200 rounded-md font-bold text-[9px] border border-indigo-200 dark:border-indigo-700/60 inline-flex items-center gap-1">
-                          <Tag className="h-2.5 w-2.5 text-indigo-600 dark:text-indigo-300" />
-                          <span>{lbl.replace(/^[🔥⭐🏷️✨📦]+\s*/, '')}</span>
-                        </span>
-                      ))}
                     </div>
                   )}
 
-                  <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white drop-shadow-xs line-clamp-2">
+                  <h1 
+                    onClick={() => onViewProduct(currentHero, products)}
+                    className="text-sm sm:text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white line-clamp-2 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors leading-snug"
+                  >
                     {currentHero.name}
                   </h1>
 
@@ -800,7 +821,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                     
                     if (displayDesc) {
                       return (
-                        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-2 max-w-xl font-normal leading-relaxed">
+                        <p className="hidden sm:block text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-2 max-w-xl font-normal leading-relaxed">
                           {displayDesc}
                         </p>
                       );
@@ -808,8 +829,8 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
                     if (currentHero.brand || currentHero.category) {
                       return (
-                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-1 max-w-xl font-medium">
-                          {[currentHero.brand, currentHero.category, (currentHero as any).sub_category].filter(Boolean).join(' • ')}
+                        <p className="hidden sm:block text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-1 max-w-xl font-medium">
+                          {[currentHero.brand, currentHero.category, (currentHero as any).sub_category].filter(Boolean).join(' · ')}
                         </p>
                       );
                     }
@@ -817,53 +838,50 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                     return null;
                   })()}
 
-                  <div className="flex items-center gap-3 pt-1 flex-wrap">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-lg sm:text-2xl font-black text-blue-600 dark:text-blue-400">
+                  <div className="flex items-center gap-2 sm:gap-3 pt-1 flex-wrap">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-base sm:text-2xl font-black text-blue-600 dark:text-blue-400 tabular-nums">
                         ₺{(currentHero.price || 0).toLocaleString('tr-TR')}
                       </span>
                       {currentHero.old_price && currentHero.old_price > currentHero.price && (
-                        <span className="text-xs text-slate-400 dark:text-slate-500 line-through">
+                        <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 line-through tabular-nums">
                           ₺{currentHero.old_price.toLocaleString('tr-TR')}
                         </span>
                       )}
                     </div>
 
-                    <span className={`px-2 py-0.5 text-[9px] font-bold rounded-md border ${
-                      getProductStockCount(currentHero) > 0 
-                        ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/80" 
-                        : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/80"
-                    }`}>
-                      {getProductStockCount(currentHero) > 0 ? `${isTr ? "Stokta" : "In Stock"}: ${getProductStockCount(currentHero)} ${isTr ? "Adet" : "Pcs"}` : (isTr ? "Tükendi" : "Out of Stock")}
-                    </span>
+                    <div className="flex items-center gap-1.5 w-full sm:w-auto pt-0.5 sm:pt-0">
+                      <button
+                        type="button"
+                        onClick={() => onViewProduct(currentHero, products)}
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1 shadow-sm shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <span>{isTr ? "İncele" : "View"}</span>
+                        <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => onViewProduct(currentHero, products)}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
-                    >
-                      <span>{isTr ? "Hemen İncele" : "View Details"}</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => addToBasket(currentHero)}
-                      className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-xs"
-                    >
-                      <ShoppingBag className="h-3.5 w-3.5" />
-                      <span>{isTr ? "Sepete Ekle" : "Add to Cart"}</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => addToBasket(currentHero)}
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-2xs"
+                      >
+                        <ShoppingBag className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                        <span>{isTr ? "Sepete Ekle" : "Add"}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {/* RIGHT CRISP PRODUCT IMAGE SHOWCASE */}
-                <div className="relative z-10 shrink-0 w-52 sm:w-64 md:w-80 h-48 sm:h-56 md:h-64 flex items-center justify-center p-2">
-                  <div className="w-full h-full rounded-2xl sm:rounded-3xl bg-white border border-slate-200/90 dark:border-slate-700/80 flex items-center justify-center p-4 shadow-xl dark:shadow-2xl overflow-hidden group/img transition-all duration-300">
+                <div 
+                  onClick={() => onViewProduct(currentHero, products)}
+                  className="relative z-10 shrink-0 w-24 h-24 sm:w-56 sm:h-48 md:w-72 md:h-60 flex items-center justify-center cursor-pointer"
+                >
+                  <div className="w-full h-full rounded-xl sm:rounded-3xl bg-white border border-slate-200/90 dark:border-slate-700/80 flex items-center justify-center p-2 sm:p-4 shadow-md sm:shadow-xl overflow-hidden group/img transition-all duration-300">
                     <img 
                       src={getProductImageUrl(currentHero)} 
                       alt={currentHero.name}
-                      className="max-w-full max-h-full object-contain filter brightness-105 contrast-105 drop-shadow-md transform transition-transform duration-500 group-hover/img:scale-105"
+                      className="max-w-full max-h-full object-contain filter brightness-105 contrast-105 transform transition-transform duration-500 group-hover/img:scale-105"
                       loading="eager"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
@@ -891,7 +909,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
                 {/* HERO SLIDER DOTS */}
                 {heroProducts.length > 1 && (
-                  <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-slate-950/70 backdrop-blur-xs px-2 py-0.5 rounded-full border border-slate-800">
+                  <div className="hidden sm:flex absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 items-center gap-1.5 bg-slate-950/70 backdrop-blur-xs px-2 py-0.5 rounded-full border border-slate-800">
                     {heroProducts.map((_, hIdx) => (
                       <button
                         key={hIdx}
@@ -910,7 +928,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
           )}
 
           {/* NETFLIX ROWS */}
-          <div className="space-y-10 px-4 sm:px-8 max-w-7xl mx-auto">
+          <div className="space-y-7 sm:space-y-10 px-3 sm:px-8 max-w-7xl mx-auto">
             {/* ROW 1: ÇOK SATANLAR */}
             {showBestsellers && bestsellerProducts.length > 0 && (
               <NetflixRow 
@@ -918,7 +936,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 products={bestsellerProducts}
                 onViewProduct={onViewProduct}
                 addToBasket={addToBasket}
-                onShowAll={() => { setSelectedBadge("bestseller"); setActiveTab("catalog"); }}
+                onShowAll={() => openCatalogWithReset({ badge: "bestseller" })}
                 enableHoverZoom={enableHoverZoom}
                 showQuickAddCart={showQuickAddCart}
                 showStockBadge={showStockBadge}
@@ -933,7 +951,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 products={featuredProducts}
                 onViewProduct={onViewProduct}
                 addToBasket={addToBasket}
-                onShowAll={() => { setSelectedBadge("featured"); setActiveTab("catalog"); }}
+                onShowAll={() => openCatalogWithReset({ badge: "featured" })}
                 enableHoverZoom={enableHoverZoom}
                 showQuickAddCart={showQuickAddCart}
                 showStockBadge={showStockBadge}
@@ -948,7 +966,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 products={discountedProducts}
                 onViewProduct={onViewProduct}
                 addToBasket={addToBasket}
-                onShowAll={() => { setSelectedBadge("discount"); setActiveTab("catalog"); }}
+                onShowAll={() => openCatalogWithReset({ badge: "discount" })}
                 enableHoverZoom={enableHoverZoom}
                 showQuickAddCart={showQuickAddCart}
                 showStockBadge={showStockBadge}
@@ -963,7 +981,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 products={newArrivals}
                 onViewProduct={onViewProduct}
                 addToBasket={addToBasket}
-                onShowAll={() => { setSelectedBadge("new"); setActiveTab("catalog"); }}
+                onShowAll={() => openCatalogWithReset({ badge: "new" })}
                 enableHoverZoom={enableHoverZoom}
                 showQuickAddCart={showQuickAddCart}
                 showStockBadge={showStockBadge}
@@ -982,7 +1000,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                   products={catItems}
                   onViewProduct={onViewProduct}
                   addToBasket={addToBasket}
-                  onShowAll={() => { setSelectedCategory(catName); setActiveTab("catalog"); }}
+                  onShowAll={() => openCatalogWithReset({ category: catName })}
                   enableHoverZoom={enableHoverZoom}
                   showQuickAddCart={showQuickAddCart}
                   showStockBadge={showStockBadge}
@@ -993,260 +1011,256 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
           </div>
         </div>
       ) : (
-        /* FULL CATALOG / SEARCH VIEW */
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-6">
-          {/* Back to Home & Active Collection Guidance Banner (Rule 26) */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="flex items-center gap-3 flex-wrap">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("home");
-                  setSelectedCategory("all");
-                  setSelectedSubCategory("all");
-                  setSelectedBrand("all");
-                  setSelectedBadge("all");
-                  setSearchQuery("");
-                }}
-                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-black uppercase tracking-wider bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-200 dark:border-blue-800 transition-all cursor-pointer active:scale-95 shadow-2xs"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span>{isTr ? "Ana Sayfaya Dön (Keşfet)" : "Back to Home"}</span>
-              </button>
+        /* MINIMALIST FULL CATALOG / SEARCH VIEW - DIRECT PRODUCT ACCESS & ON-DEMAND FILTER DRAWER */
+        <div className="pb-24 md:pb-12">
+          {/* STICKY MINIMALIST CATALOG NAVIGATION & FILTER BAR */}
+          <div className="sticky top-[57px] sm:top-[61px] z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 shadow-2xs">
+            <div className="max-w-7xl mx-auto px-3 sm:px-8 py-2.5 space-y-2">
+              {/* TOP ROW: BACK BUTTON, ACTIVE TITLE/COUNT, FILTER DRAWER TRIGGER & SORT */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("home");
+                      setSelectedCategory("all");
+                      setSelectedSubCategory("all");
+                      setSelectedBrand("all");
+                      setSelectedBadge("all");
+                      setSearchQuery("");
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl transition-all cursor-pointer shrink-0 active:scale-95"
+                    title={isTr ? "Vitrine Dön" : "Back to Showcase"}
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <span className="hidden xs:inline">{isTr ? "Vitrin" : "Home"}</span>
+                  </button>
 
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                <span>/</span>
-                {selectedBadge === 'bestseller' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 rounded-lg border border-amber-200 dark:border-amber-800/80 font-black">
-                    <Flame className="h-3.5 w-3.5 text-amber-500" />
-                    <span>{isTr ? "Çok Satanlar & Popüler Ürünler" : "Bestsellers & Popular"}</span>
-                  </span>
-                ) : selectedBadge === 'featured' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-800/80 font-black">
-                    <Sparkles className="h-3.5 w-3.5 text-blue-500" />
-                    <span>{isTr ? "Öne Çıkan Koleksiyon" : "Featured Collection"}</span>
-                  </span>
-                ) : selectedBadge === 'discount' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 rounded-lg border border-rose-200 dark:border-rose-800/80 font-black">
-                    <Tag className="h-3.5 w-3.5 text-rose-500" />
-                    <span>{isTr ? "Fırsatlar & Kampanyalı Ürünler" : "Deals & Special Offers"}</span>
-                  </span>
-                ) : selectedBadge === 'new' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded-lg border border-indigo-200 dark:border-indigo-800/80 font-black">
-                    <Clock className="h-3.5 w-3.5 text-indigo-500" />
-                    <span>{isTr ? "Yeni Gelen Ürünler" : "New Arrivals"}</span>
-                  </span>
-                ) : selectedCategory !== 'all' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-lg font-black">
-                    <Package className="h-3.5 w-3.5 text-blue-500" />
-                    <span>{selectedCategory}</span>
-                  </span>
-                ) : (
-                  <span className="text-slate-900 dark:text-white font-black">{isTr ? "Tüm Ürün Kataloğu" : "All Products"}</span>
-                )}
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <h2 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
+                      {selectedBadge === "bestseller"
+                        ? (isTr ? "Çok Satanlar" : "Bestsellers")
+                        : selectedBadge === "featured"
+                        ? (isTr ? "Öne Çıkanlar" : "Featured")
+                        : selectedBadge === "discount"
+                        ? (isTr ? "Fırsat Ürünleri" : "Deals")
+                        : selectedBadge === "new"
+                        ? (isTr ? "Yeni Gelenler" : "New Arrivals")
+                        : selectedCategory !== "all"
+                        ? selectedCategory
+                        : searchQuery.trim()
+                        ? `"${searchQuery.trim()}"`
+                        : (isTr ? "Tüm Ürünler" : "All Products")}
+                    </h2>
+                    <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 shrink-0 tabular-nums">
+                      · {finalProductsList.length} {isTr ? "ürün" : "items"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* RIGHT ACTIONS: ON-DEMAND FILTER BUTTON + COMPACT SORT */}
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterDrawerOpen(true)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 border ${
+                      activeFilterCount > 0
+                        ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                        : "bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    <span>{isTr ? "Filtrele" : "Filter"}</span>
+                    {activeFilterCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-white text-blue-600 text-[10px] font-black tabular-nums">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    aria-label={isTr ? "Sıralama" : "Sort"}
+                    className="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2.5 py-1.5 outline-none cursor-pointer max-w-[130px] sm:max-w-none truncate"
+                  >
+                    <option value="default">{isTr ? "Sırala: Önerilen" : "Sort: Default"}</option>
+                    <option value="priceAsc">{isTr ? "Fiyat: Artan" : "Price: Low-High"}</option>
+                    <option value="priceDesc">{isTr ? "Fiyat: Azalan" : "Price: High-Low"}</option>
+                  </select>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-              <Package className="h-4 w-4 text-blue-500" />
-              <span>({finalProductsList.length} {isTr ? "ürün listeleniyor" : "products listed"})</span>
+              {/* SECOND ROW: CONTEXTUAL HORIZONTAL QUICK-PILLS (SUBCATEGORIES WHEN A CATEGORY IS ACTIVE, OR CATEGORIES WHEN ALL) */}
+              {selectedCategory !== "all" && subCategories.length > 0 ? (
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSubCategory("all")}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-colors cursor-pointer ${
+                      selectedSubCategory === "all"
+                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
+                        : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    {isTr ? `Tümü (${selectedCategory})` : `All ${selectedCategory}`}
+                  </button>
+                  {subCategories.map((sub) => (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => setSelectedSubCategory(selectedSubCategory === sub ? "all" : sub)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-colors cursor-pointer ${
+                        selectedSubCategory === sub
+                          ? "bg-blue-600 text-white font-bold shadow-2xs"
+                          : "bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory("all");
+                      setSelectedSubCategory("all");
+                      setSelectedBadge("all");
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-colors cursor-pointer ${
+                      selectedCategory === "all" && selectedBadge === "all"
+                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
+                        : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400"
+                    }`}
+                  >
+                    {isTr ? "Tümü" : "All"}
+                  </button>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory(selectedCategory === cat ? "all" : cat);
+                        setSelectedSubCategory("all");
+                        setSelectedBadge("all");
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-colors cursor-pointer ${
+                        selectedCategory === cat
+                          ? "bg-blue-600 text-white font-bold shadow-2xs"
+                          : "bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* ACTIVE FILTER TAGS ROW (ONLY VISIBLE WHEN SPECIFIC FILTERS ARE APPLIED) */}
+              {(selectedBrand !== "all" || selectedSubCategory !== "all" || selectedBadge !== "all" || searchQuery.trim()) && (
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                  {selectedCategory !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedCategory("all"); setSelectedSubCategory("all"); }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/70 text-[11px] font-semibold shrink-0 cursor-pointer"
+                    >
+                      <span>{selectedCategory}</span>
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                  {selectedSubCategory !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSubCategory("all")}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/70 text-[11px] font-semibold shrink-0 cursor-pointer"
+                    >
+                      <span>{selectedSubCategory}</span>
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                  {selectedBrand !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBrand("all")}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold shrink-0 cursor-pointer"
+                    >
+                      <span>{isTr ? "Marka:" : "Brand:"} {selectedBrand}</span>
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                  {selectedBadge !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBadge("all")}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/70 text-[11px] font-semibold shrink-0 cursor-pointer"
+                    >
+                      <span>
+                        {selectedBadge === "bestseller" ? (isTr ? "Çok Satan" : "Bestseller") :
+                         selectedBadge === "featured" ? (isTr ? "Öne Çıkan" : "Featured") :
+                         selectedBadge === "discount" ? (isTr ? "İndirimli" : "Discount") :
+                         (isTr ? "Yeni Gelenler" : "New")}
+                      </span>
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                  {searchQuery.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-semibold shrink-0 cursor-pointer"
+                    >
+                      <span>"{searchQuery.trim()}"</span>
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory("all");
+                      setSelectedSubCategory("all");
+                      setSelectedBrand("all");
+                      setSelectedBadge("all");
+                      setSearchQuery("");
+                    }}
+                    className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline px-1.5 shrink-0 cursor-pointer"
+                  >
+                    {isTr ? "Temizle" : "Clear"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* MAIN CATALOG LAYOUT WITH HEPSIBURADA-STANDARD LEFT HIERARCHICAL FILTER SIDEBAR */}
-          <div className="flex flex-col lg:flex-row gap-6 items-start">
-            {/* LEFT HIERARCHICAL CATEGORY & BRAND SIDEBAR */}
-            <aside className="w-full lg:w-64 shrink-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-5 shadow-xs">
-              <div>
-                <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-blue-600" />
-                    {isTr ? "Kategori Ağacı" : "Categories"}
-                  </span>
-                  {(selectedCategory !== "all" || selectedSubCategory !== "all") && (
-                    <button
-                      onClick={() => { setSelectedCategory("all"); setSelectedSubCategory("all"); }}
-                      className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
-                    >
-                      {isTr ? "Tümü" : "All"}
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1">
-                  <button
-                    onClick={() => { setSelectedCategory("all"); setSelectedSubCategory("all"); }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-between transition-colors cursor-pointer ${
-                      selectedCategory === "all"
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    <span>{isTr ? "Tüm Kategoriler" : "All Categories"}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedCategory === "all" ? "bg-blue-700 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>
-                      {processedProducts.length}
-                    </span>
-                  </button>
-
-                  {categoryTree.map((node) => {
-                    const isCatSelected = selectedCategory === node.category;
-                    return (
-                      <div key={node.category} className="space-y-1">
-                        <button
-                          onClick={() => {
-                            if (isCatSelected && selectedSubCategory === "all") {
-                              setSelectedCategory("all");
-                            } else {
-                              setSelectedCategory(node.category);
-                              setSelectedSubCategory("all");
-                            }
-                          }}
-                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-between transition-colors cursor-pointer ${
-                            isCatSelected
-                              ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60"
-                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                          }`}
-                        >
-                          <span className="truncate pr-1">{node.category}</span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
-                            {node.count}
-                          </span>
-                        </button>
-
-                        {node.subCategories.length > 0 && isCatSelected && (
-                          <div className="pl-3 ml-2 border-l-2 border-blue-200 dark:border-blue-900 space-y-0.5 py-0.5">
-                            {node.subCategories.map((sub) => {
-                              const isSubSelected = selectedSubCategory === sub.name;
-                              return (
-                                <button
-                                  key={sub.name}
-                                  onClick={() => setSelectedSubCategory(isSubSelected ? "all" : sub.name)}
-                                  className={`w-full text-left px-2 py-1 rounded-md text-[11px] font-semibold flex items-center justify-between transition-colors cursor-pointer ${
-                                    isSubSelected
-                                      ? "bg-blue-600 text-white font-bold"
-                                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                  }`}
-                                >
-                                  <span className="truncate pr-1">↳ {sub.name}</span>
-                                  <span className={`text-[9px] px-1 rounded ${isSubSelected ? "bg-blue-700 text-white" : "text-slate-400"}`}>
-                                    {sub.count}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* FULL-WIDTH PRODUCT GRID */}
+          <div className="max-w-7xl mx-auto px-3 sm:px-8 pt-4 sm:pt-6">
+            {finalProductsList.length === 0 ? (
+              <div className="p-12 sm:p-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
+                <Package className="h-10 w-10 text-slate-400 dark:text-slate-600 mx-auto" />
+                <p className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">
+                  {isTr ? "Aradığınız kriterlere uygun ürün bulunamadı." : "No products found matching your criteria."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory("all");
+                    setSelectedSubCategory("all");
+                    setSelectedBrand("all");
+                    setSelectedBadge("all");
+                    setSearchQuery("");
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  {isTr ? "Filtreleri Sıfırla" : "Reset Filters"}
+                </button>
               </div>
-
-              {brands.length > 0 && (
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
-                      {isTr ? "Markalar" : "Brands"}
-                    </span>
-                    {selectedBrand !== "all" && (
-                      <button
-                        onClick={() => setSelectedBrand("all")}
-                        className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
-                      >
-                        {isTr ? "Temizle" : "Clear"}
-                      </button>
-                    )}
-                  </div>
-                  <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                    {brands.map((b) => (
-                      <button
-                        key={b}
-                        onClick={() => setSelectedBrand(selectedBrand === b ? "all" : b)}
-                        className={`w-full text-left px-2.5 py-1 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
-                          selectedBrand === b
-                            ? "bg-blue-600 text-white font-bold"
-                            : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                        }`}
-                      >
-                        <span className="truncate">{b}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </aside>
-
-            {/* RIGHT CONTENT: FILTER CHIPS + PRODUCT GRID */}
-            <div className="flex-1 min-w-0 space-y-4 w-full">
-              {/* FILTER CHIPS */}
-              <div className="flex items-center gap-2 flex-wrap bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubCategory("all"); }}
-                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-                >
-                  <option value="all">{isTr ? "Tüm Kategoriler" : "All Categories"}</option>
-                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-
-                {subCategories.length > 0 && (
-                  <select
-                    value={selectedSubCategory}
-                    onChange={(e) => setSelectedSubCategory(e.target.value)}
-                    className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-                  >
-                    <option value="all">{isTr ? "Tüm Alt Kategoriler" : "All Subcategories"}</option>
-                    {subCategories.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                )}
-
-                <select
-                  value={selectedBrand}
-                  onChange={(e) => setSelectedBrand(e.target.value)}
-                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-                >
-                  <option value="all">{isTr ? "Tüm Markalar" : "All Brands"}</option>
-                  {brands.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-
-                <select
-                  value={selectedBadge}
-                  onChange={(e) => setSelectedBadge(e.target.value)}
-                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-                >
-                  <option value="all">{isTr ? "Tüm Etiketler" : "All Badges"}</option>
-                  <option value="bestseller">{isTr ? "Çok Satan" : "Bestseller"}</option>
-                  <option value="featured">{isTr ? "Öne Çıkan" : "Featured"}</option>
-                  <option value="discount">{isTr ? "İndirimli" : "Discounted"}</option>
-                  <option value="new">{isTr ? "Yeni Gelenler" : "New Arrivals"}</option>
-                </select>
-
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-                >
-                  <option value="default">{isTr ? "Sıralama: Varsayılan" : "Sort: Default"}</option>
-                  <option value="priceAsc">{isTr ? "Fiyat: Ucuzdan Pahalıya" : "Price: Low to High"}</option>
-                  <option value="priceDesc">{isTr ? "Fiyat: Pahalıdan Ucuza" : "Price: High to Low"}</option>
-                </select>
-              </div>
-
-              {/* GRID OF PRODUCTS */}
-              {finalProductsList.length === 0 ? (
-                <div className="p-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
-                  <Package className="h-12 w-12 text-slate-400 dark:text-slate-600 mx-auto" />
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{isTr ? "Aradığınız kriterlere uygun ürün bulunamadı." : "No products found matching your criteria."}</p>
-                  <button
-                    onClick={() => { setSelectedCategory('all'); setSelectedSubCategory('all'); setSelectedBrand('all'); setSelectedBadge('all'); setSearchQuery(''); }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer"
-                  >
-                    {isTr ? "Filtreleri Sıfırla" : "Reset Filters"}
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {finalProductsList.map(product => (
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
+                  {finalProductsList.slice(0, visibleCount).map((product) => (
                     <NetflixProductCard
                       key={product.id}
                       product={product}
@@ -1260,11 +1274,292 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                     />
                   ))}
                 </div>
-              )}
-            </div>
+
+                {visibleCount < finalProductsList.length && (
+                  <div className="flex justify-center pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount((prev) => prev + 32)}
+                      className="px-6 py-2.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+                    >
+                      {isTr
+                        ? `Daha Fazla Göster (${finalProductsList.length - visibleCount} ürün kaldı)`
+                        : `Load More (${finalProductsList.length - visibleCount} remaining)`}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
+
+      {/* ON-DEMAND SLIDE-OVER / BOTTOM-SHEET FILTER & CATEGORY DRAWER */}
+      <AnimatePresence>
+        {isFilterDrawerOpen && (
+          <div className="fixed inset-0 z-[100] overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={() => setIsFilterDrawerOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+            />
+            <motion.aside
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 320 }}
+              className="fixed inset-y-0 right-0 w-full max-w-[340px] sm:max-w-[380px] bg-white dark:bg-slate-950 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col z-10"
+            >
+              {/* DRAWER HEADER */}
+              <div className="px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-950">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-black text-slate-900 dark:text-white">
+                    {isTr ? "Kategoriler & Filtreler" : "Categories & Filters"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory("all");
+                        setSelectedSubCategory("all");
+                        setSelectedBrand("all");
+                        setSelectedBadge("all");
+                        setSortBy("default");
+                        setSearchQuery("");
+                      }}
+                      className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer px-1.5 py-1"
+                    >
+                      {isTr ? "Sıfırla" : "Reset"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterDrawerOpen(false)}
+                    className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* DRAWER SCROLLABLE CONTENT */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                {/* 1. QUICK COLLECTIONS / BADGES */}
+                <div className="space-y-2">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                    {isTr ? "Özel Koleksiyonlar" : "Collections"}
+                  </span>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { id: "all", label: isTr ? "Tüm Ürünler" : "All Products" },
+                      { id: "bestseller", label: isTr ? "Çok Satanlar" : "Bestsellers" },
+                      { id: "featured", label: isTr ? "Öne Çıkanlar" : "Featured" },
+                      { id: "discount", label: isTr ? "Fırsat & İndirim" : "Deals" },
+                      { id: "new", label: isTr ? "Yeni Gelenler" : "New Arrivals" },
+                    ].map((b) => (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBadge(selectedBadge === b.id && b.id !== "all" ? "all" : b.id);
+                          setActiveTab("catalog");
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold text-left transition-all cursor-pointer border ${
+                          selectedBadge === b.id
+                            ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                            : "bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. HIERARCHICAL CATEGORY & SUBCATEGORY TREE */}
+                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-blue-600" />
+                      {isTr ? "Kategoriler" : "Categories"}
+                    </span>
+                    {selectedCategory !== "all" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategory("all");
+                          setSelectedSubCategory("all");
+                        }}
+                        className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                      >
+                        {isTr ? "Tümünü Seç" : "All"}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory("all");
+                        setSelectedSubCategory("all");
+                        setActiveTab("catalog");
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-colors cursor-pointer ${
+                        selectedCategory === "all"
+                          ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900"
+                      }`}
+                    >
+                      <span>{isTr ? "Tüm Kategoriler" : "All Categories"}</span>
+                      <span className="text-[10px] opacity-75 tabular-nums">{processedProducts.length}</span>
+                    </button>
+
+                    {categoryTree.map((node) => {
+                      const isCatSelected = selectedCategory === node.category;
+                      return (
+                        <div key={node.category} className="space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isCatSelected && selectedSubCategory === "all") {
+                                setSelectedCategory("all");
+                              } else {
+                                setSelectedCategory(node.category);
+                                setSelectedSubCategory("all");
+                                setActiveTab("catalog");
+                              }
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-colors cursor-pointer ${
+                              isCatSelected
+                                ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60"
+                                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900"
+                            }`}
+                          >
+                            <span className="truncate pr-2">{node.category}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0 tabular-nums">
+                              {node.count}
+                            </span>
+                          </button>
+
+                          {node.subCategories.length > 0 && isCatSelected && (
+                            <div className="pl-3 ml-2 border-l-2 border-blue-200 dark:border-blue-900 space-y-1 py-1">
+                              {node.subCategories.map((sub) => {
+                                const isSubSelected = selectedSubCategory === sub.name;
+                                return (
+                                  <button
+                                    key={sub.name}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSubCategory(isSubSelected ? "all" : sub.name);
+                                      setActiveTab("catalog");
+                                    }}
+                                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                                      isSubSelected
+                                        ? "bg-blue-600 text-white font-bold"
+                                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+                                    }`}
+                                  >
+                                    <span className="truncate pr-2">{sub.name}</span>
+                                    <span className={`text-[10px] tabular-nums ${isSubSelected ? "text-white/90" : "text-slate-400"}`}>
+                                      {sub.count}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. BRANDS FILTER WITH INSTANT SEARCH */}
+                {brands.length > 0 && (
+                  <div className="space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        {isTr ? "Markalar" : "Brands"}
+                      </span>
+                      {selectedBrand !== "all" && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBrand("all")}
+                          className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                        >
+                          {isTr ? "Temizle" : "Clear"}
+                        </button>
+                      )}
+                    </div>
+
+                    {brands.length > 6 && (
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={brandSearchQuery}
+                          onChange={(e) => setBrandSearchQuery(e.target.value)}
+                          placeholder={isTr ? "Marka ara..." : "Search brand..."}
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1">
+                      {brands
+                        .filter((b) => !brandSearchQuery.trim() || b.toLowerCase().includes(brandSearchQuery.toLowerCase().trim()))
+                        .map((b) => (
+                          <button
+                            key={b}
+                            type="button"
+                            onClick={() => {
+                              setSelectedBrand(selectedBrand === b ? "all" : b);
+                              setActiveTab("catalog");
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                              selectedBrand === b
+                                ? "bg-blue-600 text-white border-blue-600 font-bold"
+                                : "bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            }`}
+                          >
+                            {b}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* STICKY DRAWER FOOTER CTA */}
+              <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("catalog");
+                    setIsFilterDrawerOpen(false);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-blue-600/25 transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-2"
+                >
+                  <span>
+                    {isTr
+                      ? `${finalProductsList.length} Ürünü Göster`
+                      : `Show ${finalProductsList.length} Products`}
+                  </span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* FOOTER */}
       <StoreFooter 
@@ -1275,22 +1570,43 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
       />
 
       {/* MOBILE MODERN BOTTOM APP BAR */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800/90 px-3 py-2 flex items-center justify-around shadow-2xl pb-safe">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800/90 px-2 py-2 flex items-center justify-around shadow-2xl pb-safe">
         <button 
           type="button"
-          onClick={() => { setActiveTab('home'); setSelectedCategory('all'); setSelectedBadge('all'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          onClick={() => {
+            setActiveTab('home');
+            setSelectedCategory('all');
+            setSelectedSubCategory('all');
+            setSelectedBadge('all');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
           className={`flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${activeTab === 'home' && selectedCategory === 'all' && selectedBadge === 'all' ? 'text-blue-600 dark:text-blue-400 font-black' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
         >
           <Sparkles className="h-4.5 w-4.5" />
-          <span className="text-[10px]">{isTr ? "Keşfet" : "Explore"}</span>
+          <span className="text-[10px]">{isTr ? "Vitrin" : "Home"}</span>
         </button>
         <button 
           type="button"
-          onClick={() => { setActiveTab('catalog'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-          className={`flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${activeTab === 'catalog' ? 'text-blue-600 dark:text-blue-400 font-black' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+          onClick={() => openCatalogWithReset({})}
+          className={`flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${activeTab === 'catalog' && !isFilterDrawerOpen ? 'text-blue-600 dark:text-blue-400 font-black' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
         >
           <Package className="h-4.5 w-4.5" />
           <span className="text-[10px]">{isTr ? "Ürünler" : "Catalog"}</span>
+        </button>
+        <button 
+          type="button"
+          onClick={() => setIsFilterDrawerOpen(true)}
+          className={`relative flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${isFilterDrawerOpen || activeFilterCount > 0 ? 'text-blue-600 dark:text-blue-400 font-black' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+        >
+          <div className="relative">
+            <SlidersHorizontal className="h-4.5 w-4.5" />
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1.5 -right-2 bg-blue-600 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px]">{isTr ? "Filtrele" : "Filter"}</span>
         </button>
         <button 
           type="button"
@@ -1306,17 +1622,6 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
             )}
           </div>
           <span className="text-[10px]">{isTr ? "Sepetim" : "Cart"}</span>
-        </button>
-        <button 
-          type="button"
-          onClick={() => {
-            const footer = document.getElementById('store-footer');
-            if (footer) footer.scrollIntoView({ behavior: 'smooth' });
-          }}
-          className="flex flex-col items-center gap-0.5 cursor-pointer transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-        >
-          <PhoneCall className="h-4.5 w-4.5 text-blue-500 dark:text-blue-400" />
-          <span className="text-[10px]">{isTr ? "İletişim" : "Contact"}</span>
         </button>
         <button 
           type="button"
@@ -1364,18 +1669,18 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
   const getRowIcon = (raw: string) => {
     const lower = raw.toLowerCase();
     if (lower.includes("satan") || lower.includes("bestseller") || lower.includes("popüler") || lower.includes("popular")) {
-      return <Flame className="h-4.5 w-4.5 text-amber-500 shrink-0" />;
+      return <Flame className="h-4 w-4 text-amber-500 shrink-0" />;
     }
     if (lower.includes("öne") || lower.includes("one") || lower.includes("featured") || lower.includes("koleksiyon")) {
-      return <Sparkles className="h-4.5 w-4.5 text-blue-500 shrink-0" />;
+      return <Sparkles className="h-4 w-4 text-blue-500 shrink-0" />;
     }
     if (lower.includes("fırsat") || lower.includes("firsat") || lower.includes("indirim") || lower.includes("kampanya") || lower.includes("offer") || lower.includes("deal")) {
-      return <Tag className="h-4.5 w-4.5 text-rose-500 shrink-0" />;
+      return <Tag className="h-4 w-4 text-rose-500 shrink-0" />;
     }
     if (lower.includes("yeni") || lower.includes("new") || lower.includes("arrival")) {
-      return <Clock className="h-4.5 w-4.5 text-indigo-500 shrink-0" />;
+      return <Clock className="h-4 w-4 text-indigo-500 shrink-0" />;
     }
-    return <Package className="h-4.5 w-4.5 text-blue-500 shrink-0" />;
+    return <Package className="h-4 w-4 text-blue-500 shrink-0" />;
   };
 
   const handleScroll = (direction: 'left' | 'right') => {
@@ -1390,20 +1695,20 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
   };
 
   return (
-    <div className="space-y-3 relative group">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm sm:text-base font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+    <div className="space-y-2.5 sm:space-y-3 relative group">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-xs sm:text-base font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5 min-w-0">
           {getRowIcon(title)}
-          <span>{cleanTitle}</span>
-          <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-2 py-0.5 rounded-md">
-            {products.length} Ürün
+          <span className="truncate">{cleanTitle}</span>
+          <span className="hidden sm:inline-block text-[10px] text-slate-500 dark:text-slate-400 font-semibold tabular-nums shrink-0">
+            · {products.length}
           </span>
         </h2>
         {onShowAll && (
           <button
             type="button"
             onClick={onShowAll}
-            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
+            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-[11px] sm:text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-0.5 cursor-pointer transition-colors shrink-0 active:scale-95"
           >
             <span>Tümünü Gör</span>
             <ChevronRight className="h-3.5 w-3.5" />
@@ -1414,18 +1719,18 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
       <div className="relative">
         <button
           onClick={() => handleScroll('left')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 -ml-3 z-20 w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600"
+          className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -ml-3 z-20 w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
 
         <div 
           ref={rowRef}
-          className="flex items-stretch gap-4 overflow-x-auto pb-4 pt-1 scrollbar-none snap-x snap-mandatory"
+          className="flex items-stretch gap-2.5 sm:gap-4 overflow-x-auto pb-2 sm:pb-4 pt-0.5 scrollbar-none snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {products.map(product => (
-            <div key={product.id} className="w-48 sm:w-56 shrink-0 snap-start flex">
+            <div key={product.id} className="w-[156px] xs:w-[168px] sm:w-56 shrink-0 snap-start flex">
               <NetflixProductCard
                 product={product}
                 onViewProduct={onViewProduct}
@@ -1442,7 +1747,7 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
 
         <button
           onClick={() => handleScroll('right')}
-          className="absolute right-0 top-1/2 -translate-y-1/2 -mr-3 z-20 w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600"
+          className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 -mr-3 z-20 w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -1478,12 +1783,12 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
 
   return (
     <motion.div
-      whileHover={enableHoverZoom ? { y: -6, scale: 1.02 } : { y: -2 }}
-      transition={{ duration: 0.2 }}
-      className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-md dark:shadow-none flex flex-col justify-between w-full h-full cursor-pointer relative transition-all"
+      whileHover={enableHoverZoom ? { y: -4 } : { y: -2 }}
+      transition={{ duration: 0.18 }}
+      className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl sm:rounded-2xl overflow-hidden shadow-2xs hover:shadow-md dark:shadow-none flex flex-col justify-between w-full h-full cursor-pointer relative transition-all"
       onClick={() => onViewProduct(product, allProducts)}
     >
-      <div className="relative aspect-[4/3] sm:aspect-[1/1] overflow-hidden bg-white dark:bg-slate-950 flex items-center justify-center p-2.5">
+      <div className="relative aspect-square overflow-hidden bg-white dark:bg-slate-950 flex items-center justify-center p-2 sm:p-2.5">
         <img
           src={coverImg}
           alt={product.name}
@@ -1509,44 +1814,43 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
             }
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/10 dark:from-slate-950/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
         {/* STOCK BADGE */}
         {showStockBadge && (
-          <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1 pointer-events-none">
+          <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 pointer-events-none">
             {isOutOfStock ? (
-              <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white font-black text-[9px] uppercase tracking-wider shadow-sm">
+              <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white font-black text-[8px] sm:text-[9px] uppercase tracking-wider shadow-xs">
                 Tükendi
               </span>
             ) : stockCount > 0 && stockCount <= 3 ? (
-              <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white font-black text-[9px] uppercase tracking-wider shadow-sm">
-                Son {stockCount} Adet
+              <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white font-black text-[8px] sm:text-[9px] uppercase tracking-wider shadow-xs">
+                Son {stockCount}
               </span>
             ) : null}
           </div>
         )}
       </div>
 
-      <div className="p-3 space-y-1.5 flex-1 flex flex-col justify-between">
-        <div className="space-y-1">
+      <div className="p-2.5 sm:p-3 space-y-1.5 flex-1 flex flex-col justify-between">
+        <div className="space-y-0.5">
           {product.brand && (
-            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+            <span className="text-[9px] sm:text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide block truncate">
               {product.brand}
             </span>
           )}
-          <h3 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors leading-snug">
+          <h3 className="font-semibold text-[11px] sm:text-xs text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors leading-snug min-h-[2.4em]">
             {product.name}
           </h3>
         </div>
 
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-sm font-black text-slate-900 dark:text-white">
+        <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-1.5 min-w-0">
+              <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white tabular-nums truncate">
                 ₺{(product.price || 0).toLocaleString('tr-TR')}
               </span>
               {showOldPrice && product.old_price && product.old_price > product.price && (
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through">
+                <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 line-through tabular-nums">
                   ₺{product.old_price.toLocaleString('tr-TR')}
                 </span>
               )}
@@ -1560,7 +1864,7 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
                   e.stopPropagation();
                   addToBasket(product);
                 }}
-                className="p-1.5 bg-slate-100 hover:bg-blue-600 dark:bg-slate-800 dark:hover:bg-blue-600 text-slate-700 hover:text-white dark:text-slate-300 dark:hover:text-white rounded-lg transition-all active:scale-90 cursor-pointer flex items-center justify-center"
+                className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 bg-slate-100 hover:bg-blue-600 dark:bg-slate-800 dark:hover:bg-blue-600 text-slate-700 hover:text-white dark:text-slate-300 dark:hover:text-white rounded-lg transition-all active:scale-90 cursor-pointer flex items-center justify-center"
                 title="Sepete Ekle"
               >
                 <ShoppingBag className="h-3.5 w-3.5" />

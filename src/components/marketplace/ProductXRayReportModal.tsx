@@ -232,8 +232,23 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
     };
   };
 
+  const isServiceProduct = (p: any): boolean => {
+    if (!p) return false;
+    const pType = String(p.product_type || '').trim().toLowerCase();
+    if (pType === 'service' || pType === 'hizmet' || pType === 'servis') return true;
+    const cat = String(p.category || '').trim().toLocaleLowerCase('tr-TR');
+    const subCat = String(p.sub_category || '').trim().toLocaleLowerCase('tr-TR');
+    if (cat === 'servis' || cat === 'hizmet' || cat === 'hizmet/servis' || cat === 'servis/hizmet') return true;
+    if (subCat.includes('servis') || subCat.includes('hizmet')) return true;
+    return false;
+  };
+
+  const physicalProducts = useMemo(() => {
+    return products.filter(p => !isServiceProduct(p));
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
+    return physicalProducts.filter(p => {
       const query = searchTerm.toLowerCase().trim();
       if (query) {
         const matchesName = (p.name || '').toLowerCase().includes(query);
@@ -262,10 +277,10 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
 
       return true;
     });
-  }, [products, searchTerm, channelFilter, usdRate, eurRate]);
+  }, [physicalProducts, searchTerm, channelFilter, usdRate, eurRate]);
 
   const metrics = useMemo(() => {
-    let totalProducts = products.length;
+    let totalProducts = physicalProducts.length;
     let webActive = 0;
     let hbActive = 0;
     let amzActive = 0;
@@ -274,7 +289,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
     let underpricedCount = 0;
     let totalStockQty = 0;
 
-    products.forEach(p => {
+    physicalProducts.forEach(p => {
       const sc = getProductChannelScenario(p);
       if (p.is_web_sale) webActive++;
       if (p.is_hepsiburada_active) hbActive++;
@@ -427,430 +442,630 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
     }
   };
 
+  const [visibleCount, setVisibleCount] = useState<number>(40);
+
   if (!isOpen) return null;
 
+  const filterChips = [
+    { id: "all", label: isTr ? "Tümü" : "All", count: metrics.totalProducts, color: "indigo" },
+    { id: "underpriced", label: isTr ? "⚠️ Düşük Fiyat" : "⚠️ Underpriced", count: metrics.underpricedCount, color: "rose" },
+    { id: "web", label: "Web", count: metrics.webActive, color: "indigo" },
+    { id: "hepsiburada", label: "Hepsiburada", count: metrics.hbActive, color: "orange" },
+    { id: "amazon", label: "Amazon TR", count: metrics.amzActive, color: "amber" },
+    { id: "trendyol", label: "Trendyol", count: metrics.tyActive, color: "orange" },
+    { id: "n11", label: "N11", count: metrics.n11Active, color: "red" },
+    { id: "pazarama", label: "Pazarama", count: physicalProducts.filter(p => p.is_pazarama_active).length, color: "blue" },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-6 animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-7xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh] overflow-hidden">
-        
-        {/* HEADER */}
-        <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-md">
-              <Activity className="h-6 w-6" />
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-0 sm:p-4 md:p-6 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-slate-900 w-full max-w-[100vw] sm:max-w-7xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-3xl shadow-2xl border-0 sm:border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
+      >
+        {/* COMPACT STICKY HEADER - ALWAYS VISIBLE CLOSE & EXCEL ACTIONS */}
+        <div className="px-3.5 py-2.5 sm:px-5 sm:py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 bg-white dark:bg-slate-900 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-xs shrink-0">
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
-                  {isTr ? "Çok Kanallı Ürün Röntgeni & Fiyat Strateji Denetimi" : "Multi-Channel Product X-Ray & Pricing Audit"}
+                <h3 className="text-xs sm:text-base md:text-lg font-black text-slate-900 dark:text-white tracking-tight truncate">
+                  {isTr ? "Çok Kanallı Ürün Röntgeni & Fiyat Denetimi" : "Multi-Channel Product X-Ray & Pricing Audit"}
                 </h3>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-black uppercase tracking-wider">
+                <span className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold shrink-0">
                   <TrendingUp className="h-3 w-3" />
-                  {isTr ? "Reel Listeleme vs Hedef Strateji" : "Live Price vs Target Strategy"}
+                  {isTr ? "Canlı vs Hedef Strateji" : "Live vs Target"}
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs">
-                <p className="font-medium text-slate-500 dark:text-slate-400">
-                  {isTr ? `${storeName} mağazasının pazar yerlerindeki canlı satış fiyatları, hedef komisyonlu strateji fiyatları ve düşük kalan ürünlerin röntgeni.` : `Audit live listing prices versus targeted commission strategies across all channels.`}
-                </p>
-                <div className="inline-flex items-center gap-2 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 font-mono">
-                  <span>TCMB: 1 USD = {usdRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</span>
-                  <span>•</span>
-                  <span>1 EUR = {eurRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</span>
-                </div>
+              <div className="flex items-center gap-2 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                  1$ = {usdRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}₺ · 1€ = {eurRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}₺
+                </span>
+                <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+                <span className="hidden sm:inline truncate">
+                  {isTr ? `${storeName} pazaryeri fiyat ve komisyon uyumluluk denetimi` : `${storeName} channel price audit`}
+                </span>
               </div>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={handleExportExcel}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+              className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+              title={isTr ? "Excel İndir (.xlsx)" : "Export Excel"}
             >
-              <Download className="h-4 w-4" />
-              <span>{isTr ? "Excel İndir (.xlsx)" : "Export Excel"}</span>
+              <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+              <span className="hidden xs:inline">{isTr ? "Excel" : "Excel"}</span>
+              <span className="hidden md:inline">{isTr ? "İndir (.xlsx)" : "Export"}</span>
             </button>
+
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              aria-label={isTr ? "Kapat" : "Close"}
+              className="px-2.5 py-1.5 sm:px-3 sm:py-2 bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-700 hover:text-rose-600 dark:text-slate-200 dark:hover:text-rose-400 rounded-xl font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer active:scale-95 shrink-0 border border-slate-200/80 dark:border-slate-700"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4 shrink-0" />
+              <span>{isTr ? "Kapat" : "Close"}</span>
             </button>
           </div>
         </div>
 
-        {/* METRICS BAR */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 p-4 sm:p-5 bg-indigo-50/40 dark:bg-slate-950/40 border-b border-indigo-100 dark:border-slate-800 shrink-0">
-          <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase block">{isTr ? "Toplam Ürün" : "Total Products"}</span>
-            <span className="text-lg font-black text-slate-900 dark:text-white mt-0.5 block">{metrics.totalProducts}</span>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase block">{isTr ? "Web'de Aktif" : "Web Active"}</span>
-            <span className="text-lg font-black text-indigo-600 dark:text-indigo-400 mt-0.5 block">{metrics.webActive}</span>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase block">Hepsiburada</span>
-            <span className="text-lg font-black text-orange-600 dark:text-orange-400 mt-0.5 block">{metrics.hbActive}</span>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase block">Amazon TR</span>
-            <span className="text-lg font-black text-amber-600 dark:text-amber-400 mt-0.5 block">{metrics.amzActive}</span>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase block">Trendyol</span>
-            <span className="text-lg font-black text-orange-500 dark:text-orange-300 mt-0.5 block">{metrics.tyActive}</span>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase block">N11</span>
-            <span className="text-lg font-black text-red-600 dark:text-red-400 mt-0.5 block">{metrics.n11Active}</span>
-          </div>
-          
-          {/* UNDERPRICED HIGHLIGHT METRIC */}
-          <div className={`p-3 rounded-2xl border shadow-2xs cursor-pointer transition-all ${
-            metrics.underpricedCount > 0 
-              ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 ring-2 ring-rose-500/20' 
-              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-          }`}
-          onClick={() => setChannelFilter(channelFilter === 'underpriced' ? 'all' : 'underpriced')}
-          title={isTr ? "Fiyatı düşük kalan ürünleri filtrelemek için tıklayın" : "Click to filter underpriced products"}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-rose-700 dark:text-rose-400 uppercase block">{isTr ? "Düşük Fiyat" : "Underpriced"}</span>
-              <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-            </div>
-            <span className="text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5 block">{metrics.underpricedCount}</span>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase block">{isTr ? "Listelenen" : "Listed"}</span>
-            <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block">{filteredProducts.length}</span>
-          </div>
-        </div>
-
-        {/* TOOLBAR & SEARCH */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div className="relative flex-1 min-w-[240px] max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={isTr ? "Ürün adı, barkod veya SKU ile ara..." : "Search product name, barcode or SKU..."}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-xs font-bold border border-transparent focus:border-indigo-500 outline-none transition-all"
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            <button
-              type="button"
-              onClick={() => setChannelFilter('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-                channelFilter === 'all' 
-                  ? 'bg-indigo-600 text-white shadow-md' 
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              {isTr ? "Tüm Kanallar" : "All Channels"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setChannelFilter('underpriced')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                channelFilter === 'underpriced' 
-                  ? 'bg-rose-600 text-white shadow-md' 
-                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100'
-              }`}
-            >
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              <span>{isTr ? "⚠️ Fiyatı Düşük Kalanlar" : "⚠️ Underpriced Only"}</span>
-              {metrics.underpricedCount > 0 && (
-                <span className="px-1.5 py-0.2 bg-rose-700 text-white rounded-full text-[10px] font-black">
-                  {metrics.underpricedCount}
-                </span>
+        {/* MINIMALIST UNIFIED SEARCH + INTERACTIVE METRIC/CHANNEL PILL BAR */}
+        <div className="px-3.5 py-2.5 sm:px-5 sm:py-3 bg-slate-50/80 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 space-y-2 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setVisibleCount(40);
+                }}
+                placeholder={isTr ? "Ürün adı, barkod veya SKU ara..." : "Search product name, barcode or SKU..."}
+                className="w-full pl-8 pr-8 py-1.5 sm:py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none transition-all"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               )}
-            </button>
+            </div>
 
-            {['web', 'hepsiburada', 'amazon', 'trendyol', 'n11', 'pazarama'].map((ch) => (
-              <button
-                key={ch}
-                type="button"
-                onClick={() => setChannelFilter(ch)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-                  channelFilter === ch 
-                    ? 'bg-indigo-600 text-white shadow-md' 
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                {ch === 'amazon' ? 'Amazon TR' : ch}
-              </button>
-            ))}
+            <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0 tabular-nums">
+              <span>{isTr ? "Listelenen:" : "Showing:"}</span>
+              <span className="text-slate-900 dark:text-white font-black">{filteredProducts.length}</span>
+              <span>/ {metrics.totalProducts}</span>
+            </div>
+          </div>
+
+          {/* SINGLE-LINE HORIZONTAL SCROLLABLE METRIC & FILTER CHIPS */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            {filterChips.map((chip) => {
+              const isActive = channelFilter === chip.id;
+              const isUnderpricedChip = chip.id === "underpriced";
+              return (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() => {
+                    setChannelFilter(isActive && chip.id !== "all" ? "all" : chip.id);
+                    setVisibleCount(40);
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 border ${
+                    isActive
+                      ? isUnderpricedChip
+                        ? "bg-rose-600 text-white border-rose-600 shadow-xs"
+                        : "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                      : isUnderpricedChip && chip.count > 0
+                      ? "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/80"
+                      : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <span>{chip.label}</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-md text-[10px] font-black tabular-nums ${
+                      isActive
+                        ? "bg-white/20 text-white"
+                        : isUnderpricedChip && chip.count > 0
+                        ? "bg-rose-600 text-white"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                    }`}
+                  >
+                    {chip.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* TABLE CONTENT */}
-        <div className="flex-1 overflow-auto p-4 sm:p-6">
+        {/* SCROLLABLE BODY: MOBILE MINIMALIST CARDS + DESKTOP FULL TABLE */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-5">
           {filteredProducts.length === 0 ? (
             <div className="text-center py-16 text-slate-400">
-              <Package className="h-12 w-12 mx-auto mb-3 opacity-40" />
-              <p className="text-sm font-bold">{isTr ? "Kriterlere uygun ürün bulunamadı." : "No products found matching criteria."}</p>
+              <Package className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+              <p className="text-xs sm:text-sm font-bold">
+                {isTr ? "Kriterlere uygun ürün bulunamadı." : "No products found matching criteria."}
+              </p>
+              {channelFilter !== "all" || searchTerm ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChannelFilter("all");
+                    setSearchTerm("");
+                  }}
+                  className="mt-3 px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  {isTr ? "Filtreyi Sıfırla" : "Reset Filter"}
+                </button>
+              ) : null}
             </div>
           ) : (
-            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black uppercase tracking-wider text-[10px]">
-                    <th className="p-3">#</th>
-                    <th className="p-3">{isTr ? "Ürün Adı & Barkod" : "Product Name & Barcode"}</th>
-                    <th className="p-3 text-center">{isTr ? "Reel Stok" : "Stock Qty"}</th>
-                    <th className="p-3 text-right">{isTr ? "Alış Maliyeti" : "Cost"}</th>
-                    <th className="p-3 text-right">{isTr ? "Web Satış Bedeli" : "Web Price"}</th>
-                    <th className="p-3 text-center">Hepsiburada (Canlı / Strateji)</th>
-                    <th className="p-3 text-center">Amazon TR (Canlı / Strateji)</th>
-                    <th className="p-3 text-center">Trendyol (Canlı / Strateji)</th>
-                    <th className="p-3 text-center">N11 (Canlı / Strateji)</th>
-                    <th className="p-3 text-center">Pazarama</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {filteredProducts.map((p, idx) => {
-                    const sc = getProductChannelScenario(p);
-                    const isHbLive = Boolean(p.is_hepsiburada_active);
-                    const isTyLive = Boolean(p.is_trendyol_active);
-                    const isN11Live = Boolean(p.is_n11_active);
-                    const isPzrLive = Boolean(p.is_pazarama_active);
-                    const isWebLive = Boolean(p.is_web_sale);
-                    const stockQty = parseFloat(p.stock_quantity || 0);
+            <div className="space-y-4">
+              {/* 1. MOBILE MINIMALIST CARD LIST (< md) - ZERO HORIZONTAL OVERFLOW */}
+              <div className="md:hidden space-y-2.5">
+                {filteredProducts.slice(0, visibleCount).map((p, idx) => {
+                  const sc = getProductChannelScenario(p);
+                  const isHbLive = Boolean(p.is_hepsiburada_active);
+                  const isTyLive = Boolean(p.is_trendyol_active);
+                  const isN11Live = Boolean(p.is_n11_active);
+                  const isPzrLive = Boolean(p.is_pazarama_active);
+                  const isWebLive = Boolean(p.is_web_sale);
+                  const stockQty = parseFloat(p.stock_quantity || 0);
 
-                    return (
-                      <tr key={p.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors ${
-                        sc.hasAnyUnderpriced ? 'bg-rose-50/30 dark:bg-rose-950/20' : ''
-                      }`}>
-                        <td className="p-3 font-bold text-slate-400">{idx + 1}</td>
-                        <td className="p-3">
-                          <div className="font-black text-slate-900 dark:text-white max-w-xs truncate flex items-center gap-1.5">
+                  return (
+                    <div
+                      key={p.id || idx}
+                      className={`rounded-2xl border p-3 space-y-2.5 transition-all ${
+                        sc.hasAnyUnderpriced
+                          ? "bg-rose-50/40 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/80"
+                          : "bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800"
+                      }`}
+                    >
+                      {/* Card Header: Name, Barcode & Stock */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 tabular-nums">#{idx + 1}</span>
                             {sc.hasAnyUnderpriced && (
-                              <span title={isTr ? "Pazaryerinde fiyatı formüle göre düşük kalmış!" : "Underpriced in marketplace!"}>
-                                <AlertTriangle className="h-3.5 w-3.5 text-rose-500 shrink-0 inline" />
-                              </span>
+                              <AlertTriangle className="h-3.5 w-3.5 text-rose-500 shrink-0" />
                             )}
-                            <span className="truncate">{p.name}</span>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white line-clamp-1">
+                              {p.name}
+                            </h4>
                           </div>
-                          <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1 mt-0.5">
-                            <Barcode className="h-3 w-3" />
-                            <span>{p.barcode || p.sku || 'N/A'}</span>
+                          <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1.5 mt-0.5">
+                            <span>{p.barcode || p.sku || "Barkodsuz"}</span>
+                            {isWebLive && (
+                              <span className="text-indigo-600 dark:text-indigo-400 font-sans font-bold">· Web Aktif</span>
+                            )}
                           </div>
-                        </td>
-                        <td className="p-3 text-center">
-                          <span className={`inline-flex px-2 py-0.5 rounded-md font-black text-xs ${
-                            stockQty <= 0 
-                              ? 'bg-rose-100 text-rose-800 border border-rose-300' 
-                              : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                          }`}>
-                            {stockQty} {p.unit || 'Adet'}
+                        </div>
+
+                        <span
+                          className={`px-2 py-0.5 rounded-lg font-black text-[10px] shrink-0 tabular-nums ${
+                            stockQty <= 0
+                              ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                              : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                          }`}
+                        >
+                          {stockQty} {p.unit || "Adet"}
+                        </span>
+                      </div>
+
+                      {/* Base Cost & Web Price Compact Strip */}
+                      <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-100 dark:border-slate-800/80 text-[11px]">
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block">
+                            {isTr ? "Alış Maliyeti" : "Cost"}
                           </span>
-                        </td>
-
-                        {/* Cost Price */}
-                        <td className="p-3 text-right font-mono">
-                          <div className="font-bold text-slate-700 dark:text-slate-200">
+                          <span className="font-mono font-bold text-slate-700 dark:text-slate-200 tabular-nums">
                             {formatWithCurrency(sc.costPrice, sc.costCurr)}
-                          </div>
-                          {sc.costCurr !== 'TRY' && sc.costPrice > 0 && (
-                            <div className="text-[10px] text-slate-400 font-semibold" title={isTr ? "TCMB Alış Kuru ile TRY Karşılığı" : "TRY Equivalent"}>
-                              ≈ {sc.costPriceTry.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
-                            </div>
+                          </span>
+                          {sc.costCurr !== "TRY" && sc.costPrice > 0 && (
+                            <span className="text-[9px] font-mono text-slate-400 block tabular-nums">
+                              ≈ {sc.costPriceTry.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+                            </span>
                           )}
-                        </td>
+                        </div>
 
-                        {/* Web Price */}
-                        <td className="p-3 text-right font-mono">
-                          <div className="font-black text-indigo-600 dark:text-indigo-400">
+                        <div className="text-right">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block">
+                            {isTr ? "Web Satış" : "Web Price"}
+                          </span>
+                          <span className="font-mono font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
                             {formatWithCurrency(sc.rawWebPrice, sc.webCurr)}
-                          </div>
-                          {sc.webCurr !== 'TRY' && sc.rawWebPrice > 0 && (
-                            <div className="text-[10px] text-indigo-400 dark:text-indigo-300 font-semibold" title={isTr ? "TCMB Kuru ile Web Satış Değeri (TRY)" : "TRY Equivalent"}>
-                              ≈ {sc.webPriceTry.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
-                            </div>
+                          </span>
+                          {sc.webCurr !== "TRY" && sc.rawWebPrice > 0 && (
+                            <span className="text-[9px] font-mono text-indigo-400 block tabular-nums">
+                              ≈ {sc.webPriceTry.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+                            </span>
                           )}
-                          <div className="text-[9px] font-bold text-slate-400 mt-0.5">
-                            {isWebLive ? (isTr ? "Web'de Aktif" : "Web Live") : (isTr ? "Web Pasif" : "Web Off")}
-                          </div>
-                        </td>
-                        
+                        </div>
+                      </div>
+
+                      {/* Marketplace Channels Grid (2-Column Compact Cards) */}
+                      <div className="grid grid-cols-2 gap-1.5 text-[10px]">
                         {/* Hepsiburada */}
-                        <td className="p-3 text-center">
+                        <div
+                          className={`p-2 rounded-xl border flex flex-col justify-between ${
+                            !isHbLive
+                              ? "bg-slate-50/50 dark:bg-slate-950/30 border-slate-100 dark:border-slate-800/50 opacity-60"
+                              : sc.hbIsUnderpriced
+                              ? "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800"
+                              : "bg-orange-50/50 dark:bg-orange-950/20 border-orange-200/70 dark:border-orange-900/50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-black text-orange-600 dark:text-orange-400">Hepsiburada</span>
+                            {isHbLive && sc.hbUrl && (
+                              <a href={sc.hbUrl} target="_blank" rel="noreferrer" className="text-orange-600 p-0.5">
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
                           {isHbLive ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-center gap-1">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black ${
-                                  sc.hbIsUnderpriced 
-                                    ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                                    : 'bg-orange-100 text-orange-900 border border-orange-300'
-                                }`}>
-                                  <CheckCircle2 className="h-3 w-3 text-orange-600 shrink-0" />
-                                  <span>{sc.hbLivePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
-                                </span>
-                                {sc.hbUrl && (
-                                  <a 
-                                    href={sc.hbUrl} 
-                                    target="_blank" 
-                                    rel="noreferrer" 
-                                    className="text-orange-600 hover:text-orange-800 p-0.5" 
-                                    title={isTr ? "Hepsiburada ürün sayfasına git" : "View on Hepsiburada"}
-                                  >
-                                    <ExternalLink className="h-3 w-3" />
-                                  </a>
-                                )}
+                            <div className="mt-1">
+                              <div className="font-mono font-black text-xs text-slate-900 dark:text-white tabular-nums">
+                                {sc.hbLivePrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺
                               </div>
-
-                              {sc.hbIsUnderpriced ? (
-                                <div className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded inline-block" title={isTr ? "Döviz veya komisyon kuralına göre olması gereken hedef fiyat" : "Target Formula Price"}>
-                                  ⚠️ Hedef: {sc.hbTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ (-{sc.hbPriceDiff.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺)
-                                </div>
-                              ) : (
-                                <div className="text-[8px] font-medium text-slate-400" title={isTr ? `Hedef: ${sc.hbTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺` : "Target Formula Price"}>
-                                  Hedef: {sc.hbTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
-                                </div>
-                              )}
-
-                              <div className="text-[9px] font-bold text-emerald-700">Stok: {stockQty}</div>
-                              <div className="text-[8px] font-mono text-slate-400 truncate max-w-[100px] mx-auto">
-                                {p.hepsiburada_sku || '-'}
+                              <div className={`text-[9px] font-semibold tabular-nums ${sc.hbIsUnderpriced ? "text-rose-600 font-bold" : "text-slate-400"}`}>
+                                Hedef: {sc.hbTargetPrice.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+                                {sc.hbIsUnderpriced && ` (-${sc.hbPriceDiff.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}₺)`}
                               </div>
                             </div>
                           ) : (
-                            <span className="text-[10px] font-bold text-slate-400">Pasif</span>
+                            <span className="text-[9px] font-semibold text-slate-400 mt-1">Pasif</span>
                           )}
-                        </td>
+                        </div>
 
                         {/* Amazon TR */}
-                        <td className="p-3 text-center">
+                        <div
+                          className={`p-2 rounded-xl border flex flex-col justify-between ${
+                            !sc.isAmzLive
+                              ? "bg-slate-50/50 dark:bg-slate-950/30 border-slate-100 dark:border-slate-800/50 opacity-60"
+                              : sc.amzIsUnderpriced
+                              ? "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800"
+                              : "bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/70 dark:border-amber-900/50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-black text-amber-600 dark:text-amber-400">Amazon TR</span>
+                            {sc.isAmzLive && sc.amzUrl && (
+                              <a href={sc.amzUrl} target="_blank" rel="noreferrer" className="text-amber-600 p-0.5">
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
                           {sc.isAmzLive ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-center gap-1">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black ${
-                                  sc.amzIsUnderpriced 
-                                    ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                                    : 'bg-amber-100 text-amber-900 border border-amber-300'
-                                }`}>
-                                  <CheckCircle2 className="h-3 w-3 text-amber-600 shrink-0" />
-                                  <span>{sc.amzLivePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
-                                </span>
-                                {sc.amzUrl && (
-                                  <a 
-                                    href={sc.amzUrl} 
-                                    target="_blank" 
-                                    rel="noreferrer" 
-                                    className="text-amber-600 hover:text-amber-800 p-0.5" 
-                                    title={isTr ? "Amazon TR ürün sayfasına git" : "View on Amazon TR"}
-                                  >
-                                    <ExternalLink className="h-3 w-3" />
-                                  </a>
-                                )}
+                            <div className="mt-1">
+                              <div className="font-mono font-black text-xs text-slate-900 dark:text-white tabular-nums">
+                                {sc.amzLivePrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺
                               </div>
-
-                              {sc.amzIsUnderpriced ? (
-                                <div className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded inline-block" title={isTr ? "Döviz ve komisyon stratejisine göre olması gereken hedef fiyat" : "Target Formula Price"}>
-                                  ⚠️ Hedef: {sc.amzTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ (-{sc.amzPriceDiff.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺)
-                                </div>
-                              ) : (
-                                <div className="text-[8px] font-medium text-slate-400" title={isTr ? `Hedef: ${sc.amzTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺` : "Target Formula Price"}>
-                                  Hedef: {sc.amzTargetPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
-                                </div>
-                              )}
-
-                              <div className="text-[9px] font-bold text-emerald-700">Stok: {stockQty}</div>
-                              <div className="text-[8px] font-mono text-slate-400 truncate max-w-[100px] mx-auto" title={sc.cleanAmzAsin || ''}>
-                                {sc.cleanAmzAsin || '-'}
+                              <div className={`text-[9px] font-semibold tabular-nums ${sc.amzIsUnderpriced ? "text-rose-600 font-bold" : "text-slate-400"}`}>
+                                Hedef: {sc.amzTargetPrice.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+                                {sc.amzIsUnderpriced && ` (-${sc.amzPriceDiff.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}₺)`}
                               </div>
                             </div>
                           ) : (
-                            <span className="text-[10px] font-bold text-slate-400">Pasif</span>
+                            <span className="text-[9px] font-semibold text-slate-400 mt-1">Pasif</span>
                           )}
-                        </td>
-
-                        {/* Trendyol */}
-                        <td className="p-3 text-center">
-                          {isTyLive ? (
-                            <div className="space-y-0.5">
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black ${
-                                sc.tyIsUnderpriced
-                                  ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                                  : 'bg-orange-50 text-orange-800 border border-orange-200'
-                              }`}>
-                                <CheckCircle2 className="h-3 w-3 text-orange-500 shrink-0" />
-                                <span>{sc.tyLivePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
-                              </span>
-                              <div className="text-[9px] font-bold text-emerald-700">Stok: {stockQty}</div>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] font-bold text-slate-400">Pasif</span>
-                          )}
-                        </td>
+                        </div>
 
                         {/* N11 */}
-                        <td className="p-3 text-center">
+                        <div
+                          className={`p-2 rounded-xl border flex items-center justify-between ${
+                            isN11Live
+                              ? "bg-red-50/50 dark:bg-red-950/20 border-red-200/70 dark:border-red-900/50"
+                              : "bg-slate-50/50 dark:bg-slate-950/30 border-slate-100 dark:border-slate-800/50 opacity-60"
+                          }`}
+                        >
+                          <span className="font-black text-red-600 dark:text-red-400">N11</span>
                           {isN11Live ? (
-                            <div className="space-y-0.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-800 border border-red-200 rounded-md text-[10px] font-black">
-                                <CheckCircle2 className="h-3 w-3 text-red-500 shrink-0" />
-                                <span>{sc.n11LivePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
-                              </span>
-                              <div className="text-[9px] font-bold text-emerald-700">Stok: {stockQty}</div>
-                            </div>
+                            <span className="font-mono font-black text-[11px] text-slate-900 dark:text-white tabular-nums">
+                              {sc.n11LivePrice.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+                            </span>
                           ) : (
-                            <span className="text-[10px] font-bold text-slate-400">Pasif</span>
+                            <span className="text-[9px] font-semibold text-slate-400">Pasif</span>
                           )}
-                        </td>
+                        </div>
 
-                        {/* Pazarama */}
-                        <td className="p-3 text-center">
-                          {isPzrLive ? (
-                            <div className="space-y-0.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded-md text-[10px] font-black">
-                                <CheckCircle2 className="h-3 w-3 text-blue-500 shrink-0" />
-                                <span>{sc.pzrLivePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
-                              </span>
-                              <div className="text-[9px] font-bold text-emerald-700">Stok: {stockQty}</div>
-                            </div>
+                        {/* Trendyol / Pazarama */}
+                        <div
+                          className={`p-2 rounded-xl border flex items-center justify-between ${
+                            isTyLive || isPzrLive
+                              ? "bg-orange-50/50 dark:bg-orange-950/20 border-orange-200/70 dark:border-orange-900/50"
+                              : "bg-slate-50/50 dark:bg-slate-950/30 border-slate-100 dark:border-slate-800/50 opacity-60"
+                          }`}
+                        >
+                          <span className="font-black text-orange-500">Trendyol</span>
+                          {isTyLive ? (
+                            <span className="font-mono font-black text-[11px] text-slate-900 dark:text-white tabular-nums">
+                              {sc.tyLivePrice.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+                            </span>
                           ) : (
-                            <span className="text-[10px] font-bold text-slate-400">Pasif</span>
+                            <span className="text-[9px] font-semibold text-slate-400">Pasif</span>
                           )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 2. DESKTOP HIGH-DENSITY TABLE (md and up) */}
+              <div className="hidden md:block overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black uppercase tracking-wider text-[10px]">
+                      <th className="p-3">#</th>
+                      <th className="p-3">{isTr ? "Ürün Adı & Barkod" : "Product Name & Barcode"}</th>
+                      <th className="p-3 text-center">{isTr ? "Reel Stok" : "Stock Qty"}</th>
+                      <th className="p-3 text-right">{isTr ? "Alış Maliyeti" : "Cost"}</th>
+                      <th className="p-3 text-right">{isTr ? "Web Satış Bedeli" : "Web Price"}</th>
+                      <th className="p-3 text-center">Hepsiburada (Canlı / Strateji)</th>
+                      <th className="p-3 text-center">Amazon TR (Canlı / Strateji)</th>
+                      <th className="p-3 text-center">Trendyol (Canlı / Strateji)</th>
+                      <th className="p-3 text-center">N11 (Canlı / Strateji)</th>
+                      <th className="p-3 text-center">Pazarama</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {filteredProducts.slice(0, visibleCount).map((p, idx) => {
+                      const sc = getProductChannelScenario(p);
+                      const isHbLive = Boolean(p.is_hepsiburada_active);
+                      const isTyLive = Boolean(p.is_trendyol_active);
+                      const isN11Live = Boolean(p.is_n11_active);
+                      const isPzrLive = Boolean(p.is_pazarama_active);
+                      const isWebLive = Boolean(p.is_web_sale);
+                      const stockQty = parseFloat(p.stock_quantity || 0);
+
+                      return (
+                        <tr
+                          key={p.id || idx}
+                          className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors ${
+                            sc.hasAnyUnderpriced ? "bg-rose-50/30 dark:bg-rose-950/20" : ""
+                          }`}
+                        >
+                          <td className="p-3 font-bold text-slate-400 tabular-nums">{idx + 1}</td>
+                          <td className="p-3">
+                            <div className="font-black text-slate-900 dark:text-white max-w-xs truncate flex items-center gap-1.5">
+                              {sc.hasAnyUnderpriced && (
+                                <span title={isTr ? "Pazaryerinde fiyatı formüle göre düşük kalmış!" : "Underpriced in marketplace!"}>
+                                  <AlertTriangle className="h-3.5 w-3.5 text-rose-500 shrink-0 inline" />
+                                </span>
+                              )}
+                              <span className="truncate">{p.name}</span>
+                            </div>
+                            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1 mt-0.5">
+                              <Barcode className="h-3 w-3" />
+                              <span>{p.barcode || p.sku || "N/A"}</span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-center">
+                            <span
+                              className={`inline-flex px-2 py-0.5 rounded-md font-black text-xs tabular-nums ${
+                                stockQty <= 0
+                                  ? "bg-rose-100 text-rose-800 border border-rose-300"
+                                  : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              }`}
+                            >
+                              {stockQty} {p.unit || "Adet"}
+                            </span>
+                          </td>
+
+                          {/* Cost Price */}
+                          <td className="p-3 text-right font-mono tabular-nums">
+                            <div className="font-bold text-slate-700 dark:text-slate-200">
+                              {formatWithCurrency(sc.costPrice, sc.costCurr)}
+                            </div>
+                            {sc.costCurr !== "TRY" && sc.costPrice > 0 && (
+                              <div className="text-[10px] text-slate-400 font-semibold">
+                                ≈ {sc.costPriceTry.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Web Price */}
+                          <td className="p-3 text-right font-mono tabular-nums">
+                            <div className="font-black text-indigo-600 dark:text-indigo-400">
+                              {formatWithCurrency(sc.rawWebPrice, sc.webCurr)}
+                            </div>
+                            {sc.webCurr !== "TRY" && sc.rawWebPrice > 0 && (
+                              <div className="text-[10px] text-indigo-400 dark:text-indigo-300 font-semibold">
+                                ≈ {sc.webPriceTry.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
+                              </div>
+                            )}
+                            <div className="text-[9px] font-bold text-slate-400 mt-0.5">
+                              {isWebLive ? (isTr ? "Web'de Aktif" : "Web Live") : (isTr ? "Web Pasif" : "Web Off")}
+                            </div>
+                          </td>
+
+                          {/* Hepsiburada */}
+                          <td className="p-3 text-center">
+                            {isHbLive ? (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-center gap-1">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black tabular-nums ${
+                                      sc.hbIsUnderpriced
+                                        ? "bg-rose-100 text-rose-900 border border-rose-300"
+                                        : "bg-orange-100 text-orange-900 border border-orange-300"
+                                    }`}
+                                  >
+                                    <CheckCircle2 className="h-3 w-3 text-orange-600 shrink-0" />
+                                    <span>{sc.hbLivePrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺</span>
+                                  </span>
+                                  {sc.hbUrl && (
+                                    <a
+                                      href={sc.hbUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-orange-600 hover:text-orange-800 p-0.5"
+                                    >
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
+                                {sc.hbIsUnderpriced ? (
+                                  <div className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded inline-block tabular-nums">
+                                    ⚠️ Hedef: {sc.hbTargetPrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺ (-{sc.hbPriceDiff.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺)
+                                  </div>
+                                ) : (
+                                  <div className="text-[8px] font-medium text-slate-400 tabular-nums">
+                                    Hedef: {sc.hbTargetPrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-400">Pasif</span>
+                            )}
+                          </td>
+
+                          {/* Amazon TR */}
+                          <td className="p-3 text-center">
+                            {sc.isAmzLive ? (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-center gap-1">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black tabular-nums ${
+                                      sc.amzIsUnderpriced
+                                        ? "bg-rose-100 text-rose-900 border border-rose-300"
+                                        : "bg-amber-100 text-amber-900 border border-amber-300"
+                                    }`}
+                                  >
+                                    <CheckCircle2 className="h-3 w-3 text-amber-600 shrink-0" />
+                                    <span>{sc.amzLivePrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺</span>
+                                  </span>
+                                  {sc.amzUrl && (
+                                    <a
+                                      href={sc.amzUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-amber-600 hover:text-amber-800 p-0.5"
+                                    >
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
+                                {sc.amzIsUnderpriced ? (
+                                  <div className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded inline-block tabular-nums">
+                                    ⚠️ Hedef: {sc.amzTargetPrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺ (-{sc.amzPriceDiff.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺)
+                                  </div>
+                                ) : (
+                                  <div className="text-[8px] font-medium text-slate-400 tabular-nums">
+                                    Hedef: {sc.amzTargetPrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-400">Pasif</span>
+                            )}
+                          </td>
+
+                          {/* Trendyol */}
+                          <td className="p-3 text-center">
+                            {isTyLive ? (
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black tabular-nums ${
+                                  sc.tyIsUnderpriced
+                                    ? "bg-rose-100 text-rose-900 border border-rose-300"
+                                    : "bg-orange-50 text-orange-800 border border-orange-200"
+                                }`}
+                              >
+                                <CheckCircle2 className="h-3 w-3 text-orange-500 shrink-0" />
+                                <span>{sc.tyLivePrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-400">Pasif</span>
+                            )}
+                          </td>
+
+                          {/* N11 */}
+                          <td className="p-3 text-center">
+                            {isN11Live ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-800 border border-red-200 rounded-md text-[10px] font-black tabular-nums">
+                                <CheckCircle2 className="h-3 w-3 text-red-500 shrink-0" />
+                                <span>{sc.n11LivePrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-400">Pasif</span>
+                            )}
+                          </td>
+
+                          {/* Pazarama */}
+                          <td className="p-3 text-center">
+                            {isPzrLive ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded-md text-[10px] font-black tabular-nums">
+                                <CheckCircle2 className="h-3 w-3 text-blue-500 shrink-0" />
+                                <span>{sc.pzrLivePrice.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-400">Pasif</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {visibleCount < filteredProducts.length && (
+                <div className="flex justify-center pt-2 pb-4">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => prev + 40)}
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+                  >
+                    {isTr
+                      ? `Daha Fazla Göster (${filteredProducts.length - visibleCount} ürün kaldı)`
+                      : `Load More (${filteredProducts.length - visibleCount} remaining)`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* FOOTER */}
-        <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-500">
-              {isTr ? `Toplam ${filteredProducts.length} ürün listeleniyor.` : `Showing ${filteredProducts.length} products.`}
+        {/* COMPACT STICKY FOOTER */}
+        <div className="px-3.5 py-2.5 sm:px-5 sm:py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-500 truncate tabular-nums">
+              {isTr ? `${filteredProducts.length} ürün` : `${filteredProducts.length} items`}
             </span>
             {metrics.underpricedCount > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold">
-                <AlertTriangle className="h-3 w-3" />
-                {metrics.underpricedCount} ürünün pazaryeri fiyatı strateji formülünden düşük!
-              </span>
+              <button
+                type="button"
+                onClick={() => setChannelFilter(channelFilter === "underpriced" ? "all" : "underpriced")}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[10px] font-bold truncate cursor-pointer"
+              >
+                <AlertTriangle className="h-3 w-3 shrink-0" />
+                <span className="truncate">{metrics.underpricedCount} düşük fiyatlı</span>
+              </button>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+            className="px-4 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shrink-0"
           >
             {isTr ? "Kapat" : "Close"}
           </button>
         </div>
-
       </div>
     </div>
   );

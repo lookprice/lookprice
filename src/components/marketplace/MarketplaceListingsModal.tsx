@@ -219,9 +219,22 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     }
   };
 
-  // Filter out dummy auto-generated phantom items
+  // Helper to identify "hizmet/servis" (service) items so they are never listed in e-marketplace product lists
+  const isServiceProduct = (p: any): boolean => {
+    if (!p) return false;
+    const pType = String(p.product_type || '').trim().toLowerCase();
+    if (pType === 'service' || pType === 'hizmet' || pType === 'servis') return true;
+    const cat = String(p.category || '').trim().toLocaleLowerCase('tr-TR');
+    const subCat = String(p.sub_category || '').trim().toLocaleLowerCase('tr-TR');
+    if (cat === 'servis' || cat === 'hizmet' || cat === 'hizmet/servis' || cat === 'servis/hizmet') return true;
+    if (subCat.includes('servis') || subCat.includes('hizmet')) return true;
+    return false;
+  };
+
+  // Filter out dummy auto-generated phantom items and service/hizmet items
   const cleanedLocalProducts = useMemo(() => {
     return localProducts.filter(p => {
+      if (isServiceProduct(p)) return false;
       const bc = String(p.barcode || '').trim();
       const name = String(p.name || '').trim();
       if (bc.startsWith('200552')) return false;

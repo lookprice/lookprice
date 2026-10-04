@@ -311,7 +311,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                     }
                     return null;
                   })()}
-                  {isShopLp && connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && getHepsiburadaUrl(p) && (
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && getHepsiburadaUrl(p) && (
                     <a
                       href={getHepsiburadaUrl(p)!}
                       target="_blank"
@@ -324,7 +324,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       HB ↗
                     </a>
                   )}
-                  {isShopLp && connectedMarketplaces.hepsiburada && isHepsiburadaPending(p) && (
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.hepsiburada && isHepsiburadaPending(p) && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -340,7 +340,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       HB ONAY
                     </button>
                   )}
-                  {isShopLp && connectedMarketplaces.hepsiburada && !p.is_hepsiburada_active && p.hepsiburada_last_error && (
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.hepsiburada && !p.is_hepsiburada_active && p.hepsiburada_last_error && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -356,7 +356,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       HB Hatalı
                     </button>
                   )}
-                  {isShopLp && connectedMarketplaces.trendyol && p.is_trendyol_active && (
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.trendyol && p.is_trendyol_active && (
                     <a
                       href={getTrendyolUrl(p) || undefined}
                       target="_blank"
@@ -369,7 +369,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       TY ↗
                     </a>
                   )}
-                  {isShopLp && connectedMarketplaces.n11 && p.is_n11_active && p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED' && (
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.n11 && p.is_n11_active && p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED' && (
                     <a
                       href={getN11Url(p) || undefined}
                       target="_blank"
@@ -382,7 +382,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       N11 ↗
                     </a>
                   )}
-                  {isShopLp && connectedMarketplaces.amazon && p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().length >= 9 && String(p.amazon_asin).toLowerCase() !== 'null' && (
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.amazon && p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().length >= 9 && String(p.amazon_asin).toLowerCase() !== 'null' && (
                     <a
                       href={getAmazonUrl(p) || undefined}
                       target="_blank"

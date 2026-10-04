@@ -112,6 +112,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
 
   const [favCount, setFavCount] = useState<number>(() => bookstoreInteraction.getFavorites(store?.id).length);
   const [visibleCount, setVisibleCount] = useState<number>(30);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState<boolean>(false);
 
   // Synchronize state changes to URL search params (Rule 7: Operator UX Continuity & Persistence)
   useEffect(() => {
@@ -956,42 +957,53 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
         </main>
       ) : (
         /* CATALOG & SEARCH VIEW: Filter Bar + Responsive Card Grid */
-        <main className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+        <main className="max-w-7xl mx-auto px-3 sm:px-8 py-4 sm:py-8">
           {/* Header & Filter Bar */}
-          <div className="mb-8 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2">
-                  <Compass className="w-6 h-6 text-red-500" />
-                  <span>{isTr ? "Kitap Koleksiyonu & Filtreleme" : "Book Collection & Filters"}</span>
+          <div className="mb-5 sm:mb-8 space-y-3">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-2xl font-black text-white flex items-center gap-2 truncate">
+                  <Compass className="w-5 h-5 text-red-500 shrink-0" />
+                  <span className="truncate">{selectedCategory !== "all" ? selectedCategory : (isTr ? "Kitap Koleksiyonu" : "Book Collection")}</span>
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                  {isTr ? `Toplam ${filteredProducts.length} eser listeleniyor` : `Showing ${filteredProducts.length} titles`}
+                <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 tabular-nums">
+                  {isTr ? `${filteredProducts.length} eser listeleniyor` : `Showing ${filteredProducts.length} titles`}
                 </p>
               </div>
 
-              {/* Clear filters button */}
-              {(selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || selectedBadge !== "all" || searchQuery) && (
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedCategory("all");
-                    setSelectedSubCategory("all");
-                    setSelectedAuthor("all");
-                    setSelectedPublisher("all");
-                    setSelectedBadge("all");
-                    setSearchQuery("");
-                  }}
-                  className="self-start sm:self-auto px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
+                  onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+                  className="sm:hidden px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" />
-                  <span>{isTr ? "Filtreleri Sıfırla" : "Clear Filters"}</span>
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-red-500" />
+                  <span>{isTr ? "Filtrele" : "Filter"}</span>
                 </button>
-              )}
+
+                {/* Clear filters button */}
+                {(selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || selectedBadge !== "all" || searchQuery) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory("all");
+                      setSelectedSubCategory("all");
+                      setSelectedAuthor("all");
+                      setSelectedPublisher("all");
+                      setSelectedBadge("all");
+                      setSearchQuery("");
+                    }}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline">{isTr ? "Sıfırla" : "Reset"}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Quick Badge / Concept Filter Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
               <button
                 type="button"
                 onClick={() => setSelectedBadge("all")}
@@ -1040,8 +1052,8 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               })}
             </div>
 
-            {/* Filter Selectors Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Filter Selectors Grid - Collapsible on Mobile */}
+            <div className={`${isMobileFiltersOpen ? "grid" : "hidden sm:grid"} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1`}>
               {/* Category Filter */}
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">

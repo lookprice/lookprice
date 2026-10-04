@@ -1160,8 +1160,16 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
                           <div className="flex items-center justify-between mb-4 px-1">
                             <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">{row.title}</h3>
                             <button 
-                              onClick={() => setFilters(prev => ({ ...prev, category: row.type === 'category' ? row.tag_or_category || null : null }))}
-                              className="text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1"
+                              onClick={() => {
+                                setFilters(prev => ({
+                                  ...prev,
+                                  category: row.type === 'category' ? row.tag_or_category || null : null,
+                                  sortBy: row.type === 'new_arrivals' ? 'newest' : row.type === 'trending' ? 'priceDesc' : prev.sortBy,
+                                }));
+                                const el = document.getElementById("catalog");
+                                if (el) el.scrollIntoView({ behavior: "smooth" });
+                              }}
+                              className="text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
                             >
                               {lang === "tr" ? "Tümünü Gör" : "View All"} <ChevronRight className="w-3.5 h-3.5" />
                             </button>

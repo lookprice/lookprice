@@ -165,17 +165,31 @@ export const SettingsEStoresTab = ({
     return (url.searchParams.get('mpTab') as any) || (localStorage.getItem('marketplaceModalTab') as any) || 'hepsiburada';
   });
 
+  // Exclude service ("hizmet/servis") items from e-marketplace product lists and counts
+  const eligibleMarketplaceProducts = useMemo(() => {
+    return products.filter(p => {
+      if (!p) return false;
+      const pType = String(p.product_type || '').trim().toLowerCase();
+      if (pType === 'service' || pType === 'hizmet' || pType === 'servis') return false;
+      const cat = String(p.category || '').trim().toLocaleLowerCase('tr-TR');
+      const subCat = String(p.sub_category || '').trim().toLocaleLowerCase('tr-TR');
+      if (cat === 'servis' || cat === 'hizmet' || cat === 'hizmet/servis' || cat === 'servis/hizmet') return false;
+      if (subCat.includes('servis') || subCat.includes('hizmet')) return false;
+      return true;
+    });
+  }, [products]);
+
   // Product counts per marketplace
-  const hbLiveCount = products.filter(p => p.is_hepsiburada_active).length;
-  const hbErrCount = products.filter(p => p.hepsiburada_last_error).length;
-  const tyLiveCount = products.filter(p => p.is_trendyol_active).length;
-  const tyErrCount = products.filter(p => p.trendyol_last_error).length;
-  const n11LiveCount = products.filter(p => p.is_n11_active).length;
-  const n11ErrCount = products.filter(p => p.n11_last_error).length;
-  const amzLiveCount = products.filter(p => p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().length >= 9 && String(p.amazon_asin).toLowerCase() !== 'null').length;
-  const amzErrCount = products.filter(p => p.amazon_last_error).length;
-  const pzLiveCount = products.filter(p => p.is_pazarama_active).length;
-  const pzErrCount = products.filter(p => p.pazarama_last_error).length;
+  const hbLiveCount = eligibleMarketplaceProducts.filter(p => p.is_hepsiburada_active).length;
+  const hbErrCount = eligibleMarketplaceProducts.filter(p => p.hepsiburada_last_error).length;
+  const tyLiveCount = eligibleMarketplaceProducts.filter(p => p.is_trendyol_active).length;
+  const tyErrCount = eligibleMarketplaceProducts.filter(p => p.trendyol_last_error).length;
+  const n11LiveCount = eligibleMarketplaceProducts.filter(p => p.is_n11_active).length;
+  const n11ErrCount = eligibleMarketplaceProducts.filter(p => p.n11_last_error).length;
+  const amzLiveCount = eligibleMarketplaceProducts.filter(p => p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().length >= 9 && String(p.amazon_asin).toLowerCase() !== 'null').length;
+  const amzErrCount = eligibleMarketplaceProducts.filter(p => p.amazon_last_error).length;
+  const pzLiveCount = eligibleMarketplaceProducts.filter(p => p.is_pazarama_active).length;
+  const pzErrCount = eligibleMarketplaceProducts.filter(p => p.pazarama_last_error).length;
   const totalMarketplaceErrors = hbErrCount + tyErrCount + n11ErrCount + amzErrCount + pzErrCount;
 
   // Trendyol State
@@ -1474,7 +1488,7 @@ export const SettingsEStoresTab = ({
           onClose={() => setCategoryMappingModalOpen(false)}
           branding={branding}
           onBrandingChange={onBrandingChange}
-          products={products}
+          products={eligibleMarketplaceProducts}
           currentStoreId={currentStoreId}
           initialMarketplace={selectedMappingMarketplace}
           lang={lang}
@@ -1487,7 +1501,7 @@ export const SettingsEStoresTab = ({
         <MarketplaceListingsModal
           isOpen={showListingsModal}
           onClose={() => setShowListingsModal(false)}
-          products={products}
+          products={eligibleMarketplaceProducts}
           storeBranding={branding}
           currentStoreId={currentStoreId}
           onRefresh={onRefresh}

@@ -12,6 +12,9 @@ export interface N11ProductPayload {
   productSellerCode: string;
   productMainId?: string;
   barcode?: string;
+  brand?: string;
+  categoryName?: string;
+  subCategoryName?: string;
   title: string;
   subtitle?: string;
   description: string;
@@ -323,6 +326,63 @@ export class N11Service {
   }
 
   /**
+   * Automatically resolve the best N11 Leaf Category ID from product title, category, and sub_category
+   */
+  static resolveCategoryIdForProduct(title?: string, category?: string, subCategory?: string, explicitCatId?: number | string): number {
+    const numExplicit = Number(explicitCatId);
+    // If caller supplied a specific non-default N11 category (not the generic 1000280 placeholder), respect it
+    if (!isNaN(numExplicit) && numExplicit > 1000000 && numExplicit !== 1000280) {
+      return numExplicit;
+    }
+
+    const combined = `${title || ""} ${subCategory || ""} ${category || ""}`.toLocaleLowerCase("tr-TR");
+
+    if (/barkod.*yazıcı|etiket.*yazıcı|termal.*yazıcı|zd220|zd421/i.test(combined)) return 1000340;
+    if (/barkod.*okuyucu|karekod.*okuyucu|el.*terminali/i.test(combined)) return 1000294;
+    if (/lazer.*yazıcı|laserjet/i.test(combined)) return 1000343;
+    if (/tanklı.*yazıcı|deskjet|ecotank|inkjet|püskürtmeli/i.test(combined)) return 1000344;
+    if (/çok fonksiyonlu.*yazıcı|all in one.*yazıcı/i.test(combined)) return 1000347;
+    if (/tarayıcı|scanner/i.test(combined)) return 1000337;
+    if (/toner/i.test(combined)) return 1000338;
+    if (/kartuş|mürekkep/i.test(combined)) return 1000335;
+    if (/şerit|ribbon|barkod.*sarf/i.test(combined)) return 1000334;
+    if (/taşınabilir.*disk|harici.*disk|external.*ssd|elements|my passport/i.test(combined)) return 1000352;
+    if (/usb.*bellek|flash.*bellek|cruzer|datatraveler/i.test(combined)) return 1000353;
+    if (/ssd|nvme|m\.2|sabit.*disk|hard.*disk|hdd/i.test(combined)) return 1000264;
+    if (/ram|bellek.*ddr|ddr4|ddr5|so-dimm|udimm/i.test(combined)) return 1000259;
+    if (/anakart|motherboard/i.test(combined)) return 1000258;
+    if (/ekran.*kartı|geforce|radeon|rtx|gtx/i.test(combined)) return 1000262;
+    if (/işlemci|ryzen|core i[3579]/i.test(combined)) return 1000270;
+    if (/klavye.*mouse|set.*klavye|combo/i.test(combined)) return 1000362;
+    if (/mouse\s*pad|mousepad/i.test(combined)) return 1000369;
+    if (/mouse|fare/i.test(combined)) return 1000363;
+    if (/klavye|keyboard/i.test(combined)) return 1000361;
+    if (/kulaklık|headset|earbuds|airpods/i.test(combined)) return 1000365;
+    if (/mikrofon/i.test(combined)) return 1000366;
+    if (/webcam|web.*kamera/i.test(combined)) return 1000372;
+    if (/monitör.*kolu|monitör.*stand/i.test(combined)) return 1000238;
+    if (/monitör|monitor|ekran/i.test(combined)) return 1000368;
+    if (/hoparlör|speaker|ses.*sistemi|soundbar/i.test(combined)) return 1000370;
+    if (/ups|kesintisiz.*güç/i.test(combined)) return 1000371;
+    if (/güç.*kaynağı|power.*supply|psu/i.test(combined)) return 1000263;
+    if (/çanta|kılıf|sırt.*çantası|evrak.*çantası/i.test(combined)) return 1000222;
+    if (/soğutucu|fan/i.test(combined)) return 1000225;
+    if (/dock|stand|yükseltici/i.test(combined)) return 1000227;
+    if (/batarya|pil/i.test(combined)) return 1000230;
+    if (/dizüstü|notebook|laptop|macbook|thinkpad|ideapad|vostro|latitude|inspiron/i.test(combined)) return 1000271;
+    if (/masaüstü|all-in-one|mini\s*pc|optiplex|prodesk|thinkcentre/i.test(combined)) return 1000273;
+    if (/tablet|ipad|tab\s*[as]/i.test(combined)) return 1000354;
+    if (/switch/i.test(combined)) return 1000277;
+    if (/modem|router|access.*point|menzil.*genişletici|deco|mesh/i.test(combined)) return 1000286;
+    if (/bluetooth.*adaptör|usb.*bluetooth/i.test(combined)) return 1000284;
+    if (/güvenlik.*kamera|ip.*kamera/i.test(combined)) return 1000300;
+    if (/adaptör|çevirici|dönüştürücü|multiport|hub|çoğaltıcı|şarj.*cihazı|type-c|usb-c/i.test(combined)) return 1000212;
+    if (/kablo|hdmi|displayport|vga|cat6|cat5|patch.*cord/i.test(combined)) return 1000236;
+
+    return 1000212;
+  }
+
+  /**
    * Create or Save Product on N11 using the official N11 REST API (/ms/product/tasks/product-create)
    * with automatic task status verification and Slicer category adaptation
    */
@@ -377,7 +437,167 @@ export class N11Service {
     };
     const currencyType = currencyMap[String(product.currencyType || "TL").toUpperCase()] || "TL";
 
+    // Resolve Brand name from explicit product.brand, attributes, or title first word
+    let resolvedBrand = String((product as any).brand || "").trim();
+    if (!resolvedBrand && Array.isArray(product.attributes)) {
+      const bAttr = product.attributes.find(
+        (a: any) =>
+          String(a?.name || "").toLowerCase() === "marka" ||
+          String(a?.id || "") === "1"
+      );
+      if (bAttr) {
+        resolvedBrand = String(bAttr.customValue || bAttr.value || "").trim();
+      }
+    }
+    if (!resolvedBrand && product.title) {
+      const firstToken = product.title.trim().split(/\s+/)[0] || "";
+      if (firstToken.length >= 2 && !/^\d+$/.test(firstToken)) {
+        resolvedBrand = firstToken;
+      }
+    }
+    if (!resolvedBrand) {
+      resolvedBrand = "Diğer";
+    }
+
+    // Fetch mandatory N11 attributes for the target category from N11 CDN API and populate Brand + mandatory fields
+    const buildCompleteCategoryAttributes = async (catId: number): Promise<any[]> => {
+      const attrMap = new Map<number, { id: number; valueId: number | null; customValue: string | null }>();
+
+      // Preserve any valid caller-supplied numeric attribute IDs first
+      if (Array.isArray(product.attributes)) {
+        for (const a of product.attributes) {
+          const numId = Number(a?.id);
+          if (!isNaN(numId) && numId > 0 && (a.valueId || a.customValue || a.value)) {
+            attrMap.set(numId, {
+              id: numId,
+              valueId: a.valueId ? Number(a.valueId) : null,
+              customValue: a.valueId ? null : String(a.customValue || a.value || "").trim()
+            });
+          }
+        }
+      }
+
+      try {
+        const attrRes = await axios.get(`https://api.n11.com/cdn/category/${catId}/attribute`, {
+          headers: {
+            appkey: cleanAppKey,
+            appsecret: cleanAppSecret,
+            appKey: cleanAppKey,
+            appSecret: cleanAppSecret,
+            "Content-Type": "application/json"
+          },
+          timeout: 8000
+        });
+
+        const categoryAttributes: any[] = attrRes.data?.categoryAttributes || [];
+        const normBrand = resolvedBrand.toLocaleLowerCase("tr-TR").trim();
+        const titleLower = (product.title || "").toLocaleLowerCase("tr-TR");
+
+        for (const catAttr of categoryAttributes) {
+          const attrId = Number(catAttr.attributeId);
+          if (!attrId || attrMap.has(attrId)) continue;
+
+          const attrName = String(catAttr.attributeName || "").trim();
+          const attrNameLower = attrName.toLocaleLowerCase("tr-TR");
+          const isMandatory = Boolean(catAttr.isMandatory);
+          const isCustomValue = Boolean(catAttr.isCustomValue);
+          const values: Array<{ id: number; value: string }> = Array.isArray(catAttr.attributeValues)
+            ? catAttr.attributeValues
+            : [];
+
+          // Always populate Marka (attributeId === 1 or name === "Marka")
+          if (attrId === 1 || attrNameLower === "marka") {
+            const exactBrand =
+              values.find((v) => String(v.value || "").toLocaleLowerCase("tr-TR").trim() === normBrand) ||
+              values.find((v) => String(v.value || "").toLowerCase().trim() === resolvedBrand.toLowerCase().trim());
+
+            if (exactBrand) {
+              attrMap.set(attrId, { id: attrId, valueId: Number(exactBrand.id), customValue: null });
+            } else if (isCustomValue) {
+              attrMap.set(attrId, { id: attrId, valueId: null, customValue: resolvedBrand });
+            } else {
+              const otherBrand = values.find((v) => /^diğer$/i.test(String(v.value || "").trim())) || values[0];
+              if (otherBrand) {
+                attrMap.set(attrId, { id: attrId, valueId: Number(otherBrand.id), customValue: null });
+              }
+            }
+            continue;
+          }
+
+          if (!isMandatory) continue;
+
+          // Smart matching for mandatory attributes
+          if (attrNameLower === "model" || attrId === 425) {
+            if (isCustomValue) {
+              attrMap.set(attrId, {
+                id: attrId,
+                valueId: null,
+                customValue: (stockCode || product.title || "Standart").substring(0, 40)
+              });
+              continue;
+            }
+          }
+
+          if (attrNameLower === "renk" || attrId === 429) {
+            const colorMatch = values.find((v) => {
+              const vl = String(v.value || "").toLocaleLowerCase("tr-TR").trim();
+              return vl.length >= 3 && titleLower.includes(vl);
+            });
+            if (colorMatch) {
+              attrMap.set(attrId, { id: attrId, valueId: Number(colorMatch.id), customValue: null });
+              continue;
+            }
+            if (isCustomValue) {
+              attrMap.set(attrId, { id: attrId, valueId: null, customValue: "Siyah" });
+              continue;
+            }
+          }
+
+          if (attrNameLower === "seçenekler" || attrId === 6369) {
+            if (isCustomValue) {
+              attrMap.set(attrId, { id: attrId, valueId: null, customValue: "Standart" });
+              continue;
+            }
+          }
+
+          // Check if any allowed value appears in the product title
+          const valueInTitle = values.find((v) => {
+            const vl = String(v.value || "").toLocaleLowerCase("tr-TR").trim();
+            return vl.length >= 2 && vl !== "diğer" && vl !== "var" && vl !== "yok" && titleLower.includes(vl);
+          });
+          if (valueInTitle) {
+            attrMap.set(attrId, { id: attrId, valueId: Number(valueInTitle.id), customValue: null });
+            continue;
+          }
+
+          // Fallback to "Diğer", "Belirtilmemiş", "Standart", "2 Yıl", etc.
+          const safeFallback =
+            values.find((v) => /^diğer$/i.test(String(v.value || "").trim())) ||
+            values.find((v) => /diğer|belirtilmemiş|standart|resmi distribütör|ithalatçı|var|yok/i.test(String(v.value || ""))) ||
+            values[0];
+
+          if (safeFallback) {
+            attrMap.set(attrId, { id: attrId, valueId: Number(safeFallback.id), customValue: null });
+          } else if (isCustomValue) {
+            attrMap.set(attrId, { id: attrId, valueId: null, customValue: "Standart" });
+          }
+        }
+      } catch (attrErr) {
+        // Fallback if CDN attribute endpoint is unreachable: still ensure Marka (id: 1) is sent
+        if (!attrMap.has(1)) {
+          attrMap.set(1, { id: 1, valueId: null, customValue: resolvedBrand });
+        }
+      }
+
+      if (!attrMap.has(1)) {
+        attrMap.set(1, { id: 1, valueId: null, customValue: resolvedBrand });
+      }
+
+      return Array.from(attrMap.values());
+    };
+
     const executeRestCreate = async (catId: number, includeMainId: boolean) => {
+      const resolvedAttributes = await buildCompleteCategoryAttributes(catId);
       const skuObj: any = {
         stockCode,
         barcode,
@@ -391,24 +611,12 @@ export class N11Service {
         preparingDay: Number(product.preparingDay || 1),
         shipmentTemplate: product.shipmentTemplate || "alici",
         vatRate: Number(product.vatRate ?? 20),
-        images: validImages
+        images: validImages,
+        attributes: resolvedAttributes
       };
 
       if (includeMainId) {
         skuObj.productMainId = product.productMainId || `GRP-${stockCode}`;
-      }
-
-      if (Array.isArray(product.attributes) && product.attributes.length > 0) {
-        const mappedAttrs = product.attributes
-          .filter((a: any) => a && (a.id || a.valueId || a.customValue))
-          .map((a: any) => ({
-            id: a.id,
-            valueId: a.valueId || null,
-            customValue: a.customValue || a.value || null
-          }));
-        if (mappedAttrs.length > 0) {
-          skuObj.attributes = mappedAttrs;
-        }
       }
 
       const createRes = await axios.post(
@@ -495,7 +703,12 @@ export class N11Service {
     };
 
     try {
-      let targetCatId = Number(product.category?.id || 1000280);
+      let targetCatId = this.resolveCategoryIdForProduct(
+        product.title,
+        product.categoryName,
+        product.subCategoryName,
+        product.category?.id
+      );
       let attemptResult = await executeRestCreate(targetCatId, true);
 
       // Check if N11 returned a specific category requirement or Slicer requirement
@@ -511,6 +724,32 @@ export class N11Service {
           attemptResult = await executeRestCreate(targetCatId, false);
         } else if (catMatch) {
           attemptResult = await executeRestCreate(targetCatId, true);
+        } else if (/Marka ve Kategori id değerlerini doğru girdiğinizi kontrol edin/i.test(joinedReasons) && targetCatId !== 1000212) {
+          targetCatId = 1000212;
+          attemptResult = await executeRestCreate(targetCatId, false);
+        }
+
+        // If N11 states the seller stock code or catalog item is already registered under this seller account, update its price & stock and treat as active!
+        const updatedReasons = (attemptResult.reasons || []).join(" ");
+        if (
+          attemptResult.status === "FAIL" &&
+          /seller stock code tarafınızdan kullanılmaktadır|ürün listenizde mevcuttur/i.test(updatedReasons)
+        ) {
+          await this.updatePriceAndStock(auth, stockCode, formattedPrice, quantity).catch(() => null);
+          const existingIdMatch = updatedReasons.match(/(\d{6,12})\s*nolu\s*katalog\s*id/i);
+          const resolvedExistingId = attemptResult.sku?.n11ProductId
+            ? String(attemptResult.sku.n11ProductId)
+            : existingIdMatch
+            ? existingIdMatch[1]
+            : stockCode;
+          return {
+            success: true,
+            n11Id: resolvedExistingId,
+            groupId: attemptResult.sku?.groupId,
+            sellerNickname: attemptResult.sku?.sellerNickname,
+            taskId: attemptResult.taskId || undefined,
+            message: "Ürün N11 kataloğunuzda zaten kayıtlı; fiyat ve stok bilgisi güncellendi."
+          };
         }
       }
 

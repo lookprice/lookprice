@@ -812,8 +812,8 @@ export const ProductModal = ({
                   />
                 </div>
 
-                {/* PAZARYERİ ENTEGRASYONU VE ZORUNLU ALANLAR (MERGED IN TAB 1 FOR CONVENIENCE) */}
-                {isMarketplaceEnabled && (
+                {/* PAZARYERİ ENTEGRASYONU VE ZORUNLU ALANLAR (MERGED IN TAB 1 FOR CONVENIENCE - HIDDEN FOR SERVICE/HİZMET ITEMS) */}
+                {isMarketplaceEnabled && productType !== 'service' && (
                   <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
                     <div className="flex items-center gap-1.5 border-b border-slate-200 pb-1">
                       <Sparkles className="h-3.5 w-3.5 text-amber-500" />

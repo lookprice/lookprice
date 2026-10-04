@@ -444,8 +444,19 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         matchesStock = effectiveStock > 0 || p.product_type === 'service';
       }
 
+      const isServiceItem = (() => {
+        const pType = String(p.product_type || '').trim().toLowerCase();
+        if (pType === 'service' || pType === 'hizmet' || pType === 'servis') return true;
+        const cat = String(p.category || '').trim().toLocaleLowerCase('tr-TR');
+        const subCat = String(p.sub_category || '').trim().toLocaleLowerCase('tr-TR');
+        if (cat === 'servis' || cat === 'hizmet' || cat === 'hizmet/servis' || cat === 'servis/hizmet') return true;
+        if (subCat.includes('servis') || subCat.includes('hizmet')) return true;
+        return false;
+      })();
+
       let matchesMarketplace = true;
       if (isShopLp && marketplaceFilter !== 'all') {
+        if (isServiceItem) return false;
         const isHb = Boolean(p.is_hepsiburada_active);
         const isTy = Boolean(p.is_trendyol_active);
         const isN11 = Boolean(p.is_n11_active && p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED');
@@ -520,6 +531,22 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     let err = 0;
 
     products.forEach(p => {
+      const pType = String(p.product_type || '').trim().toLowerCase();
+      const cat = String(p.category || '').trim().toLocaleLowerCase('tr-TR');
+      const subCat = String(p.sub_category || '').trim().toLocaleLowerCase('tr-TR');
+      if (
+        pType === 'service' ||
+        pType === 'hizmet' ||
+        pType === 'servis' ||
+        cat === 'servis' ||
+        cat === 'hizmet' ||
+        cat === 'hizmet/servis' ||
+        cat === 'servis/hizmet' ||
+        subCat.includes('servis') ||
+        subCat.includes('hizmet')
+      ) {
+        return;
+      }
       const isHb = Boolean(p.is_hepsiburada_active);
       const isTy = Boolean(p.is_trendyol_active);
       const isN11 = Boolean(p.is_n11_active && p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED');
