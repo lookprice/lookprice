@@ -508,6 +508,156 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     sector: "computer"
   },
   {
+    id: 676,
+    name: "Notebook Çantaları",
+    displayName: "Bilgisayar > Aksesuarlar > Notebook Çantaları",
+    paths: ["Bilgisayar", "Aksesuarlar", "Notebook Çantaları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 98,
+    name: "Dizüstü Bilgisayar (Laptop / Notebook)",
+    displayName: "Bilgisayar > Bilgisayarlar > Dizüstü Bilgisayar (Laptop)",
+    paths: ["Bilgisayar", "Bilgisayarlar", "Dizüstü Bilgisayar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 111001,
+    name: "Mini Masaüstü & All-in-One Bilgisayarlar",
+    displayName: "Bilgisayar > Bilgisayarlar > Mini Masaüstü & All-in-One",
+    paths: ["Bilgisayar", "Bilgisayarlar", "Mini Masaüstü"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 106861,
+    name: "Notebook Standları & Soğutucular",
+    displayName: "Bilgisayar > Aksesuarlar > Notebook Standları & Soğutucular",
+    paths: ["Bilgisayar", "Aksesuarlar", "Notebook Standları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 47,
+    name: "Bellek (RAM - DDR4 & DDR5)",
+    displayName: "Bilgisayar > Bileşenler > Bellek (RAM)",
+    paths: ["Bilgisayar", "Bileşenler", "Bellek (RAM)"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 51,
+    name: "Klavyeler (Kablolu & Kablosuz)",
+    displayName: "Bilgisayar > Çevre Birimleri > Klavye",
+    paths: ["Bilgisayar", "Çevre Birimleri", "Klavye"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 52,
+    name: "Mouse / Fare (Kablolu & Kablosuz)",
+    displayName: "Bilgisayar > Çevre Birimleri > Mouse",
+    paths: ["Bilgisayar", "Çevre Birimleri", "Mouse"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 29,
+    name: "Mouse Pad & Masa Pedleri",
+    displayName: "Bilgisayar > Aksesuarlar > Mouse Pad",
+    paths: ["Bilgisayar", "Aksesuarlar", "Mouse Pad"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 3007055,
+    name: "Klavye & Mouse Setler",
+    displayName: "Bilgisayar > Çevre Birimleri > Klavye & Mouse Setler",
+    paths: ["Bilgisayar", "Çevre Birimleri", "Klavye & Mouse Setler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 57,
+    name: "Monitörler (LED / IPS / Gaming)",
+    displayName: "Bilgisayar > Çevre Birimleri > Monitörler",
+    paths: ["Bilgisayar", "Çevre Birimleri", "Monitörler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 100225,
+    name: "Taşınabilir Harici Harddiskler",
+    displayName: "Bilgisayar > Veri Depolama > Taşınabilir Diskler",
+    paths: ["Bilgisayar", "Veri Depolama", "Taşınabilir Diskler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 100221,
+    name: "Dahili Sabit Diskler (HDD)",
+    displayName: "Bilgisayar > Bileşenler > Sabit Diskler",
+    paths: ["Bilgisayar", "Bileşenler", "Sabit Diskler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 105307,
+    name: "Bilgisayar Kablo & Dönüştürücüler",
+    displayName: "Bilgisayar > Aksesuarlar > Kablo & Dönüştürücüler",
+    paths: ["Bilgisayar", "Aksesuarlar", "Kablo & Dönüştürücüler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 16113,
+    name: "Şarj Cihazları & Hızlı Şarj Adaptörleri",
+    displayName: "Telefon > Aksesuarlar > Şarj Cihazları",
+    paths: ["Telefon", "Telefon Aksesuarları", "Şarj Cihazları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
+    id: 29010123,
+    name: "Telefon Şarj & Data Kabloları",
+    displayName: "Telefon > Aksesuarlar > Şarj Kabloları",
+    paths: ["Telefon", "Telefon Aksesuarları", "Şarj Kabloları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
     id: 1000123,
     name: "Laptop Çantaları & Kılıfları",
     displayName: "Bilgisayar > Aksesuarlar > Notebook Çantaları & Kılıflar > Laptop Çantaları & Kılıfları",
@@ -1469,6 +1619,56 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
     { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
     { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
   ],
+  laptop_computer: [
+    { id: "Marka", name: "Marka (Brand)", description: "Bilgisayar üretici markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "IslemciTipi", name: "İşlemci Tipi / Serisi", description: "İşlemci modeli", mandatory: true, type: "select", values: ["Intel Core i5", "Intel Core i7", "Intel Core i3", "Intel Core i9", "Intel Core Ultra 7", "AMD Ryzen 5", "AMD Ryzen 7", "Apple M2 / M3", "Intel Celeron / N100"], defaultValue: "Intel Core i5" },
+    { id: "RamSistema", name: "RAM (Sistem Belleği)", description: "Bellek kapasitesi", mandatory: true, type: "select", values: ["8 GB", "16 GB", "24 GB", "32 GB", "64 GB", "4 GB"], defaultValue: "16 GB" },
+    { id: "SsdKapasitesi", name: "SSD Kapasitesi", description: "Dahili depolama boyutu", mandatory: true, type: "select", values: ["256 GB", "512 GB", "1 TB", "2 TB", "128 GB"], defaultValue: "512 GB" },
+    { id: "EkranBoyutu", name: "Ekran Boyutu (İnç)", description: "Laptop ekran boyutu", mandatory: true, type: "select", values: ["15.6 inç", "14 inç", "16 inç", "13.3 inç", "17.3 inç", "Masaüstü / Ekran Yok"], defaultValue: "15.6 inç" },
+    { id: "IsletimSistemi", name: "İşletim Sistemi", description: "Kurulu işletim sistemi", mandatory: true, type: "select", values: ["FreeDOS (İşletim Sistemsiz)", "Windows 11 Home", "Windows 11 Pro", "macOS", "Ubuntu / Linux"], defaultValue: "FreeDOS (İşletim Sistemsiz)" },
+    { id: "EkranKarti", name: "Ekran Kartı Hafızası", description: "Paylaşımlı veya harici ekran kartı", mandatory: false, type: "select", values: ["Paylaşımlı (Dahili GPU)", "4 GB Harici", "6 GB Harici", "8 GB Harici", "12 GB+ Harici"], defaultValue: "Paylaşımlı (Dahili GPU)" },
+    { id: "Renk", name: "Renk (Color)", description: "Cihaz rengi", mandatory: true, type: "select", values: ["Siyah", "Gri / Uzay Grisi", "Gümüş", "Lacivert", "Beyaz"], defaultValue: "Gri / Uzay Grisi" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  laptop_stand_cooler: [
+    { id: "Marka", name: "Marka (Brand)", description: "Stand veya soğutucu markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "UrunTipi", name: "Stand / Soğutucu Türü", description: "Ürün fonksiyonu", mandatory: true, type: "select", values: ["Ergonomik Yükseltici Laptop Standı", "Fanlı Notebook Soğutucu Stand", "Katlanabilir Taşınabilir Stand", "Monitör & Masaüstü Standı"], defaultValue: "Ergonomik Yükseltici Laptop Standı" },
+    { id: "UyumluBoyut", name: "Uyumlu Ekran Boyutu", description: "Desteklenen cihaz boyutu", mandatory: true, type: "select", values: ["10 - 17.3 inç (Evrensel)", "13 - 15.6 inç", "15.6 - 17.3 inç"], defaultValue: "10 - 17.3 inç (Evrensel)" },
+    { id: "Malzeme", name: "Gövde Materyali", description: "Üretim malzemesi", mandatory: false, type: "select", values: ["Alüminyum Alaşım", "Metal / Çelik Mesh", "ABS Plastik"], defaultValue: "Alüminyum Alaşım" },
+    { id: "Renk", name: "Renk (Color)", description: "Ürün rengi", mandatory: true, type: "select", values: ["Gümüş", "Uzay Grisi", "Siyah", "Beyaz"], defaultValue: "Gümüş" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  mousepad: [
+    { id: "Marka", name: "Marka (Brand)", description: "Mousepad markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "Boyut", name: "Boyut / Ölçü Tipi", description: "Mouse pad ebatı", mandatory: true, type: "select", values: ["Standart (Small / Medium)", "Geniş (Large)", "XL / XXL Masa Boyu (90x40 cm)", "Jel / Bilek Destekli"], defaultValue: "Standart (Small / Medium)" },
+    { id: "YuzeyTipi", name: "Yüzey & Özellik", description: "Kumaş veya aydınlatma", mandatory: false, type: "select", values: ["Kaymaz Taban Kumaş Yüzey", "Bilek Destekli Ergonomik", "RGB Aydınlatmalı Gaming", "Sert / Deri Yüzey"], defaultValue: "Kaymaz Taban Kumaş Yüzey" },
+    { id: "Renk", name: "Renk (Color)", description: "Ürün rengi", mandatory: true, type: "select", values: ["Siyah", "Gri", "Desenli / Çok Renkli", "Lacivert", "Kırmızı"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  toner_cartridge: [
+    { id: "Marka", name: "Marka (Brand)", description: "Toner veya kartuş markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "SarfTipi", name: "Sarf Malzeme Türü", description: "Toner, kartuş veya mürekkep", mandatory: true, type: "select", values: ["Orijinal Lazer Toner", "Muadil Lazer Toner", "Orijinal Mürekkep Kartuş / Şişe", "Muadil Kartuş / Mürekkep", "Yazıcı Şeridi / Drum Ünitesi"], defaultValue: "Muadil Lazer Toner" },
+    { id: "BaskiRengi", name: "Baskı Rengi", description: "Toner / mürekkep rengi", mandatory: true, type: "select", values: ["Siyah (Black)", "Mavi (Cyan)", "Kırmızı (Magenta)", "Sarı (Yellow)", "4 Renk Set (CMYK)"], defaultValue: "Siyah (Black)" },
+    { id: "UyumluYaziciMarkasi", name: "Uyumlu Yazıcı Markası", description: "Uyumlu olduğu yazıcı markası", mandatory: false, type: "select", values: ["HP", "Canon", "Brother", "Epson", "Samsung", "Xerox", "Lexmark", "Pantum", "Kyocera"], defaultValue: "HP" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  barcode_pos_scanner: [
+    { id: "Marka", name: "Marka (Brand)", description: "Barkod cihazı markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "CihazTuru", name: "Barkod / POS Ekipman Türü", description: "Cihaz fonksiyonu", mandatory: true, type: "select", values: ["2D Karekod Barkod Okuyucu", "1D Lazer Barkod Okuyucu", "Masaüstü Barkod Okuyucu", "Termal Fiş & Etiket Yazıcı", "Barkod Etiketi / Ribon Sarf"], defaultValue: "2D Karekod Barkod Okuyucu" },
+    { id: "BaglantiTipi", name: "Bağlantı Türü", description: "İletişim arayüzü", mandatory: true, type: "select", values: ["Kablolu USB", "Kablosuz 2.4GHz + USB", "Bluetooth + Kablosuz", "USB + Ethernet (LAN)"], defaultValue: "Kablolu USB" },
+    { id: "Renk", name: "Renk", description: "Cihaz rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Gri"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
   general: [
     { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
     { id: "Mensei", name: "Menşei Ülke (Origin Country)", description: "Üretim yeri", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
@@ -1489,19 +1689,28 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "371960": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371965": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371966": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "16113": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371969": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "29010123": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
   "371970": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371971": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371973": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371967": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
   "371968": COMMON_MARKETPLACE_ATTRIBUTES.smartwatch,
 
+  // Laptops & Desktops
+  "98": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
+  "1000114": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
+  "1000115": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
+  "1000116": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
+  "111001": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
+  "1000275": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
+
   // N11 Default Categories Mapping
   "1000268": COMMON_MARKETPLACE_ATTRIBUTES.usb_storage,
   "1000270": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
   "1000269": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
   "1000272": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
-  "1000275": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
   "1000278": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
   "1000280": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
   "1000282": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
@@ -1538,9 +1747,12 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
 
   // USB Flash Storage & Memory Cards
   "970": COMMON_MARKETPLACE_ATTRIBUTES.usb_storage,
+  "1000101": COMMON_MARKETPLACE_ATTRIBUTES.usb_storage,
   "7000101": COMMON_MARKETPLACE_ATTRIBUTES.usb_storage,
   "698": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
+  "1000102": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
   "1100011": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
+  "1000103": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
   "60003724": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
   "7000102": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
   "7000103": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
@@ -1550,10 +1762,13 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "1000105": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
   "1000106": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
   "1000107": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
+  "100225": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
+  "100221": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
   "7000104": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
   "7000105": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
 
   // PC Components
+  "47": COMMON_MARKETPLACE_ATTRIBUTES.ram_memory,
   "1000108": COMMON_MARKETPLACE_ATTRIBUTES.ram_memory,
   "7000106": COMMON_MARKETPLACE_ATTRIBUTES.ram_memory,
   "1000109": COMMON_MARKETPLACE_ATTRIBUTES.motherboard,
@@ -1561,23 +1776,30 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "1000111": COMMON_MARKETPLACE_ATTRIBUTES.gpu_graphics_card,
   "1000112": COMMON_MARKETPLACE_ATTRIBUTES.power_supply_case,
   "1000113": COMMON_MARKETPLACE_ATTRIBUTES.pc_cooling,
-  "1000124": COMMON_MARKETPLACE_ATTRIBUTES.pc_cooling,
-  "7000113": COMMON_MARKETPLACE_ATTRIBUTES.pc_cooling,
+  "1000124": COMMON_MARKETPLACE_ATTRIBUTES.laptop_stand_cooler,
+  "106861": COMMON_MARKETPLACE_ATTRIBUTES.laptop_stand_cooler,
+  "7000113": COMMON_MARKETPLACE_ATTRIBUTES.laptop_stand_cooler,
 
   // Monitors & TV
+  "57": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
   "1000117": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
   "2000101": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
   "7000110": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
   "7000301": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
 
-  // Keyboards & Mice
+  // Keyboards, Mice & Mousepads
+  "51": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
+  "52": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
+  "3007055": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
+  "29": COMMON_MARKETPLACE_ATTRIBUTES.mousepad,
   "1000118": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
   "1000119": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
   "7000107": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
   "7000108": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
-  "7000109": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
+  "7000109": COMMON_MARKETPLACE_ATTRIBUTES.mousepad,
 
   // Audio & Soundbars
+  "520": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
   "1000120": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
   "2000102": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
   "7000112": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
@@ -1586,6 +1808,7 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "7000303": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
 
   // Cables & Converters
+  "105307": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
   "1000181": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
   "1000182": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
   "1000183": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
@@ -1593,11 +1816,10 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "1000185": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
   "1000186": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
   "1000187": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
-  "1000188": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
-  "1000189": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
   "7000115": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
 
   // Laptop Bags
+  "676": COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags,
   "1000123": COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags,
   "1000135": COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags,
   "1000136": COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags,
@@ -1608,16 +1830,22 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "1000139": COMMON_MARKETPLACE_ATTRIBUTES.presenter_remote,
 
   // Network & Routers
+  "410": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "45": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "121": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "103939": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "319": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
   "1000125": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
   "1000126": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
   "1000127": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
   "1000128": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
   "7000117": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
 
-  // Printers & Scanners
+  // Printers, Scanners, Toner & Barcode POS
+  "4": COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners,
   "1000129": COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners,
-  "1000130": COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners,
-  "1000131": COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners,
+  "1000130": COMMON_MARKETPLACE_ATTRIBUTES.toner_cartridge,
+  "1000131": COMMON_MARKETPLACE_ATTRIBUTES.barcode_pos_scanner,
   "7000116": COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners,
 
   // Photography Cameras & Accessories
@@ -1642,23 +1870,95 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "12101948": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
   "12101949": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
 
-  // General Electronics
+  // General Electronics & Accessories
+  "1000121": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
+  "1000188": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
+  "1000189": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
   "1000198": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
   "2000104": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
   "7000111": COMMON_MARKETPLACE_ATTRIBUTES.electronics
 };
 
-// Returns relevant attributes based on Category ID or category name/path
+// Returns relevant attributes based on Child Category Name/Path first, then Category ID
 export function getAttributesForCategory(catName: string, paths: string[] = [], categoryId?: string | number): MarketplaceAttribute[] {
-  // 1. Direct O(1) Category ID Schema Resolution (Strict & Deterministic)
+  const leafText = String(catName || (paths.length > 0 ? paths[paths.length - 1] : "") || "").toLowerCase();
+  const text = `${catName} ${paths.join(" ")}`.toLowerCase();
+
+  // Child Category Specific Override Checks (Ensures child categories like 'Notebook Çantası', 'Laptop Standı', 'Mouse Pad', 'Sunum Kumandası' NEVER inherit parent category fields!)
+  if (
+    text.includes("notebook çanta") ||
+    text.includes("laptop çanta") ||
+    text.includes("notebook canta") ||
+    text.includes("laptop canta") ||
+    text.includes("notebook kılıf") ||
+    text.includes("laptop kılıf") ||
+    text.includes("evrak çanta") ||
+    text.includes("sırt çanta") ||
+    text.includes("sirt canta") ||
+    text.includes("çanta 13") ||
+    text.includes("çanta 14") ||
+    text.includes("çanta 15") ||
+    text.includes("çanta 16") ||
+    text.includes("çanta 17") ||
+    text.includes("sleeve") ||
+    (text.includes("notebook") && text.includes("çanta")) ||
+    (text.includes("laptop") && text.includes("çanta"))
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags;
+  }
+
+  if (
+    text.includes("laptop stand") ||
+    text.includes("notebook stand") ||
+    text.includes("laptop soğutucu") ||
+    text.includes("notebook soğutucu") ||
+    text.includes("monitör stand")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.laptop_stand_cooler;
+  }
+
+  if (
+    text.includes("mouse pad") ||
+    text.includes("mousepad") ||
+    text.includes("masa pedi")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.mousepad;
+  }
+
+  if (
+    text.includes("sunum kumanda") ||
+    text.includes("presenter") ||
+    text.includes("lazer pointer") ||
+    text.includes("laser pointer")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.presenter_remote;
+  }
+
+  if (
+    text.includes("barkod okuyucu") ||
+    text.includes("barkod yazıcı") ||
+    text.includes("barkod sarf") ||
+    text.includes("termal yazıcı")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.barcode_pos_scanner;
+  }
+
+  if (
+    text.includes("toner") ||
+    text.includes("kartuş") ||
+    text.includes("kartus") ||
+    (text.includes("sarf malzeme") && !text.includes("barkod"))
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.toner_cartridge;
+  }
+
+  // Direct O(1) Category ID Schema Resolution (when Category ID is valid and not the generic 2147483647 placeholder)
   if (categoryId) {
     const strId = String(categoryId).trim();
-    if (CATEGORY_ID_ATTRIBUTE_MAP[strId]) {
+    if (strId !== "2147483647" && CATEGORY_ID_ATTRIBUTE_MAP[strId]) {
       return CATEGORY_ID_ATTRIBUTE_MAP[strId];
     }
   }
-
-  const text = `${catName} ${paths.join(" ")}`.toLowerCase();
 
   // 0a. Tablet Bilgisayarlar & iPad (Device itself) - MUST match before phone accessories!
   if (

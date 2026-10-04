@@ -511,7 +511,13 @@ export const api = {
   getAmazonListings: (storeId?: number) => api.get(`/api/integrations/amazon/listings${storeId ? `?storeId=${storeId}` : ""}`),
   disconnectAmazon: (storeId?: number) => api.post("/api/integrations/amazon/disconnect", { storeId }),
   getAmazonCategories: () => api.get("/api/integrations/amazon/categories"),
-  getAmazonCategoryAttributes: (categoryId: string | number) => api.get(`/api/integrations/amazon/categories/${categoryId}/attributes`),
+  getAmazonCategoryAttributes: (categoryId: string | number, categoryName?: string, subCategoryName?: string) => {
+    const params = new URLSearchParams();
+    if (categoryName) params.set("categoryName", categoryName);
+    if (subCategoryName) params.set("subCategoryName", subCategoryName);
+    const qs = params.toString();
+    return api.get(`/api/integrations/amazon/categories/${categoryId}/attributes${qs ? `?${qs}` : ""}`);
+  },
 
   // N11 Integration
   getN11Settings: (storeId?: number) => api.get(`/api/integrations/n11/settings${storeId ? `?storeId=${storeId}` : ""}`),
@@ -548,7 +554,14 @@ export const api = {
   getHepsiburadaListings: (storeId?: number) => api.get(`/api/integrations/hepsiburada/listings${storeId ? `?storeId=${storeId}` : ""}`),
   syncHepsiburadaInventory: (storeId?: number) => api.post("/api/integrations/hepsiburada/sync-inventory", { storeId }),
   getHepsiburadaCategories: (storeId?: number) => api.get(`/api/integrations/hepsiburada/categories${storeId ? `?storeId=${storeId}` : ""}`),
-  getHepsiburadaCategoryAttributes: (categoryId: string | number, storeId?: number) => api.get(`/api/integrations/hepsiburada/categories/${categoryId}/attributes${storeId ? `?storeId=${storeId}` : ""}`),
+  getHepsiburadaCategoryAttributes: (categoryId: string | number, storeId?: number, categoryName?: string, subCategoryName?: string) => {
+    const params = new URLSearchParams();
+    if (storeId !== undefined && storeId !== null) params.set("storeId", String(storeId));
+    if (categoryName) params.set("categoryName", categoryName);
+    if (subCategoryName) params.set("subCategoryName", subCategoryName);
+    const qs = params.toString();
+    return api.get(`/api/integrations/hepsiburada/categories/${categoryId}/attributes${qs ? `?${qs}` : ""}`);
+  },
   getHepsiburadaTaskStatus: (taskId: string, storeId?: number) => api.get(`/api/integrations/hepsiburada/task/${taskId}${storeId ? `?storeId=${storeId}` : ""}`),
   sendHepsiburadaInvoice: (orderId: string, data: any, storeId?: number) => api.post(`/api/integrations/hepsiburada/orders/${orderId}/invoice${storeId ? `?storeId=${storeId}` : ""}`, data),
   disconnectHepsiburada: (storeId?: number) => api.post("/api/integrations/hepsiburada/disconnect", { storeId }),
@@ -558,7 +571,13 @@ export const api = {
   saveTrendyolSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, categoryMappings?: any, categoryAttributes?: any, categoryMarkups?: any, defaultCommissionRate?: number, defaultFixedFee?: number, storeId?: number }) => api.post("/api/integrations/trendyol/settings", data),
   syncTrendyolOrders: (storeId?: number) => api.post("/api/integrations/trendyol/sync", { storeId }),
   disconnectTrendyol: (storeId?: number) => api.post("/api/integrations/trendyol/disconnect", { storeId }),
-  getTrendyolCategoryAttributes: (categoryId: string | number) => api.get(`/api/integrations/trendyol/categories/${categoryId}/attributes`),
+  getTrendyolCategoryAttributes: (categoryId: string | number, categoryName?: string, subCategoryName?: string) => {
+    const params = new URLSearchParams();
+    if (categoryName) params.set("categoryName", categoryName);
+    if (subCategoryName) params.set("subCategoryName", subCategoryName);
+    const qs = params.toString();
+    return api.get(`/api/integrations/trendyol/categories/${categoryId}/attributes${qs ? `?${qs}` : ""}`);
+  },
 
   // Pazarama Integration
   getPazaramaSettings: (storeId?: number) => api.get(`/api/integrations/pazarama/settings${storeId ? `?storeId=${storeId}` : ""}`),
@@ -595,7 +614,14 @@ export const api = {
   getPazaramaCategories: (storeId?: number) => api.get(`/api/integrations/pazarama/categories${storeId ? `?storeId=${storeId}` : ""}`),
   getPazaramaBrands: (storeId?: number) => api.get(`/api/integrations/pazarama/brands${storeId ? `?storeId=${storeId}` : ""}`),
   getN11Categories: (storeId?: number) => api.get(`/api/integrations/n11/categories${storeId ? `?storeId=${storeId}` : ""}`),
-  getN11CategoryAttributes: (categoryId: string | number, storeId?: number) => api.get(`/api/integrations/n11/categories/${categoryId}/attributes${storeId ? `?storeId=${storeId}` : ""}`),
+  getN11CategoryAttributes: (categoryId: string | number, storeId?: number, categoryName?: string, subCategoryName?: string) => {
+    const params = new URLSearchParams();
+    if (storeId !== undefined && storeId !== null) params.set("storeId", String(storeId));
+    if (categoryName) params.set("categoryName", categoryName);
+    if (subCategoryName) params.set("subCategoryName", subCategoryName);
+    const qs = params.toString();
+    return api.get(`/api/integrations/n11/categories/${categoryId}/attributes${qs ? `?${qs}` : ""}`);
+  },
   saveN11Settings: (data: { appKey?: string, appSecret?: string, categoryMappings?: any, categoryAttributes?: any, categoryMarkups?: any, defaultCommissionRate?: number, defaultFixedFee?: number, connected?: boolean, storeId?: number }) => api.post("/api/integrations/n11/settings", data),
   
   // Google Drive

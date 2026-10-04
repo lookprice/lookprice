@@ -1757,8 +1757,10 @@ router.post("/customers/register", async (req, res) => {
   }
 
   try {
-    const existing = await pool.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, email]);
-    if (existing.rows.length > 0) {
+    const existing = await pool.query("SELECT id, password FROM customers WHERE store_id = $1 AND LOWER(email) = LOWER($2)", [storeId, email.trim()]);
+    const existingRow = existing.rows[0];
+    const isGuestAccount = existingRow && (!existingRow.password || existingRow.password === 'no_password_guest' || existingRow.password === 'guest_checkout_no_password' || existingRow.password === 'marketplace_user');
+    if (existingRow && !isGuestAccount) {
       return res.status(400).json({ error: "Bu e-posta adresi zaten kayıtlı." });
     }
 
@@ -1777,10 +1779,24 @@ router.post("/customers/register", async (req, res) => {
     const fullNameVal = [firstNameVal, surnameVal].filter(Boolean).join(' ').trim() || rawName;
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      "INSERT INTO customers (store_id, email, password, full_name, name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, email, full_name as name, full_name, name as first_name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms",
-      [storeId, email, hashedPassword, fullNameVal, firstNameVal, surnameVal, phone || '', address || '', country || '', city || '', tc_id || '', is_corporate || false, marketing_email || false, marketing_sms || false]
-    );
+    let result;
+    if (existingRow && isGuestAccount) {
+      result = await pool.query(
+        `UPDATE customers SET 
+           password = $1, full_name = $2, name = $3, surname = $4, phone = COALESCE(NULLIF($5, ''), phone), 
+           address = COALESCE(NULLIF($6, ''), address), country = COALESCE(NULLIF($7, ''), country), 
+           city = COALESCE(NULLIF($8, ''), city), tc_id = COALESCE(NULLIF($9, ''), tc_id), 
+           is_corporate = $10, marketing_email = $11, marketing_sms = $12 
+         WHERE id = $13 
+         RETURNING id, email, full_name as name, full_name, name as first_name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms`,
+        [hashedPassword, fullNameVal, firstNameVal, surnameVal, phone || '', address || '', country || '', city || '', tc_id || '', is_corporate || false, marketing_email || false, marketing_sms || false, existingRow.id]
+      );
+    } else {
+      result = await pool.query(
+        "INSERT INTO customers (store_id, email, password, full_name, name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, email, full_name as name, full_name, name as first_name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms",
+        [storeId, email.trim(), hashedPassword, fullNameVal, firstNameVal, surnameVal, phone || '', address || '', country || '', city || '', tc_id || '', is_corporate || false, marketing_email || false, marketing_sms || false]
+      );
+    }
     res.json({ success: true, customer: result.rows[0] });
   } catch (e: any) {
     console.error('API Error:', e);
@@ -1792,9 +1808,12 @@ router.post("/customers/register", async (req, res) => {
 router.post("/customers/login", async (req, res) => {
   const { storeId, email, password } = req.body;
   try {
-    const result = await pool.query("SELECT * FROM customers WHERE store_id = $1 AND email = $2", [storeId, email]);
+    const result = await pool.query("SELECT * FROM customers WHERE store_id = $1 AND LOWER(email) = LOWER($2)", [storeId, (email || '').trim()]);
     const customer = result.rows[0];
     if (!customer) return res.status(401).json({ error: "E-posta veya şifre hatalı." });
+    if (!customer.password || customer.password === 'no_password_guest' || customer.password === 'guest_checkout_no_password' || customer.password === 'marketplace_user') {
+      return res.status(401).json({ error: "Bu e-posta adresiyle daha önce üyeliksiz sipariş verilmiş. Lütfen 'Kayıt Ol' sekmesinden şifrenizi belirleyerek hesabınızı aktifleştirin." });
+    }
 
     const valid = await bcrypt.compare(password, customer.password);
     if (!valid) return res.status(401).json({ error: "E-posta veya şifre hatalı." });
@@ -2160,18 +2179,20 @@ router.post("/sales", async (req, res) => {
       } else {
         const effectiveCustomerEmail = (customerEmail && customerEmail.trim()) || `web_${storeId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@lookprice.local`;
         const newCustomer = await client.query(
-          `INSERT INTO customers (store_id, full_name, name, surname, email, phone, address, tax_number, tc_id) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+          `INSERT INTO customers (store_id, full_name, name, surname, email, password, phone, address, city, country, tax_number, tc_id) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
            ON CONFLICT (store_id, email) DO UPDATE SET
              full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
              name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
              surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
              phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
              address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+             city = COALESCE(NULLIF(EXCLUDED.city, ''), customers.city),
+             country = COALESCE(NULLIF(EXCLUDED.country, ''), customers.country),
              tax_number = COALESCE(NULLIF(EXCLUDED.tax_number, ''), customers.tax_number),
              tc_id = COALESCE(NULLIF(EXCLUDED.tc_id, ''), customers.tc_id)
            RETURNING id`,
-          [storeId, fullNameVal, firstNameVal, surnameVal, effectiveCustomerEmail, customerPhone || '', customerAddress || '', effectiveTcId, effectiveTcId]
+          [storeId, fullNameVal, firstNameVal, surnameVal, effectiveCustomerEmail, 'no_password_guest', customerPhone || '', customerAddress || '', customerCity || '', customerCountry || 'Türkiye', effectiveTcId, effectiveTcId]
         );
         finalCustomerId = newCustomer.rows[0]?.id;
       }

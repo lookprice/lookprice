@@ -247,7 +247,18 @@ router.post("/initialize", async (req, res) => {
       return res.status(400).json({ error: "Sipariş ID (saleId) gereklidir." });
     }
 
-    const saleRes = await pool.query("SELECT * FROM sales WHERE id = $1", [saleId]);
+    const saleRes = await pool.query(
+      `SELECT s.*, 
+              c.email as cust_email, 
+              c.city as cust_city, 
+              c.tc_id as cust_tc_id, 
+              c.tax_number as cust_tax_number,
+              c.phone as cust_phone
+       FROM sales s
+       LEFT JOIN customers c ON s.customer_id = c.id
+       WHERE s.id = $1`,
+      [saleId]
+    );
     if (saleRes.rows.length === 0) return res.status(404).json({ error: "Sipariş bulunamadı." });
     const sale = saleRes.rows[0];
     const { store_id, total_amount } = sale;
@@ -297,16 +308,18 @@ router.post("/initialize", async (req, res) => {
     const lastName = (nameParts.slice(1).join(" ") || "Kullanici").replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ\s]/g, '') || "Kullanici";
 
     // Clean email
-    const rawEmail = (sale.customer_email || "").trim();
-    const email = (rawEmail.includes("@") && rawEmail.includes(".")) ? rawEmail : "musteri@lookprice.net";
+    const noteEmailMatch = (sale.notes || "").match(/E-posta:\s*([^\s|]+)/i);
+    const rawEmail = (sale.cust_email || sale.customer_email || (noteEmailMatch ? noteEmailMatch[1] : "")).trim();
+    const email = (rawEmail.includes("@") && rawEmail.includes(".") && !rawEmail.endsWith(".local")) ? rawEmail : "musteri@lookprice.net";
 
     // Clean address & city
     const rawAddress = (sale.customer_address || "").trim();
     const address = rawAddress.length >= 3 ? rawAddress.substring(0, 200) : "Merkez Adres";
-    const city = "Istanbul";
+    const noteCityMatch = (sale.notes || "").match(/İl:\s*([^|]+)/i);
+    const city = (sale.cust_city || (noteCityMatch ? noteCityMatch[1] : "") || "Istanbul").trim() || "Istanbul";
 
     // Clean TC/Identity
-    const rawTc = (sale.customer_tc_id || sale.customer_phone || "").replace(/\D/g, '');
+    const rawTc = (sale.cust_tc_id || sale.cust_tax_number || sale.customer_tc_id || sale.customer_phone || sale.cust_phone || "").replace(/\D/g, '');
     const identityNumber = rawTc.length === 11 ? rawTc : "11111111111";
 
     // Clean IP

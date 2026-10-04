@@ -1705,7 +1705,7 @@ export async function initDb() {
           id SERIAL PRIMARY KEY,
           store_id INTEGER NOT NULL,
           email TEXT NOT NULL,
-          password TEXT NOT NULL,
+          password TEXT DEFAULT 'no_password_guest',
           full_name TEXT,
           name TEXT,
           tax_number TEXT,
@@ -1719,6 +1719,8 @@ export async function initDb() {
           UNIQUE(store_id, email)
         );
 
+        ALTER TABLE customers ALTER COLUMN password SET DEFAULT 'no_password_guest';
+        ALTER TABLE customers ALTER COLUMN password DROP NOT NULL;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS name TEXT;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS tax_number TEXT;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS tax_office TEXT;

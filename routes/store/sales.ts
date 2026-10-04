@@ -1127,8 +1127,8 @@ router.post("/:id/create-invoice", async (req: any, res) => {
         const effectiveTargetEmail = targetEmail || `cust_${storeId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@lookprice.local`;
 
         const newCustRes = await pool.query(
-          `INSERT INTO customers (store_id, full_name, name, surname, phone, address, city, country, email)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO customers (store_id, full_name, name, surname, phone, address, city, country, email, password)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            ON CONFLICT (store_id, email) DO UPDATE SET
              full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
              name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
@@ -1147,7 +1147,8 @@ router.post("/:id/create-invoice", async (req: any, res) => {
             sale.customer_address || '',
             extractedCity || '',
             extractedCountry || '',
-            effectiveTargetEmail
+            effectiveTargetEmail,
+            'no_password_guest'
           ]
         );
         customerObj = newCustRes.rows[0];

@@ -47,8 +47,8 @@ router.post("/", async (req: any, res) => {
     const effectiveEmail = (email && email.trim()) || `cust_${storeId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@lookprice.local`;
 
     const result = await pool.query(
-      `INSERT INTO customers (store_id, full_name, name, surname, email, phone, address, tax_number, tax_office) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+      `INSERT INTO customers (store_id, full_name, name, surname, email, password, phone, address, tax_number, tax_office) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
        ON CONFLICT (store_id, email) DO UPDATE SET
          full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
          name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
@@ -58,7 +58,7 @@ router.post("/", async (req: any, res) => {
          tax_number = COALESCE(NULLIF(EXCLUDED.tax_number, ''), customers.tax_number),
          tax_office = COALESCE(NULLIF(EXCLUDED.tax_office, ''), customers.tax_office)
        RETURNING *`,
-      [storeId, calculatedFullName, firstNameVal, surnameVal, effectiveEmail, phone, address, tax_number, tax_office]
+      [storeId, calculatedFullName, firstNameVal, surnameVal, effectiveEmail, 'no_password_guest', phone, address, tax_number, tax_office]
     );
     res.status(201).json(result.rows[0]);
   } catch (err: any) {

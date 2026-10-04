@@ -3458,18 +3458,35 @@ router.get("/hepsiburada/categories/search", authenticate, async (req: any, res)
 router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   const rawCategoryId = String(req.params.categoryId || "").trim();
+  const querySubCategory = String(req.query.subCategoryName || "").trim();
+  const queryCategory = String(req.query.categoryName || "").trim();
 
   // Normalize virtual category IDs to live Hepsiburada IDs
   let categoryId = rawCategoryId;
   if (categoryId === "1000101" || categoryId === "1000101.0") categoryId = "970";
   else if (categoryId === "1000102") categoryId = "698";
   else if (categoryId === "1000103") categoryId = "1100011";
+  else if (categoryId === "1000108") categoryId = "676";
+  else if (categoryId === "1000109") categoryId = "106861";
+  else if (categoryId === "1000110") categoryId = "51";
+  else if (categoryId === "1000111") categoryId = "52";
+  else if (categoryId === "1000112") categoryId = "29";
+  else if (categoryId === "1000113") categoryId = "100225";
+  else if (categoryId === "1000114") categoryId = "98";
+  else if (categoryId === "1000115") categoryId = "57";
+  else if (categoryId === "1000116") categoryId = "47";
+  else if (categoryId === "1000117") categoryId = "410";
+  else if (categoryId === "1000118") categoryId = "3007055";
+  else if (categoryId === "1000119") categoryId = "111001";
+  else if (categoryId === "1000120") categoryId = "105307";
+
+  const isBogusId = categoryId === "2147483647" || categoryId === "0" || categoryId === "null" || categoryId === "undefined";
 
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.hepsiburada_settings;
 
-    if (settings?.apiSecret && settings?.merchantId) {
+    if (settings?.apiSecret && settings?.merchantId && !isBogusId) {
       try {
         const hbService = new HepsiburadaService(settings, storeId);
         const liveAttrs = await hbService.getCategoryAttributes(categoryId);
@@ -3492,9 +3509,22 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
         }
 
         if (Array.isArray(rawList) && rawList.length > 0) {
+          // Prioritize mandatory attributes + key child category variant attributes so 80+ optional fields don't overwhelm the form
+          const seenIds = new Set<string>();
+          const uniqueRaw = rawList.filter((attr: any) => {
+            const id = String(attr.id || attr.attributeId || attr.name || "").trim();
+            if (!id || seenIds.has(id)) return false;
+            seenIds.add(id);
+            return true;
+          });
+
+          const mandatoryRaw = uniqueRaw.filter((a: any) => !!(a.mandatory || a.required || a.isMandatory));
+          const optionalRaw = uniqueRaw.filter((a: any) => !(a.mandatory || a.required || a.isMandatory)).slice(0, Math.max(0, 8 - mandatoryRaw.length));
+          const conciseRaw = mandatoryRaw.length > 0 ? [...mandatoryRaw, ...optionalRaw] : uniqueRaw.slice(0, 10);
+
           // Fetch enum values for top mandatory select attributes if missing
           const normalized = await Promise.all(
-            rawList.map(async (attr: any) => {
+            conciseRaw.map(async (attr: any) => {
               let vals = Array.isArray(attr.values) ? attr.values.map((v: any) => (typeof v === "object" ? v.value || v.name : v)) : [];
               if (vals.length === 0 && (attr.type === "enum" || attr.type === "select")) {
                 try {
@@ -3507,10 +3537,12 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
                 }
               }
 
+              const isMandatory = !!(attr.mandatory || attr.required || attr.isMandatory);
               return {
                 id: String(attr.id || attr.attributeId || attr.name || ""),
                 name: attr.name || attr.attributeName || attr.id,
-                mandatory: !!(attr.mandatory || attr.required || attr.isMandatory),
+                mandatory: isMandatory,
+                required: isMandatory,
                 type: (attr.type || attr.attributeType || "text").toLowerCase().includes("select") || attr.type === "enum" || vals.length > 0 ? "select" : (attr.type === "integer" || attr.type === "number" ? "number" : "text"),
                 values: vals,
                 description: attr.description || attr.tooltip || "",
@@ -3526,21 +3558,27 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
       }
     }
 
-    // Fallback: Rich Calculated Category Attributes
+    // Fallback: Rich Calculated Child Category Attributes
     const { getAttributesForCategory, HEPSIBURADA_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
-    const matchedCat = HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId) || String(c.id) === String(rawCategoryId));
-    const catName = matchedCat?.name || (categoryId === "970" ? "USB Flash Bellekler" : String(categoryId));
-    const catPaths = matchedCat?.paths || (categoryId === "970" ? ["Bilgisayar", "Veri Depolama", "Usb Bellek"] : []);
-    const verifiedAttrs = getAttributesForCategory(catName, catPaths, categoryId || rawCategoryId);
+    const matchedCat = !isBogusId
+      ? HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId) || String(c.id) === String(rawCategoryId))
+      : undefined;
+    const catName = querySubCategory || matchedCat?.name || queryCategory || (categoryId === "970" ? "USB Flash Bellekler" : "");
+    const catPaths = matchedCat?.paths || (querySubCategory ? [queryCategory, querySubCategory].filter(Boolean) : []);
+    const safeCatId = isBogusId ? undefined : (categoryId || rawCategoryId);
+    const verifiedAttrs = getAttributesForCategory(catName, catPaths, safeCatId);
 
-    res.json({ success: true, attributes: verifiedAttrs, source: "verified_catalog", categoryId });
+    res.json({ success: true, attributes: verifiedAttrs, source: "verified_catalog", categoryId: safeCatId || categoryId });
   } catch (error: any) {
     try {
       const { getAttributesForCategory, HEPSIBURADA_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
-      const matchedCat = HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId) || String(c.id) === String(rawCategoryId));
-      const catName = matchedCat?.name || (categoryId === "970" ? "USB Flash Bellekler" : String(categoryId));
-      const catPaths = matchedCat?.paths || (categoryId === "970" ? ["Bilgisayar", "Veri Depolama", "Usb Bellek"] : []);
-      res.json({ success: true, attributes: getAttributesForCategory(catName, catPaths, categoryId || rawCategoryId), source: "verified_catalog", categoryId });
+      const matchedCat = !isBogusId
+        ? HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId) || String(c.id) === String(rawCategoryId))
+        : undefined;
+      const catName = querySubCategory || matchedCat?.name || queryCategory || (categoryId === "970" ? "USB Flash Bellekler" : "");
+      const catPaths = matchedCat?.paths || (querySubCategory ? [queryCategory, querySubCategory].filter(Boolean) : []);
+      const safeCatId = isBogusId ? undefined : (categoryId || rawCategoryId);
+      res.json({ success: true, attributes: getAttributesForCategory(catName, catPaths, safeCatId), source: "verified_catalog", categoryId: safeCatId || categoryId });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

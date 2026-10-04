@@ -89,13 +89,18 @@ export const MarketplaceProductFields = ({
   
   const extractCatIdFromMapping = (mapVal: any): string => {
     if (!mapVal) return "";
-    if (typeof mapVal === "string") return mapVal.trim();
-    if (typeof mapVal === "number") return String(mapVal);
-    if (typeof mapVal === "object") {
+    let raw = "";
+    if (typeof mapVal === "string") raw = mapVal.trim();
+    else if (typeof mapVal === "number") raw = String(mapVal);
+    else if (typeof mapVal === "object") {
       const found = mapVal.hepsiburada || mapVal.n11 || mapVal.trendyol || mapVal.amazon || mapVal.pazarama || mapVal.id || mapVal.categoryId;
-      if (found) return String(found).trim();
+      if (found) raw = String(found).trim();
     }
-    return "";
+    // Filter out invalid/poisoned placeholder category IDs (such as 2147483647 which points to Car Seat Covers)
+    if (!raw || raw === "2147483647" || raw === "0" || raw === "null" || raw === "undefined") {
+      return "";
+    }
+    return raw;
   };
 
   const getMappingForKeys = (key1: string, key2: string, key3: string) => {
@@ -109,6 +114,7 @@ export const MarketplaceProductFields = ({
       branding?.amazon_settings?.categoryMappings,
     ];
 
+    // First pass: check specific hierarchical ("Parent > Child") and child ("sub_category") keys across all maps
     for (const map of maps) {
       if (!map || typeof map !== "object") continue;
       if (key1 && map[key1]) {
@@ -119,9 +125,16 @@ export const MarketplaceProductFields = ({
         const res = extractCatIdFromMapping(map[key2]);
         if (res) return res;
       }
-      if (key3 && map[key3]) {
-        const res = extractCatIdFromMapping(map[key3]);
-        if (res) return res;
+    }
+
+    // Second pass: only fall back to parent category key if no child key exists
+    if (!key2) {
+      for (const map of maps) {
+        if (!map || typeof map !== "object") continue;
+        if (key3 && map[key3]) {
+          const res = extractCatIdFromMapping(map[key3]);
+          if (res) return res;
+        }
       }
     }
     return "";
@@ -129,44 +142,91 @@ export const MarketplaceProductFields = ({
 
   const storeMappedCatId = getMappingForKeys(hierarchicalKey, subCatKey, catKey);
 
-  // If user has explicitly selected a category (marketData.categoryId), respect it 100%!
-  const prodSearchStr = `${product?.name || ''} ${catKey} ${subCatKey}`.toLowerCase();
-  let resolvedCatId = marketData.categoryId ? String(marketData.categoryId) : (storeMappedCatId ? String(storeMappedCatId) : "");
-  
-  if (!marketData.categoryId) {
-    if (prodSearchStr.includes("ssd") || prodSearchStr.includes("katı hal") || prodSearchStr.includes("nvme")) {
-      resolvedCatId = "1000107";
-    } else if (prodSearchStr.includes("taşınabilir disk") || prodSearchStr.includes("harici")) {
-      resolvedCatId = "100225";
-    } else if (prodSearchStr.includes("sabit disk") || prodSearchStr.includes("hdd")) {
-      resolvedCatId = "100221";
-    } else if (prodSearchStr.includes("usb") && (prodSearchStr.includes("bellek") || prodSearchStr.includes("flash"))) {
-      resolvedCatId = "970";
-    } else if (prodSearchStr.includes("kart okuyucu")) {
-      resolvedCatId = "698";
-    } else if (prodSearchStr.includes("sd kart") || prodSearchStr.includes("hafıza kartı")) {
-      resolvedCatId = "1100011";
-    } else if (prodSearchStr.includes("ram") || prodSearchStr.includes("bellek")) {
-      resolvedCatId = "47";
-    } else if (prodSearchStr.includes("klavye") && prodSearchStr.includes("mouse")) {
-      resolvedCatId = "3007055";
-    } else if (prodSearchStr.includes("mouse") || prodSearchStr.includes("fare")) {
-      resolvedCatId = "52";
-    } else if (prodSearchStr.includes("klavye")) {
-      resolvedCatId = "51";
-    } else if (prodSearchStr.includes("monitör")) {
-      resolvedCatId = "57";
-    } else if (prodSearchStr.includes("kablo") || prodSearchStr.includes("dönüştürücü") || prodSearchStr.includes("adaptör")) {
+  // Respect user-selected category override (unless it's a bogus placeholder ID)
+  const validMarketCatId = extractCatIdFromMapping(marketData.categoryId);
+  let resolvedCatId = validMarketCatId || (storeMappedCatId ? String(storeMappedCatId) : "");
+
+  // Child-category-first keyword resolution:
+  // Inspect subCatKey (or catKey if no subCatKey) BEFORE checking generic laptop/notebook terms,
+  // so "NOTEBOOK > NOTEBOOK ÇANTASI" or "ÇANTA" never gets hijacked by "notebook" into Category 98 (Laptop)!
+  const leafFocusStr = (subCatKey || catKey || "")
+    .replace(/İ/g, "i")
+    .replace(/I/g, "ı")
+    .toLowerCase();
+  const fullContextStr = `${subCatKey} ${catKey} ${product?.name || ""}`
+    .replace(/İ/g, "i")
+    .replace(/I/g, "ı")
+    .toLowerCase();
+
+  if (!validMarketCatId) {
+    if (
+      leafFocusStr.includes("çanta") ||
+      leafFocusStr.includes("canta") ||
+      leafFocusStr.includes("kılıf") ||
+      leafFocusStr.includes("kilif") ||
+      leafFocusStr.includes("sleeve") ||
+      fullContextStr.includes("notebook çanta") ||
+      fullContextStr.includes("laptop çanta") ||
+      fullContextStr.includes("sırt çanta")
+    ) {
+      resolvedCatId = "676";
+    } else if (
+      leafFocusStr.includes("soğutucu") ||
+      leafFocusStr.includes("sogutucu") ||
+      leafFocusStr.includes("stand") ||
+      leafFocusStr.includes("altlık") ||
+      leafFocusStr.includes("yükseltici")
+    ) {
+      resolvedCatId = "106861";
+    } else if (leafFocusStr.includes("mousepad") || leafFocusStr.includes("mouse pad") || leafFocusStr.includes("bilek")) {
+      resolvedCatId = "29";
+    } else if (leafFocusStr.includes("toner") || leafFocusStr.includes("kartuş") || leafFocusStr.includes("kartus") || leafFocusStr.includes("şerit") || leafFocusStr.includes("mürekkep") || leafFocusStr.includes("drum")) {
+      resolvedCatId = "111001";
+    } else if (leafFocusStr.includes("barkod") || leafFocusStr.includes("etiket") || leafFocusStr.includes("afiş") || leafFocusStr.includes("afis") || leafFocusStr.includes("pos ") || leafFocusStr.includes("el terminali")) {
       resolvedCatId = "105307";
-    } else if (prodSearchStr.includes("modem") || prodSearchStr.includes("router") || prodSearchStr.includes("switch") || prodSearchStr.includes("ağ")) {
+    } else if (leafFocusStr.includes("ssd") || leafFocusStr.includes("katı hal") || leafFocusStr.includes("nvme")) {
+      resolvedCatId = "1000107";
+    } else if (leafFocusStr.includes("taşınabilir disk") || leafFocusStr.includes("harici")) {
+      resolvedCatId = "100225";
+    } else if (leafFocusStr.includes("sabit disk") || leafFocusStr.includes("hdd") || leafFocusStr.includes("harddisk")) {
+      resolvedCatId = "100221";
+    } else if (leafFocusStr.includes("usb") && (leafFocusStr.includes("bellek") || leafFocusStr.includes("flash"))) {
+      resolvedCatId = "970";
+    } else if (leafFocusStr.includes("kart okuyucu")) {
+      resolvedCatId = "698";
+    } else if (leafFocusStr.includes("sd kart") || leafFocusStr.includes("hafıza kart") || leafFocusStr.includes("micro sd")) {
+      resolvedCatId = "1100011";
+    } else if (leafFocusStr.includes("ram") || leafFocusStr.includes("bellek")) {
+      resolvedCatId = "47";
+    } else if (leafFocusStr.includes("klavye") && leafFocusStr.includes("mouse")) {
+      resolvedCatId = "3007055";
+    } else if (leafFocusStr.includes("mouse") || leafFocusStr.includes("fare")) {
+      resolvedCatId = "52";
+    } else if (leafFocusStr.includes("klavye")) {
+      resolvedCatId = "51";
+    } else if (leafFocusStr.includes("monitör") || leafFocusStr.includes("monitor")) {
+      resolvedCatId = "57";
+    } else if (leafFocusStr.includes("kablo") || leafFocusStr.includes("dönüştürücü") || leafFocusStr.includes("donusturucu") || leafFocusStr.includes("adaptör") || leafFocusStr.includes("adaptor") || leafFocusStr.includes("şarj") || leafFocusStr.includes("sarj") || leafFocusStr.includes("hub") || leafFocusStr.includes("splitter")) {
+      resolvedCatId = "100225";
+    } else if (leafFocusStr.includes("modem") || leafFocusStr.includes("router") || leafFocusStr.includes("switch") || leafFocusStr.includes("access point") || leafFocusStr.includes("menzil") || leafFocusStr.includes("wifi") || leafFocusStr.includes("ağ ")) {
       resolvedCatId = "410";
-    } else if (prodSearchStr.includes("yazıcı") || prodSearchStr.includes("tarayıcı")) {
-      resolvedCatId = "4";
-    } else if (prodSearchStr.includes("kulaklık") || prodSearchStr.includes("mikrofon")) {
-      resolvedCatId = "520";
-    } else if (prodSearchStr.includes("dizüstü") || prodSearchStr.includes("laptop") || prodSearchStr.includes("notebook")) {
+    } else if (leafFocusStr.includes("yazıcı") || leafFocusStr.includes("yazici") || leafFocusStr.includes("tarayıcı") || leafFocusStr.includes("printer")) {
+      resolvedCatId = "3007055";
+    } else if (leafFocusStr.includes("kulaklık") || leafFocusStr.includes("kulaklik") || leafFocusStr.includes("mikrofon")) {
+      resolvedCatId = "16113";
+    } else if (leafFocusStr.includes("hoparlör") || leafFocusStr.includes("hoparlor") || leafFocusStr.includes("speaker") || leafFocusStr.includes("ses sistemi")) {
+      resolvedCatId = "29010123";
+    } else if (leafFocusStr.includes("webcam") || leafFocusStr.includes("kamera")) {
+      resolvedCatId = "100221";
+    } else if (!resolvedCatId && (leafFocusStr.includes("dizüstü") || leafFocusStr.includes("laptop") || leafFocusStr.includes("notebook") || leafFocusStr.includes("bilgisayar"))) {
       resolvedCatId = "98";
     }
+  }
+
+  // If still unresolved, check parent category mapping as last resort
+  if (!resolvedCatId && catKey) {
+    const parentFallback = getMappingForKeys("", "", catKey);
+    if (parentFallback) resolvedCatId = parentFallback;
   }
 
   const effectiveCatId = resolvedCatId;
@@ -177,7 +237,7 @@ export const MarketplaceProductFields = ({
 
   if (!activeCategory && (catKey || subCatKey)) {
     activeCategory = {
-      id: Number(effectiveCatId) || 1000107,
+      id: Number(effectiveCatId) || 676,
       name: subCatKey || catKey,
       displayName: subCatKey ? `${catKey} > ${subCatKey}` : catKey,
       paths: subCatKey ? [catKey, subCatKey] : [catKey],
@@ -204,9 +264,13 @@ export const MarketplaceProductFields = ({
       return;
     }
 
+    // Pass ONLY the child category (subCatKey) as primary label so parent category ("NOTEBOOK") never pollutes child ("NOTEBOOK ÇANTASI") attributes
+    const leafLabel = subCatKey || activeCategory?.name || catKey || "";
+    const leafPaths = subCatKey ? [subCatKey] : (activeCategory?.paths || [catKey]);
+
     const localFallback = getAttributesForCategory(
-      subCatKey || activeCategory?.name || activeCategory?.displayName || catKey || "",
-      activeCategory?.paths || (subCatKey ? [catKey, subCatKey] : [catKey]),
+      leafLabel,
+      leafPaths,
       effectiveCatId
     );
 
@@ -218,7 +282,7 @@ export const MarketplaceProductFields = ({
     setLoadingAttributes(true);
     const storeId = storeSettings?.id || product?.store_id;
 
-    api.getHepsiburadaCategoryAttributes(effectiveCatId, storeId)
+    api.getHepsiburadaCategoryAttributes(effectiveCatId, storeId, catKey, subCatKey)
       .then((res: any) => {
         const attrs = res.data?.attributes || res.attributes || [];
         if (Array.isArray(attrs) && attrs.length > 0) {
