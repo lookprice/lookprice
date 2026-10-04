@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink, Layers } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
-import { compressImageToWebP } from "../../../utils/imageUtils";
+import { compressImageToWebP, normalizeImageUrl } from "../../../utils/imageUtils";
 import { VariantMatrixManager } from "../../../components/dashboard/VariantMatrixManager";
 import { MarketplaceProductFields } from "../../../components/marketplace/MarketplaceProductFields";
 import ProductMovementModal from "../../../components/ProductMovementModal";
@@ -39,6 +39,7 @@ export const ProductModal = ({
   products = [],
 }: ProductModalProps) => {
   const [productImageUrl, setProductImageUrl] = useState("");
+  const [productType, setProductType] = useState<string>("product");
   const [activeTab, setActiveTab] = useState<'general' | 'variants' | 'marketplaces'>('general');
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
@@ -358,6 +359,7 @@ export const ProductModal = ({
         setRecipeItems([]);
       }
       setProductImageUrl(editingProduct?.image_url || "");
+      setProductType(editingProduct?.product_type || "product");
       const cat = editingProduct?.category || "";
       const sub = editingProduct?.sub_category || "";
       setSelectedCategory(cat);
@@ -406,6 +408,7 @@ export const ProductModal = ({
       setIsNewSubCategoryMode(warrantsNewSub);
     } else {
       setProductImageUrl("");
+      setProductType("product");
       setSelectedCategory("");
       setSelectedSubCategory("");
       setSelectedCategory2("");
@@ -680,7 +683,8 @@ export const ProductModal = ({
                         <select
                           name="product_type"
                           className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
-                          defaultValue={editingProduct?.product_type || "product"}
+                          value={productType}
+                          onChange={(e) => setProductType(e.target.value)}
                         >
                           <option value="product">{isTr ? "Fiziksel Ürün" : "Physical"}</option>
                           <option value="service">{isTr ? "Hizmet / Servis" : "Service"}</option>
@@ -1585,13 +1589,13 @@ export const ProductModal = ({
                     <div className="w-7 h-7 rounded border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
                       {productImageUrl ? (
                         <img 
-                          src={productImageUrl} 
+                          src={normalizeImageUrl(productImageUrl)} 
                           alt="Cover" 
                           className="w-full h-full object-cover" 
                           referrerPolicy="no-referrer"
                           onError={(e) => {
                             const target = e.currentTarget;
-                            if (!target.dataset.fallback && productImageUrl.startsWith('http')) {
+                            if (!target.dataset.fallback && productImageUrl.startsWith('http') && !productImageUrl.includes('/api/proxy-image')) {
                               target.dataset.fallback = '1';
                               target.src = `/api/proxy-image?url=${encodeURIComponent(productImageUrl)}`;
                             }

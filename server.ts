@@ -26,7 +26,7 @@ import { domainMiddleware } from "./middleware/domain";
 import { pool } from "./models/db";
 import multer from "multer";
 import fs from "fs";
-import { generateMetaTags } from "./src/utils/metaTags";
+import { generateMetaTags, generateSeoBodySnapshot, generateDynamicLlmsTxt, generateGoogleMerchantFeed } from "./src/utils/metaTags";
 import axios from "axios";
 import sharp from "sharp";
 import https from "https";
@@ -183,18 +183,42 @@ async function startServer() {
   // Enable Gzip/Deflate compression for all responses
   app.use(compression());
 
-  // Explicit LLMS.txt handlers for AI Search Engines (Perplexity, ChatGPT, Claude)
-  const sendLlmsTxt = (req: express.Request, res: express.Response) => {
-    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
-    const filePath = path.join(process.cwd(), "public", "llms.txt");
-    if (fs.existsSync(filePath)) {
-      res.sendFile(filePath);
-    } else {
-      res.status(404).send("# Enrakipsiz AI Index\n> Enrakipsiz Emlak ve Vasıta Portföy Platformu");
+  // Explicit Dynamic LLMS.txt handlers for AI Search Engines (Google AI/Gemini, Perplexity, ChatGPT, Claude)
+  const sendLlmsTxt = async (req: express.Request, res: express.Response) => {
+    try {
+      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=900");
+      const dynamicMd = await generateDynamicLlmsTxt(req, req.params.storeSlug);
+      res.send(dynamicMd);
+    } catch (e) {
+      const filePath = path.join(process.cwd(), "public", "llms.txt");
+      if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+      } else {
+        res.status(200).send("# LookPrice & Enrakipsiz AI Index\n> Doğrulanmış E-Ticaret, Emlak ve Vasıta Portföy Platformu");
+      }
     }
   };
   app.get("/llms.txt", sendLlmsTxt);
+  app.get("/llms-full.txt", sendLlmsTxt);
   app.get("/.well-known/llms.txt", sendLlmsTxt);
+  app.get("/s/:storeSlug/llms.txt", sendLlmsTxt);
+
+  // Google Merchant Center / Google Shopping Automated XML Product Feeds (Strictly for shopLP & bookLP)
+  const sendMerchantFeed = async (req: express.Request, res: express.Response) => {
+    try {
+      const xml = await generateGoogleMerchantFeed(req, req.params.storeSlug);
+      res.setHeader("Content-Type", "application/xml; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=1800");
+      res.send(xml);
+    } catch (e: any) {
+      res.status(500).send("Error generating Google Merchant XML feed");
+    }
+  };
+  app.get("/feed/google-merchant.xml", sendMerchantFeed);
+  app.get("/google-merchant.xml", sendMerchantFeed);
+  app.get("/s/:storeSlug/feed.xml", sendMerchantFeed);
+  app.get("/s/:storeSlug/google-merchant.xml", sendMerchantFeed);
 
   // 1. Serve Static Files FIRST (Highest Priority)
   if (process.env.NODE_ENV === "production") {
@@ -209,12 +233,50 @@ async function startServer() {
   app.use(express.static(path.join(process.cwd(), "public")));
   app.use("/uploads", express.static(uploadsDir));
 
-  // Dynamic Robots.txt Handler
+  // Dynamic Robots.txt Handler (Optimized for Googlebot, Google AI, ChatGPT, Perplexity & Claude)
   app.get("/robots.txt", (req, res) => {
     const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
     const host = req.get('host') || "enrakipsiz.com";
     res.type("text/plain");
-    res.send(`User-agent: *\nAllow: /\nSitemap: ${protocol}://${host}/sitemap.xml\n`);
+    res.send([
+      "User-agent: *",
+      "Allow: /",
+      "Allow: /p/",
+      "Allow: /s/",
+      "Disallow: /admin",
+      "Disallow: /dashboard",
+      "Disallow: /api/",
+      "",
+      "User-agent: Googlebot",
+      "Allow: /",
+      "",
+      "User-agent: Googlebot-Image",
+      "Allow: /",
+      "",
+      "User-agent: Google-Extended",
+      "Allow: /",
+      "",
+      "User-agent: OAI-SearchBot",
+      "Allow: /",
+      "",
+      "User-agent: GPTBot",
+      "Allow: /",
+      "",
+      "User-agent: ChatGPT-User",
+      "Allow: /",
+      "",
+      "User-agent: PerplexityBot",
+      "Allow: /",
+      "",
+      "User-agent: ClaudeBot",
+      "Allow: /",
+      "",
+      "User-agent: Bingbot",
+      "Allow: /",
+      "",
+      `Sitemap: ${protocol}://${host}/sitemap.xml`,
+      ""
+    ].join("\n"));
   });
 
   // Explicit handlers for manifest and favicons to prevent SPA fallback interception
@@ -399,6 +461,7 @@ async function startServer() {
       res.set('Access-Control-Allow-Origin', '*');
       res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
       res.set('Access-Control-Allow-Headers', '*');
+      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
 
       if (format === 'dataurl' || format === 'base64' || format === 'json') {
         const base64 = imageBuffer.toString('base64');
@@ -1186,7 +1249,7 @@ function sanitizeFilename(originalName: string): string {
             : new Date().toISOString().split('T')[0];
 
           let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>${escapeXml(storeBaseUrl)}</loc>
     <lastmod>${storeLastMod}</lastmod>
@@ -1196,17 +1259,20 @@ function sanitizeFilename(originalName: string): string {
 
           // Products
           const productsRes = await pool.query(
-            "SELECT id, barcode, updated_at FROM products WHERE store_id = $1 AND (is_web_sale = true OR is_web_sale IS NULL)",
+            "SELECT id, name, barcode, image_url, updated_at FROM products WHERE store_id = $1 AND (is_web_sale = true OR is_web_sale IS NULL) AND COALESCE(type, '') <> 'service'",
             [storeObj.id]
           );
           productsRes.rows.forEach((p: any) => {
-            const prodUrl = `${storeBaseUrl}/p/${p.barcode || p.id}`;
+            const prodUrl = `${storeBaseUrl}/p/${encodeURIComponent(p.barcode || p.id)}`;
             const prodLastMod = p.updated_at ? new Date(p.updated_at).toISOString().split('T')[0] : storeLastMod;
+            const imgTag = p.image_url && p.image_url.startsWith('http')
+              ? `\n    <image:image>\n      <image:loc>${escapeXml(p.image_url)}</image:loc>\n      <image:title>${escapeXml(p.name || '')}</image:title>\n    </image:image>`
+              : '';
             xml += `  <url>
     <loc>${escapeXml(prodUrl)}</loc>
     <lastmod>${prodLastMod}</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.85</priority>${imgTag}
   </url>\n`;
           });
 
@@ -1254,7 +1320,7 @@ function sanitizeFilename(originalName: string): string {
 
       let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!-- Main Platform Mainpages -->
+  <!-- Main Platform & Sector Ecosystem Pages -->
   <url>
     <loc>${escapeXml(baseUrl)}/</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
@@ -1262,14 +1328,38 @@ function sanitizeFilename(originalName: string): string {
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>${escapeXml(baseUrl)}/login</loc>
-    <lastmod>2026-06-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <loc>${escapeXml(baseUrl)}/shop-landing</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>${escapeXml(baseUrl)}/restate-landing</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>${escapeXml(baseUrl)}/auto-landing</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>${escapeXml(baseUrl)}/horeca-landing</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>${escapeXml(baseUrl)}/portal</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>\n`;
 
       const productsRes = await pool.query(
-        "SELECT id, store_id, barcode, updated_at FROM products WHERE is_web_sale = true OR is_web_sale IS NULL"
+        "SELECT id, store_id, barcode, updated_at FROM products WHERE (is_web_sale = true OR is_web_sale IS NULL) AND COALESCE(type, '') <> 'service'"
       );
       const products = productsRes.rows;
 
@@ -1403,7 +1493,7 @@ function sanitizeFilename(originalName: string): string {
         : new Date().toISOString().split('T')[0];
 
       let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>${escapeXml(storeBaseUrl)}</loc>
     <lastmod>${storeLastMod}</lastmod>
@@ -1413,17 +1503,20 @@ function sanitizeFilename(originalName: string): string {
 
       // Products
       const productsRes = await pool.query(
-        "SELECT id, barcode, updated_at FROM products WHERE store_id = $1 AND (is_web_sale = true OR is_web_sale IS NULL)",
+        "SELECT id, name, barcode, image_url, updated_at FROM products WHERE store_id = $1 AND (is_web_sale = true OR is_web_sale IS NULL) AND COALESCE(type, '') <> 'service'",
         [storeObj.id]
       );
       productsRes.rows.forEach((p: any) => {
-        const prodUrl = `${storeBaseUrl}/p/${p.barcode || p.id}`;
+        const prodUrl = `${storeBaseUrl}/p/${encodeURIComponent(p.barcode || p.id)}`;
         const prodLastMod = p.updated_at ? new Date(p.updated_at).toISOString().split('T')[0] : storeLastMod;
+        const imgTag = p.image_url && p.image_url.startsWith('http')
+          ? `\n    <image:image>\n      <image:loc>${escapeXml(p.image_url)}</image:loc>\n      <image:title>${escapeXml(p.name || '')}</image:title>\n    </image:image>`
+          : '';
         xml += `  <url>
     <loc>${escapeXml(prodUrl)}</loc>
     <lastmod>${prodLastMod}</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.85</priority>${imgTag}
   </url>\n`;
       });
 
@@ -1493,11 +1586,22 @@ function sanitizeFilename(originalName: string): string {
         // Transform HTML first
         template = await vite.transformIndexHtml(url, template);
         
-        // Then inject process.env into the head
-        const customMetaTags = await generateMetaTags(url, req);
+        // Generate dynamic SEO head tags & SSR semantic body snapshot
+        const [customMetaTags, seoBodySnapshot] = await Promise.all([
+          generateMetaTags(url, req),
+          generateSeoBodySnapshot(url, req)
+        ]);
+
+        // Strip default static <title> from index.html so the dynamic store/product <title> is the FIRST and ONLY <title>
+        if (customMetaTags && customMetaTags.includes("<title>")) {
+          template = template.replace(/<title>[\s\S]*?<\/title>/i, "");
+        }
 
         const injection = `${customMetaTags}`;
         template = template.replace("</head>", `${injection}</head>`);
+        if (seoBodySnapshot) {
+          template = template.replace('<div id="root"></div>', `<div id="root">${seoBodySnapshot}</div>`);
+        }
         template = injectEnrakipsizGtm(template, req);
         
         if (req.method === "HEAD") {
@@ -1539,11 +1643,21 @@ function sanitizeFilename(originalName: string): string {
           NODE_ENV: process.env.NODE_ENV || "production"
         };
 
-        const customMetaTags = await generateMetaTags(req.originalUrl, req);
+        const [customMetaTags, seoBodySnapshot] = await Promise.all([
+          generateMetaTags(req.originalUrl, req),
+          generateSeoBodySnapshot(req.originalUrl, req)
+        ]);
+
+        if (customMetaTags && customMetaTags.includes("<title>")) {
+          template = template.replace(/<title>[\s\S]*?<\/title>/i, "");
+        }
 
         console.log(`Serving index.html for path: ${req.originalUrl}`);
         const injection = `${customMetaTags}`;
         template = template.replace("</head>", `${injection}</head>`);
+        if (seoBodySnapshot) {
+          template = template.replace('<div id="root"></div>', `<div id="root">${seoBodySnapshot}</div>`);
+        }
         template = injectEnrakipsizGtm(template, req);
         
         res.status(200).set({ "Content-Type": "text/html" }).end(template);

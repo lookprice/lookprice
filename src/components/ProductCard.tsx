@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Product, Store as StoreInfo } from "../types";
 import { formatTransmission, formatFuelType } from "../utils/formatUtils";
 import { getLabels } from "../utils/showcase";
+import { normalizeImageUrl } from "../utils/imageUtils";
 
 interface ProductCardProps {
   product: Product;
@@ -100,7 +101,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       const absoluteUrl = originalUrl.startsWith('http') ? originalUrl : `${origin}${originalUrl.startsWith('/') ? '' : '/'}${originalUrl}`;
       return `${origin}/api/annotate-image?imageUrl=${encodeURIComponent(absoluteUrl)}&status=${normalizedStatus}`;
     }
-    return originalUrl;
+    return normalizeImageUrl(originalUrl);
   };
 
   const pHasVars = React.useMemo(() => {
@@ -249,6 +250,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 } transition-transform duration-500 ease-out`}
                 referrerPolicy="no-referrer"
                 loading="lazy"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.dataset.fallback && product.image_url?.startsWith("http") && !product.image_url.includes("/api/proxy-image")) {
+                    target.dataset.fallback = "1";
+                    target.src = `/api/proxy-image?url=${encodeURIComponent(product.image_url)}`;
+                  }
+                }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-300">

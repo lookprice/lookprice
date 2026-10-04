@@ -130,6 +130,14 @@ export const normalizeImageUrl = (url?: string | null): string => {
   if (trimmed.includes('/uploads/')) {
     return trimmed.replace(/^https?:\/\/[^\/]+\/uploads\//, '/uploads/');
   }
+  if (
+    !trimmed.includes('/api/proxy-image') &&
+    (trimmed.includes('shopdelta.eu') ||
+      trimmed.includes('extrememobiles.com.cy') ||
+      trimmed.includes('wp-content/uploads/woocommerce'))
+  ) {
+    return `/api/proxy-image?url=${encodeURIComponent(trimmed)}`;
+  }
   return trimmed;
 };
 

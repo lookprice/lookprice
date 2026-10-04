@@ -519,7 +519,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }
 
     // Pre-emptively proxy domains known to enforce strict Hotlink / NotSameOrigin 403 blocks
-    if (url && (url.includes("extrememobiles.com.cy") || url.includes("wp-content/uploads/woocommerce"))) {
+    if (
+      url &&
+      !url.includes("/api/proxy-image") &&
+      (url.includes("shopdelta.eu") ||
+        url.includes("extrememobiles.com.cy") ||
+        url.includes("wp-content/uploads/woocommerce"))
+    ) {
       return `/api/proxy-image?url=${encodeURIComponent(url)}`;
     }
     return url;

@@ -166,10 +166,17 @@ export const PosProductGridView: React.FC<PosProductGridViewProps> = ({
                 <div className="w-full h-18 sm:h-20 bg-white flex items-center justify-center p-2 border-b border-slate-100 rounded-t-xl overflow-hidden">
                   {product.image_url ? (
                     <img 
-                      src={product.image_url} 
+                      src={product.image_url.includes('shopdelta.eu') || product.image_url.includes('extrememobiles.com.cy') ? `/api/proxy-image?url=${encodeURIComponent(product.image_url)}` : product.image_url} 
                       alt="" 
                       className="h-full w-full object-contain group-hover:scale-105 transition-transform duration-200" 
-                      referrerPolicy="no-referrer" 
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.dataset.fallback && product.image_url?.startsWith('http') && !product.image_url.includes('/api/proxy-image')) {
+                          target.dataset.fallback = '1';
+                          target.src = `/api/proxy-image?url=${encodeURIComponent(product.image_url)}`;
+                        }
+                      }}
                     />
                   ) : (
                     <Package className="h-7 w-7 sm:h-8 sm:w-8 text-slate-300 group-hover:scale-105 transition-transform duration-200" />

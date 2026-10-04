@@ -13,6 +13,7 @@ import { ShopThemeConfig } from "../../utils/shopThemePresets";
 import { getExchangeRate } from "../../services/currencyService";
 import { getLabels } from "../../utils/showcase";
 import { getProductFallbackSvg } from "../../utils/imageFallback";
+import { normalizeImageUrl } from "../../utils/imageUtils";
 
 interface ShopRetailProductCardProps {
   product: Product;
@@ -94,7 +95,8 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
   }, [product.images, product.image_url, variants]);
 
   // Active displayed image
-  const displayImage = selectedVariant?.image_url || (isHovered && secondaryImage && themeConfig?.card_hover_effect === 'secondary_image' ? secondaryImage : product.image_url);
+  const rawDisplayImage = selectedVariant?.image_url || (isHovered && secondaryImage && themeConfig?.card_hover_effect === 'secondary_image' ? secondaryImage : product.image_url);
+  const displayImage = normalizeImageUrl(rawDisplayImage);
 
   // Active price (takes variant price if available)
   const activePrice = selectedVariant && selectedVariant.price && Number(selectedVariant.price) > 0

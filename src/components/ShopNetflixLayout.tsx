@@ -67,7 +67,13 @@ export const getProductImageUrl = (p: Product): string => {
   }
 
   // Pre-emptively proxy domains known to enforce strict Hotlink / NotSameOrigin 403 blocks
-  if (url && (url.includes("extrememobiles.com.cy") || url.includes("wp-content/uploads/woocommerce"))) {
+  if (
+    url &&
+    !url.includes("/api/proxy-image") &&
+    (url.includes("shopdelta.eu") ||
+      url.includes("extrememobiles.com.cy") ||
+      url.includes("wp-content/uploads/woocommerce"))
+  ) {
     return `/api/proxy-image?url=${encodeURIComponent(url)}`;
   }
   return url;
@@ -1839,7 +1845,17 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
             </span>
           )}
           <h3 className="font-semibold text-[11px] sm:text-xs text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors leading-snug min-h-[2.4em]">
-            {product.name}
+            <a
+              href={`${typeof window !== 'undefined' && window.location.pathname.startsWith('/s/') ? `/s/${window.location.pathname.split('/')[2]}` : ''}/p/${encodeURIComponent(product.barcode || product.id)}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onViewProduct(product, allProducts);
+              }}
+              className="inherit"
+            >
+              {product.name}
+            </a>
           </h3>
         </div>
 

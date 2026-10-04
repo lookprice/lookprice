@@ -746,7 +746,17 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                           </div>
 
                           <h4 className="text-[14px] md:text-[15px] font-extrabold tracking-tight text-slate-900 uppercase group-hover:text-amber-500 transition-colors leading-snug line-clamp-2 min-h-[40px] flex items-center">
-                            {p.name}
+                            <a
+                              href={`${typeof window !== 'undefined' && window.location.pathname.startsWith('/s/') ? `/s/${window.location.pathname.split('/')[2]}` : ''}/p/${encodeURIComponent(String(p.id).startsWith('v_') ? p.id : `v_${(p as any).db_id || p.id}`)}`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onViewProduct(p);
+                              }}
+                              className="inherit"
+                            >
+                              {p.name}
+                            </a>
                           </h4>
 
                           <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-slate-50 px-3 py-2 rounded-2xl border border-slate-100/80">

@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { api } from "@/services/api";
 import { BookstoreBadgePopover } from "./BookstoreBadgePopover";
 import { getSectorBadges } from "@/data/bookstoreBadges";
+import { normalizeImageUrl } from "@/utils/imageUtils";
 
 interface ProductTableRowProps {
   product: any;
@@ -231,13 +232,13 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
               >
                 {p.image_url ? (
                   <img 
-                    src={p.image_url} 
+                    src={normalizeImageUrl(p.image_url)} 
                     alt={p.name} 
                     className="w-8 h-8 rounded-lg object-contain p-0.5 bg-white border border-slate-200 shadow-2xs hover:scale-105 transition-transform"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
                       const target = e.currentTarget;
-                      if (!target.dataset.fallback && p.image_url?.startsWith('http')) {
+                      if (!target.dataset.fallback && p.image_url?.startsWith('http') && !p.image_url.includes('/api/proxy-image')) {
                         target.dataset.fallback = '1';
                         target.src = `/api/proxy-image?url=${encodeURIComponent(p.image_url)}`;
                       } else {

@@ -459,7 +459,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-0 sm:p-4 md:p-6 animate-in fade-in duration-200"
+      className="hidden md:flex fixed inset-0 z-[120] items-center justify-center bg-slate-950/75 backdrop-blur-xs p-0 sm:p-4 md:p-6 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div

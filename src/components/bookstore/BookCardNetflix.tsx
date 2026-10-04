@@ -274,7 +274,17 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
           <div className="p-3 bg-slate-900 flex flex-col justify-between shrink-0 border-t border-slate-800/80">
             <div>
               <h3 className="text-xs sm:text-sm font-black text-white line-clamp-1 group-hover:text-red-400 transition-colors" title={product.name}>
-                {product.name}
+                <a
+                  href={`${typeof window !== 'undefined' && window.location.pathname.startsWith('/s/') ? `/s/${window.location.pathname.split('/')[2]}` : ''}/p/${encodeURIComponent(product.barcode || product.id)}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onView(product);
+                  }}
+                  className="inherit"
+                >
+                  {product.name}
+                </a>
               </h3>
               <p className="text-[11px] font-medium text-slate-400 line-clamp-1 mt-0.5">
                 {authorName}

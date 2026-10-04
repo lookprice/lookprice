@@ -1389,7 +1389,17 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                       <div>
                         <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{translateCategory(p.category)}</span>
                         <h4 className="text-base font-black text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors uppercase line-clamp-1 mt-0.5">
-                          {p.name}
+                          <a
+                            href={`${typeof window !== 'undefined' && window.location.pathname.startsWith('/s/') ? `/s/${window.location.pathname.split('/')[2]}` : ''}/p/${encodeURIComponent(String(p.id).startsWith('re_') ? p.id : `re_${(p as any).db_id || p.id}`)}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onViewProduct(p);
+                            }}
+                            className="inherit"
+                          >
+                            {p.name}
+                          </a>
                         </h4>
                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
                           <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />

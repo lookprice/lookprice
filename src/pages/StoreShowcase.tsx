@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
 import {
@@ -299,6 +300,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const handleCloseProductModal = useCallback(() => {
     setSelectedProduct(null);
     isProductModalOpenRef.current = false;
+    if (urlBarcode) {
+      navigate(getStorePath("/"), { replace: true });
+      return;
+    }
     if (searchParams.has("product")) {
       setSearchParams(prev => {
         const next = new URLSearchParams(prev);
@@ -306,13 +311,28 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         return next;
       }, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+  }, [urlBarcode, navigate, searchParams, setSearchParams, customSlug, slug]);
 
-  // Sync back from URL parameter '?product=id' to state (e.g. browser back button press)
+  // Sync back from URL parameter '?product=id' or route '/p/:barcode' to state
   useEffect(() => {
-    if (productParam) {
-      if (!selectedProduct || String(selectedProduct.id) !== productParam) {
-        const found = products.find(p => String(p.id) === productParam);
+    const targetIdentifier = productParam || urlBarcode;
+    if (targetIdentifier) {
+      const cleanTarget = String(targetIdentifier).trim().toLowerCase();
+      if (
+        !selectedProduct ||
+        (String(selectedProduct.id).toLowerCase() !== cleanTarget &&
+          String(selectedProduct.barcode || "").trim().toLowerCase() !== cleanTarget)
+      ) {
+        const found = products.find((p: any) => {
+          const pId = String(p.id || "").trim().toLowerCase();
+          const pBarcode = String(p.barcode || "").trim().toLowerCase();
+          const pDbId = String(p.db_id || "").trim().toLowerCase();
+          return (
+            pId === cleanTarget ||
+            (pBarcode && pBarcode === cleanTarget) ||
+            (pDbId && (`re_${pDbId}` === cleanTarget || `v_${pDbId}` === cleanTarget || pDbId === cleanTarget))
+          );
+        });
         if (found) {
           setSelectedProduct(found);
           isProductModalOpenRef.current = true;
@@ -324,7 +344,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         isProductModalOpenRef.current = false;
       }
     }
-  }, [productParam, products]);
+  }, [productParam, urlBarcode, products]);
 
   // Map of other active modals/overlays to '?modal=overlayName'
   const activeModalName = showProfileModal ? 'profile'
@@ -898,17 +918,78 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const isPortfolio = storeType === "real_estate" || storeType === "automotive";
   const isCafeRestaurant = storeType === "cafe_restaurant" || sector === "cafe_restaurant";
 
+  const originUrl = typeof window !== "undefined" ? window.location.origin : "https://lookprice.net";
+  const baseStoreHref = customSlug ? originUrl : `${originUrl}/s/${store.slug || slug}`;
+  const activeSeoTitle = selectedProduct
+    ? `${selectedProduct.name} | ${store.name}`
+    : `${store.name} | ${store.hero_title || (storeType === "real_estate" ? "Seçkin Gayrimenkul & Yatırım Portföyü" : storeType === "automotive" ? "Güvenilir Otomotiv & Araç Portföyü" : isCafeRestaurant ? "Dijital Menü & Konaklama" : "Resmi Online Mağaza & Ürün Kataloğu")}`;
+  const activeSeoCanonical = selectedProduct
+    ? `${baseStoreHref}/p/${encodeURIComponent(selectedProduct.barcode || selectedProduct.id)}`
+    : baseStoreHref;
+
+  const clientSchemaData = selectedProduct
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": selectedProduct.name,
+        "sku": String(selectedProduct.barcode || selectedProduct.id),
+        "description": selectedProduct.description || selectedProduct.name,
+        "image": selectedProduct.image_url || store.logo_url || undefined,
+        "url": activeSeoCanonical,
+        "brand": { "@type": "Brand", "name": selectedProduct.brand || store.name },
+        "offers": {
+          "@type": "Offer",
+          "price": Number(selectedProduct.price || 0).toFixed(2),
+          "priceCurrency": selectedProduct.currency || store.currency || "TRY",
+          "availability": Number(selectedProduct.stock_quantity) > 0 || isPortfolio || isCafeRestaurant ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          "url": activeSeoCanonical
+        }
+      }
+    : {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": `${store.name} Ürün ve Portföy Kataloğu`,
+        "itemListElement": products.slice(0, 24).map((p, idx) => ({
+          "@type": "ListItem",
+          "position": idx + 1,
+          "url": `${baseStoreHref}/p/${encodeURIComponent(p.barcode || p.id)}`,
+          "name": p.name
+        }))
+      };
+
+  const seoHelmetNode = (
+    <Helmet>
+      <title>{activeSeoTitle}</title>
+      <link rel="canonical" href={activeSeoCanonical} />
+      <meta property="og:title" content={activeSeoTitle} />
+      <meta property="og:url" content={activeSeoCanonical} />
+      <script type="application/ld+json">{JSON.stringify(clientSchemaData)}</script>
+    </Helmet>
+  );
+
   if (isCafeRestaurant) {
     return (
       <ErrorBoundary lang={lang}>
+        {seoHelmetNode}
         <div className="relative min-h-screen bg-stone-50 overflow-x-hidden font-sans">
           <ModernCafeRestaurantLayout
             store={store}
             products={products}
-            onViewProduct={() => {}}
+            onViewProduct={setSelectedProduct}
             lang={lang}
             t={t}
           />
+          <AnimatePresence>
+            {selectedProduct && (
+              <ProductDetailModal
+                product={selectedProduct} store={store} t={t} slug={slug}
+                onClose={handleCloseProductModal} addToBasket={addToBasket}
+                primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
+                showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
+                allProducts={products} onNavigateProduct={setSelectedProduct}
+              />
+            )}
+          </AnimatePresence>
         </div>
       </ErrorBoundary>
     );
@@ -917,6 +998,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   if (isPortfolio) {
     return (
       <ErrorBoundary lang={lang}>
+        {seoHelmetNode}
         <div className="relative min-h-screen bg-slate-50 overflow-x-hidden font-sans">
           {storeType === "automotive" ? (
             <ModernAutomotiveLayout store={store} products={products} radarNews={radarNews} onViewProduct={setSelectedProduct} />
@@ -943,6 +1025,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   return (
     <ErrorBoundary lang={lang}>
+      {seoHelmetNode}
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
         {!isProfileView && !isOrdersView && !isReturnView ? (
           isBookstore ? (

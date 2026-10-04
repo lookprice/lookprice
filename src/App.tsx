@@ -109,7 +109,10 @@ export default function App() {
     const isPortal = window.location.hostname.includes("enrakipsiz.com");
     const isStoreOrListing = location.pathname.startsWith("/s/") || 
                              location.pathname.startsWith("/p/") ||
-                             location.pathname.startsWith("/store/");
+                             location.pathname.startsWith("/store/") ||
+                             location.pathname.endsWith("-landing") ||
+                             location.pathname.startsWith("/portal") ||
+                             location.pathname.startsWith("/digital-menu");
     const isCustomDomain = detectedSlug && detectedSlug !== "__portal__";
 
     if (!isPortal && !isStoreOrListing && !isCustomDomain) {
@@ -245,6 +248,7 @@ export default function App() {
             <Route path="/s/:slug/p/:barcode" element={<StoreShowcase />} />
             <Route path="/store/:slug" element={<StoreShowcase />} />
             <Route path="/store/:slug/p/:barcode" element={<StoreShowcase />} />
+            <Route path="/p/:barcode" element={<Marketplace />} />
             <Route path="/checkout/success" element={<CheckoutStatus />} />
             <Route path="/checkout/cancel" element={<CheckoutStatus />} />
             <Route path="/payment-gateway" element={<PaymentGatewayPage />} />

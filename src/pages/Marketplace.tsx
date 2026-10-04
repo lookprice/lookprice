@@ -502,22 +502,86 @@ export const Marketplace = () => {
     }
   };
 
+  // Deep-link & SEO Query Parameter synchronization for Google Search & AI Direct Links (/p/re_ID, /p/v_ID, ?region=, ?brand=, ?tab=, ?q=)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const regionParam = params.get("region");
+    const brandParam = params.get("brand");
+    const tabParam = params.get("tab");
+    const qParam = params.get("q");
+
+    if (regionParam) {
+      setMainTab("real_estate");
+      setReRegion(regionParam);
+    }
+    if (brandParam) {
+      setMainTab("vehicle");
+      setActiveVehicleBrand(brandParam);
+    }
+    if (tabParam === "arac" || tabParam === "vehicle") {
+      setMainTab("vehicle");
+    } else if (tabParam === "emlak" || tabParam === "real_estate") {
+      setMainTab("real_estate");
+    }
+    if (qParam) {
+      setSearchQuery(qParam);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !Array.isArray(listings) || listings.length === 0) return;
+    const pathMatch = window.location.pathname.match(/^\/p\/([^\/\?]+)/);
+    const listingParam = new URLSearchParams(window.location.search).get("listing") || new URLSearchParams(window.location.search).get("product");
+    const targetId = pathMatch ? decodeURIComponent(pathMatch[1]).trim().toLowerCase() : (listingParam ? listingParam.trim().toLowerCase() : "");
+    if (!targetId) return;
+
+    const found = listings.find((item: any) => {
+      const itemId = String(item.id || "").trim().toLowerCase();
+      const dbId = String(item.db_id || "").trim().toLowerCase();
+      return (
+        itemId === targetId ||
+        `re_${itemId}` === targetId ||
+        `v_${itemId}` === targetId ||
+        (dbId && (`re_${dbId}` === targetId || `v_${dbId}` === targetId || dbId === targetId))
+      );
+    });
+    if (found && (!selectedListing || String(selectedListing.id) !== String(found.id))) {
+      if (found.listing_type === "vehicle") setMainTab("vehicle");
+      else if (found.listing_type === "real_estate") setMainTab("real_estate");
+      setSelectedListing(found);
+    }
+  }, [listings]);
+
   const handleCloseModal = () => {
     if (selectedListing) {
       setSelectedListing(null);
-      if (window.history.state && window.history.state.marketplaceModal) {
+      if (window.location.pathname.startsWith("/p/")) {
+        navigate("/", { replace: true });
+      } else if (window.history.state && window.history.state.marketplaceModal) {
         window.history.back();
       }
     }
   };
 
   useEffect(() => {
-    if (!selectedListing) return;
+    if (!selectedListing) {
+      document.title = portalSettings?.seo_title || "EnRakipsiz | Seçkin Emlak ve Otomotiv Portföy Pazaryeri";
+      return;
+    }
 
     setActiveDetailImageIndex(0);
+    const priceStr = selectedListing.price ? `${Number(selectedListing.price).toLocaleString("tr-TR")} ${selectedListing.currency || ""}` : "";
+    document.title = `${selectedListing.title}${priceStr ? ` - ${priceStr}` : ""} | EnRakipsiz`;
+
+    const listingPathId = String(selectedListing.id || "").startsWith("v_") || String(selectedListing.id || "").startsWith("re_")
+      ? selectedListing.id
+      : `${selectedListing.listing_type === "vehicle" ? "v_" : "re_"}${selectedListing.id}`;
 
     const modalState = { marketplaceModal: true, listingId: selectedListing.id };
-    window.history.pushState(modalState, "");
+    if (!window.location.pathname.startsWith("/p/")) {
+      window.history.pushState(modalState, "", `/p/${listingPathId}`);
+    }
 
     const handlePopState = () => {
       setSelectedListing(null);

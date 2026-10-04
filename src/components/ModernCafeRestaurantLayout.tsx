@@ -1496,7 +1496,17 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                     <div className="p-4 space-y-3">
                       <div>
                         <h3 className="font-black text-white text-base group-hover:text-slate-200 transition-colors flex items-center justify-between font-sans">
-                          <span>{room.room_type}</span>
+                          <a
+                            href={`${typeof window !== 'undefined' && window.location.pathname.startsWith('/s/') ? `/s/${window.location.pathname.split('/')[2]}` : ''}/p/room_${encodeURIComponent(String(room.id || room.room_number))}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setViewDetailRoom(room);
+                              setActiveDetailImageIndex(0);
+                            }}
+                            className="inherit"
+                          >
+                            {room.room_type}
+                          </a>
                         </h3>
                         <div className="flex items-center gap-2.5 text-[11px] text-slate-400 font-medium mt-0.5">
                           <span className="flex items-center gap-1">
@@ -1713,7 +1723,16 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                         <h3 className={`font-extrabold text-sm sm:text-base transition-colors leading-snug ${
                           isLightTheme ? "text-slate-900" : "text-white"
                         }`}>
-                          {product.name}
+                          <a
+                            href={`${typeof window !== 'undefined' && window.location.pathname.startsWith('/s/') ? `/s/${window.location.pathname.split('/')[2]}` : ''}/p/${encodeURIComponent(product.barcode || product.id)}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onViewProduct(product);
+                            }}
+                            className="inherit hover:underline"
+                          >
+                            {product.name}
+                          </a>
                         </h3>
                         <span className={`font-black text-xs sm:text-sm whitespace-nowrap shrink-0 ml-1 ${
                           isLightTheme ? "text-amber-700" : "text-amber-400"

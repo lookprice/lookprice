@@ -546,10 +546,17 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
                     {/* Color Swatch / Image Preview */}
                     {variant.image_url ? (
                       <img 
-                        src={variant.image_url} 
+                        src={variant.image_url.includes('shopdelta.eu') || variant.image_url.includes('extrememobiles.com.cy') ? `/api/proxy-image?url=${encodeURIComponent(variant.image_url)}` : variant.image_url} 
                         alt="" 
                         className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0" 
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (!target.dataset.fallback && variant.image_url?.startsWith('http') && !variant.image_url.includes('/api/proxy-image')) {
+                            target.dataset.fallback = '1';
+                            target.src = `/api/proxy-image?url=${encodeURIComponent(variant.image_url)}`;
+                          }
+                        }}
                       />
                     ) : hex ? (
                       <span

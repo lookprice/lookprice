@@ -41,11 +41,17 @@ export const MarketplaceListingGrid = ({
                   onImageClick={() => setSelectedListing(listing)} 
                 />
 
-                <h3 
-                  onClick={() => setSelectedListing(listing)}
-                  className={`font-extrabold text-base leading-snug mb-2 line-clamp-2 hover:text-blue-400 cursor-pointer transition-colors ${isDarkMode ? "text-white" : "text-slate-900"}`}
-                >
-                  {listing.title}
+                <h3 className={`font-extrabold text-base leading-snug mb-2 line-clamp-2 hover:text-blue-400 cursor-pointer transition-colors ${isDarkMode ? "text-white" : "text-slate-900"}`}>
+                  <a
+                    href={`/p/${listing.id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedListing(listing);
+                    }}
+                    className="inherit"
+                  >
+                    {listing.title}
+                  </a>
                 </h3>
 
                 <div className="flex flex-wrap items-center gap-2 mb-4">
