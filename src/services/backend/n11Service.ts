@@ -365,19 +365,21 @@ export class N11Service {
     if (/hoparlör|speaker|ses.*sistemi|soundbar/i.test(combined)) return 1000370;
     if (/ups|kesintisiz.*güç/i.test(combined)) return 1000371;
     if (/güç.*kaynağı|power.*supply|psu/i.test(combined)) return 1000263;
-    if (/çanta|kılıf|sırt.*çantası|evrak.*çantası/i.test(combined)) return 1000222;
-    if (/soğutucu|fan/i.test(combined)) return 1000225;
-    if (/dock|stand|yükseltici/i.test(combined)) return 1000227;
+    if (/çanta|kılıf|sırt.*çantası|evrak.*çantası|sleeve/i.test(combined)) return 1000222;
+    if (/soğutucu|fan|termal.*macun|contact.*cleaner|degreaser|kimyasal/i.test(combined)) return 1000225;
+    if (/dock|stand|yükseltici|sunum.*kumanda|presenter/i.test(combined)) return 1000227;
     if (/batarya|pil/i.test(combined)) return 1000230;
+    if (/adaptör|adaptor|çevirici|dönüştürücü|multiport|hub|çoğaltıcı|şarj.*cihazı|type-c|usb-c|priz/i.test(combined)) return 1000212;
+    if (/kablo|hdmi|displayport|vga|cat6|cat5|patch.*cord/i.test(combined)) return 1000236;
+    if (/switch/i.test(combined)) return 1000277;
+    if (/modem|router|access.*point|menzil.*genişletici|deco|mesh|powerline/i.test(combined)) return 1000286;
+    if (/bluetooth.*adaptör|usb.*bluetooth/i.test(combined)) return 1000284;
+    if (/güvenlik.*kamera|ip.*kamera/i.test(combined)) return 1000300;
+    if (/tripod|monopod|foto.*filtre|aksiyon.*kamera|fotoğraf/i.test(combined)) return 1000415;
+    if (/tansiyon|medikal|hasta.*bakım|boru.*tipi.*yatak|hasta.*önlüğü/i.test(combined)) return 1000620;
     if (/dizüstü|notebook|laptop|macbook|thinkpad|ideapad|vostro|latitude|inspiron/i.test(combined)) return 1000271;
     if (/masaüstü|all-in-one|mini\s*pc|optiplex|prodesk|thinkcentre/i.test(combined)) return 1000273;
     if (/tablet|ipad|tab\s*[as]/i.test(combined)) return 1000354;
-    if (/switch/i.test(combined)) return 1000277;
-    if (/modem|router|access.*point|menzil.*genişletici|deco|mesh/i.test(combined)) return 1000286;
-    if (/bluetooth.*adaptör|usb.*bluetooth/i.test(combined)) return 1000284;
-    if (/güvenlik.*kamera|ip.*kamera/i.test(combined)) return 1000300;
-    if (/adaptör|çevirici|dönüştürücü|multiport|hub|çoğaltıcı|şarj.*cihazı|type-c|usb-c/i.test(combined)) return 1000212;
-    if (/kablo|hdmi|displayport|vga|cat6|cat5|patch.*cord/i.test(combined)) return 1000236;
 
     return 1000212;
   }

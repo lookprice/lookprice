@@ -3465,32 +3465,44 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
   const querySubCategory = String(req.query.subCategoryName || "").trim();
   const queryCategory = String(req.query.categoryName || "").trim();
 
-  // Normalize virtual category IDs to live Hepsiburada IDs
+  // Only normalize legacy virtual IDs for USB Bellek, Kart Okuyucu, and SD Kart to their live Hepsiburada leaf IDs
   let categoryId = rawCategoryId;
   if (categoryId === "1000101" || categoryId === "1000101.0") categoryId = "970";
   else if (categoryId === "1000102") categoryId = "698";
   else if (categoryId === "1000103") categoryId = "1100011";
-  else if (categoryId === "1000108") categoryId = "676";
-  else if (categoryId === "1000109") categoryId = "106861";
-  else if (categoryId === "1000110") categoryId = "51";
-  else if (categoryId === "1000111") categoryId = "52";
-  else if (categoryId === "1000112") categoryId = "29";
-  else if (categoryId === "1000113") categoryId = "100225";
-  else if (categoryId === "1000114") categoryId = "98";
-  else if (categoryId === "1000115") categoryId = "57";
-  else if (categoryId === "1000116") categoryId = "47";
-  else if (categoryId === "1000117") categoryId = "410";
-  else if (categoryId === "1000118") categoryId = "3007055";
-  else if (categoryId === "1000119") categoryId = "111001";
-  else if (categoryId === "1000120") categoryId = "105307";
 
   const isBogusId = categoryId === "2147483647" || categoryId === "0" || categoryId === "null" || categoryId === "undefined";
 
   try {
+    const { getAttributesForCategory, HEPSIBURADA_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
+    const matchedCat = !isBogusId
+      ? HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId) || String(c.id) === String(rawCategoryId))
+      : undefined;
+    const catName = querySubCategory || matchedCat?.name || queryCategory || (categoryId === "970" ? "USB Flash Bellekler" : "");
+    const catPaths = (queryCategory || querySubCategory)
+      ? [queryCategory, querySubCategory].filter(Boolean)
+      : (matchedCat?.paths || []);
+    const safeCatId = isBogusId ? undefined : (rawCategoryId || categoryId);
+    const verifiedAttrs = getAttributesForCategory(catName, catPaths, safeCatId);
+
+    // If a child category (querySubCategory) is explicitly provided and resolves to a child-override schema
+    // that conflicts with a stale parent categoryId (e.g. Notebook Çantası with old categoryId 98 Laptop),
+    // return the child category's verified attributes directly so parent fields never leak into the product editor!
+    if (querySubCategory && safeCatId) {
+      const childOnlyAttrs = getAttributesForCategory(querySubCategory, [queryCategory, querySubCategory].filter(Boolean));
+      const catIdOnlyAttrs = getAttributesForCategory(matchedCat?.name || "", matchedCat?.paths || [], safeCatId);
+      if (childOnlyAttrs !== catIdOnlyAttrs) {
+        return res.json({ success: true, attributes: childOnlyAttrs, source: "verified_child_catalog", categoryId: safeCatId });
+      }
+    }
+
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.hepsiburada_settings;
 
-    if (settings?.apiSecret && settings?.merchantId && !isBogusId) {
+    // Only query Hepsiburada Live API for real Hepsiburada category IDs (not synthetic 10001xx/20001xx IDs)
+    const isSyntheticLocalId = /^(10001\d\d|20001\d\d|20002\d\d)$/.test(categoryId);
+
+    if (settings?.apiSecret && settings?.merchantId && !isBogusId && !isSyntheticLocalId) {
       try {
         const hbService = new HepsiburadaService(settings, storeId);
         const liveAttrs = await hbService.getCategoryAttributes(categoryId);
@@ -3563,15 +3575,6 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
     }
 
     // Fallback: Rich Calculated Child Category Attributes
-    const { getAttributesForCategory, HEPSIBURADA_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
-    const matchedCat = !isBogusId
-      ? HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId) || String(c.id) === String(rawCategoryId))
-      : undefined;
-    const catName = querySubCategory || matchedCat?.name || queryCategory || (categoryId === "970" ? "USB Flash Bellekler" : "");
-    const catPaths = matchedCat?.paths || (querySubCategory ? [queryCategory, querySubCategory].filter(Boolean) : []);
-    const safeCatId = isBogusId ? undefined : (categoryId || rawCategoryId);
-    const verifiedAttrs = getAttributesForCategory(catName, catPaths, safeCatId);
-
     res.json({ success: true, attributes: verifiedAttrs, source: "verified_catalog", categoryId: safeCatId || categoryId });
   } catch (error: any) {
     try {
@@ -4191,15 +4194,49 @@ router.post("/trendyol/match-listings", authenticate, async (req: any, res) => {
   }
 });
 
-// 6. Get Trendyol Categories
+// 6. Get Trendyol Categories (Live API + Verified Child Category Catalog Fallback)
 router.get("/trendyol/categories", authenticate, async (req: any, res) => {
+  const { TRENDYOL_DEFAULT_CATEGORIES, detectCategorySector } = await import("../src/data/marketplaceCategoriesData");
   try {
     const response = await axios.get("https://apigw.trendyol.com/integration/product/product-categories", {
-      headers: { "User-Agent": "LookPrice - SelfIntegration", "Accept": "application/json" }
+      headers: { "User-Agent": "LookPrice - SelfIntegration", "Accept": "application/json" },
+      timeout: 8000
     });
-    res.json(response.data.categories || []);
+    const rawTree = response.data?.categories || [];
+    const flattened: any[] = [];
+    const walk = (nodes: any[], parentPaths: string[] = []) => {
+      for (const node of nodes) {
+        if (!node) continue;
+        const currentPaths = [...parentPaths, node.name].filter(Boolean);
+        if (Array.isArray(node.subCategories) && node.subCategories.length > 0) {
+          walk(node.subCategories, currentPaths);
+        } else {
+          flattened.push({
+            id: node.id,
+            name: node.name,
+            displayName: currentPaths.join(" > "),
+            paths: currentPaths,
+            leaf: true,
+            available: true,
+            status: "ACTIVE",
+            sector: detectCategorySector(node.name, currentPaths)
+          });
+        }
+      }
+    };
+    if (Array.isArray(rawTree) && rawTree.length > 0) {
+      walk(rawTree);
+    }
+    const existingIds = new Set(flattened.map((c: any) => String(c.id)));
+    for (const def of TRENDYOL_DEFAULT_CATEGORIES) {
+      if (!existingIds.has(String(def.id))) {
+        flattened.push(def);
+      }
+    }
+    res.json(flattened.length > 0 ? flattened : TRENDYOL_DEFAULT_CATEGORIES);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.warn("[Trendyol Categories] Falling back to verified TRENDYOL_DEFAULT_CATEGORIES:", error?.message);
+    res.json(TRENDYOL_DEFAULT_CATEGORIES);
   }
 });
 

@@ -1,6 +1,14 @@
 import { pool } from "../../../models/db";
 import { resolveSubCategoryLeafHbId } from "../../../routes/store/hepsiburadaTaxonomyService";
-import { getAttributesForCategory } from "../../data/marketplaceCategoriesData";
+import {
+  getAttributesForCategory,
+  suggestMarketplaceCategory,
+  HEPSIBURADA_DEFAULT_CATEGORIES,
+  TRENDYOL_DEFAULT_CATEGORIES,
+  N11_DEFAULT_CATEGORIES,
+  AMAZON_DEFAULT_CATEGORIES,
+  COMMON_MARKETPLACE_ATTRIBUTES
+} from "../../data/marketplaceCategoriesData";
 
 /**
  * Write-Time Sanitizer for Marketplace Category Mappings
@@ -189,6 +197,56 @@ export async function verifyCriticalSystemInvariants(): Promise<{
   } catch (e: any) {
     checks.push({
       name: "guest_checkout_and_iyzico_guard",
+      passed: false,
+      details: e.message
+    });
+  }
+
+  // CHECK 5: Multi-Marketplace (Hepsiburada, Trendyol, N11, Amazon) Child Category & Mandatory Attribute Parity
+  try {
+    const sampleChildCategories = [
+      "NOTEBOOK ÇANTA > ÇANTA 15-16",
+      "ADAPTÖR&ŞARJ ALETLERİ > DELL NOTEBOOK ADAPTÖR",
+      "BARKOD YAZICI& OKUYUCU > BARKOD OKUYUCU",
+      "TEKNOLOJİ KİMYASALLARI > CONTACT CLEANER",
+      "DEPOLAMA&HARDDISKLER > HARDDISK KUTUSU",
+      "MOBİL&AKSESUAR > TRIPOD",
+      "Medikal Cihaz > Tansiyon Aleti",
+      "CEP TELEFONU > IPHONE"
+    ];
+
+    let allMatched = true;
+    for (const cat of sampleChildCategories) {
+      const parts = cat.split(">").map((p) => p.trim());
+      const leaf = parts[parts.length - 1];
+      const attrs = getAttributesForCategory(leaf, parts);
+      const hb = suggestMarketplaceCategory(cat, HEPSIBURADA_DEFAULT_CATEGORIES);
+      const ty = suggestMarketplaceCategory(cat, TRENDYOL_DEFAULT_CATEGORIES);
+      const n11 = suggestMarketplaceCategory(cat, N11_DEFAULT_CATEGORIES);
+      const amz = suggestMarketplaceCategory(cat, AMAZON_DEFAULT_CATEGORIES);
+
+      if (
+        attrs === COMMON_MARKETPLACE_ATTRIBUTES.general ||
+        !hb.bestMatch ||
+        !ty.bestMatch ||
+        !n11.bestMatch ||
+        !amz.bestMatch
+      ) {
+        allMatched = false;
+        break;
+      }
+    }
+
+    checks.push({
+      name: "multi_marketplace_child_catalog_and_attribute_parity",
+      passed: allMatched,
+      details: allMatched
+        ? `HB (${HEPSIBURADA_DEFAULT_CATEGORIES.length}), Trendyol (${TRENDYOL_DEFAULT_CATEGORIES.length}), N11 (${N11_DEFAULT_CATEGORIES.length}) ve Amazon (${AMAZON_DEFAULT_CATEGORIES.length}) alt kategori ve zorunlu alan şemaları %100 eksiksiz.`
+        : "Bazı alt kategorilerde pazar yeri eşleşmesi veya zorunlu alan şeması eksik."
+    });
+  } catch (e: any) {
+    checks.push({
+      name: "multi_marketplace_child_catalog_and_attribute_parity",
       passed: false,
       details: e.message
     });

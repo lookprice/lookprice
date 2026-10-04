@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Search, ChevronDown, CheckCircle2, Layers, Sparkles, SlidersHorizontal, Info, X, Loader2, Zap, ExternalLink, Lock, Check } from "lucide-react";
-import { getAttributesForCategory, MarketplaceAttribute } from "@/data/marketplaceCategoriesData";
+import { getAttributesForCategory, suggestMarketplaceCategory, HEPSIBURADA_DEFAULT_CATEGORIES, MarketplaceAttribute } from "@/data/marketplaceCategoriesData";
 import { autoHydrateTargetAttributes } from "@/services/crossMarketplaceAttributeMapper";
 import { api } from "@/services/api";
 import { getMarketplaceListingUrl, slugifyText } from "@/utils/marketplaceUrls";
@@ -142,84 +142,17 @@ export const MarketplaceProductFields = ({
 
   const storeMappedCatId = getMappingForKeys(hierarchicalKey, subCatKey, catKey);
 
-  // Respect user-selected category override (unless it's a bogus placeholder ID)
+  // Respect user-selected category override (unless it's a bogus placeholder ID), then store category mapping
   const validMarketCatId = extractCatIdFromMapping(marketData.categoryId);
   let resolvedCatId = validMarketCatId || (storeMappedCatId ? String(storeMappedCatId) : "");
 
-  // Child-category-first keyword resolution:
-  // Inspect subCatKey (or catKey if no subCatKey) BEFORE checking generic laptop/notebook terms,
-  // so "NOTEBOOK > NOTEBOOK ÇANTASI" or "ÇANTA" never gets hijacked by "notebook" into Category 98 (Laptop)!
-  const leafFocusStr = (subCatKey || catKey || "")
-    .replace(/İ/g, "i")
-    .replace(/I/g, "ı")
-    .toLowerCase();
-  const fullContextStr = `${subCatKey} ${catKey} ${product?.name || ""}`
-    .replace(/İ/g, "i")
-    .replace(/I/g, "ı")
-    .toLowerCase();
-
-  if (!validMarketCatId) {
-    if (
-      leafFocusStr.includes("çanta") ||
-      leafFocusStr.includes("canta") ||
-      leafFocusStr.includes("kılıf") ||
-      leafFocusStr.includes("kilif") ||
-      leafFocusStr.includes("sleeve") ||
-      fullContextStr.includes("notebook çanta") ||
-      fullContextStr.includes("laptop çanta") ||
-      fullContextStr.includes("sırt çanta")
-    ) {
-      resolvedCatId = "676";
-    } else if (
-      leafFocusStr.includes("soğutucu") ||
-      leafFocusStr.includes("sogutucu") ||
-      leafFocusStr.includes("stand") ||
-      leafFocusStr.includes("altlık") ||
-      leafFocusStr.includes("yükseltici")
-    ) {
-      resolvedCatId = "106861";
-    } else if (leafFocusStr.includes("mousepad") || leafFocusStr.includes("mouse pad") || leafFocusStr.includes("bilek")) {
-      resolvedCatId = "29";
-    } else if (leafFocusStr.includes("toner") || leafFocusStr.includes("kartuş") || leafFocusStr.includes("kartus") || leafFocusStr.includes("şerit") || leafFocusStr.includes("mürekkep") || leafFocusStr.includes("drum")) {
-      resolvedCatId = "111001";
-    } else if (leafFocusStr.includes("barkod") || leafFocusStr.includes("etiket") || leafFocusStr.includes("afiş") || leafFocusStr.includes("afis") || leafFocusStr.includes("pos ") || leafFocusStr.includes("el terminali")) {
-      resolvedCatId = "105307";
-    } else if (leafFocusStr.includes("ssd") || leafFocusStr.includes("katı hal") || leafFocusStr.includes("nvme")) {
-      resolvedCatId = "1000107";
-    } else if (leafFocusStr.includes("taşınabilir disk") || leafFocusStr.includes("harici")) {
-      resolvedCatId = "100225";
-    } else if (leafFocusStr.includes("sabit disk") || leafFocusStr.includes("hdd") || leafFocusStr.includes("harddisk")) {
-      resolvedCatId = "100221";
-    } else if (leafFocusStr.includes("usb") && (leafFocusStr.includes("bellek") || leafFocusStr.includes("flash"))) {
-      resolvedCatId = "970";
-    } else if (leafFocusStr.includes("kart okuyucu")) {
-      resolvedCatId = "698";
-    } else if (leafFocusStr.includes("sd kart") || leafFocusStr.includes("hafıza kart") || leafFocusStr.includes("micro sd")) {
-      resolvedCatId = "1100011";
-    } else if (leafFocusStr.includes("ram") || leafFocusStr.includes("bellek")) {
-      resolvedCatId = "47";
-    } else if (leafFocusStr.includes("klavye") && leafFocusStr.includes("mouse")) {
-      resolvedCatId = "3007055";
-    } else if (leafFocusStr.includes("mouse") || leafFocusStr.includes("fare")) {
-      resolvedCatId = "52";
-    } else if (leafFocusStr.includes("klavye")) {
-      resolvedCatId = "51";
-    } else if (leafFocusStr.includes("monitör") || leafFocusStr.includes("monitor")) {
-      resolvedCatId = "57";
-    } else if (leafFocusStr.includes("kablo") || leafFocusStr.includes("dönüştürücü") || leafFocusStr.includes("donusturucu") || leafFocusStr.includes("adaptör") || leafFocusStr.includes("adaptor") || leafFocusStr.includes("şarj") || leafFocusStr.includes("sarj") || leafFocusStr.includes("hub") || leafFocusStr.includes("splitter")) {
-      resolvedCatId = "100225";
-    } else if (leafFocusStr.includes("modem") || leafFocusStr.includes("router") || leafFocusStr.includes("switch") || leafFocusStr.includes("access point") || leafFocusStr.includes("menzil") || leafFocusStr.includes("wifi") || leafFocusStr.includes("ağ ")) {
-      resolvedCatId = "410";
-    } else if (leafFocusStr.includes("yazıcı") || leafFocusStr.includes("yazici") || leafFocusStr.includes("tarayıcı") || leafFocusStr.includes("printer")) {
-      resolvedCatId = "3007055";
-    } else if (leafFocusStr.includes("kulaklık") || leafFocusStr.includes("kulaklik") || leafFocusStr.includes("mikrofon")) {
-      resolvedCatId = "16113";
-    } else if (leafFocusStr.includes("hoparlör") || leafFocusStr.includes("hoparlor") || leafFocusStr.includes("speaker") || leafFocusStr.includes("ses sistemi")) {
-      resolvedCatId = "29010123";
-    } else if (leafFocusStr.includes("webcam") || leafFocusStr.includes("kamera")) {
-      resolvedCatId = "100221";
-    } else if (!resolvedCatId && (leafFocusStr.includes("dizüstü") || leafFocusStr.includes("laptop") || leafFocusStr.includes("notebook") || leafFocusStr.includes("bilgisayar"))) {
-      resolvedCatId = "98";
+  // If neither manual product categoryId nor store-level mapping is set, use smart child-category-first auto-match
+  // against the verified Hepsiburada leaf catalog (never use parent category when a child category exists!)
+  if (!resolvedCatId && (hierarchicalKey || subCatKey || catKey)) {
+    const catalogPool = categories && categories.length > 0 ? categories : HEPSIBURADA_DEFAULT_CATEGORIES;
+    const suggestion = suggestMarketplaceCategory(hierarchicalKey || subCatKey || catKey, catalogPool);
+    if (suggestion.bestMatch?.id) {
+      resolvedCatId = String(suggestion.bestMatch.id);
     }
   }
 
@@ -231,7 +164,7 @@ export const MarketplaceProductFields = ({
 
   const effectiveCatId = resolvedCatId;
 
-  let activeCategory = [...searchResults, ...categories].find(
+  let activeCategory = [...searchResults, ...categories, ...HEPSIBURADA_DEFAULT_CATEGORIES].find(
     (c) => String(c.id || c.categoryId) === String(effectiveCatId)
   );
 
@@ -264,9 +197,9 @@ export const MarketplaceProductFields = ({
       return;
     }
 
-    // Pass ONLY the child category (subCatKey) as primary label so parent category ("NOTEBOOK") never pollutes child ("NOTEBOOK ÇANTASI") attributes
+    // Pass child category (subCatKey) as primary label and [catKey, subCatKey] as paths so child-category overrides win cleanly
     const leafLabel = subCatKey || activeCategory?.name || catKey || "";
-    const leafPaths = subCatKey ? [subCatKey] : (activeCategory?.paths || [catKey]);
+    const leafPaths = (catKey || subCatKey) ? [catKey, subCatKey].filter(Boolean) : (activeCategory?.paths || []);
 
     const localFallback = getAttributesForCategory(
       leafLabel,
