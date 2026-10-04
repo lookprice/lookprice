@@ -2109,6 +2109,10 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
     const finalApiSecret = apiSecret !== undefined ? apiSecret?.trim() : (prev.apiSecret || "");
     const finalMerchantId = merchantId !== undefined ? merchantId?.trim() : (prev.merchantId || "");
 
+    const rawCatMappings = categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {});
+    const { sanitizeCategoryMappings } = await import("../src/services/backend/systemGuardService");
+    const cleanCatMappings = sanitizeCategoryMappings(rawCatMappings);
+
     const settings = {
       ...prev,
       connected: !!(finalApiKey && finalApiSecret && finalMerchantId),
@@ -2124,7 +2128,7 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
       autoSyncOrders: autoSyncOrders !== undefined ? autoSyncOrders : (prev.autoSyncOrders ?? true),
       autoStockSync: autoStockSync !== undefined ? autoStockSync : (prev.autoStockSync ?? true),
       webhookSecret: webhookSecret || prev.webhookSecret || `hb_wh_${Math.random().toString(36).substring(2, 12)}`,
-      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
+      categoryMappings: cleanCatMappings,
       categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
       categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prev.categoryMarkups || {})
     };

@@ -169,6 +169,17 @@ async function startServer() {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Critical Business Invariants & Self-Healing Diagnostic Endpoint
+  app.get("/api/health/invariants", async (req, res) => {
+    try {
+      const { verifyCriticalSystemInvariants } = await import("./src/services/backend/systemGuardService");
+      const report = await verifyCriticalSystemInvariants();
+      res.status(report.healthy ? 200 : 503).json(report);
+    } catch (e: any) {
+      res.status(500).json({ healthy: false, error: e.message });
+    }
+  });
+
   // Security & HSTS Header Middleware
   app.use((req, res, next) => {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
@@ -1677,6 +1688,17 @@ function sanitizeFilename(originalName: string): string {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
     
+    // Initialize Startup Self-Healing & Critical Invariant Guards
+    try {
+      import("./src/services/backend/systemGuardService").then(({ runStartupSystemGuards }) => {
+        runStartupSystemGuards();
+      }).catch(err => {
+        console.warn("[SYSTEM-GUARD] Failed to run startup guards:", err.message);
+      });
+    } catch (e: any) {
+      console.warn("[SYSTEM-GUARD] Error loading startup guards:", e.message);
+    }
+
     // Initialize GİB / MySoft Background Sync Cron
     try {
       import("./src/services/backend/gibSyncCron").then(({ initGibSyncScheduler }) => {

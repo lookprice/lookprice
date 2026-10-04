@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "verify:critical": "tsx scripts/verifyCriticalFlows.ts",
     "postinstall": "node scripts/patch-html2canvas.cjs"
   },
   "dependencies": {

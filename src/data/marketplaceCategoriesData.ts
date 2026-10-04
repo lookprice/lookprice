@@ -1689,9 +1689,9 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "371960": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371965": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371966": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
-  "16113": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "16113": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
   "371969": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
-  "29010123": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  "29010123": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
   "371970": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371971": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
   "371973": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
@@ -1703,7 +1703,7 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "1000114": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
   "1000115": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
   "1000116": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
-  "111001": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
+  "111001": COMMON_MARKETPLACE_ATTRIBUTES.toner_cartridge,
   "1000275": COMMON_MARKETPLACE_ATTRIBUTES.laptop_computer,
 
   // N11 Default Categories Mapping
@@ -1807,8 +1807,8 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "7000302": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
   "7000303": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
 
-  // Cables & Converters
-  "105307": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  // Cables & Converters & Barcode POS
+  "105307": COMMON_MARKETPLACE_ATTRIBUTES.barcode_pos_scanner,
   "1000181": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
   "1000182": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
   "1000183": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
@@ -1829,12 +1829,12 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "1000138": COMMON_MARKETPLACE_ATTRIBUTES.presenter_remote,
   "1000139": COMMON_MARKETPLACE_ATTRIBUTES.presenter_remote,
 
-  // Network & Routers
+  // Network & Routers & PC Components
   "410": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
-  "45": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
-  "121": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
-  "103939": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
-  "319": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "45": COMMON_MARKETPLACE_ATTRIBUTES.gpu_graphics_card,
+  "121": COMMON_MARKETPLACE_ATTRIBUTES.motherboard,
+  "103939": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
+  "319": COMMON_MARKETPLACE_ATTRIBUTES.cpu_processor,
   "1000125": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
   "1000126": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
   "1000127": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
@@ -1881,8 +1881,14 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
 
 // Returns relevant attributes based on Child Category Name/Path first, then Category ID
 export function getAttributesForCategory(catName: string, paths: string[] = [], categoryId?: string | number): MarketplaceAttribute[] {
-  const leafText = String(catName || (paths.length > 0 ? paths[paths.length - 1] : "") || "").toLowerCase();
-  const text = `${catName} ${paths.join(" ")}`.toLowerCase();
+  const leafText = String(catName || (paths.length > 0 ? paths[paths.length - 1] : "") || "")
+    .replace(/İ/g, "i")
+    .replace(/I/g, "ı")
+    .toLowerCase();
+  const text = `${catName} ${paths.join(" ")}`
+    .replace(/İ/g, "i")
+    .replace(/I/g, "ı")
+    .toLowerCase();
 
   // Child Category Specific Override Checks (Ensures child categories like 'Notebook Çantası', 'Laptop Standı', 'Mouse Pad', 'Sunum Kumandası' NEVER inherit parent category fields!)
   if (
