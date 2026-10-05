@@ -662,65 +662,6 @@ export class AmazonService {
           price: listing.price,
           stock: listing.quantity
         });
-      } else if (importMissing && title && title.trim().length >= 3 && !title.includes('Amazon Portföy')) {
-        const newName = title.trim();
-        const newBarcode = barcode || sku || asin || `AMZ-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const newPrice = listing.price || 0;
-        const newStock = listing.quantity || 0;
-
-        const cleanAsin = asin && String(asin).trim().toLowerCase() !== 'null' && !String(asin).startsWith('http')
-          ? String(asin).trim().toUpperCase()
-          : null;
-        const hasValidAsin = Boolean(cleanAsin && cleanAsin.length >= 9);
-        const isListingActive = String(listing.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
-        const finalActive = hasValidAsin && newPrice > 0 && newStock > 0 && isListingActive;
-
-        const mpData = {
-          amazon: {
-            asin: cleanAsin,
-            sku: sku,
-            importedFromAmazon: true,
-            matchedAt: new Date().toISOString(),
-            lastSync: new Date().toISOString(),
-            status: finalActive ? 'ACTIVE' : 'INACTIVE'
-          }
-        };
-
-        const insertRes = await pool.query(
-          `INSERT INTO products 
-            (store_id, name, barcode, price, stock_quantity, is_amazon_active, amazon_asin, amazon_sku, category, amazon_last_sync, marketplace_data)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Genel', NOW(), $9)
-           ON CONFLICT (store_id, barcode) DO UPDATE 
-             SET is_amazon_active = EXCLUDED.is_amazon_active AND products.is_amazon_active AND NOT (COALESCE(products.marketplace_data->'amazon'->>'manuallyUnpublished', 'false') = 'true'),
-                 amazon_asin = COALESCE(NULLIF(EXCLUDED.amazon_asin, ''), products.amazon_asin),
-                 amazon_sku = COALESCE(NULLIF(EXCLUDED.amazon_sku, ''), products.amazon_sku),
-                 amazon_last_sync = NOW(),
-                 amazon_last_error = NULL,
-                 marketplace_data = EXCLUDED.marketplace_data
-           RETURNING id, name, barcode, amazon_asin, amazon_sku`,
-          [this.storeId, newName, newBarcode, newPrice, newStock, finalActive, cleanAsin || null, sku || null, JSON.stringify(mpData)]
-        );
-
-        const insertedRow = insertRes.rows[0];
-        if (insertedRow) {
-          storeProducts.push({
-            id: insertedRow.id,
-            name: insertedRow.name,
-            barcode: insertedRow.barcode,
-            amazon_asin: insertedRow.amazon_asin,
-            amazon_sku: insertedRow.amazon_sku
-          });
-        }
-        importedCount++;
-        details.push({
-          action: 'imported',
-          productName: newName,
-          barcode: newBarcode,
-          amazonAsin: asin,
-          amazonSku: sku,
-          price: newPrice,
-          stock: newStock
-        });
       }
     }
 
@@ -728,10 +669,10 @@ export class AmazonService {
       success: true,
       totalListings: listings.length,
       matchedCount,
-      importedCount,
+      importedCount: 0,
       updatedCount,
       details,
-      message: `Amazon İlan Eşleştirme Tamamlandı. ${matchedCount} ürün eşleşti, ${importedCount} yeni ürün aktarıldı.`
+      message: `Amazon İlan Eşleştirme Tamamlandı. ${matchedCount} ürün eşleşti.`
     };
   }
 

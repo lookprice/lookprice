@@ -2140,27 +2140,6 @@ export class N11Service {
           [rpId, finalActive, JSON.stringify(mpData), matchedLocal.id, storeId]
         );
         matchedCount++;
-      } else if (options.importMissing) {
-        const title = rp.title || rp.name || 'N11 İlanı';
-        const price = parseFloat(rp.price || rp.salePrice || 100);
-        const stock = parseInt(rp.quantity || rp.stockCount || 10);
-        const barcode = rp.barcode || rp.productSellerCode || `N11-${rpId}`;
-
-        await poolInstance.query(
-          `INSERT INTO products (store_id, name, price, stock_quantity, barcode, sku, is_n11_active, n11_id, marketplace_data)
-           VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8)`,
-          [
-            storeId,
-            title,
-            price,
-            stock,
-            barcode,
-            rpCode || barcode,
-            rpId,
-            JSON.stringify({ n11: { n11Id: rpId, status: 'ACTIVE', lastSync: new Date().toISOString() } })
-          ]
-        );
-        importedCount++;
       }
     }
 

@@ -1561,51 +1561,6 @@ export class HepsiburadaService {
             ]
           }
         });
-      } else if (importMissing) {
-        // Auto import unmatched product with its HB SKU and details
-        const validBarcodeCandidate = (mSku || barcode || hbSku || "").trim();
-        const newName = (pName || listing.productName || listing.title || (hbSku ? `Hepsiburada Ürünü (${hbSku})` : `Hepsiburada Ürünü`)).trim();
-
-        // Strict guard: ensure valid SKU/barcode candidate
-        if (validBarcodeCandidate && validBarcodeCandidate.length >= 4 && !validBarcodeCandidate.startsWith("200552")) {
-          const newBarcode = validBarcodeCandidate;
-          const newPrice = listing.price || 0;
-          const newStock = listing.availableStock || 0;
-
-          const mpData = {
-            hepsiburada: {
-              hepsiburadaSku: hbSku,
-              merchantSku: mSku,
-              importedFromHB: true,
-              matchedAt: new Date().toISOString(),
-              lastSync: new Date().toISOString(),
-              status: listing.status || 'ACTIVE'
-            }
-          };
-
-          importedCount++;
-          matchResults.push({
-            action: 'imported',
-            productName: newName,
-            barcode: newBarcode,
-            hepsiburadaSku: hbSku,
-            price: newPrice,
-            stock: newStock,
-            insertSql: {
-              text: `INSERT INTO products 
-                      (store_id, name, barcode, price, stock_quantity, is_hepsiburada_active, hepsiburada_sku, category, hepsiburada_last_sync, marketplace_data)
-                     VALUES ($1, $2, $3, $4, $5, true, $6, 'Genel', NOW(), $7)
-                     ON CONFLICT (store_id, barcode) DO UPDATE 
-                       SET is_hepsiburada_active = true,
-                           hepsiburada_sku = COALESCE(NULLIF(EXCLUDED.hepsiburada_sku, ''), products.hepsiburada_sku),
-                           hepsiburada_last_sync = NOW(),
-                           hepsiburada_last_error = NULL,
-                           marketplace_data = EXCLUDED.marketplace_data
-                     RETURNING id, name, barcode, hepsiburada_sku`,
-              values: [this.storeId, newName, newBarcode, newPrice, newStock, hbSku || null, JSON.stringify(mpData)]
-            }
-          });
-        }
       }
     }
 
@@ -1616,9 +1571,6 @@ export class HepsiburadaService {
       await Promise.all(chunk.map(async (item) => {
         if (item.updateSql) {
           await pool.query(item.updateSql.text, item.updateSql.values);
-        } else if (item.insertSql) {
-          const res = await pool.query(item.insertSql.text, item.insertSql.values);
-          if (res.rows[0]) item.productId = res.rows[0].id;
         }
       }));
     }
