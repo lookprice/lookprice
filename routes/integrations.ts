@@ -2416,19 +2416,44 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
     const currentHbSku = (product.hepsiburada_sku || "").trim().toLowerCase();
 
     // Fetch live merchant listings from Hepsiburada
-    const listings = await hbService.fetchMerchantListings({ limit: 200 });
-    const matched = listings.find((l: any) => {
-      const lHbSku = (l.hepsiburadaSku || "").trim().toLowerCase();
-      const lMSku = (l.merchantSku || "").trim().toLowerCase();
-      const lBarcode = (l.barcode || "").trim().toLowerCase();
-      const lName = (l.productName || "").trim().toLowerCase();
+    const listings = await hbService.fetchMerchantListings({ limit: 500 });
+    const norm = (s: string) => s ? s.toLowerCase().replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c").replace(/[^a-z0-9]/g, "") : "";
+    const pBcDigits = barcode.replace(/\D/g, "");
+    const pCode = (product.product_code || "").trim();
 
-      if (currentHbSku && lHbSku && currentHbSku === lHbSku) return true;
-      if (barcode && lBarcode && barcode === lBarcode) return true;
-      if (barcode && lMSku && barcode === lMSku) return true;
-      if (sku && lMSku && sku === lMSku) return true;
-      if (barcode && lMSku.startsWith(barcode)) return true;
-      if (name && lName && name === lName) return true;
+    let sec = product.sector_data;
+    if (typeof sec === "string") { try { sec = JSON.parse(sec); } catch { sec = {}; } }
+    const altBc = Array.isArray(sec?.alternate_barcodes) ? sec.alternate_barcodes.map(String) : [];
+
+    const matched = listings.find((l: any) => {
+      const lHbSku = (l.hepsiburadaSku || "").trim();
+      const lMSku = (l.merchantSku || "").trim();
+      const lBarcode = (l.barcode || "").trim();
+      const lName = (l.productName || "").trim();
+      const lCleanMSku = lMSku.replace(/_\d+$/, "").replace(/-s$/i, "").trim();
+      const lMSkuDigits = lMSku.replace(/\D/g, "");
+
+      if (currentHbSku && lHbSku && norm(currentHbSku) === norm(lHbSku)) return true;
+      if (barcode && lBarcode && norm(barcode) === norm(lBarcode)) return true;
+      if (barcode && lMSku && norm(barcode) === norm(lMSku)) return true;
+      if (sku && lMSku && norm(sku) === norm(lMSku)) return true;
+      if (pCode && lMSku && norm(pCode) === norm(lMSku)) return true;
+      if (altBc.some((b: string) => norm(b) === norm(lMSku) || norm(b) === norm(lBarcode))) return true;
+
+      // Digits-only match
+      if (pBcDigits && lMSkuDigits && lMSkuDigits.length >= 8) {
+        if (pBcDigits === lMSkuDigits || pBcDigits.endsWith(lMSkuDigits) || lMSkuDigits.endsWith(pBcDigits)) return true;
+      }
+
+      // Model code match
+      if (lCleanMSku && lCleanMSku.length >= 3 && !lCleanMSku.startsWith("HBCV") && !lCleanMSku.startsWith("HBV")) {
+        const normClean = norm(lCleanMSku);
+        if (normClean && norm(name).includes(normClean)) return true;
+        if (normClean && pCode && (norm(pCode) === normClean || normClean.includes(norm(pCode)) || norm(pCode).includes(normClean))) return true;
+        if (normClean && sku && (norm(sku) === normClean || normClean.includes(norm(sku)) || norm(sku).includes(normClean))) return true;
+      }
+
+      if (name && lName && norm(name) === norm(lName)) return true;
       return false;
     });
 
@@ -2703,8 +2728,8 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       else if (catSearchStr.includes("mouse pad") || catSearchStr.includes("mousepad")) categoryId = 29; // Mouse Pad
       else if (catSearchStr.includes("mouse") || catSearchStr.includes("fare")) categoryId = 52; // Mouse
       else categoryId = 51; // Klavye
-    } else if (catIdStr === "1000126") {
-      categoryId = catSearchStr.includes("router") ? 60001272 : 103939; // Wireless Adaptör / Router
+    } else if (catIdStr === "1000126" || catIdStr === "1000127") {
+      categoryId = catSearchStr.includes("router") ? 60001272 : 103939; // Wireless Adaptör / Router / USB Wi-Fi Adaptör
     } else if (catIdStr === "1000139") {
       categoryId = 52; // Mouse / Sunum Kumandası
     } else if (catIdStr === "1000115") {
@@ -2722,6 +2747,8 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
         categoryId = 698; // Active HB Leaf: Kart Okuyucular
       } else if (catSearchStr.includes("sd kart")) {
         categoryId = 1100011; // Active HB Leaf: Sd Kartlar
+      } else if (catSearchStr.includes("wi-fi") || catSearchStr.includes("wifi") || catSearchStr.includes("kablosuz adaptör") || catSearchStr.includes("ağ kart")) {
+        categoryId = 103939; // Active HB Leaf: Wireless Adaptörler
       } else if (catSearchStr.includes("notebook stand") || catSearchStr.includes("laptop stand")) {
         categoryId = 106861; // Active HB Leaf: Notebook Standları
       } else if (catSearchStr.includes("klavye") && catSearchStr.includes("mouse")) {
@@ -2751,6 +2778,25 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     }
 
     const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+    const numericEffectivePrice = Number(effectivePrice.toFixed(2));
+
+    // Resolve Absolute Image URL for Hepsiburada API (Must be a valid public http/https URL)
+    let effectiveHbImageUrl: string | null = null;
+    const rawHbImg = userAttrs?.Image1 || mpData?.attributes?.Image1 || p.image_url;
+    if (rawHbImg) {
+      let candidate = String(rawHbImg).trim();
+      if (candidate.startsWith("/")) {
+        const host = req.get("host") || "ais-dev-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app";
+        const protocol = req.protocol === "http" && !host.includes("localhost") ? "https" : req.protocol;
+        candidate = `${protocol}://${host}${candidate}`;
+      }
+      if (candidate.includes(".webp")) {
+        candidate = candidate.replace(/\.webp($|\?)/i, ".jpg$1");
+      }
+      if (candidate.startsWith("http")) {
+        effectiveHbImageUrl = candidate;
+      }
+    }
 
     // Prepare catalog attributes
     const userAttrs = hbData.attributes || mpData.attributes || {};
@@ -2771,14 +2817,14 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       Marka: inferredHbBrand,
       GarantiSuresi: userAttrs.GarantiSuresi ? parseInt(userAttrs.GarantiSuresi, 10) : 24,
       tax_vat_rate: String(p.tax_rate || userAttrs.tax_vat_rate || 20),
-      price: effectivePrice.toFixed(2),
-      stock: String(p.stock_quantity || 0),
+      price: numericEffectivePrice,
+      stock: Number(p.stock_quantity || 0),
       kg: String(p.desi || 1),
       ...userAttrs
     };
 
-    if (p.image_url) {
-      attributes.Image1 = p.image_url;
+    if (effectiveHbImageUrl) {
+      attributes.Image1 = effectiveHbImageUrl;
     }
 
     // Category 970 (Usb Bellek) specific defaults
@@ -4158,18 +4204,28 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
       }
     }
 
-    // Resolve Absolute Image URL for Trendyol API (Must be a valid public http/https URL)
+    // Resolve Absolute Image URL for Trendyol API (Must be a valid public http/https URL ending in .jpg/.jpeg/.png)
     let effectiveImageUrl: string | null = null;
-    const mpImage1 = mpData?.trendyol?.attributes?.Image1 || mpData?.hepsiburada?.attributes?.Image1 || mpData?.attributes?.Image1;
+    const rawImage = mpImage1 || p.image_url;
 
-    if (mpImage1 && String(mpImage1).startsWith("http")) {
-      effectiveImageUrl = String(mpImage1).trim();
-    } else if (p.image_url && String(p.image_url).startsWith("http") && !p.image_url.includes("undefined")) {
-      effectiveImageUrl = String(p.image_url).trim();
-    } else if (p.image_url && String(p.image_url).startsWith("/") && !p.image_url.includes("undefined")) {
-      const host = req.get("host") || "ais-dev-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app";
-      const protocol = req.protocol === "http" && !host.includes("localhost") ? "https" : req.protocol;
-      effectiveImageUrl = `${protocol}://${host}${p.image_url}`;
+    if (rawImage) {
+      let candidate = String(rawImage).trim();
+      if (candidate.startsWith("/")) {
+        const host = req.get("host") || "ais-dev-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app";
+        const protocol = req.protocol === "http" && !host.includes("localhost") ? "https" : req.protocol;
+        candidate = `${protocol}://${host}${candidate}`;
+      }
+      // Trendyol rejects .webp extensions and complex CDN query parameters with "Geçersiz Resim URL formatı"
+      if (candidate.includes(".webp")) {
+        candidate = candidate.replace(/\.webp($|\?)/i, ".jpg$1");
+      }
+      // If image URL has query params that might violate format, strip them if it already ends in clean image extension
+      if (candidate.includes("?") && /\.(jpe?g|png)/i.test(candidate.split("?")[0])) {
+        candidate = candidate.split("?")[0];
+      }
+      if (candidate.startsWith("http")) {
+        effectiveImageUrl = candidate;
+      }
     }
 
     const payload = {

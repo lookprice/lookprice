@@ -238,25 +238,62 @@ export class HepsiburadaService {
 
     const timespan = options?.timespan !== undefined ? options.timespan : 30; // Default 30 days back to catch recent orders like 09.09.2026
 
-    const allOrdersMap = new Map<string, any>();
+    const groupedOrdersMap = new Map<string, any>();
     let lastError: any = null;
     const headers = this.getHeaders();
 
-    // Helper to safely extract and insert orders/packages into map
+    // Helper to safely extract, group, and insert orders/packages into map
     const processRawItems = (items: any[]) => {
       if (!Array.isArray(items)) return;
       for (const item of items) {
-        const id = String(
-          item.id ||
-          item.orderNumber ||
-          item.orderId ||
-          item.packageNumber ||
-          item.deliveryListNumber ||
-          item.trackingNumber ||
-          ""
-        ).trim();
-        if (id && !allOrdersMap.has(id)) {
-          allOrdersMap.set(id, item);
+        if (!item) continue;
+
+        // If item already contains an array of items (e.g. package object from OMS)
+        if (Array.isArray(item.items) && item.items.length > 0) {
+          const oKey = String(item.orderNumber || item.packageNumber || item.orderId || item.id || "").trim();
+          if (oKey) {
+            if (!groupedOrdersMap.has(oKey)) {
+              groupedOrdersMap.set(oKey, { ...item });
+            } else {
+              const existing = groupedOrdersMap.get(oKey);
+              const existingItemIds = new Set((existing.items || []).map((it: any) => String(it.id || it.sku || it.merchantSKU || "")));
+              for (const sub of item.items) {
+                const sId = String(sub.id || sub.sku || sub.merchantSKU || "");
+                if (sId && !existingItemIds.has(sId)) {
+                  existing.items.push(sub);
+                  existingItemIds.add(sId);
+                }
+              }
+            }
+          }
+          continue;
+        }
+
+        // If item is a single order line item (from /orders/merchantid/...)
+        const oNum = String(item.orderNumber || item.order_number || item.orderId || item.packageNumber || item.id || "").trim();
+        if (!oNum) continue;
+
+        if (!groupedOrdersMap.has(oNum)) {
+          groupedOrdersMap.set(oNum, {
+            ...item,
+            id: item.orderId || item.id || oNum,
+            orderNumber: oNum,
+            items: [{ ...item }]
+          });
+        } else {
+          const existing = groupedOrdersMap.get(oNum);
+          if (!Array.isArray(existing.items)) {
+            existing.items = [{ ...existing }];
+          }
+          const itemKey = String(item.id || item.sku || item.merchantSKU || item.name || "");
+          const alreadyExists = existing.items.some((it: any) => String(it.id || it.sku || it.merchantSKU || it.name || "") === itemKey);
+          if (!alreadyExists) {
+            existing.items.push({ ...item });
+          }
+          // Merge metadata
+          if (item.cargoTrackingNumber && !existing.cargoTrackingNumber) existing.cargoTrackingNumber = item.cargoTrackingNumber;
+          if (item.packageNumber && !existing.packageNumber) existing.packageNumber = item.packageNumber;
+          if (item.cargoCompany && !existing.cargoCompany) existing.cargoCompany = item.cargoCompany;
         }
       }
     };
@@ -287,7 +324,7 @@ export class HepsiburadaService {
       }
     }
 
-    const finalOrders = Array.from(allOrdersMap.values());
+    const finalOrders = Array.from(groupedOrdersMap.values());
     if (finalOrders.length > 0) {
       return finalOrders;
     }
@@ -327,7 +364,7 @@ export class HepsiburadaService {
 
       // Check if order was already imported by orderId or orderNumber
       const existing = await pool.query(
-        `SELECT id FROM hepsiburada_orders 
+        `SELECT id, sales_invoice_id, sale_id FROM hepsiburada_orders 
          WHERE store_id = $1 AND (
            hepsiburada_order_id = $2 
            OR ($3 != '' AND (
@@ -337,6 +374,84 @@ export class HepsiburadaService {
          )`,
         [this.storeId, orderId, orderNumber]
       );
+
+      // Extract and map all order lines accurately
+      const rawItems = (Array.isArray(order.items) && order.items.length > 0)
+        ? order.items
+        : (Array.isArray(order.lines) && order.lines.length > 0)
+          ? order.lines
+          : (Array.isArray(order.orderItems) && order.orderItems.length > 0)
+            ? order.orderItems
+            : (Array.isArray(order.lineItems) && order.lineItems.length > 0)
+              ? order.lineItems
+              : (order.name || order.sku || order.merchantSKU || order.productName)
+                ? [order]
+                : [];
+
+      let calculatedGrossTotal = 0;
+      let calculatedTaxTotal = 0;
+
+      const mappedLines = rawItems.map((l: any) => {
+        const pName = String(
+          l.name ||
+          l.productName ||
+          l.title ||
+          l.merchantSKU ||
+          l.merchantSku ||
+          (orderNumber ? `Hepsiburada Sipariş Ürünü (#${orderNumber})` : 'Hepsiburada Ürünü')
+        ).trim();
+
+        const qty = Number(l.quantity || l.qty || 1);
+        const vatRate = Number(l.vatRate !== undefined ? l.vatRate : (l.vat_rate !== undefined ? l.vat_rate : 20));
+
+        // Hepsiburada prices are tax-inclusive gross figures
+        const rawGross = parseFloat(
+          l.totalPrice?.amount ||
+          l.totalPrice ||
+          (parseFloat(l.unitPrice?.amount || l.price?.amount || l.unitPrice || l.price || 0) * qty)
+        ) || 0;
+
+        const lineTax = Number((rawGross - (rawGross / (1 + vatRate / 100))).toFixed(2));
+        calculatedGrossTotal += rawGross;
+        calculatedTaxTotal += lineTax;
+
+        let netUnitPrice = 0;
+        if (rawGross > 0 && qty > 0) {
+          const grossUnit = rawGross / qty;
+          netUnitPrice = Number((grossUnit / (1 + vatRate / 100)).toFixed(4));
+        } else {
+          netUnitPrice = 0;
+        }
+
+        const barcode = String(l.productBarcode || l.barcode || l.merchantSKU || l.merchantSku || l.sku || '').trim();
+        const sku = String(l.merchantSKU || l.merchantSku || l.sku || '').trim();
+
+        return {
+          name: pName,
+          quantity: qty,
+          price: netUnitPrice,
+          barcode: barcode,
+          sku: sku,
+          merchantSku: String(l.merchantSKU || l.merchantSku || '').trim(),
+          hbSku: String(l.sku || l.hbSku || '').trim(),
+          taxRate: vatRate,
+        };
+      });
+
+      const grandTotal = calculatedGrossTotal > 0
+        ? Number(calculatedGrossTotal.toFixed(2))
+        : (parseFloat(order.total || order.totalPrice?.amount || order.grossAmount || order.totalAmount || 0) || 0);
+
+      const taxAmount = calculatedTaxTotal > 0
+        ? Number(calculatedTaxTotal.toFixed(2))
+        : Number((grandTotal * (20 / 120)).toFixed(2));
+
+      const subtotal = Number((grandTotal - taxAmount).toFixed(2));
+
+      // Standardized, compact invoice number (e.g. HB-4741507589)
+      const invoiceNumber = orderNumber
+        ? `HB-${orderNumber}`
+        : `HB-${String(orderId).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10)}`;
 
       if (existing.rows.length === 0) {
         const client = await pool.connect();
@@ -484,19 +599,6 @@ export class HepsiburadaService {
             customerId = newCust.rows[0]?.id;
           }
 
-          // Financial calculations
-          const orderTotal =
-            parseFloat(
-              order.total ||
-                order.totalPrice?.amount ||
-                order.grossAmount ||
-                order.totalAmount ||
-                0
-            ) || 0;
-          const taxAmount = Number((orderTotal * (20 / 120)).toFixed(2));
-          const subtotal = Number((orderTotal - taxAmount).toFixed(2));
-          const grandTotal = orderTotal;
-
           // Create Sale
           const saleRes = await client.query(
             `INSERT INTO sales 
@@ -516,11 +618,6 @@ export class HepsiburadaService {
             ]
           );
           const saleId = saleRes.rows[0].id;
-
-          // Standardized, compact invoice number (e.g. HB-4741507589)
-          const invoiceNumber = orderNumber
-            ? `HB-${orderNumber}`
-            : `HB-${String(orderId).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10)}`;
 
           const invoiceRes = await client.query(
             `INSERT INTO sales_invoices 
@@ -553,62 +650,6 @@ export class HepsiburadaService {
             ]
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
-
-          // Extract and map order lines accurately
-          const rawItems = (Array.isArray(order.items) && order.items.length > 0)
-            ? order.items
-            : (Array.isArray(order.lines) && order.lines.length > 0)
-              ? order.lines
-              : (Array.isArray(order.orderItems) && order.orderItems.length > 0)
-                ? order.orderItems
-                : (Array.isArray(order.lineItems) && order.lineItems.length > 0)
-                  ? order.lineItems
-                  : (order.name || order.sku || order.merchantSKU || order.productName)
-                    ? [order]
-                    : [];
-
-          const mappedLines = rawItems.map((l: any) => {
-            const pName = String(
-              l.name ||
-              l.productName ||
-              l.title ||
-              l.merchantSKU ||
-              l.merchantSku ||
-              (orderNumber ? `Hepsiburada Sipariş Ürünü (#${orderNumber})` : 'Hepsiburada Ürünü')
-            ).trim();
-
-            const qty = Number(l.quantity || l.qty || 1);
-            const vatRate = Number(l.vatRate !== undefined ? l.vatRate : (l.vat_rate !== undefined ? l.vat_rate : 20));
-
-            // Hepsiburada prices are tax-inclusive gross figures
-            const rawGross = parseFloat(
-              l.totalPrice?.amount ||
-              l.totalPrice ||
-              (parseFloat(l.unitPrice?.amount || l.price?.amount || l.unitPrice || l.price || 0) * qty)
-            ) || 0;
-
-            let netUnitPrice = 0;
-            if (rawGross > 0 && qty > 0) {
-              const grossUnit = rawGross / qty;
-              netUnitPrice = Number((grossUnit / (1 + vatRate / 100)).toFixed(4));
-            } else {
-              netUnitPrice = Number((subtotal / (qty || 1)).toFixed(4));
-            }
-
-            const barcode = String(l.productBarcode || l.barcode || l.merchantSKU || l.merchantSku || l.sku || '').trim();
-            const sku = String(l.merchantSKU || l.merchantSku || l.sku || '').trim();
-
-            return {
-              name: pName,
-              quantity: qty,
-              price: netUnitPrice,
-              barcode: barcode,
-              sku: sku,
-              merchantSku: String(l.merchantSKU || l.merchantSku || '').trim(),
-              hbSku: String(l.sku || l.hbSku || '').trim(),
-              taxRate: vatRate,
-            };
-          });
 
           if (mappedLines.length > 0) {
             await processMarketplaceOrderLines(
@@ -665,6 +706,85 @@ export class HepsiburadaService {
           errors.push({ orderId, error: err.message });
         } finally {
           client.release();
+        }
+      } else {
+        // Order already exists: check if lines or totals need reconciliation
+        const existingRow = existing.rows[0];
+        const existingHbOrderId = existingRow.id;
+        const existingInvoiceId = existingRow.sales_invoice_id;
+        const existingSaleId = existingRow.sale_id;
+
+        if (existingInvoiceId && mappedLines.length > 0) {
+          const client = await pool.connect();
+          try {
+            await client.query("BEGIN");
+            
+            // Check existing invoice item count
+            const currItemsRes = await client.query("SELECT COUNT(*) as count FROM sales_invoice_items WHERE sales_invoice_id = $1", [existingInvoiceId]);
+            const currCount = parseInt(currItemsRes.rows[0]?.count || 0);
+
+            if (currCount < mappedLines.length || true) {
+              // Update invoice totals
+              await client.query(
+                `UPDATE sales_invoices 
+                 SET total_amount = $1, tax_amount = $2, grand_total = $3, notes = $4 
+                 WHERE id = $5`,
+                [subtotal, taxAmount, grandTotal, `Hepsiburada Siparişi: #${orderNumber || orderId}`, existingInvoiceId]
+              );
+
+              if (existingSaleId) {
+                await client.query(
+                  `UPDATE sales SET total_amount = $1 WHERE id = $2`,
+                  [grandTotal, existingSaleId]
+                );
+              }
+
+              // Clean previous line items and re-populate with full set of items
+              await client.query(`DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1`, [existingInvoiceId]);
+              if (existingSaleId) {
+                await client.query(`DELETE FROM sale_items WHERE sale_id = $1`, [existingSaleId]);
+              }
+
+              await processMarketplaceOrderLines(
+                client,
+                this.storeId,
+                existingSaleId,
+                existingInvoiceId,
+                mappedLines,
+                "Hepsiburada",
+                orderNumber || orderId,
+                order.customerName || "Hepsiburada Müşterisi",
+                invoiceNumber
+              );
+
+              // Update order_data in hepsiburada_orders
+              await client.query(
+                `UPDATE hepsiburada_orders 
+                 SET order_data = $1, 
+                     package_number = COALESCE($2, package_number),
+                     cargo_tracking_number = COALESCE($3, cargo_tracking_number),
+                     cargo_provider_name = COALESCE($4, cargo_provider_name),
+                     status = COALESCE($5, status)
+                 WHERE id = $6`,
+                [
+                  order,
+                  order.packageNumber || null,
+                  order.cargoTrackingNumber || order.trackingNumber || null,
+                  order.cargoProviderName || order.cargoCompany || null,
+                  order.status || null,
+                  existingHbOrderId
+                ]
+              );
+            }
+
+            await client.query("COMMIT");
+            syncedCount++;
+          } catch (updateErr: any) {
+            await client.query("ROLLBACK");
+            console.error(`HB Order ${orderId} update error:`, updateErr);
+          } finally {
+            client.release();
+          }
         }
       }
     }
@@ -1200,7 +1320,7 @@ export class HepsiburadaService {
     try {
       while (true) {
         const url = `${listingDirectUrl}/listings/merchantid/${merchantId}?limit=${limit}&offset=${offset}`;
-        const res = await axios.get(url, { headers, timeout: 12000 });
+        const res = await axios.get(url, { headers, timeout: 10000 });
         const rawItems = res.data?.listings || res.data?.items || res.data?.data || (Array.isArray(res.data) ? res.data : []);
         totalCount = res.data?.totalCount || rawItems.length;
 
@@ -1230,10 +1350,10 @@ export class HepsiburadaService {
           }
         }
 
-        if (rawItems.length < limit || allListingsMap.size >= totalCount) {
+        if (!Array.isArray(rawItems) || rawItems.length === 0 || rawItems.length < limit || allListingsMap.size >= totalCount || offset > 2000) {
           break;
         }
-        offset += limit;
+        offset += rawItems.length;
       }
     } catch (err: any) {
       console.warn("[HB-Listings] Error during paginated fetch:", err.response?.data || err.message);
@@ -1270,7 +1390,7 @@ export class HepsiburadaService {
     }
 
     const prodRes = await pool.query(
-      "SELECT id, name, barcode, sku, price, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data FROM products WHERE store_id = $1",
+      "SELECT id, name, barcode, sku, product_code, brand, price, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data, sector_data FROM products WHERE store_id = $1",
       [this.storeId]
     );
     const storeProducts = prodRes.rows;
@@ -1301,52 +1421,79 @@ export class HepsiburadaService {
       const barcode = (listing.barcode || "").trim();
       const pName = (listing.productName || "").trim();
       const cleanMSku = mSku.replace(/_\d+$/, "").replace(/-s$/i, "").trim();
+      const mSkuDigits = mSku.replace(/\D/g, "");
 
       // Find local product
       let matchedProd = storeProducts.find((p) => {
         const pBarcode = (p.barcode || "").trim();
+        const pBcDigits = pBarcode.replace(/\D/g, "");
         const pSku = (p.sku || "").trim();
+        const pCode = (p.product_code || "").trim();
         const pHbSku = (p.hepsiburada_sku || "").trim();
         const pNameStr = (p.name || "").trim();
 
-        // 1. Direct HB-SKU / Barcode / SKU exact match
-        if (hbSku && pHbSku && pHbSku.toLowerCase() === hbSku.toLowerCase()) return true;
-        if (mSku && pBarcode && pBarcode.toLowerCase() === mSku.toLowerCase()) return true;
-        if (barcode && pBarcode && pBarcode.toLowerCase() === barcode.toLowerCase()) return true;
-        if (mSku && pSku && pSku.toLowerCase() === mSku.toLowerCase()) return true;
-        if (hbSku && pBarcode && pBarcode.toLowerCase() === hbSku.toLowerCase()) return true;
-        if (pName && pNameStr && pNameStr.toLowerCase() === pName.toLowerCase()) return true;
+        let sec = p.sector_data;
+        if (typeof sec === "string") { try { sec = JSON.parse(sec); } catch { sec = {}; } }
+        const altBc = Array.isArray(sec?.alternate_barcodes) ? sec.alternate_barcodes.map(String) : [];
 
-        // 2. Smart Model / Part Number in Name or Barcode (e.g. M90, EAP787, DA-70167)
-        if (cleanMSku && cleanMSku.length >= 3 && !cleanMSku.startsWith("HBCV") && !cleanMSku.startsWith("20025")) {
+        let mpData = p.marketplace_data;
+        if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch { mpData = {}; } }
+        const mpHbSku = (mpData?.hepsiburada?.hepsiburadaSku || mpData?.hepsiburadaSku || "").trim();
+        const mpHbPid = (mpData?.hepsiburada?.productId || "").trim();
+
+        // 1. Direct HB-SKU / Barcode / SKU exact match
+        if (hbSku && pHbSku && normalizeStr(pHbSku) === normalizeStr(hbSku)) return true;
+        if (hbSku && mpHbSku && normalizeStr(mpHbSku) === normalizeStr(hbSku)) return true;
+        if (hbSku && mpHbPid && normalizeStr(mpHbPid) === normalizeStr(hbSku)) return true;
+        if (hbSku && pBarcode && normalizeStr(pBarcode) === normalizeStr(hbSku)) return true;
+
+        if (mSku && pBarcode && normalizeStr(pBarcode) === normalizeStr(mSku)) return true;
+        if (mSku && pSku && normalizeStr(pSku) === normalizeStr(mSku)) return true;
+        if (mSku && pCode && normalizeStr(pCode) === normalizeStr(mSku)) return true;
+        if (barcode && pBarcode && normalizeStr(pBarcode) === normalizeStr(barcode)) return true;
+        if (altBc.some(b => normalizeStr(b) === normalizeStr(mSku) || normalizeStr(b) === normalizeStr(barcode))) return true;
+
+        if (pName && pNameStr && normalizeStr(pNameStr) === normalizeStr(pName)) return true;
+
+        // 2. Digits-only match (handles leading zero differences or 12 vs 13 digits)
+        if (mSkuDigits && mSkuDigits.length >= 8 && pBcDigits) {
+          if (pBcDigits === mSkuDigits) return true;
+          if (pBcDigits.endsWith(mSkuDigits) || mSkuDigits.endsWith(pBcDigits)) return true;
+        }
+
+        // 3. Clean Model / Part Number in Name, Code, Barcode (e.g. M90, EAP787, DA-70167, TRU23786, UC232A)
+        if (cleanMSku && cleanMSku.length >= 3 && !cleanMSku.startsWith("HBCV") && !cleanMSku.startsWith("HBV") && !cleanMSku.startsWith("20025")) {
           const normClean = normalizeStr(cleanMSku);
           const normName = normalizeStr(pNameStr);
           const normBarcode = normalizeStr(pBarcode);
           const normSku = normalizeStr(pSku);
+          const normCode = normalizeStr(pCode);
 
-          if (normName.includes(normClean)) return true;
-          if (normBarcode === normClean || (normBarcode.length >= 6 && normBarcode.includes(normClean))) return true;
-          if (normSku === normClean) return true;
+          if (normClean && normName && normName.includes(normClean)) return true;
+          if (normClean && normCode && (normCode === normClean || (normCode.length >= 4 && normClean.includes(normCode)) || normCode.includes(normClean))) return true;
+          if (normClean && normSku && (normSku === normClean || (normSku.length >= 4 && normClean.includes(normSku)) || normSku.includes(normClean))) return true;
+          if (normClean && normBarcode && (normBarcode === normClean || (normBarcode.length >= 6 && normBarcode.includes(normClean)))) return true;
 
-          // 3. Sub-tokens (e.g. HS-SSD-C100/120G -> C100 and 120G, ATEN-UC232A -> UC232A, L32656-005 -> L32656)
-          const tokens = cleanMSku.split(/[-_/ ]+/).filter(t => t.length >= 3 && !["SSD", "USB", "KABLO", "GIGABIT"].includes(t.toUpperCase()));
+          // Sub-tokens (e.g. HS-SSD-C100/120G -> C100 and 120G, ATEN-UC232A -> UC232A, L32656-005 -> L32656)
+          const tokens = cleanMSku.split(/[-_/ ]+/).filter(t => t.length >= 3 && !["SSD", "USB", "KABLO", "GIGABIT", "DÖNÜŞTÜRÜCÜ"].includes(t.toUpperCase()));
           if (tokens.length > 0) {
-            const allTokensInName = tokens.every(t => normName.includes(normalizeStr(t)));
+            const allTokensInName = tokens.every(t => normName && normName.includes(normalizeStr(t)));
             if (allTokensInName) return true;
           }
 
-          // 4. Significant alphanumeric token (e.g. UC232A, L32656)
+          // Significant alphanumeric token (e.g. UC232A, L32656)
           for (const token of tokens) {
-            if (token.length >= 5 && (normName.includes(normalizeStr(token)) || (pBarcode && pBarcode.includes(token)))) {
+            const nTok = normalizeStr(token);
+            if (nTok.length >= 5 && ((normName && normName.includes(nTok)) || (normBarcode && normBarcode.includes(nTok)))) {
               return true;
             }
           }
 
-          // 5. Number part in barcode (e.g. TRU16977 -> 16977 in barcode 8713439169775)
+          // Number part in barcode (e.g. TRU16977 -> 16977 in barcode 8713439169775)
           const numPart = cleanMSku.replace(/^[a-zA-Z]+/, "");
-          if (numPart && numPart.length >= 4) {
-            if (pBarcode && pBarcode.includes(numPart)) return true;
-            if (pNameStr && pNameStr.includes(numPart)) return true;
+          if (numPart && numPart.length >= 5) {
+            if (normBarcode && normBarcode.includes(numPart)) return true;
+            if (normName && normName.includes(numPart)) return true;
           }
         }
 
@@ -1367,10 +1514,11 @@ export class HepsiburadaService {
           ? `https://www.hepsiburada.com/${pSlug || 'urun'}-pm-${String(resolvedPid).trim().toLowerCase()}` 
           : (matchedProd.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.name || '')}`);
 
-        const isManuallyUnpublished = mpData.hepsiburada?.manuallyUnpublished === true || mpData.hepsiburada?.status === 'INACTIVE' || matchedProd.is_hepsiburada_active === false;
-        const pPrice = Number(matchedProd.price || 0);
-        const pStock = Number(matchedProd.stock_quantity || 0);
-        const isValidForListing = !isManuallyUnpublished && pPrice > 0 && pStock > 0 && listing.status !== 'PENDING_APPROVAL';
+        const isManuallyUnpublished = mpData.hepsiburada?.manuallyUnpublished === true;
+        const pPrice = Number(matchedProd.price || listing.price || 0);
+        const pStock = Number(matchedProd.stock_quantity !== undefined ? matchedProd.stock_quantity : (listing.availableStock || 0));
+        const isLiveOnHb = listing.status === 'ACTIVE' && listing.isSalable !== false;
+        const isValidForListing = !isManuallyUnpublished && (isLiveOnHb || (pPrice > 0 && pStock > 0 && listing.status !== 'PENDING_APPROVAL'));
 
         mpData.hepsiburada = {
           ...(mpData.hepsiburada || {}),
@@ -1386,23 +1534,6 @@ export class HepsiburadaService {
           mpData.hepsiburada.manuallyUnpublished = true;
         }
 
-        await pool.query(
-          `UPDATE products 
-           SET is_hepsiburada_active = $1,
-               hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
-               hepsiburada_last_sync = NOW(),
-               hepsiburada_last_error = NULL,
-               marketplace_data = $3
-           WHERE id = $4 AND store_id = $5`,
-          [
-            isValidForListing,
-            hbSku || null,
-            JSON.stringify(mpData),
-            matchedProd.id,
-            this.storeId
-          ]
-        );
-
         matchedCount++;
         updatedCount++;
         matchResults.push({
@@ -1412,15 +1543,31 @@ export class HepsiburadaService {
           barcode: matchedProd.barcode,
           hepsiburadaSku: hbSku || matchedProd.hepsiburada_sku,
           price: listing.price,
-          stock: listing.availableStock
+          stock: listing.availableStock,
+          updateSql: {
+            text: `UPDATE products 
+                   SET is_hepsiburada_active = $1,
+                       hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
+                       hepsiburada_last_sync = NOW(),
+                       hepsiburada_last_error = NULL,
+                       marketplace_data = $3
+                   WHERE id = $4 AND store_id = $5`,
+            values: [
+              isValidForListing,
+              hbSku || null,
+              JSON.stringify(mpData),
+              matchedProd.id,
+              this.storeId
+            ]
+          }
         });
       } else if (importMissing) {
-        // Auto import unmatched product ONLY if it has a real valid barcode and real product name
-        const newName = (pName || listing.productName || listing.title || "").trim();
-        const validBarcodeCandidate = (mSku || barcode || "").trim();
+        // Auto import unmatched product with its HB SKU and details
+        const validBarcodeCandidate = (mSku || barcode || hbSku || "").trim();
+        const newName = (pName || listing.productName || listing.title || (hbSku ? `Hepsiburada Ürünü (${hbSku})` : `Hepsiburada Ürünü`)).trim();
 
-        // Strict guard: do not create phantom dummy products
-        if (newName && validBarcodeCandidate && validBarcodeCandidate.length >= 6 && !validBarcodeCandidate.startsWith("200552")) {
+        // Strict guard: ensure valid SKU/barcode candidate
+        if (validBarcodeCandidate && validBarcodeCandidate.length >= 4 && !validBarcodeCandidate.startsWith("200552")) {
           const newBarcode = validBarcodeCandidate;
           const newPrice = listing.price || 0;
           const newStock = listing.availableStock || 0;
@@ -1436,45 +1583,44 @@ export class HepsiburadaService {
             }
           };
 
-          const insertRes = await pool.query(
-            `INSERT INTO products 
-              (store_id, name, barcode, price, stock_quantity, is_hepsiburada_active, hepsiburada_sku, category, hepsiburada_last_sync, marketplace_data)
-             VALUES ($1, $2, $3, $4, $5, true, $6, 'Genel', NOW(), $7)
-             ON CONFLICT (store_id, barcode) DO UPDATE 
-               SET is_hepsiburada_active = true,
-                   hepsiburada_sku = COALESCE(NULLIF(EXCLUDED.hepsiburada_sku, ''), products.hepsiburada_sku),
-                   hepsiburada_last_sync = NOW(),
-                   hepsiburada_last_error = NULL,
-                   marketplace_data = EXCLUDED.marketplace_data
-             RETURNING id, name, barcode, hepsiburada_sku`,
-            [this.storeId, newName, newBarcode, newPrice, newStock, hbSku || null, JSON.stringify(mpData)]
-          );
-
-          const insertedRow = insertRes.rows[0];
-          if (insertedRow) {
-            storeProducts.push({
-              id: insertedRow.id,
-              name: insertedRow.name,
-              barcode: insertedRow.barcode,
-              sku: newBarcode,
-              hepsiburada_sku: insertedRow.hepsiburada_sku || hbSku,
-              is_hepsiburada_active: true,
-              marketplace_data: mpData
-            });
-          }
-
           importedCount++;
           matchResults.push({
             action: 'imported',
-            productId: insertedRow?.id,
             productName: newName,
             barcode: newBarcode,
             hepsiburadaSku: hbSku,
             price: newPrice,
-            stock: newStock
+            stock: newStock,
+            insertSql: {
+              text: `INSERT INTO products 
+                      (store_id, name, barcode, price, stock_quantity, is_hepsiburada_active, hepsiburada_sku, category, hepsiburada_last_sync, marketplace_data)
+                     VALUES ($1, $2, $3, $4, $5, true, $6, 'Genel', NOW(), $7)
+                     ON CONFLICT (store_id, barcode) DO UPDATE 
+                       SET is_hepsiburada_active = true,
+                           hepsiburada_sku = COALESCE(NULLIF(EXCLUDED.hepsiburada_sku, ''), products.hepsiburada_sku),
+                           hepsiburada_last_sync = NOW(),
+                           hepsiburada_last_error = NULL,
+                           marketplace_data = EXCLUDED.marketplace_data
+                     RETURNING id, name, barcode, hepsiburada_sku`,
+              values: [this.storeId, newName, newBarcode, newPrice, newStock, hbSku || null, JSON.stringify(mpData)]
+            }
           });
         }
       }
+    }
+
+    // Execute database operations in parallel batches
+    const BATCH_SIZE = 25;
+    for (let i = 0; i < matchResults.length; i += BATCH_SIZE) {
+      const chunk = matchResults.slice(i, i + BATCH_SIZE);
+      await Promise.all(chunk.map(async (item) => {
+        if (item.updateSql) {
+          await pool.query(item.updateSql.text, item.updateSql.values);
+        } else if (item.insertSql) {
+          const res = await pool.query(item.insertSql.text, item.insertSql.values);
+          if (res.rows[0]) item.productId = res.rows[0].id;
+        }
+      }));
     }
 
     return {

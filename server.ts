@@ -855,12 +855,23 @@ function sanitizeFilename(originalName: string): string {
 
     // 1. Check local file system with strict directory bounds
     const allowedRoots = [path.resolve(lookdocuDir), path.resolve(uploadsDir)];
-    const possibleLocalPaths = [
-      path.join(lookdocuDir, filePath),
-      path.join(uploadsDir, filePath),
-      path.join(uploadsDir, "stores", filePath),
-      path.join(uploadsDir, "consultants", filePath),
-    ];
+    
+    // Generate alternate extension variants (e.g. .jpg <-> .webp <-> .png) for cross-marketplace compatibility
+    const fileVariants = [filePath];
+    if (/\.(jpe?g|png|webp)$/i.test(filePath)) {
+      const baseName = filePath.replace(/\.(jpe?g|png|webp)$/i, '');
+      fileVariants.push(`${baseName}.webp`, `${baseName}.jpg`, `${baseName}.png`, `${baseName}.jpeg`);
+    }
+
+    const possibleLocalPaths: string[] = [];
+    for (const fv of fileVariants) {
+      possibleLocalPaths.push(
+        path.join(lookdocuDir, fv),
+        path.join(uploadsDir, fv),
+        path.join(uploadsDir, "stores", fv),
+        path.join(uploadsDir, "consultants", fv)
+      );
+    }
 
     for (const localPath of possibleLocalPaths) {
       const resolved = path.resolve(localPath);
@@ -883,10 +894,14 @@ function sanitizeFilename(originalName: string): string {
       }
     }
 
-    // 2. Check PostgreSQL database (app_storage_files)
+    // 2. Check PostgreSQL database (app_storage_files) with candidate extensions
     try {
       const { getFileFromDatabase } = await import("./routes/utils/imageStorage");
-      const dbFile = await getFileFromDatabase(filePath);
+      let dbFile = null;
+      for (const fv of fileVariants) {
+        dbFile = await getFileFromDatabase(fv);
+        if (dbFile) break;
+      }
       if (dbFile) {
         const etag = `"${dbFile.buffer.length}-db"`;
         if (req.headers["if-none-match"] === etag) {
@@ -900,7 +915,7 @@ function sanitizeFilename(originalName: string): string {
         }
         storageRamCache.set(filePath, {
           buffer: dbFile.buffer,
-          contentType: dbFile.mimetype,
+          contentType: dbFile.mimetype || 'image/jpeg',
           contentLength: dbFile.buffer.length,
           etag,
           timestamp: Date.now(),
@@ -914,7 +929,7 @@ function sanitizeFilename(originalName: string): string {
 
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         res.setHeader("ETag", etag);
-        res.setHeader("Content-Type", dbFile.mimetype);
+        res.setHeader("Content-Type", dbFile.mimetype || 'image/jpeg');
         res.setHeader("Content-Length", dbFile.buffer.length);
         return res.send(dbFile.buffer);
       }
