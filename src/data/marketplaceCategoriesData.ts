@@ -1737,6 +1737,57 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
     { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Yasal garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36", "60"], defaultValue: "24" },
     { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
   ],
+  webcam_camera: [
+    { id: "Marka", name: "Marka (Brand)", description: "Web kamerası üretici markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "Cozunurluk", name: "Video Çözünürlüğü", description: "Kamera görüntü kalitesi", mandatory: true, type: "select", values: ["1080p Full HD (1920x1080)", "2K QHD (2560x1440)", "4K Ultra HD", "720p HD"], defaultValue: "1080p Full HD (1920x1080)" },
+    { id: "KareHizi", name: "Kare Hızı (FPS)", description: "Saniyedeki kare sayısı", mandatory: true, type: "select", values: ["60 FPS", "30 FPS"], defaultValue: "30 FPS" },
+    { id: "Mikrofon", name: "Dahili Mikrofon", description: "Ses kaydı ve gürültü engelleme", mandatory: true, type: "select", values: ["Çift Gürültü Önleyici Mikrofon (Stereo)", "Dahili Mikrofonlu (Mono)", "Mikrofonsuz"], defaultValue: "Dahili Mikrofonlu (Mono)" },
+    { id: "Odaklama", name: "Odaklama Tipi", description: "Netleme mekanizması", mandatory: false, type: "select", values: ["Otomatik Odaklama (Auto-Focus)", "Sabit Odak (Fixed Focus)"], defaultValue: "Otomatik Odaklama (Auto-Focus)" },
+    { id: "Baglanti", name: "Bağlantı Arayüzü", description: "Bilgisayar bağlantı portu", mandatory: true, type: "select", values: ["USB 2.0 / 3.0 Tak-Çalıştır", "Type-C (USB-C)"], defaultValue: "USB 2.0 / 3.0 Tak-Çalıştır" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  power_strip_socket: [
+    { id: "Marka", name: "Marka (Brand)", description: "Priz / elektrik ekipmanı markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "PrizSayisi", name: "Priz / Yuva Sayısı", description: "Toplam AC priz çıkışı", mandatory: true, type: "select", values: ["Tekli (1 Priz)", "2'li Grup Priz", "3'lü Grup Priz", "4'lü Grup Priz", "5'li Grup Priz", "6'lı Grup Priz", "8+ Çoklu Priz"], defaultValue: "3'lü Grup Priz" },
+    { id: "KabloUzunlugu", name: "Kablo Uzunluğu", description: "Hat kablo boyu", mandatory: true, type: "select", values: ["Kablosuz (Fiş Priz)", "1.5 Metre", "2 Metre", "3 Metre", "5 Metre", "10 Metre"], defaultValue: "2 Metre" },
+    { id: "AkimKoruma", name: "Akım & Yıldırım Koruması", description: "Yüksek voltaj koruma özelliği", mandatory: true, type: "select", values: ["Akım Korumalı (Surge Protection)", "Standart Topraklı Çocuk Korumalı"], defaultValue: "Akım Korumalı (Surge Protection)" },
+    { id: "UsbCikisi", name: "USB / Type-C Şarj Portu", description: "Dahili USB şarj çıkışı", mandatory: false, type: "select", values: ["USB-A + Type-C PD Girişli", "USB Şarj Girişli", "Yok (Yalnızca AC Priz)"], defaultValue: "Yok (Yalnızca AC Priz)" },
+    { id: "Anahtar", name: "Açma / Kapama Anahtarı", description: "Güç kesme düğmesi", mandatory: false, type: "select", values: ["Anahtarlı (On/Off Butonlu)", "Anahtarsız"], defaultValue: "Anahtarlı (On/Off Butonlu)" },
+    { id: "Renk", name: "Renk (Color)", description: "Gövde rengi", mandatory: true, type: "select", values: ["Beyaz", "Siyah", "Gri"], defaultValue: "Beyaz" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  stylus_pen: [
+    { id: "Marka", name: "Marka (Brand)", description: "Dokunmatik kalem üretici markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "UyumluCihaz", name: "Uyumlu Cihaz / Ekosistem", description: "Çalıştığı tablet veya ekran teknolojisi", mandatory: true, type: "select", values: ["Apple iPad (Avuç İçi Reddetmeli / Palm Rejection)", "Tüm Dokunmatik Ekranlar (Üniversal Kapasitif)", "Samsung Galaxy Tab Serisi", "Grafik Çizim Tableti"], defaultValue: "Apple iPad (Avuç İçi Reddetmeli / Palm Rejection)" },
+    { id: "BaglantiSarj", name: "Şarj & Çalışma Tipi", description: "Güç ve bağlantı yapısı", mandatory: true, type: "select", values: ["Type-C Şarjlı (Aktif Stylus)", "Manyetik Kablosuz Şarjlı", "Pilsiz / Pasif Kapasitif"], defaultValue: "Type-C Şarjlı (Aktif Stylus)" },
+    { id: "Renk", name: "Renk (Color)", description: "Kalem rengi", mandatory: true, type: "select", values: ["Beyaz", "Siyah", "Gümüş", "Gri"], defaultValue: "Beyaz" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  dect_landline_phone: [
+    { id: "Marka", name: "Marka (Brand)", description: "Telefon cihazı markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "TelefonTipi", name: "Telefon Türü", description: "Telsiz veya masaüstü sabit telefon", mandatory: true, type: "select", values: ["Kablosuz DECT Telsiz Telefon", "Kablolu Masaüstü / Ofis Telefonu", "IP / VoIP Masaüstü Telefon"], defaultValue: "Kablosuz DECT Telsiz Telefon" },
+    { id: "ArayanNumara", name: "Arayan Numara Gösterimi (Caller ID)", description: "Ekran ve numara gösterimi", mandatory: true, type: "select", values: ["Var (Aydınlatmalı Ekran)", "Yok"], defaultValue: "Var (Aydınlatmalı Ekran)" },
+    { id: "Hoparlor", name: "Handsfree / Hoparlör", description: "Ahizesiz görüşme özelliği", mandatory: false, type: "select", values: ["Var (Eller Serbest Hoparlör)", "Yok"], defaultValue: "Var (Eller Serbest Hoparlör)" },
+    { id: "Renk", name: "Renk (Color)", description: "Cihaz rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Gümüş / Gri"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  tv_mount_remote: [
+    { id: "Marka", name: "Marka (Brand)", description: "Askı aparatı veya kumanda markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "UrunTipi", name: "Ürün Türü", description: "Askı aparatı veya kumanda tipi", mandatory: true, type: "select", values: ["Sabit TV Duvar Askı Aparatı", "Hareketli / Açılı TV Askı Aparatı", "Masaüstü / Tavan Monitör & TV Tutucu", "Akıllı / Üniversal TV Kumandası"], defaultValue: "Hareketli / Açılı TV Askı Aparatı" },
+    { id: "DesteklenenEkran", name: "Uyumlu Ekran Boyutu", description: "Desteklenen TV / monitör inç aralığı", mandatory: true, type: "select", values: ["19\" - 43\" inç", "32\" - 55\" inç", "40\" - 65\" inç", "55\" - 85\" inç", "Tüm TV Modelleri (Kumanda)"], defaultValue: "32\" - 55\" inç" },
+    { id: "Renk", name: "Renk (Color)", description: "Ürün rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Gümüş"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
   cosmetics: [
     { id: "Marka", name: "Marka (Brand)", description: "Kozmetik markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
     { id: "Hacim", name: "Hacim / Gramaj", description: "Ürün net ağırlığı veya hacmi (ml, gr)", mandatory: true, type: "text", defaultValue: "100 ml" },
@@ -2124,38 +2175,45 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "12101948": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
   "12101949": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
 
-  // General Electronics & Accessories
-  "1000121": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
+  // General Electronics & Specialized Child Accessories
+  "1000121": COMMON_MARKETPLACE_ATTRIBUTES.webcam_camera,
+  "103691": COMMON_MARKETPLACE_ATTRIBUTES.webcam_camera,
+  "7000111": COMMON_MARKETPLACE_ATTRIBUTES.webcam_camera,
+  "1000294": COMMON_MARKETPLACE_ATTRIBUTES.webcam_camera,
   "1000132": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
   "1000133": COMMON_MARKETPLACE_ATTRIBUTES.tech_chemicals,
-  "1000134": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
-  "1000140": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
+  "1000134": COMMON_MARKETPLACE_ATTRIBUTES.power_strip_socket,
+  "103693": COMMON_MARKETPLACE_ATTRIBUTES.power_strip_socket,
+  "7000128": COMMON_MARKETPLACE_ATTRIBUTES.power_strip_socket,
+  "1000296": COMMON_MARKETPLACE_ATTRIBUTES.power_strip_socket,
+  "1000140": COMMON_MARKETPLACE_ATTRIBUTES.stylus_pen,
+  "7000127": COMMON_MARKETPLACE_ATTRIBUTES.stylus_pen,
   "1000188": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
   "1000189": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
-  "2000104": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
+  "2000104": COMMON_MARKETPLACE_ATTRIBUTES.tv_mount_remote,
   "2000105": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
-  "371974": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
-  "103693": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
-  "7000111": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
+  "371974": COMMON_MARKETPLACE_ATTRIBUTES.dect_landline_phone,
+  "606": COMMON_MARKETPLACE_ATTRIBUTES.dect_landline_phone,
+  "7000208": COMMON_MARKETPLACE_ATTRIBUTES.dect_landline_phone,
+  "1000302": COMMON_MARKETPLACE_ATTRIBUTES.dect_landline_phone,
   "7000126": COMMON_MARKETPLACE_ATTRIBUTES.tech_chemicals,
-  "7000127": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
-  "7000128": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
-  "7000208": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
-  "1000294": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
-  "1000295": COMMON_MARKETPLACE_ATTRIBUTES.tech_chemicals,
-  "1000296": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
-  "1000302": COMMON_MARKETPLACE_ATTRIBUTES.electronics
+  "1000295": COMMON_MARKETPLACE_ATTRIBUTES.tech_chemicals
 };
 
 // Returns relevant attributes based on Child Category Name/Path first, then Category ID
 export function getAttributesForCategory(catName: string, paths: string[] = [], categoryId?: string | number): MarketplaceAttribute[] {
-  const safePaths: string[] = Array.isArray(paths) ? paths : (typeof paths === "string" ? [paths] : []);
+  const safePaths: string[] = Array.isArray(paths) ? [...paths] : (typeof paths === "string" ? [paths] : []);
   let resolvedCatId = categoryId !== undefined && categoryId !== null ? String(categoryId).trim() : "";
   let resolvedCatName = String(catName || "").trim();
 
   // If catName is purely numeric or is an ID and categoryId was not supplied, treat catName as categoryId
   if (!resolvedCatId && /^\d+$/.test(resolvedCatName)) {
     resolvedCatId = resolvedCatName;
+    resolvedCatName = "";
+  }
+
+  // Always hydrate category name & paths from catalog when resolvedCatId is known and name/paths are missing
+  if (resolvedCatId && (!resolvedCatName || /^\d+$/.test(resolvedCatName) || safePaths.length === 0)) {
     const allKnown = [
       ...HEPSIBURADA_DEFAULT_CATEGORIES,
       ...TRENDYOL_DEFAULT_CATEGORIES,
@@ -2165,7 +2223,9 @@ export function getAttributesForCategory(catName: string, paths: string[] = [], 
     ];
     const foundCat = allKnown.find(c => String(c.id) === resolvedCatId);
     if (foundCat) {
-      resolvedCatName = foundCat.name || foundCat.displayName || "";
+      if (!resolvedCatName || /^\d+$/.test(resolvedCatName)) {
+        resolvedCatName = foundCat.name || foundCat.displayName || "";
+      }
       if (safePaths.length === 0 && Array.isArray(foundCat.paths)) {
         safePaths.push(...foundCat.paths);
       }
@@ -2283,6 +2343,61 @@ export function getAttributesForCategory(catName: string, paths: string[] = [], 
     text.includes("oksimetre")
   ) {
     return COMMON_MARKETPLACE_ATTRIBUTES.medical_healthcare;
+  }
+
+  // Child Category Override: Web Kamerası (Webcam)
+  if (
+    text.includes("webcam") ||
+    text.includes("web kamera") ||
+    text.includes("yayıncı kamera") ||
+    text.includes("yayinci kamera")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.webcam_camera;
+  }
+
+  // Child Category Override: Akım Korumalı Priz, Grup Priz & Uzatma Kablosu
+  if (
+    text.includes("akım korumalı priz") ||
+    text.includes("akim korumali priz") ||
+    text.includes("grup priz") ||
+    text.includes("uzatma kablo") ||
+    text.includes("çoklu priz") ||
+    text.includes("coklu priz")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.power_strip_socket;
+  }
+
+  // Child Category Override: Dokunmatik Kalem (Stylus)
+  if (
+    text.includes("stylus") ||
+    text.includes("dokunmatik kalem") ||
+    text.includes("ipad kalem") ||
+    text.includes("tablet kalem")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.stylus_pen;
+  }
+
+  // Child Category Override: Telsiz & Masaüstü DECT Telefon
+  if (
+    text.includes("telsiz telefon") ||
+    text.includes("dect telefon") ||
+    text.includes("masaüstü telefon") ||
+    text.includes("masaustu telefon") ||
+    text.includes("sabit telefon") ||
+    text.includes("ip telefon")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.dect_landline_phone;
+  }
+
+  // Child Category Override: TV Askı Aparatları & Kumanda
+  if (
+    text.includes("tv askı") ||
+    text.includes("tv aski") ||
+    text.includes("duvar askı aparat") ||
+    text.includes("tv kumanda") ||
+    text.includes("uydu kumanda")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.tv_mount_remote;
   }
 
   // Wi-Fi Adaptörleri, USB Wi-Fi, Ağ Kartları & Bluetooth Dongle

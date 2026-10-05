@@ -128,18 +128,20 @@ export async function verifyCriticalSystemInvariants(): Promise<{
     const standAttrs = getAttributesForCategory("Notebook Soğutucu & Stand", ["Notebook", "Notebook Soğutucu & Stand"], "106861");
     const tonerAttrs = getAttributesForCategory("Toner, Kartuş & Şerit", ["Yazıcı", "Toner, Kartuş & Şerit"], "111001");
     const laptopAttrs = getAttributesForCategory("Dizüstü Bilgisayar (Laptop)", ["Bilgisayar", "Dizüstü Bilgisayar (Laptop)"], "98");
+    const wifiAttrs = getAttributesForCategory("", [], "1000127");
 
     const standOk = standAttrs.some((a) => toTrLower(a.name).includes("soğutucu") || toTrLower(a.name).includes("boyut"));
     const tonerOk = tonerAttrs.some((a) => toTrLower(a.name).includes("sarf") || toTrLower(a.name).includes("baskı"));
     const laptopOk = laptopAttrs.some((a) => toTrLower(a.name).includes("işlemci") && Boolean(a.required ?? a.mandatory));
+    const wifiOk = wifiAttrs.some((a) => toTrLower(a.name).includes("wi-fi") || toTrLower(a.name).includes("frekans"));
 
-    const passed = standOk && tonerOk && laptopOk;
+    const passed = standOk && tonerOk && laptopOk && wifiOk;
     checks.push({
       name: "multi_child_category_schema_integrity",
       passed,
       details: passed
-        ? "Soğutucu (106861), Toner (111001) ve Laptop (98) alt kategori zorunlu alan şemaları tam izole."
-        : `Alt kategori şema kontrolü: standOk=${standOk}, tonerOk=${tonerOk}, laptopOk=${laptopOk}`
+        ? "Soğutucu (106861), Toner (111001), USB Wi-Fi Adaptör (1000127) ve Laptop (98) alt kategori zorunlu alan şemaları tam izole."
+        : `Alt kategori şema kontrolü: standOk=${standOk}, tonerOk=${tonerOk}, laptopOk=${laptopOk}, wifiOk=${wifiOk}`
     });
   } catch (e: any) {
     checks.push({

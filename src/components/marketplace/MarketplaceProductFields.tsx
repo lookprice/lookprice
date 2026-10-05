@@ -71,6 +71,7 @@ export const MarketplaceProductFields = ({
   const [loadingAttributes, setLoadingAttributes] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchingCategories, setSearchingCategories] = useState(false);
+  const [selectedCategoryCache, setSelectedCategoryCache] = useState<any>(null);
 
   // Sync state if product changes
   useEffect(() => {
@@ -164,7 +165,12 @@ export const MarketplaceProductFields = ({
 
   const effectiveCatId = resolvedCatId;
 
-  let activeCategory = [...searchResults, ...categories, ...HEPSIBURADA_DEFAULT_CATEGORIES].find(
+  let activeCategory = [
+    ...(selectedCategoryCache ? [selectedCategoryCache] : []),
+    ...searchResults,
+    ...categories,
+    ...HEPSIBURADA_DEFAULT_CATEGORIES
+  ].find(
     (c) => String(c.id || c.categoryId) === String(effectiveCatId)
   );
 
@@ -222,6 +228,7 @@ export const MarketplaceProductFields = ({
       return;
     }
 
+    let isCancelled = false;
     setLoadingAttributes(true);
     const storeId = storeSettings?.id || product?.store_id;
     const queryCat = hasExplicitOrMatchedCat ? (activeCategory?.paths?.[0] || activeCategory?.name || "") : catKey;
@@ -229,18 +236,28 @@ export const MarketplaceProductFields = ({
 
     api.getHepsiburadaCategoryAttributes(effectiveCatId, storeId, queryCat, querySubCat)
       .then((res: any) => {
+        if (isCancelled) return;
+        const source = res.data?.source || res.source || "";
         const attrs = res.data?.attributes || res.attributes || [];
-        if (Array.isArray(attrs) && attrs.length > 0) {
+        // Only override our local verified child schema if the backend returned live API attributes (or if localFallback was empty)
+        if (Array.isArray(attrs) && attrs.length > 0 && (source === "live_api" || localFallback.length === 0)) {
           setDynamicAttributes(attrs);
         } else {
           setDynamicAttributes(localFallback);
         }
       })
       .catch((err) => {
+        if (isCancelled) return;
         console.warn("Dynamic HB Attributes Fetch Error:", err);
         setDynamicAttributes(localFallback);
       })
-      .finally(() => setLoadingAttributes(false));
+      .finally(() => {
+        if (!isCancelled) setLoadingAttributes(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [effectiveCatId, validMarketCatId, catKey, subCatKey, activeCategory?.name]);
 
   // Live Category Search Handler with debounce
@@ -323,6 +340,9 @@ export const MarketplaceProductFields = ({
     const selectedCat = [...searchResults, ...categories, ...HEPSIBURADA_DEFAULT_CATEGORIES].find(
       (c) => String(c.id || c.categoryId) === String(categoryId)
     );
+    if (selectedCat) {
+      setSelectedCategoryCache(selectedCat);
+    }
     const nextAttrs = getAttributesForCategory(
       selectedCat?.name || selectedCat?.displayName || "",
       selectedCat?.paths || [],
@@ -331,7 +351,26 @@ export const MarketplaceProductFields = ({
     setDynamicAttributes(nextAttrs);
     setShowAttributesEditor(true);
 
-    const updated = { ...marketData, categoryId };
+    // Prune stale enum values from previous category so the new category's fields cleanly initialize
+    const prevAttrs = marketData.attributes || {};
+    const cleanedAttrs: Record<string, any> = {};
+    for (const attr of nextAttrs) {
+      const existingVal = prevAttrs[attr.id];
+      if (existingVal !== undefined && existingVal !== "") {
+        if (attr.values && attr.values.length > 0) {
+          const isValidOption = attr.values.some(
+            (v: string) => v.toLowerCase() === String(existingVal).toLowerCase()
+          );
+          if (isValidOption) {
+            cleanedAttrs[attr.id] = existingVal;
+          }
+        } else {
+          cleanedAttrs[attr.id] = existingVal;
+        }
+      }
+    }
+
+    const updated = { ...marketData, categoryId, attributes: cleanedAttrs };
     setMarketData(updated);
     setShowCategoryDropdown(false);
     setSearchTerm("");
@@ -835,7 +874,11 @@ export const MarketplaceProductFields = ({
                         return valOrVar;
                       };
 
-                      let effectiveVal = currentProductVal !== undefined && currentProductVal !== "" 
+                      const isCurrentValValidForSelect = !attr.values || attr.values.length === 0 || !currentProductVal
+                        ? Boolean(currentProductVal !== undefined && currentProductVal !== "")
+                        : attr.values.some((v: string) => v.toLowerCase() === String(currentProductVal).toLowerCase());
+
+                      let effectiveVal = isCurrentValValidForSelect
                         ? currentProductVal 
                         : (hydratedAttributes[attr.id] || "");
 

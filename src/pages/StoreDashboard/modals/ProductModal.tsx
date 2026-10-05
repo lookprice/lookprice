@@ -424,7 +424,7 @@ export const ProductModal = ({
       setIsNewSubCategoryMode(false);
       setRecipeItems([]);
     }
-  }, [showProductModal, editingProduct, isBookstore]);
+  }, [showProductModal, editingProduct?.id, isBookstore]);
 
   const toggleBookBadge = (badgeId: string) => {
     setSelectedBookBadges((prev) => {
@@ -832,7 +832,14 @@ export const ProductModal = ({
                         sub_category: selectedSubCategory || editingProduct?.sub_category,
                       }}
                       onUpdate={(updated) => {
-                        if (editingProduct) setEditingProduct({ ...editingProduct, ...updated });
+                        if (editingProduct) {
+                          setEditingProduct({
+                            ...editingProduct,
+                            ...updated,
+                            category: selectedCategory || updated.category || editingProduct.category,
+                            sub_category: selectedSubCategory || updated.sub_category || editingProduct.sub_category,
+                          });
+                        }
                       }}
                       isTr={isTr}
                       categories={hbCategories}
