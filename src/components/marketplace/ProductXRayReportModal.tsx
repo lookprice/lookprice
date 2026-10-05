@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { getMarketplaceListingUrl } from "@/utils/marketplaceUrls";
 
 interface ProductXRayReportModalProps {
   isOpen: boolean;
@@ -116,7 +117,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
 
     const hbIsUnderpriced = Boolean(p.is_hepsiburada_active && hbLivePrice > 0 && hbLivePrice < hbTargetPrice - 1.0);
     const hbPriceDiff = Math.max(0, Math.round((hbTargetPrice - hbLivePrice) * 100) / 100);
-    const hbUrl = p.hepsiburada_url || mpData?.hepsiburada?.productUrl || null;
+    const hbUrl = getMarketplaceListingUrl(p, 'hepsiburada');
 
     // 2. Amazon TR Strategy & Live Price
     const amzSettings = branding?.amazon_settings || {};
@@ -142,7 +143,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
 
     const amzIsUnderpriced = Boolean(isAmzLive && amzLivePrice > 0 && amzLivePrice < amzTargetPrice - 1.0);
     const amzPriceDiff = Math.max(0, Math.round((amzTargetPrice - amzLivePrice) * 100) / 100);
-    const amzUrl = p.amazon_url || mpData?.amazon?.productUrl || (cleanAmzAsin ? `https://www.amazon.com.tr/dp/${cleanAmzAsin}` : null);
+    const amzUrl = getMarketplaceListingUrl(p, 'amazon');
 
     // 3. Trendyol Strategy & Live Price
     const tySettings = branding?.trendyol_settings || {};

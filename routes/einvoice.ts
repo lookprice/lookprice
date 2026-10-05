@@ -1984,13 +1984,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                   finalBarcode = existingProd.rows[0].barcode;
                   finalProductCode = existingProd.rows[0].product_code || finalProductCode;
                 } else {
-                  const newProdRes = await pool.query(
-                    `INSERT INTO products 
-                     (store_id, name, barcode, product_code, sku, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
-                     VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-                    [storeId, productName, finalBarcode, finalProductCode, 0, up, tr, 0, invoiceDetails.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
-                  );
-                  productId = newProdRes.rows[0].id;
+                  productId = null;
                 }
               }
 

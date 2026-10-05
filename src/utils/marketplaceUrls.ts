@@ -187,8 +187,9 @@ export function getMarketplaceListingUrl(
 
     case 'amazon': {
       const amz = mpData.amazon || {};
-      const directUrl = amz.productUrl || amz.url || product.amazon_url;
-      if (directUrl && String(directUrl).startsWith('http') && String(directUrl).includes('amazon.') && !directUrl.includes('/s?')) {
+      const rawDirectUrl = amz.productUrl || amz.url || product.amazon_url;
+      const directUrl = (rawDirectUrl && String(rawDirectUrl).trim().toLowerCase() !== 'null' && String(rawDirectUrl).trim().toLowerCase() !== 'undefined') ? String(rawDirectUrl).trim() : null;
+      if (directUrl && directUrl.startsWith('http') && directUrl.includes('amazon.') && !directUrl.includes('/s?')) {
         return directUrl;
       }
 
@@ -214,16 +215,17 @@ export function getMarketplaceListingUrl(
     case 'n11': {
       const n11Data = mpData.n11 || {};
       const directUrl = n11Data.productUrl || n11Data.url || product.n11_url;
-      if (directUrl && String(directUrl).startsWith('http') && !directUrl.includes('/arama?') && !directUrl.includes('-PUBLISHED') && !directUrl.endsWith('/PUBLISHED')) {
-        if (!directUrl.includes('?magaza=') && !directUrl.includes('&magaza=')) {
-          return `${directUrl}${directUrl.includes('?') ? '&' : '?'}magaza=enrakipsiz`;
+      if (directUrl && String(directUrl).startsWith('http') && String(directUrl).includes('/urun/') && !directUrl.includes('-PUBLISHED') && !directUrl.endsWith('/PUBLISHED')) {
+        let finalUrl = String(directUrl).trim();
+        if (!finalUrl.includes('?magaza=') && !finalUrl.includes('&magaza=')) {
+          finalUrl = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}magaza=enrakipsiz`;
         }
-        return directUrl;
+        return finalUrl;
       }
 
       const catalogId = n11Data.n11CatalogId || n11Data.catalogId || n11Data.n11CatalogGroupId;
       const n11Id = catalogId || product.n11_id || n11Data.productId || n11Data.id || n11Data.n11Id;
-      if (n11Id && /^\d+$/.test(String(n11Id).trim())) {
+      if (n11Id && /^\d+$/.test(String(n11Id).trim()) && String(n11Id).trim() !== '0') {
         const cleanN11Id = String(n11Id).trim();
         const n11Slug = slugifyText(n11Data.title || product.name || '');
         return n11Slug 

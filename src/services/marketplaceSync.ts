@@ -221,7 +221,8 @@ export async function syncN11OrdersREST(client: any, storeId: number, settings: 
 export async function syncN11Orders(client: any, storeId: number, settings: any, days?: number) {
     try {
         const { N11Service } = await import("./backend/n11Service");
-        let filter: any = { status: "New" };
+        let allOrders: any[] = [];
+        const statuses = ["New", "Approved"];
 
         if (days && days > 0) {
             const today = new Date();
@@ -234,14 +235,35 @@ export async function syncN11Orders(client: any, storeId: number, settings: any,
                 return `${day}/${month}/${year}`;
             };
 
-            filter = {
+            const filter = {
                 startDate: formatDateN11(startDate),
                 endDate: formatDateN11(today)
             };
+            const orders = await N11Service.getDetailedOrders(settings, filter);
+            if (Array.isArray(orders)) allOrders.push(...orders);
+        } else {
+            for (const st of statuses) {
+                try {
+                    const orders = await N11Service.getDetailedOrders(settings, { status: st });
+                    if (Array.isArray(orders)) {
+                        allOrders.push(...orders);
+                    }
+                } catch (stErr) {
+                    // ignore individual status error
+                }
+            }
         }
 
-        const orders = await N11Service.getDetailedOrders(settings, filter);
-        return Array.isArray(orders) ? orders : [];
+        // Deduplicate by order id
+        const uniqueMap = new Map();
+        for (const o of allOrders) {
+            const oId = o.id || o.orderNumber;
+            if (oId && !uniqueMap.has(oId)) {
+                uniqueMap.set(oId, o);
+            }
+        }
+
+        return Array.from(uniqueMap.values());
     } catch (e: any) {
         console.warn("[N11 Sync Error / Fallback]:", e?.message || e);
         if (e?.response?.status === 404 || e?.message?.includes('404')) {

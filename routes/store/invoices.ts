@@ -1737,13 +1737,7 @@ router.get("/purchase/:id", async (req: any, res) => {
                        finalBarcode = existingProd.rows[0].barcode;
                        finalProductCode = existingProd.rows[0].product_code || finalProductCode;
                      } else {
-                       const newProdRes = await pool.query(
-                         `INSERT INTO products 
-                          (store_id, name, barcode, product_code, sku, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
-                          VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-                         [invoice.store_id, productName, finalBarcode, finalProductCode, 0, up, tr, 0, invoice.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
-                       );
-                       productId = newProdRes.rows[0].id;
+                       productId = null;
                      }
                    }
 
@@ -2841,34 +2835,7 @@ router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
             resolvedBarcode = foundBc;
             resolvedProductCode = foundPc;
           } else {
-            // Auto-create product for this invoice item
-            const sanitized = sanitizeInvoiceItemCodes(item.barcode, item.seller_code, item.buyer_code, item.product_code);
-            const unitPrice = Number(item.unit_price) || 0;
-            const taxRate = Number(item.tax_rate) || 20;
-            const salePrice = Number((unitPrice * 1.35).toFixed(2));
-            const newProdRes = await pool.query(
-              `INSERT INTO products 
-               (store_id, name, barcode, product_code, sku, category, price, cost_price, cost_currency, tax_rate, stock_quantity, labels, is_active, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, true, NOW(), NOW()) RETURNING id, barcode, product_code`,
-              [
-                storeId,
-                item.product_name || 'Alış Faturası Ürünü',
-                sanitized.barcode,
-                sanitized.productCode || item.product_code || null,
-                sanitized.productCode || item.product_code || null,
-                'Genel',
-                salePrice,
-                unitPrice,
-                inv.currency || 'TRY',
-                taxRate,
-                JSON.stringify(['yeni_fatura_urunu', 'stoklu_alim'])
-              ]
-            );
-            if (newProdRes.rows.length > 0) {
-              resolvedProductId = newProdRes.rows[0].id;
-              resolvedBarcode = newProdRes.rows[0].barcode;
-              resolvedProductCode = newProdRes.rows[0].product_code;
-            }
+            resolvedProductId = null;
           }
         }
       }
@@ -2959,20 +2926,7 @@ router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
             prodId = productId;
             await pool.query("UPDATE purchase_invoice_items SET product_id = $1, barcode = COALESCE($2, barcode), product_code = COALESCE($3, product_code) WHERE id = $4", [productId, barcode, productCode, item.id]);
           } else {
-            const sanitized = sanitizeInvoiceItemCodes(item.barcode, null, null, item.product_code);
-            const unitPrice = Number(item.unit_price) || 0;
-            const taxRate = Number(item.tax_rate) || 20;
-            const salePrice = Number((unitPrice * 1.35).toFixed(2));
-            const newProd = await pool.query(
-              `INSERT INTO products 
-               (store_id, name, barcode, product_code, sku, category, price, cost_price, cost_currency, tax_rate, stock_quantity, labels, is_active, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, true, NOW(), NOW()) RETURNING id`,
-              [row.store_id, item.product_name || 'Bimel Ürünü', sanitized.barcode, sanitized.productCode || item.product_code || null, sanitized.productCode || item.product_code || null, 'Genel', salePrice, unitPrice, row.currency || 'TRY', taxRate, JSON.stringify(['yeni_fatura_urunu', 'stoklu_alim'])]
-            );
-            if (newProd.rows.length > 0) {
-              prodId = newProd.rows[0].id;
-              await pool.query("UPDATE purchase_invoice_items SET product_id = $1 WHERE id = $2", [prodId, item.id]);
-            }
+            prodId = null;
           }
         }
         if (prodId) {
@@ -3365,14 +3319,7 @@ router.post("/purchase/:id/re-sync-matching", async (req: any, res) => {
           finalBarcode = existingProd.rows[0].barcode;
           finalProductCode = existingProd.rows[0].product_code || finalProductCode;
         } else {
-          const newProdRes = await pool.query(
-            `INSERT INTO products 
-             (store_id, name, barcode, product_code, sku, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
-             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, 'product', $10) 
-             RETURNING id`,
-            [storeId, productName, finalBarcode, finalProductCode, up * 1.25, up, tr, qty, invoice.currency || 'TRY', JSON.stringify(["yeni_fatura_urunu"])]
-          );
-          productId = newProdRes.rows[0].id;
+          productId = null;
         }
       }
 
