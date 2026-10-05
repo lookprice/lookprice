@@ -217,9 +217,27 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
         )}
         {!isCafe && tableManager.isColumnVisible('barcode') && (
           <td className="px-2.5 py-1.5 whitespace-nowrap">
-            <span className="font-mono text-[10px] bg-slate-50 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200 font-medium">
-              {p.barcode || '-'}
-            </span>
+            <div className="flex flex-col gap-0.5">
+              <span className="font-mono text-[10px] bg-slate-50 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200 font-medium">
+                {p.barcode || '-'}
+              </span>
+              {(() => {
+                let sec = p.sector_data;
+                if (typeof sec === 'string') {
+                  try { sec = JSON.parse(sec); } catch { sec = {}; }
+                }
+                const alt = Array.isArray(sec?.alternate_barcodes) ? sec.alternate_barcodes : [];
+                if (alt.length === 0) return null;
+                return (
+                  <span 
+                    className="font-mono text-[9px] text-slate-500 bg-slate-100/80 px-1 py-0.2 rounded truncate max-w-[120px]" 
+                    title={`Alternatif Barkod / Model Kodu: ${alt.join(', ')}`}
+                  >
+                    alt: {alt[0]}
+                  </span>
+                );
+              })()}
+            </div>
           </td>
         )}
         <td className="px-2.5 py-1.5">

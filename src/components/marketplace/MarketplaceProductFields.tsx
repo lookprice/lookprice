@@ -80,7 +80,7 @@ export const MarketplaceProductFields = ({
     setAmzData(currentAmz);
     setHbSkuInput(product?.hepsiburada_sku || currentHb.hepsiburadaSku || "");
     setAmzAsinInput(product?.amazon_asin || currentAmz.asin || "");
-  }, [product?.id, product?.hepsiburada_sku, product?.amazon_asin, JSON.stringify(product?.marketplace_data)]);
+  }, [product?.id, product?.hepsiburada_sku, product?.amazon_asin, JSON.stringify(product?.marketplace_data), product?.category, product?.sub_category]);
 
   // Check store-level category mapping across all marketplace settings
   const catKey = product?.category ? String(product.category).trim() : "";
@@ -197,9 +197,17 @@ export const MarketplaceProductFields = ({
       return;
     }
 
-    // Pass child category (subCatKey) as primary label and [catKey, subCatKey] as paths so child-category overrides win cleanly
-    const leafLabel = subCatKey || activeCategory?.name || catKey || "";
-    const leafPaths = (catKey || subCatKey) ? [catKey, subCatKey].filter(Boolean) : (activeCategory?.paths || []);
+    // If a specific leaf category is selected/resolved (and is not a generic parent laptop ID 98/3000500/103165 colliding with a child accessory),
+    // prioritize the selected marketplace category's own name, paths, and ID so changing the category immediately updates mandatory fields!
+    const isGenericLaptopParent = ["98", "3000500", "103165"].includes(String(effectiveCatId));
+    const hasExplicitOrMatchedCat = Boolean(activeCategory && (!isGenericLaptopParent || Boolean(validMarketCatId)));
+
+    const leafLabel = hasExplicitOrMatchedCat
+      ? (activeCategory?.name || activeCategory?.displayName || subCatKey || catKey || "")
+      : (subCatKey || activeCategory?.name || catKey || "");
+    const leafPaths = hasExplicitOrMatchedCat
+      ? (activeCategory?.paths && activeCategory.paths.length > 0 ? activeCategory.paths : [catKey, subCatKey].filter(Boolean))
+      : ((catKey || subCatKey) ? [catKey, subCatKey].filter(Boolean) : (activeCategory?.paths || []));
 
     const localFallback = getAttributesForCategory(
       leafLabel,
@@ -207,15 +215,19 @@ export const MarketplaceProductFields = ({
       effectiveCatId
     );
 
+    // Immediately update attributes synchronously so UI reflects the selected category without delay
+    setDynamicAttributes(localFallback);
+
     if (!effectiveCatId) {
-      setDynamicAttributes(localFallback);
       return;
     }
 
     setLoadingAttributes(true);
     const storeId = storeSettings?.id || product?.store_id;
+    const queryCat = hasExplicitOrMatchedCat ? (activeCategory?.paths?.[0] || activeCategory?.name || "") : catKey;
+    const querySubCat = hasExplicitOrMatchedCat ? (activeCategory?.name || "") : subCatKey;
 
-    api.getHepsiburadaCategoryAttributes(effectiveCatId, storeId, catKey, subCatKey)
+    api.getHepsiburadaCategoryAttributes(effectiveCatId, storeId, queryCat, querySubCat)
       .then((res: any) => {
         const attrs = res.data?.attributes || res.attributes || [];
         if (Array.isArray(attrs) && attrs.length > 0) {
@@ -229,7 +241,7 @@ export const MarketplaceProductFields = ({
         setDynamicAttributes(localFallback);
       })
       .finally(() => setLoadingAttributes(false));
-  }, [effectiveCatId, catKey, subCatKey, activeCategory?.name]);
+  }, [effectiveCatId, validMarketCatId, catKey, subCatKey, activeCategory?.name]);
 
   // Live Category Search Handler with debounce
   useEffect(() => {
@@ -258,7 +270,7 @@ export const MarketplaceProductFields = ({
 
   const categoryAttributes = dynamicAttributes.length > 0 
     ? dynamicAttributes 
-    : (activeCategory ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || []) : []);
+    : (activeCategory ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [], effectiveCatId) : []);
 
   const storeCategoryAttrs = storeSettings?.categoryAttributes?.[String(effectiveCatId)] || {};
 
@@ -308,6 +320,17 @@ export const MarketplaceProductFields = ({
   };
 
   const handleCategorySelect = (categoryId: string) => {
+    const selectedCat = [...searchResults, ...categories, ...HEPSIBURADA_DEFAULT_CATEGORIES].find(
+      (c) => String(c.id || c.categoryId) === String(categoryId)
+    );
+    const nextAttrs = getAttributesForCategory(
+      selectedCat?.name || selectedCat?.displayName || "",
+      selectedCat?.paths || [],
+      categoryId
+    );
+    setDynamicAttributes(nextAttrs);
+    setShowAttributesEditor(true);
+
     const updated = { ...marketData, categoryId };
     setMarketData(updated);
     setShowCategoryDropdown(false);
@@ -616,17 +639,19 @@ export const MarketplaceProductFields = ({
           </p>
         </div>
 
-        {/* STORE-LEVEL AUTOMATIC MAPPING BADGE */}
-        {storeMappedCatId && !marketData.categoryId && (
+        {/* STORE-LEVEL OR SMART AUTO-MATCHED CATEGORY BADGE */}
+        {effectiveCatId && !marketData.categoryId && (
           <div className="p-2 bg-white/90 dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-between text-xs">
             <div className="flex items-center space-x-2">
               <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
               <div>
                 <p className="font-bold text-slate-900 dark:text-slate-100 text-[11px]">
-                  {isTr ? "Mağaza Ayarlarından Otomatik Eşlendi" : "Auto-Mapped from Store Settings"}
+                  {storeMappedCatId
+                    ? (isTr ? "Mağaza Ayarlarından Otomatik Eşlendi" : "Auto-Mapped from Store Settings")
+                    : (isTr ? "Alt Kategoriden Otomatik Eşleşti (Akıllı Eşleşme)" : "Smart Auto-Matched from Subcategory")}
                 </p>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                  {activeCategory?.displayName || activeCategory?.name || `Kategori #${storeMappedCatId}`} (#{storeMappedCatId})
+                  {activeCategory?.displayName || activeCategory?.name || `Kategori #${effectiveCatId}`} (#{effectiveCatId})
                 </p>
               </div>
             </div>
@@ -634,9 +659,9 @@ export const MarketplaceProductFields = ({
             <button
               type="button"
               onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-              className="text-[10px] font-bold text-orange-600 hover:underline px-2 py-1 cursor-pointer shrink-0"
+              className="text-[10px] font-bold text-orange-600 hover:text-orange-800 bg-orange-50 dark:bg-orange-950/50 hover:bg-orange-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shrink-0"
             >
-              {isTr ? "Farklı Seç" : "Override"}
+              {showCategoryDropdown ? (isTr ? "Kapat" : "Close") : (isTr ? "Farklı Seç / Değiştir" : "Override")}
             </button>
           </div>
         )}

@@ -515,7 +515,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             defaultValue: a.defaultValue
           })));
         } else {
-          setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || []));
+          setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
         }
       } else if (activeMarketplace === 'n11') {
         const res = await api.getN11CategoryAttributes(marketCatId, currentStoreId);
@@ -531,13 +531,13 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             defaultValue: a.defaultValue
           })));
         } else {
-          setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || []));
+          setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
         }
       } else {
-        setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || []));
+        setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
       }
     } catch (e) {
-      setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || []));
+      setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
     } finally {
       setLoadingAttributes(false);
     }

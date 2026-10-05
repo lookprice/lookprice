@@ -1628,6 +1628,17 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
     { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "36" },
     { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
   ],
+  network_wifi_adapter: [
+    { id: "Marka", name: "Marka (Brand)", description: "Wi-Fi Adaptör / Ağ Kartı üretici markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "CihazTipi", name: "Adaptör Türü", description: "Ağ adaptör tipi ve form faktörü", mandatory: true, type: "select", values: ["USB Wi-Fi Adaptör (Nano / Antensiz)", "USB Wi-Fi Adaptör (Yüksek Kazançlı Antenli)", "PCI-e Wi-Fi + Bluetooth Ağ Kartı", "USB Bluetooth Adaptör (Dongle)", "USB to RJ45 Ethernet Dönüştürücü Adaptör"], defaultValue: "USB Wi-Fi Adaptör (Yüksek Kazançlı Antenli)" },
+    { id: "WifiStandardi", name: "Wi-Fi Standardı & Hız", description: "Kablosuz hız ve bağlantı standardı", mandatory: true, type: "select", values: ["Wi-Fi 6 (802.11ax) 1800/2400 Mbps", "Wi-Fi 5 (802.11ac) AC1200 / AC1300 Çift Bant", "Wi-Fi 5 (802.11ac) AC600 / AC650 Çift Bant", "Wi-Fi 4 (802.11n) N300 (300 Mbps)", "Wi-Fi 4 (802.11n) N150 (150 Mbps)", "Gigabit 1000 Mbps RJ45 Ethernet"], defaultValue: "Wi-Fi 5 (802.11ac) AC1200 / AC1300 Çift Bant" },
+    { id: "FrekansBandi", name: "Frekans Bandı", description: "Kablosuz frekans desteği", mandatory: true, type: "select", values: ["Çift Bant (Dual Band 2.4 GHz & 5 GHz)", "Tek Bant (2.4 GHz)", "Üç Bant (Tri-Band 2.4 / 5 / 6 GHz)"], defaultValue: "Çift Bant (Dual Band 2.4 GHz & 5 GHz)" },
+    { id: "BaglantiArabirimi", name: "Bağlantı Arayüzü", description: "Bilgisayara bağlantı portu", mandatory: true, type: "select", values: ["USB 3.0 / 3.2", "USB 2.0", "Type-C (USB-C)", "PCI Express x1"], defaultValue: "USB 3.0 / 3.2" },
+    { id: "AntenYapisi", name: "Anten Yapısı", description: "Anten özellikleri", mandatory: false, type: "select", values: ["Harici Yüksek Kazançlı Anten (High Gain)", "Çift Harici Anten", "Dahili Entegre Nano Anten"], defaultValue: "Harici Yüksek Kazançlı Anten (High Gain)" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
   phone_accessories: [
     { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
     { id: "UyumluMarka", name: "Uyumlu Telefon Markası", description: "Aksesuarın uyumlu olduğu telefon markası", mandatory: false, type: "select", values: ["Apple iPhone", "Samsung", "Xiaomi", "Huawei", "Oppo", "Evrensel (Tüm Markalar)"], defaultValue: "Apple iPhone" },
@@ -2077,9 +2088,9 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "319": COMMON_MARKETPLACE_ATTRIBUTES.cpu_processor,
   "1000125": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
   "1000126": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
-  "1000127": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "1000127": COMMON_MARKETPLACE_ATTRIBUTES.network_wifi_adapter,
   "1000128": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
-  "7000117": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "7000117": COMMON_MARKETPLACE_ATTRIBUTES.network_wifi_adapter,
 
   // Printers, Scanners, Toner & Barcode POS
   "4": COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners,
@@ -2138,8 +2149,39 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
 
 // Returns relevant attributes based on Child Category Name/Path first, then Category ID
 export function getAttributesForCategory(catName: string, paths: string[] = [], categoryId?: string | number): MarketplaceAttribute[] {
-  const rawLeaf = String(catName || (paths.length > 0 ? paths[paths.length - 1] : "") || "");
-  const rawFull = `${catName} ${paths.join(" ")}`;
+  const safePaths: string[] = Array.isArray(paths) ? paths : (typeof paths === "string" ? [paths] : []);
+  let resolvedCatId = categoryId !== undefined && categoryId !== null ? String(categoryId).trim() : "";
+  let resolvedCatName = String(catName || "").trim();
+
+  // If catName is purely numeric or is an ID and categoryId was not supplied, treat catName as categoryId
+  if (!resolvedCatId && /^\d+$/.test(resolvedCatName)) {
+    resolvedCatId = resolvedCatName;
+    const allKnown = [
+      ...HEPSIBURADA_DEFAULT_CATEGORIES,
+      ...TRENDYOL_DEFAULT_CATEGORIES,
+      ...AMAZON_DEFAULT_CATEGORIES,
+      ...N11_DEFAULT_CATEGORIES,
+      ...PAZARAMA_DEFAULT_CATEGORIES
+    ];
+    const foundCat = allKnown.find(c => String(c.id) === resolvedCatId);
+    if (foundCat) {
+      resolvedCatName = foundCat.name || foundCat.displayName || "";
+      if (safePaths.length === 0 && Array.isArray(foundCat.paths)) {
+        safePaths.push(...foundCat.paths);
+      }
+    }
+  }
+
+  // Direct O(1) Category ID Schema Resolution (when Category ID is valid and not the generic 2147483647 placeholder)
+  if (resolvedCatId && resolvedCatId !== "2147483647" && resolvedCatId !== "0" && resolvedCatId !== "null" && resolvedCatId !== "undefined" && CATEGORY_ID_ATTRIBUTE_MAP[resolvedCatId]) {
+    const isGenericLaptopParent = ["98", "3000500", "103165"].includes(resolvedCatId);
+    if (!isGenericLaptopParent) {
+      return CATEGORY_ID_ATTRIBUTE_MAP[resolvedCatId];
+    }
+  }
+
+  const rawLeaf = String(resolvedCatName || (safePaths.length > 0 ? safePaths[safePaths.length - 1] : "") || "");
+  const rawFull = `${resolvedCatName} ${safePaths.join(" ")}`;
   const leafText = `${rawLeaf.replace(/İ/g, "i").replace(/I/g, "ı").toLowerCase()} ${normalizeCategoryText(rawLeaf)}`.trim();
   const text = `${rawFull.replace(/İ/g, "i").replace(/I/g, "ı").toLowerCase()} ${normalizeCategoryText(rawFull)}`.trim();
 
@@ -2243,12 +2285,30 @@ export function getAttributesForCategory(catName: string, paths: string[] = [], 
     return COMMON_MARKETPLACE_ATTRIBUTES.medical_healthcare;
   }
 
-  // Direct O(1) Category ID Schema Resolution (when Category ID is valid and not the generic 2147483647 placeholder)
-  if (categoryId) {
-    const strId = String(categoryId).trim();
-    if (strId !== "2147483647" && CATEGORY_ID_ATTRIBUTE_MAP[strId]) {
-      return CATEGORY_ID_ATTRIBUTE_MAP[strId];
-    }
+  // Wi-Fi Adaptörleri, USB Wi-Fi, Ağ Kartları & Bluetooth Dongle
+  if (
+    text.includes("1000127") ||
+    text.includes("wi-fi adaptör") ||
+    text.includes("wifi adaptör") ||
+    text.includes("wifi adaptor") ||
+    text.includes("wi-fi adaptor") ||
+    text.includes("ağ adaptör") ||
+    text.includes("ag adaptor") ||
+    text.includes("kablosuz adaptör") ||
+    text.includes("kablosuz adaptor") ||
+    text.includes("kablosuz alıcı") ||
+    text.includes("kablosuz alici") ||
+    text.includes("usb wifi") ||
+    text.includes("usb wi-fi") ||
+    text.includes("wifi alıcı") ||
+    text.includes("wifi alici") ||
+    text.includes("ağ kartı") ||
+    text.includes("ag karti") ||
+    text.includes("bluetooth adaptör") ||
+    text.includes("bluetooth adaptor") ||
+    text.includes("dongle")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.network_wifi_adapter;
   }
 
   // 0a. Tablet Bilgisayarlar & iPad (Device itself) - MUST match before phone accessories!
