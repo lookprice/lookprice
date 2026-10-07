@@ -302,11 +302,11 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
         {/* Brand or Category Tag */}
         <div className="flex items-center justify-between mb-1.5 gap-2">
           <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest truncate">
-            {product.brand || product.category || (lang === "tr" ? "Ürün" : "Product")}
+            {product.brand || product.sub_category || product.category || (lang === "tr" ? "Ürün" : "Product")}
           </span>
-          {product.brand && product.category && (
+          {product.brand && (product.sub_category || product.category) && (
             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
-              {product.category}
+              {product.sub_category || product.category}
             </span>
           )}
         </div>

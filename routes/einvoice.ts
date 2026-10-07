@@ -2283,11 +2283,36 @@ export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: 
   const itemsRows = items.map((item: any, idx: number) => {
     const qty = Number(item.quantity) || 1;
     const price = Number(item.unit_price) || 0;
-    const vatRate = Number(item.vat_rate) || 0;
-    const disc = Number(item.discount_amount) || 0;
-    const lineSubtotal = qty * price - disc;
-    const lineVat = lineSubtotal * (vatRate / 100);
-    const lineTotal = lineSubtotal + lineVat;
+    let vatRate = Number(item.tax_rate ?? item.vat_rate ?? item.vat_percent ?? item.kdv_rate ?? 0);
+    const disc = Number(item.discount_amount ?? item.discount ?? 0);
+
+    let lineSubtotal = qty * price - disc;
+    let lineVat = 0;
+
+    if (inv.is_tax_inclusive) {
+      const lineNet = qty * price - disc;
+      lineSubtotal = vatRate > 0 ? lineNet / (1 + vatRate / 100) : lineNet;
+      lineVat = lineNet - lineSubtotal;
+    } else {
+      if (item.tax_amount !== undefined && item.tax_amount !== null && Number(item.tax_amount) > 0) {
+        lineVat = Number(item.tax_amount);
+        if (vatRate === 0 && lineSubtotal > 0) {
+          vatRate = Math.round((lineVat / lineSubtotal) * 100);
+        }
+      } else {
+        lineVat = lineSubtotal * (vatRate / 100);
+      }
+    }
+
+    // Fallback: If item.tax_rate was 0 but invoice has inv.tax_amount > 0 and inv.total_amount > 0
+    if (vatRate === 0 && items.length === 1 && Number(inv.tax_amount) > 0 && Number(inv.total_amount) > 0) {
+      const invSubtotal = Number(inv.total_amount);
+      const invTax = Number(inv.tax_amount);
+      vatRate = Math.round((invTax / invSubtotal) * 100);
+      lineVat = invTax;
+    }
+
+    const lineTotal = item.total_price ? Number(item.total_price) : (lineSubtotal + lineVat);
 
     subtotal += lineSubtotal;
     totalDiscount += disc;
@@ -2299,7 +2324,7 @@ export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: 
       <tr>
         <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600;">${idx + 1}</td>
         <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 11px; font-weight: 600; color: #0f172a;">${item.product_name || '-'}</td>
-        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600;">${qty.toLocaleString('tr-TR')} ${item.unit || 'Adet'}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600;">${qty.toLocaleString('tr-TR')} ${item.unit || item.unit_code || 'Adet'}</td>
         <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 600; font-family: monospace;">${price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 600; font-family: monospace;">${disc > 0 ? disc.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}</td>
         <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600;">%${vatRate}</td>
@@ -2309,36 +2334,106 @@ export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: 
     `;
   }).join('');
 
-  const grandTotal = Number(inv.grand_total) || (subtotal + totalVat);
+  // Use DB inv totals if present and valid, otherwise fallback to calculated subtotal / totalVat
+  const invSubtotal = Number(inv.total_amount);
+  const invTax = Number(inv.tax_amount);
+  const invGrandTotal = Number(inv.grand_total);
+
+  const finalSubtotal = !isNaN(invSubtotal) && invSubtotal > 0 ? invSubtotal : subtotal;
+  const finalTotalVat = !isNaN(invTax) && invTax >= 0 ? invTax : totalVat;
+  const finalGrandTotal = !isNaN(invGrandTotal) && invGrandTotal > 0 ? invGrandTotal : (finalSubtotal + finalTotalVat);
+
+  // Ensure vatMap reflects finalTotalVat accurately (never empty)
+  const sumVatInMap = Object.values(vatMap).reduce((acc, v) => acc + v, 0);
+  if (finalTotalVat > 0 && (Object.keys(vatMap).length === 0 || sumVatInMap === 0)) {
+    delete vatMap[0];
+    const inferredRate = finalSubtotal > 0 ? Math.round((finalTotalVat / finalSubtotal) * 100) : 20;
+    vatMap[inferredRate] = finalTotalVat;
+  } else if (Object.keys(vatMap).length === 0) {
+    vatMap[0] = 0;
+  }
+
   const curr = inv.currency || 'TRY';
-  const currSymbol = curr === 'TRY' ? 'TL' : curr;
-  const amountWordsRaw = numberToTurkishWords(grandTotal, curr);
+  const currSymbol = (curr === 'TRY' || curr === 'TL') ? 'TL' : curr;
+  const amountWordsRaw = numberToTurkishWords(finalGrandTotal, curr);
   const amountWords = amountWordsRaw.replace(/\s+/g, '');
 
   // Grouped VAT rows according to Rule #4
-  const vatRowsHtml = Object.entries(vatMap).map(([rate, amt]) => `
-    <tr>
-      <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; font-size: 11px;">Hesaplanan KDV (%${rate})</td>
-      <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-size: 11px; font-family: monospace;">${amt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
-    </tr>
-  `).join('');
+  let vatRowsHtml = Object.entries(vatMap)
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([rate, amt]) => `
+      <tr>
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; font-size: 11px; color: #334155;">Hesaplanan KDV (%${rate})</td>
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-size: 11px; font-family: monospace; color: #0f172a;">${amt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+      </tr>
+    `).join('');
+
+  if (!vatRowsHtml.trim()) {
+    const fallbackRate = finalSubtotal > 0 ? Math.round((finalTotalVat / finalSubtotal) * 100) : 20;
+    vatRowsHtml = `
+      <tr>
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; font-size: 11px; color: #334155;">Hesaplanan KDV (%${fallbackRate})</td>
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-size: 11px; font-family: monospace; color: #0f172a;">${finalTotalVat.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+      </tr>
+    `;
+  }
+
+  if (Object.keys(vatMap).length > 1) {
+    vatRowsHtml += `
+      <tr style="background-color: #f1f5f9;">
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 700; font-size: 11px; color: #0f172a;">Toplam KDV</td>
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 800; font-size: 11px; font-family: monospace; color: #0f172a;">${finalTotalVat.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+      </tr>
+    `;
+  }
 
   let exchangeRateBlock = '';
-  if (inv.exchange_rate && Number(inv.exchange_rate) > 0 && curr !== 'TRY') {
-    const exRate = Number(inv.exchange_rate);
-    const trySubtotal = (subtotal * exRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const tryVat = (totalVat * exRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const tryGrandTotal = (grandTotal * exRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (curr !== 'TRY' && curr !== 'TL') {
+    let exRate = Number(inv.exchange_rate) || 0;
+    if (exRate <= 0) {
+      let currRates = store.currency_rates || {};
+      if (typeof currRates === 'string') { try { currRates = JSON.parse(currRates); } catch (e) {} }
+      exRate = Number(currRates[curr]) || 1.0;
+    }
+
+    const trySubtotalNum = finalSubtotal * exRate;
+    const tryVatNum = finalTotalVat * exRate;
+    const tryGrandTotalNum = finalGrandTotal * exRate;
+
+    const trySubtotal = trySubtotalNum.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const tryVat = tryVatNum.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const tryGrandTotal = tryGrandTotalNum.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const tryVatRows = Object.entries(vatMap)
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([rate, amt]) => {
+        const tryAmt = (amt * exRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `
+          <tr>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; font-size: 11px; color: #334155;">Hesaplanan KDV (%${rate}) (TL)</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-size: 11px; font-family: monospace; color: #0f172a;">${tryAmt} TL</td>
+          </tr>
+        `;
+      }).join('');
 
     exchangeRateBlock = `
-      <div style="margin-top: 10px; padding: 8px 12px; border: 1.5px solid #d32f2f; background: #fff5f5; border-radius: 6px;">
-        <div style="font-weight: 800; color: #d32f2f; font-size: 11px; margin-bottom: 4px;">DÖVİZ KUR BİLGİSİ: 1 ${curr} = ${exRate.toFixed(4)} TRY</div>
+      <div style="margin-top: 12px; border: 1.5px solid #0f172a; border-radius: 6px; overflow: hidden; background: #ffffff;">
+        <div style="background: #0f172a; color: #ffffff; padding: 6px 12px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;">
+          <span>DÖVİZ KARŞILIKLARI (TRY)</span>
+          <span style="font-size: 10.5px; font-weight: 700; background: #22c55e; color: #000000; padding: 2px 6px; border-radius: 4px;">1 ${curr} = ${exRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} TRY</span>
+        </div>
         <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-          <tr>
-            <td style="padding: 2px 0;">Mal Hizmet Toplam Tutarı (TL): <strong>${trySubtotal} TL</strong></td>
-            <td style="padding: 2px 0;">Hesaplanan KDV (TL): <strong>${tryVat} TL</strong></td>
-            <td style="padding: 2px 0; text-align: right;">Vergiler Dahil Toplam (TL): <strong>${tryGrandTotal} TL</strong></td>
-          </tr>
+          <tbody>
+            <tr>
+              <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; color: #334155;">Mal Hizmet Toplam Tutarı (TL)</td>
+              <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-family: monospace;">${trySubtotal} TL</td>
+            </tr>
+            ${tryVatRows}
+            <tr style="background-color: #f8fafc;">
+              <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-weight: 800; color: #0f172a; font-size: 11.5px;">Vergiler Dahil Toplam Tutar (TL)</td>
+              <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-weight: 900; font-size: 12px; font-family: monospace; color: #0f172a;">${tryGrandTotal} TL</td>
+            </tr>
+          </tbody>
         </table>
       </div>
     `;
@@ -2479,7 +2574,7 @@ export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: 
         <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
           <tr>
             <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600;">Mal Hizmet Toplam Tutarı</td>
-            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-family: monospace;">${subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-family: monospace;">${finalSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
           </tr>
           ${totalDiscount > 0 ? `
           <tr>
@@ -2493,7 +2588,7 @@ export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: 
 
           <tr style="background-color: #0f172a; color: #ffffff;">
             <td style="border: 1px solid #0f172a; padding: 7px 8px; font-weight: 800; font-size: 12px;">Ödenecek Toplam Tutar</td>
-            <td style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; font-weight: 900; font-size: 13px; font-family: monospace;">${grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+            <td style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; font-weight: 900; font-size: 13px; font-family: monospace;">${finalGrandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
           </tr>
         </table>
       </td>

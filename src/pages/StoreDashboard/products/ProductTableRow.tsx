@@ -427,9 +427,12 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       PZR ↗
                     </a>
                   )}
-                  {p.category && (
-                    <span className="text-[9px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
-                      {p.category}
+                  {(p.sub_category || p.category) && (
+                    <span 
+                      className="text-[9px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded truncate max-w-[140px]"
+                      title={p.sub_category && p.category && p.sub_category !== p.category ? `${p.category} > ${p.sub_category}` : (p.sub_category || p.category)}
+                    >
+                      {p.sub_category || p.category}
                     </span>
                   )}
                   {p.brand && (
@@ -848,11 +851,13 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
         <tr className="bg-slate-50/80 border-b border-slate-100">
           <td colSpan={10} className="px-3 py-1.5 pl-8 sm:pl-10">
             <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-              {p.category && (
+              {(p.sub_category || p.category) && (
                 <span className="font-semibold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs flex items-center gap-1">
                   <span className="text-slate-400 font-normal">{lang === 'tr' ? 'Kategori:' : 'Category:'}</span>
-                  {p.category}
-                  {p.sub_category && <span className="text-slate-400">/ {p.sub_category}</span>}
+                  {p.sub_category || p.category}
+                  {p.sub_category && p.category && p.sub_category !== p.category && (
+                    <span className="text-slate-400 font-normal">({p.category})</span>
+                  )}
                 </span>
               )}
               {p.brand && (

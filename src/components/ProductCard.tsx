@@ -292,8 +292,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 className="text-[10px] uppercase tracking-widest font-bold text-slate-400"
               >
                 {isRealEstate && lang === "tr"
-                  ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
-                  : (product.category || t.dashboard.uncategorized)}
+                  ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.sub_category || product.category || t.dashboard.uncategorized))
+                  : (product.sub_category || product.category || t.dashboard.uncategorized)}
               </span>
             </div>
 
