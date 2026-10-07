@@ -132,7 +132,7 @@ export async function verifyCriticalSystemInvariants(): Promise<{
 
     const standOk = standAttrs.some((a) => toTrLower(a.name).includes("soğutucu") || toTrLower(a.name).includes("boyut"));
     const tonerOk = tonerAttrs.some((a) => toTrLower(a.name).includes("sarf") || toTrLower(a.name).includes("baskı"));
-    const laptopOk = laptopAttrs.some((a) => toTrLower(a.name).includes("işlemci") && Boolean(a.required ?? a.mandatory));
+    const laptopOk = laptopAttrs.some((a) => toTrLower(a.name).includes("işlemci") && Boolean(a.mandatory || (a as any).required));
     const wifiOk = wifiAttrs.some((a) => toTrLower(a.name).includes("wi-fi") || toTrLower(a.name).includes("frekans"));
 
     const passed = standOk && tonerOk && laptopOk && wifiOk;

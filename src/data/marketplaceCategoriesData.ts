@@ -2177,7 +2177,6 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
 
   // General Electronics & Specialized Child Accessories
   "1000121": COMMON_MARKETPLACE_ATTRIBUTES.webcam_camera,
-  "103691": COMMON_MARKETPLACE_ATTRIBUTES.webcam_camera,
   "7000111": COMMON_MARKETPLACE_ATTRIBUTES.webcam_camera,
   "1000294": COMMON_MARKETPLACE_ATTRIBUTES.webcam_camera,
   "1000132": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,

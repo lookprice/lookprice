@@ -2780,6 +2780,9 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
     const numericEffectivePrice = Number(effectivePrice.toFixed(2));
 
+    // Prepare catalog attributes
+    const userAttrs = hbData.attributes || mpData.attributes || {};
+
     // Resolve Absolute Image URL for Hepsiburada API (Must be a valid public http/https URL)
     let effectiveHbImageUrl: string | null = null;
     const rawHbImg = userAttrs?.Image1 || mpData?.attributes?.Image1 || p.image_url;
@@ -2799,7 +2802,6 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     }
 
     // Prepare catalog attributes
-    const userAttrs = hbData.attributes || mpData.attributes || {};
     const inferredHbBrand =
       String(
         p.brand ||
@@ -4206,7 +4208,7 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
 
     // Resolve Absolute Image URL for Trendyol API (Must be a valid public http/https URL ending in .jpg/.jpeg/.png)
     let effectiveImageUrl: string | null = null;
-    const rawImage = mpImage1 || p.image_url;
+    const rawImage = mpData?.attributes?.Image1 || p.image_url;
 
     if (rawImage) {
       let candidate = String(rawImage).trim();

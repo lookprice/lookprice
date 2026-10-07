@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { 
   Building2, 
   User as UserIcon, 
@@ -76,26 +77,43 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   const [itemsCache, setItemsCache] = useState<Record<number, any[]>>({});
   const [loadingRowId, setLoadingRowId] = useState<number | null>(null);
   const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
+  const [activeInvoiceForMenu, setActiveInvoiceForMenu] = useState<any | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Close open action menu on outside click or escape key
+  // Close open action menu on outside click, scroll, or escape key
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (openActionMenuId !== null) {
         const target = e.target as HTMLElement;
         if (!target.closest('.action-menu-dropdown') && !target.closest('.action-menu-trigger')) {
           setOpenActionMenuId(null);
+          setActiveInvoiceForMenu(null);
+          setMenuPos(null);
         }
       }
     };
+    const handleScroll = () => {
+      if (openActionMenuId !== null) {
+        setOpenActionMenuId(null);
+        setActiveInvoiceForMenu(null);
+        setMenuPos(null);
+      }
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpenActionMenuId(null);
+      if (e.key === 'Escape') {
+        setOpenActionMenuId(null);
+        setActiveInvoiceForMenu(null);
+        setMenuPos(null);
+      }
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
+    window.addEventListener('scroll', handleScroll, true);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
+      window.removeEventListener('scroll', handleScroll, true);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [openActionMenuId]);
@@ -454,7 +472,25 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setOpenActionMenuId(openActionMenuId === inv.id ? null : inv.id);
+                                if (openActionMenuId === inv.id) {
+                                  setOpenActionMenuId(null);
+                                  setActiveInvoiceForMenu(null);
+                                  setMenuPos(null);
+                                } else {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const spaceBelow = window.innerHeight - rect.bottom;
+                                  const spaceAbove = rect.top;
+                                  const estHeight = 320;
+                                  let top = rect.bottom + 4;
+                                  if (spaceBelow < estHeight && spaceAbove > estHeight) {
+                                    top = rect.top - estHeight - 4;
+                                    if (top < 10) top = 10;
+                                  }
+                                  const right = Math.max(10, window.innerWidth - rect.right);
+                                  setMenuPos({ top, right });
+                                  setOpenActionMenuId(inv.id);
+                                  setActiveInvoiceForMenu(inv);
+                                }
                               }}
                               className={`action-menu-trigger p-1.5 rounded-lg transition-all flex items-center gap-1 border cursor-pointer ${
                                 openActionMenuId === inv.id
@@ -466,176 +502,6 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               <MoreVertical className="h-3.5 w-3.5" />
                               <span className="text-[10px] font-bold hidden sm:inline-block pr-0.5">{isTr ? 'İşlem' : 'More'}</span>
                             </button>
-
-                            {/* Dropdown Popup Menu */}
-                            {openActionMenuId === inv.id && (
-                              <div 
-                                className={`action-menu-dropdown absolute right-0 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 ${
-                                  (invoices.length >= 4 && idx >= invoices.length - 2) ? 'bottom-full mb-1.5 origin-bottom-right' : 'top-full mt-1.5 origin-top-right'
-                                }`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
-                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                    {inv.invoice_number || (isTr ? 'Fatura İşlemleri' : 'Invoice Actions')}
-                                  </span>
-                                  {inv.currency && (
-                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
-                                      {inv.currency}
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div className="py-1">
-                                  {/* View HTML */}
-                                  {!isPortfolio && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenActionMenuId(null);
-                                        handleViewHtml(inv.id);
-                                      }}
-                                      className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                    >
-                                      <Eye className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                      <span>{isTr ? "E-Fatura Görselini Aç" : "View E-Invoice HTML"}</span>
-                                    </button>
-                                  )}
-
-                                  {/* Print / PDF */}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      handleViewDetails(inv, true);
-                                    }}
-                                    className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                  >
-                                    <Printer className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                    <span>{isTr ? "Yazdır & PDF Oluştur" : "Print & PDF"}</span>
-                                  </button>
-
-                                  {/* System Record Details */}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      handleViewDetails(inv);
-                                    }}
-                                    className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                  >
-                                    <FileSearch className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                    <span>{isTr ? "Sistem Kayıt Detayları" : "System Details"}</span>
-                                  </button>
-                                </div>
-
-                                {/* GİB & Entegratör İşlemleri */}
-                                {(!isPortfolio && branding?.einvoice_settings?.is_active) && (
-                                  <div className="py-1 border-t border-slate-100 bg-slate-50/50">
-                                    {inv.status !== 'draft' && !isApproved && !isQueued && (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setOpenActionMenuId(null);
-                                            handleSendToGIB(inv.id);
-                                          }}
-                                          className="w-full px-3 py-1.5 text-xs font-bold text-purple-700 hover:bg-purple-100/70 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                        >
-                                          <CloudUpload className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                                          <span>{isFailed ? (isTr ? "Tekrar GİB'e Gönder" : "Re-send to GİB") : (isTr ? "GİB'e Gönder (E-Fatura)" : "Push to GİB")}</span>
-                                        </button>
-                                        {branding?.einvoice_settings?.is_ewaybill_active && (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setOpenActionMenuId(null);
-                                              handleOpenWaybillModal && handleOpenWaybillModal(inv);
-                                            }}
-                                            className="w-full px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100/70 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                          >
-                                            <Truck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                                            <span>{isTr ? "Sevk İrsaliyesi Oluştur" : "Create Shipment Waybill"}</span>
-                                          </button>
-                                        )}
-                                      </>
-                                    )}
-
-                                    {(isApproved || isQueued) && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setOpenActionMenuId(null);
-                                          handleCancelGIB(inv.id);
-                                        }}
-                                        className="w-full px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                      >
-                                        <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                                        <span>{isTr ? "E-Arşiv İptal Et" : "Cancel E-Archive"}</span>
-                                      </button>
-                                    )}
-
-                                    {isQueued && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setOpenActionMenuId(null);
-                                          handleCheckEInvoiceStatus(inv.id);
-                                        }}
-                                        className="w-full px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                      >
-                                        <RefreshCw className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                        <span>{isTr ? "GİB Durumunu Sorgula" : "Check GİB Status"}</span>
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Marketplace Ship */}
-                                {inv.invoice_type === 'marketplace' && handleMarketplaceShip && (
-                                  <div className="py-1 border-t border-slate-100">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenActionMenuId(null);
-                                        handleMarketplaceShip(inv);
-                                      }}
-                                      className="w-full px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                    >
-                                      <Truck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                      <span>{isTr ? "Kargo Bildirimi Yap" : "Marketplace Ship"}</span>
-                                    </button>
-                                  </div>
-                                )}
-
-                                {/* Edit & Delete */}
-                                <div className="py-1 border-t border-slate-100">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      handleEdit(inv.id);
-                                    }}
-                                    className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                  >
-                                    <Edit className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                                    <span>{isTr ? "Faturayı Düzenle" : "Edit Invoice"}</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      handleDelete(inv.id);
-                                    }}
-                                    className="w-full px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                                    <span>{isTr ? "Faturayı Sil" : "Delete Invoice"}</span>
-                                  </button>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </td>
@@ -841,6 +707,214 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Portal Action Menu Overlay */}
+      {openActionMenuId !== null && activeInvoiceForMenu && menuPos && ReactDOM.createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: `${menuPos.top}px`,
+            right: `${menuPos.right}px`,
+            zIndex: 99999
+          }}
+          className="action-menu-dropdown w-56 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 text-left animate-in fade-in zoom-in-95 duration-100 ring-1 ring-black/5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
+              {activeInvoiceForMenu.invoice_number || (isTr ? 'Fatura İşlemleri' : 'Invoice Actions')}
+            </span>
+            {activeInvoiceForMenu.currency && (
+              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                {activeInvoiceForMenu.currency}
+              </span>
+            )}
+          </div>
+
+          <div className="py-1">
+            {/* View HTML */}
+            {!isPortfolio && (
+              <button
+                type="button"
+                onClick={() => {
+                  const id = activeInvoiceForMenu.id;
+                  setOpenActionMenuId(null);
+                  setActiveInvoiceForMenu(null);
+                  setMenuPos(null);
+                  handleViewHtml(id);
+                }}
+                className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <span>{isTr ? "E-Fatura Görselini Aç" : "View E-Invoice HTML"}</span>
+              </button>
+            )}
+
+            {/* Print / PDF */}
+            <button
+              type="button"
+              onClick={() => {
+                const inv = activeInvoiceForMenu;
+                setOpenActionMenuId(null);
+                setActiveInvoiceForMenu(null);
+                setMenuPos(null);
+                handleViewDetails(inv, true);
+              }}
+              className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span>{isTr ? "Yazdır & PDF Oluştur" : "Print & PDF"}</span>
+            </button>
+
+            {/* System Record Details */}
+            <button
+              type="button"
+              onClick={() => {
+                const inv = activeInvoiceForMenu;
+                setOpenActionMenuId(null);
+                setActiveInvoiceForMenu(null);
+                setMenuPos(null);
+                handleViewDetails(inv);
+              }}
+              className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-2.5 transition-colors cursor-pointer"
+            >
+              <FileSearch className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>{isTr ? "Sistem Kayıt Detayları" : "System Details"}</span>
+            </button>
+          </div>
+
+          {/* GİB & Entegratör İşlemleri */}
+          {(!isPortfolio && branding?.einvoice_settings?.is_active) && (
+            <div className="py-1 border-t border-slate-100 bg-slate-50/50">
+              {activeInvoiceForMenu.status !== 'draft' &&
+               !['APPROVED', 'ONAYLANDI', 'BAŞARILI', '1300', 'SUCCESS'].includes((activeInvoiceForMenu.integration_status || '').toUpperCase()) &&
+               !['QUEUED', 'KUYRUKTA', 'İŞLENİYOR'].includes((activeInvoiceForMenu.integration_status || '').toUpperCase()) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const id = activeInvoiceForMenu.id;
+                      setOpenActionMenuId(null);
+                      setActiveInvoiceForMenu(null);
+                      setMenuPos(null);
+                      handleSendToGIB(id);
+                    }}
+                    className="w-full px-3 py-1.5 text-xs font-bold text-purple-700 hover:bg-purple-100/70 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <CloudUpload className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                    <span>{['HATALI', 'HATA', 'ERROR', 'FAILED'].includes((activeInvoiceForMenu.integration_status || '').toUpperCase()) ? (isTr ? "Tekrar GİB'e Gönder" : "Re-send to GİB") : (isTr ? "GİB'e Gönder (E-Fatura)" : "Push to GİB")}</span>
+                  </button>
+                  {branding?.einvoice_settings?.is_ewaybill_active && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const inv = activeInvoiceForMenu;
+                        setOpenActionMenuId(null);
+                        setActiveInvoiceForMenu(null);
+                        setMenuPos(null);
+                        handleOpenWaybillModal && handleOpenWaybillModal(inv);
+                      }}
+                      className="w-full px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100/70 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Truck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <span>{isTr ? "Sevk İrsaliyesi Oluştur" : "Create Shipment Waybill"}</span>
+                    </button>
+                  )}
+                </>
+              )}
+
+              {(['APPROVED', 'ONAYLANDI', 'BAŞARILI', '1300', 'SUCCESS'].includes((activeInvoiceForMenu.integration_status || '').toUpperCase()) ||
+                ['QUEUED', 'KUYRUKTA', 'İŞLENİYOR'].includes((activeInvoiceForMenu.integration_status || '').toUpperCase())) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = activeInvoiceForMenu.id;
+                    setOpenActionMenuId(null);
+                    setActiveInvoiceForMenu(null);
+                    setMenuPos(null);
+                    handleCancelGIB(id);
+                  }}
+                  className="w-full px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span>{isTr ? "E-Arşiv İptal Et" : "Cancel E-Archive"}</span>
+                </button>
+              )}
+
+              {['QUEUED', 'KUYRUKTA', 'İŞLENİYOR'].includes((activeInvoiceForMenu.integration_status || '').toUpperCase()) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = activeInvoiceForMenu.id;
+                    setOpenActionMenuId(null);
+                    setActiveInvoiceForMenu(null);
+                    setMenuPos(null);
+                    handleCheckEInvoiceStatus(id);
+                  }}
+                  className="w-full px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>{isTr ? "GİB Durumunu Sorgula" : "Check GİB Status"}</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Marketplace Ship */}
+          {activeInvoiceForMenu.invoice_type === 'marketplace' && handleMarketplaceShip && (
+            <div className="py-1 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  const inv = activeInvoiceForMenu;
+                  setOpenActionMenuId(null);
+                  setActiveInvoiceForMenu(null);
+                  setMenuPos(null);
+                  handleMarketplaceShip(inv);
+                }}
+                className="w-full px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <Truck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>{isTr ? "Kargo Bildirimi Yap" : "Marketplace Ship"}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Edit & Delete */}
+          <div className="py-1 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                const id = activeInvoiceForMenu.id;
+                setOpenActionMenuId(null);
+                setActiveInvoiceForMenu(null);
+                setMenuPos(null);
+                handleEdit(id);
+              }}
+              className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-2.5 transition-colors cursor-pointer"
+            >
+              <Edit className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              <span>{isTr ? "Faturayı Düzenle" : "Edit Invoice"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const id = activeInvoiceForMenu.id;
+                setOpenActionMenuId(null);
+                setActiveInvoiceForMenu(null);
+                setMenuPos(null);
+                handleDelete(id);
+              }}
+              className="w-full px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+              <span>{isTr ? "Faturayı Sil" : "Delete Invoice"}</span>
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

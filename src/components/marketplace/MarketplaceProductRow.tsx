@@ -57,6 +57,9 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
   const isAmzActive = p.is_amazon_active;
   const isPzActive = p.is_pazarama_active;
 
+  const hbError = getProductError(p, 'hepsiburada');
+  const amzError = getProductError(p, 'amazon');
+
   const displayError = getProductError(p, selectedMarketplace);
   const hasAnyError = Boolean(displayError);
 

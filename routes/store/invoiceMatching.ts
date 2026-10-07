@@ -281,6 +281,8 @@ export type ProductFunctionalCategory =
   | "memory_card"
   | "data_tape"
   | "laptop_pc"
+  | "tablet"
+  | "smartphone"
   | "tablet_phone"
   | "monitor_tv"
   | "lcd_panel"

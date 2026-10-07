@@ -2188,6 +2188,322 @@ export function cleanInvoiceHtmlVatRows(html: string): string {
 }
 
 // 6. Get Invoice HTML
+export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: number): Promise<string> {
+  const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+  if (invRes.rows.length === 0) throw new Error("Fatura bulunamadı");
+  const inv = invRes.rows[0];
+
+  const itemsRes = await pool.query(
+    "SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1 ORDER BY id ASC",
+    [invoiceId]
+  );
+  const items = itemsRes.rows;
+
+  const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+  const store = storeRes.rows[0] || {};
+  let branding = store.branding || {};
+  if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch (e) { branding = {}; } }
+  let einvoiceSettings = store.einvoice_settings || {};
+  if (typeof einvoiceSettings === 'string') { try { einvoiceSettings = JSON.parse(einvoiceSettings); } catch (e) { einvoiceSettings = {}; } }
+
+  // Supplier info
+  const storeName = store.store_name || store.name || branding.store_name || branding.name || 'Seçkin Mağaza';
+  const supplierVkn = einvoiceSettings.vkn || branding.tax_number || store.tax_number || '1111111111';
+  const supplierTaxOffice = einvoiceSettings.tax_office || branding.tax_office || store.tax_office || '-';
+  const supplierAddress = einvoiceSettings.address || branding.address || store.address || '-';
+  const supplierPhone = einvoiceSettings.phone || branding.phone || store.phone || '';
+  const supplierEmail = einvoiceSettings.email || branding.email || store.email || '';
+  const supplierMersis = einvoiceSettings.mersis_no || branding.mersis_no || '';
+  const supplierWeb = einvoiceSettings.web_address || branding.website || '';
+  const logoUrl = branding.logo_url || branding.logo || '';
+
+  // Buyer info
+  const customerName = inv.customer_name || inv.company_title || inv.sale_customer_name || 'Cari Müşteri';
+  const customerVkn = inv.tax_number || '-';
+  const customerTaxOffice = inv.tax_office || '-';
+  const customerAddress = inv.address || inv.customer_address || '-';
+  const customerEmail = inv.customer_email || inv.email || '';
+  const customerPhone = inv.customer_phone || inv.phone || '';
+
+  // Document Info
+  const docNumber = inv.document_number || inv.invoice_number || 'TASLAK-' + inv.id;
+  const ettnVal = inv.ettn || "[GİB'e Gönderilmedi]";
+  const invoiceDate = inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('tr-TR') : new Date().toLocaleDateString('tr-TR');
+  const invoiceTime = inv.invoice_time || '00:00:00';
+  
+  let computedDocType = 'E-ARŞİV FATURA';
+  const docType = (inv.e_document_type || '').toUpperCase();
+  const profile = (inv.invoice_profile || '').toUpperCase();
+  if (docType === 'E-FATURA' || profile === 'TICARIFATURA' || profile === 'TEMELFATURA') {
+    computedDocType = 'E-FATURA';
+  } else if (docType === 'E-IRSALIYE' || docType === 'E-İRSALİYE') {
+    computedDocType = 'E-İRSALİYE';
+  }
+
+  const profileLabel = profile === 'TICARIFATURA' ? 'TİCARİ FATURA' : profile === 'TEMELFATURA' ? 'TEMEL FATURA' : 'EARSIVFATURA';
+  const typeLabel = inv.gi_invoice_type || inv.invoice_type || 'SATIS';
+
+  // Determine Stamp / Watermark
+  const statusLower = (inv.status || 'draft').toLowerCase();
+  const intStatusUpper = (inv.integration_status || '').toUpperCase();
+  const isApprovedAndSent = ['APPROVED', 'ONAYLANDI', '1300', 'SUCCESS'].includes(intStatusUpper) && Boolean(inv.ettn);
+
+  let stampTitle = "TASLAK";
+  let stampSubtitle = "TASLAK FATURA • RESMİ NİTELİĞİ YOKTUR";
+  let stampColor = "#d97706";
+  let stampBg = "#fffbeb";
+  let stampBorder = "#f59e0b";
+
+  if (statusLower === 'cancelled' || intStatusUpper === 'CANCELLED' || intStatusUpper === 'İPTAL') {
+    stampTitle = "İPTAL EDİLDİ";
+    stampSubtitle = "İPTAL FATURA • GEÇERSİZDİR";
+    stampColor = "#dc2626";
+    stampBg = "#fef2f2";
+    stampBorder = "#ef4444";
+  } else if (statusLower === 'approved' && !isApprovedAndSent) {
+    stampTitle = "GİB'E GÖNDERİLMEDİ";
+    stampSubtitle = "GİB'E GÖNDERİLMEDİ • BİLGİLENDİRME ÖN İZLEMESİ";
+    stampColor = "#ea580c";
+    stampBg = "#fff7ed";
+    stampBorder = "#f97316";
+  } else if (statusLower === 'draft' || intStatusUpper === 'DRAFT' || intStatusUpper === 'NOT_SENT') {
+    stampTitle = "TASLAK";
+    stampSubtitle = "TASLAK FATURA • RESMİ NİTELİĞİ YOKTUR";
+    stampColor = "#d97706";
+    stampBg = "#fffbeb";
+    stampBorder = "#f59e0b";
+  }
+
+  // Items and totals calculation
+  let subtotal = 0;
+  let totalDiscount = 0;
+  let totalVat = 0;
+  const vatMap: Record<number, number> = {};
+
+  const itemsRows = items.map((item: any, idx: number) => {
+    const qty = Number(item.quantity) || 1;
+    const price = Number(item.unit_price) || 0;
+    const vatRate = Number(item.vat_rate) || 0;
+    const disc = Number(item.discount_amount) || 0;
+    const lineSubtotal = qty * price - disc;
+    const lineVat = lineSubtotal * (vatRate / 100);
+    const lineTotal = lineSubtotal + lineVat;
+
+    subtotal += lineSubtotal;
+    totalDiscount += disc;
+    totalVat += lineVat;
+
+    vatMap[vatRate] = (vatMap[vatRate] || 0) + lineVat;
+
+    return `
+      <tr>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600;">${idx + 1}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 11px; font-weight: 600; color: #0f172a;">${item.product_name || '-'}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600;">${qty.toLocaleString('tr-TR')} ${item.unit || 'Adet'}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 600; font-family: monospace;">${price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 600; font-family: monospace;">${disc > 0 ? disc.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600;">%${vatRate}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 600; font-family: monospace;">${lineVat.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 700; font-family: monospace; color: #0f172a;">${lineTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const grandTotal = Number(inv.grand_total) || (subtotal + totalVat);
+  const curr = inv.currency || 'TRY';
+  const currSymbol = curr === 'TRY' ? 'TL' : curr;
+  const amountWordsRaw = numberToTurkishWords(grandTotal, curr);
+  const amountWords = amountWordsRaw.replace(/\s+/g, '');
+
+  // Grouped VAT rows according to Rule #4
+  const vatRowsHtml = Object.entries(vatMap).map(([rate, amt]) => `
+    <tr>
+      <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; font-size: 11px;">Hesaplanan KDV (%${rate})</td>
+      <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-size: 11px; font-family: monospace;">${amt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+    </tr>
+  `).join('');
+
+  let exchangeRateBlock = '';
+  if (inv.exchange_rate && Number(inv.exchange_rate) > 0 && curr !== 'TRY') {
+    const exRate = Number(inv.exchange_rate);
+    const trySubtotal = (subtotal * exRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const tryVat = (totalVat * exRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const tryGrandTotal = (grandTotal * exRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    exchangeRateBlock = `
+      <div style="margin-top: 10px; padding: 8px 12px; border: 1.5px solid #d32f2f; background: #fff5f5; border-radius: 6px;">
+        <div style="font-weight: 800; color: #d32f2f; font-size: 11px; margin-bottom: 4px;">DÖVİZ KUR BİLGİSİ: 1 ${curr} = ${exRate.toFixed(4)} TRY</div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <tr>
+            <td style="padding: 2px 0;">Mal Hizmet Toplam Tutarı (TL): <strong>${trySubtotal} TL</strong></td>
+            <td style="padding: 2px 0;">Hesaplanan KDV (TL): <strong>${tryVat} TL</strong></td>
+            <td style="padding: 2px 0; text-align: right;">Vergiler Dahil Toplam (TL): <strong>${tryGrandTotal} TL</strong></td>
+          </tr>
+        </table>
+      </div>
+    `;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${computedDocType} - ${docNumber}</title>
+  <style>
+    @media print {
+      @page { size: A4 portrait; margin: 8mm; }
+      body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      background-color: #fff;
+      margin: 0;
+      padding: 20px;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Watermark background for non-official / draft / unsent invoices -->
+  ${!isApprovedAndSent ? `
+  <div style="position: fixed; top: 38%; left: 5%; width: 90%; text-align: center; transform: rotate(-28deg); pointer-events: none; z-index: 9999; opacity: 0.13;">
+    <div style="font-size: 58px; font-weight: 900; color: ${stampColor}; text-transform: uppercase; letter-spacing: 5px; border: 8px solid ${stampColor}; padding: 14px 28px; display: inline-block; border-radius: 12px;">
+      ${stampTitle}
+    </div>
+    <div style="font-size: 18px; font-weight: 800; color: ${stampColor}; margin-top: 8px; letter-spacing: 1.5px;">
+      ${stampSubtitle}
+    </div>
+  </div>
+  ` : ''}
+
+  <!-- Header Container -->
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+    <tr>
+      <td style="width: 55%; vertical-align: top; padding-right: 12px;">
+        ${logoUrl ? `<img src="${logoUrl}" alt="${storeName}" style="max-height: 55px; max-width: 200px; object-fit: contain; margin-bottom: 8px; display: block;" />` : ''}
+        <div style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">${storeName}</div>
+        <div style="font-size: 11px; color: #334155; line-height: 1.45;">
+          ${supplierAddress}<br/>
+          <strong>VKN/TC:</strong> ${supplierVkn} &nbsp;|&nbsp; <strong>Vergi Dairesi:</strong> ${supplierTaxOffice}<br/>
+          ${supplierPhone ? `<strong>Tel:</strong> ${supplierPhone}` : ''} ${supplierEmail ? `&nbsp;|&nbsp; <strong>E-Posta:</strong> ${supplierEmail}` : ''}<br/>
+          ${supplierMersis ? `<strong>Mersis No:</strong> ${supplierMersis}` : ''} ${supplierWeb ? `&nbsp;|&nbsp; <strong>Web:</strong> ${supplierWeb}` : ''}
+        </div>
+      </td>
+      <td style="width: 45%; vertical-align: top; text-align: right;">
+        <div style="font-size: 20px; font-weight: 900; color: #1e293b; letter-spacing: 1px; margin-bottom: 6px;">${computedDocType}</div>
+        
+        <!-- Stamp Badge Box -->
+        <div style="margin-bottom: 8px;">
+          <div style="border: 2px dashed ${stampBorder}; background-color: ${stampBg}; color: ${stampColor}; padding: 6px 12px; border-radius: 8px; text-align: center; display: inline-block;">
+            <div style="font-size: 14px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">${stampTitle}</div>
+            <div style="font-size: 8.5px; font-weight: 700; margin-top: 2px;">${stampSubtitle}</div>
+          </div>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+          <tr>
+            <td style="text-align: right; font-weight: 600; color: #64748b; padding: 2px 4px;">Fatura No:</td>
+            <td style="text-align: right; font-weight: 800; color: #0f172a; padding: 2px 4px; font-family: monospace;">${docNumber}</td>
+          </tr>
+          <tr>
+            <td style="text-align: right; font-weight: 600; color: #64748b; padding: 2px 4px;">ETTN:</td>
+            <td style="text-align: right; font-weight: 700; color: #334155; padding: 2px 4px; font-family: monospace; font-size: 10px;">${ettnVal}</td>
+          </tr>
+          <tr>
+            <td style="text-align: right; font-weight: 600; color: #64748b; padding: 2px 4px;">Tarih / Saat:</td>
+            <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 2px 4px;">${invoiceDate} ${invoiceTime}</td>
+          </tr>
+          <tr>
+            <td style="text-align: right; font-weight: 600; color: #64748b; padding: 2px 4px;">Senaryo / Tip:</td>
+            <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 2px 4px;">${profileLabel} / ${typeLabel}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Buyer Box -->
+  <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; background-color: #f8fafc;">
+    <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">SAYIN (ALICI)</div>
+    <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">${customerName}</div>
+    <div style="font-size: 11px; color: #334155; line-height: 1.4;">
+      <strong>VKN / TCKN:</strong> ${customerVkn} &nbsp;|&nbsp; <strong>Vergi Dairesi:</strong> ${customerTaxOffice}<br/>
+      ${customerAddress}<br/>
+      ${customerPhone ? `<strong>Tel:</strong> ${customerPhone}` : ''} ${customerEmail ? `&nbsp;|&nbsp; <strong>E-Posta:</strong> ${customerEmail}` : ''}
+    </div>
+  </div>
+
+  <!-- Items Table -->
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+    <thead>
+      <tr style="background-color: #0f172a; color: #ffffff; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: center; width: 35px;">S.No</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: left;">Mal / Hizmet Açıklaması</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: center; width: 80px;">Miktar</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; width: 90px;">Birim Fiyat</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; width: 75px;">İskonto</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: center; width: 60px;">KDV %</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; width: 85px;">KDV Tutarı</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; width: 105px;">Toplam Tutar</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemsRows}
+    </tbody>
+  </table>
+
+  <!-- Totals & Notes Section -->
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <!-- Left side: Notes & Amount in Words -->
+      <td style="width: 58%; vertical-align: top; padding-right: 12px;">
+        <div style="border: 1.5px solid #000; padding: 8px 12px; border-radius: 6px; font-weight: 800; font-size: 11.5px; background: #fff; margin-bottom: 10px;">
+          YALNIZ: # ${amountWords} #
+        </div>
+
+        ${inv.notes ? `
+        <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; background: #f8fafc; font-size: 11px;">
+          <strong style="display: block; text-transform: uppercase; color: #475569; font-size: 10px; margin-bottom: 4px;">Notlar / Açıklamalar:</strong>
+          <div style="white-space: pre-wrap; color: #0f172a;">${inv.notes}</div>
+        </div>
+        ` : ''}
+
+        ${exchangeRateBlock}
+      </td>
+
+      <!-- Right side: Financial Totals Box -->
+      <td style="width: 42%; vertical-align: top;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <tr>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600;">Mal Hizmet Toplam Tutarı</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-family: monospace;">${subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+          </tr>
+          ${totalDiscount > 0 ? `
+          <tr>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; color: #dc2626;">Toplam İskonto</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-family: monospace; color: #dc2626;">-${totalDiscount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+          </tr>
+          ` : ''}
+          
+          <!-- Grouped VAT Rows -->
+          ${vatRowsHtml}
+
+          <tr style="background-color: #0f172a; color: #ffffff;">
+            <td style="border: 1px solid #0f172a; padding: 7px 8px; font-weight: 800; font-size: 12px;">Ödenecek Toplam Tutar</td>
+            <td style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; font-weight: 900; font-size: 13px; font-family: monospace;">${grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
+}
+
 router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
   try {
     const isSuperAdmin = req.user.role === 'superadmin';
@@ -2212,7 +2528,6 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
         }
     } catch (queryErr) {
         console.error("[DB-ERROR] Error fetching invoice details:", queryErr);
-        // Fallback to basic query if full select fails (to avoid crash if columns missing)
         if (invoiceType === 'sales') {
             if (isSuperAdmin && !requestedStoreId) {
                 invoiceRes = await pool.query("SELECT id, store_id, ettn, document_number, notes FROM sales_invoices WHERE id = $1", [invoiceId]);
@@ -2228,130 +2543,53 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
         }
     }
 
-    // Defensive fallback: If invoice not found in requested table, check the alternate table (sales vs purchase)
-    if (!invoiceRes || invoiceRes.rows.length === 0) {
-        const altTable = invoiceType === 'sales' ? 'purchase_invoices' : 'sales_invoices';
-        try {
-            if (isSuperAdmin && !requestedStoreId) {
-                invoiceRes = await pool.query(`SELECT * FROM ${altTable} WHERE id = $1`, [invoiceId]);
-            } else {
-                invoiceRes = await pool.query(`SELECT * FROM ${altTable} WHERE id = $1 AND store_id = $2`, [invoiceId, requestedStoreId || req.user.store_id]);
-            }
-        } catch (altErr) {
-            console.warn(`[DB-WARN] Alternate table check failed for ${altTable}:`, altErr);
-        }
-    }
-    
     if (!invoiceRes || invoiceRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
 
     const invData = invoiceRes.rows[0];
     const targetStoreId = invData.store_id || requestedStoreId || req.user.store_id;
 
-    // Tenant isolation verification for non-superadmin users
     if (!isSuperAdmin && invData.store_id && invData.store_id !== req.user.store_id) {
         return res.status(403).json({ error: "Yetkisiz işlem: Bu faturaya erişim yetkiniz bulunmamaktadır." });
     }
 
+    // Handle Sales Invoice Preview (Draft, Unsent, or Sent)
+    if (invoiceType === 'sales') {
+      const isDraftOrUnsent = invData.status === 'draft' ||
+                              ['DRAFT', 'NOT_SENT'].includes(invData.integration_status) ||
+                              !invData.ettn;
+
+      if (!isDraftOrUnsent) {
+        try {
+          const service = await getEInvoiceService(targetStoreId);
+          if ('getInvoiceHtml' in service) {
+            const docTypeToUse = invData.e_document_type || 'E-ARSIV';
+            let html = await (service as any).getInvoiceHtml(invData.ettn, invData.document_number, docTypeToUse, false);
+            if (html && typeof html === 'string' && html.trim().length > 0) {
+              html = cleanInvoiceHtmlVatRows(html);
+              return res.json({ html });
+            }
+          }
+        } catch (serviceErr) {
+          console.warn("[HTML-FETCH] MySoft service call failed for sales invoice, generating local stamped HTML:", serviceErr);
+        }
+      }
+
+      // Local HTML fallback with watermark & status stamps
+      const localHtml = await generateLocalSalesInvoiceHtml(Number(invoiceId), targetStoreId);
+      return res.json({ html: localHtml });
+    }
+
+    // Purchase Invoice
     const { ettn, document_number, notes, currency, exchange_rate } = invData;
-    // Map various potential field names for totals to be defensive
     const grand_total = invData.grand_total || invData.payable_amount || invData.total_amount || 0;
     const subtotal = invData.subtotal || invData.total_amount || (Number(grand_total) - Number(invData.tax_amount || 0));
     const tax_amount = invData.tax_amount || 0;
     if (!ettn && !document_number) return res.status(400).json({ error: "Faturanın ETTN'si veya numarası bulunmuyor." });
 
     const service = await getEInvoiceService(targetStoreId);
-    
     if ('getInvoiceHtml' in service) {
-      console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}, DocType: ${invData.e_document_type}`);
-      // Default docType to 'E-ARSIV' if missing to be more flexible, as reported by user
       const docTypeToUse = invData.e_document_type || 'E-ARSIV';
-      let html = await (service as any).getInvoiceHtml(ettn, document_number, docTypeToUse, invoiceType === 'purchase');
-      
-      console.log(`[HTML-FETCH] Result HTML length: ${html ? html.length : 0}`);
-
-      if (invoiceType === 'purchase') {
-        console.log(`[HTML-FETCH] Purchase invoice - returning raw HTML as received without custom additions.`);
-        return res.json({ html });
-      }
-
-      // Clean duplicate / redundant VAT rows in sales invoice template
-      html = cleanInvoiceHtmlVatRows(html);
-      
-      // 1. Prepare Amount in Words and Currency Info
-      const amountWordsRaw = numberToTurkishWords(Number(grand_total), currency || 'TRY');
-      const amountWords = amountWordsRaw.replace(/\s+/g, '');
-      const alonePart = `<div style="border-bottom: 1.5px solid #000; margin-bottom: 8px; padding-bottom: 4px; font-weight: bold; font-size: 12px; color: #000; text-align: left;">YALNIZ: # ${amountWords} #</div>`;
-
-      // 2. Exchange Rate and TRY conversion if foreign currency
-      let tryTotalsBlock = "";
-      let exchangeRateBlock = "";
-      if (exchange_rate && Number(exchange_rate) > 0 && currency && currency.toUpperCase() !== 'TRY') {
-          exchangeRateBlock = `
-            <div style="margin-bottom: 8px; padding: 4px 10px; border: 1.5px solid #d32f2f; background: #fff5f5; display: inline-block; border-radius: 4px;">
-                <span style="color: #d32f2f; font-weight: bold; font-size: 11px;">DÖVİZ KUR BİLGİSİ:</span>
-                <span style="font-size: 12px; font-weight: 800; color: #000; margin-left: 8px;">1 ${currency.toUpperCase()} = ${Number(exchange_rate).toFixed(4)} TRY</span>
-            </div>
-          `;
-          
-          const trySubtotal = (Number(subtotal || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          const tryTax = (Number(tax_amount || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          const tryTotal = (Number(grand_total || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-          tryTotalsBlock = `
-            <table style="width: 100%; margin-top: 8px; border-collapse: collapse; border: 1.5px solid #000; font-family: inherit; font-size: 11px; background: #fff;">
-              <thead>
-                <tr style="background: #000; color: #fff;">
-                  <th colspan="2" style="border: 1px solid #000; padding: 4px 8px; text-align: center; font-weight: bold; font-size: 11px;">Döviz Karşılıkları (TRY)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style="border: 1px solid #000; padding: 4px 8px; font-weight: 500;">Mal Hizmet Toplam Tutarı (TL)</td>
-                  <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;">${trySubtotal} TL</td>
-                </tr>
-                <tr>
-                  <td style="border: 1px solid #000; padding: 4px 8px; font-weight: 500;">Hesaplanan KDV (TL)</td>
-                  <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;">${tryTax} TL</td>
-                </tr>
-                <tr style="background: #f1f1f1;">
-                  <td style="border: 1px solid #000; padding: 5px 8px; font-weight: bold; font-size: 11px;">Vergiler Dahil Toplam Tutar (TL)</td>
-                  <td style="border: 1px solid #000; padding: 5px 8px; text-align: right; font-weight: 800; font-size: 12px; color: #000;">${tryTotal} TL</td>
-                </tr>
-              </tbody>
-            </table>
-          `;
-      }
-
-      // 3. Notes and Boxing
-      const notesWithBr = (notes || "").replace(/\n/g, '<br/>');
-      const boxedNotes = `
-        <div class="invoice-notes-box" style="margin-top: 10px; border: 1.5px solid #000; padding: 10px 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 1.4; background: #fff; color: #000; clear: both; box-sizing: border-box; width: 100%;">
-          ${alonePart}
-          ${exchangeRateBlock}
-          <div style="margin-top: 6px; border-top: 1px solid #eee; padding-top: 6px;">
-            <strong style="display: block; margin-bottom: 4px; font-size: 11px; text-transform: uppercase;">Notlar / Açıklamalar:</strong>
-            <div style="white-space: pre-wrap; font-size: 11px; color: #222;">${notes || "---"}</div>
-          </div>
-          ${tryTotalsBlock}
-        </div>
-      `;
-
-      // Surgery to inject the box correctly and avoid double notes
-      const notesClean = (notes || "").trim();
-      if (html.includes('id="notesTable"')) {
-          const notesTableStart = html.indexOf('<table id="notesTable"');
-          const notesTableEnd = html.indexOf('</table>', notesTableStart) + 8;
-          html = html.slice(0, notesTableStart) + boxedNotes + html.slice(notesTableEnd);
-      } else if (notesClean && html.includes(notesClean)) {
-          // Replace specific notes text if found
-          html = html.replace(notesClean, boxedNotes);
-      } else {
-          // Final fallback
-          html = html.replace('</body>', `${boxedNotes}</body>`);
-      }
-      
-      html = cleanInvoiceHtmlVatRows(html);
-      console.log(`[HTML-FETCH] HTML processed for ${invoiceId}`);
+      let html = await (service as any).getInvoiceHtml(ettn, document_number, docTypeToUse, true);
       return res.json({ html });
     }
 
