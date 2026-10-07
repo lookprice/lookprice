@@ -3,7 +3,7 @@ import { pool, addStockMovement } from "../../models/db";
 import { getAuthorizedStoreId } from "../../middleware/auth";
 import { getEInvoiceService } from "../einvoice";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
-import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification, revertInvoiceStockAndProducts, detectExpenseCategory, generateTempBarcode } from "./invoiceMatching";
+import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification, revertInvoiceStockAndProducts, detectExpenseCategory, generateTempBarcode, hasProductMatchConflict, invalidateStoreProductsCache, extractModelTokens } from "./invoiceMatching";
 import { mergeProducts } from "./products";
 import { syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
 
@@ -45,22 +45,134 @@ export async function initPurchaseInvoiceSchema() {
         )
     `);
 
-    // 2. Auto-repair purchase_invoice_items missing product_id where barcode, code or exact name exists
-    await pool.query(`
-      UPDATE purchase_invoice_items pii
-      SET product_id = p.id
-      FROM purchase_invoices pi, products p
-      WHERE pii.purchase_invoice_id = pi.id
-        AND p.store_id = pi.store_id
-        AND (pii.product_id IS NULL OR pii.product_id = 0)
-        AND COALESCE(pi.is_expense, FALSE) = FALSE
-        AND (
-          (p.barcode = pii.barcode AND pii.barcode IS NOT NULL AND pii.barcode != '')
-          OR (p.product_code IS NOT NULL AND p.product_code != '' AND (p.product_code = pii.product_code OR p.product_code = pii.barcode))
-          OR (p.sku IS NOT NULL AND p.sku != '' AND (p.sku = pii.product_code OR p.sku = pii.barcode))
-          OR (LOWER(TRIM(p.name)) = LOWER(TRIM(pii.product_name)) AND LENGTH(TRIM(p.name)) >= 3)
-        )
-    `);
+    // 2. Self-Healing 5-Gate Product Matching & Stock Reconciliation for purchase_invoice_items
+    // a) Unlink & heal any existing purchase_invoice_items that violate the 5-Gate Conflict Veto (e.g. Kingston matched to TwinMOS)
+    // b) Match any unmatched purchase_invoice_items using the 5-Gate findMatchingProduct engine
+    try {
+      const piiCheckRes = await pool.query(`
+        SELECT pii.id, pii.purchase_invoice_id, pi.store_id, pi.invoice_number, pi.document_number, pi.supplier_name, pi.tax_number, pi.currency, pi.invoice_date, pi.created_at,
+               pii.product_name, pii.barcode, pii.product_code, pii.product_id, pii.quantity, pii.system_quantity, pii.unit_price,
+               p.name as cur_prod_name, p.barcode as cur_prod_barcode, COALESCE(p.product_code, p.sku, '') as cur_prod_code, p.brand as cur_prod_brand
+        FROM purchase_invoice_items pii
+        JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+        LEFT JOIN products p ON pii.product_id = p.id
+        WHERE COALESCE(pi.is_expense, FALSE) = FALSE
+        ORDER BY pii.id ASC
+      `);
+
+      // Also clean up any poisoned supplier_product_mappings that violate 5-Gate Conflict Veto
+      const spmRes = await pool.query(`
+        SELECT spm.id, spm.supplier_product_name, p.name as prod_name, p.brand as prod_brand
+        FROM supplier_product_mappings spm
+        JOIN products p ON spm.product_id = p.id
+      `);
+      for (const spm of spmRes.rows) {
+        if (hasProductMatchConflict(spm.supplier_product_name, spm.prod_name, { productBrand: spm.prod_brand })) {
+          await pool.query("DELETE FROM supplier_product_mappings WHERE id = $1", [spm.id]);
+          console.log(`[5-Gate Veto] Deleted poisoned supplier mapping #${spm.id}: "${spm.supplier_product_name}" != "${spm.prod_name}"`);
+        }
+      }
+      invalidateStoreProductsCache();
+
+      for (const item of piiCheckRes.rows) {
+        const hasConflict = item.product_id
+          ? hasProductMatchConflict(item.product_name, item.cur_prod_name, { productBrand: item.cur_prod_brand })
+          : false;
+
+        if (!hasConflict && item.product_id) {
+          continue; // Validly matched, untouched
+        }
+
+        const qty = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
+        const invNum = item.document_number || item.invoice_number || '';
+
+        // If there was a false-positive match, revert the wrong product's stock & delete its wrong stock movement
+        if (hasConflict && item.product_id) {
+          console.log(`[5-Gate Self-Heal] Vetoing false match on Invoice #${invNum} Item #${item.id}: "${item.product_name}" was wrongly linked to #${item.product_id} "${item.cur_prod_name}"`);
+          const delMov = await pool.query(
+            `DELETE FROM stock_movements
+             WHERE store_id = $1 AND product_id = $2
+               AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+               AND (invoice_id = $3 OR invoice_number = $4 OR description LIKE $5)
+             RETURNING quantity`,
+            [item.store_id, item.product_id, item.purchase_invoice_id, invNum, `%${invNum}%`]
+          );
+          if (delMov.rows.length > 0 && qty > 0) {
+            await pool.query(
+              "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+              [qty, item.product_id, item.store_id]
+            );
+          }
+        }
+
+        // Now run the 5-Gate Matching Engine to find the true inventory product (if one exists)
+        // Strip barcode/product_code if they were overwritten by the wrong product's barcode/code
+        const cleanBarcode = hasConflict && item.barcode === item.cur_prod_barcode ? null : item.barcode;
+        const cleanCode = hasConflict && item.product_code === item.cur_prod_code ? null : item.product_code;
+
+        const match = await findMatchingProduct(pool, item.store_id, {
+          supplierVkn: item.tax_number,
+          productName: item.product_name,
+          barcode: cleanBarcode,
+          productCode: cleanCode
+        });
+
+        if (match) {
+          await pool.query(
+            "UPDATE purchase_invoice_items SET product_id = $1, barcode = COALESCE($2, $3), product_code = COALESCE($4, $5) WHERE id = $6",
+            [match.productId, match.barcode, cleanBarcode, match.productCode, cleanCode, item.id]
+          );
+
+          if (item.tax_number && item.product_name) {
+            await saveSupplierMapping(pool, item.store_id, item.tax_number, item.product_name, match.productId, match.productCode || cleanCode);
+          }
+
+          // Ensure stock movement and stock_quantity are credited to the matched product
+          const movExists = await pool.query(
+            `SELECT 1 FROM stock_movements
+             WHERE store_id = $1 AND product_id = $2
+               AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+               AND invoice_id = $3
+             LIMIT 1`,
+            [item.store_id, match.productId, item.purchase_invoice_id]
+          );
+          if (movExists.rows.length === 0 && qty > 0) {
+            await pool.query(
+              "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) + $1::numeric, cost_price = CASE WHEN COALESCE($2::numeric, 0) > 0 THEN $2::numeric ELSE cost_price END, cost_currency = COALESCE($3, cost_currency) WHERE id = $4 AND store_id = $5",
+              [Math.round(qty), Number(item.unit_price || 0), item.currency || 'TRY', match.productId, item.store_id]
+            );
+            await pool.query(
+              `INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
+               VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, $8, $9, 'purchase', $10)`,
+              [
+                item.store_id,
+                match.productId,
+                Math.round(qty),
+                `Alış Faturası: ${invNum}`,
+                Number(item.unit_price || 0),
+                item.supplier_name || 'Tedarikçi',
+                item.currency || 'TRY',
+                item.invoice_date || item.created_at || new Date(),
+                item.purchase_invoice_id,
+                invNum
+              ]
+            );
+          }
+          console.log(`[5-Gate Self-Heal] Linked Invoice #${invNum} Item #${item.id} ("${item.product_name}") -> Product #${match.productId} ("${match.name}") [${match.matchType}]`);
+        } else if (hasConflict) {
+          // Restore clean unmatched state without corrupt barcode from the wrong product
+          const extractedTokens = extractModelTokens(item.product_name);
+          const restoredCode = cleanCode || (extractedTokens.length > 0 ? extractedTokens[0] : null);
+          await pool.query(
+            "UPDATE purchase_invoice_items SET product_id = NULL, barcode = $1, product_code = $2 WHERE id = $3",
+            [cleanBarcode, restoredCode, item.id]
+          );
+          console.log(`[5-Gate Self-Heal] Unlinked Invoice #${invNum} Item #${item.id} ("${item.product_name}") to clean unmatched state (code: ${restoredCode || '-'})`);
+        }
+      }
+    } catch (healErr) {
+      console.error("[5-Gate Self-Heal] Error during purchase invoice item reconciliation:", healErr);
+    }
 
     // 2.5 Auto-repair products table names where product name is HB code, barcode or code, using actual product names from purchase invoices
     await pool.query(`
@@ -496,34 +608,38 @@ export async function initPurchaseInvoiceSchema() {
   }
 }
 
-async function resolveProductInfo(clientOrPool: any, storeId: number, productId: any, barcode: any, productCode?: any) {
+async function resolveProductInfo(clientOrPool: any, storeId: number, productId: any, barcode: any, productCode?: any, productName?: string | null) {
   let resolvedId = productId ? Number(productId) : null;
   let rawBarcode = barcode ? String(barcode).trim() : '';
   let rawCode = productCode ? String(productCode).trim() : '';
 
   if ((!resolvedId || isNaN(resolvedId))) {
-    // 1. Try matching barcode or product_code by barcode
+    // 1. Try matching barcode or product_code by barcode (guarded by 5-Gate Conflict Veto)
     if (rawBarcode) {
       const pRes = await clientOrPool.query(
-        "SELECT id, barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR product_code = $2 OR sku = $2) LIMIT 1",
+        "SELECT id, barcode, COALESCE(product_code, sku, '') as product_code, name, brand FROM products WHERE store_id = $1 AND (barcode = $2 OR product_code = $2 OR sku = $2) LIMIT 5",
         [storeId, rawBarcode]
       );
-      if (pRes.rows.length > 0) {
-        resolvedId = pRes.rows[0].id;
-        rawBarcode = pRes.rows[0].barcode || rawBarcode;
-        rawCode = pRes.rows[0].product_code || rawCode;
+      for (const row of pRes.rows) {
+        if (productName && hasProductMatchConflict(productName, row.name, { productBrand: row.brand })) continue;
+        resolvedId = row.id;
+        rawBarcode = row.barcode || rawBarcode;
+        rawCode = row.product_code || rawCode;
+        break;
       }
     }
-    // 2. Try matching by productCode / SKU if still unresolved
+    // 2. Try matching by productCode / SKU if still unresolved (guarded by 5-Gate Conflict Veto)
     if ((!resolvedId || isNaN(resolvedId)) && rawCode) {
       const pRes = await clientOrPool.query(
-        "SELECT id, barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE store_id = $1 AND (LOWER(product_code) = LOWER($2) OR LOWER(sku) = LOWER($2) OR barcode = $2) LIMIT 1",
+        "SELECT id, barcode, COALESCE(product_code, sku, '') as product_code, name, brand FROM products WHERE store_id = $1 AND (LOWER(product_code) = LOWER($2) OR LOWER(sku) = LOWER($2) OR barcode = $2) LIMIT 5",
         [storeId, rawCode]
       );
-      if (pRes.rows.length > 0) {
-        resolvedId = pRes.rows[0].id;
-        rawBarcode = pRes.rows[0].barcode || rawBarcode;
-        rawCode = pRes.rows[0].product_code || rawCode;
+      for (const row of pRes.rows) {
+        if (productName && hasProductMatchConflict(productName, row.name, { productBrand: row.brand })) continue;
+        resolvedId = row.id;
+        rawBarcode = row.barcode || rawBarcode;
+        rawCode = row.product_code || rawCode;
+        break;
       }
     }
   } else if (resolvedId && (!rawBarcode || !rawCode)) {
@@ -659,6 +775,7 @@ router.get("/sales", async (req: any, res) => {
 router.get("/sales/:id", async (req: any, res) => {
   try {
     const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const isSuperAdmin = req.user?.role === "superadmin";
     const invoiceResult = await pool.query(
       `SELECT si.*, 
               c.title as company_title,
@@ -684,8 +801,8 @@ router.get("/sales/:id", async (req: any, res) => {
        LEFT JOIN companies c ON si.company_id = c.id 
        LEFT JOIN customers cust ON si.customer_id = cust.id
        LEFT JOIN sales s ON si.sale_id = s.id
-       WHERE si.id = $1 AND si.store_id = $2`,
-      [req.params.id, storeId]
+       WHERE si.id = $1 AND (si.store_id = $2 OR $3 = TRUE)`,
+      [req.params.id, storeId, isSuperAdmin]
     );
     
     if (invoiceResult.rows.length === 0) {
@@ -834,23 +951,26 @@ router.post("/sales", async (req: any, res) => {
       const taxRate = Number(item.tax_rate) || 0;
       
       if (finalIsTaxInclusive) {
-        const itemTotalIncl = qty * price;
-        const lineExtensionAmount = itemTotalIncl / (1 + (taxRate / 100));
-        const lineTax = itemTotalIncl - lineExtensionAmount;
+        const lineIncl = Math.round(qty * price * 100) / 100;
+        const lineExcl = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+        const lineTax = Math.round((lineIncl - lineExcl) * 100) / 100;
         
-        total_amount += lineExtensionAmount;
+        total_amount += lineExcl;
         tax_amount += lineTax;
-        grand_total += itemTotalIncl;
+        grand_total += lineIncl;
       } else {
-        const lineExtensionAmount = qty * price;
-        const lineTax = (lineExtensionAmount * taxRate) / 100;
-        const itemTotalIncl = lineExtensionAmount + lineTax;
+        const lineExcl = Math.round(qty * price * 100) / 100;
+        const lineTax = Math.round((lineExcl * (taxRate / 100)) * 100) / 100;
+        const lineIncl = Math.round((lineExcl + lineTax) * 100) / 100;
         
-        total_amount += lineExtensionAmount;
+        total_amount += lineExcl;
         tax_amount += lineTax;
-        grand_total += itemTotalIncl;
+        grand_total += lineIncl;
       }
     }
+    total_amount = Math.round(total_amount * 100) / 100;
+    tax_amount = Math.round(tax_amount * 100) / 100;
+    grand_total = Math.round(grand_total * 100) / 100;
     
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
@@ -985,12 +1105,12 @@ router.post("/sales", async (req: any, res) => {
       let itemTotal = 0; 
 
       if (finalIsTaxInclusive) {
-        const itemTotalIncl = qty * price;
-        itemTotal = itemTotalIncl / (1 + (taxRate / 100));
-        itemTax = itemTotalIncl - itemTotal;
+        const lineIncl = Math.round(qty * price * 100) / 100;
+        itemTotal = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+        itemTax = Math.round((lineIncl - itemTotal) * 100) / 100;
       } else {
-        itemTotal = qty * price;
-        itemTax = (itemTotal * taxRate) / 100;
+        itemTotal = Math.round(qty * price * 100) / 100;
+        itemTax = Math.round((itemTotal * (taxRate / 100)) * 100) / 100;
       }
 
       const { productId: resolvedProductId, barcode: resolvedBarcode } = await resolveProductInfo(client, storeId, item.product_id, item.barcode);
@@ -1144,23 +1264,26 @@ router.put("/sales/:id", async (req: any, res) => {
       const taxRate = Number(item.tax_rate) || 0;
       
       if (finalIsTaxInclusive) {
-        const itemTotalIncl = qty * price;
-        const lineExtensionAmount = itemTotalIncl / (1 + (taxRate / 100));
-        const lineTax = itemTotalIncl - lineExtensionAmount;
+        const lineIncl = Math.round(qty * price * 100) / 100;
+        const lineExcl = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+        const lineTax = Math.round((lineIncl - lineExcl) * 100) / 100;
         
-        total_amount += lineExtensionAmount;
+        total_amount += lineExcl;
         tax_amount += lineTax;
-        grand_total += itemTotalIncl;
+        grand_total += lineIncl;
       } else {
-        const lineExtensionAmount = qty * price;
-        const lineTax = (lineExtensionAmount * taxRate) / 100;
-        const itemTotalIncl = lineExtensionAmount + lineTax;
+        const lineExcl = Math.round(qty * price * 100) / 100;
+        const lineTax = Math.round((lineExcl * (taxRate / 100)) * 100) / 100;
+        const lineIncl = Math.round((lineExcl + lineTax) * 100) / 100;
         
-        total_amount += lineExtensionAmount;
+        total_amount += lineExcl;
         tax_amount += lineTax;
-        grand_total += itemTotalIncl;
+        grand_total += lineIncl;
       }
     }
+    total_amount = Math.round(total_amount * 100) / 100;
+    tax_amount = Math.round(tax_amount * 100) / 100;
+    grand_total = Math.round(grand_total * 100) / 100;
     
     const storeResAuto = await client.query("SELECT branding, einvoice_settings FROM stores WHERE id = $1", [storeId]);
     const einvoiceSettings = storeResAuto.rows[0]?.einvoice_settings || { is_active: false };
@@ -1315,12 +1438,12 @@ router.put("/sales/:id", async (req: any, res) => {
       let itemTotal = 0; 
 
       if (finalIsTaxInclusive) {
-        const itemTotalIncl = qty * price;
-        itemTotal = itemTotalIncl / (1 + (taxRate / 100));
-        itemTax = itemTotalIncl - itemTotal;
+        const lineIncl = Math.round(qty * price * 100) / 100;
+        itemTotal = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+        itemTax = Math.round((lineIncl - itemTotal) * 100) / 100;
       } else {
-        itemTotal = qty * price;
-        itemTax = (itemTotal * taxRate) / 100;
+        itemTotal = Math.round(qty * price * 100) / 100;
+        itemTax = Math.round((itemTotal * (taxRate / 100)) * 100) / 100;
       }
 
       const { productId: resolvedProductId, barcode: resolvedBarcode } = await resolveProductInfo(client, storeId, item.product_id, item.barcode);
@@ -1522,6 +1645,10 @@ router.get("/purchase", async (req: any, res) => {
                  'product_name', pii.product_name,
                  'barcode', pii.barcode,
                  'product_code', pii.product_code,
+                 'matched_product_name', p_match.name,
+                 'matched_product_barcode', p_match.barcode,
+                 'matched_product_code', COALESCE(p_match.product_code, p_match.sku, ''),
+                 'matched_product_stock', p_match.stock_quantity,
                  'quantity', pii.quantity,
                  'unit_code', pii.unit_code,
                  'system_quantity', pii.system_quantity,
@@ -1533,7 +1660,8 @@ router.get("/purchase", async (req: any, res) => {
                  'variant_id', pii.variant_id,
                  'variant_name', pii.variant_name
                ) ORDER BY pii.id), '[]'::json)
-               FROM purchase_invoice_items pii 
+               FROM purchase_invoice_items pii
+               LEFT JOIN products p_match ON pii.product_id = p_match.id
                WHERE pii.purchase_invoice_id = pi.id
              ) as items,
              EXISTS (
@@ -1597,13 +1725,14 @@ router.get("/purchase", async (req: any, res) => {
 router.get("/purchase/:id", async (req: any, res) => {
   try {
     const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const isSuperAdmin = req.user?.role === "superadmin";
     let query = `
       SELECT pi.*, c.title as company_name 
       FROM purchase_invoices pi 
       LEFT JOIN companies c ON pi.company_id = c.id 
-      WHERE pi.id = $1 AND pi.store_id = $2
+      WHERE pi.id = $1 AND (pi.store_id = $2 OR $3 = TRUE)
     `;
-    let params = [req.params.id, storeId];
+    let params = [req.params.id, storeId, isSuperAdmin];
     
     const invoiceResult = await pool.query(query, params);
     
@@ -1972,10 +2101,24 @@ router.post("/purchase", async (req: any, res) => {
         let resolvedBarcode = null;
         let resolvedProductCode = null;
         if (!finalIsExpense) {
-          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode, item.product_code);
+          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode, item.product_code, item.product_name);
           resolvedProductId = resProd.productId;
           resolvedBarcode = resProd.barcode;
           resolvedProductCode = resProd.productCode || item.product_code || null;
+
+          if (!resolvedProductId && item.product_name) {
+            const match = await findMatchingProduct(pool, storeId, {
+              supplierVkn: tax_number,
+              productName: item.product_name,
+              barcode: item.barcode,
+              productCode: item.product_code
+            });
+            if (match) {
+              resolvedProductId = match.productId;
+              resolvedBarcode = match.barcode || resolvedBarcode;
+              resolvedProductCode = match.productCode || resolvedProductCode;
+            }
+          }
         }
 
         processedInvoiceItems.push({
@@ -2188,30 +2331,44 @@ router.put("/purchase/:id", async (req: any, res) => {
     let calculatedTaxAmount = Number(tax_amount) || 0;
     let calculatedGrandTotal = Number(grand_total) || 0;
 
-    if ((calculatedGrandTotal === 0 || calculatedTotalAmount === 0) && items && Array.isArray(items)) {
+    if (items && Array.isArray(items) && items.length > 0) {
       let subtotal = 0;
       let taxTotal = 0;
+      let grandTotal = 0;
       for (const item of items) {
         const qty = Number(item.quantity) || 0;
         const price = Number(item.unit_price) || 0;
         const taxRate = Number(item.tax_rate) || 0;
         
         if (finalIsTaxInclusive) {
-          const itemTotalIncl = qty * price;
-          const itemTotalExcl = itemTotalIncl / (1 + (taxRate / 100));
-          const itemTax = itemTotalIncl - itemTotalExcl;
-          subtotal += itemTotalExcl;
-          taxTotal += itemTax;
+          const lineIncl = Math.round(qty * price * 100) / 100;
+          const lineExcl = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+          const lineTax = Math.round((lineIncl - lineExcl) * 100) / 100;
+          
+          grandTotal += lineIncl;
+          taxTotal += lineTax;
+          subtotal += lineExcl;
         } else {
-          const itemTotal = qty * price;
-          const itemTax = itemTotal * (taxRate / 100);
-          subtotal += itemTotal;
-          taxTotal += itemTax;
+          const lineExcl = Math.round(qty * price * 100) / 100;
+          const lineTax = Math.round((lineExcl * (taxRate / 100)) * 100) / 100;
+          const lineIncl = Math.round((lineExcl + lineTax) * 100) / 100;
+          
+          subtotal += lineExcl;
+          taxTotal += lineTax;
+          grandTotal += lineIncl;
         }
       }
-      calculatedTotalAmount = Number(subtotal.toFixed(2));
-      calculatedTaxAmount = Number(taxTotal.toFixed(2));
-      calculatedGrandTotal = Number((subtotal + taxTotal).toFixed(2));
+      if (calculatedGrandTotal === 0) {
+        calculatedGrandTotal = Math.round(grandTotal * 100) / 100;
+      }
+      if (calculatedTaxAmount === 0) {
+        calculatedTaxAmount = Math.round(taxTotal * 100) / 100;
+      }
+      if (calculatedTotalAmount === 0) {
+        calculatedTotalAmount = finalIsTaxInclusive 
+          ? Math.round((calculatedGrandTotal - calculatedTaxAmount) * 100) / 100
+          : Math.round(subtotal * 100) / 100;
+      }
     }
 
     // Deduct old items stock before replacing them
@@ -2350,10 +2507,24 @@ router.put("/purchase/:id", async (req: any, res) => {
         let resolvedBarcode = null;
         let resolvedProductCode = null;
         if (!finalIsExpense) {
-          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode, item.product_code);
+          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode, item.product_code, item.product_name);
           resolvedProductId = resProd.productId;
           resolvedBarcode = resProd.barcode;
           resolvedProductCode = resProd.productCode || item.product_code || null;
+
+          if (!resolvedProductId && item.product_name) {
+            const match = await findMatchingProduct(pool, storeId, {
+              supplierVkn: tax_number,
+              productName: item.product_name,
+              barcode: item.barcode,
+              productCode: item.product_code
+            });
+            if (match) {
+              resolvedProductId = match.productId;
+              resolvedBarcode = match.barcode || resolvedBarcode;
+              resolvedProductCode = match.productCode || resolvedProductCode;
+            }
+          }
         }
 
         processedInvoiceItems.push({
@@ -2765,6 +2936,124 @@ router.post("/purchase/:id/convert-to-expense", async (req: any, res) => {
   }
 });
 
+// Manually match, re-match, or unlink a purchase invoice item to an inventory product (with full stock & supplier mapping reconciliation)
+router.post("/purchase/:invoiceId/items/:itemId/match-product", async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+  const { invoiceId, itemId } = req.params;
+  const { product_id } = req.body; // number or null (null = unlink)
+
+  try {
+    const invRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+    const inv = invRes.rows[0];
+    const invNum = inv.document_number || inv.invoice_number || '';
+
+    const itemRes = await pool.query(
+      "SELECT * FROM purchase_invoice_items WHERE id = $1 AND purchase_invoice_id = $2",
+      [itemId, invoiceId]
+    );
+    if (itemRes.rows.length === 0) return res.status(404).json({ error: "Fatura kalemi bulunamadı." });
+    const item = itemRes.rows[0];
+    const qty = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
+    const oldProductId = item.product_id ? Number(item.product_id) : null;
+    const newProductId = product_id ? Number(product_id) : null;
+
+    // 1. If previously matched to a different product, revert old product's stock and movement
+    if (oldProductId && oldProductId !== newProductId) {
+      const delMov = await pool.query(
+        `DELETE FROM stock_movements
+         WHERE store_id = $1 AND product_id = $2
+           AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+           AND (invoice_id = $3 OR invoice_number = $4 OR description LIKE $5)
+         RETURNING quantity`,
+        [storeId, oldProductId, invoiceId, invNum, `%${invNum}%`]
+      );
+      if (delMov.rows.length > 0 && qty > 0) {
+        await pool.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+          [qty, oldProductId, storeId]
+        );
+      }
+      if (inv.tax_number && item.product_name) {
+        await pool.query(
+          "DELETE FROM supplier_product_mappings WHERE store_id = $1 AND supplier_vkn = $2 AND supplier_product_name = $3 AND product_id = $4",
+          [storeId, inv.tax_number, item.product_name, oldProductId]
+        );
+      }
+    }
+
+    // 2. If unlinking (newProductId is null)
+    if (!newProductId) {
+      const extractedTokens = extractModelTokens(item.product_name);
+      const restoredCode = extractedTokens.length > 0 ? extractedTokens[0] : null;
+      await pool.query(
+        "UPDATE purchase_invoice_items SET product_id = NULL, barcode = NULL, product_code = $1 WHERE id = $2",
+        [restoredCode, itemId]
+      );
+      invalidateStoreProductsCache(storeId);
+      return res.json({
+        success: true,
+        message: "Ürün eşleştirmesi kaldırıldı ve stok hareketleri güncellendi.",
+        product_id: null,
+        barcode: null,
+        product_code: restoredCode
+      });
+    }
+
+    // 3. Linking to newProductId
+    const prodRes = await pool.query(
+      "SELECT id, name, barcode, COALESCE(product_code, sku, '') as product_code, stock_quantity FROM products WHERE id = $1 AND store_id = $2",
+      [newProductId, storeId]
+    );
+    if (prodRes.rows.length === 0) return res.status(404).json({ error: "Hedef envanter ürünü bulunamadı." });
+    const targetProd = prodRes.rows[0];
+
+    await pool.query(
+      "UPDATE purchase_invoice_items SET product_id = $1, barcode = $2, product_code = COALESCE(NULLIF($3, ''), product_code) WHERE id = $4",
+      [targetProd.id, targetProd.barcode, targetProd.product_code, itemId]
+    );
+
+    if (inv.tax_number && item.product_name) {
+      await saveSupplierMapping(pool, storeId, inv.tax_number, item.product_name, targetProd.id, targetProd.product_code);
+    }
+
+    if (!inv.is_expense && qty > 0) {
+      const movCheck = await pool.query(
+        `SELECT 1 FROM stock_movements
+         WHERE store_id = $1 AND product_id = $2
+           AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+           AND invoice_id = $3
+         LIMIT 1`,
+        [storeId, targetProd.id, invoiceId]
+      );
+      if (movCheck.rows.length === 0) {
+        await pool.query(
+          "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) + $1::numeric, cost_price = CASE WHEN COALESCE($2::numeric, 0) > 0 THEN $2::numeric ELSE cost_price END, cost_currency = COALESCE($3, cost_currency) WHERE id = $4 AND store_id = $5",
+          [Math.round(qty), Number(item.unit_price || 0), inv.currency || 'TRY', targetProd.id, storeId]
+        );
+        await addStockMovement(
+          pool, storeId, targetProd.id, 'in', Math.round(qty), 'purchase_invoice',
+          `Alış Faturası: ${invNum}`, Number(item.unit_price || 0), inv.supplier_name || 'Tedarikçi', inv.currency || 'TRY',
+          null, Number(invoiceId), 'purchase', invNum
+        );
+      }
+    }
+
+    invalidateStoreProductsCache(storeId);
+    return res.json({
+      success: true,
+      message: `"${item.product_name}" kalemi "${targetProd.name}" ürünü ile eşleştirildi ve stoklara işlendi.`,
+      product_id: targetProd.id,
+      barcode: targetProd.barcode,
+      product_code: targetProd.product_code,
+      matched_product_name: targetProd.name
+    });
+  } catch (err: any) {
+    console.error("Error matching purchase invoice item:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Explicitly convert an existing expense invoice to a stock/commercial purchase
 router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
   const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
@@ -3032,13 +3321,21 @@ router.put("/purchase/items/:itemId", async (req: any, res) => {
     const unitPrice = Number(currentItem.unit_price) || 0;
     const isExpense = currentItem.is_expense === true;
 
+    const targetBarcode = newProductId
+      ? (barcode !== undefined ? barcode : currentItem.barcode)
+      : (barcode !== undefined ? barcode : null);
+    const extractedTokens = extractModelTokens(currentItem.product_name || '');
+    const targetCode = newProductId
+      ? (product_code !== undefined ? product_code : currentItem.product_code)
+      : (product_code !== undefined ? product_code : (extractedTokens.length > 0 ? extractedTokens[0] : null));
+
     await client.query(
       `UPDATE purchase_invoice_items 
        SET product_id = $1, 
-           barcode = COALESCE($2, barcode), 
-           product_code = COALESCE($3, product_code) 
+           barcode = $2, 
+           product_code = $3 
        WHERE id = $4`,
-      [newProductId, barcode || null, product_code || null, itemId]
+      [newProductId, targetBarcode, targetCode, itemId]
     );
 
     // If not expense invoice and product link changed, synchronize inventory & stock movements!
@@ -3046,26 +3343,39 @@ router.put("/purchase/items/:itemId", async (req: any, res) => {
       // 1. Revert stock from old product
       if (oldProductId) {
         await client.query(
-          "UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id = $2 AND store_id = $3",
-          [itemQty, oldProductId, storeId]
+          "UPDATE products SET stock_quantity = stock_quantity - $1::numeric WHERE id = $2 AND store_id = $3",
+          [Math.round(itemQty), oldProductId, storeId]
         );
         // Remove or adjust old stock movement
         await client.query(
           `DELETE FROM stock_movements 
            WHERE id IN (
              SELECT id FROM stock_movements 
-             WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND source = 'purchase_invoice' 
+             WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND (source = 'purchase_invoice' OR invoice_type = 'purchase') 
              LIMIT 1
            )`,
           [storeId, currentItem.purchase_invoice_id, oldProductId]
         );
+        if (currentItem.supplier_vkn && currentItem.product_name) {
+          await client.query(
+            "DELETE FROM supplier_product_mappings WHERE store_id = $1 AND supplier_vkn = $2 AND supplier_product_name = $3 AND product_id = $4",
+            [storeId, currentItem.supplier_vkn, currentItem.product_name, oldProductId]
+          );
+        }
       }
 
       // 2. Add stock to new product
       if (newProductId) {
+        const prodInfo = await client.query("SELECT barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE id = $1 AND store_id = $2", [newProductId, storeId]);
+        if (prodInfo.rows.length > 0) {
+          await client.query(
+            "UPDATE purchase_invoice_items SET barcode = COALESCE($1, barcode), product_code = COALESCE(NULLIF($2, ''), product_code) WHERE id = $3",
+            [prodInfo.rows[0].barcode, prodInfo.rows[0].product_code, itemId]
+          );
+        }
         await client.query(
-          "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5",
-          [itemQty, unitPrice, currentItem.currency || 'TRY', newProductId, storeId]
+          "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) + $1::numeric, cost_price = CASE WHEN $2::numeric > 0 THEN $2::numeric ELSE cost_price END, cost_currency = $3 WHERE id = $4 AND store_id = $5",
+          [Math.round(itemQty), unitPrice, currentItem.currency || 'TRY', newProductId, storeId]
         );
         // Insert new stock movement
         await client.query(
@@ -3075,7 +3385,7 @@ router.put("/purchase/items/:itemId", async (req: any, res) => {
           [
             storeId,
             newProductId,
-            itemQty,
+            Math.round(itemQty),
             `Alış Faturası Kalem Eşleştirme / Revizyon: ${currentItem.invoice_number || currentItem.purchase_invoice_id}`,
             unitPrice,
             currentItem.supplier_name || 'Tedarikçi',
@@ -3094,10 +3404,11 @@ router.put("/purchase/items/:itemId", async (req: any, res) => {
           currentItem.supplier_vkn,
           currentItem.product_name,
           newProductId,
-          product_code || currentItem.product_code
+          targetCode || currentItem.product_code
         );
       }
     }
+    invalidateStoreProductsCache(storeId);
 
     await client.query("COMMIT");
     res.json({ success: true, message: "Fatura kalemi ve stok eşleştirmesi başarıyla güncellendi." });
@@ -3307,20 +3618,9 @@ router.post("/purchase/:id/re-sync-matching", async (req: any, res) => {
           finalBarcode = incomingSanitized.barcode;
         }
       } else {
-        finalBarcode = incomingSanitized.barcode;
+        finalBarcode = incomingSanitized.isTempBarcode ? null as any : incomingSanitized.barcode;
         finalProductCode = incomingSanitized.productCode || finalProductCode;
-
-        const existingProd = await pool.query(
-          "SELECT id, barcode, product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR (product_code IS NOT NULL AND product_code = $3))",
-          [storeId, finalBarcode, finalProductCode || '__NONE__']
-        );
-        if (existingProd.rows.length > 0) {
-          productId = existingProd.rows[0].id;
-          finalBarcode = existingProd.rows[0].barcode;
-          finalProductCode = existingProd.rows[0].product_code || finalProductCode;
-        } else {
-          productId = null;
-        }
+        productId = null;
       }
 
       if (invoice.tax_number && productName && productId) {

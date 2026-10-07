@@ -78,6 +78,7 @@ export interface DashboardModalsProps {
   handleFetchTransactions: (id: number, targetStoreId?: number, customStart?: string, customEnd?: string) => void;
   transactionLoading: boolean;
   handleExportTransactionsPDF: () => void;
+  handleExportTransactionsExcel: () => void;
   openingBalances: Record<string, number>;
   companies: any[];
   setShowAddTransactionModal: (show: boolean) => void;
@@ -181,7 +182,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
     showSaleDetailsModal, setShowSaleDetailsModal, selectedSale, handlePrint, shippingSlipRef, handleSaleSuccess,
     showQuotationDetailsModal, setShowQuotationDetailsModal, selectedQuotationDetails, onDownloadQuotationPDF, numberToTurkishWords, quotationPrintRef,
     showDailyReportModal, setShowDailyReportModal, dailyReportData, reportStartDate, setReportStartDate, reportEndDate, setReportEndDate, fetchDailySalesReport, reportLoading, handleDownloadDailyReportExcel,
-    showTransactionModal, setShowTransactionModal, selectedCompany, companyTransactions, selectedCurrency, setSelectedCurrency, transactionStartDate, setTransactionStartDate, transactionEndDate, setTransactionEndDate, handleFetchTransactions, transactionLoading, handleExportTransactionsPDF, openingBalances, companies, setShowAddTransactionModal, handleEditTransaction, handleDeleteTransaction,
+    showTransactionModal, setShowTransactionModal, selectedCompany, companyTransactions, selectedCurrency, setSelectedCurrency, transactionStartDate, setTransactionStartDate, transactionEndDate, setTransactionEndDate, handleFetchTransactions, transactionLoading, handleExportTransactionsPDF, handleExportTransactionsExcel, openingBalances, companies, setShowAddTransactionModal, handleEditTransaction, handleDeleteTransaction,
     showAddTransactionModal, newTransactionType, setNewTransactionType, newTransactionAmount, setNewTransactionAmount, newTransactionCurrency, setNewTransactionCurrency, newTransactionExchangeRate, setNewTransactionExchangeRate, newTransactionPaymentMethod, setNewTransactionPaymentMethod, newTransactionDescription, setNewTransactionDescription, newTransactionDate, setNewTransactionDate, handleAddTransaction,
     showSaleModal, setShowSaleModal, selectedQuotation, handleConfirmSale, isConfirmingSale, dueDate, setDueDate, saleNotes, setSaleNotes, createCompanyFromSale, setCreateCompanyFromSale,
     showBulkPriceModal, setShowBulkPriceModal, bulkPriceForm, setBulkPriceForm, handleBulkPriceSubmit, products,
@@ -287,6 +288,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
         handleFetchTransactions={handleFetchTransactions}
         transactionLoading={transactionLoading}
         handleExportTransactionsPDF={handleExportTransactionsPDF}
+        handleExportTransactionsExcel={handleExportTransactionsExcel}
         openingBalances={openingBalances}
         companies={companies}
         setShowAddTransactionModal={setShowAddTransactionModal}

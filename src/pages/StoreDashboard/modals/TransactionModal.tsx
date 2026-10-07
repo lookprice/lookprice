@@ -3,9 +3,14 @@ import { motion } from "motion/react";
 import { 
   X, Plus, History, FileDown, Calculator, FileCheck, Edit2, Trash2, 
   ArrowUpRight, ArrowDownLeft, Building2, Receipt, Calendar, CreditCard, 
-  Banknote, Landmark, Clock, AlertCircle, Save, CheckCircle2 
+  Banknote, Landmark, Clock, AlertCircle, Save, CheckCircle2, ExternalLink, Eye, Loader2 
 } from "lucide-react";
+import { useReactToPrint } from "react-to-print";
+import { toast } from "sonner";
 import { api } from "../../../services/api";
+import { PurchaseInvoiceDetailsModal } from "../../../components/dashboard/invoices/purchase/PurchaseInvoiceDetailsModal";
+import { SalesInvoiceDetailsModal } from "../../../components/dashboard/invoices/sales/SalesInvoiceDetailsModal";
+import { SalesInvoiceHtmlModal } from "../../../components/dashboard/invoices/sales/SalesInvoiceHtmlModal";
 
 interface TransactionModalProps {
   // View Statement
@@ -22,6 +27,7 @@ interface TransactionModalProps {
   handleFetchTransactions: (id: number, targetStoreId?: number, customStart?: string, customEnd?: string) => void;
   transactionLoading: boolean;
   handleExportTransactionsPDF: () => void;
+  handleExportTransactionsExcel: () => void;
   openingBalances: Record<string, number>;
   companies: any[];
   setShowAddTransactionModal: (show: boolean) => void;
@@ -64,6 +70,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   handleFetchTransactions,
   transactionLoading,
   handleExportTransactionsPDF,
+  handleExportTransactionsExcel,
   openingBalances,
   companies,
   setShowAddTransactionModal,
@@ -92,6 +99,169 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 }) => {
   const isTr = lang === 'tr';
   const [editingTransaction, setEditingTransaction] = React.useState<any | null>(null);
+
+  // Invoice Direct Access States
+  const [loadingInvoiceTxId, setLoadingInvoiceTxId] = React.useState<number | null>(null);
+  const [selectedPurchaseInvoice, setSelectedPurchaseInvoice] = React.useState<any>(null);
+  const [showPurchaseDetails, setShowPurchaseDetails] = React.useState(false);
+  const [selectedSalesInvoice, setSelectedSalesInvoice] = React.useState<any>(null);
+  const [showSalesDetails, setShowSalesDetails] = React.useState(false);
+  const [htmlContent, setHtmlContent] = React.useState<string>('');
+  const [htmlLoading, setHtmlLoading] = React.useState(false);
+  const [showHtmlModal, setShowHtmlModal] = React.useState(false);
+
+  const salesInvoiceRef = React.useRef<HTMLDivElement>(null);
+  const handlePrintSales = useReactToPrint({ contentRef: salesInvoiceRef });
+
+  const handleViewPurchaseHtml = async (invoiceId: number, customStoreId?: number) => {
+    setHtmlLoading(true);
+    setShowHtmlModal(true);
+    const stId = customStoreId || selectedPurchaseInvoice?.store_id || selectedCompany?.store_id || branding?.id;
+    try {
+      const res = await api.getPurchaseInvoiceHtml(invoiceId, stId);
+      if (res?.html) {
+        setHtmlContent(res.html);
+      } else {
+        toast.error(isTr ? 'Fatura görseli bulunamadı.' : 'Invoice HTML not found.');
+        setShowHtmlModal(false);
+      }
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? 'Görsel yüklenemedi' : 'Failed to load preview'));
+      setShowHtmlModal(false);
+    } finally {
+      setHtmlLoading(false);
+    }
+  };
+
+  const handleViewSalesHtml = async (invoiceId: number, customStoreId?: number) => {
+    setHtmlLoading(true);
+    setShowHtmlModal(true);
+    const stId = customStoreId || selectedSalesInvoice?.store_id || selectedCompany?.store_id || branding?.id;
+    try {
+      const res = await api.getSalesInvoiceHtml(invoiceId, stId);
+      if (res?.html) {
+        setHtmlContent(res.html);
+      } else {
+        toast.error(isTr ? 'Fatura görseli bulunamadı.' : 'Invoice HTML not found.');
+        setShowHtmlModal(false);
+      }
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? 'Görsel yüklenemedi' : 'Failed to load preview'));
+      setShowHtmlModal(false);
+    } finally {
+      setHtmlLoading(false);
+    }
+  };
+
+  const resolveAndOpenInvoice = async (tx: any, invNo: string, directHtml = false) => {
+    if (!invNo || invNo === '-' || invNo.startsWith('POS #')) return;
+    setLoadingInvoiceTxId(tx.id);
+    const targetStoreId = tx.store_id || selectedCompany?.store_id || branding?.id;
+
+    try {
+      // Fast-path when directHtml is requested and invoice ID is already known on the transaction row
+      if (directHtml && tx.sales_invoice_id) {
+        await handleViewSalesHtml(tx.sales_invoice_id, targetStoreId);
+        return;
+      }
+      if (directHtml && tx.purchase_invoice_id) {
+        await handleViewPurchaseHtml(tx.purchase_invoice_id, targetStoreId);
+        return;
+      }
+
+      const desc = (tx.description || '').toLowerCase();
+      const isLikelyPurchase = Boolean(
+        tx.purchase_invoice_id || 
+        tx.purchase_invoice_number || 
+        desc.includes('alış') || 
+        (tx.type === 'credit' && !tx.sales_invoice_id && !tx.sales_invoice_number && !desc.includes('satış'))
+      );
+
+      const tryFetchSales = async () => {
+        let inv: any = null;
+        if (tx.sales_invoice_id) {
+          try { inv = await api.getSalesInvoice(tx.sales_invoice_id, targetStoreId); } catch {}
+        }
+        if ((!inv || inv.error || !inv.id) && invNo) {
+          try {
+            const list = await api.getSalesInvoices(targetStoreId, invNo);
+            if (Array.isArray(list) && list.length > 0) {
+              const match = list.find((item: any) => item.invoice_number === invNo || item.document_number === invNo) || list[0];
+              inv = await api.getSalesInvoice(match.id, match.store_id || targetStoreId);
+            }
+          } catch {}
+        }
+        return (inv && !inv.error && inv.id) ? inv : null;
+      };
+
+      const tryFetchPurchase = async () => {
+        let inv: any = null;
+        if (tx.purchase_invoice_id) {
+          try { inv = await api.getPurchaseInvoice(tx.purchase_invoice_id, targetStoreId); } catch {}
+        }
+        if ((!inv || inv.error || !inv.id) && invNo) {
+          try {
+            const list = await api.getPurchaseInvoices(targetStoreId, invNo);
+            if (Array.isArray(list) && list.length > 0) {
+              const match = list.find((item: any) => item.invoice_number === invNo || item.document_number === invNo) || list[0];
+              inv = await api.getPurchaseInvoice(match.id, match.store_id || targetStoreId);
+            }
+          } catch {}
+        }
+        return (inv && !inv.error && inv.id) ? inv : null;
+      };
+
+      if (isLikelyPurchase) {
+        const pInv = await tryFetchPurchase();
+        if (pInv) {
+          if (directHtml) {
+            await handleViewPurchaseHtml(pInv.id, pInv.store_id || targetStoreId);
+          } else {
+            setSelectedPurchaseInvoice(pInv);
+            setShowPurchaseDetails(true);
+          }
+          return;
+        }
+        const sInv = await tryFetchSales();
+        if (sInv) {
+          if (directHtml) {
+            await handleViewSalesHtml(sInv.id, sInv.store_id || targetStoreId);
+          } else {
+            setSelectedSalesInvoice(sInv);
+            setShowSalesDetails(true);
+          }
+          return;
+        }
+      } else {
+        const sInv = await tryFetchSales();
+        if (sInv) {
+          if (directHtml) {
+            await handleViewSalesHtml(sInv.id, sInv.store_id || targetStoreId);
+          } else {
+            setSelectedSalesInvoice(sInv);
+            setShowSalesDetails(true);
+          }
+          return;
+        }
+        const pInv = await tryFetchPurchase();
+        if (pInv) {
+          if (directHtml) {
+            await handleViewPurchaseHtml(pInv.id, pInv.store_id || targetStoreId);
+          } else {
+            setSelectedPurchaseInvoice(pInv);
+            setShowPurchaseDetails(true);
+          }
+          return;
+        }
+      }
+
+      toast.error(isTr ? `${invNo} numaralı fatura detayı bulunamadı.` : `Invoice ${invNo} not found.`);
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? 'Fatura açılırken hata oluştu.' : 'Failed to open invoice.'));
+    } finally {
+      setLoadingInvoiceTxId(null);
+    }
+  };
 
   // Comprehensive Form State
   const [formCompanyId, setFormCompanyId] = React.useState<number>(selectedCompany?.id || 0);
@@ -139,7 +309,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     setFormCompanyId(selectedCompany?.id || companies[0]?.id || 0);
     setFormType('credit');
     setFormAmount('');
-    const defCurr = selectedCurrency || branding?.default_currency || 'TRY';
+    const defCurr = (selectedCurrency && selectedCurrency !== 'ALL') ? selectedCurrency : (branding?.default_currency || 'TRY');
     setFormCurrency(defCurr);
     setFormExchangeRate(String(getSuggestedRate(defCurr) || 1));
     setFormPaymentMethod('cash');
@@ -287,6 +457,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     onChange={(e) => setSelectedCurrency(e.target.value)}
                     className="text-xs font-black text-slate-800 outline-none bg-transparent cursor-pointer"
                   >
+                    <option value="ALL">{isTr ? '🌐 Tüm Para Birimleri' : '🌐 All Currencies'}</option>
                     {Object.keys(selectedCompany.balances || {}).length > 0 ? (
                       Object.keys(selectedCompany.balances).map(c => (
                         <option key={c} value={c}>{c}</option>
@@ -378,6 +549,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleExportTransactionsExcel}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer shadow-xs"
+                  title={isTr ? "Excel (XLSX) Formatında Dışa Aktar" : "Export to Excel"}
+                >
+                  <FileDown className="h-3.5 w-3.5 text-white" />
+                  <span>{isTr ? 'Excel Ekstre' : 'Excel Statement'}</span>
+                </button>
                 <button 
                   onClick={handleExportTransactionsPDF}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer shadow-xs"
@@ -575,8 +754,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 bg-slate-50/30">
               {(() => {
                 const safeTransactions = Array.isArray(companyTransactions) ? companyTransactions : [];
-                const filteredTransactions = safeTransactions.filter(tx => (tx.currency || 'TRY') === selectedCurrency);
-                const currentBalance = Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances?.[selectedCurrency] || 0);
+                const filteredTransactions = safeTransactions.filter(tx => selectedCurrency === 'ALL' || (tx.currency || 'TRY') === selectedCurrency);
+                const compBalances = (companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances || {};
+                const currentBalance = selectedCurrency === 'ALL'
+                  ? 0
+                  : Number(compBalances[selectedCurrency] || 0);
                 const totalDebt = filteredTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0);
                 const totalCredit = filteredTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0);
 
@@ -585,7 +767,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     {/* Compact KPI / Balances Bar */}
                     <div className="px-4 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {Object.entries((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances || {}).map(([curr, bal]) => {
+                        <button
+                          onClick={() => setSelectedCurrency('ALL')}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                            selectedCurrency === 'ALL'
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span>{isTr ? '🌐 Tüm Para Birimleri' : '🌐 All Currencies'}</span>
+                        </button>
+                        {Object.entries(compBalances).map(([curr, bal]) => {
                           const nBal = Number(bal);
                           const isSelected = curr === selectedCurrency;
                           return (
@@ -613,24 +805,28 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2 flex-wrap text-xs">
-                        <div className="px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-indigo-500 uppercase">{t.statements?.balance || "Bakiye"}:</span>
-                          <span className="font-black font-mono text-indigo-950">
-                            {currentBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {selectedCurrency}
-                          </span>
-                        </div>
-                        <div className="px-3 py-1 bg-rose-50 border border-rose-100 rounded-lg flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-rose-500 uppercase">{t.statements?.debt || "Toplam Borç"}:</span>
-                          <span className="font-black font-mono text-rose-700">
-                            {totalDebt.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {selectedCurrency}
-                          </span>
-                        </div>
-                        <div className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-emerald-500 uppercase">{t.statements?.credit || "Toplam Alacak"}:</span>
-                          <span className="font-black font-mono text-emerald-700">
-                            {totalCredit.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {selectedCurrency}
-                          </span>
-                        </div>
+                        {selectedCurrency !== 'ALL' && (
+                          <>
+                            <div className="px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-indigo-500 uppercase">{t.statements?.balance || "Bakiye"}:</span>
+                              <span className="font-black font-mono text-indigo-950">
+                                {currentBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {selectedCurrency}
+                              </span>
+                            </div>
+                            <div className="px-3 py-1 bg-rose-50 border border-rose-100 rounded-lg flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-rose-500 uppercase">{t.statements?.debt || "Toplam Borç"}:</span>
+                              <span className="font-black font-mono text-rose-700">
+                                {totalDebt.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {selectedCurrency}
+                              </span>
+                            </div>
+                            <div className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-emerald-500 uppercase">{t.statements?.credit || "Toplam Alacak"}:</span>
+                              <span className="font-black font-mono text-emerald-700">
+                                {totalCredit.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {selectedCurrency}
+                              </span>
+                            </div>
+                          </>
+                        )}
                         <div className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-bold text-[11px]">
                           {filteredTransactions.length} {isTr ? 'İşlem' : 'Records'}
                         </div>
@@ -660,6 +856,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                             onClick={() => {
                               setTransactionStartDate('');
                               setTransactionEndDate('');
+                              setSelectedCurrency('ALL');
                               handleFetchTransactions(selectedCompany.id, selectedCompany.store_id, '', '');
                             }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-xs cursor-pointer"
@@ -673,79 +870,135 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                           <table className="w-full text-left border-collapse">
                             <thead className="sticky top-0 bg-slate-100 border-b border-slate-200 z-10">
                               <tr>
-                                <th className="py-2 px-3.5 text-[10px] font-black text-slate-600 uppercase tracking-wider">{t.statements?.date || "Tarih"}</th>
-                                <th className="py-2 px-3.5 text-[10px] font-black text-slate-600 uppercase tracking-wider">{t.statements?.description || "Açıklama / İşlem"}</th>
-                                <th className="py-2 px-3.5 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.debt || "Borç"}</th>
-                                <th className="py-2 px-3.5 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.credit || "Alacak"}</th>
-                                <th className="py-2 px-3.5 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.balance || "Bakiye"}</th>
-                                <th className="py-2 px-3.5 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right w-20">{isTr ? 'İşlem' : 'Action'}</th>
+                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{t.statements?.date || "Tarih"}</th>
+                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{isTr ? "Fatura / Belge No" : "Invoice No"}</th>
+                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{t.statements?.description || "Açıklama / İşlem"}</th>
+                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{isTr ? "Döviz / Kur" : "Currency / Rate"}</th>
+                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.debt || "Borç"}</th>
+                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.credit || "Alacak"}</th>
+                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.balance || "Bakiye"}</th>
+                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right w-16">{isTr ? 'İşlem' : 'Action'}</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs">
                               {(() => {
-                                let runningBalance = openingBalances[selectedCurrency] || 0;
+                                const runningBalancesByCurr: Record<string, number> = { ...openingBalances };
                                 return (
                                   <>
-                                    {openingBalances[selectedCurrency] ? (
+                                    {selectedCurrency !== 'ALL' && openingBalances[selectedCurrency] ? (
                                       <tr className="bg-amber-50/70 font-bold">
-                                        <td className="py-2 px-3.5 text-amber-800 font-mono text-[11px]">-</td>
-                                        <td className="py-2 px-3.5 text-amber-900 font-semibold">
+                                        <td className="py-2 px-3 text-amber-800 font-mono text-[11px]">-</td>
+                                        <td className="py-2 px-3 text-amber-800 font-mono text-[11px]">-</td>
+                                        <td className="py-2 px-3 text-amber-900 font-semibold">
                                           {isTr ? 'Önceki Dönemden Devreden Bakiye' : 'Opening / Carry-Over Balance'}
                                         </td>
-                                        <td className="py-2 px-3.5 text-right text-amber-900 font-mono">-</td>
-                                        <td className="py-2 px-3.5 text-right text-amber-900 font-mono">-</td>
-                                        <td className="py-2 px-3.5 text-right text-amber-900 font-mono font-bold">
+                                        <td className="py-2 px-3 text-amber-800 font-mono text-[11px]">{selectedCurrency}</td>
+                                        <td className="py-2 px-3 text-right text-amber-900 font-mono">-</td>
+                                        <td className="py-2 px-3 text-right text-amber-900 font-mono">-</td>
+                                        <td className="py-2 px-3 text-right text-amber-900 font-mono font-bold">
                                           {Number(openingBalances[selectedCurrency]).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
                                         </td>
-                                        <td className="py-2 px-3.5 text-right text-amber-700">-</td>
+                                        <td className="py-2 px-3 text-right text-amber-700">-</td>
                                       </tr>
                                     ) : null}
                                     {filteredTransactions.map((tx: any) => {
                                       const amt = Number(tx.amount || 0);
-                                      if (tx.type === 'debt') {
-                                        runningBalance += amt;
-                                      } else {
-                                        runningBalance -= amt;
+                                      const curr = (tx.currency || 'TRY').toUpperCase();
+                                      if (runningBalancesByCurr[curr] === undefined) {
+                                        runningBalancesByCurr[curr] = Number(openingBalances[curr] || 0);
                                       }
+                                      if (tx.type === 'debt') {
+                                        runningBalancesByCurr[curr] += amt;
+                                      } else {
+                                        runningBalancesByCurr[curr] -= amt;
+                                      }
+                                      const rowRunningBalance = runningBalancesByCurr[curr];
                                       const isDebt = tx.type === 'debt';
-                                      const isInvoice = Boolean(tx.sales_invoice_id || tx.purchase_invoice_id || tx.sales_invoice_number || tx.purchase_invoice_number);
-                                      const isPosSale = Boolean(tx.sale_id && !isInvoice);
+                                      const invNo = (tx.invoice_number && tx.invoice_number !== '-') ? tx.invoice_number : (tx.sales_invoice_number || tx.purchase_invoice_number || (tx.sale_id ? `POS #${tx.sale_id}` : '-'));
+                                      const rate = tx.exchange_rate ? Number(tx.exchange_rate) : 1;
+
+                                      const currColor = 
+                                        curr === 'USD' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                                        curr === 'EUR' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                                        curr === 'GBP' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                                        'bg-slate-100 text-slate-700 border-slate-300';
+
+                                      const rowTint =
+                                        curr === 'USD' ? 'bg-blue-50/25 hover:bg-blue-50/60 border-l-4 border-l-blue-500' :
+                                        curr === 'EUR' ? 'bg-purple-50/25 hover:bg-purple-50/60 border-l-4 border-l-purple-500' :
+                                        curr === 'GBP' ? 'bg-emerald-50/25 hover:bg-emerald-50/60 border-l-4 border-l-emerald-500' :
+                                        'hover:bg-slate-50 border-l-4 border-l-slate-300';
 
                                       return (
-                                        <tr key={tx.id} className="hover:bg-slate-50 transition-colors group">
-                                          <td className="py-2 px-3.5 whitespace-nowrap text-slate-600 font-mono text-[11px]">
+                                        <tr key={tx.id} className={`${rowTint} transition-colors group`}>
+                                          <td className="py-2 px-3 whitespace-nowrap text-slate-600 font-mono text-[11px]">
                                             {new Date(tx.transaction_date || tx.date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}
                                           </td>
-                                          <td className="py-2 px-3.5 text-slate-900 font-medium max-w-xs sm:max-w-md">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                              <span className="truncate">{tx.description || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit'))}</span>
-                                              {tx.sales_invoice_number && (
-                                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
-                                                  Satış Fat: {tx.sales_invoice_number}
+                                          <td className="py-2 px-3 whitespace-nowrap">
+                                            {invNo && invNo !== '-' ? (
+                                              invNo.startsWith('POS #') ? (
+                                                <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-300 text-[11px]">
+                                                  {invNo}
                                                 </span>
-                                              )}
-                                              {tx.purchase_invoice_number && (
-                                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
-                                                  Alış Fat: {tx.purchase_invoice_number}
-                                                </span>
-                                              )}
-                                              {isPosSale && (
-                                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
-                                                  Satış #{tx.sale_id}
+                                              ) : (
+                                                <div className="inline-flex items-center gap-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => resolveAndOpenInvoice(tx, invNo, false)}
+                                                    disabled={loadingInvoiceTxId === tx.id}
+                                                    title={isTr ? 'Fatura Detayını Görüntüle' : 'View Invoice Details'}
+                                                    className="inline-flex items-center gap-1 font-mono font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 hover:border-indigo-400 shadow-2xs text-[11px] transition-all cursor-pointer disabled:opacity-60"
+                                                  >
+                                                    {loadingInvoiceTxId === tx.id ? (
+                                                      <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
+                                                    ) : (
+                                                      <ExternalLink className="h-3 w-3 text-indigo-500 shrink-0" />
+                                                    )}
+                                                    <span>{invNo}</span>
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => resolveAndOpenInvoice(tx, invNo, true)}
+                                                    disabled={loadingInvoiceTxId === tx.id}
+                                                    title={isTr ? 'Resmi E-Fatura Görselini Aç' : 'Open Official E-Invoice Preview'}
+                                                    className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded border border-transparent hover:border-indigo-200 transition-colors cursor-pointer"
+                                                  >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                  </button>
+                                                </div>
+                                              )
+                                            ) : (
+                                              <span className="text-slate-400 font-mono text-[11px]">-</span>
+                                            )}
+                                          </td>
+                                          <td className="py-2 px-3 text-slate-900 font-medium max-w-xs">
+                                            <span className="truncate block">
+                                              {tx.description || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit'))}
+                                            </span>
+                                          </td>
+                                          <td className="py-2 px-3 whitespace-nowrap">
+                                            <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                                              <span className={`px-1.5 py-0.5 rounded border font-black text-[10px] ${currColor}`}>
+                                                {curr}
+                                              </span>
+                                              {curr !== 'TRY' && (
+                                                <span className="text-slate-700 font-bold text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-slate-200">
+                                                  Kur: {rate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                                                 </span>
                                               )}
                                             </div>
                                           </td>
-                                          <td className="py-2 px-3.5 text-right font-mono font-bold whitespace-nowrap text-rose-600">
-                                            {isDebt ? amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 }) : '-'}
+                                          <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-rose-600">
+                                            {isDebt ? `${amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${curr}` : '-'}
                                           </td>
-                                          <td className="py-2 px-3.5 text-right font-mono font-bold whitespace-nowrap text-emerald-600">
-                                            {!isDebt ? amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 }) : '-'}
+                                          <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-emerald-600">
+                                            {!isDebt ? `${amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${curr}` : '-'}
                                           </td>
-                                          <td className="py-2 px-3.5 text-right font-mono font-bold whitespace-nowrap text-slate-800">
-                                            {runningBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
-                                            <span className="text-[10px] ml-1 opacity-60 text-slate-500">
-                                              {runningBalance > 0 ? (isTr ? '(B)' : '(D)') : runningBalance < 0 ? (isTr ? '(A)' : '(C)') : ''}
+                                          <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-slate-900">
+                                            {rowRunningBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
+                                            <span className="text-[10px] ml-1 font-bold text-slate-600">{curr}</span>
+                                            <span className="text-[10px] ml-1 opacity-75 text-slate-500">
+                                              {rowRunningBalance > 0 ? (isTr ? '(B)' : '(D)') : rowRunningBalance < 0 ? (isTr ? '(A)' : '(C)') : ''}
                                             </span>
                                           </td>
                                           <td className="py-2 px-3.5 text-right whitespace-nowrap">
@@ -1079,6 +1332,36 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           </motion.div>
         </div>
       )}
+
+      {/* Purchase Invoice Details Modal */}
+      <PurchaseInvoiceDetailsModal 
+        isOpen={showPurchaseDetails}
+        onClose={() => setShowPurchaseDetails(false)}
+        invoice={selectedPurchaseInvoice}
+        isTr={isTr}
+        handleViewHtml={handleViewPurchaseHtml}
+        storeId={selectedCompany?.store_id || branding?.id}
+      />
+
+      {/* Sales Invoice Details Modal */}
+      <SalesInvoiceDetailsModal 
+        isOpen={showSalesDetails}
+        onClose={() => setShowSalesDetails(false)}
+        invoice={selectedSalesInvoice}
+        isTr={isTr}
+        invoiceRef={salesInvoiceRef}
+        handlePrint={handlePrintSales}
+        handleViewHtml={handleViewSalesHtml}
+      />
+
+      {/* E-Invoice HTML Preview Modal */}
+      <SalesInvoiceHtmlModal 
+        isOpen={showHtmlModal}
+        onClose={() => setShowHtmlModal(false)}
+        htmlContent={htmlContent}
+        htmlLoading={htmlLoading}
+        isTr={isTr}
+      />
     </>
   );
 };

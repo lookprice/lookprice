@@ -66,29 +66,41 @@ export const numberToTurkishWords = (number: number, currency: string = 'TRY') =
 export const calculateInvoiceTotals = (items: any[], isTaxInclusive: boolean) => {
   let subtotal = 0;
   let taxTotal = 0;
+  let grandTotal = 0;
   
   items.forEach(item => {
     const qty = Number(String(item.quantity).replace(',', '.')) || 0;
     const price = Number(String(item.unit_price).replace(',', '.')) || 0;
-    const tax = Math.floor(Number(String(item.tax_rate).replace(',', '.')) || 0);
+    const taxRate = Number(String(item.tax_rate).replace(',', '.')) || 0;
     
     if (isTaxInclusive) {
-      const itemTotalIncl = qty * price;
-      const itemTotalExcl = itemTotalIncl / (1 + (tax / 100));
-      const itemTax = itemTotalIncl - itemTotalExcl;
-      subtotal += itemTotalExcl;
-      taxTotal += itemTax;
+      const lineIncl = Math.round(qty * price * 100) / 100;
+      const lineExcl = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+      const lineTax = Math.round((lineIncl - lineExcl) * 100) / 100;
+      
+      grandTotal += lineIncl;
+      taxTotal += lineTax;
+      subtotal += lineExcl;
     } else {
-      const itemTotal = qty * price;
-      const itemTax = itemTotal * (tax / 100);
-      subtotal += itemTotal;
-      taxTotal += itemTax;
+      const lineExcl = Math.round(qty * price * 100) / 100;
+      const lineTax = Math.round((lineExcl * (taxRate / 100)) * 100) / 100;
+      const lineIncl = Math.round((lineExcl + lineTax) * 100) / 100;
+      
+      subtotal += lineExcl;
+      taxTotal += lineTax;
+      grandTotal += lineIncl;
     }
   });
   
+  const finalGrand = Math.round(grandTotal * 100) / 100;
+  const finalTax = Math.round(taxTotal * 100) / 100;
+  const finalSub = isTaxInclusive 
+    ? Math.round((finalGrand - finalTax) * 100) / 100 
+    : Math.round(subtotal * 100) / 100;
+
   return {
-    subtotal: Number(subtotal.toFixed(2)),
-    taxTotal: Number(taxTotal.toFixed(2)),
-    grandTotal: Number((subtotal + taxTotal).toFixed(2))
+    subtotal: finalSub,
+    taxTotal: finalTax,
+    grandTotal: finalGrand
   };
 };

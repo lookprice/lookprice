@@ -422,6 +422,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleDeleteTransaction,
     handleEditTransaction,
     handleExportTransactionsPDF,
+    handleExportTransactionsExcel,
     handleAddTransaction
   } = useCompanies(user, currentStoreId, lang, branding);
 
@@ -1592,6 +1593,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         handleFetchTransactions={handleFetchTransactions}
         transactionLoading={transactionLoading}
         handleExportTransactionsPDF={handleExportTransactionsPDF}
+        handleExportTransactionsExcel={handleExportTransactionsExcel}
         openingBalances={openingBalances}
         companies={companyList}
         

@@ -16,21 +16,12 @@ export const useCompanyUI = (branding: any) => {
   const [newTransactionPaymentMethod, setNewTransactionPaymentMethod] = useState<'cash' | 'credit_card' | 'bank' | 'term'>('cash');
   const [newTransactionCurrency, setNewTransactionCurrency] = useState(branding?.default_currency || 'TRY');
   const [newTransactionExchangeRate, setNewTransactionExchangeRate] = useState('1');
-  const [selectedCurrency, setSelectedCurrency] = useState(branding?.default_currency || 'TRY');
+  const [selectedCurrency, setSelectedCurrency] = useState('ALL');
 
-  // Hareketler butonu tıklandığında para birimini otomatik seç
+  // Hareketler butonu tıklandığında tüm para birimlerini göster (kullanıcı dilerse tekil para birimi seçebilir)
   useEffect(() => {
     if (showTransactionModal && selectedCompany) {
-      const balances = selectedCompany.balances || {};
-      const currenciesWithBalance = Object.entries(balances)
-        .filter(([_, bal]) => Number(bal) !== 0)
-        .map(([curr]) => curr);
-      
-      if (currenciesWithBalance.length > 0) {
-        setSelectedCurrency(currenciesWithBalance[0]);
-      } else {
-        setSelectedCurrency(branding?.default_currency || 'TRY');
-      }
+      setSelectedCurrency('ALL');
     }
   }, [showTransactionModal, selectedCompany]);
 

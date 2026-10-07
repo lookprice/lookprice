@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Printer } from 'lucide-react';
+import { X, Printer, Eye } from 'lucide-react';
 import { numberToTurkishWords } from '../../../../lib/invoiceUtils';
 
 interface SalesInvoiceDetailsModalProps {
@@ -11,6 +11,7 @@ interface SalesInvoiceDetailsModalProps {
   invoiceRef: React.RefObject<HTMLDivElement>;
   handlePrint: () => void;
   onEditProduct?: (item: any) => void;
+  handleViewHtml?: (id: number) => void;
 }
 
 export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> = ({
@@ -20,13 +21,14 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
   isTr,
   invoiceRef,
   handlePrint,
-  onEditProduct
+  onEditProduct,
+  handleViewHtml
 }) => {
   if (!isOpen || !invoice) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+      <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -36,16 +38,25 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
             <h3 className="text-xl font-bold text-slate-900">{isTr ? 'Fatura Detayı' : 'Invoice Details'}</h3>
             <div className="flex gap-2">
+              {handleViewHtml && invoice.id && (
+                <button
+                  onClick={() => handleViewHtml(invoice.id)}
+                  className="px-3.5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Eye className="h-4 w-4" />
+                  {isTr ? 'E-Fatura Görseli' : 'E-Invoice View'}
+                </button>
+              )}
               <button 
                 onClick={handlePrint} 
-                className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-bold"
+                className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-bold cursor-pointer"
               >
                 <Printer className="h-4 w-4" />
                 {isTr ? 'Yazdır' : 'Print'}
               </button>
               <button 
                 onClick={onClose} 
-                className="p-2 hover:bg-slate-200 rounded-xl transition-colors"
+                className="p-2 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5 text-slate-400" />
               </button>

@@ -1834,9 +1834,9 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
             }
           }
 
-          const baseAmt = Number(invoiceDetails.baseAmount) || (Number(invoiceDetails.payableAmount) - Number(invoiceDetails.taxAmount || 0));
-          const taxAmt = Number(invoiceDetails.taxAmount) || 0;
-          const grandAmt = Number(invoiceDetails.payableAmount) || (baseAmt + taxAmt);
+          const grandAmt = Math.round((Number(invoiceDetails.payableAmount) || 0) * 100) / 100;
+          const taxAmt = Math.round((Number(invoiceDetails.taxAmount) || 0) * 100) / 100;
+          const baseAmt = Math.round(((Number(invoiceDetails.baseAmount) || (grandAmt - taxAmt))) * 100) / 100;
 
           const expenseCheck = await resolveExpenseClassification(pool, storeId, {
             supplierTitle: invoiceDetails.senderTitle,
@@ -2050,7 +2050,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               `INSERT INTO current_account_transactions 
                 (store_id, company_id, purchase_invoice_id, type, amount, currency, description, transaction_date) 
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-              [storeId, companyId, newInvoiceId, 'credit', invoiceDetails.payableAmount || 0, invoiceDetails.currency || 'TRY', `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}`, invoiceDetails.issueDate || new Date()]
+              [storeId, companyId, newInvoiceId, 'credit', grandAmt, invoiceDetails.currency || 'TRY', `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}`, invoiceDetails.issueDate || new Date()]
             );
 
             if (invoiceDetails.paymentStatus === 'paid' || (invoiceDetails.paymentMethod && invoiceDetails.paymentMethod !== 'term')) {
@@ -2059,7 +2059,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                   (store_id, company_id, purchase_invoice_id, type, amount, currency, description, payment_method, transaction_date) 
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
                 [
-                  storeId, companyId, newInvoiceId, 'debt', invoiceDetails.payableAmount || 0,
+                  storeId, companyId, newInvoiceId, 'debt', grandAmt,
                   invoiceDetails.currency || 'TRY', `E-Fatura Ödemesi: ${invoiceDetails.documentNumber}`,
                   invoiceDetails.paymentMethod || 'nakit', invoiceDetails.issueDate || new Date()
                 ]

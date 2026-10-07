@@ -760,6 +760,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         setPage={setPage}
         onEditProduct={onEditProduct}
         storeId={role === 'superadmin' ? storeId : undefined}
+        products={products}
+        onRefresh={() => fetchInvoicesData(activeSearch, startDate, endDate, true)}
       />
 
       <PurchaseInvoiceFormModal 
@@ -824,6 +826,19 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         onEditProduct={onEditProduct}
         handleConvertToStock={handleConvertToStock}
         handleConvertToExpense={handleConvertToExpense}
+        products={products}
+        storeId={role === 'superadmin' ? storeId : undefined}
+        onRefresh={async () => {
+          await fetchInvoicesData(activeSearch, startDate, endDate, true);
+          if (selectedInvoice?.id) {
+            try {
+              const updated = await api.getPurchaseInvoice(selectedInvoice.id, role === 'superadmin' ? storeId : undefined);
+              if (updated) setSelectedInvoice(updated);
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }}
       />
 
       {showHtmlModal && (

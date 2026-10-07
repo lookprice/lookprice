@@ -15,7 +15,10 @@ import {
   CreditCard,
   Layers,
   RefreshCw,
-  Edit3
+  Edit3,
+  Link2,
+  Unlink,
+  Search
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -32,6 +35,7 @@ interface PurchaseInvoiceDetailsModalProps {
   handleConvertToExpense?: (id: number) => void;
   onRefresh?: () => void;
   storeId?: number;
+  products?: any[];
 }
 
 export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalProps> = ({
@@ -44,10 +48,33 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
   handleConvertToStock,
   handleConvertToExpense,
   onRefresh,
-  storeId
+  storeId,
+  products = []
 }) => {
   const [syncing, setSyncing] = useState(false);
+  const [matchingItemId, setMatchingItemId] = useState<number | null>(null);
+  const [matchSearch, setMatchSearch] = useState<string>("");
+  const [isUpdatingMatch, setIsUpdatingMatch] = useState<boolean>(false);
   if (!isOpen || !invoice) return null;
+
+  const handleMatchProduct = async (itemId: number, targetProductId: number | null) => {
+    setIsUpdatingMatch(true);
+    try {
+      const res = await api.matchPurchaseInvoiceItemProduct(invoice.id, itemId, targetProductId, storeId);
+      if (res?.success) {
+        toast.success(res.message || (isTr ? "Ürün eşleştirmesi güncellendi." : "Product match updated."));
+        setMatchingItemId(null);
+        setMatchSearch("");
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(res?.error || (isTr ? "Eşleştirme güncellenemedi." : "Failed to update match."));
+      }
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? "Hata oluştu." : "Error occurred."));
+    } finally {
+      setIsUpdatingMatch(false);
+    }
+  };
 
   const handleReSync = async () => {
     if (!invoice.ettn) return;
@@ -70,7 +97,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -233,35 +260,168 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                           const sysQty = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity);
                           const sysUnit = item.system_unit_code || item.unit_code || (isTr ? 'Adet' : 'Pcs');
                           const itemTotal = item.total_price ? (Number(item.total_price) + Number(item.tax_amount || 0)) : (Number(item.quantity) * Number(item.unit_price) * (1 + Number(item.tax_rate) / 100));
+                          const matchedProd = item.product_id
+                            ? products.find((p: any) => Number(p.id) === Number(item.product_id))
+                            : null;
+                          const matchedName = item.matched_product_name || matchedProd?.name || null;
+                          const isPickerOpen = matchingItemId === item.id;
+                          const searchLower = matchSearch.trim().toLocaleLowerCase('tr-TR');
+                          const candidateProducts = isPickerOpen
+                            ? products
+                                .filter((p: any) => {
+                                  if (!searchLower) return true;
+                                  const n = (p.name || '').toLocaleLowerCase('tr-TR');
+                                  const b = (p.barcode || '').toLocaleLowerCase('tr-TR');
+                                  const c = (p.product_code || p.sku || '').toLocaleLowerCase('tr-TR');
+                                  return n.includes(searchLower) || b.includes(searchLower) || c.includes(searchLower);
+                                })
+                                .slice(0, 12)
+                            : [];
 
                           return (
                             <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                               <td className="p-4">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <button 
-                                      type="button"
-                                      onClick={() => {
-                                        if (onEditProduct) onEditProduct(item);
-                                      }}
-                                      className={`text-left text-sm font-black text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
-                                    >
-                                      {item.product_name}
-                                    </button>
-                                    {onEditProduct && (
-                                      <button
+                               <td className="p-4 whitespace-normal">
+                                  <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <button 
                                         type="button"
-                                        onClick={() => onEditProduct(item)}
-                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
-                                        title={isTr ? "Ürün kartını düzenle, yeni kart aç veya eşleştirmeyi revize et" : "Edit product or revise matching"}
+                                        onClick={() => {
+                                          if (onEditProduct) onEditProduct(item);
+                                        }}
+                                        className={`text-left text-sm font-black text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
                                       >
-                                        <Edit3 className="w-2.5 h-2.5" />
-                                        {isTr ? "Düzenle / Eşleştir" : "Edit / Match"}
+                                        {item.product_name}
                                       </button>
+                                      {onEditProduct && (
+                                        <button
+                                          type="button"
+                                          onClick={() => onEditProduct(item)}
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
+                                          title={isTr ? "Ürün kartını düzenle, yeni kart aç veya eşleştirmeyi revize et" : "Edit product or revise matching"}
+                                        >
+                                          <Edit3 className="w-2.5 h-2.5" />
+                                          {isTr ? "Kartı Düzenle" : "Edit Card"}
+                                        </button>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                      {item.barcode ? `Barkod: ${item.barcode}` : (isTr ? 'Barkod Yok' : 'No Barcode')}{item.product_code ? ` • Kod: ${item.product_code}` : ''}
+                                    </p>
+
+                                    {!invoice.is_expense && (
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        {item.product_id ? (
+                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
+                                            <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                                            <span>
+                                              {isTr ? 'Eşleşen Envanter:' : 'Matched Inventory:'}{' '}
+                                              <strong className="font-black text-emerald-950">{matchedName || `#${item.product_id}`}</strong>
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                if (isPickerOpen) {
+                                                  setMatchingItemId(null);
+                                                } else {
+                                                  setMatchingItemId(item.id);
+                                                  setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
+                                                }
+                                              }}
+                                              className="ml-1 px-1.5 py-0.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-emerald-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                            >
+                                              <RefreshCw className="h-2.5 w-2.5" />
+                                              {isTr ? 'Değiştir' : 'Change'}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={isUpdatingMatch}
+                                              onClick={() => handleMatchProduct(item.id, null)}
+                                              className="px-1.5 py-0.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                            >
+                                              <Unlink className="h-2.5 w-2.5" />
+                                              {isTr ? 'Bağı Kopar' : 'Unlink'}
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
+                                            <span>{isTr ? 'Envanterde Eşleşen Ürün Yok' : 'Unmatched in Inventory'}</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                if (isPickerOpen) {
+                                                  setMatchingItemId(null);
+                                                } else {
+                                                  setMatchingItemId(item.id);
+                                                  setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
+                                                }
+                                              }}
+                                              className="ml-1 px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                            >
+                                              <Link2 className="h-2.5 w-2.5" />
+                                              {isTr ? 'Envanterden Eşleştir' : 'Link Product'}
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {isPickerOpen && (
+                                      <div className="mt-1 p-2.5 bg-slate-900 text-white rounded-xl shadow-xl border border-slate-700 max-w-xl">
+                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                                            {isTr ? 'Envanterden Doğru Ürünü Seçin' : 'Select Inventory Product to Match'}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => setMatchingItemId(null)}
+                                            className="text-[10px] text-slate-400 hover:text-white font-bold"
+                                          >
+                                            {isTr ? 'Kapat ✕' : 'Close ✕'}
+                                          </button>
+                                        </div>
+                                        <div className="relative mb-2">
+                                          <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                          <input
+                                            type="text"
+                                            value={matchSearch}
+                                            onChange={(e) => setMatchSearch(e.target.value)}
+                                            placeholder={isTr ? 'Ürün adı, model kodu veya barkod ara...' : 'Search product name, code or barcode...'}
+                                            className="w-full pl-8 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-400"
+                                            autoFocus
+                                          />
+                                        </div>
+                                        <div className="max-h-44 overflow-y-auto divide-y divide-slate-800 rounded-lg border border-slate-800 bg-slate-950">
+                                          {candidateProducts.length === 0 ? (
+                                            <div className="p-3 text-center text-[11px] text-slate-400">
+                                              {isTr ? 'Aramaya uygun envanter ürünü bulunamadı.' : 'No matching inventory product found.'}
+                                            </div>
+                                          ) : (
+                                            candidateProducts.map((p: any) => (
+                                              <button
+                                                key={p.id}
+                                                type="button"
+                                                disabled={isUpdatingMatch}
+                                                onClick={() => handleMatchProduct(item.id, p.id)}
+                                                className="w-full px-2.5 py-1.5 text-left hover:bg-indigo-950/80 transition-colors flex items-center justify-between gap-2"
+                                              >
+                                                <div className="min-w-0">
+                                                  <div className="text-[11px] font-bold text-slate-100 truncate">{p.name}</div>
+                                                  <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
+                                                    {p.barcode && <span>Barkod: {p.barcode}</span>}
+                                                    {(p.product_code || p.sku) && <span>Kod: {p.product_code || p.sku}</span>}
+                                                    <span>Stok: {p.stock_quantity ?? 0}</span>
+                                                  </div>
+                                                </div>
+                                                <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-black shrink-0">
+                                                  {isTr ? 'Seç & Eşleştir' : 'Select'}
+                                                </span>
+                                              </button>
+                                            ))
+                                          )}
+                                        </div>
+                                      </div>
                                     )}
                                   </div>
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
-                                    {item.barcode || '-'}{item.product_code ? ` • Kod: ${item.product_code}` : ''}
-                                  </p>
                                </td>
                                <td className="p-4 text-center font-medium text-slate-700 text-sm">
                                   {Number(item.quantity).toLocaleString('tr-TR')} <span className="text-xs text-slate-400 font-bold">({item.unit_code || (isTr ? 'Adet' : 'Pcs')})</span>

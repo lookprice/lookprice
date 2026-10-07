@@ -13,8 +13,13 @@ import {
   Layers,
   Package,
   Barcode,
-  MoreVertical
+  MoreVertical,
+  Link2,
+  Unlink,
+  Search,
+  RefreshCw
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '../../../../services/api';
 
 interface PurchaseInvoiceTableProps {
@@ -37,6 +42,8 @@ interface PurchaseInvoiceTableProps {
   setPage: React.Dispatch<React.SetStateAction<number>>;
   onEditProduct?: (item: any) => void;
   storeId?: number;
+  products?: any[];
+  onRefresh?: () => void;
 }
 
 export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
@@ -58,12 +65,41 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
   totalPages,
   setPage,
   onEditProduct,
-  storeId
+  storeId,
+  products = [],
+  onRefresh
 }) => {
   const [expandedRowIds, setExpandedRowIds] = useState<number[]>([]);
   const [itemsCache, setItemsCache] = useState<Record<number, any[]>>({});
   const [loadingRowId, setLoadingRowId] = useState<number | null>(null);
   const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
+  const [matchingItemId, setMatchingItemId] = useState<number | null>(null);
+  const [matchSearch, setMatchSearch] = useState<string>("");
+  const [isUpdatingMatch, setIsUpdatingMatch] = useState<boolean>(false);
+
+  const handleMatchProduct = async (invoiceId: number, itemId: number, targetProductId: number | null) => {
+    setIsUpdatingMatch(true);
+    try {
+      const res = await api.matchPurchaseInvoiceItemProduct(invoiceId, itemId, targetProductId, storeId);
+      if (res?.success) {
+        toast.success(res.message || (isTr ? "Ürün eşleştirmesi güncellendi." : "Product match updated."));
+        setMatchingItemId(null);
+        setMatchSearch("");
+        // Refresh detail cache for this invoice
+        const detail = await api.getPurchaseInvoice(invoiceId, storeId);
+        if (detail && Array.isArray(detail.items)) {
+          setItemsCache(prev => ({ ...prev, [invoiceId]: detail.items }));
+        }
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(res?.error || (isTr ? "Eşleştirme güncellenemedi." : "Failed to update match."));
+      }
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? "Hata oluştu." : "Error occurred."));
+    } finally {
+      setIsUpdatingMatch(false);
+    }
+  };
 
   const toggleRow = async (inv: any) => {
     const isExpanded = expandedRowIds.includes(inv.id);
@@ -504,6 +540,23 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                       const taxRate = Number(item.tax_rate) || 0;
                                       const taxAmt = Number(item.tax_amount) || ((qty * unitPrice * taxRate) / 100);
                                       const lineTotal = Number(item.total_price) || (qty * unitPrice);
+                                      const matchedProd = item.product_id
+                                        ? products.find((p: any) => Number(p.id) === Number(item.product_id))
+                                        : null;
+                                      const matchedName = item.matched_product_name || matchedProd?.name || null;
+                                      const isPickerOpen = matchingItemId === item.id;
+                                      const searchLower = matchSearch.trim().toLocaleLowerCase('tr-TR');
+                                      const candidateProducts = isPickerOpen
+                                        ? products
+                                            .filter((p: any) => {
+                                              if (!searchLower) return true;
+                                              const n = (p.name || '').toLocaleLowerCase('tr-TR');
+                                              const b = (p.barcode || '').toLocaleLowerCase('tr-TR');
+                                              const c = (p.product_code || p.sku || '').toLocaleLowerCase('tr-TR');
+                                              return n.includes(searchLower) || b.includes(searchLower) || c.includes(searchLower);
+                                            })
+                                            .slice(0, 12)
+                                        : [];
 
                                       return (
                                         <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
@@ -511,32 +564,158 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                             {idx + 1}
                                           </td>
                                           <td className="py-2.5 px-3">
-                                            <div className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
-                                              <button 
-                                                type="button"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  if(onEditProduct) onEditProduct(item);
-                                                }}
-                                                className={`text-left hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
-                                              >
-                                                {item.product_name || item.name || '-'}
-                                              </button>
-                                              {item.variant_name && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-100 font-semibold">
-                                                  {item.variant_name}
-                                                </span>
+                                            <div className="flex flex-col gap-1.5">
+                                              <div className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
+                                                <button 
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if(onEditProduct) onEditProduct(item);
+                                                  }}
+                                                  className={`text-left hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                                                >
+                                                  {item.product_name || item.name || '-'}
+                                                </button>
+                                                {item.variant_name && (
+                                                  <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-100 font-semibold">
+                                                    {item.variant_name}
+                                                  </span>
+                                                )}
+                                                {item.barcode && (
+                                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">
+                                                    <Barcode className="w-3 h-3 text-slate-400" />
+                                                    {item.barcode}
+                                                  </span>
+                                                )}
+                                                {item.product_code && (
+                                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 font-bold">
+                                                    Kod: {item.product_code}
+                                                  </span>
+                                                )}
+                                              </div>
+
+                                              {!invoice.is_expense && (
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                  {item.product_id ? (
+                                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
+                                                      <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                                                      <span>
+                                                        {isTr ? 'Eşleşen Envanter:' : 'Matched Inventory:'}{' '}
+                                                        <strong className="font-black text-emerald-950">{matchedName || `#${item.product_id}`}</strong>
+                                                      </span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          if (isPickerOpen) {
+                                                            setMatchingItemId(null);
+                                                          } else {
+                                                            setMatchingItemId(item.id);
+                                                            setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
+                                                          }
+                                                        }}
+                                                        className="ml-1 px-1.5 py-0.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-emerald-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                                        title={isTr ? 'Farklı bir envanter ürünü ile değiştir' : 'Change matched product'}
+                                                      >
+                                                        <RefreshCw className="h-2.5 w-2.5" />
+                                                        {isTr ? 'Değiştir' : 'Change'}
+                                                      </button>
+                                                      <button
+                                                        type="button"
+                                                        disabled={isUpdatingMatch}
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          handleMatchProduct(invoice.id, item.id, null);
+                                                        }}
+                                                        className="px-1.5 py-0.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                                        title={isTr ? 'Hatalı ürün eşleştirmesini kaldır' : 'Unlink product match'}
+                                                      >
+                                                        <Unlink className="h-2.5 w-2.5" />
+                                                        {isTr ? 'Bağı Kopar' : 'Unlink'}
+                                                      </button>
+                                                    </div>
+                                                  ) : (
+                                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
+                                                      <span>{isTr ? 'Envanterde Eşleşen Ürün Yok' : 'Unmatched in Inventory'}</span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          if (isPickerOpen) {
+                                                            setMatchingItemId(null);
+                                                          } else {
+                                                            setMatchingItemId(item.id);
+                                                            setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
+                                                          }
+                                                        }}
+                                                        className="ml-1 px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                                      >
+                                                        <Link2 className="h-2.5 w-2.5" />
+                                                        {isTr ? 'Envanterden Eşleştir' : 'Link Product'}
+                                                      </button>
+                                                    </div>
+                                                  )}
+                                                </div>
                                               )}
-                                              {item.barcode && (
-                                                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">
-                                                  <Barcode className="w-3 h-3 text-slate-400" />
-                                                  {item.barcode}
-                                                </span>
-                                              )}
-                                              {item.product_code && (
-                                                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 font-bold">
-                                                  Kod: {item.product_code}
-                                                </span>
+
+                                              {isPickerOpen && (
+                                                <div
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="mt-1 p-2.5 bg-slate-900 text-white rounded-xl shadow-xl border border-slate-700 max-w-xl"
+                                                >
+                                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                                                      {isTr ? 'Envanterden Doğru Ürünü Seçin' : 'Select Inventory Product to Match'}
+                                                    </span>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => setMatchingItemId(null)}
+                                                      className="text-[10px] text-slate-400 hover:text-white font-bold"
+                                                    >
+                                                      {isTr ? 'Kapat ✕' : 'Close ✕'}
+                                                    </button>
+                                                  </div>
+                                                  <div className="relative mb-2">
+                                                    <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                                    <input
+                                                      type="text"
+                                                      value={matchSearch}
+                                                      onChange={(e) => setMatchSearch(e.target.value)}
+                                                      placeholder={isTr ? 'Ürün adı, model kodu veya barkod ara...' : 'Search product name, code or barcode...'}
+                                                      className="w-full pl-8 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-400"
+                                                      autoFocus
+                                                    />
+                                                  </div>
+                                                  <div className="max-h-44 overflow-y-auto divide-y divide-slate-800 rounded-lg border border-slate-800 bg-slate-950">
+                                                    {candidateProducts.length === 0 ? (
+                                                      <div className="p-3 text-center text-[11px] text-slate-400">
+                                                        {isTr ? 'Aramaya uygun envanter ürünü bulunamadı.' : 'No matching inventory product found.'}
+                                                      </div>
+                                                    ) : (
+                                                      candidateProducts.map((p: any) => (
+                                                        <button
+                                                          key={p.id}
+                                                          type="button"
+                                                          disabled={isUpdatingMatch}
+                                                          onClick={() => handleMatchProduct(invoice.id, item.id, p.id)}
+                                                          className="w-full px-2.5 py-1.5 text-left hover:bg-indigo-950/80 transition-colors flex items-center justify-between gap-2"
+                                                        >
+                                                          <div className="min-w-0">
+                                                            <div className="text-[11px] font-bold text-slate-100 truncate">{p.name}</div>
+                                                            <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
+                                                              {p.barcode && <span>Barkod: {p.barcode}</span>}
+                                                              {(p.product_code || p.sku) && <span>Kod: {p.product_code || p.sku}</span>}
+                                                              <span>Stok: {p.stock_quantity ?? 0}</span>
+                                                            </div>
+                                                          </div>
+                                                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-black shrink-0">
+                                                            {isTr ? 'Seç & Eşleştir' : 'Select'}
+                                                          </span>
+                                                        </button>
+                                                      ))
+                                                    )}
+                                                  </div>
+                                                </div>
                                               )}
                                             </div>
                                           </td>

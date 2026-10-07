@@ -137,7 +137,26 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
     setHtmlLoading(true);
     setShowHtmlModal(true);
     try {
-      const res = await api.getPurchaseInvoiceHtml(invoiceId, (product as any)?.store_id || branding?.id);
+      const res = await api.getPurchaseInvoiceHtml(invoiceId, selectedPurchaseInvoice?.store_id || storeId || (product as any)?.store_id || branding?.id);
+      if (res?.html) {
+        setHtmlContent(res.html);
+      } else {
+        toast.error(isTr ? 'Fatura görseli bulunamadı.' : 'Invoice HTML not found.');
+        setShowHtmlModal(false);
+      }
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? 'Görsel yüklenemedi' : 'Failed to load preview'));
+      setShowHtmlModal(false);
+    } finally {
+      setHtmlLoading(false);
+    }
+  };
+
+  const handleViewSalesHtml = async (invoiceId: number) => {
+    setHtmlLoading(true);
+    setShowHtmlModal(true);
+    try {
+      const res = await api.getSalesInvoiceHtml(invoiceId, selectedSalesInvoice?.store_id || storeId || (product as any)?.store_id || branding?.id);
       if (res?.html) {
         setHtmlContent(res.html);
       } else {
@@ -155,6 +174,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
   const handleOpenInvoice = async (m: Movement) => {
     const { type, number } = getInvoiceDetailsFromMovement(m);
     if (!type && !m.invoice_id) return;
+    const targetStoreId = (m as any).store_id || storeId || (product as any)?.store_id || branding?.id;
 
     setLoadingInvoiceId(m.id);
     try {
@@ -162,16 +182,16 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
         let inv: any = null;
         if (m.invoice_id) {
           try {
-            inv = await api.getPurchaseInvoice(m.invoice_id);
+            inv = await api.getPurchaseInvoice(m.invoice_id, targetStoreId);
           } catch (e) {
             console.warn("Direct purchase invoice fetch failed, trying search fallback", e);
           }
         }
         if ((!inv || inv.error || !inv.id) && number) {
-          const list = await api.getPurchaseInvoices(undefined, number);
+          const list = await api.getPurchaseInvoices(targetStoreId, number);
           if (Array.isArray(list) && list.length > 0) {
             const match = list.find((item: any) => item.invoice_number === number || item.document_number === number) || list[0];
-            inv = await api.getPurchaseInvoice(match.id);
+            inv = await api.getPurchaseInvoice(match.id, match.store_id || targetStoreId);
           }
         }
 
@@ -185,16 +205,16 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
         let inv: any = null;
         if (m.invoice_id) {
           try {
-            inv = await api.getSalesInvoice(m.invoice_id);
+            inv = await api.getSalesInvoice(m.invoice_id, targetStoreId);
           } catch (e) {
             console.warn("Direct sales invoice fetch failed, trying search fallback", e);
           }
         }
         if ((!inv || inv.error || !inv.id) && number) {
-          const list = await api.getSalesInvoices(undefined, number);
+          const list = await api.getSalesInvoices(targetStoreId, number);
           if (Array.isArray(list) && list.length > 0) {
             const match = list.find((item: any) => item.invoice_number === number || item.document_number === number) || list[0];
-            inv = await api.getSalesInvoice(match.id);
+            inv = await api.getSalesInvoice(match.id, match.store_id || targetStoreId);
           }
         }
 

@@ -1,7 +1,7 @@
 import express from "express";
 import { pool, logAction } from "../../models/db";
 import { getAuthorizedStoreId, getTurkishSearchSnippet, normalizeTurkishParam, checkProductLimit, getGeminiApiKey } from "./utils";
-import { isValidStandardBarcode } from "./invoiceMatching";
+import { isValidStandardBarcode, hasProductMatchConflict, invalidateStoreProductsCache } from "./invoiceMatching";
 import { GoogleGenAI } from "@google/genai";
 import XLSX from "xlsx";
 import { masterBookLookup, generateHighResBookCoverSvg } from "./bookLookupService";
@@ -1947,13 +1947,13 @@ export async function ensureProductMovements(productId: number, storeId: number)
         )
     `, [productId]);
 
-    // 0.2 Auto-link unlinked purchase_invoice_items and sales_invoice_items for this product
+    // 0.2 Auto-link unlinked purchase_invoice_items and sales_invoice_items for this product (Guarded by 5-Gate Conflict Veto)
     if (prodBarcode || prodCode || prodSku || prodName.length >= 2) {
-      await pool.query(`
-        UPDATE purchase_invoice_items pii
-        SET product_id = $1
-        FROM purchase_invoices pi
-        WHERE pii.purchase_invoice_id = pi.id
+      const candPii = await pool.query(`
+        SELECT pii.id, pii.product_name
+        FROM purchase_invoice_items pii
+        JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+        WHERE pi.store_id = $6
           AND (pii.product_id IS NULL OR pii.product_id = 0)
           AND COALESCE(pi.is_expense, FALSE) = FALSE
           AND (
@@ -1961,27 +1961,39 @@ export async function ensureProductMovements(productId: number, storeId: number)
             OR ($3 != '' AND (pii.product_code = $3 OR pii.barcode = $3))
             OR ($4 != '' AND (pii.product_code = $4 OR pii.barcode = $4))
             OR ($5 != '' AND LOWER(TRIM(pii.product_name)) = $5)
-            OR ($5 != '' AND LENGTH($5) >= 4 AND LOWER(pii.product_name) LIKE '%' || $5 || '%')
+            OR ($5 != '' AND LENGTH($5) >= 6 AND LOWER(pii.product_name) LIKE '%' || $5 || '%')
           )
-      `, [prod.id, prodBarcode, prodCode, prodSku, prodName]);
+      `, [prod.id, prodBarcode, prodCode, prodSku, prodName, prod.store_id]);
 
-      await pool.query(`
-        UPDATE sales_invoice_items sii
-        SET product_id = $1
-        FROM sales_invoices si
-        WHERE sii.sales_invoice_id = si.id
+      for (const piiRow of candPii.rows) {
+        if (!hasProductMatchConflict(piiRow.product_name, prod.name)) {
+          await pool.query("UPDATE purchase_invoice_items SET product_id = $1 WHERE id = $2", [prod.id, piiRow.id]);
+        }
+      }
+
+      const candSii = await pool.query(`
+        SELECT sii.id, sii.product_name
+        FROM sales_invoice_items sii
+        JOIN sales_invoices si ON sii.sales_invoice_id = si.id
+        WHERE si.store_id = $6
           AND (sii.product_id IS NULL OR sii.product_id = 0)
           AND (
             ($2 != '' AND sii.barcode = $2)
             OR ($3 != '' AND sii.barcode = $3)
             OR ($4 != '' AND sii.barcode = $4)
             OR ($5 != '' AND LOWER(TRIM(sii.product_name)) = $5)
-            OR ($5 != '' AND LENGTH($5) >= 4 AND LOWER(sii.product_name) LIKE '%' || $5 || '%')
+            OR ($5 != '' AND LENGTH($5) >= 6 AND LOWER(sii.product_name) LIKE '%' || $5 || '%')
           )
-      `, [prod.id, prodBarcode, prodCode, prodSku, prodName]);
+      `, [prod.id, prodBarcode, prodCode, prodSku, prodName, prod.store_id]);
+
+      for (const siiRow of candSii.rows) {
+        if (!hasProductMatchConflict(siiRow.product_name, prod.name)) {
+          await pool.query("UPDATE sales_invoice_items SET product_id = $1 WHERE id = $2", [prod.id, siiRow.id]);
+        }
+      }
     }
 
-    // 1. Sync missing purchase_invoice_items for this product
+    // 1. Sync missing purchase_invoice_items for this product (Strictly only for validated product_id = $1)
     await pool.query(`
       INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
       SELECT 
@@ -2001,13 +2013,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
       FROM purchase_invoice_items pii
       JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
       LEFT JOIN companies c ON pi.company_id = c.id
-      WHERE (
-          pii.product_id = $1 
-          OR ($2 != '' AND pii.barcode = $2)
-          OR ($3 != '' AND (pii.product_code = $3 OR pii.barcode = $3))
-          OR ($4 != '' AND (pii.product_code = $4 OR pii.barcode = $4))
-          OR ($5 != '' AND LOWER(TRIM(pii.product_name)) = $5)
-        )
+      WHERE pii.product_id = $1
         AND COALESCE(pi.is_expense, FALSE) = FALSE
         AND NOT EXISTS (
           SELECT 1 FROM stock_movements sm
@@ -2018,7 +2024,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
               OR sm.description LIKE '%' || pi.invoice_number || '%'
             )
         )
-    `, [productId, prodBarcode, prodCode, prodSku, prodName]);
+    `, [productId]);
 
     // 2. Sync missing sales_invoice_items for this product
     await pool.query(`

@@ -126,33 +126,45 @@ export const useCompanyExport = (
     doc.text(`${fixTr(t.dateRange || 'Date Range')}: ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
     yPos += 10;
 
-    let runningBalance = openingBalances[selectedCurrency] || 0;
-    const filteredTransactions = companyTransactions.filter(tx => (tx.currency || 'TRY') === selectedCurrency);
-    const currentBalance = Number(selectedCompany.balances?.[selectedCurrency] || 0);
+    const runningBalancesByCurr: Record<string, number> = { ...openingBalances };
+    const filteredTransactions = companyTransactions.filter(tx => selectedCurrency === 'ALL' || (tx.currency || 'TRY') === selectedCurrency);
 
     const tableData: any[] = [];
     
-    if (runningBalance !== 0) {
+    if (selectedCurrency !== 'ALL' && openingBalances[selectedCurrency]) {
+      const ob = Number(openingBalances[selectedCurrency] || 0);
       tableData.push([
-        transactionStartDate,
+        transactionStartDate || '-',
+        '-',
         fixTr(isTr ? 'Devreden Bakiye' : 'Opening Balance'),
-        runningBalance > 0 ? `${runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency.slice(0, 3)}` : "-",
-        runningBalance < 0 ? `${Math.abs(runningBalance).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency.slice(0, 3)}` : "-",
-        runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')
+        selectedCurrency,
+        ob > 0 ? `${ob.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency}` : "-",
+        ob < 0 ? `${Math.abs(ob).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency}` : "-",
+        `${ob.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency}`
       ]);
     }
 
     filteredTransactions.forEach(t_item => {
-      const amount = Number(t_item.amount);
-      if (t_item.type === 'debt') runningBalance += amount;
-      else runningBalance -= amount;
+      const amount = Number(t_item.amount || 0);
+      const curr = (t_item.currency || 'TRY').toUpperCase();
+      if (runningBalancesByCurr[curr] === undefined) {
+        runningBalancesByCurr[curr] = Number(openingBalances[curr] || 0);
+      }
+      if (t_item.type === 'debt') runningBalancesByCurr[curr] += amount;
+      else runningBalancesByCurr[curr] -= amount;
+      const rowBal = runningBalancesByCurr[curr];
       
+      const invNo = (t_item.invoice_number && t_item.invoice_number !== '-') ? t_item.invoice_number : (t_item.sales_invoice_number || t_item.purchase_invoice_number || '-');
+      const currStr = `${curr}${curr !== 'TRY' && t_item.exchange_rate ? ` (Kur: ${Number(t_item.exchange_rate).toFixed(4)})` : ''}`;
+
       tableData.push([
-        t_item.transaction_date.split('T')[0],
+        t_item.transaction_date ? t_item.transaction_date.split('T')[0] : '-',
+        fixTr(invNo),
         fixTr(t_item.description || ""),
-        t_item.type === 'debt' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency.slice(0, 3)}` : "-",
-        t_item.type === 'credit' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency.slice(0, 3)}` : "-",
-        runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')
+        currStr,
+        t_item.type === 'debt' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${curr}` : "-",
+        t_item.type === 'credit' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${curr}` : "-",
+        `${rowBal.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${curr}`
       ]);
     });
 
@@ -160,29 +172,85 @@ export const useCompanyExport = (
       startY: yPos,
       head: [[
         fixTr(t.statements.date),
+        fixTr(isTr ? 'Fatura No' : 'Invoice No'),
         fixTr(t.statements.description),
+        fixTr(isTr ? 'Döviz/Kur' : 'Currency/Rate'),
         fixTr(t.statements.debt),
         fixTr(t.statements.credit),
         fixTr(t.statements.balance)
       ]],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 8, fontStyle: 'bold' },
       bodyStyles: { fontSize: 8 },
       columnStyles: {
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' }
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+        6: { halign: 'right' }
       }
     });
 
     const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(`${fixTr(t.statements.balance)}: ${runningBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${selectedCurrency}`, 196, finalY, { align: 'right' });
+    const summaryText = Object.entries(runningBalancesByCurr)
+      .filter(([c]) => selectedCurrency === 'ALL' || c === selectedCurrency)
+      .map(([c, b]) => `${Number(b).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${c}`)
+      .join('  |  ');
+    doc.text(`${fixTr(t.statements.balance)}: ${summaryText}`, 196, finalY, { align: 'right' });
 
     doc.save(`${fixTr(t.statements.customerStatement.toLowerCase().replace(/\s+/g, '_'))}_${fixTr(selectedCompany.title)}_${selectedCurrency}_${transactionStartDate}_${transactionEndDate}.pdf`);
   };
 
-  return { handleExportCompanies, handleExportTransactionsPDF };
+  const handleExportTransactionsExcel = () => {
+    if (!selectedCompany) return;
+    const isTr = lang === 'tr';
+    const filteredTxs = companyTransactions.filter(tx => selectedCurrency === 'ALL' || (tx.currency || 'TRY') === selectedCurrency);
+    
+    const runningBalancesByCurr: Record<string, number> = { ...openingBalances };
+    const data: any[] = [];
+
+    if (selectedCurrency !== 'ALL' && openingBalances[selectedCurrency]) {
+      const ob = Number(openingBalances[selectedCurrency] || 0);
+      data.push({
+        [isTr ? 'Tarih' : 'Date']: transactionStartDate || '-',
+        [isTr ? 'Fatura / Belge No' : 'Invoice No']: '-',
+        [isTr ? 'Açıklama' : 'Description']: isTr ? 'Devreden Bakiye' : 'Opening Balance',
+        [isTr ? 'Para Birimi' : 'Currency']: selectedCurrency,
+        [isTr ? 'Döviz Kuru' : 'Exchange Rate']: 1,
+        [isTr ? 'Borç' : 'Debit']: ob > 0 ? ob : 0,
+        [isTr ? 'Alacak' : 'Credit']: ob < 0 ? Math.abs(ob) : 0,
+        [isTr ? 'Bakiye' : 'Balance']: ob,
+      });
+    }
+
+    filteredTxs.forEach(t_item => {
+      const invNo = (t_item.invoice_number && t_item.invoice_number !== '-') ? t_item.invoice_number : (t_item.sales_invoice_number || t_item.purchase_invoice_number || '-');
+      const amt = Number(t_item.amount || 0);
+      const curr = (t_item.currency || 'TRY').toUpperCase();
+      if (runningBalancesByCurr[curr] === undefined) {
+        runningBalancesByCurr[curr] = Number(openingBalances[curr] || 0);
+      }
+      if (t_item.type === 'debt') runningBalancesByCurr[curr] += amt;
+      else runningBalancesByCurr[curr] -= amt;
+
+      data.push({
+        [isTr ? 'Tarih' : 'Date']: t_item.transaction_date ? t_item.transaction_date.split('T')[0] : '',
+        [isTr ? 'Fatura / Belge No' : 'Invoice No']: invNo || '-',
+        [isTr ? 'Açıklama' : 'Description']: t_item.description || '',
+        [isTr ? 'Para Birimi' : 'Currency']: curr,
+        [isTr ? 'Döviz Kuru' : 'Exchange Rate']: t_item.exchange_rate ? Number(t_item.exchange_rate) : 1,
+        [isTr ? 'Borç' : 'Debit']: t_item.type === 'debt' ? amt : 0,
+        [isTr ? 'Alacak' : 'Credit']: t_item.type === 'credit' ? amt : 0,
+        [isTr ? 'Bakiye' : 'Balance']: Number(runningBalancesByCurr[curr].toFixed(2)),
+      });
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cari Ekstre');
+    XLSX.writeFile(wb, `cari_ekstre_${selectedCompany.title || 'firma'}_${selectedCurrency}_${transactionStartDate || 'all'}.xlsx`);
+  };
+
+  return { handleExportCompanies, handleExportTransactionsPDF, handleExportTransactionsExcel };
 };
