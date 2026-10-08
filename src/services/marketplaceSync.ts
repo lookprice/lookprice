@@ -149,39 +149,56 @@ export async function processMarketplaceOrderLines(
     );
 
     if (productId) {
-      // Robust stock update
-      const updateRes = await client.query(
-        "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) - $1 WHERE id = $2 RETURNING stock_quantity",
-        [quantity, productId]
-      );
-      
-      const newStock = updateRes.rows[0]?.stock_quantity;
-      if (newStock !== undefined && Number(newStock) <= 0) {
-        await autoUnpublishIfZeroStock(productId, storeId, client);
-      }
+      const resolvedInvoiceNumber = invoiceNumber || (marketplaceName.toLowerCase() === 'hepsiburada' ? `HB-${orderId}` : (marketplaceName.toLowerCase() === 'trendyol' ? `TY-${orderId}` : `${marketplaceName.toUpperCase()}-${orderId}`));
+      const resolvedCustomer = customerName || 'Pazaryeri Müşterisi';
 
-      // Always try to log movement with full transactional integrity (1 movement per sale/invoice)
-      try {
-        const resolvedInvoiceNumber = invoiceNumber || (marketplaceName.toLowerCase() === 'hepsiburada' ? `HB-${orderId}` : (marketplaceName.toLowerCase() === 'trendyol' ? `TY-${orderId}` : `${marketplaceName.toUpperCase()}-${orderId}`));
-        const resolvedCustomer = customerName || 'Pazaryeri Müşterisi';
-        await addStockMovement(
-          client, 
-          storeId, 
-          productId, 
-          'out', 
-          quantity, 
-          marketplaceName.toLowerCase(), 
-          `Satış Faturası: ${resolvedInvoiceNumber}`, 
-          price || 0, 
-          resolvedCustomer,
-          'TRY',
-          saleId,
-          salesInvoiceId,
-          'marketplace',
-          resolvedInvoiceNumber
+      // Guard against duplicate stock deduction if this order/invoice was already processed (e.g. during order reconciliation/backfill)
+      const existingMovRes = await client.query(
+        `SELECT id FROM stock_movements 
+         WHERE store_id = $1 AND product_id = $2 
+           AND (
+             (invoice_id IS NOT NULL AND invoice_id = $3)
+             OR (sale_id IS NOT NULL AND sale_id = $4)
+             OR (invoice_number IS NOT NULL AND invoice_number = $5)
+             OR description LIKE '%' || $5 || '%'
+           )
+         LIMIT 1`,
+        [storeId, productId, salesInvoiceId || -1, saleId || -1, resolvedInvoiceNumber]
+      );
+
+      if (existingMovRes.rows.length === 0) {
+        // Robust stock update (only once per order/invoice)
+        const updateRes = await client.query(
+          "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) - $1 WHERE id = $2 RETURNING stock_quantity",
+          [quantity, productId]
         );
-      } catch (moveErr) {
-        console.error(`Stock movement logging failed for ${marketplaceName} order ${orderId}:`, moveErr);
+        
+        const newStock = updateRes.rows[0]?.stock_quantity;
+        if (newStock !== undefined && Number(newStock) <= 0) {
+          await autoUnpublishIfZeroStock(productId, storeId, client);
+        }
+
+        // Always try to log movement with full transactional integrity (1 movement per sale/invoice)
+        try {
+          await addStockMovement(
+            client, 
+            storeId, 
+            productId, 
+            'out', 
+            quantity, 
+            marketplaceName.toLowerCase(), 
+            `Satış Faturası: ${resolvedInvoiceNumber}`, 
+            price || 0, 
+            resolvedCustomer,
+            'TRY',
+            saleId,
+            salesInvoiceId,
+            'marketplace',
+            resolvedInvoiceNumber
+          );
+        } catch (moveErr) {
+          console.error(`Stock movement logging failed for ${marketplaceName} order ${orderId}:`, moveErr);
+        }
       }
     }
   }

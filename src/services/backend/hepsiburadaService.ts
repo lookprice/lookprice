@@ -719,11 +719,15 @@ export class HepsiburadaService {
           try {
             await client.query("BEGIN");
             
-            // Check existing invoice item count
-            const currItemsRes = await client.query("SELECT COUNT(*) as count FROM sales_invoice_items WHERE sales_invoice_id = $1", [existingInvoiceId]);
+            // Check existing invoice item count and linked product count
+            const currItemsRes = await client.query(
+              "SELECT COUNT(*) as count, COUNT(product_id) as linked_count FROM sales_invoice_items WHERE sales_invoice_id = $1",
+              [existingInvoiceId]
+            );
             const currCount = parseInt(currItemsRes.rows[0]?.count || 0);
+            const linkedCount = parseInt(currItemsRes.rows[0]?.linked_count || 0);
 
-            if (currCount < mappedLines.length || true) {
+            if (currCount < mappedLines.length || (linkedCount === 0 && mappedLines.length > 0)) {
               // Update invoice totals
               await client.query(
                 `UPDATE sales_invoices 

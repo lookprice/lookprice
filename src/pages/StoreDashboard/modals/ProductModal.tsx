@@ -555,9 +555,9 @@ export const ProductModal = ({
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-start">
                 
                 {/* LEFT COLUMN: IDENTIFICATION, SPECS, DESCRIPTION, RECIPE */}
-                <div className="lg:col-span-7 xl:col-span-8 space-y-2">
+                <div className="contents lg:block lg:col-span-7 xl:col-span-8 lg:space-y-2">
                 {/* 1. TEMEL KİMLİK & KODLAR */}
-                <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
+                <div className="order-1 lg:order-none p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-1">
                     <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
@@ -789,17 +789,19 @@ export const ProductModal = ({
 
                 {/* 2. BOOKSTORE ÖZEL NİTELİKLERİ (HAFTANIN ESERİ + 4x2 SPECS + SPOT/ÖDÜLLER) */}
                 {isBookstore && (
-                  <BookstoreSectorSpecs
-                    editingProduct={editingProduct}
-                    isTr={isTr}
-                    branding={branding}
-                    selectedBookBadges={selectedBookBadges}
-                    setSelectedBookBadges={setSelectedBookBadges}
-                  />
+                  <div className="order-6 lg:order-none">
+                    <BookstoreSectorSpecs
+                      editingProduct={editingProduct}
+                      isTr={isTr}
+                      branding={branding}
+                      selectedBookBadges={selectedBookBadges}
+                      setSelectedBookBadges={setSelectedBookBadges}
+                    />
+                  </div>
                 )}
 
                 {/* 3. AÇIKLAMA / ARKA KAPAK YAZISI */}
-                <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1">
+                <div className="order-7 lg:order-none p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-0.5">
                     <label className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
                       {isBookstore ? (isTr ? "Arka Kapak Tanıtım Yazısı / Eser Özeti" : "Book Synopsis") : (isTr ? "Açıklama & Detaylar" : "Description")}
@@ -818,7 +820,7 @@ export const ProductModal = ({
 
                 {/* PAZARYERİ ENTEGRASYONU VE ZORUNLU ALANLAR (MERGED IN TAB 1 FOR CONVENIENCE - HIDDEN FOR SERVICE/HİZMET ITEMS) */}
                 {isMarketplaceEnabled && productType !== 'service' && (
-                  <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
+                  <div className="order-9 lg:order-none p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
                     <div className="flex items-center gap-1.5 border-b border-slate-200 pb-1">
                       <Sparkles className="h-3.5 w-3.5 text-amber-500" />
                       <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
@@ -863,7 +865,7 @@ export const ProductModal = ({
 
                 {/* HORECA / CAFE RESTAURANT RECIPE & NUTRITION (Only if cafe_restaurant) */}
                 {isCafeRestaurant && (
-                  <>
+                  <div className="order-8 lg:order-none space-y-2">
                     {/* 1. MALZEME REÇETESİ (BOM) */}
                     <div className="p-3 bg-orange-50/40 rounded-xl border border-orange-200/80 space-y-2.5">
                       <div className="flex justify-between items-center border-b border-orange-200 pb-1.5">
@@ -1225,12 +1227,12 @@ export const ProductModal = ({
 
                       <input type="hidden" name="allergens_data" value={JSON.stringify(selectedAllergens)} />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* VARYANT MATRİSİ AÇIKSA GÖSTERİMİ */}
                 {hasVariants && (
-                  <div className="p-3 bg-indigo-50/40 rounded-xl border border-indigo-200 space-y-2">
+                  <div className="order-5 lg:order-none p-3 bg-indigo-50/40 rounded-xl border border-indigo-200 space-y-2">
                     <span className="text-[10px] font-black text-indigo-950 uppercase tracking-wider block">
                       {isTr ? "Varyant ve Ebat Kırılımları" : "Variant Attributes Matrix"}
                     </span>
@@ -1256,10 +1258,10 @@ export const ProductModal = ({
               </div>
 
               {/* RIGHT COLUMN: PRICING, STOCK, MEDIA, VISIBILITY */}
-              <div className="lg:col-span-5 xl:col-span-4 space-y-2">
+              <div className="contents lg:block lg:col-span-5 xl:col-span-4 lg:space-y-2">
                 
                 {/* 1. FİYATLANDIRMA & MALİYETLER */}
-                <div className="p-2 bg-emerald-50/30 rounded-xl border border-emerald-100 space-y-1.5">
+                <div className="order-2 lg:order-none p-2 bg-emerald-50/30 rounded-xl border border-emerald-100 space-y-1.5">
                   <div className="flex items-center justify-between border-b border-emerald-100 pb-0.5">
                     <span className="text-[10px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
@@ -1368,7 +1370,7 @@ export const ProductModal = ({
 
                 {/* 1.5. CANLI PİYASA FİYAT ANALİZİ & KARŞILAŞTIRMA */}
                 {marketPrices && (
-                  <div className="p-2.5 bg-gradient-to-br from-indigo-50/90 via-purple-50/60 to-blue-50/90 dark:from-slate-900 dark:to-slate-950 rounded-xl border border-indigo-200 dark:border-indigo-900/60 shadow-2xs space-y-2">
+                  <div className="order-2 lg:order-none p-2.5 bg-gradient-to-br from-indigo-50/90 via-purple-50/60 to-blue-50/90 dark:from-slate-900 dark:to-slate-950 rounded-xl border border-indigo-200 dark:border-indigo-900/60 shadow-2xs space-y-2">
                     <div className="flex items-center justify-between border-b border-indigo-200/70 pb-1.5">
                       <div className="flex items-center gap-1.5">
                         <div className="p-1 bg-indigo-600 text-white rounded-md shadow-2xs">
@@ -1502,7 +1504,7 @@ export const ProductModal = ({
                 )}
 
                 {/* 2. STOK, BİRİM & KARGO */}
-                <div className="p-2 bg-amber-50/30 rounded-xl border border-amber-100 space-y-1.5">
+                <div className="order-3 lg:order-none p-2 bg-amber-50/30 rounded-xl border border-amber-100 space-y-1.5">
                   <div className="flex items-center justify-between border-b border-amber-100 pb-0.5">
                     <span className="text-[10px] font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
@@ -1583,7 +1585,7 @@ export const ProductModal = ({
                 </div>
 
                 {/* 3. GÖRSEL, ETİKETLER & VİTRİN ANAHTARLARI */}
-                <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
+                <div className="order-4 lg:order-none p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-0.5">
                     <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
@@ -1743,7 +1745,7 @@ export const ProductModal = ({
                 </div>
 
                 {/* 4. VARYANT AÇ/KAPAT TOGGLE */}
-                <div className="p-2 bg-indigo-50/40 rounded-xl border border-indigo-200/80 flex items-center justify-between gap-2">
+                <div className="order-5 lg:order-none p-2 bg-indigo-50/40 rounded-xl border border-indigo-200/80 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"

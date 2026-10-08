@@ -1896,18 +1896,26 @@ export async function ensureProductMovements(productId: number, storeId: number)
     const prodName = prod.name ? String(prod.name).trim().toLowerCase() : '';
 
     // 0.1 Deduplicate existing redundant movements for this product:
-    // a) Deduplicate multiple movements for the exact same invoice_id (keep highest id)
-    await pool.query(`
+    // a) Deduplicate multiple 'out' movements for the exact same invoice_id (keep earliest/single record per invoice)
+    const delDupOutRes = await pool.query(`
       DELETE FROM stock_movements sm1
       WHERE sm1.product_id = $1
+        AND sm1.type = 'out'
         AND sm1.invoice_id IS NOT NULL
         AND EXISTS (
           SELECT 1 FROM stock_movements sm2
           WHERE sm2.product_id = sm1.product_id
+            AND sm2.type = 'out'
             AND sm2.invoice_id = sm1.invoice_id
             AND sm2.id > sm1.id
         )
+      RETURNING quantity
     `, [productId]);
+
+    let refundedDupOutQty = 0;
+    for (const r of delDupOutRes.rows) {
+      refundedDupOutQty += parseFloat(r.quantity || '0');
+    }
 
     // b) Deduplicate redundant pos_sale or legacy marketplace movements when a sales_invoice movement exists for the same order/sale/invoice
     await pool.query(`
@@ -2116,7 +2124,14 @@ export async function ensureProductMovements(productId: number, storeId: number)
     `, [productId]);
 
     const netQty = parseFloat(smSumRes.rows[0]?.net_qty || '0');
-    const currentStock = parseFloat(prod.stock_quantity || '0');
+    let currentStock = parseFloat(prod.stock_quantity || '0');
+
+    // Self-heal products.stock_quantity if duplicate 'out' movements were just removed or if stock_quantity was corrupted negative while real net movements are >= 0
+    if (refundedDupOutQty > 0 || (currentStock < 0 && netQty >= 0)) {
+      currentStock = netQty;
+      await pool.query("UPDATE products SET stock_quantity = $1 WHERE id = $2", [currentStock, productId]);
+    }
+
     const diff = currentStock - netQty;
 
     const existingInitialRes = await pool.query(
