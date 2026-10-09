@@ -1377,6 +1377,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onIncludeZeroChange={setIncludeZeroBalance}
                   defaultCurrency={branding.default_currency}
                   onNewCompany={() => { setEditingCompany(null); setShowCompanyModal(true); }}
+                  onRefresh={fetchCompanies}
                 />
               )}
               {activeTab === "procurements" && permittedTabIds.has("procurements") && (
@@ -1389,6 +1390,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   lang={lang} 
                   api={api} 
                   branding={branding} 
+                  companies={companyList}
+                  onViewTransactions={(c: any) => { setSelectedCompany(c); setShowTransactionModal(true); }}
                   onFetchDetails={handleFetchPurchaseInvoiceDetails}
                   products={products}
                   onEditProduct={(item: any) => {

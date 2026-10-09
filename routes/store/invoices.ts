@@ -730,11 +730,11 @@ router.get("/sales", async (req: any, res) => {
     `;
     const params: any[] = [storeId];
 
-    if (startDate) {
+    if (startDate && (!search || search.trim() === '')) {
       params.push(startDate);
       query += ` AND si.invoice_date >= $${params.length}`;
     }
-    if (endDate) {
+    if (endDate && (!search || search.trim() === '')) {
       params.push(endDate + ' 23:59:59');
       query += ` AND si.invoice_date <= $${params.length}`;
     }
@@ -1714,12 +1714,12 @@ router.get("/purchase", async (req: any, res) => {
       });
     }
 
-    if (startDate) {
+    if (startDate && (!search || search.trim() === '')) {
       params.push(startDate);
       query += ` AND pi.invoice_date >= $${params.length}`;
     }
 
-    if (endDate) {
+    if (endDate && (!search || search.trim() === '')) {
       params.push(endDate + ' 23:59:59');
       query += ` AND pi.invoice_date <= $${params.length}`;
     }

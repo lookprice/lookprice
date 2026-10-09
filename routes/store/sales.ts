@@ -13,6 +13,7 @@ router.get("/", async (req: any, res) => {
   const status = req.query.status;
   const startDate = req.query.startDate;
   const endDate = req.query.endDate;
+  const search = req.query.search;
 
   let query = `
     SELECT s.*, si.id as sales_invoice_id, si.invoice_number as sales_invoice_number 
@@ -26,11 +27,32 @@ router.get("/", async (req: any, res) => {
     params.push(status);
     query += ` AND s.status = $${params.length}`;
   }
-  if (startDate) {
+  if (search) {
+    const searchTerms = search.split(/\s+/).filter(Boolean);
+    searchTerms.forEach((term: string) => {
+      const pLen = params.length + 1;
+      query += ` AND (
+        ${getTurkishSearchSnippet('s.customer_name', pLen)} OR
+        ${getTurkishSearchSnippet('s.notes', pLen)} OR
+        ${getTurkishSearchSnippet('si.invoice_number', pLen)} OR
+        EXISTS (
+          SELECT 1 FROM sale_items sub_si
+          WHERE sub_si.sale_id = s.id
+          AND (
+            ${getTurkishSearchSnippet('sub_si.product_name', pLen)} OR
+            ${getTurkishSearchSnippet('sub_si.barcode', pLen)}
+          )
+        )
+      )`;
+      params.push(normalizeTurkishParam(term));
+    });
+  }
+
+  if (startDate && (!search || search.trim() === '')) {
     params.push(startDate);
     query += ` AND s.created_at >= $${params.length}`;
   }
-  if (endDate) {
+  if (endDate && (!search || search.trim() === '')) {
     params.push(endDate + ' 23:59:59');
     query += ` AND s.created_at <= $${params.length}`;
   }

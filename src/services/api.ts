@@ -223,6 +223,7 @@ export const api = {
   addCompany: (data: any, storeId?: number) => api.post(`/api/store/companies${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateCompany: (id: number | string, data: any, storeId?: number) => api.put(`/api/store/companies/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteCompany: (id: number | string, storeId?: number) => api.delete(`/api/store/companies/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  mergeDuplicateCompanies: (storeId?: number) => api.post(`/api/store/companies/merge-duplicates${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   addCompanyTransaction: (id: number | string, data: any, storeId?: number) => api.post(`/api/store/companies/${id}/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteCompanyTransaction: (companyId: number | string, id: number | string, storeId?: number) => api.delete(`/api/store/companies/${companyId}/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getCompanyTransactions: (id: number | string, start = "", end = "", storeId?: number) => api.get(`/api/store/companies/${id}/transactions?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),

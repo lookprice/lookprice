@@ -83,19 +83,33 @@ router.post("/", async (req: any, res) => {
     await client.query("BEGIN");
 
     let finalCompanyId = company_id;
+    const cleanVkn = tax_number ? String(tax_number).replace(/\D/g, '').trim() : '';
+
+    if (!finalCompanyId && cleanVkn && cleanVkn.length >= 10 && cleanVkn !== '11111111111') {
+      const vknCheck = await client.query(
+        "SELECT id FROM companies WHERE store_id = $1 AND clean_tax_number(tax_number) = $2 LIMIT 1",
+        [storeId, cleanVkn]
+      );
+      if (vknCheck.rows.length > 0) {
+        finalCompanyId = vknCheck.rows[0].id;
+      }
+    }
     
     if (!finalCompanyId && customer_name) {
       const existingCompany = await client.query(
-        "SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2))",
+        "SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1",
         [storeId, customer_name]
       );
       
       if (existingCompany.rows.length > 0) {
         finalCompanyId = existingCompany.rows[0].id;
+        if (cleanVkn && cleanVkn.length >= 10 && cleanVkn !== '11111111111') {
+          await client.query("UPDATE companies SET tax_number = $1 WHERE id = $2 AND (tax_number IS NULL OR clean_tax_number(tax_number) != $1)", [cleanVkn, finalCompanyId]);
+        }
       } else {
         const newCompany = await client.query(
-          "INSERT INTO companies (store_id, title, contact_person) VALUES ($1, $2, $3) RETURNING id",
-          [storeId, customer_name, customer_title || '']
+          "INSERT INTO companies (store_id, title, contact_person, tax_number, tax_office) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+          [storeId, customer_name, customer_title || '', cleanVkn || null, tax_office || null]
         );
         finalCompanyId = newCompany.rows[0].id;
       }

@@ -924,7 +924,7 @@ export class AmazonService {
       if (totalAmountFloat <= 0 || isCanceled) {
         try {
           const existing = await pool.query(
-            "SELECT id, sale_id, sales_invoice_id FROM amazon_orders WHERE store_id = $1 AND amazon_order_id = $2",
+            "SELECT id, sale_id, sales_invoice_id, status FROM amazon_orders WHERE store_id = $1 AND amazon_order_id = $2",
             [this.storeId, amazonOrderId]
           );
           if (existing.rows.length === 0) {
@@ -936,6 +936,9 @@ export class AmazonService {
             const exRow = existing.rows[0];
             const prevStatus = String(exRow.status || '').trim();
             const wasAlreadyCanceled = prevStatus === 'Canceled' || prevStatus === 'Cancelled' || prevStatus === 'Unfulfillable';
+            if (wasAlreadyCanceled) {
+              continue;
+            }
             await pool.query(
               "UPDATE amazon_orders SET status = $1, order_data = $2 WHERE store_id = $3 AND amazon_order_id = $4",
               [orderStatus || 'Canceled', order, this.storeId, amazonOrderId]

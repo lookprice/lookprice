@@ -2200,9 +2200,16 @@ router.post("/sales", async (req, res) => {
 
     // Auto-create / link Company (Cari Hesap) for web sale customer
     let finalCompanyId: number | null = null;
+    const cleanTc = effectiveTcId ? String(effectiveTcId).replace(/\D/g, '').trim() : '';
     const compCheck = await client.query(
-      "SELECT id FROM companies WHERE store_id = $1 AND (tax_number = $2 OR (LOWER(TRIM(title)) = LOWER(TRIM($3)) AND $3 != 'Bireysel Web Müşterisi')) LIMIT 1",
-      [storeId, effectiveTcId, fullNameVal]
+      `SELECT id FROM companies 
+       WHERE store_id = $1 
+         AND (
+           ($2 != '' AND $2 != '11111111111' AND clean_tax_number(tax_number) = $2)
+           OR (LOWER(TRIM(title)) = LOWER(TRIM($3)) AND $3 != 'Bireysel Web Müşterisi')
+         ) 
+       LIMIT 1`,
+      [storeId, cleanTc, fullNameVal]
     );
     if (compCheck.rows.length > 0) {
       finalCompanyId = compCheck.rows[0].id;

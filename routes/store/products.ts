@@ -770,9 +770,22 @@ router.get("/", async (req: any, res) => {
     if (search) {
       const searchTerms = search.split(/\s+/).filter(Boolean);
       searchTerms.forEach(term => {
-        const pIdx = params.length + 1;
-        query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.product_code, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sku, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)})`;
-        params.push(normalizeTurkishParam(term));
+        const normTerm = term.toLowerCase().replace(/[-_/.+]/g, '');
+        if (normTerm === 'usbc' || normTerm === 'typec') {
+          const pIdx1 = params.length + 1;
+          const pIdx2 = params.length + 2;
+          query += ` AND (
+            ${getTurkishSearchSnippet('p.name', pIdx1)} OR 
+            ${getTurkishSearchSnippet('p.name', pIdx2)} OR 
+            ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx1)} OR
+            ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx2)}
+          )`;
+          params.push('%type%c%', '%usb%c%');
+        } else {
+          const pIdx = params.length + 1;
+          query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.product_code, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sku, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)})`;
+          params.push(normalizeTurkishParam(term));
+        }
       });
     }
 
@@ -1455,7 +1468,12 @@ router.put("/:id", async (req: any, res) => {
         [id, storeId]
       );
     }
-    const diff = newStock - oldStock;
+    const currentNetRes = await pool.query(
+      "SELECT COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as net FROM stock_movements WHERE product_id = $1",
+      [id]
+    );
+    const currentNetStock = parseFloat(currentNetRes.rows[0]?.net || '0');
+    const diff = newStock - currentNetStock;
     if (Math.abs(diff) > 0.001) {
       try {
         await pool.query(`
@@ -2093,7 +2111,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
         )
     `, [productId, prodBarcode, prodCode, prodSku, prodName]);
 
-    // 3. Sync missing sale_items (POS) for this product/barcode (exclude marketplace, cancelled, and invoice-linked sales)
+    // 3. Sync missing sale_items (POS, Web, Marketplace) for this product/barcode (exclude cancelled and already invoice-linked sales)
     await pool.query(`
       INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, sale_id)
       SELECT 
@@ -2101,11 +2119,20 @@ export async function ensureProductMovements(productId: number, storeId: number)
         $1,
         'out',
         si.quantity,
-        'pos_sale',
-        'POS Satışı: #' || s.id,
+        COALESCE(s.source, 'pos_sale'),
+        CASE 
+          WHEN s.source = 'amazon' THEN 'Amazon Siparişi: #' || s.id 
+          WHEN s.source = 'trendyol' THEN 'Trendyol Siparişi: #' || s.id 
+          WHEN s.source = 'hepsiburada' THEN 'Hepsiburada Siparişi: #' || s.id 
+          WHEN s.source = 'n11' THEN 'N11 Siparişi: #' || s.id 
+          WHEN s.source = 'pazarama' THEN 'Pazarama Siparişi: #' || s.id 
+          WHEN s.source = 'ciceksepeti' THEN 'Çiçeksepeti Siparişi: #' || s.id 
+          WHEN s.source = 'web_sale' THEN 'Web Siparişi: #' || s.id 
+          ELSE 'Satış: #' || s.id 
+        END,
         si.unit_price,
-        COALESCE(c.full_name, 'Perakende Müşteri'),
-        'TRY',
+        COALESCE(c.full_name, s.customer_name, 'Müşteri'),
+        COALESCE(s.currency, 'TRY'),
         s.created_at,
         s.id
       FROM sale_items si
@@ -2113,12 +2140,6 @@ export async function ensureProductMovements(productId: number, storeId: number)
       LEFT JOIN customers c ON s.customer_id = c.id
       WHERE (si.product_id = $1 OR ($2 != '' AND si.barcode = $2))
         AND LOWER(COALESCE(s.status, '')) NOT IN ('cancelled', 'iptal', 'canceled')
-        AND COALESCE(s.source, '') NOT IN ('hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti', 'marketplace')
-        AND COALESCE(s.payment_method, '') NOT LIKE '%Hepsiburada%'
-        AND COALESCE(s.payment_method, '') NOT LIKE '%Trendyol%'
-        AND COALESCE(s.payment_method, '') NOT LIKE '%N11%'
-        AND COALESCE(s.payment_method, '') NOT LIKE '%Amazon%'
-        AND COALESCE(s.payment_method, '') NOT LIKE '%Pazarama%'
         AND NOT EXISTS (
           SELECT 1 FROM sales_invoices inv
           WHERE inv.sale_id = s.id
@@ -2161,11 +2182,8 @@ export async function ensureProductMovements(productId: number, storeId: number)
       }
     }
 
-    // Ledger is the single source of truth once initial_stock exists: synchronize products.stock_quantity to match netQty
-    if (Math.abs(currentStock - netQty) > 0.001) {
-      currentStock = netQty;
-      await pool.query("UPDATE products SET stock_quantity = $1 WHERE id = $2", [currentStock, productId]);
-    }
+    // Ledger is the single source of truth: ALWAYS synchronize products.stock_quantity to match netQty exactly
+    await pool.query("UPDATE products SET stock_quantity = $1 WHERE id = $2", [netQty, productId]);
 
     // 5. Absolute Fallback: if total movements count is 0, always insert initial_stock
     const totalMovCountRes = await pool.query(

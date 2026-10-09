@@ -20,7 +20,9 @@ import {
   Clock,
   X,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Layers,
+  Sparkles
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
@@ -38,6 +40,7 @@ interface CompaniesTabProps {
   defaultCurrency?: string;
   branding?: any;
   onNewCompany?: () => void;
+  onRefresh?: () => void;
 }
 
 const CompaniesTab = ({ 
@@ -51,7 +54,8 @@ const CompaniesTab = ({
   onIncludeZeroChange,
   defaultCurrency = 'TRY',
   branding,
-  onNewCompany
+  onNewCompany,
+  onRefresh
 }: CompaniesTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -95,6 +99,36 @@ const CompaniesTab = ({
 
   const handleRefreshRecons = () => {
     setReconciliations(getReconciliations());
+  };
+
+  const [isMerging, setIsMerging] = useState(false);
+  const handleMergeDuplicates = async () => {
+    if (!window.confirm(isTr 
+      ? "Aynı Vergi Kimlik Numarası (VKN/TCKN) veya eşleşen unvana sahip mükerrer cari hesaplar tek bir ana cari kartı altında birleştirilecek, tüm faturalar ve hesap hareketleri konsolide edilecektir. Onaylıyor musunuz?" 
+      : "Duplicate accounts sharing the same Tax ID (VKN/TCKN) or title will be consolidated into a single primary account with all invoices and transactions merged. Proceed?")) {
+      return;
+    }
+    try {
+      setIsMerging(true);
+      const res: any = await api.mergeDuplicateCompanies(storeId);
+      if (res && res.success) {
+        if (res.mergedCount > 0) {
+          alert(isTr 
+            ? `İşlem tamamlandı! ${res.mergedCount} adet mükerrer cari hesap başarıyla tekilleştirildi ve tüm hareketleri konsolide edildi.` 
+            : `Consolidation complete! Successfully merged ${res.mergedCount} duplicate accounts.`);
+        } else {
+          alert(isTr 
+            ? "Mükerrer cari hesap bulunamadı. Tüm VKN/TCKN ve unvan kayıtlarınız tekil ve düzenlidir." 
+            : "No duplicate accounts found. All accounts and Tax IDs are unique.");
+        }
+      }
+      onRefresh?.();
+    } catch (e: any) {
+      console.error("Merge error:", e);
+      alert(isTr ? `Birleştirme hatası: ${e.message || 'Bilinmeyen hata'}` : `Merge error: ${e.message}`);
+    } finally {
+      setIsMerging(false);
+    }
   };
 
   const filteredCompanies = companies.filter(c => {
@@ -151,6 +185,17 @@ const CompaniesTab = ({
             <History className="h-4 w-4" />
             {isTr ? 'Mutabakat Geçmişi & Durum Takibi' : 'Reconciliation History & Status'}
           </button>
+          {!isViewer && (
+            <button
+              onClick={handleMergeDuplicates}
+              disabled={isMerging}
+              className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3.5 py-2 rounded-xl text-sm font-bold hover:bg-emerald-100 disabled:opacity-50 transition-all cursor-pointer shadow-xs active:scale-95"
+              title={isTr ? "Aynı VKN/TCKN ve unvana sahip mükerrer cari hesapları ve hareketlerini tek bir çatı altında birleştirir" : "Consolidate duplicate accounts with same Tax ID/VKN"}
+            >
+              <Layers className={`h-4 w-4 text-emerald-600 ${isMerging ? 'animate-spin' : ''}`} />
+              <span>{isMerging ? (isTr ? "Konsolide Ediliyor..." : "Merging...") : (isTr ? "Mükerrer Carileri Birleştir (VKN)" : "Merge Duplicates")}</span>
+            </button>
+          )}
           <button 
             onClick={onExportReport}
             className="flex items-center justify-center bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"

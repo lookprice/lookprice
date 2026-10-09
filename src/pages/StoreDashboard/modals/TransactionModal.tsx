@@ -749,14 +749,50 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             {/* Content & High Density Table Area */}
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 bg-slate-50/30">
               {(() => {
+                const defaultCurr = (branding?.default_currency || branding?.currency || 'TRY').toUpperCase();
+                const storeRates: Record<string, number> = { USD: 34.50, EUR: 37.80, GBP: 45.20, TRY: 1, [defaultCurr]: 1 };
+                const rawRates = branding?.currency_rates || {};
+                if (typeof rawRates === 'object' && rawRates !== null) {
+                  Object.keys(rawRates).forEach(k => {
+                    const v = parseFloat(rawRates[k]);
+                    if (!isNaN(v) && v > 0) storeRates[k.toUpperCase()] = v;
+                  });
+                }
+                const resolveRate = (curr: string, txRate: any) => {
+                  const c = (curr || defaultCurr).toUpperCase();
+                  if (c === defaultCurr) return 1;
+                  const r = Number(txRate || 0);
+                  if (!isNaN(r) && r > 0 && r !== 1) return r;
+                  return storeRates[c] || 1;
+                };
+
                 const safeTransactions = Array.isArray(companyTransactions) ? companyTransactions : [];
-                const filteredTransactions = safeTransactions.filter(tx => selectedCurrency === 'ALL' || (tx.currency || 'TRY') === selectedCurrency);
+                const filteredTransactions = safeTransactions.filter(tx => selectedCurrency === 'ALL' || (tx.currency || defaultCurr).toUpperCase() === selectedCurrency);
                 const compBalances = (companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances || {};
                 const currentBalance = selectedCurrency === 'ALL'
                   ? 0
                   : Number(compBalances[selectedCurrency] || 0);
                 const totalDebt = filteredTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0);
                 const totalCredit = filteredTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0);
+
+                // Compute combined default currency balance across transactions + opening balances
+                let initialBaseCarry = 0;
+                if (selectedCurrency === 'ALL') {
+                  Object.entries(openingBalances || {}).forEach(([cKey, obVal]) => {
+                    const r = resolveRate(cKey, storeRates[cKey.toUpperCase()]);
+                    initialBaseCarry = Number((initialBaseCarry + Number(obVal || 0) * r).toFixed(2));
+                  });
+                } else if (openingBalances?.[selectedCurrency]) {
+                  const r = resolveRate(selectedCurrency, storeRates[selectedCurrency.toUpperCase()]);
+                  initialBaseCarry = Number((Number(openingBalances[selectedCurrency] || 0) * r).toFixed(2));
+                }
+
+                const totalBaseNet = filteredTransactions.reduce((acc, tx) => {
+                  const amt = Number(tx.amount || 0);
+                  const r = resolveRate(tx.currency, tx.exchange_rate);
+                  const baseAmt = Number((amt * r).toFixed(2));
+                  return Number((acc + (tx.type === 'debt' ? baseAmt : -baseAmt)).toFixed(2));
+                }, initialBaseCarry);
 
                 return (
                   <>
@@ -823,6 +859,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                             </div>
                           </>
                         )}
+                        <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-amber-700 uppercase">
+                            {isTr ? `Birleşik (${defaultCurr})` : `Combined (${defaultCurr})`}:
+                          </span>
+                          <span className="font-black font-mono text-amber-950">
+                            {totalBaseNet.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {defaultCurr}
+                          </span>
+                        </div>
                         <div className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-bold text-[11px]">
                           {filteredTransactions.length} {isTr ? 'İşlem' : 'Records'}
                         </div>
@@ -873,12 +917,16 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                 <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.debt || "Borç"}</th>
                                 <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.credit || "Alacak"}</th>
                                 <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.balance || "Bakiye"}</th>
+                                <th className="py-2 px-3 text-[10px] font-black text-indigo-700 uppercase tracking-wider text-right bg-indigo-50/60">
+                                  {isTr ? `Birleşik Bakiye (${defaultCurr})` : `Combined (${defaultCurr})`}
+                                </th>
                                 <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right w-16">{isTr ? 'İşlem' : 'Action'}</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs">
                               {(() => {
                                 const runningBalancesByCurr: Record<string, number> = { ...openingBalances };
+                                let runningBaseBal = initialBaseCarry;
                                 return (
                                   <>
                                     {selectedCurrency !== 'ALL' && openingBalances[selectedCurrency] ? (
@@ -894,24 +942,30 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                         <td className="py-2 px-3 text-right text-amber-900 font-mono font-bold">
                                           {Number(openingBalances[selectedCurrency]).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
                                         </td>
+                                        <td className="py-2 px-3 text-right text-amber-950 font-mono font-bold bg-amber-100/40">
+                                          {runningBaseBal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {defaultCurr}
+                                        </td>
                                         <td className="py-2 px-3 text-right text-amber-700">-</td>
                                       </tr>
                                     ) : null}
                                     {filteredTransactions.map((tx: any) => {
                                       const amt = Number(tx.amount || 0);
-                                      const curr = (tx.currency || 'TRY').toUpperCase();
+                                      const curr = (tx.currency || defaultCurr).toUpperCase();
+                                      const rate = resolveRate(curr, tx.exchange_rate);
+                                      const baseAmt = Number((amt * rate).toFixed(2));
                                       if (runningBalancesByCurr[curr] === undefined) {
                                         runningBalancesByCurr[curr] = Number(openingBalances[curr] || 0);
                                       }
                                       if (tx.type === 'debt') {
-                                        runningBalancesByCurr[curr] += amt;
+                                        runningBalancesByCurr[curr] = Number((runningBalancesByCurr[curr] + amt).toFixed(2));
+                                        runningBaseBal = Number((runningBaseBal + baseAmt).toFixed(2));
                                       } else {
-                                        runningBalancesByCurr[curr] -= amt;
+                                        runningBalancesByCurr[curr] = Number((runningBalancesByCurr[curr] - amt).toFixed(2));
+                                        runningBaseBal = Number((runningBaseBal - baseAmt).toFixed(2));
                                       }
                                       const rowRunningBalance = runningBalancesByCurr[curr];
                                       const isDebt = tx.type === 'debt';
                                       const invNo = (tx.invoice_number && tx.invoice_number !== '-') ? tx.invoice_number : (tx.sales_invoice_number || tx.purchase_invoice_number || (tx.sale_id ? `POS #${tx.sale_id}` : '-'));
-                                      const rate = tx.exchange_rate ? Number(tx.exchange_rate) : 1;
 
                                       const currColor = 
                                         curr === 'USD' ? 'bg-blue-100 text-blue-800 border-blue-300' :
@@ -977,7 +1031,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                               <span className={`px-1.5 py-0.5 rounded border font-black text-[10px] ${currColor}`}>
                                                 {curr}
                                               </span>
-                                              {curr !== 'TRY' && (
+                                              {curr !== defaultCurr && (
                                                 <span className="text-slate-700 font-bold text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-slate-200">
                                                   Kur: {rate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                                                 </span>
@@ -985,16 +1039,41 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                             </div>
                                           </td>
                                           <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-rose-600">
-                                            {isDebt ? `${amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${curr}` : '-'}
+                                            {isDebt ? (
+                                              <div>
+                                                <div>{amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {curr}</div>
+                                                {curr !== defaultCurr && (
+                                                  <div className="text-[10px] text-slate-400 font-semibold">
+                                                    ({baseAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {defaultCurr})
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ) : '-'}
                                           </td>
                                           <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-emerald-600">
-                                            {!isDebt ? `${amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${curr}` : '-'}
+                                            {!isDebt ? (
+                                              <div>
+                                                <div>{amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {curr}</div>
+                                                {curr !== defaultCurr && (
+                                                  <div className="text-[10px] text-slate-400 font-semibold">
+                                                    ({baseAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {defaultCurr})
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ) : '-'}
                                           </td>
                                           <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-slate-900">
                                             {rowRunningBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
                                             <span className="text-[10px] ml-1 font-bold text-slate-600">{curr}</span>
                                             <span className="text-[10px] ml-1 opacity-75 text-slate-500">
                                               {rowRunningBalance > 0 ? (isTr ? '(B)' : '(D)') : rowRunningBalance < 0 ? (isTr ? '(A)' : '(C)') : ''}
+                                            </span>
+                                          </td>
+                                          <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-indigo-950 bg-indigo-50/30">
+                                            {runningBaseBal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            <span className="text-[10px] ml-1 font-bold text-indigo-700">{defaultCurr}</span>
+                                            <span className="text-[10px] ml-1 opacity-75 text-indigo-600">
+                                              {runningBaseBal > 0 ? (isTr ? '(B)' : '(D)') : runningBaseBal < 0 ? (isTr ? '(A)' : '(C)') : ''}
                                             </span>
                                           </td>
                                           <td className="py-2 px-3.5 text-right whitespace-nowrap">

@@ -27,7 +27,7 @@ import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal"
 import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
-export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, onEditProduct }: any) {
+export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, onEditProduct, companies: propCompanies, onViewTransactions }: any) {
   const storeId = initialStoreId || currentStoreId;
   const isTr = lang === 'tr';
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
@@ -762,6 +762,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         onEditProduct={onEditProduct}
         storeId={role === 'superadmin' ? storeId : undefined}
         products={products}
+        companies={propCompanies || companies}
+        onViewTransactions={onViewTransactions}
         onRefresh={() => fetchInvoicesData(activeSearch, startDate, endDate, true)}
       />
 
