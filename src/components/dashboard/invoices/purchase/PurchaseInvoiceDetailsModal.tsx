@@ -1,0 +1,463 @@
+import React, { useState } from 'react';
+import { 
+  X, 
+  Printer, 
+  Building2, 
+  Calendar, 
+  Hash, 
+  Package, 
+  User as UserIcon, 
+  Info, 
+  CheckCircle2, 
+  XCircle, 
+  Clock,
+  Eye,
+  CreditCard,
+  Layers,
+  RefreshCw,
+  Edit3,
+  Link2,
+  Unlink,
+  Search
+} from 'lucide-react';
+import { motion } from 'motion/react';
+import { toast } from 'sonner';
+import { api } from '../../../../services/api';
+import { formatDateTR } from '../../../../utils/formatUtils';
+
+interface PurchaseInvoiceDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  invoice: any;
+  isTr: boolean;
+  handleViewHtml?: (id: number) => void;
+  onEditProduct?: (item: any) => void;
+  handleConvertToStock?: (id: number) => void;
+  handleConvertToExpense?: (id: number) => void;
+  onRefresh?: () => void;
+  storeId?: number;
+  products?: any[];
+}
+
+export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalProps> = ({
+  isOpen,
+  onClose,
+  invoice,
+  isTr,
+  handleViewHtml,
+  onEditProduct,
+  handleConvertToStock,
+  handleConvertToExpense,
+  onRefresh,
+  storeId,
+  products = []
+}) => {
+  const [syncing, setSyncing] = useState(false);
+  const [matchingItemId, setMatchingItemId] = useState<number | null>(null);
+  const [matchSearch, setMatchSearch] = useState<string>("");
+  const [isUpdatingMatch, setIsUpdatingMatch] = useState<boolean>(false);
+  if (!isOpen || !invoice) return null;
+
+  const handleMatchProduct = async (itemId: number, targetProductId: number | null) => {
+    setIsUpdatingMatch(true);
+    try {
+      const res = await api.matchPurchaseInvoiceItemProduct(invoice.id, itemId, targetProductId, storeId);
+      if (res?.success) {
+        toast.success(res.message || (isTr ? "Ürün eşleştirmesi güncellendi." : "Product match updated."));
+        setMatchingItemId(null);
+        setMatchSearch("");
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(res?.error || (isTr ? "Eşleştirme güncellenemedi." : "Failed to update match."));
+      }
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? "Hata oluştu." : "Error occurred."));
+    } finally {
+      setIsUpdatingMatch(false);
+    }
+  };
+
+  const handleReSync = async () => {
+    if (!invoice.ettn) return;
+    const confirmMsg = isTr 
+      ? 'Bu faturanın tüm kalemleri resmi e-fatura detaylarıyla yeniden taranacak ve ürün stokları hassas olarak senkronize edilecek. Devam edilsin mi?'
+      : 'Re-sync all invoice items and stocks from official e-invoice?';
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setSyncing(true);
+      const res = await api.reSyncPurchaseInvoiceMatching(invoice.id, storeId);
+      toast.success(res?.message || (isTr ? 'Fatura kalemleri ve stoklar başarıyla senkronize edildi.' : 'Invoice items synchronized.'));
+      if (onRefresh) onRefresh();
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? 'Senkronizasyon hatası' : 'Sync error'));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-slate-200"
+      >
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <Info className="h-5 w-5 text-indigo-600" />
+                {isTr ? "Fatura Detayları" : "Invoice Details"}
+              </h3>
+              {invoice.is_expense ? (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                  💼 {isTr ? `GİDER (${invoice.expense_category || 'DİĞER'})` : `EXPENSE (${invoice.expense_category || 'OTHER'})`}
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                  📦 {isTr ? "STOKLU ALIM" : "STOCK BUY"}
+                </span>
+              )}
+            </div>
+            <p className="text-xs font-bold text-slate-400 mt-0.5 uppercase tracking-widest">
+              {invoice.invoice_number}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+             {invoice.is_expense && handleConvertToStock && (
+                <button
+                  onClick={() => handleConvertToStock(invoice.id)}
+                  className="px-3.5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-sm"
+                  title={isTr ? "Bu faturayı Stoklu Alım statüsüne geçir ve ürün stoklarını sisteme ekle" : "Convert to Stock Purchase"}
+                >
+                  <Package className="h-4 w-4" />
+                  {isTr ? "STOKLU ALIMA DÖNÜŞTÜR" : "CONVERT TO STOCK"}
+                </button>
+             )}
+             {!invoice.is_expense && handleConvertToExpense && (
+                <button
+                  onClick={() => handleConvertToExpense(invoice.id)}
+                  className="px-3.5 py-2 bg-amber-600 text-white rounded-xl text-xs font-black hover:bg-amber-700 transition-all flex items-center gap-1.5 shadow-sm"
+                  title={isTr ? "Bu faturayı Gider Faturasına dönüştür ve stokları geri çek" : "Convert to Expense Invoice"}
+                >
+                  <Layers className="h-4 w-4" />
+                  {isTr ? "GİDER FATURASINA DÖNÜŞTÜR" : "CONVERT TO EXPENSE"}
+                </button>
+             )}
+             {invoice.ettn && (
+                <button
+                  onClick={handleReSync}
+                  disabled={syncing}
+                  className="px-3.5 py-2 bg-slate-800 text-white rounded-xl text-xs font-black hover:bg-slate-700 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                  title={isTr ? "Resmi e-fatura detaylarından kalemleri ve stokları yeniden senkronize et" : "Re-sync from official invoice"}
+                >
+                  <RefreshCw className={`h-4 w-4 text-cyan-400 ${syncing ? 'animate-spin' : ''}`} />
+                  {isTr ? "EŞLEŞTİRMEYİ YENİLE" : "RE-SYNC"}
+                </button>
+             )}
+             {handleViewHtml && (
+                <button
+                  onClick={() => handleViewHtml(invoice.id)}
+                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-all flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  {isTr ? "E-FATURA GÖRSELİ" : "E-INVOICE VIEW"}
+                </button>
+             )}
+            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-xl transition-all text-slate-400 hover:text-slate-600">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            <div className="space-y-6">
+              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 relative overflow-hidden group">
+                <Building2 className="absolute -right-4 -bottom-4 h-24 w-24 text-slate-200/50 group-hover:scale-110 transition-transform duration-500" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">{isTr ? "SATICI (TEDARİKÇİ)" : "SUPPLIER"}</label>
+                <p className="text-lg font-black text-slate-900 tracking-tight relative z-10">{invoice.company_name}</p>
+                <div className="mt-4 space-y-2 relative z-10">
+                   <p className="text-sm font-bold text-slate-500 flex items-center gap-2">
+                     <Hash className="h-4 w-4 text-indigo-400" />
+                     {invoice.tax_number || '-'} {invoice.tax_office ? ` / ${invoice.tax_office}` : ''}
+                   </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">{isTr ? "FATURA TARİHİ" : "INVOICE DATE"}</label>
+                    <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                       <Calendar className="h-4 w-4 text-indigo-400" />
+                       {formatDateTR(invoice.invoice_date)}
+                    </p>
+                 </div>
+                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">{isTr ? "ÖDEME ŞEKLİ" : "PAYMENT"}</label>
+                    <p className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase">
+                       <CreditCard className="h-4 w-4 text-indigo-400" />
+                       {invoice.payment_method === 'cash' ? (isTr ? 'Nakit' : 'Cash') : (isTr ? 'Vadeli' : 'Term')}
+                    </p>
+                 </div>
+                 {invoice.is_expense && invoice.expense_center && (
+                    <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 col-span-2">
+                       <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1 block">{isTr ? "GİDER YERİ" : "EXPENSE CENTER"}</label>
+                       <p className="text-sm font-black text-amber-700 flex items-center gap-2 uppercase">
+                          <CheckCircle2 className="h-4 w-4" />
+                          {invoice.expense_center}
+                       </p>
+                    </div>
+                 )}
+              </div>
+            </div>
+
+            <div className="flex flex-col justify-between">
+               <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-slate-900/20">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center opacity-60">
+                      <span className="text-[10px] font-black uppercase tracking-widest">{isTr ? "MATRAH" : "SUBTOTAL"}</span>
+                      <span className="text-sm font-medium">{Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                    </div>
+                    <div className="flex justify-between items-center opacity-60">
+                      <span className="text-[10px] font-black uppercase tracking-widest">{isTr ? "KDV TOPLAM" : "VAT TOTAL"}</span>
+                      <span className="text-sm font-medium">{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                    </div>
+                    <div className="pt-4 border-t border-slate-800 flex justify-between items-end">
+                       <span className="text-xs font-black text-indigo-400 uppercase tracking-widest">{isTr ? "GENEL TOPLAM" : "TOTAL"}</span>
+                       <span className="text-3xl font-semibold tracking-tighter">{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} <span className="text-sm font-medium text-slate-400 uppercase">{invoice.currency}</span></span>
+                    </div>
+                  </div>
+               </div>
+
+               <div className="mt-6 p-4 rounded-2xl border border-slate-200 bg-slate-50/50">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">{isTr ? "NOTLAR" : "NOTES"}</label>
+                  <p className="text-sm font-medium text-slate-600 italic">
+                    {invoice.notes || (isTr ? "Not eklenmemiş." : "No notes.")}
+                  </p>
+               </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{isTr ? "KALEM DETAYLARI" : "ITEM DETAILS"}</h4>
+             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse whitespace-nowrap">
+                     <thead>
+                        <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest">
+                           <th className="p-4 font-bold">{isTr ? "ÜRÜN / HİZMET" : "PRODUCT"}</th>
+                           <th className="p-4 font-bold text-center">{isTr ? "FATURA MİKTARI / BİRİMİ" : "INVOICE QTY / UNIT"}</th>
+                           <th className="p-4 font-bold text-center">{isTr ? "SİSTEM MİKTARI / BİRİMİ" : "SYSTEM QTY / UNIT"}</th>
+                           <th className="p-4 font-bold text-right">{isTr ? "BİRİM FİYAT" : "UNIT PRICE"}</th>
+                           <th className="p-4 font-bold text-center">{isTr ? "KDV %" : "VAT %"}</th>
+                           <th className="p-4 font-bold text-right">{isTr ? "TOPLAM" : "TOTAL"}</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100">
+                        {invoice.items?.map((item: any, idx: number) => {
+                          const sysQty = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity);
+                          const sysUnit = item.system_unit_code || item.unit_code || (isTr ? 'Adet' : 'Pcs');
+                          const itemTotal = item.total_price ? (Number(item.total_price) + Number(item.tax_amount || 0)) : (Number(item.quantity) * Number(item.unit_price) * (1 + Number(item.tax_rate) / 100));
+                          const matchedProd = item.product_id
+                            ? products.find((p: any) => Number(p.id) === Number(item.product_id))
+                            : null;
+                          const matchedName = item.matched_product_name || matchedProd?.name || null;
+                          const isPickerOpen = matchingItemId === item.id;
+                          const searchLower = matchSearch.trim().toLocaleLowerCase('tr-TR');
+                          const candidateProducts = isPickerOpen
+                            ? products
+                                .filter((p: any) => {
+                                  if (!searchLower) return true;
+                                  const n = (p.name || '').toLocaleLowerCase('tr-TR');
+                                  const b = (p.barcode || '').toLocaleLowerCase('tr-TR');
+                                  const c = (p.product_code || p.sku || '').toLocaleLowerCase('tr-TR');
+                                  return n.includes(searchLower) || b.includes(searchLower) || c.includes(searchLower);
+                                })
+                                .slice(0, 12)
+                            : [];
+
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                               <td className="p-4 whitespace-normal">
+                                  <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <button 
+                                        type="button"
+                                        onClick={() => {
+                                          if (onEditProduct) onEditProduct(item);
+                                        }}
+                                        className={`text-left text-sm font-black text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                                      >
+                                        {item.product_name}
+                                      </button>
+                                      {onEditProduct && (
+                                        <button
+                                          type="button"
+                                          onClick={() => onEditProduct(item)}
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
+                                          title={isTr ? "Ürün kartını düzenle, yeni kart aç veya eşleştirmeyi revize et" : "Edit product or revise matching"}
+                                        >
+                                          <Edit3 className="w-2.5 h-2.5" />
+                                          {isTr ? "Kartı Düzenle" : "Edit Card"}
+                                        </button>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                      {item.barcode ? `Barkod: ${item.barcode}` : (isTr ? 'Barkod Yok' : 'No Barcode')}{item.product_code ? ` • Kod: ${item.product_code}` : ''}
+                                    </p>
+
+                                    {!invoice.is_expense && (
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        {item.product_id ? (
+                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
+                                            <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                                            <span>
+                                              {isTr ? 'Eşleşen Envanter:' : 'Matched Inventory:'}{' '}
+                                              <strong className="font-black text-emerald-950">{matchedName || `#${item.product_id}`}</strong>
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                if (isPickerOpen) {
+                                                  setMatchingItemId(null);
+                                                } else {
+                                                  setMatchingItemId(item.id);
+                                                  setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
+                                                }
+                                              }}
+                                              className="ml-1 px-1.5 py-0.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-emerald-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                            >
+                                              <RefreshCw className="h-2.5 w-2.5" />
+                                              {isTr ? 'Değiştir' : 'Change'}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={isUpdatingMatch}
+                                              onClick={() => handleMatchProduct(item.id, null)}
+                                              className="px-1.5 py-0.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                            >
+                                              <Unlink className="h-2.5 w-2.5" />
+                                              {isTr ? 'Bağı Kopar' : 'Unlink'}
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
+                                            <span>{isTr ? 'Envanterde Eşleşen Ürün Yok' : 'Unmatched in Inventory'}</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                if (isPickerOpen) {
+                                                  setMatchingItemId(null);
+                                                } else {
+                                                  setMatchingItemId(item.id);
+                                                  setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
+                                                }
+                                              }}
+                                              className="ml-1 px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                            >
+                                              <Link2 className="h-2.5 w-2.5" />
+                                              {isTr ? 'Envanterden Eşleştir' : 'Link Product'}
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {isPickerOpen && (
+                                      <div className="mt-1 p-2.5 bg-slate-900 text-white rounded-xl shadow-xl border border-slate-700 max-w-xl">
+                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                                            {isTr ? 'Envanterden Doğru Ürünü Seçin' : 'Select Inventory Product to Match'}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => setMatchingItemId(null)}
+                                            className="text-[10px] text-slate-400 hover:text-white font-bold"
+                                          >
+                                            {isTr ? 'Kapat ✕' : 'Close ✕'}
+                                          </button>
+                                        </div>
+                                        <div className="relative mb-2">
+                                          <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                          <input
+                                            type="text"
+                                            value={matchSearch}
+                                            onChange={(e) => setMatchSearch(e.target.value)}
+                                            placeholder={isTr ? 'Ürün adı, model kodu veya barkod ara...' : 'Search product name, code or barcode...'}
+                                            className="w-full pl-8 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-400"
+                                            autoFocus
+                                          />
+                                        </div>
+                                        <div className="max-h-44 overflow-y-auto divide-y divide-slate-800 rounded-lg border border-slate-800 bg-slate-950">
+                                          {candidateProducts.length === 0 ? (
+                                            <div className="p-3 text-center text-[11px] text-slate-400">
+                                              {isTr ? 'Aramaya uygun envanter ürünü bulunamadı.' : 'No matching inventory product found.'}
+                                            </div>
+                                          ) : (
+                                            candidateProducts.map((p: any) => (
+                                              <button
+                                                key={p.id}
+                                                type="button"
+                                                disabled={isUpdatingMatch}
+                                                onClick={() => handleMatchProduct(item.id, p.id)}
+                                                className="w-full px-2.5 py-1.5 text-left hover:bg-indigo-950/80 transition-colors flex items-center justify-between gap-2"
+                                              >
+                                                <div className="min-w-0">
+                                                  <div className="text-[11px] font-bold text-slate-100 truncate">{p.name}</div>
+                                                  <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
+                                                    {p.barcode && <span>Barkod: {p.barcode}</span>}
+                                                    {(p.product_code || p.sku) && <span>Kod: {p.product_code || p.sku}</span>}
+                                                    <span>Stok: {p.stock_quantity ?? 0}</span>
+                                                  </div>
+                                                </div>
+                                                <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-black shrink-0">
+                                                  {isTr ? 'Seç & Eşleştir' : 'Select'}
+                                                </span>
+                                              </button>
+                                            ))
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                               </td>
+                               <td className="p-4 text-center font-medium text-slate-700 text-sm">
+                                  {Number(item.quantity).toLocaleString('tr-TR')} <span className="text-xs text-slate-400 font-bold">({item.unit_code || (isTr ? 'Adet' : 'Pcs')})</span>
+                               </td>
+                               <td className="p-4 text-center font-medium text-slate-700 text-sm">
+                                  {sysQty.toLocaleString('tr-TR')} <span className="text-xs text-indigo-500 font-bold">({sysUnit})</span>
+                               </td>
+                               <td className="p-4 text-right font-medium text-slate-700 text-sm">
+                                  {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                               </td>
+                               <td className="p-4 text-center font-medium text-indigo-600 text-sm">
+                                  %{Number(item.tax_rate)}
+                               </td>
+                               <td className="p-4 text-right font-semibold text-slate-800 text-sm">
+                                  {itemTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                </td>
+                             </tr>
+                          );
+                        })}
+                     </tbody>
+                  </table>
+                </div>
+             </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+           <button
+             onClick={onClose}
+             className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100 transition-all shadow-sm"
+           >
+             {isTr ? "Kapat" : "Close"}
+           </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};

@@ -1,0 +1,3674 @@
+import express from "express";
+import { pool, addStockMovement } from "../../models/db";
+import { getAuthorizedStoreId } from "../../middleware/auth";
+import { getEInvoiceService } from "../einvoice";
+import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
+import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification, revertInvoiceStockAndProducts, detectExpenseCategory, generateTempBarcode, hasProductMatchConflict, invalidateStoreProductsCache, extractModelTokens } from "./invoiceMatching";
+import { mergeProducts } from "./products";
+import { syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
+
+const router = express.Router();
+
+export async function initPurchaseInvoiceSchema() {
+  try {
+    await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(255);`);
+    await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_name VARCHAR(255);`);
+    await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS product_code VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS variant_name VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS product_code VARCHAR(255);`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_code VARCHAR(255);`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sku VARCHAR(255);`);
+    await pool.query(`ALTER TABLE supplier_product_mappings ADD COLUMN IF NOT EXISTS supplier_product_code VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS company_title VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS gi_exemption_reason_text TEXT;`);
+    await pool.query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS company_id INT;`);
+  } catch (e) {
+    console.error("Failed to alter purchase_invoice_items / sales_invoices table columns:", e);
+  }
+
+  try {
+    // 1. Auto-repair sales_invoice_items missing product_id where barcode, code or exact name exists
+    await pool.query(`
+      UPDATE sales_invoice_items sii
+      SET product_id = p.id
+      FROM sales_invoices si, products p
+      WHERE sii.sales_invoice_id = si.id
+        AND p.store_id = si.store_id
+        AND (sii.product_id IS NULL OR sii.product_id = 0)
+        AND (
+          (p.barcode = sii.barcode AND sii.barcode IS NOT NULL AND sii.barcode != '')
+          OR (p.product_code IS NOT NULL AND p.product_code != '' AND (p.product_code = sii.product_code OR p.product_code = sii.barcode))
+          OR (p.sku IS NOT NULL AND p.sku != '' AND (p.sku = sii.product_code OR p.sku = sii.barcode))
+          OR (LOWER(TRIM(p.name)) = LOWER(TRIM(sii.product_name)) AND LENGTH(TRIM(p.name)) >= 3)
+        )
+    `);
+
+    // 2. Self-Healing 5-Gate Product Matching & Stock Reconciliation for purchase_invoice_items
+    // a) Unlink & heal any existing purchase_invoice_items that violate the 5-Gate Conflict Veto (e.g. Kingston matched to TwinMOS)
+    // b) Match any unmatched purchase_invoice_items using the 5-Gate findMatchingProduct engine
+    try {
+      const piiCheckRes = await pool.query(`
+        SELECT pii.id, pii.purchase_invoice_id, pi.store_id, pi.invoice_number, pi.document_number, pi.supplier_name, pi.tax_number, pi.currency, pi.invoice_date, pi.created_at,
+               pii.product_name, pii.barcode, pii.product_code, pii.product_id, pii.quantity, pii.system_quantity, pii.unit_price,
+               p.name as cur_prod_name, p.barcode as cur_prod_barcode, COALESCE(p.product_code, p.sku, '') as cur_prod_code, p.brand as cur_prod_brand
+        FROM purchase_invoice_items pii
+        JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+        LEFT JOIN products p ON pii.product_id = p.id
+        WHERE COALESCE(pi.is_expense, FALSE) = FALSE
+        ORDER BY pii.id ASC
+      `);
+
+      // Also clean up any poisoned supplier_product_mappings that violate 5-Gate Conflict Veto
+      const spmRes = await pool.query(`
+        SELECT spm.id, spm.supplier_product_name, p.name as prod_name, p.brand as prod_brand
+        FROM supplier_product_mappings spm
+        JOIN products p ON spm.product_id = p.id
+      `);
+      for (const spm of spmRes.rows) {
+        if (hasProductMatchConflict(spm.supplier_product_name, spm.prod_name, { productBrand: spm.prod_brand })) {
+          await pool.query("DELETE FROM supplier_product_mappings WHERE id = $1", [spm.id]);
+          console.log(`[5-Gate Veto] Deleted poisoned supplier mapping #${spm.id}: "${spm.supplier_product_name}" != "${spm.prod_name}"`);
+        }
+      }
+      invalidateStoreProductsCache();
+
+      for (const item of piiCheckRes.rows) {
+        const hasConflict = item.product_id
+          ? hasProductMatchConflict(item.product_name, item.cur_prod_name, { productBrand: item.cur_prod_brand })
+          : false;
+
+        if (!hasConflict && item.product_id) {
+          continue; // Validly matched, untouched
+        }
+
+        const qty = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
+        const invNum = item.document_number || item.invoice_number || '';
+
+        // If there was a false-positive match, revert the wrong product's stock & delete its wrong stock movement
+        if (hasConflict && item.product_id) {
+          console.log(`[5-Gate Self-Heal] Vetoing false match on Invoice #${invNum} Item #${item.id}: "${item.product_name}" was wrongly linked to #${item.product_id} "${item.cur_prod_name}"`);
+          const delMov = await pool.query(
+            `DELETE FROM stock_movements
+             WHERE store_id = $1 AND product_id = $2
+               AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+               AND (invoice_id = $3 OR invoice_number = $4 OR description LIKE $5)
+             RETURNING quantity`,
+            [item.store_id, item.product_id, item.purchase_invoice_id, invNum, `%${invNum}%`]
+          );
+          if (delMov.rows.length > 0 && qty > 0) {
+            await pool.query(
+              "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+              [qty, item.product_id, item.store_id]
+            );
+          }
+        }
+
+        // Now run the 5-Gate Matching Engine to find the true inventory product (if one exists)
+        // Strip barcode/product_code if they were overwritten by the wrong product's barcode/code
+        const cleanBarcode = hasConflict && item.barcode === item.cur_prod_barcode ? null : item.barcode;
+        const cleanCode = hasConflict && item.product_code === item.cur_prod_code ? null : item.product_code;
+
+        const match = await findMatchingProduct(pool, item.store_id, {
+          supplierVkn: item.tax_number,
+          productName: item.product_name,
+          barcode: cleanBarcode,
+          productCode: cleanCode
+        });
+
+        if (match) {
+          await pool.query(
+            "UPDATE purchase_invoice_items SET product_id = $1, barcode = COALESCE($2, $3), product_code = COALESCE($4, $5) WHERE id = $6",
+            [match.productId, match.barcode, cleanBarcode, match.productCode, cleanCode, item.id]
+          );
+
+          if (item.tax_number && item.product_name) {
+            await saveSupplierMapping(pool, item.store_id, item.tax_number, item.product_name, match.productId, match.productCode || cleanCode);
+          }
+
+          // Ensure stock movement and stock_quantity are credited to the matched product
+          const movExists = await pool.query(
+            `SELECT 1 FROM stock_movements
+             WHERE store_id = $1 AND product_id = $2
+               AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+               AND invoice_id = $3
+             LIMIT 1`,
+            [item.store_id, match.productId, item.purchase_invoice_id]
+          );
+          if (movExists.rows.length === 0 && qty > 0) {
+            await pool.query(
+              "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) + $1::numeric, cost_price = CASE WHEN COALESCE($2::numeric, 0) > 0 THEN $2::numeric ELSE cost_price END, cost_currency = COALESCE($3, cost_currency) WHERE id = $4 AND store_id = $5",
+              [Math.round(qty), Number(item.unit_price || 0), item.currency || 'TRY', match.productId, item.store_id]
+            );
+            await pool.query(
+              `INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
+               VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, $8, $9, 'purchase', $10)`,
+              [
+                item.store_id,
+                match.productId,
+                Math.round(qty),
+                `Alış Faturası: ${invNum}`,
+                Number(item.unit_price || 0),
+                item.supplier_name || 'Tedarikçi',
+                item.currency || 'TRY',
+                item.invoice_date || item.created_at || new Date(),
+                item.purchase_invoice_id,
+                invNum
+              ]
+            );
+          }
+          console.log(`[5-Gate Self-Heal] Linked Invoice #${invNum} Item #${item.id} ("${item.product_name}") -> Product #${match.productId} ("${match.name}") [${match.matchType}]`);
+        } else if (hasConflict) {
+          // Restore clean unmatched state without corrupt barcode from the wrong product
+          const extractedTokens = extractModelTokens(item.product_name);
+          const restoredCode = cleanCode || (extractedTokens.length > 0 ? extractedTokens[0] : null);
+          await pool.query(
+            "UPDATE purchase_invoice_items SET product_id = NULL, barcode = $1, product_code = $2 WHERE id = $3",
+            [cleanBarcode, restoredCode, item.id]
+          );
+          console.log(`[5-Gate Self-Heal] Unlinked Invoice #${invNum} Item #${item.id} ("${item.product_name}") to clean unmatched state (code: ${restoredCode || '-'})`);
+        }
+      }
+    } catch (healErr) {
+      console.error("[5-Gate Self-Heal] Error during purchase invoice item reconciliation:", healErr);
+    }
+
+    // 2.5 Auto-repair products table names where product name is HB code, barcode or code, using actual product names from purchase invoices
+    await pool.query(`
+      UPDATE products p
+      SET name = pii.product_name,
+          updated_at = CURRENT_TIMESTAMP
+      FROM purchase_invoice_items pii, purchase_invoices pi
+      WHERE pii.purchase_invoice_id = pi.id
+        AND pi.store_id = p.store_id
+        AND (pii.product_id = p.id OR (pii.barcode IS NOT NULL AND pii.barcode != '' AND pii.barcode = p.barcode))
+        AND pii.product_name IS NOT NULL
+        AND TRIM(pii.product_name) != ''
+        AND LENGTH(TRIM(pii.product_name)) >= 3
+        AND (
+          p.name IS NULL 
+          OR TRIM(p.name) = '' 
+          OR p.name ~ '^\\d+$'
+          OR p.name ILIKE 'HBCV%' 
+          OR p.name ILIKE 'HBV%'
+          OR p.name ILIKE 'TY-%'
+          OR p.name ILIKE 'HB-%'
+        )
+        AND pii.product_name NOT ILIKE 'HBCV%'
+        AND pii.product_name NOT ILIKE 'HBV%'
+        AND NOT (pii.product_name ~ '^\\d+$');
+    `);
+
+    // 2.6 Clean up bad or orphaned stock movements with product_id 0 or NULL
+    await pool.query("DELETE FROM stock_movements WHERE product_id IS NULL OR product_id = 0");
+
+    // 3. Auto-repair missing sales_invoice stock_movements
+    await pool.query(`
+      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
+      SELECT 
+        si.store_id,
+        sii.product_id,
+        'out',
+        sii.quantity,
+        'sales_invoice',
+        'Satış Faturası: ' || COALESCE(NULLIF(si.document_number, ''), si.invoice_number),
+        sii.unit_price,
+        COALESCE(c.title, cust.full_name, si.customer_name, 'Müşteri'),
+        COALESCE(si.currency, 'TRY'),
+        COALESCE(si.invoice_date::timestamp, si.created_at),
+        si.id,
+        'sales',
+        COALESCE(NULLIF(si.document_number, ''), si.invoice_number)
+      FROM sales_invoice_items sii
+      JOIN sales_invoices si ON sii.sales_invoice_id = si.id
+      LEFT JOIN companies c ON si.company_id = c.id
+      LEFT JOIN customers cust ON si.customer_id = cust.id
+      WHERE sii.product_id IS NOT NULL AND sii.product_id > 0
+        AND NOT EXISTS (
+          SELECT 1 FROM stock_movements sm
+          WHERE sm.product_id = sii.product_id
+            AND (
+              sm.invoice_id = si.id
+              OR (si.sale_id IS NOT NULL AND sm.sale_id = si.sale_id)
+              OR (sm.invoice_number IS NOT NULL AND (sm.invoice_number = si.invoice_number OR sm.invoice_number = si.document_number))
+              OR sm.description LIKE '%' || si.invoice_number || '%'
+              OR (si.invoice_number LIKE 'HB-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
+              OR (si.invoice_number LIKE 'TY-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
+            )
+        )
+    `);
+
+    // 4. Auto-repair missing purchase_invoice stock_movements (strictly non-expense invoices)
+    await pool.query(`
+      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
+      SELECT 
+        pi.store_id,
+        pii.product_id,
+        'in',
+        pii.quantity,
+        'purchase_invoice',
+        'Alış Faturası: ' || COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number),
+        pii.unit_price,
+        COALESCE(pi.supplier_name, c.title, 'Tedarikçi'),
+        COALESCE(pi.currency, 'TRY'),
+        COALESCE(pi.invoice_date::timestamp, pi.created_at),
+        pi.id,
+        'purchase',
+        COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number)
+      FROM purchase_invoice_items pii
+      JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+      LEFT JOIN companies c ON pi.company_id = c.id
+      WHERE pii.product_id IS NOT NULL AND pii.product_id > 0
+        AND COALESCE(pi.is_expense, FALSE) = FALSE
+        AND NOT EXISTS (
+          SELECT 1 FROM stock_movements sm
+          WHERE sm.product_id = pii.product_id
+            AND sm.source = 'purchase_invoice'
+            AND sm.invoice_id = pi.id
+        )
+    `);
+
+    // 4. Auto-repair existing products & purchase_invoice_items where non-standard barcode strings (e.g., TRU16977, letters, AUTO-) were placed in barcode
+    const invalidProds = await pool.query(
+      `SELECT id, store_id, barcode, product_code, sku FROM products 
+       WHERE barcode IS NOT NULL AND barcode != '' 
+         AND (barcode ~ '[^0-9]' OR LENGTH(barcode) < 8 OR LENGTH(barcode) > 14 OR barcode LIKE 'AUTO-%')`
+    );
+    for (const prod of invalidProds.rows) {
+      const oldBarcode = prod.barcode ? prod.barcode.trim() : '';
+      if (!oldBarcode) continue;
+      
+      const newProdCode = prod.product_code || prod.sku || (oldBarcode.startsWith("AUTO-") ? null : oldBarcode);
+      // Generate temp 13-digit numeric barcode
+      const timeStr = Date.now().toString().slice(-9);
+      const randDigit = Math.floor(Math.random() * 10).toString();
+      const tempBarcode = `200${timeStr}${randDigit}`;
+
+      await pool.query(
+        `UPDATE products 
+         SET barcode = $1, 
+             product_code = COALESCE(product_code, $2), 
+             sku = COALESCE(sku, $2) 
+         WHERE id = $3`,
+        [tempBarcode, newProdCode, prod.id]
+      );
+
+      await pool.query(
+        `UPDATE purchase_invoice_items 
+         SET barcode = $1, 
+             product_code = COALESCE(product_code, $2) 
+         WHERE product_id = $3 OR barcode = $4`,
+        [tempBarcode, newProdCode, prod.id, oldBarcode]
+      );
+    }
+
+    // 4b. Auto-consolidate high-confidence duplicate products (temporary barcodes matching real inventory products)
+    try {
+      const dupQuery = await pool.query(`
+        SELECT 
+          t.id as source_id, t.store_id, t.name as source_name, t.barcode as source_barcode,
+          r.id as target_id, r.name as target_name, r.barcode as target_barcode
+        FROM products t
+        JOIN products r ON t.store_id = r.store_id AND t.id != r.id
+        WHERE (t.barcode LIKE '200%' OR t.barcode LIKE 'TEMP%')
+          AND r.barcode NOT LIKE '200%' AND r.barcode NOT LIKE 'TEMP%'
+          AND (
+            (t.product_code IS NOT NULL AND t.product_code != '' AND (t.product_code = r.product_code OR t.product_code = r.sku))
+            OR (t.sku IS NOT NULL AND t.sku != '' AND (t.sku = r.sku OR t.sku = r.product_code))
+            OR (LOWER(TRIM(t.name)) = LOWER(TRIM(r.name)))
+          )
+        ORDER BY t.id ASC
+      `);
+
+      for (const pair of dupQuery.rows) {
+        try {
+          await mergeProducts(pool, pair.source_id, pair.target_id, pair.store_id);
+          console.log(`[Auto-Consolidate] Merged duplicate product #${pair.source_id} (${pair.source_name}) -> #${pair.target_id} (${pair.target_name})`);
+        } catch (mErr: any) {
+          console.warn(`[Auto-Consolidate] Skipped #${pair.source_id}:`, mErr.message);
+        }
+      }
+    } catch (dupErr) {
+      console.error("Auto-consolidate duplicates error:", dupErr);
+    }
+
+    // 5. Auto-link missing company_id on purchase_invoices by tax_number or supplier_name
+    await pool.query(`
+      UPDATE purchase_invoices pi
+      SET company_id = c.id
+      FROM companies c
+      WHERE pi.company_id IS NULL 
+        AND pi.tax_number IS NOT NULL AND pi.tax_number != ''
+        AND c.store_id = pi.store_id
+        AND c.tax_number = pi.tax_number
+    `);
+
+    await pool.query(`
+      UPDATE purchase_invoices pi
+      SET company_id = c.id
+      FROM companies c
+      WHERE pi.company_id IS NULL 
+        AND pi.supplier_name IS NOT NULL AND pi.supplier_name != ''
+        AND c.store_id = pi.store_id
+        AND LOWER(TRIM(c.title)) = LOWER(TRIM(pi.supplier_name))
+    `);
+
+    // 6. Auto-repair missing transactions in current_account_transactions for purchase invoices
+    // a) Ensure credit transaction exists for all linked purchase_invoices
+    await pool.query(`
+      INSERT INTO current_account_transactions 
+        (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date)
+      SELECT 
+        pi.store_id, 
+        pi.company_id, 
+        pi.id, 
+        'credit', 
+        COALESCE(NULLIF(pi.grand_total, 0), pi.total_amount, 0),
+        COALESCE(pi.currency, 'TRY'),
+        COALESCE(pi.exchange_rate, 1),
+        'Alış Faturası: ' || COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number),
+        COALESCE(pi.invoice_date::timestamp, pi.created_at)
+      FROM purchase_invoices pi
+      WHERE pi.company_id IS NOT NULL 
+        AND COALESCE(NULLIF(pi.grand_total, 0), pi.total_amount, 0) > 0
+        AND NOT EXISTS (
+          SELECT 1 FROM current_account_transactions cat
+          WHERE cat.purchase_invoice_id = pi.id AND cat.type = 'credit'
+        )
+    `);
+
+    // b) Ensure debt (payment) transaction exists for all paid purchase invoices (or payment_method != 'term')
+    await pool.query(`
+      INSERT INTO current_account_transactions 
+        (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date)
+      SELECT 
+        pi.store_id, 
+        pi.company_id, 
+        pi.id, 
+        'debt', 
+        COALESCE(NULLIF(pi.grand_total, 0), pi.total_amount, 0),
+        COALESCE(pi.currency, 'TRY'),
+        COALESCE(pi.exchange_rate, 1),
+        'Alış Faturası Ödemesi: ' || COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number) || CASE WHEN pi.payment_method IS NOT NULL THEN ' (' || pi.payment_method || ')' ELSE '' END,
+        COALESCE(pi.payment_method, 'nakit'),
+        COALESCE(pi.invoice_date::timestamp, pi.created_at)
+      FROM purchase_invoices pi
+      WHERE pi.company_id IS NOT NULL 
+        AND COALESCE(NULLIF(pi.grand_total, 0), pi.total_amount, 0) > 0
+        AND (pi.payment_status = 'paid' OR (pi.payment_method IS NOT NULL AND pi.payment_method != 'term'))
+        AND NOT EXISTS (
+          SELECT 1 FROM current_account_transactions cat
+          WHERE cat.purchase_invoice_id = pi.id AND cat.type = 'debt'
+        )
+    `);
+
+    // c) Auto-repair sales invoices missing company_id, sync titles from companies
+    try {
+      // 1. Re-link sales invoices by tax_number to real companies
+      await pool.query(`
+        UPDATE sales_invoices si
+        SET company_id = c.id,
+            company_title = c.title,
+            customer_name = c.title
+        FROM companies c
+        WHERE c.store_id = si.store_id 
+          AND c.tax_number = si.tax_number
+          AND c.tax_number IS NOT NULL
+          AND c.tax_number != ''
+          AND c.tax_number != '11111111111'
+          AND c.title != 'Bireysel Web Müşterisi'
+          AND (si.company_id IS NULL OR si.company_title = 'Bireysel Web Müşterisi');
+      `);
+
+      // 2. Sync company_title and customer_name from existing valid company_id
+      await pool.query(`
+        UPDATE sales_invoices si
+        SET company_title = c.title,
+            customer_name = c.title
+        FROM companies c
+        WHERE si.company_id = c.id 
+          AND c.title != 'Bireysel Web Müşterisi'
+          AND (si.company_title IS NULL OR si.company_title = 'Bireysel Web Müşterisi' OR si.customer_name = 'Bireysel Web Müşterisi');
+      `);
+
+      // 3. For invoices and customers, sync full AD+SOYAD names
+      await pool.query(`
+        UPDATE customers
+        SET full_name = TRIM(CONCAT_WS(' ', name, surname))
+        WHERE surname IS NOT NULL AND surname != '' 
+          AND (full_name IS NULL OR full_name = '' OR full_name = name);
+      `);
+
+      await pool.query(`
+        UPDATE customers cust
+        SET full_name = s.customer_name,
+            surname = COALESCE(NULLIF(cust.surname, ''), SPLIT_PART(s.customer_name, ' ', 2))
+        FROM sales s
+        WHERE s.customer_id = cust.id
+          AND s.customer_name LIKE '% %'
+          AND (cust.full_name IS NULL OR cust.full_name NOT LIKE '% %' OR cust.full_name = 'Müşteri' OR cust.full_name = 'Bireysel Web Müşterisi');
+      `);
+
+      await pool.query(`
+        UPDATE sales_invoices si
+        SET customer_name = COALESCE(
+              NULLIF(s.customer_name, ''),
+              NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
+              NULLIF(cust.full_name, ''),
+              si.customer_name
+            ),
+            company_title = COALESCE(
+              NULLIF(s.customer_name, ''),
+              NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
+              NULLIF(cust.full_name, ''),
+              si.company_title
+            )
+        FROM sales s
+        LEFT JOIN customers cust ON cust.id = s.customer_id
+        WHERE si.sale_id = s.id
+          AND (
+            si.customer_name IS NULL 
+            OR si.customer_name = 'Bireysel Web Müşterisi'
+            OR si.customer_name = 'Müşteri'
+            OR (si.customer_name NOT LIKE '% %' AND s.customer_name LIKE '% %')
+          );
+      `);
+
+      await pool.query(`
+        UPDATE sales_invoices si
+        SET customer_name = COALESCE(
+              NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
+              NULLIF(cust.full_name, ''),
+              si.customer_name
+            ),
+            company_title = COALESCE(
+              NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
+              NULLIF(cust.full_name, ''),
+              si.company_title
+            )
+        FROM customers cust
+        WHERE si.customer_id = cust.id
+          AND (
+            si.customer_name IS NULL 
+            OR si.customer_name = 'Bireysel Web Müşterisi'
+            OR si.customer_name = 'Müşteri'
+            OR (si.customer_name NOT LIKE '% %' AND cust.surname IS NOT NULL AND cust.surname != '')
+          );
+      `);
+    } catch (err) {
+      console.error("Failed to sync sales invoices with companies:", err);
+    }
+
+      // d) Ensure debt transaction exists for all linked sales_invoices
+      await pool.query(`
+        INSERT INTO current_account_transactions 
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, transaction_date)
+        SELECT 
+          si.store_id, 
+          si.company_id, 
+          si.id, 
+          'debt', 
+          COALESCE(NULLIF(si.grand_total, 0), si.total_amount, 0),
+          COALESCE(si.currency, 'TRY'),
+          COALESCE(si.exchange_rate, 1),
+          'Satış Faturası: ' || COALESCE(NULLIF(si.document_number, ''), si.invoice_number),
+          COALESCE(si.invoice_date::timestamp, si.created_at)
+        FROM sales_invoices si
+        WHERE si.company_id IS NOT NULL 
+          AND COALESCE(NULLIF(si.grand_total, 0), si.total_amount, 0) > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM current_account_transactions cat
+            WHERE cat.sales_invoice_id = si.id AND cat.type = 'debt'
+          )
+      `);
+
+      // e) Ensure credit (collection) transaction exists for paid sales invoices (payment_method != 'term')
+      await pool.query(`
+        INSERT INTO current_account_transactions 
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date)
+        SELECT 
+          si.store_id, 
+          si.company_id, 
+          si.id, 
+          'credit', 
+          COALESCE(NULLIF(si.grand_total, 0), si.total_amount, 0),
+          COALESCE(si.currency, 'TRY'),
+          COALESCE(si.exchange_rate, 1),
+          'Satış Faturası Tahsilatı: ' || COALESCE(NULLIF(si.document_number, ''), si.invoice_number) || CASE WHEN si.payment_method IS NOT NULL THEN ' (' || si.payment_method || ')' ELSE '' END,
+          COALESCE(si.payment_method, 'kredi_karti'),
+          COALESCE(si.invoice_date::timestamp, si.created_at)
+        FROM sales_invoices si
+        WHERE si.company_id IS NOT NULL 
+          AND COALESCE(NULLIF(si.grand_total, 0), si.total_amount, 0) > 0
+          AND (si.status = 'paid' OR (si.payment_method IS NOT NULL AND si.payment_method != 'term'))
+          AND NOT EXISTS (
+            SELECT 1 FROM current_account_transactions cat
+            WHERE cat.sales_invoice_id = si.id AND cat.type = 'credit'
+          )
+      `);
+
+      // f) If there are sale_id current_account_transactions with type='credit' where no debt exists, create the corresponding debt!
+      await pool.query(`
+        INSERT INTO current_account_transactions 
+          (store_id, company_id, sale_id, type, amount, currency, exchange_rate, description, transaction_date)
+        SELECT 
+          cat.store_id,
+          cat.company_id,
+          cat.sale_id,
+          'debt',
+          COALESCE(s.total_amount, cat.amount),
+          COALESCE(s.currency, cat.currency, 'TRY'),
+          COALESCE(s.exchange_rate, cat.exchange_rate, 1),
+          'Satış #' || cat.sale_id,
+          COALESCE(s.created_at, cat.transaction_date, NOW())
+        FROM current_account_transactions cat
+        LEFT JOIN sales s ON cat.sale_id = s.id
+        WHERE cat.sale_id IS NOT NULL 
+          AND cat.type = 'credit'
+          AND NOT EXISTS (
+            SELECT 1 FROM current_account_transactions debt_cat
+            WHERE debt_cat.sale_id = cat.sale_id AND debt_cat.type = 'debt'
+          )
+      `);
+
+      // g) Repair null store_id in current_account_transactions
+      await pool.query(`
+        UPDATE current_account_transactions cat
+        SET store_id = c.store_id
+        FROM companies c
+        WHERE cat.company_id = c.id AND (cat.store_id IS NULL OR cat.store_id = 0)
+      `);
+
+      // h) Auto-repair products with stock_quantity that lack initial stock_movements records
+      await pool.query(`
+        INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+        SELECT 
+          p.store_id,
+          p.id,
+          'in',
+          p.stock_quantity - COALESCE(sm_sum.net_qty, 0),
+          'initial_stock',
+          'Açılış Stok / Devir Kaydı',
+          COALESCE(NULLIF(p.cost_price, 0), p.price, 0),
+          COALESCE(p.currency, 'TRY'),
+          COALESCE(p.created_at, CURRENT_TIMESTAMP)
+        FROM products p
+        LEFT JOIN (
+          SELECT 
+            product_id, 
+            SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END) as net_qty
+          FROM stock_movements
+          GROUP BY product_id
+        ) sm_sum ON p.id = sm_sum.product_id
+        WHERE (p.stock_quantity - COALESCE(sm_sum.net_qty, 0)) > 0
+      `);
+  } catch (e) {
+    console.error("Failed to alter purchase_invoice_items schema / stock sync:", e);
+  }
+}
+
+async function resolveProductInfo(clientOrPool: any, storeId: number, productId: any, barcode: any, productCode?: any, productName?: string | null) {
+  let resolvedId = productId ? Number(productId) : null;
+  let rawBarcode = barcode ? String(barcode).trim() : '';
+  let rawCode = productCode ? String(productCode).trim() : '';
+
+  if ((!resolvedId || isNaN(resolvedId))) {
+    // 1. Try matching barcode or product_code by barcode (guarded by 5-Gate Conflict Veto)
+    if (rawBarcode) {
+      const pRes = await clientOrPool.query(
+        "SELECT id, barcode, COALESCE(product_code, sku, '') as product_code, name, brand FROM products WHERE store_id = $1 AND (barcode = $2 OR product_code = $2 OR sku = $2) LIMIT 5",
+        [storeId, rawBarcode]
+      );
+      for (const row of pRes.rows) {
+        if (productName && hasProductMatchConflict(productName, row.name, { productBrand: row.brand })) continue;
+        resolvedId = row.id;
+        rawBarcode = row.barcode || rawBarcode;
+        rawCode = row.product_code || rawCode;
+        break;
+      }
+    }
+    // 2. Try matching by productCode / SKU if still unresolved (guarded by 5-Gate Conflict Veto)
+    if ((!resolvedId || isNaN(resolvedId)) && rawCode) {
+      const pRes = await clientOrPool.query(
+        "SELECT id, barcode, COALESCE(product_code, sku, '') as product_code, name, brand FROM products WHERE store_id = $1 AND (LOWER(product_code) = LOWER($2) OR LOWER(sku) = LOWER($2) OR barcode = $2) LIMIT 5",
+        [storeId, rawCode]
+      );
+      for (const row of pRes.rows) {
+        if (productName && hasProductMatchConflict(productName, row.name, { productBrand: row.brand })) continue;
+        resolvedId = row.id;
+        rawBarcode = row.barcode || rawBarcode;
+        rawCode = row.product_code || rawCode;
+        break;
+      }
+    }
+  } else if (resolvedId && (!rawBarcode || !rawCode)) {
+    const pRes = await clientOrPool.query(
+      "SELECT barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE id = $1 LIMIT 1",
+      [resolvedId]
+    );
+    if (pRes.rows.length > 0) {
+      if (!rawBarcode) rawBarcode = pRes.rows[0].barcode || '';
+      if (!rawCode) rawCode = pRes.rows[0].product_code || '';
+    }
+  }
+
+  // Sanitize to prevent non-standard strings like "TRU16977" from becoming barcode
+  const sanitized = sanitizeInvoiceItemCodes(rawBarcode, null, null, rawCode);
+
+  return { 
+    productId: resolvedId, 
+    barcode: sanitized.barcode, 
+    productCode: sanitized.productCode || rawCode || null 
+  };
+}
+
+// --- Sales Invoices ---
+
+router.get("/sales", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const { startDate, endDate, status, search } = req.query;
+
+    let query = `
+       SELECT si.*, 
+             COALESCE(
+               NULLIF(c.title, 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(NULLIF(cust.full_name, ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(s.customer_name, ''), 'Amazon Müşterisi'),
+               NULLIF(NULLIF(si.customer_name, ''), 'Amazon Müşterisi'),
+               NULLIF(si.company_title, 'Bireysel Web Müşterisi'),
+               NULLIF(s.customer_name, 'Amazon Müşterisi'),
+               NULLIF(si.customer_name, 'Amazon Müşterisi'),
+               'Müşteri'
+             ) as company_title,
+             COALESCE(
+               NULLIF(c.title, 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(NULLIF(cust.full_name, ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
+               NULLIF(NULLIF(s.customer_name, ''), 'Amazon Müşterisi'),
+               NULLIF(NULLIF(si.customer_name, ''), 'Amazon Müşterisi'),
+               NULLIF(si.company_title, 'Bireysel Web Müşterisi'),
+               NULLIF(si.customer_name, 'Amazon Müşterisi'),
+               'Müşteri'
+             ) as customer_name,
+             s.customer_name as sale_customer_name,
+             s.status as sale_status,
+             s.cancellation_reason as sale_cancellation_reason,
+             COALESCE(NULLIF(si.tax_number, ''), c.tax_number, cust.tc_id, cust.tax_number, '11111111111') as resolved_tax_number,
+             cust.address as customer_address,
+             cust.city as customer_city,
+             cust.phone as customer_phone,
+             cust.email as customer_email,
+             cust.tax_number as customer_tax_number,
+             cust.tax_office as customer_tax_office,
+             (
+               SELECT COALESCE(json_agg(json_build_object(
+                 'id', sii.id,
+                 'product_id', sii.product_id,
+                 'product_name', sii.product_name,
+                 'barcode', sii.barcode,
+                 'quantity', sii.quantity,
+                 'unit_price', sii.unit_price,
+                 'tax_rate', sii.tax_rate,
+                 'tax_amount', sii.tax_amount,
+                 'total_price', sii.total_price
+               ) ORDER BY sii.id), '[]'::json)
+               FROM sales_invoice_items sii 
+               WHERE sii.sales_invoice_id = si.id
+             ) as items
+      FROM sales_invoices si 
+      LEFT JOIN companies c ON si.company_id = c.id 
+      LEFT JOIN customers cust ON si.customer_id = cust.id
+      LEFT JOIN sales s ON si.sale_id = s.id
+      WHERE si.store_id = $1
+    `;
+    const params: any[] = [storeId];
+
+    if (startDate) {
+      params.push(startDate);
+      query += ` AND si.invoice_date >= $${params.length}`;
+    }
+    if (endDate) {
+      params.push(endDate + ' 23:59:59');
+      query += ` AND si.invoice_date <= $${params.length}`;
+    }
+    if (status && status !== 'all') {
+      params.push(status);
+      query += ` AND si.status = $${params.length}`;
+    }
+    if (search) {
+      const searchTerms = search.split(/\s+/).filter(Boolean);
+      searchTerms.forEach(term => {
+        const pLen = params.length + 1;
+        query += ` AND (
+          ${getTurkishSearchSnippet('si.invoice_number', pLen)} OR 
+          ${getTurkishSearchSnippet('si.document_number', pLen)} OR
+          ${getTurkishSearchSnippet('si.ettn', pLen)} OR
+          ${getTurkishSearchSnippet('si.notes', pLen)} OR
+          ${getTurkishSearchSnippet('si.waybill_number', pLen)} OR
+          ${getTurkishSearchSnippet('si.tax_number', pLen)} OR
+          ${getTurkishSearchSnippet('c.title', pLen)} OR
+          ${getTurkishSearchSnippet('cust.full_name', pLen)} OR
+          ${getTurkishSearchSnippet('s.customer_name', pLen)} OR
+          EXISTS (
+            SELECT 1 FROM sales_invoice_items sub_sii 
+            WHERE sub_sii.sales_invoice_id = si.id 
+            AND (
+              ${getTurkishSearchSnippet('sub_sii.product_name', pLen)} OR
+              ${getTurkishSearchSnippet('sub_sii.barcode', pLen)}
+            )
+          )
+        )`;
+        params.push(normalizeTurkishParam(term));
+      });
+    }
+
+    query += " ORDER BY si.invoice_date DESC, si.created_at DESC";
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get("/sales/:id", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const isSuperAdmin = req.user?.role === "superadmin";
+    const invoiceResult = await pool.query(
+      `SELECT si.*, 
+              c.title as company_title,
+              c.tax_number as company_tax_number,
+              c.tax_office as company_tax_office,
+              c.address as company_address,
+              NULL::text as company_city,
+              c.email as company_email,
+              COALESCE(
+                NULLIF(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), 'Amazon Müşterisi'),
+                NULLIF(NULLIF(TRIM(cust.full_name), ''), 'Amazon Müşterisi'),
+                NULLIF(NULLIF(s.customer_name, ''), 'Amazon Müşterisi'),
+                NULLIF(NULLIF(si.customer_name, ''), 'Amazon Müşterisi'),
+                si.customer_name
+              ) as customer_name,
+              cust.tax_number as customer_tax_number,
+              cust.tax_office as customer_tax_office,
+              cust.address as customer_address,
+              cust.city as customer_city,
+              cust.email as customer_email_fallback,
+              s.customer_name as sale_customer_name,
+              s.status as sale_status,
+              s.cancellation_reason as sale_cancellation_reason
+       FROM sales_invoices si 
+       LEFT JOIN companies c ON si.company_id = c.id 
+       LEFT JOIN customers cust ON si.customer_id = cust.id
+       LEFT JOIN sales s ON si.sale_id = s.id
+       WHERE si.id = $1 AND (si.store_id = $2 OR $3 = TRUE)`,
+      [req.params.id, storeId, isSuperAdmin]
+    );
+    
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
+    
+    const itemsResult = await pool.query(
+      "SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1",
+      [req.params.id]
+    );
+    
+    const invoice = invoiceResult.rows[0];
+    invoice.items = itemsResult.rows;
+
+    const resolvedCustomer = invoice.sale_customer_name || invoice.customer_name || (invoice.company_title !== 'Bireysel Web Müşterisi' ? invoice.company_title : null) || 'Müşteri';
+
+    if (invoice.company_id && invoice.company_title && invoice.company_title !== 'Bireysel Web Müşterisi') {
+      invoice.customer_name = invoice.company_title;
+      invoice.company_title = invoice.company_title;
+      invoice.tax_number = invoice.tax_number || invoice.company_tax_number;
+      invoice.tax_office = invoice.tax_office || invoice.company_tax_office;
+      invoice.address = invoice.address || invoice.company_address;
+      invoice.customer_email = invoice.customer_email || invoice.company_email;
+    } else if (invoice.customer_id) {
+      invoice.customer_name = resolvedCustomer;
+      invoice.company_title = resolvedCustomer;
+      invoice.tax_number = invoice.tax_number || invoice.customer_tax_number;
+      invoice.tax_office = invoice.tax_office || invoice.customer_tax_office;
+      invoice.address = invoice.address || invoice.customer_address;
+      invoice.customer_email = invoice.customer_email || invoice.customer_email_fallback;
+    }
+
+    invoice.customer_name = resolvedCustomer;
+    invoice.company_title = resolvedCustomer;
+    if (!invoice.tax_number || (invoice.tax_number.length !== 10 && invoice.tax_number.length !== 11)) {
+      invoice.tax_number = '11111111111';
+    }
+    
+    res.json(invoice);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/sales", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const { 
+      storeId: bodyStoreId, 
+      sale_id,
+      quotation_id,
+      company_id, 
+      customer_id, 
+      invoice_number, 
+      waybill_number,
+      invoice_date, 
+      invoice_time,
+      items, 
+      notes, 
+      currency, 
+      exchange_rate,
+      payment_method,
+      invoice_type,
+      invoice_profile,
+      status,
+      is_tax_inclusive,
+      e_document_type: req_e_document_type,
+      tax_number: req_tax_number,
+      tax_office,
+      address,
+      customer_email,
+      gi_invoice_type,
+      gi_exemption_reason_code,
+      gi_withholding_tax_code
+    } = req.body;
+    
+    const storeId = getAuthorizedStoreId(req, bodyStoreId);
+
+    if (!storeId) throw new Error("Store ID is required");
+
+    if (invoice_number) {
+      const existing = await client.query(
+        "SELECT id FROM sales_invoices WHERE store_id = $1 AND LOWER(TRIM(invoice_number)) = LOWER(TRIM($2))",
+        [storeId, invoice_number]
+      );
+      if (existing.rows.length > 0) {
+        await client.query("ROLLBACK");
+        client.release();
+        return res.status(400).json({ 
+          error: `"${invoice_number}" seri/fatura numarası ile sistemde daha önce kayıtlı bir fatura bulunmaktadır. Mükerrer fatura numarası ile giriş yapılamaz.` 
+        });
+      }
+    }
+
+    const finalIsTaxInclusive = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
+
+    const storeRes = await client.query("SELECT branding, einvoice_settings FROM stores WHERE id = $1", [storeId]);
+    const branding = storeRes.rows[0]?.branding || {};
+    const einvoiceSettings = storeRes.rows[0]?.einvoice_settings || { is_active: false };
+    
+    let e_document_type = req_e_document_type || null;
+
+    if (invoice_type === 'TEMELFATURA' || invoice_type === 'TICARIFATURA' || invoice_profile === 'TEMELFATURA' || invoice_profile === 'TICARIFATURA') {
+      e_document_type = 'E-FATURA';
+    } else if (invoice_type === 'EARSIVFATURA' || invoice_profile === 'EARSIVFATURA') {
+      e_document_type = 'E-ARŞİV';
+    }
+    
+    let tax_number = null;
+    
+    if (einvoiceSettings.is_active && !e_document_type) {
+      if (company_id) {
+         const cRes = await client.query("SELECT tax_number FROM companies WHERE id = $1", [company_id]);
+         if (cRes.rows.length) tax_number = cRes.rows[0].tax_number;
+      } else if (customer_id) {
+         const cRes = await client.query("SELECT tax_number FROM customers WHERE id = $1", [customer_id]);
+         if (cRes.rows.length) tax_number = cRes.rows[0].tax_number;
+      }
+
+      if (tax_number) {
+         try {
+           const { MySoftService } = await import("../../src/services/backend/mysoftService");
+           const mysoft = new MySoftService(einvoiceSettings);
+           const taxResult = await mysoft.checkTaxpayer(tax_number);
+           e_document_type = taxResult.documentType === 'E-ARSIV' ? 'E-ARŞİV' : taxResult.documentType; 
+         } catch (err) {
+           console.error("E-Invoice check failed during invoice creation", err);
+           e_document_type = 'E-ARŞİV'; 
+         }
+      } else {
+         e_document_type = 'E-ARŞİV'; 
+      }
+    } else if (e_document_type === 'E-ARSIV') {
+      e_document_type = 'E-ARŞİV';
+    }
+    
+    let total_amount = 0; 
+    let tax_amount = 0;
+    let grand_total = 0;
+    
+    for (const item of items) {
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const taxRate = Number(item.tax_rate) || 0;
+      
+      if (finalIsTaxInclusive) {
+        const lineIncl = Math.round(qty * price * 100) / 100;
+        const lineExcl = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+        const lineTax = Math.round((lineIncl - lineExcl) * 100) / 100;
+        
+        total_amount += lineExcl;
+        tax_amount += lineTax;
+        grand_total += lineIncl;
+      } else {
+        const lineExcl = Math.round(qty * price * 100) / 100;
+        const lineTax = Math.round((lineExcl * (taxRate / 100)) * 100) / 100;
+        const lineIncl = Math.round((lineExcl + lineTax) * 100) / 100;
+        
+        total_amount += lineExcl;
+        tax_amount += lineTax;
+        grand_total += lineIncl;
+      }
+    }
+    total_amount = Math.round(total_amount * 100) / 100;
+    tax_amount = Math.round(tax_amount * 100) / 100;
+    grand_total = Math.round(grand_total * 100) / 100;
+    
+    const invoiceResult = await client.query(
+      `INSERT INTO sales_invoices 
+        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, invoice_time, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, invoice_profile, is_tax_inclusive, customer_email, tax_number, tax_office, address, gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code, return_invoice_number, return_invoice_date, gi_exemption_reason_text) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31) RETURNING id`,
+      [
+        storeId, 
+        sale_id || null, 
+        company_id || null, 
+        customer_id || null, 
+        invoice_number, 
+        waybill_number || null, 
+        invoice_date || new Date(), 
+        invoice_time || new Date().toLocaleTimeString('tr-TR', { hour12: false }),
+        total_amount, 
+        tax_amount, 
+        grand_total, 
+        currency || branding?.default_currency || 'TRY', 
+        exchange_rate || 1, 
+        notes, 
+        invoice_type || 'manual', 
+        status || 'draft', 
+        payment_method || 'cash', 
+        quotation_id || null, 
+        e_document_type, 
+        invoice_profile || (e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'), 
+        finalIsTaxInclusive,
+        req.body.customer_email || null,
+        req.body.tax_number || tax_number || null,
+        req.body.tax_office || null,
+        req.body.address || null,
+        req.body.gi_invoice_type || 'SATIS',
+        req.body.gi_exemption_reason_code || null,
+        req.body.gi_withholding_tax_code || null,
+        req.body.return_invoice_number ? String(req.body.return_invoice_number).toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
+        req.body.return_invoice_date || null,
+        req.body.gi_exemption_reason_text || req.body.tax_exemption_reason || null
+      ]
+    );
+    
+    const invoiceId = invoiceResult.rows[0].id;
+
+    const currentTaxNum = req.body.tax_number || null;
+    const currentTaxOffice = req.body.tax_office || null;
+    const currentAddress = req.body.address || null;
+    const currentEmail = req.body.customer_email || null;
+
+    if (company_id) {
+      const compRes = await client.query("SELECT * FROM companies WHERE id = $1", [company_id]);
+      if (compRes.rows.length > 0) {
+        const comp = compRes.rows[0];
+        const updateFields: string[] = [];
+        const updateValues: any[] = [];
+        let valIdx = 1;
+
+        if (currentTaxNum && (!comp.tax_number || comp.tax_number.trim() === "")) {
+          updateFields.push(`tax_number = $${valIdx++}`);
+          updateValues.push(currentTaxNum);
+        }
+        if (currentTaxOffice && (!comp.tax_office || comp.tax_office.trim() === "")) {
+          updateFields.push(`tax_office = $${valIdx++}`);
+          updateValues.push(currentTaxOffice);
+        }
+        if (currentAddress && (!comp.address || comp.address.trim() === "")) {
+          updateFields.push(`address = $${valIdx++}`);
+          updateValues.push(currentAddress);
+        }
+        if (currentEmail && (!comp.email || comp.email.trim() === "")) {
+          updateFields.push(`email = $${valIdx++}`);
+          updateValues.push(currentEmail);
+        }
+
+        if (updateFields.length > 0) {
+          updateValues.push(company_id);
+          await client.query(
+            `UPDATE companies SET ${updateFields.join(', ')} WHERE id = $${valIdx}`,
+            updateValues
+          );
+        }
+      }
+    } else if (customer_id) {
+      const custRes = await client.query("SELECT * FROM customers WHERE id = $1", [customer_id]);
+      if (custRes.rows.length > 0) {
+        const cust = custRes.rows[0];
+        const updateFields: string[] = [];
+        const updateValues: any[] = [];
+        let valIdx = 1;
+
+        if (currentTaxNum && (!cust.tax_number || cust.tax_number.trim() === "")) {
+          updateFields.push(`tax_number = $${valIdx++}`);
+          updateValues.push(currentTaxNum);
+        }
+        if (currentTaxOffice && (!cust.tax_office || cust.tax_office.trim() === "")) {
+          updateFields.push(`tax_office = $${valIdx++}`);
+          updateValues.push(currentTaxOffice);
+        }
+        if (currentAddress && (!cust.address || cust.address.trim() === "")) {
+          updateFields.push(`address = $${valIdx++}`);
+          updateValues.push(currentAddress);
+        }
+        if (currentEmail && (!cust.email || cust.email.trim() === "")) {
+          updateFields.push(`email = $${valIdx++}`);
+          updateValues.push(currentEmail);
+        }
+
+        if (updateFields.length > 0) {
+          updateValues.push(customer_id);
+          await client.query(
+            `UPDATE customers SET ${updateFields.join(', ')} WHERE id = $${valIdx}`,
+            updateValues
+          );
+        }
+      }
+    }
+    
+    let displayName = 'Müşteri';
+    if (company_id) {
+      const companyRes = await client.query("SELECT title FROM companies WHERE id = $1", [company_id]);
+      if (companyRes.rows.length > 0) displayName = companyRes.rows[0].title;
+    } else if (customer_id) {
+      const custRes = await client.query("SELECT full_name FROM customers WHERE id = $1", [customer_id]);
+      if (custRes.rows.length > 0) displayName = custRes.rows[0].full_name;
+    }
+
+    const affectedProductIds: number[] = [];
+    for (const item of items) {
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const taxRate = Number(item.tax_rate) || 0;
+      
+      let itemTax = 0;
+      let itemTotal = 0; 
+
+      if (finalIsTaxInclusive) {
+        const lineIncl = Math.round(qty * price * 100) / 100;
+        itemTotal = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+        itemTax = Math.round((lineIncl - itemTotal) * 100) / 100;
+      } else {
+        itemTotal = Math.round(qty * price * 100) / 100;
+        itemTax = Math.round((itemTotal * (taxRate / 100)) * 100) / 100;
+      }
+
+      const { productId: resolvedProductId, barcode: resolvedBarcode } = await resolveProductInfo(client, storeId, item.product_id, item.barcode);
+      
+      await client.query(
+        `INSERT INTO sales_invoice_items 
+          (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [invoiceId, resolvedProductId, item.product_name, resolvedBarcode, item.quantity, item.unit_price, item.tax_rate, itemTax, itemTotal]
+      );
+      
+      if (resolvedProductId) {
+        affectedProductIds.push(Number(resolvedProductId));
+        const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [resolvedProductId]);
+        const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
+
+        if (productType !== 'service') {
+          await client.query(
+            "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+            [item.quantity, resolvedProductId, storeId]
+          );
+          
+          await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName, currency, null, invoiceId, 'sales', invoice_number);
+        }
+      }
+    }
+    
+    if (company_id && status !== 'draft') {
+      if (quotation_id || sale_id) {
+        await client.query("DELETE FROM current_account_transactions WHERE (quotation_id = $1 OR sale_id = $2) AND sales_invoice_id IS NULL", [quotation_id || null, sale_id || null]);
+      }
+
+      const storeRes = await client.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+      const store = storeRes.rows[0];
+      const branding = store?.branding || {};
+      const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
+      await client.query(
+        `INSERT INTO current_account_transactions 
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [storeId, company_id, invoiceId, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`, invoice_date || new Date()]
+      );
+
+      if (payment_method && payment_method !== 'term') {
+        await client.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [storeId, company_id, invoiceId, 'credit', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method, invoice_date || new Date()]
+        );
+      }
+    }
+    
+    await client.query("COMMIT");
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `sales_invoice_${invoice_number}` }).catch(err =>
+        console.error("[Sales Invoice Marketplace Sync Error]:", err?.message || err)
+      );
+    }
+    res.json({ success: true, id: invoiceId });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.put("/sales/:id", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const storeId = getAuthorizedStoreId(req, req.body.storeId);
+    const { 
+      company_id, customer_id, invoice_number, waybill_number, invoice_date, invoice_time,
+      notes, items, payment_method, currency, exchange_rate, 
+      invoice_type, invoice_profile, status, is_tax_inclusive,
+      tax_number, tax_office, address,
+      gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code
+    } = req.body;
+
+    const finalIsTaxInclusive = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
+
+    const oldInvoiceResult = await client.query(
+      "SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2",
+      [req.params.id, storeId]
+    );
+    
+    if (oldInvoiceResult.rows.length === 0) throw new Error("Invoice not found");
+
+    if (invoice_number) {
+      const existing = await client.query(
+        "SELECT id FROM sales_invoices WHERE store_id = $1 AND id <> $2 AND LOWER(TRIM(invoice_number)) = LOWER(TRIM($3))",
+        [storeId, req.params.id, invoice_number]
+      );
+      if (existing.rows.length > 0) {
+        await client.query("ROLLBACK");
+        client.release();
+        return res.status(400).json({ 
+          error: `"${invoice_number}" seri/fatura numarası ile sistemde daha önce kayıtlı başka bir fatura bulunmaktadır. Mükerrer fatura numarası kullanılamaz.` 
+        });
+      }
+    }
+    
+    const oldInvoice = oldInvoiceResult.rows[0];
+    const oldItemsResult = await client.query(
+      "SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1",
+      [req.params.id]
+    );
+    
+    let displayName = 'Müşteri';
+    if (company_id) {
+      const companyRes = await client.query("SELECT title FROM companies WHERE id = $1", [company_id]);
+      if (companyRes.rows.length > 0) displayName = companyRes.rows[0].title;
+    } else if (customer_id) {
+      const custRes = await client.query("SELECT full_name FROM customers WHERE id = $1", [customer_id]);
+      if (custRes.rows.length > 0) displayName = custRes.rows[0].full_name;
+    }
+
+    const affectedProductIds: number[] = [];
+    for (const item of oldItemsResult.rows) {
+      const { productId: oldResolvedId } = await resolveProductInfo(client, storeId, item.product_id, item.barcode);
+      if (oldResolvedId) {
+        affectedProductIds.push(Number(oldResolvedId));
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
+          [item.quantity, oldResolvedId, storeId]
+        );
+      }
+    }
+    
+    await client.query("DELETE FROM stock_movements WHERE source = 'sales_invoice' AND (description LIKE $1 OR description LIKE $2 OR description LIKE $3)", [`%${oldInvoice.invoice_number}%`, `%${oldInvoice.document_number || oldInvoice.invoice_number}%`, `%${oldInvoice.invoice_number}%`]);
+
+    await client.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [req.params.id]);
+    await client.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [req.params.id]);
+
+    if (oldInvoice.quotation_id || oldInvoice.sale_id) {
+       await client.query("DELETE FROM current_account_transactions WHERE (quotation_id = $1 OR sale_id = $2) AND sales_invoice_id IS NULL", [oldInvoice.quotation_id || null, oldInvoice.sale_id || null]);
+    }
+
+    let total_amount = 0; 
+    let tax_amount = 0;
+    let grand_total = 0;
+    
+    for (const item of items) {
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const taxRate = Number(item.tax_rate) || 0;
+      
+      if (finalIsTaxInclusive) {
+        const lineIncl = Math.round(qty * price * 100) / 100;
+        const lineExcl = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+        const lineTax = Math.round((lineIncl - lineExcl) * 100) / 100;
+        
+        total_amount += lineExcl;
+        tax_amount += lineTax;
+        grand_total += lineIncl;
+      } else {
+        const lineExcl = Math.round(qty * price * 100) / 100;
+        const lineTax = Math.round((lineExcl * (taxRate / 100)) * 100) / 100;
+        const lineIncl = Math.round((lineExcl + lineTax) * 100) / 100;
+        
+        total_amount += lineExcl;
+        tax_amount += lineTax;
+        grand_total += lineIncl;
+      }
+    }
+    total_amount = Math.round(total_amount * 100) / 100;
+    tax_amount = Math.round(tax_amount * 100) / 100;
+    grand_total = Math.round(grand_total * 100) / 100;
+    
+    const storeResAuto = await client.query("SELECT branding, einvoice_settings FROM stores WHERE id = $1", [storeId]);
+    const einvoiceSettings = storeResAuto.rows[0]?.einvoice_settings || { is_active: false };
+    
+    let e_document_type = req.body.e_document_type || oldInvoice.e_document_type; 
+    
+    if (invoice_type === 'TEMELFATURA' || invoice_type === 'TICARIFATURA' || invoice_profile === 'TEMELFATURA' || invoice_profile === 'TICARIFATURA') {
+      e_document_type = 'E-FATURA';
+    } else if (invoice_type === 'EARSIVFATURA' || invoice_profile === 'EARSIVFATURA') {
+      e_document_type = 'E-ARŞİV';
+    }
+
+    if (einvoiceSettings.is_active && !req.body.e_document_type && !e_document_type) {
+      let tax_number = null;
+      if (company_id) {
+         const cRes = await client.query("SELECT tax_number FROM companies WHERE id = $1", [company_id]);
+         if (cRes.rows.length) tax_number = cRes.rows[0].tax_number;
+      } else if (customer_id) {
+         const cRes = await client.query("SELECT tax_number FROM customers WHERE id = $1", [customer_id]);
+         if (cRes.rows.length) tax_number = cRes.rows[0].tax_number;
+      }
+
+      if (tax_number) {
+         try {
+           const { MySoftService } = await import("../../src/services/backend/mysoftService");
+           const mysoft = new MySoftService(einvoiceSettings);
+           const taxResult = await mysoft.checkTaxpayer(tax_number);
+           e_document_type = taxResult.documentType === 'E-ARSIV' ? 'E-ARŞİV' : taxResult.documentType; 
+         } catch (err) {
+           console.error("E-Invoice check failed during invoice update", err);
+           e_document_type = 'E-ARŞİV'; 
+         }
+      } else {
+         e_document_type = 'E-ARŞİV';
+      }
+    } else if (e_document_type === 'E-ARSIV') {
+      e_document_type = 'E-ARŞİV';
+    }
+
+    await client.query(
+      `UPDATE sales_invoices 
+       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, 
+           total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, exchange_rate = $10, 
+           notes = $11, payment_method = $12, invoice_type = $13, status = $14, e_document_type = $15, 
+           invoice_profile = $16, is_tax_inclusive = $17,
+        customer_email = $18,
+        tax_number = $19, tax_office = $20, address = $21,
+        gi_invoice_type = $22, gi_exemption_reason_code = $23, gi_withholding_tax_code = $24,
+        invoice_time = $25,
+        return_invoice_number = $26,
+        return_invoice_date = $27,
+        gi_exemption_reason_text = $28,
+        integration_status = CASE WHEN integration_status = 'HATALI' THEN 'DRAFT' ELSE integration_status END,
+        integration_message = CASE WHEN integration_status = 'HATALI' THEN NULL ELSE integration_message END
+    WHERE id = $29 AND store_id = $30`,
+    [
+      company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, 
+      total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, 
+      notes, payment_method, invoice_type, status, e_document_type, 
+      invoice_profile || (e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'), 
+      finalIsTaxInclusive,
+      req.body.customer_email || null,
+      req.body.tax_number || null, tax_office || null, address || null,
+      gi_invoice_type || 'SATIS', gi_exemption_reason_code || null, gi_withholding_tax_code || null,
+      invoice_time || null,
+      req.body.return_invoice_number ? String(req.body.return_invoice_number).toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
+      req.body.return_invoice_date || null,
+      req.body.gi_exemption_reason_text || req.body.tax_exemption_reason || null,
+      req.params.id, storeId
+    ]
+    );
+
+    const currentTaxNum = tax_number || null;
+    const currentTaxOffice = tax_office || null;
+    const currentAddress = address || null;
+    const currentEmail = req.body.customer_email || null;
+
+    if (company_id) {
+      const compRes = await client.query("SELECT * FROM companies WHERE id = $1", [company_id]);
+      if (compRes.rows.length > 0) {
+        const comp = compRes.rows[0];
+        const updateFields: string[] = [];
+        const updateValues: any[] = [];
+        let valIdx = 1;
+
+        if (currentTaxNum && (!comp.tax_number || comp.tax_number.trim() === "")) {
+          updateFields.push(`tax_number = $${valIdx++}`);
+          updateValues.push(currentTaxNum);
+        }
+        if (currentTaxOffice && (!comp.tax_office || comp.tax_office.trim() === "")) {
+          updateFields.push(`tax_office = $${valIdx++}`);
+          updateValues.push(currentTaxOffice);
+        }
+        if (currentAddress && (!comp.address || comp.address.trim() === "")) {
+          updateFields.push(`address = $${valIdx++}`);
+          updateValues.push(currentAddress);
+        }
+        if (currentEmail && (!comp.email || comp.email.trim() === "")) {
+          updateFields.push(`email = $${valIdx++}`);
+          updateValues.push(currentEmail);
+        }
+
+        if (updateFields.length > 0) {
+          updateValues.push(company_id);
+          await client.query(
+            `UPDATE companies SET ${updateFields.join(', ')} WHERE id = $${valIdx}`,
+            updateValues
+          );
+        }
+      }
+    } else if (customer_id) {
+      const custRes = await client.query("SELECT * FROM customers WHERE id = $1", [customer_id]);
+      if (custRes.rows.length > 0) {
+        const cust = custRes.rows[0];
+        const updateFields: string[] = [];
+        const updateValues: any[] = [];
+        let valIdx = 1;
+
+        if (currentTaxNum && (!cust.tax_number || cust.tax_number.trim() === "")) {
+          updateFields.push(`tax_number = $${valIdx++}`);
+          updateValues.push(currentTaxNum);
+        }
+        if (currentTaxOffice && (!cust.tax_office || cust.tax_office.trim() === "")) {
+          updateFields.push(`tax_office = $${valIdx++}`);
+          updateValues.push(currentTaxOffice);
+        }
+        if (currentAddress && (!cust.address || cust.address.trim() === "")) {
+          updateFields.push(`address = $${valIdx++}`);
+          updateValues.push(currentAddress);
+        }
+        if (currentEmail && (!cust.email || cust.email.trim() === "")) {
+          updateFields.push(`email = $${valIdx++}`);
+          updateValues.push(currentEmail);
+        }
+
+        if (updateFields.length > 0) {
+          updateValues.push(customer_id);
+          await client.query(
+            `UPDATE customers SET ${updateFields.join(', ')} WHERE id = $${valIdx}`,
+            updateValues
+          );
+        }
+      }
+    }
+
+    for (const item of items) {
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const taxRate = Number(item.tax_rate) || 0;
+      
+      let itemTax = 0;
+      let itemTotal = 0; 
+
+      if (finalIsTaxInclusive) {
+        const lineIncl = Math.round(qty * price * 100) / 100;
+        itemTotal = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+        itemTax = Math.round((lineIncl - itemTotal) * 100) / 100;
+      } else {
+        itemTotal = Math.round(qty * price * 100) / 100;
+        itemTax = Math.round((itemTotal * (taxRate / 100)) * 100) / 100;
+      }
+
+      const { productId: resolvedProductId, barcode: resolvedBarcode } = await resolveProductInfo(client, storeId, item.product_id, item.barcode);
+      
+      await client.query(
+        `INSERT INTO sales_invoice_items 
+          (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [req.params.id, resolvedProductId, item.product_name, resolvedBarcode, item.quantity, item.unit_price, item.tax_rate, itemTax, itemTotal]
+      );
+      
+      if (resolvedProductId) {
+        affectedProductIds.push(Number(resolvedProductId));
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+          [item.quantity, resolvedProductId, storeId]
+        );
+        await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası (Güncellendi): ${invoice_number}`, item.unit_price, displayName, currency, null, req.params.id, 'sales', invoice_number);
+      }
+    }
+
+    if (company_id && status !== 'draft') {
+      const storeRes = await client.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+      const store = storeRes.rows[0];
+      const branding = store?.branding || {};
+      const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
+      await client.query(
+        `INSERT INTO current_account_transactions 
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [storeId, company_id, req.params.id, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`, invoice_date || new Date()]
+      );
+
+      if (payment_method && payment_method !== 'term') {
+        await client.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [storeId, company_id, req.params.id, 'credit', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method, invoice_date || new Date()]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `sales_invoice_updated_${invoice_number}` }).catch(err =>
+        console.error("[Sales Invoice Update Marketplace Sync Error]:", err?.message || err)
+      );
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.post("/sales/:id/create-from-sale", async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const saleRes = await client.query("SELECT * FROM sales WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (saleRes.rows.length === 0) throw new Error("Sale not found");
+    const sale = saleRes.rows[0];
+
+    // Check if invoice already exists for this sale
+    const existingInv = await client.query("SELECT id, invoice_number FROM sales_invoices WHERE sale_id = $1 AND store_id = $2", [id, storeId]);
+    if (existingInv.rows.length > 0) {
+      await client.query("COMMIT");
+      return res.json({ success: true, invoiceId: existingInv.rows[0].id, invoiceNumber: existingInv.rows[0].invoice_number, alreadyExists: true });
+    }
+
+    let customerEmail = sale.customer_email || '';
+    let customerTaxNumber = '';
+    let customerTaxOffice = '';
+    let customerAddress = sale.customer_address || '';
+
+    // Extract details from notes if formatted
+    if (sale.notes) {
+      const emailMatch = sale.notes.match(/E-posta:\s*([^\s|]+)/i);
+      if (emailMatch && !customerEmail) customerEmail = emailMatch[1].trim();
+      const tcMatch = sale.notes.match(/TC\/VKN:\s*([^\s|]+)/i);
+      if (tcMatch) customerTaxNumber = tcMatch[1].trim();
+      const taxOfficeMatch = sale.notes.match(/Vergi Dairesi:\s*([^|]+)/i);
+      if (taxOfficeMatch) customerTaxOffice = taxOfficeMatch[1].trim();
+    }
+
+    if (sale.customer_id) {
+      const custRes = await client.query("SELECT * FROM customers WHERE id = $1", [sale.customer_id]);
+      if (custRes.rows.length > 0) {
+        const c = custRes.rows[0];
+        if (!customerEmail) customerEmail = c.email || '';
+        if (!customerTaxNumber) customerTaxNumber = c.tax_number || c.tc_id || '';
+        if (!customerTaxOffice) customerTaxOffice = c.tax_office || '';
+        if (!customerAddress) customerAddress = c.address || '';
+      }
+    }
+
+    const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [id]);
+    
+    let total_amount = 0;
+    let tax_amount = 0;
+    let grand_total = 0;
+
+    const invoiceItems = [];
+    for (const item of itemsRes.rows) {
+      let taxRate = 20; 
+      if (item.product_id) {
+        const prodRes = await client.query("SELECT tax_rate FROM products WHERE id = $1", [item.product_id]);
+        if (prodRes.rows.length > 0 && prodRes.rows[0].tax_rate != null) {
+          taxRate = Number(prodRes.rows[0].tax_rate);
+        }
+      } else if (item.tax_rate != null) {
+        taxRate = Number(item.tax_rate);
+      }
+
+      const kdvDahilTotal = Number(item.quantity) * Number(item.unit_price);
+      const kdvHaricTotal = kdvDahilTotal / (1 + taxRate / 100);
+      const itemTax = kdvDahilTotal - kdvHaricTotal;
+      
+      total_amount += kdvHaricTotal;
+      tax_amount += itemTax;
+      grand_total += kdvDahilTotal;
+
+      const kdvHaricPrice = Number(item.unit_price) / (1 + taxRate / 100);
+
+      invoiceItems.push({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        barcode: item.barcode,
+        quantity: item.quantity,
+        unit_price: kdvHaricPrice,
+        tax_rate: taxRate,
+        tax_amount: itemTax,
+        total_price: kdvHaricTotal
+      });
+    }
+
+    const invoiceNumber = `INV-${new Date().getFullYear()}${String(sale.id).padStart(6, '0')}`;
+
+    const invoiceResult = await client.query(
+      `INSERT INTO sales_invoices 
+        (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, is_tax_inclusive, customer_email, tax_number, tax_office, address) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id, invoice_number`,
+      [
+        storeId, id, sale.company_id || null, sale.customer_id || null, invoiceNumber, new Date(),
+        total_amount, tax_amount, grand_total, sale.currency || 'TRY', sale.exchange_rate || 1,
+        `Web Satışı #${id} üzerinden otomatik oluşturuldu.`, 'manual', 'draft', sale.payment_method || 'credit_card',
+        true, customerEmail, customerTaxNumber, customerTaxOffice, customerAddress
+      ]
+    );
+
+    const invoiceId = invoiceResult.rows[0].id;
+
+    for (const item of invoiceItems) {
+      await client.query(
+        `INSERT INTO sales_invoice_items 
+          (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [invoiceId, item.product_id, item.product_name, item.barcode, item.quantity, item.unit_price, item.tax_rate, item.tax_amount, item.total_price]
+      );
+    }
+
+    // Link back to sales record
+    await client.query(
+      "UPDATE sales SET sales_invoice_id = $1, sales_invoice_number = $2 WHERE id = $3",
+      [invoiceId, invoiceNumber, id]
+    );
+
+    await client.query("COMMIT");
+    res.json({ success: true, invoiceId, invoiceNumber });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// --- Purchase Invoices ---
+
+router.get("/purchase", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const { search, startDate, endDate } = req.query;
+
+    let query = `
+      SELECT pi.*, c.title as company_name,
+             (
+               SELECT COALESCE(json_agg(json_build_object(
+                 'id', pii.id,
+                 'product_id', pii.product_id,
+                 'product_name', pii.product_name,
+                 'barcode', pii.barcode,
+                 'product_code', pii.product_code,
+                 'matched_product_name', p_match.name,
+                 'matched_product_barcode', p_match.barcode,
+                 'matched_product_code', COALESCE(p_match.product_code, p_match.sku, ''),
+                 'matched_product_stock', p_match.stock_quantity,
+                 'quantity', pii.quantity,
+                 'unit_code', pii.unit_code,
+                 'system_quantity', pii.system_quantity,
+                 'system_unit_code', pii.system_unit_code,
+                 'unit_price', pii.unit_price,
+                 'tax_rate', pii.tax_rate,
+                 'tax_amount', pii.tax_amount,
+                 'total_price', pii.total_price,
+                 'variant_id', pii.variant_id,
+                 'variant_name', pii.variant_name
+               ) ORDER BY pii.id), '[]'::json)
+               FROM purchase_invoice_items pii
+               LEFT JOIN products p_match ON pii.product_id = p_match.id
+               WHERE pii.purchase_invoice_id = pi.id
+             ) as items,
+             EXISTS (
+               SELECT 1 FROM purchase_invoices pi_older
+               WHERE pi_older.store_id = pi.store_id
+                 AND pi_older.created_at < pi.created_at
+                 AND pi_older.invoice_date > pi.invoice_date
+             ) as is_out_of_sequence
+      FROM purchase_invoices pi 
+      LEFT JOIN companies c ON pi.company_id = c.id 
+      WHERE pi.store_id = $1
+    `;
+    const params: any[] = [storeId];
+
+    if (search) {
+      const searchTerms = search.split(/\s+/).filter(Boolean);
+      searchTerms.forEach(term => {
+        const pLen = params.length + 1;
+        query += ` AND (
+          ${getTurkishSearchSnippet('pi.invoice_number', pLen)} OR 
+          ${getTurkishSearchSnippet('pi.document_number', pLen)} OR
+          ${getTurkishSearchSnippet('pi.supplier_name', pLen)} OR
+          ${getTurkishSearchSnippet('pi.ettn', pLen)} OR
+          ${getTurkishSearchSnippet('pi.notes', pLen)} OR
+          ${getTurkishSearchSnippet('pi.waybill_number', pLen)} OR
+          ${getTurkishSearchSnippet('pi.tax_number', pLen)} OR
+          ${getTurkishSearchSnippet('c.title', pLen)} OR
+          EXISTS (
+            SELECT 1 FROM purchase_invoice_items sub_pii 
+            WHERE sub_pii.purchase_invoice_id = pi.id 
+            AND (
+              ${getTurkishSearchSnippet('sub_pii.product_name', pLen)} OR
+              ${getTurkishSearchSnippet('sub_pii.barcode', pLen)} OR
+              ${getTurkishSearchSnippet('sub_pii.variant_name', pLen)}
+            )
+          )
+        )`;
+        params.push(normalizeTurkishParam(term));
+      });
+    }
+
+    if (startDate) {
+      params.push(startDate);
+      query += ` AND pi.invoice_date >= $${params.length}`;
+    }
+
+    if (endDate) {
+      params.push(endDate + ' 23:59:59');
+      query += ` AND pi.invoice_date <= $${params.length}`;
+    }
+
+    query += ` ORDER BY pi.invoice_date DESC, pi.created_at DESC, pi.id DESC`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get("/purchase/:id", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const isSuperAdmin = req.user?.role === "superadmin";
+    let query = `
+      SELECT pi.*, c.title as company_name 
+      FROM purchase_invoices pi 
+      LEFT JOIN companies c ON pi.company_id = c.id 
+      WHERE pi.id = $1 AND (pi.store_id = $2 OR $3 = TRUE)
+    `;
+    let params = [req.params.id, storeId, isSuperAdmin];
+    
+    const invoiceResult = await pool.query(query, params);
+    
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
+    
+    const invoice = invoiceResult.rows[0];
+    
+    let itemsResult = await pool.query(
+      `SELECT pii.*, p.product_code as system_product_code, p.sku as system_sku
+       FROM purchase_invoice_items pii
+       LEFT JOIN products p ON pii.product_id = p.id
+       WHERE pii.purchase_invoice_id = $1
+       ORDER BY pii.id ASC`,
+      [req.params.id]
+    );
+    
+    let items = itemsResult.rows;
+
+    // Only fetch from e-invoice service if there are NO items yet recorded for this invoice!
+    if (invoice.ettn && (!items || items.length === 0)) {
+       try {
+         const service = await getEInvoiceService(invoice.store_id);
+         if (service) {
+           const details = await service.getInvoiceDetailsByUuid(invoice.ettn);
+           if (details) {
+              // Verify expense classification first
+              let isInvoiceExpense = invoice.is_expense === true;
+              let invExpenseCategory = invoice.expense_category;
+              let invExpenseCenter = invoice.expense_center;
+
+              if (!isInvoiceExpense) {
+                const expenseCheck = await resolveExpenseClassification(pool, invoice.store_id, {
+                  supplierTitle: invoice.supplier_name,
+                  supplierVkn: invoice.tax_number,
+                  companyId: invoice.company_id,
+                  pinToCompany: true
+                });
+                if (expenseCheck.isExpense) {
+                  isInvoiceExpense = true;
+                  invExpenseCategory = expenseCheck.expenseCategory;
+                  invExpenseCenter = expenseCheck.expenseCenter;
+                  await pool.query(
+                    "UPDATE purchase_invoices SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE id = $3",
+                    [invExpenseCategory, invExpenseCenter, invoice.id]
+                  );
+                  invoice.is_expense = true;
+                  invoice.expense_category = invExpenseCategory;
+                  invoice.expense_center = invExpenseCenter;
+                }
+              }
+
+              let rawLines = details.detailList || details.InvoiceLines || details.lines || details.InvoiceLine || details.Lines || details.invoiceLines || [];
+              if (rawLines && !Array.isArray(rawLines)) {
+                rawLines = [rawLines];
+              }
+              if (Array.isArray(rawLines) && rawLines.length > 0) {
+                 for (const line of rawLines) {
+                   const productName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || line.Name || line.name || 'Bilinmeyen Ürün';
+                   
+                   const sellerCodeRaw = line.detailItem?.sellersItemIdentificationId || line.detailItem?.sellersItemIdentification || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.sellersItemIdentification;
+                   const sellerCode = typeof sellerCodeRaw === 'string' ? sellerCodeRaw.trim() : (typeof sellerCodeRaw === 'number' ? String(sellerCodeRaw) : null);
+
+                   const buyerCodeRaw = line.detailItem?.buyersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.buyersItemIdentification;
+                   const buyerCode = typeof buyerCodeRaw === 'string' ? buyerCodeRaw.trim() : (typeof buyerCodeRaw === 'number' ? String(buyerCodeRaw) : null);
+
+                   const barcodeRaw = line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.ItemInstance?.ProductTraceID;
+                   const barcode = typeof barcodeRaw === 'string' ? barcodeRaw.trim() : (typeof barcodeRaw === 'number' ? String(barcodeRaw) : null);
+
+                   const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 1;
+                   const qty = Number(String(qtyRaw).replace(',', '.')) || 1;
+                   
+                   const upRaw = line.unitPrice || line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
+                   const up = Number(String(upRaw).replace(',', '.')) || 0;
+                   
+                   const trRaw = line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 20;
+                   const tr = Number(String(trRaw).replace(',', '.')) || 20;
+                   
+                   const lineTotal = qty * up;
+                   const taxAmount = (lineTotal * tr) / 100;
+
+                   if (isInvoiceExpense) {
+                     // EXPENSE INVOICE: NEVER match/create products, NEVER alter stock!
+                     await pool.query(
+                       `INSERT INTO purchase_invoice_items 
+                        (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price) 
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                       [invoice.id, null, productName, null, null, qty, up, tr, taxAmount, lineTotal]
+                     );
+                     continue;
+                   }
+
+                   // 5-Tier Intelligent matching:
+                   const match = await findMatchingProduct(pool, invoice.store_id, {
+                     supplierVkn: invoice.tax_number,
+                     productName,
+                     barcode,
+                     productCode: sellerCode || buyerCode,
+                     sellerCode,
+                     buyerCode
+                   });
+
+                   let productId = match ? match.productId : null;
+                   let finalBarcode: string;
+                   let finalProductCode: string | null;
+
+                   if (match) {
+                     productId = match.productId;
+                     finalProductCode = match.productCode || sellerCode || buyerCode || null;
+                     const incomingSanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, finalProductCode);
+                     if (isValidStandardBarcode(incomingSanitized.barcode) && !incomingSanitized.isTempBarcode) {
+                       finalBarcode = incomingSanitized.barcode;
+                     } else if (isValidStandardBarcode(match.barcode)) {
+                       finalBarcode = match.barcode;
+                     } else {
+                       finalBarcode = incomingSanitized.barcode;
+                     }
+                     if (!finalProductCode) finalProductCode = incomingSanitized.productCode;
+                   } else {
+                     const sanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, null);
+                     finalBarcode = sanitized.barcode;
+                     finalProductCode = sanitized.productCode || sellerCode || buyerCode || null;
+
+                     const existingProd = await pool.query(
+                       "SELECT id, barcode, product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR (product_code IS NOT NULL AND product_code = $3))",
+                       [invoice.store_id, finalBarcode, finalProductCode || '__NONE__']
+                     );
+                     if (existingProd.rows.length > 0) {
+                       productId = existingProd.rows[0].id;
+                       finalBarcode = existingProd.rows[0].barcode;
+                       finalProductCode = existingProd.rows[0].product_code || finalProductCode;
+                     } else {
+                       productId = null;
+                     }
+                   }
+
+                   // Auto save supplier mapping
+                   if (invoice.tax_number && productName && productId) {
+                     await saveSupplierMapping(pool, invoice.store_id, invoice.tax_number, productName, productId, finalProductCode);
+                   }
+
+                   await pool.query(
+                     `INSERT INTO purchase_invoice_items 
+                      (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price) 
+                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                     [invoice.id, productId, productName, finalBarcode, finalProductCode, qty, up, tr, taxAmount, lineTotal]
+                   );
+
+                   // Check if stock movement already recorded for this product on this invoice to prevent double addition
+                   const existingMov = await pool.query(
+                     "SELECT 1 FROM stock_movements WHERE store_id = $1 AND invoice_id = $2 AND source = 'purchase_invoice' AND product_id = $3 LIMIT 1",
+                     [invoice.store_id, invoice.id, productId]
+                   );
+                   if (productId && existingMov.rows.length === 0) {
+                     await pool.query(
+                       "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
+                       [qty, up, invoice.currency || 'TRY', productId]
+                     );
+                     await addStockMovement(
+                       pool,
+                       invoice.store_id,
+                       productId,
+                       'in',
+                       qty,
+                       'purchase_invoice',
+                       `E-Fatura İlk İçe Aktarma: ${invoice.invoice_number}`,
+                       up,
+                       invoice.supplier_name || invoice.company_name,
+                       invoice.currency,
+                       null,
+                       invoice.id,
+                       'purchase',
+                       invoice.invoice_number
+                     );
+                   }
+                 }
+
+                 const refetched = await pool.query(
+                   `SELECT pii.*, p.product_code as system_product_code, p.sku as system_sku
+                    FROM purchase_invoice_items pii
+                    LEFT JOIN products p ON pii.product_id = p.id
+                    WHERE pii.purchase_invoice_id = $1
+                    ORDER BY pii.id ASC`,
+                   [invoice.id]
+                 );
+                 items = refetched.rows;
+              }
+           }
+         }
+       } catch (err: any) {
+         console.error("[ON-THE-FLY-ITEMS-SYNC] Error:", err);
+       }
+    }
+    
+    invoice.items = items;
+    res.json(invoice);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/purchase", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+    const {
+      invoice_number, invoice_date, company_id, waybill_number, tax_number, tax_office,
+      address, total_amount, tax_amount, grand_total, currency, exchange_rate, notes,
+      supplier_name, is_expense, expense_category, expense_center, items, status, is_tax_inclusive,
+      payment_method, payment_status
+    } = req.body;
+
+    let finalIsExpense = is_expense === true || is_expense === 'true';
+    let finalExpenseCategory = expense_category || null;
+    let finalExpenseCenter = expense_center || null;
+
+    if (!finalIsExpense) {
+      const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+        supplierTitle: supplier_name,
+        supplierVkn: tax_number,
+        companyId: company_id,
+        pinToCompany: true
+      });
+      if (expenseCheck.isExpense) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || expenseCheck.expenseCategory;
+        finalExpenseCenter = finalExpenseCenter || expenseCheck.expenseCenter;
+      }
+    } else {
+      // Pin manual expense to company
+      if (company_id || tax_number) {
+        try {
+          if (company_id) {
+            await pool.query(
+              "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE id = $3",
+              [finalExpenseCategory, finalExpenseCenter, company_id]
+            );
+          } else if (tax_number) {
+            await pool.query(
+              "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE store_id = $3 AND tax_number = $4",
+              [finalExpenseCategory, finalExpenseCenter, storeId, tax_number]
+            );
+          }
+        } catch (e) {
+          console.error("Error pinning manual expense to company:", e);
+        }
+      }
+    }
+
+    const finalIsTaxInclusive = is_tax_inclusive === true || is_tax_inclusive === 'true';
+
+    // Calculate total_amount, tax_amount, grand_total if they are 0 or not provided
+    let calculatedTotalAmount = Number(total_amount) || 0;
+    let calculatedTaxAmount = Number(tax_amount) || 0;
+    let calculatedGrandTotal = Number(grand_total) || 0;
+
+    if ((calculatedGrandTotal === 0 || calculatedTotalAmount === 0) && items && Array.isArray(items)) {
+      let subtotal = 0;
+      let taxTotal = 0;
+      for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unit_price) || 0;
+        const taxRate = Number(item.tax_rate) || 0;
+        
+        if (finalIsTaxInclusive) {
+          const itemTotalIncl = qty * price;
+          const itemTotalExcl = itemTotalIncl / (1 + (taxRate / 100));
+          const itemTax = itemTotalIncl - itemTotalExcl;
+          subtotal += itemTotalExcl;
+          taxTotal += itemTax;
+        } else {
+          const itemTotal = qty * price;
+          const itemTax = itemTotal * (taxRate / 100);
+          subtotal += itemTotal;
+          taxTotal += itemTax;
+        }
+      }
+      calculatedTotalAmount = Number(subtotal.toFixed(2));
+      calculatedTaxAmount = Number(taxTotal.toFixed(2));
+      calculatedGrandTotal = Number((subtotal + taxTotal).toFixed(2));
+    }
+
+    const invoiceRes = await pool.query(
+      `INSERT INTO purchase_invoices 
+       (store_id, company_id, invoice_number, waybill_number, tax_number, tax_office, address, 
+        invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, 
+        supplier_name, is_expense, expense_category, expense_center, status, is_tax_inclusive, payment_method, payment_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
+      [
+        storeId, company_id || null, invoice_number || `P-${Date.now()}`, waybill_number || null,
+        tax_number || null, tax_office || null, address || null, invoice_date || new Date(),
+        calculatedTotalAmount, calculatedTaxAmount, calculatedGrandTotal, currency || 'TRY', exchange_rate || 1,
+        notes || null, supplier_name || null, finalIsExpense, finalExpenseCategory, finalExpenseCenter, status || 'pending',
+        finalIsTaxInclusive, payment_method || null, payment_status || 'unpaid'
+      ]
+    );
+
+    const invoice = invoiceRes.rows[0];
+
+    // Add transaction to current account if company exists
+    let finalCompanyId = company_id || null;
+    if (!finalCompanyId && tax_number) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2 LIMIT 1", [storeId, String(tax_number).trim()]);
+      if (compRes.rows.length > 0) finalCompanyId = compRes.rows[0].id;
+    }
+    if (!finalCompanyId && supplier_name) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1", [storeId, String(supplier_name).trim()]);
+      if (compRes.rows.length > 0) finalCompanyId = compRes.rows[0].id;
+    }
+
+    if (finalCompanyId && !company_id) {
+      await pool.query("UPDATE purchase_invoices SET company_id = $1 WHERE id = $2", [finalCompanyId, invoice.id]);
+    }
+
+    if (finalCompanyId) {
+      console.log(`Adding current account transaction for company ${finalCompanyId}, invoice ${invoice.id}, amount ${calculatedGrandTotal}`);
+      const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+      const store = storeRes.rows[0];
+      const branding = store?.branding || {};
+      const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
+      await pool.query(
+        `INSERT INTO current_account_transactions 
+          (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [storeId, finalCompanyId, invoice.id, 'credit', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
+      );
+
+      const isPaid = payment_status === 'paid' || (payment_method && payment_method !== 'term');
+      if (isPaid) {
+        await pool.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            storeId, finalCompanyId, invoice.id, 'debt', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1,
+            `Alış Faturası Ödemesi: ${invoice_number}${payment_method ? ` (${payment_method})` : ''}`, payment_method || 'nakit', invoice_date || new Date()
+          ]
+        );
+      }
+    }
+
+    const affectedProductIds: number[] = [];
+    if (items && Array.isArray(items) && items.length > 0) {
+      const processedInvoiceItems: any[] = [];
+      for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unit_price) || 0;
+        const taxRate = Number(item.tax_rate) || 0;
+        
+        let itemTaxAmount = 0;
+        let itemTotalPrice = 0;
+        
+        if (finalIsTaxInclusive) {
+          const itemTotalIncl = qty * price;
+          const itemTotalExcl = itemTotalIncl / (1 + (taxRate / 100));
+          itemTaxAmount = itemTotalIncl - itemTotalExcl;
+          itemTotalPrice = itemTotalExcl;
+        } else {
+          const itemTotalExcl = qty * price;
+          itemTaxAmount = itemTotalExcl * (taxRate / 100);
+          itemTotalPrice = itemTotalExcl;
+        }
+
+        let resolvedProductId = null;
+        let resolvedBarcode = null;
+        let resolvedProductCode = null;
+        if (!finalIsExpense) {
+          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode, item.product_code, item.product_name);
+          resolvedProductId = resProd.productId;
+          resolvedBarcode = resProd.barcode;
+          resolvedProductCode = resProd.productCode || item.product_code || null;
+
+          if (!resolvedProductId && item.product_name) {
+            const match = await findMatchingProduct(pool, storeId, {
+              supplierVkn: tax_number,
+              productName: item.product_name,
+              barcode: item.barcode,
+              productCode: item.product_code
+            });
+            if (match) {
+              resolvedProductId = match.productId;
+              resolvedBarcode = match.barcode || resolvedBarcode;
+              resolvedProductCode = match.productCode || resolvedProductCode;
+            }
+          }
+        }
+
+        processedInvoiceItems.push({
+          rawItem: item,
+          resolvedProductId,
+          resolvedBarcode,
+          resolvedProductCode,
+          qty,
+          price,
+          taxRate,
+          itemTaxAmount,
+          itemTotalPrice
+        });
+      }
+
+      if (processedInvoiceItems.length > 0) {
+        const valueStrings: string[] = [];
+        const queryParams: any[] = [];
+        let pIdx = 1;
+
+        for (const pItem of processedInvoiceItems) {
+          const item = pItem.rawItem;
+          valueStrings.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
+          queryParams.push(
+            invoice.id,
+            pItem.resolvedProductId,
+            item.product_name || 'Bilinmeyen Ürün',
+            pItem.resolvedBarcode || null,
+            pItem.resolvedProductCode,
+            pItem.qty,
+            item.unit_code || 'Adet',
+            item.system_quantity || null,
+            item.system_unit_code || null,
+            pItem.price,
+            pItem.taxRate,
+            pItem.itemTaxAmount,
+            pItem.itemTotalPrice,
+            item.variant_id || null,
+            item.variant_name || null
+          );
+        }
+
+        await pool.query(
+          `INSERT INTO purchase_invoice_items 
+           (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price, variant_id, variant_name)
+           VALUES ${valueStrings.join(", ")}`,
+          queryParams
+        );
+      }
+
+      for (const pItem of processedInvoiceItems) {
+        const item = pItem.rawItem;
+        const resolvedProductId = pItem.resolvedProductId;
+        const resolvedProductCode = pItem.resolvedProductCode;
+
+        if (resolvedProductId && !finalIsExpense) {
+          affectedProductIds.push(Number(resolvedProductId));
+          if (tax_number && item.product_name) {
+            await saveSupplierMapping(pool, storeId, tax_number, item.product_name, resolvedProductId, resolvedProductCode);
+          }
+
+          const qtyToStock = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
+          await pool.query(
+            "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
+            [qtyToStock, item.unit_price || 0, currency || 'TRY', resolvedProductId]
+          );
+
+          if (item.variant_id || item.variant_name) {
+            try {
+              const prodRes = await pool.query("SELECT variants FROM products WHERE id = $1", [resolvedProductId]);
+              if (prodRes.rows.length > 0) {
+                let vList = prodRes.rows[0].variants;
+                if (typeof vList === 'string') {
+                  try { vList = JSON.parse(vList); } catch (e) { vList = []; }
+                }
+                if (Array.isArray(vList)) {
+                  let updated = false;
+                  const updatedVariants = vList.map((v: any) => {
+                    const matchId = item.variant_id && String(v.id) === String(item.variant_id);
+                    const matchName = item.variant_name && String(v.name).trim().toLowerCase() === String(item.variant_name).trim().toLowerCase();
+                    if (matchId || matchName) {
+                      updated = true;
+                      const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                      return { ...v, stock_quantity: String(currentStock + qtyToStock) };
+                    }
+                    return v;
+                  });
+                  if (updated) {
+                    await pool.query("UPDATE products SET variants = $1::jsonb WHERE id = $2", [JSON.stringify(updatedVariants), resolvedProductId]);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Error updating variant stock in purchase invoice:", err);
+            }
+          }
+          
+          await addStockMovement(
+            pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
+            `Fatura Girişi: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency,
+            null, invoice.id, 'purchase', invoice.invoice_number
+          );
+        }
+      }
+    }
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `purchase_invoice_created_${invoice.id}` }).catch(err =>
+        console.error("[Purchase Invoice Create Marketplace Sync Error]:", err?.message || err)
+      );
+    }
+
+    res.status(201).json(invoice);
+  } catch (e: any) {
+    console.error("Error in POST /purchase:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.put("/purchase/:id", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+    const { id } = req.params;
+    const {
+      invoice_number, invoice_date, company_id, waybill_number, tax_number, tax_office,
+      address, total_amount, tax_amount, grand_total, currency, exchange_rate, notes,
+      supplier_name, is_expense, expense_category, expense_center, items, status, is_tax_inclusive,
+      payment_method, payment_status
+    } = req.body;
+
+    const checkRes = await pool.query("SELECT id, is_expense FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    const wasExpense = checkRes.rows[0]?.is_expense === true;
+
+    let finalIsExpense: boolean;
+    let finalExpenseCategory = expense_category || null;
+    let finalExpenseCenter = expense_center || null;
+
+    if (is_expense !== undefined) {
+      // User explicitly specified their preference in the form / request!
+      finalIsExpense = is_expense === true || is_expense === 'true';
+      if (!finalIsExpense) {
+        finalExpenseCategory = null;
+        finalExpenseCenter = null;
+        // Unpin company from being expense so future syncs/queries treat it as stock supplier
+        if (company_id || tax_number) {
+          try {
+            if (company_id) {
+              await pool.query(
+                "UPDATE companies SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE id = $1 AND store_id = $2",
+                [company_id, storeId]
+              );
+            }
+            if (tax_number) {
+              await pool.query(
+                "UPDATE companies SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE store_id = $1 AND tax_number = $2",
+                [storeId, tax_number]
+              );
+            }
+          } catch (e) {
+            console.error("Error unpinning company from expense in PUT /purchase:", e);
+          }
+        }
+      } else {
+        // Pin manual expense to company
+        if (company_id || tax_number) {
+          try {
+            if (company_id) {
+              await pool.query(
+                "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE id = $3",
+                [finalExpenseCategory, finalExpenseCenter, company_id]
+              );
+            } else if (tax_number) {
+              await pool.query(
+                "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE store_id = $3 AND tax_number = $4",
+                [finalExpenseCategory, finalExpenseCenter, storeId, tax_number]
+              );
+            }
+          } catch (e) {
+            console.error("Error pinning manual expense to company:", e);
+          }
+        }
+      }
+    } else {
+      finalIsExpense = wasExpense;
+      if (!finalIsExpense) {
+        const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+          supplierTitle: supplier_name,
+          supplierVkn: tax_number,
+          companyId: company_id,
+          pinToCompany: true
+        });
+        if (expenseCheck.isExpense) {
+          finalIsExpense = true;
+          finalExpenseCategory = finalExpenseCategory || expenseCheck.expenseCategory;
+          finalExpenseCenter = finalExpenseCenter || expenseCheck.expenseCenter;
+        }
+      }
+    }
+
+    // If invoice converted from regular to expense, clean up any stock and auto-created products:
+    if (!wasExpense && finalIsExpense) {
+      await revertInvoiceStockAndProducts(pool, storeId, Number(id));
+    }
+
+    const finalIsTaxInclusive = is_tax_inclusive === true || is_tax_inclusive === 'true';
+
+    // Calculate total_amount, tax_amount, grand_total if they are 0 or not provided
+    let calculatedTotalAmount = Number(total_amount) || 0;
+    let calculatedTaxAmount = Number(tax_amount) || 0;
+    let calculatedGrandTotal = Number(grand_total) || 0;
+
+    if (items && Array.isArray(items) && items.length > 0) {
+      let subtotal = 0;
+      let taxTotal = 0;
+      let grandTotal = 0;
+      for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unit_price) || 0;
+        const taxRate = Number(item.tax_rate) || 0;
+        
+        if (finalIsTaxInclusive) {
+          const lineIncl = Math.round(qty * price * 100) / 100;
+          const lineExcl = Math.round((lineIncl / (1 + (taxRate / 100))) * 100) / 100;
+          const lineTax = Math.round((lineIncl - lineExcl) * 100) / 100;
+          
+          grandTotal += lineIncl;
+          taxTotal += lineTax;
+          subtotal += lineExcl;
+        } else {
+          const lineExcl = Math.round(qty * price * 100) / 100;
+          const lineTax = Math.round((lineExcl * (taxRate / 100)) * 100) / 100;
+          const lineIncl = Math.round((lineExcl + lineTax) * 100) / 100;
+          
+          subtotal += lineExcl;
+          taxTotal += lineTax;
+          grandTotal += lineIncl;
+        }
+      }
+      if (calculatedGrandTotal === 0) {
+        calculatedGrandTotal = Math.round(grandTotal * 100) / 100;
+      }
+      if (calculatedTaxAmount === 0) {
+        calculatedTaxAmount = Math.round(taxTotal * 100) / 100;
+      }
+      if (calculatedTotalAmount === 0) {
+        calculatedTotalAmount = finalIsTaxInclusive 
+          ? Math.round((calculatedGrandTotal - calculatedTaxAmount) * 100) / 100
+          : Math.round(subtotal * 100) / 100;
+      }
+    }
+
+    // Deduct old items stock before replacing them
+    const affectedProductIds: number[] = [];
+    const oldItems = await pool.query("SELECT product_id, barcode, product_code, quantity, system_quantity, variant_id, variant_name FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    for (const oldItem of oldItems.rows) {
+      let oldResolvedId = oldItem.product_id;
+      if (!oldResolvedId) {
+        const { productId } = await resolveProductInfo(pool, storeId, null, oldItem.barcode, oldItem.product_code);
+        oldResolvedId = productId;
+      }
+      if (oldResolvedId) {
+        affectedProductIds.push(Number(oldResolvedId));
+        const qtyToRevert = oldItem.system_quantity != null ? Number(oldItem.system_quantity) : Number(oldItem.quantity || 1);
+        await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [qtyToRevert, oldResolvedId]);
+
+        if (oldItem.variant_id || oldItem.variant_name) {
+          try {
+            const prodRes = await pool.query("SELECT variants FROM products WHERE id = $1", [oldResolvedId]);
+            if (prodRes.rows.length > 0) {
+              let vList = prodRes.rows[0].variants;
+              if (typeof vList === 'string') {
+                try { vList = JSON.parse(vList); } catch (e) { vList = []; }
+              }
+              if (Array.isArray(vList)) {
+                let updated = false;
+                const revertedVariants = vList.map((v: any) => {
+                  const matchId = oldItem.variant_id && String(v.id) === String(oldItem.variant_id);
+                  const matchName = oldItem.variant_name && String(v.name).trim().toLowerCase() === String(oldItem.variant_name).trim().toLowerCase();
+                  if (matchId || matchName) {
+                    updated = true;
+                    const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                    return { ...v, stock_quantity: String(Math.max(0, currentStock - qtyToRevert)) };
+                  }
+                  return v;
+                });
+                if (updated) {
+                  await pool.query("UPDATE products SET variants = $1::jsonb WHERE id = $2", [JSON.stringify(revertedVariants), oldResolvedId]);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error reverting variant stock in purchase invoice:", err);
+          }
+        }
+      }
+    }
+
+    await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    await pool.query("DELETE FROM stock_movements WHERE (source = 'purchase_invoice' OR invoice_type = 'purchase') AND (invoice_id = $1 OR description LIKE $2 OR description LIKE $3)", [id, `%${invoice_number}%`, `%${id}%`]);
+
+    const invoiceRes = await pool.query(
+      `UPDATE purchase_invoices 
+       SET company_id = $1, invoice_number = $2, waybill_number = $3, tax_number = $4, tax_office = $5, address = $6, 
+           invoice_date = $7, total_amount = $8, tax_amount = $9, grand_total = $10, currency = $11, exchange_rate = $12, 
+           notes = $13, supplier_name = $14, is_expense = $15, expense_category = $16, expense_center = $17, status = $18, is_tax_inclusive = $19,
+           payment_method = $20, payment_status = $21
+       WHERE id = $22 AND store_id = $23 RETURNING *`,
+      [
+        company_id || null, invoice_number, waybill_number || null, tax_number || null, tax_office || null, address || null,
+        invoice_date, calculatedTotalAmount, calculatedTaxAmount, calculatedGrandTotal, currency || 'TRY', exchange_rate || 1,
+        notes || null, supplier_name || null, finalIsExpense, finalExpenseCategory, finalExpenseCenter, status || 'pending',
+        finalIsTaxInclusive, payment_method || null, payment_status || 'unpaid',
+        id, storeId
+      ]
+    );
+
+    const invoice = invoiceRes.rows[0];
+
+    // Delete old transaction and add new one
+    let finalCompanyId = company_id || null;
+    if (!finalCompanyId && tax_number) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2 LIMIT 1", [storeId, String(tax_number).trim()]);
+      if (compRes.rows.length > 0) finalCompanyId = compRes.rows[0].id;
+    }
+    if (!finalCompanyId && supplier_name) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1", [storeId, String(supplier_name).trim()]);
+      if (compRes.rows.length > 0) finalCompanyId = compRes.rows[0].id;
+    }
+
+    if (finalCompanyId && !company_id) {
+      await pool.query("UPDATE purchase_invoices SET company_id = $1 WHERE id = $2", [finalCompanyId, id]);
+    }
+
+    await pool.query("DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1", [id]);
+    
+    if (finalCompanyId) {
+      const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+      const store = storeRes.rows[0];
+      const branding = store?.branding || {};
+      const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
+      await pool.query(
+        `INSERT INTO current_account_transactions 
+          (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [storeId, finalCompanyId, invoice.id, 'credit', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
+      );
+
+      const isPaid = payment_status === 'paid' || (payment_method && payment_method !== 'term');
+      if (isPaid) {
+        await pool.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            storeId, finalCompanyId, invoice.id, 'debt', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1,
+            `Alış Faturası Ödemesi: ${invoice_number}${payment_method ? ` (${payment_method})` : ''}`, payment_method || 'nakit', invoice_date || new Date()
+          ]
+        );
+      }
+    }
+
+    if (items && Array.isArray(items) && items.length > 0) {
+      const processedInvoiceItems: any[] = [];
+      for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unit_price) || 0;
+        const taxRate = Number(item.tax_rate) || 0;
+        
+        let itemTaxAmount = 0;
+        let itemTotalPrice = 0;
+        
+        if (finalIsTaxInclusive) {
+          const itemTotalIncl = qty * price;
+          const itemTotalExcl = itemTotalIncl / (1 + (taxRate / 100));
+          itemTaxAmount = itemTotalIncl - itemTotalExcl;
+          itemTotalPrice = itemTotalExcl;
+        } else {
+          const itemTotalExcl = qty * price;
+          itemTaxAmount = itemTotalExcl * (taxRate / 100);
+          itemTotalPrice = itemTotalExcl;
+        }
+
+        let resolvedProductId = null;
+        let resolvedBarcode = null;
+        let resolvedProductCode = null;
+        if (!finalIsExpense) {
+          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode, item.product_code, item.product_name);
+          resolvedProductId = resProd.productId;
+          resolvedBarcode = resProd.barcode;
+          resolvedProductCode = resProd.productCode || item.product_code || null;
+
+          if (!resolvedProductId && item.product_name) {
+            const match = await findMatchingProduct(pool, storeId, {
+              supplierVkn: tax_number,
+              productName: item.product_name,
+              barcode: item.barcode,
+              productCode: item.product_code
+            });
+            if (match) {
+              resolvedProductId = match.productId;
+              resolvedBarcode = match.barcode || resolvedBarcode;
+              resolvedProductCode = match.productCode || resolvedProductCode;
+            }
+          }
+        }
+
+        processedInvoiceItems.push({
+          rawItem: item,
+          resolvedProductId,
+          resolvedBarcode,
+          resolvedProductCode,
+          qty,
+          price,
+          taxRate,
+          itemTaxAmount,
+          itemTotalPrice
+        });
+      }
+
+      if (processedInvoiceItems.length > 0) {
+        const valueStrings: string[] = [];
+        const queryParams: any[] = [];
+        let pIdx = 1;
+
+        for (const pItem of processedInvoiceItems) {
+          const item = pItem.rawItem;
+          valueStrings.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
+          queryParams.push(
+            id,
+            pItem.resolvedProductId,
+            item.product_name || 'Bilinmeyen Ürün',
+            pItem.resolvedBarcode || null,
+            pItem.resolvedProductCode,
+            pItem.qty,
+            item.unit_code || 'Adet',
+            item.system_quantity || null,
+            item.system_unit_code || null,
+            pItem.price,
+            pItem.taxRate,
+            pItem.itemTaxAmount,
+            pItem.itemTotalPrice,
+            item.variant_id || null,
+            item.variant_name || null
+          );
+        }
+
+        await pool.query(
+          `INSERT INTO purchase_invoice_items 
+           (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price, variant_id, variant_name)
+           VALUES ${valueStrings.join(", ")}`,
+          queryParams
+        );
+      }
+
+      for (const pItem of processedInvoiceItems) {
+        const item = pItem.rawItem;
+        const resolvedProductId = pItem.resolvedProductId;
+        const resolvedProductCode = pItem.resolvedProductCode;
+
+        if (resolvedProductId && !finalIsExpense) {
+          affectedProductIds.push(Number(resolvedProductId));
+          if (tax_number && item.product_name) {
+            await saveSupplierMapping(pool, storeId, tax_number, item.product_name, resolvedProductId, resolvedProductCode);
+          }
+
+          const qtyToStock = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
+          await pool.query(
+            "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
+            [qtyToStock, item.unit_price || 0, currency || 'TRY', resolvedProductId]
+          );
+
+          if (item.variant_id || item.variant_name) {
+            try {
+              const prodRes = await pool.query("SELECT variants FROM products WHERE id = $1", [resolvedProductId]);
+              if (prodRes.rows.length > 0) {
+                let vList = prodRes.rows[0].variants;
+                if (typeof vList === 'string') {
+                  try { vList = JSON.parse(vList); } catch (e) { vList = []; }
+                }
+                if (Array.isArray(vList)) {
+                  let updated = false;
+                  const updatedVariants = vList.map((v: any) => {
+                    const matchId = item.variant_id && String(v.id) === String(item.variant_id);
+                    const matchName = item.variant_name && String(v.name).trim().toLowerCase() === String(item.variant_name).trim().toLowerCase();
+                    if (matchId || matchName) {
+                      updated = true;
+                      const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                      return { ...v, stock_quantity: String(currentStock + qtyToStock) };
+                    }
+                    return v;
+                  });
+                  if (updated) {
+                    await pool.query("UPDATE products SET variants = $1::jsonb WHERE id = $2", [JSON.stringify(updatedVariants), resolvedProductId]);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Error updating variant stock in purchase invoice:", err);
+            }
+          }
+          
+          await addStockMovement(
+            pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
+            `Fatura Güncelleme: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency,
+            null, invoice.id, 'purchase', invoice.invoice_number
+          );
+        }
+      }
+    }
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `purchase_invoice_updated_${id}` }).catch(err =>
+        console.error("[Purchase Invoice Update Marketplace Sync Error]:", err?.message || err)
+      );
+    }
+
+    res.json(invoice);
+  } catch (e: any) {
+    console.error("Error in PUT /purchase/:id:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.delete("/sales/:id", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const { id } = req.params;
+
+    const checkRes = await pool.query("SELECT id, invoice_number, quotation_id, sale_id FROM sales_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    const invoice = checkRes.rows[0];
+
+    // Revert stock
+    const affectedProductIds: number[] = [];
+    const oldItems = await pool.query("SELECT product_id, quantity FROM sales_invoice_items WHERE sales_invoice_id = $1", [id]);
+    for (const item of oldItems.rows) {
+      if (item.product_id) {
+        affectedProductIds.push(Number(item.product_id));
+        await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3", [item.quantity, item.product_id, storeId]);
+      }
+    }
+
+    if (invoice.invoice_number) {
+      await pool.query("DELETE FROM stock_movements WHERE source = 'sales_invoice' AND description LIKE $1", [`%${invoice.invoice_number}%`]);
+    }
+    await pool.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [id]);
+    await pool.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [id]);
+    if (invoice.quotation_id || invoice.sale_id) {
+      await pool.query("DELETE FROM current_account_transactions WHERE (quotation_id = $1 OR sale_id = $2) AND sales_invoice_id IS NULL", [invoice.quotation_id || null, invoice.sale_id || null]);
+    }
+    await pool.query("DELETE FROM sales_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `sales_invoice_deleted_${id}` }).catch(err =>
+        console.error("[Sales Invoice Delete Marketplace Sync Error]:", err?.message || err)
+      );
+    }
+
+    res.json({ success: true, message: "Sales invoice deleted successfully" });
+  } catch (e: any) {
+    console.error("Error in DELETE /sales/:id:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.delete("/purchase/:id", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const { id } = req.params;
+
+    const checkRes = await pool.query("SELECT id, invoice_number FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    const invoice = checkRes.rows[0];
+
+    // Adjust stocks back
+    const affectedProductIds: number[] = [];
+    const oldItems = await pool.query("SELECT product_id, quantity, system_quantity, variant_id, variant_name FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    for (const oldItem of oldItems.rows) {
+      if (oldItem.product_id) {
+        affectedProductIds.push(Number(oldItem.product_id));
+        const qtyToRevert = oldItem.system_quantity != null ? Number(oldItem.system_quantity) : Number(oldItem.quantity || 1);
+        await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [qtyToRevert, oldItem.product_id]);
+
+        if (oldItem.variant_id || oldItem.variant_name) {
+          try {
+            const prodRes = await pool.query("SELECT variants FROM products WHERE id = $1", [oldItem.product_id]);
+            if (prodRes.rows.length > 0) {
+              let vList = prodRes.rows[0].variants;
+              if (typeof vList === 'string') {
+                try { vList = JSON.parse(vList); } catch (e) { vList = []; }
+              }
+              if (Array.isArray(vList)) {
+                let updated = false;
+                const revertedVariants = vList.map((v: any) => {
+                  const matchId = oldItem.variant_id && String(v.id) === String(oldItem.variant_id);
+                  const matchName = oldItem.variant_name && String(v.name).trim().toLowerCase() === String(oldItem.variant_name).trim().toLowerCase();
+                  if (matchId || matchName) {
+                    updated = true;
+                    const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                    return { ...v, stock_quantity: String(Math.max(0, currentStock - qtyToRevert)) };
+                  }
+                  return v;
+                });
+                if (updated) {
+                  await pool.query("UPDATE products SET variants = $1::jsonb WHERE id = $2", [JSON.stringify(revertedVariants), oldItem.product_id]);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error reverting variant stock on purchase invoice delete:", err);
+          }
+        }
+      }
+    }
+
+    // Clean up related stock movements, current account transactions, and invoice items
+    if (invoice.invoice_number) {
+      await pool.query("DELETE FROM stock_movements WHERE source = 'purchase_invoice' AND description LIKE $1", [`%${invoice.invoice_number}%`]);
+    }
+    await pool.query("DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1", [id]);
+    await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    await pool.query("DELETE FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `purchase_invoice_deleted_${id}` }).catch(err =>
+        console.error("[Purchase Invoice Delete Marketplace Sync Error]:", err?.message || err)
+      );
+    }
+
+    res.json({ success: true, message: "Purchase invoice deleted successfully" });
+  } catch (e: any) {
+    console.error("Error in DELETE /purchase/:id:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/purchase/:id/status", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const result = await pool.query(
+      "UPDATE purchase_invoices SET status = $1 WHERE id = $2 AND store_id = $3 RETURNING *",
+      [status, id, storeId]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.patch("/purchase/:id/read", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const { id } = req.params;
+
+    const result = await pool.query(
+      "UPDATE purchase_invoices SET status = 'read' WHERE id = $1 AND store_id = $2 RETURNING *",
+      [id, storeId]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.patch("/purchase/:id/payment-status", async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const result = await pool.query(
+      "UPDATE purchase_invoices SET payment_status = $1 WHERE id = $2 AND store_id = $3 RETURNING *",
+      [status, id, storeId]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+
+    const invoice = result.rows[0];
+
+    // Resolve company_id if missing
+    let compId = invoice.company_id;
+    if (!compId && invoice.tax_number) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2 LIMIT 1", [storeId, String(invoice.tax_number).trim()]);
+      if (compRes.rows.length > 0) {
+        compId = compRes.rows[0].id;
+        await pool.query("UPDATE purchase_invoices SET company_id = $1 WHERE id = $2", [compId, id]);
+      }
+    }
+    if (!compId && invoice.supplier_name) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1", [storeId, String(invoice.supplier_name).trim()]);
+      if (compRes.rows.length > 0) {
+        compId = compRes.rows[0].id;
+        await pool.query("UPDATE purchase_invoices SET company_id = $1 WHERE id = $2", [compId, id]);
+      }
+    }
+
+    if (compId) {
+      // Remove any existing debt (payment) transaction for this invoice first
+      await pool.query(
+        "DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1 AND type = 'debt'",
+        [id]
+      );
+
+      // Ensure credit transaction exists
+      const creditRes = await pool.query("SELECT 1 FROM current_account_transactions WHERE purchase_invoice_id = $1 AND type = 'credit'", [id]);
+      if (creditRes.rows.length === 0) {
+        const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+        const store = storeRes.rows[0];
+        const branding = store?.branding || {};
+        const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
+        await pool.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            storeId, compId, id, 'credit', Number(invoice.grand_total || invoice.total_amount || 0),
+            invoice.currency || defaultCurrency, invoice.exchange_rate || 1,
+            `Alış Faturası: ${invoice.invoice_number}`, invoice.invoice_date || invoice.created_at || new Date()
+          ]
+        );
+      }
+
+      if (status === 'paid') {
+        const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+        const store = storeRes.rows[0];
+        const branding = store?.branding || {};
+        const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
+        await pool.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            storeId, compId, id, 'debt', Number(invoice.grand_total || invoice.total_amount || 0),
+            invoice.currency || defaultCurrency, invoice.exchange_rate || 1,
+            `Alış Faturası Ödemesi: ${invoice.invoice_number}${invoice.payment_method ? ` (${invoice.payment_method})` : ''}`,
+            invoice.payment_method || 'nakit', new Date()
+          ]
+        );
+      }
+    }
+
+    res.json(invoice);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Explicitly convert an existing invoice to an expense, cleanly reverting stocks and pinning supplier
+router.post("/purchase/:id/convert-to-expense", async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+  const { id } = req.params;
+  const { expense_category, expense_center } = req.body;
+
+  try {
+    const invRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+    const inv = invRes.rows[0];
+
+    const detected = detectExpenseCategory(inv.supplier_name, inv.tax_number, null);
+    const finalCategory = expense_category || inv.expense_category || detected.expenseCategory || 'diger';
+    const finalCenter = expense_center || inv.expense_center || detected.expenseCenter || 'office';
+
+    // 1. Revert any stock movements and auto-created products
+    const { revertedCount, deletedProductsCount } = await revertInvoiceStockAndProducts(pool, storeId, Number(id));
+
+    // 2. Unlink item records from products so they are purely expense lines
+    await pool.query(
+      "UPDATE purchase_invoice_items SET product_id = NULL, barcode = NULL, product_code = NULL WHERE purchase_invoice_id = $1",
+      [id]
+    );
+
+    // 3. Mark invoice as expense
+    await pool.query(
+      "UPDATE purchase_invoices SET is_expense = true, expense_category = $1, expense_center = $2 WHERE id = $3",
+      [finalCategory, finalCenter, id]
+    );
+
+    // 4. Pin supplier company as permanent expense
+    if (inv.company_id) {
+      await pool.query(
+        "UPDATE companies SET is_expense = true, expense_category = $1, expense_center = $2 WHERE id = $3",
+        [finalCategory, finalCenter, inv.company_id]
+      );
+    }
+    if (inv.tax_number) {
+      await pool.query(
+        "UPDATE companies SET is_expense = true, expense_category = $1, expense_center = $2 WHERE store_id = $3 AND tax_number = $4",
+        [finalCategory, finalCenter, storeId, inv.tax_number]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: "Fatura başarıyla gidere dönüştürüldü, açılan stoklar iptal edildi ve tedarikçi gider olarak sabitlendi.",
+      revertedStockMovements: revertedCount,
+      deletedProductsCount: deletedProductsCount,
+      is_expense: true,
+      expense_category: finalCategory,
+      expense_center: finalCenter
+    });
+  } catch (err: any) {
+    console.error("Error converting invoice to expense:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manually match, re-match, or unlink a purchase invoice item to an inventory product (with full stock & supplier mapping reconciliation)
+router.post("/purchase/:invoiceId/items/:itemId/match-product", async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+  const { invoiceId, itemId } = req.params;
+  const { product_id } = req.body; // number or null (null = unlink)
+
+  try {
+    const invRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+    const inv = invRes.rows[0];
+    const invNum = inv.document_number || inv.invoice_number || '';
+
+    const itemRes = await pool.query(
+      "SELECT * FROM purchase_invoice_items WHERE id = $1 AND purchase_invoice_id = $2",
+      [itemId, invoiceId]
+    );
+    if (itemRes.rows.length === 0) return res.status(404).json({ error: "Fatura kalemi bulunamadı." });
+    const item = itemRes.rows[0];
+    const qty = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
+    const oldProductId = item.product_id ? Number(item.product_id) : null;
+    const newProductId = product_id ? Number(product_id) : null;
+
+    // 1. If previously matched to a different product, revert old product's stock and movement
+    if (oldProductId && oldProductId !== newProductId) {
+      const delMov = await pool.query(
+        `DELETE FROM stock_movements
+         WHERE store_id = $1 AND product_id = $2
+           AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+           AND (invoice_id = $3 OR invoice_number = $4 OR description LIKE $5)
+         RETURNING quantity`,
+        [storeId, oldProductId, invoiceId, invNum, `%${invNum}%`]
+      );
+      if (delMov.rows.length > 0 && qty > 0) {
+        await pool.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+          [qty, oldProductId, storeId]
+        );
+      }
+      if (inv.tax_number && item.product_name) {
+        await pool.query(
+          "DELETE FROM supplier_product_mappings WHERE store_id = $1 AND supplier_vkn = $2 AND supplier_product_name = $3 AND product_id = $4",
+          [storeId, inv.tax_number, item.product_name, oldProductId]
+        );
+      }
+    }
+
+    // 2. If unlinking (newProductId is null)
+    if (!newProductId) {
+      const extractedTokens = extractModelTokens(item.product_name);
+      const restoredCode = extractedTokens.length > 0 ? extractedTokens[0] : null;
+      await pool.query(
+        "UPDATE purchase_invoice_items SET product_id = NULL, barcode = NULL, product_code = $1 WHERE id = $2",
+        [restoredCode, itemId]
+      );
+      invalidateStoreProductsCache(storeId);
+      return res.json({
+        success: true,
+        message: "Ürün eşleştirmesi kaldırıldı ve stok hareketleri güncellendi.",
+        product_id: null,
+        barcode: null,
+        product_code: restoredCode
+      });
+    }
+
+    // 3. Linking to newProductId
+    const prodRes = await pool.query(
+      "SELECT id, name, barcode, COALESCE(product_code, sku, '') as product_code, stock_quantity FROM products WHERE id = $1 AND store_id = $2",
+      [newProductId, storeId]
+    );
+    if (prodRes.rows.length === 0) return res.status(404).json({ error: "Hedef envanter ürünü bulunamadı." });
+    const targetProd = prodRes.rows[0];
+
+    await pool.query(
+      "UPDATE purchase_invoice_items SET product_id = $1, barcode = $2, product_code = COALESCE(NULLIF($3, ''), product_code) WHERE id = $4",
+      [targetProd.id, targetProd.barcode, targetProd.product_code, itemId]
+    );
+
+    if (inv.tax_number && item.product_name) {
+      await saveSupplierMapping(pool, storeId, inv.tax_number, item.product_name, targetProd.id, targetProd.product_code);
+    }
+
+    if (!inv.is_expense && qty > 0) {
+      const movCheck = await pool.query(
+        `SELECT 1 FROM stock_movements
+         WHERE store_id = $1 AND product_id = $2
+           AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+           AND invoice_id = $3
+         LIMIT 1`,
+        [storeId, targetProd.id, invoiceId]
+      );
+      if (movCheck.rows.length === 0) {
+        await pool.query(
+          "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) + $1::numeric, cost_price = CASE WHEN COALESCE($2::numeric, 0) > 0 THEN $2::numeric ELSE cost_price END, cost_currency = COALESCE($3, cost_currency) WHERE id = $4 AND store_id = $5",
+          [Math.round(qty), Number(item.unit_price || 0), inv.currency || 'TRY', targetProd.id, storeId]
+        );
+        await addStockMovement(
+          pool, storeId, targetProd.id, 'in', Math.round(qty), 'purchase_invoice',
+          `Alış Faturası: ${invNum}`, Number(item.unit_price || 0), inv.supplier_name || 'Tedarikçi', inv.currency || 'TRY',
+          null, Number(invoiceId), 'purchase', invNum
+        );
+      }
+    }
+
+    invalidateStoreProductsCache(storeId);
+    return res.json({
+      success: true,
+      message: `"${item.product_name}" kalemi "${targetProd.name}" ürünü ile eşleştirildi ve stoklara işlendi.`,
+      product_id: targetProd.id,
+      barcode: targetProd.barcode,
+      product_code: targetProd.product_code,
+      matched_product_name: targetProd.name
+    });
+  } catch (err: any) {
+    console.error("Error matching purchase invoice item:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Explicitly convert an existing expense invoice to a stock/commercial purchase
+router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+  const { id } = req.params;
+
+  try {
+    const invRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+    const inv = invRes.rows[0];
+
+    // 1. Mark invoice as NOT expense
+    await pool.query(
+      "UPDATE purchase_invoices SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE id = $1",
+      [id]
+    );
+
+    // 2. Unpin company from being expense so future syncs/queries treat it as stock supplier
+    if (inv.company_id) {
+      await pool.query(
+        "UPDATE companies SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE id = $1 AND store_id = $2",
+        [inv.company_id, storeId]
+      );
+    }
+    if (inv.tax_number) {
+      await pool.query(
+        "UPDATE companies SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE store_id = $1 AND tax_number = $2",
+        [storeId, inv.tax_number]
+      );
+    }
+
+    // 3. Process items and restore / create product stock links
+    const itemsRes = await pool.query(
+      "SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1 ORDER BY id ASC",
+      [id]
+    );
+
+    let processedItemsCount = 0;
+    let addedStockCount = 0;
+    const convertedProductIds: number[] = [];
+
+    for (const item of itemsRes.rows) {
+      let resolvedProductId = item.product_id;
+      let resolvedBarcode = item.barcode;
+      let resolvedProductCode = item.product_code;
+
+      if (!resolvedProductId) {
+        // Try finding matching product in store
+        const match = await findMatchingProduct(pool, storeId, {
+          supplierVkn: inv.tax_number,
+          productName: item.product_name,
+          barcode: item.barcode,
+          productCode: item.product_code,
+          sellerCode: item.seller_code,
+          buyerCode: item.buyer_code
+        });
+
+        if (match) {
+          resolvedProductId = match.productId;
+          resolvedBarcode = match.barcode;
+          resolvedProductCode = match.productCode;
+        } else {
+          // Check by barcode or product_code directly
+          const { productId: foundId, barcode: foundBc, productCode: foundPc } = await resolveProductInfo(
+            pool, storeId, null, item.barcode, item.product_code
+          );
+          if (foundId) {
+            resolvedProductId = foundId;
+            resolvedBarcode = foundBc;
+            resolvedProductCode = foundPc;
+          } else {
+            resolvedProductId = null;
+          }
+        }
+      }
+
+      if (resolvedProductId) {
+        // Update purchase invoice item record
+        await pool.query(
+          "UPDATE purchase_invoice_items SET product_id = $1, barcode = COALESCE($2, barcode), product_code = COALESCE($3, product_code) WHERE id = $4",
+          [resolvedProductId, resolvedBarcode, resolvedProductCode, item.id]
+        );
+
+        if (inv.tax_number && item.product_name) {
+          await saveSupplierMapping(pool, storeId, inv.tax_number, item.product_name, resolvedProductId, resolvedProductCode);
+        }
+
+        const qtyToStock = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
+        if (qtyToStock > 0) {
+          // Check if stock movement already recorded
+          const movCheck = await pool.query(
+            "SELECT 1 FROM stock_movements WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND source = 'purchase_invoice' LIMIT 1",
+            [storeId, id, resolvedProductId]
+          );
+
+          if (movCheck.rows.length === 0) {
+            convertedProductIds.push(Number(resolvedProductId));
+            await pool.query(
+              "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5",
+              [qtyToStock, item.unit_price || 0, inv.currency || 'TRY', resolvedProductId, storeId]
+            );
+
+            await addStockMovement(
+              pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
+              `Fatura Girişi: ${inv.invoice_number || inv.document_number}`, item.unit_price || 0, inv.supplier_name || 'Tedarikçi', inv.currency || 'TRY',
+              null, Number(id), 'purchase', inv.invoice_number || inv.document_number
+            );
+            addedStockCount++;
+          }
+        }
+        processedItemsCount++;
+      }
+    }
+
+    if (convertedProductIds.length > 0) {
+      syncProductStockToMarketplaces(convertedProductIds, storeId, { reason: `convert_to_stock_invoice_${id}` }).catch(err =>
+        console.error("[Convert To Stock Marketplace Sync Error]:", err?.message || err)
+      );
+    }
+
+    res.json({
+      success: true,
+      message: "Fatura başarıyla Stoklu Alım statüsüne geçirildi ve ürün stokları sisteme işlendi.",
+      is_expense: false,
+      processedItemsCount,
+      addedStockCount
+    });
+  } catch (err: any) {
+    console.error("Error converting invoice to stock:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Auto-fix misclassified Bimel invoices & unpin Bimel from companies
+(async function repairMisclassifiedBimel() {
+  try {
+    // 1. Unpin any company with name containing Bimel from being expense
+    await pool.query(
+      "UPDATE companies SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE (LOWER(title) LIKE '%bimel%' OR LOWER(title) LIKE '%bimel elektronik%') AND is_expense = true"
+    );
+
+    // 2. Convert BML2026000019517 or any BML/Bimel invoice if marked as expense
+    const bmlInvs = await pool.query(
+      "SELECT id, store_id, invoice_number, supplier_name, tax_number, currency FROM purchase_invoices WHERE (invoice_number LIKE '%BML2026000019517%' OR UPPER(invoice_number) = 'BML2026000019517' OR LOWER(supplier_name) LIKE '%bimel%') AND is_expense = true"
+    );
+
+    for (const row of bmlInvs.rows) {
+      console.log(`[AUTO-REPAIR] Converting Bimel invoice #${row.invoice_number} (ID: ${row.id}) to stock purchase...`);
+      await pool.query(
+        "UPDATE purchase_invoices SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE id = $1",
+        [row.id]
+      );
+      
+      const itemsRes = await pool.query("SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [row.id]);
+      for (const item of itemsRes.rows) {
+        let prodId = item.product_id;
+        if (!prodId) {
+          const { productId, barcode, productCode } = await resolveProductInfo(pool, row.store_id, null, item.barcode, item.product_code);
+          if (productId) {
+            prodId = productId;
+            await pool.query("UPDATE purchase_invoice_items SET product_id = $1, barcode = COALESCE($2, barcode), product_code = COALESCE($3, product_code) WHERE id = $4", [productId, barcode, productCode, item.id]);
+          } else {
+            prodId = null;
+          }
+        }
+        if (prodId) {
+          const qty = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
+          const movCheck = await pool.query("SELECT 1 FROM stock_movements WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND source = 'purchase_invoice' LIMIT 1", [row.store_id, row.id, prodId]);
+          if (movCheck.rows.length === 0 && qty > 0) {
+            await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5", [qty, item.unit_price || 0, row.currency || 'TRY', prodId, row.store_id]);
+            await addStockMovement(pool, row.store_id, prodId, 'in', qty, 'purchase_invoice', `Fatura Girişi: ${row.invoice_number}`, item.unit_price || 0, row.supplier_name || 'Bimel', row.currency || 'TRY', null, row.id, 'purchase', row.invoice_number);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[AUTO-REPAIR-BIMEL] Error:", err);
+  }
+})();
+
+// Auto-repair all historical expense invoices in the store that were mistakenly treated as inventory
+router.post("/purchase/auto-repair-expenses", async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+
+  try {
+    const invRes = await pool.query(
+      "SELECT id, invoice_number, supplier_name, tax_number, company_id, is_expense, expense_category, expense_center FROM purchase_invoices WHERE store_id = $1",
+      [storeId]
+    );
+
+    let repairedInvoices = 0;
+    let totalRevertedMovements = 0;
+    let totalDeletedProducts = 0;
+
+    for (const inv of invRes.rows) {
+      const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+        supplierTitle: inv.supplier_name,
+        supplierVkn: inv.tax_number,
+        companyId: inv.company_id,
+        pinToCompany: true
+      });
+
+      if (expenseCheck.isExpense) {
+        const finalCategory = inv.expense_category || expenseCheck.expenseCategory || 'diger';
+        const finalCenter = inv.expense_center || expenseCheck.expenseCenter || 'office';
+
+        // Revert stock and products if it wasn't marked as expense or still has products/stock
+        const { revertedCount, deletedProductsCount } = await revertInvoiceStockAndProducts(pool, storeId, Number(inv.id));
+        
+        await pool.query(
+          "UPDATE purchase_invoice_items SET product_id = NULL, barcode = NULL, product_code = NULL WHERE purchase_invoice_id = $1",
+          [inv.id]
+        );
+
+        await pool.query(
+          "UPDATE purchase_invoices SET is_expense = true, expense_category = $1, expense_center = $2 WHERE id = $3",
+          [finalCategory, finalCenter, inv.id]
+        );
+
+        repairedInvoices++;
+        totalRevertedMovements += revertedCount;
+        totalDeletedProducts += deletedProductsCount;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `${repairedInvoices} adet gider faturası tespit edildi ve onarıldı.`,
+      repairedInvoices,
+      totalRevertedMovements,
+      totalDeletedProducts
+    });
+  } catch (err: any) {
+    console.error("Error auto-repairing expense invoices:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update a purchase invoice item's matched product_id, barcode or product_code with complete stock movement & inventory synchronization
+router.put("/purchase/items/:itemId", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+    const itemId = req.params.itemId;
+    const { product_id, barcode, product_code, adjust_stock = true } = req.body;
+
+    await client.query("BEGIN");
+
+    const itemRes = await client.query(
+      `SELECT pii.*, pi.invoice_number, pi.store_id, pi.is_expense, pi.tax_number as supplier_vkn, pi.currency, pi.supplier_name
+       FROM purchase_invoice_items pii
+       JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+       WHERE pii.id = $1 AND pi.store_id = $2`,
+      [itemId, storeId]
+    );
+
+    if (itemRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Fatura kalemi bulunamadı." });
+    }
+
+    const currentItem = itemRes.rows[0];
+    const oldProductId = currentItem.product_id ? Number(currentItem.product_id) : null;
+    const newProductId = product_id !== undefined ? (product_id ? Number(product_id) : null) : oldProductId;
+    const itemQty = currentItem.system_quantity != null ? Number(currentItem.system_quantity) : Number(currentItem.quantity || 1);
+    const unitPrice = Number(currentItem.unit_price) || 0;
+    const isExpense = currentItem.is_expense === true;
+
+    const targetBarcode = newProductId
+      ? (barcode !== undefined ? barcode : currentItem.barcode)
+      : (barcode !== undefined ? barcode : null);
+    const extractedTokens = extractModelTokens(currentItem.product_name || '');
+    const targetCode = newProductId
+      ? (product_code !== undefined ? product_code : currentItem.product_code)
+      : (product_code !== undefined ? product_code : (extractedTokens.length > 0 ? extractedTokens[0] : null));
+
+    await client.query(
+      `UPDATE purchase_invoice_items 
+       SET product_id = $1, 
+           barcode = $2, 
+           product_code = $3 
+       WHERE id = $4`,
+      [newProductId, targetBarcode, targetCode, itemId]
+    );
+
+    // If not expense invoice and product link changed, synchronize inventory & stock movements!
+    if (!isExpense && adjust_stock && oldProductId !== newProductId) {
+      // 1. Revert stock from old product
+      if (oldProductId) {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1::numeric WHERE id = $2 AND store_id = $3",
+          [Math.round(itemQty), oldProductId, storeId]
+        );
+        // Remove or adjust old stock movement
+        await client.query(
+          `DELETE FROM stock_movements 
+           WHERE id IN (
+             SELECT id FROM stock_movements 
+             WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND (source = 'purchase_invoice' OR invoice_type = 'purchase') 
+             LIMIT 1
+           )`,
+          [storeId, currentItem.purchase_invoice_id, oldProductId]
+        );
+        if (currentItem.supplier_vkn && currentItem.product_name) {
+          await client.query(
+            "DELETE FROM supplier_product_mappings WHERE store_id = $1 AND supplier_vkn = $2 AND supplier_product_name = $3 AND product_id = $4",
+            [storeId, currentItem.supplier_vkn, currentItem.product_name, oldProductId]
+          );
+        }
+      }
+
+      // 2. Add stock to new product
+      if (newProductId) {
+        const prodInfo = await client.query("SELECT barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE id = $1 AND store_id = $2", [newProductId, storeId]);
+        if (prodInfo.rows.length > 0) {
+          await client.query(
+            "UPDATE purchase_invoice_items SET barcode = COALESCE($1, barcode), product_code = COALESCE(NULLIF($2, ''), product_code) WHERE id = $3",
+            [prodInfo.rows[0].barcode, prodInfo.rows[0].product_code, itemId]
+          );
+        }
+        await client.query(
+          "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) + $1::numeric, cost_price = CASE WHEN $2::numeric > 0 THEN $2::numeric ELSE cost_price END, cost_currency = $3 WHERE id = $4 AND store_id = $5",
+          [Math.round(itemQty), unitPrice, currentItem.currency || 'TRY', newProductId, storeId]
+        );
+        // Insert new stock movement
+        await client.query(
+          `INSERT INTO stock_movements 
+           (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number) 
+           VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, NOW(), $8, 'purchase', $9)`,
+          [
+            storeId,
+            newProductId,
+            Math.round(itemQty),
+            `Alış Faturası Kalem Eşleştirme / Revizyon: ${currentItem.invoice_number || currentItem.purchase_invoice_id}`,
+            unitPrice,
+            currentItem.supplier_name || 'Tedarikçi',
+            currentItem.currency || 'TRY',
+            currentItem.purchase_invoice_id,
+            currentItem.invoice_number
+          ]
+        );
+      }
+
+      // 3. Update supplier product mapping for future invoices
+      if (currentItem.supplier_vkn && currentItem.product_name && newProductId) {
+        await saveSupplierMapping(
+          client,
+          storeId,
+          currentItem.supplier_vkn,
+          currentItem.product_name,
+          newProductId,
+          targetCode || currentItem.product_code
+        );
+      }
+    }
+    invalidateStoreProductsCache(storeId);
+
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Fatura kalemi ve stok eşleştirmesi başarıyla güncellendi." });
+  } catch (err: any) {
+    await client.query("ROLLBACK");
+    console.error("Error updating purchase invoice item:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Create a dedicated product directly from an invoice item and link it
+router.post("/purchase/items/:itemId/create-product", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+    const itemId = req.params.itemId;
+    const { name, barcode, product_code, price, cost_price } = req.body;
+
+    await client.query("BEGIN");
+
+    const itemRes = await client.query(
+      `SELECT pii.*, pi.invoice_number, pi.store_id, pi.is_expense, pi.tax_number as supplier_vkn, pi.currency, pi.supplier_name
+       FROM purchase_invoice_items pii
+       JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+       WHERE pii.id = $1 AND pi.store_id = $2`,
+      [itemId, storeId]
+    );
+
+    if (itemRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Fatura kalemi bulunamadı." });
+    }
+
+    const currentItem = itemRes.rows[0];
+    const oldProductId = currentItem.product_id ? Number(currentItem.product_id) : null;
+    const itemQty = currentItem.system_quantity != null ? Number(currentItem.system_quantity) : Number(currentItem.quantity || 1);
+    const unitPrice = cost_price != null ? Number(cost_price) : (Number(currentItem.unit_price) || 0);
+    const sellingPrice = price != null ? Number(price) : (unitPrice * 1.25);
+    const taxRate = Number(currentItem.tax_rate) || 20;
+
+    const prodName = (name || currentItem.product_name || 'Yeni Ürün').trim();
+    const finalBarcode = (barcode || currentItem.barcode || generateTempBarcode()).trim();
+    const finalCode = (product_code || currentItem.product_code || null);
+
+    // Create new product
+    const newProdRes = await client.query(
+      `INSERT INTO products 
+       (store_id, name, barcode, product_code, sku, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
+       VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, 'product', JSON.stringify(["fatura_kalem_revizyon"])) 
+       RETURNING id`,
+      [storeId, prodName, finalBarcode, finalCode, sellingPrice, unitPrice, taxRate, itemQty, currentItem.currency || 'TRY']
+    );
+
+    const newProductId = newProdRes.rows[0].id;
+
+    // Update purchase_invoice_items
+    await client.query(
+      `UPDATE purchase_invoice_items 
+       SET product_id = $1, barcode = $2, product_code = $3, product_name = $4 
+       WHERE id = $5`,
+      [newProductId, finalBarcode, finalCode, prodName, itemId]
+    );
+
+    // If old product existed, deduct stock
+    if (oldProductId && oldProductId !== newProductId) {
+      await client.query(
+        "UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id = $2 AND store_id = $3",
+        [itemQty, oldProductId, storeId]
+      );
+      await client.query(
+        `DELETE FROM stock_movements 
+         WHERE id IN (
+           SELECT id FROM stock_movements 
+           WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND source = 'purchase_invoice' 
+           LIMIT 1
+         )`,
+        [storeId, currentItem.purchase_invoice_id, oldProductId]
+      );
+    }
+
+    // Insert stock movement for new product
+    await client.query(
+      `INSERT INTO stock_movements 
+       (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number) 
+       VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, NOW(), $8, 'purchase', $9)`,
+      [
+        storeId,
+        newProductId,
+        itemQty,
+        `Alış Faturası Yeni Ürün Kartı: ${currentItem.invoice_number || currentItem.purchase_invoice_id}`,
+        unitPrice,
+        currentItem.supplier_name || 'Tedarikçi',
+        currentItem.currency || 'TRY',
+        currentItem.purchase_invoice_id,
+        currentItem.invoice_number
+      ]
+    );
+
+    // Update supplier product mapping
+    if (currentItem.supplier_vkn && prodName) {
+      await saveSupplierMapping(
+        client,
+        storeId,
+        currentItem.supplier_vkn,
+        prodName,
+        newProductId,
+        finalCode
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, product_id: newProductId, message: "Yeni ürün kartı oluşturuldu ve fatura kalemi başarıyla bağlandı." });
+  } catch (err: any) {
+    await client.query("ROLLBACK");
+    console.error("Error creating product from purchase invoice item:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Re-sync an existing purchase invoice lines and matching from official e-invoice service details
+router.post("/purchase/:id/re-sync-matching", async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+  const { id } = req.params;
+
+  try {
+    const invRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+    const invoice = invRes.rows[0];
+
+    if (!invoice.ettn) {
+      return res.status(400).json({ error: "Bu faturaya ait ETTN numarası bulunamadı." });
+    }
+
+    const service = await getEInvoiceService(storeId);
+    if (!service) {
+      return res.status(400).json({ error: "E-Fatura entegratör servisi bulunamadı." });
+    }
+
+    const details = await service.getInvoiceDetailsByUuid(invoice.ettn);
+    if (!details) {
+      return res.status(404).json({ error: "Entegratörden fatura kalemleri çekilemedi." });
+    }
+
+    let rawLines = details.detailList || details.InvoiceLines || details.lines || details.InvoiceLine || details.Lines || details.invoiceLines || [];
+    if (rawLines && !Array.isArray(rawLines)) rawLines = [rawLines];
+
+    if (!Array.isArray(rawLines) || rawLines.length === 0) {
+      return res.status(400).json({ error: "Fatura içerisinde ürün satırı bulunamadı." });
+    }
+
+    // Revert existing stock movements and auto-created products for this invoice
+    await revertInvoiceStockAndProducts(pool, storeId, Number(invoice.id));
+    await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [invoice.id]);
+
+    let processedCount = 0;
+    for (const line of rawLines) {
+      const productName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || line.Name || line.name || 'Bilinmeyen Ürün';
+      
+      const sellerCodeRaw = line.detailItem?.sellersItemIdentificationId || line.detailItem?.sellersItemIdentification || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.sellersItemIdentification;
+      const sellerCode = typeof sellerCodeRaw === 'string' ? sellerCodeRaw.trim() : (typeof sellerCodeRaw === 'number' ? String(sellerCodeRaw) : null);
+
+      const buyerCodeRaw = line.detailItem?.buyersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.buyersItemIdentification;
+      const buyerCode = typeof buyerCodeRaw === 'string' ? buyerCodeRaw.trim() : (typeof buyerCodeRaw === 'number' ? String(buyerCodeRaw) : null);
+
+      const barcodeRaw = line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.ItemInstance?.ProductTraceID;
+      const barcode = typeof barcodeRaw === 'string' ? barcodeRaw.trim() : (typeof barcodeRaw === 'number' ? String(barcodeRaw) : null);
+
+      const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 1;
+      const qty = Number(String(qtyRaw).replace(',', '.')) || 1;
+      
+      const upRaw = line.unitPrice || line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
+      const up = Number(String(upRaw).replace(',', '.')) || 0;
+      
+      const trRaw = line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 20;
+      const tr = Number(String(trRaw).replace(',', '.')) || 20;
+      
+      const lineTotal = qty * up;
+      const taxAmount = (lineTotal * tr) / 100;
+
+      // Match product with robust capacity-aware engine
+      const match = await findMatchingProduct(pool, storeId, {
+        supplierVkn: invoice.tax_number,
+        productName,
+        barcode,
+        productCode: sellerCode || buyerCode,
+        sellerCode,
+        buyerCode
+      });
+
+      let productId = match ? match.productId : null;
+      let finalBarcode: string;
+      let finalProductCode: string | null = match?.productCode || sellerCode || buyerCode || null;
+
+      const incomingSanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, finalProductCode);
+
+      if (match) {
+        productId = match.productId;
+        if (isValidStandardBarcode(incomingSanitized.barcode) && !incomingSanitized.isTempBarcode) {
+          finalBarcode = incomingSanitized.barcode;
+        } else if (isValidStandardBarcode(match.barcode)) {
+          finalBarcode = match.barcode;
+        } else {
+          finalBarcode = incomingSanitized.barcode;
+        }
+      } else {
+        finalBarcode = incomingSanitized.isTempBarcode ? null as any : incomingSanitized.barcode;
+        finalProductCode = incomingSanitized.productCode || finalProductCode;
+        productId = null;
+      }
+
+      if (invoice.tax_number && productName && productId) {
+        await saveSupplierMapping(pool, storeId, invoice.tax_number, productName, productId, finalProductCode);
+      }
+
+      await pool.query(
+        `INSERT INTO purchase_invoice_items 
+         (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [invoice.id, productId, productName, finalBarcode, finalProductCode, qty, up, tr, taxAmount, lineTotal]
+      );
+
+      // Add stock movement
+      if (productId) {
+        await addStockMovement(
+          pool,
+          storeId,
+          productId,
+          'in',
+          qty,
+          'purchase_invoice',
+          `E-Fatura Senkronize / Eşleştirme: ${invoice.invoice_number}`,
+          up,
+          invoice.supplier_name,
+          invoice.currency || 'TRY',
+          null,
+          invoice.id,
+          'purchase',
+          invoice.invoice_number
+        );
+      }
+      processedCount++;
+    }
+
+    res.json({
+      success: true,
+      message: `${processedCount} adet fatura kalemi başarıyla güncellendi ve ürünlerle doğru eşleştirildi.`,
+      processedCount
+    });
+  } catch (err: any) {
+    console.error("Error re-syncing invoice matching:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export default router;

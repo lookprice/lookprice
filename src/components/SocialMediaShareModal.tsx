@@ -1,0 +1,740 @@
+import React, { useState, useRef, useEffect } from "react";
+import { safeHtml2Canvas, prepareImagesForHtml2Canvas } from "../utils/html2canvasFix";
+import { 
+  X, 
+  Copy, 
+  Check, 
+  Download, 
+  Smartphone, 
+  Grid, 
+  Instagram, 
+  Facebook, 
+  MessageCircle, 
+  Award,
+  Sparkles,
+  FileImage,
+  RefreshCw,
+  Eye,
+  Info,
+  BadgePercent
+} from "lucide-react";
+
+interface SocialMediaShareModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  property: any;
+  branding?: any;
+  agents?: any[];
+}
+
+type TemplateTheme = 'luxury_dark' | 'cyprus_warm' | 'modern_indigo' | 'minimal_carbon' | 'premium_gold';
+type AspectRatio = 'square' | 'story';
+type CaptionTone = 'luxury' | 'investment' | 'friendly';
+
+export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
+  isOpen,
+  onClose,
+  property,
+  branding,
+  agents = []
+}) => {
+  const [selectedTheme, setSelectedTheme] = useState<TemplateTheme>('luxury_dark');
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+  const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
+  const [isCollage, setIsCollage] = useState<boolean>(true);
+  const [selectedTone, setSelectedTone] = useState<CaptionTone>('luxury');
+  const [forcedStatus, setForcedStatus] = useState<'sold' | 'rented' | 'deal' | null>(property?.status === 'sold' ? 'sold' : property?.status === 'rented' ? 'rented' : null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [isRendering, setIsRendering] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
+
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const isRent = property?.listing_intent === 'rent' || 
+                 property?.sector_data?.listing_intent === 'rent' || 
+                 property?.intent === 'rent' || 
+                 String(property?.status).toLowerCase().includes('rent') || 
+                 property?.price_type === 'rent' || 
+                 String(property?.title || '').toLowerCase().includes('kiralık') || 
+                 String(property?.category || '').toLowerCase().includes('kiralık');
+
+  // Capitalize/Format Helper
+  const formatNumberVal = (val: any) => {
+    if (val === undefined || val === null || val === '') return '0';
+    const parsed = parseFloat(val);
+    if (isNaN(parsed)) return '0';
+    return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Math.round(parsed));
+  };
+
+  const storeNameDisplay = React.useMemo(() => {
+    const rawStoreName = branding?.store_name || branding?.name || "";
+    if (!rawStoreName || rawStoreName.toLowerCase().includes('lookprice')) {
+      return 'Seçkin Emlak';
+    }
+    return rawStoreName;
+  }, [branding]);
+
+  useEffect(() => {
+    if (copySuccess) {
+      const timer = setTimeout(() => setCopySuccess(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copySuccess]);
+
+  if (!isOpen || !property) return null;
+
+  const currencySymbol = property.currency === 'GBP' ? '£' : property.currency === 'USD' ? '$' : property.currency === 'EUR' ? '€' : '₺';
+  const priceText = `${currencySymbol}${formatNumberVal(property.price)}`;
+  const propertyTitle = property.title || "Kıbrıs Yatırımlık Lüks Emlak Fırsatı";
+  const propertyLocation = property.location || "Girne";
+  const regionText = property.kktc_region ? `Kuzey Kıbrıs / ${property.kktc_region}` : "Kuzey Kıbrıs";
+  
+  const rawSqm = property.square_meters || property.net_sqm || property.sqm || property.size || property.sector_data?.square_meters || property.sector_data?.net_sqm;
+  const sqmText = rawSqm ? `${rawSqm} m² Net` : "";
+
+  const rawRooms = property.room_count || property.rooms || property.room || property.sector_data?.room_count || property.sector_data?.rooms;
+  const roomsText = rawRooms ? `${rawRooms}` : "";
+
+  const depositVal = property.deposit !== undefined ? property.deposit : (property.sector_data?.deposit !== undefined ? property.sector_data.deposit : property.depositAmount);
+  const depositFormatted = depositVal !== undefined && depositVal !== null && depositVal !== '' ? `${currencySymbol}${formatNumberVal(depositVal)}` : '';
+
+  const typeText = property.type === 'residence' ? 'Konut' : property.type === 'commercial' ? 'Ticari Mülk' : 'Arsa';
+  const titleType = property.kktc_title_type || "Eşdeğer Koçan";
+  const isFurnishedVal = property.furnished === 'esyali' || property.furnished === true || String(property.furnished).toLowerCase() === 'true';
+
+  const handleCopyCaption = async () => {
+    try {
+      await navigator.clipboard.writeText(getCaptionText());
+      setCopySuccess(true);
+    } catch (err) {
+      console.error('Kopyalama hatası:', err);
+    }
+  };
+
+  // Determine theme colors for HTML Preview
+  const getThemeClasses = () => {
+    switch (selectedTheme) {
+      case 'luxury_dark':
+        return {
+          bg: 'bg-slate-950',
+          accentText: 'text-yellow-400',
+          accentHex: '#facc15',
+          accentBg: 'bg-yellow-400',
+          accentBorder: 'border-yellow-400/50',
+          textTitle: 'text-yellow-400 font-extrabold',
+          textBody: 'text-zinc-350',
+          pillBg: 'bg-yellow-400/10 text-yellow-300 border-yellow-500/20',
+          priceBg: 'bg-yellow-400 text-black',
+          footerBg: 'bg-slate-950/80 border-t border-slate-800'
+        };
+      case 'cyprus_warm':
+        return {
+          bg: 'bg-orange-950',
+          accentText: 'text-orange-500',
+          accentHex: '#f97316',
+          accentBg: 'bg-orange-500',
+          accentBorder: 'border-orange-500/50',
+          textTitle: 'text-orange-500 font-extrabold',
+          textBody: 'text-orange-100',
+          pillBg: 'bg-orange-500/15 text-orange-350 border-orange-500/20',
+          priceBg: 'bg-orange-500 text-white',
+          footerBg: 'bg-orange-950/80 border-t border-orange-900'
+        };
+      case 'modern_indigo':
+        return {
+          bg: 'bg-indigo-950',
+          accentText: 'text-cyan-400',
+          accentHex: '#06b6d4',
+          accentBg: 'bg-cyan-500',
+          accentBorder: 'border-cyan-500/50',
+          textTitle: 'text-cyan-400 font-extrabold',
+          textBody: 'text-indigo-100',
+          pillBg: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/20',
+          priceBg: 'bg-cyan-500 text-black',
+          footerBg: 'bg-indigo-950/80 border-t border-indigo-900'
+        };
+      case 'minimal_carbon':
+        default:
+        return {
+          bg: 'bg-zinc-900',
+          accentText: 'text-white',
+          accentHex: '#ffffff',
+          accentBg: 'bg-white',
+          accentBorder: 'border-zinc-700',
+          textTitle: 'text-white font-extrabold',
+          textBody: 'text-zinc-300',
+          pillBg: 'bg-zinc-800 text-zinc-100 border-zinc-750',
+          priceBg: 'bg-white text-zinc-950',
+          footerBg: 'bg-zinc-950/80 border-t border-zinc-850'
+        };
+      case 'premium_gold':
+        return {
+          bg: 'bg-white',
+          accentText: 'text-yellow-600',
+          accentHex: '#d4af37',
+          accentBg: 'bg-yellow-600',
+          accentBorder: 'border-yellow-700',
+          textTitle: 'text-black font-extrabold',
+          textBody: 'text-slate-800',
+          pillBg: 'bg-yellow-50 text-yellow-800 border-yellow-200',
+          priceBg: 'bg-yellow-600 text-white',
+          footerBg: 'bg-white border-t border-yellow-200'
+        };
+    }
+  };
+
+  const themeConfig = getThemeClasses();
+
+  // Dynamic Captions generator (100% Client-side robust copywriting)
+  const getCaptionText = () => {
+    const brandName = storeNameDisplay;
+    const brokerName = property.responsible_agent || branding?.owner_name || `${brandName} Sorumlu Danışmanı`;
+    const contactPhoneText = property.consultant_phone 
+      ? `iletişim Hattı: ${property.consultant_phone}` 
+      : (branding?.phone || branding?.whatsapp_number) 
+        ? `iletişim Hattı: ${branding.phone || branding.whatsapp_number}` 
+        : 'DM yoluyla iletişim kurabilirsiniz.';
+
+    const priceLabel = isRent ? "Aylık Kira Bedeli" : "Değerleme Fiyatı";
+    const statusAction = isRent ? "kiralık olarak sunulmuştur" : "satışa sunulmuştur";
+    const storeHashtag = `#${brandName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')}`;
+    const mainHashtags = isRent 
+      ? `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibriskiralik #luxurylife #realestatepremium #kiralikfirsati ${storeHashtag}`
+      : `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibrisyatirim #luxurylife #realestatepremium #yatirimfirsati ${storeHashtag}`;
+    const burgerPriceText = priceText;
+    const bPeriod = property.billing_period === 'yearly' ? 'Yıllık' :
+                    property.billing_period === '3-monthly' ? '3 Aylık' :
+                    property.billing_period === '6-monthly' ? '6 Aylık' : 'Aylık';
+
+    switch (selectedTone) {
+      case 'luxury':
+        return `🌟 PRESTİJ VE LÜKS BİR ARADA! 🌟\n\n` +
+               `Kuzey Kıbrıs emlak pazarının parlayan yıldızı ${propertyLocation} bölgesinde, elit standartlarda og eşsiz konfor donanımlarıyla süslenmiş yeni bir portföy ile karşınızdayız.\n\n` +
+               `🏡 Mülk Detayları:\n` +
+               `• Alt Tip: ${property.subtype || typeText}\n` +
+               `• Tip: ${typeText} / ${roomsText || 'Geniş Yerleşim'}\n` +
+               `• Metrekare: ${sqmText || 'Belirtilmedi'}\n` +
+               (isRent 
+                 ? (property.type !== 'land' ? `• Eşya Durumu: ${isFurnishedVal ? 'A-Z Tam Teşekküllü Eşyalı' : 'Eşyasız (Zevkinize Uygun Tasarım)'}\n` : '') +
+                   `• Depozito Tutarı: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Özel Görüşülecek'}\n` +
+                   `• Ödeme Periyodu: ${bPeriod}\n`
+                 : `• Tapu Durumu: ${titleType}\n`) +
+               `• Bölge: ${regionText}\n\n` +
+               `💰 ${priceLabel}: ${priceText}\n\n` +
+               `Sınırları zorlayan mimarisi, lüks kaplama detayları ve yüksek yaşam standartlarıyla bu mülk, ${isRent ? 'prestijli ve konforlu bir Kıbrıs hayatı sunmaktadır.' : 'hem prestijli bir yaşam hem de seçkin bir varlık yatırımı sunmaktadır.'}\n\n` +
+               `Detaylı fizibilite dosyası, video turu ve yerinde özel randevulu sunum talepleriniz için bize hemen DM gönderebilir ya da iletişim hattımızdan ulaşabilirsiniz.\n\n` +
+               `👤 Danışman: ${brokerName}\n` +
+               `📞 ${contactPhoneText}\n` +
+               `🏢 Ofis: ${brandName}\n\n` +
+               `${mainHashtags}`;
+
+      case 'investment':
+        const profitSentence = isRent 
+          ? `Kıbrıs'ta yüksek döviz kira getirisi ve prestijli yaşam avantajı arayan seçkin kiracılar için ideal yaşam alanı sunulmuştur.`
+          : `Kıbrıs'ta yüksek döviz kira getirisi (GBP bazlı amortisman) og kesintisiz bölgesel prim potansiyeli arayan uluslararası yatırımcılar için ideal kârlılık şeması geliştirilmiştir.`;
+        const amortSentence = isRent 
+          ? `• Kiralama Potansiyeli: Çok talep gören seçkin lokasyon`
+          : `• Bölgesel Amortisman Trendi: Çok hızlı geri dönüş rasyosu`;
+
+        return `📈 KAÇIRILMAYACAK SEÇKİN FIRSAT! 📈\n\n` +
+               `Çok Şubeli Ağ Veri Analizlerimize göre, ${propertyLocation} bölgesinde emsallere kıyasla mükemmel fiyat-fayda rasyosu sunan üst seviye portföyümüz ${statusAction}.\n\n` +
+               `🎯 Finansal & Yapısal Özet:\n` +
+               `• Alt Tip: ${property.subtype || typeText}\n` +
+               `• Değer Raporu: Bölgesel ortalamalara göre oldukça avantajlı\n` +
+               (isRent ? `• Depozito Tutarı: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Görüşülecek'}\n• Ödeme Periyodu: ${bPeriod}\n` : '') +
+               `${amortSentence}\n` +
+               `• Kapalı Alan Raporu: ${sqmText || 'Belirtilmedi'} (${roomsText})\n` +
+               `• Konum Kusursuzluğu: Ana arterlere, denize ve lüks marina hattına yürüme mesafesinde\n` +
+               (isRent
+                 ? `• Kiralama Koşulu: Minimum 1 Yıllık Resmi Sözleşmeli\n\n`
+                 : `• Tapu Statüsü: ${titleType} (Sorunsuz devir hazır)\n\n`) +
+               `💰 Fırsat Liste Bedeli: ${priceText}${isRent ? ' / Aylık' : ''}\n\n` +
+               `${profitSentence}\n\n` +
+               `Seçkin güvencemizle dosya analizi ve hızlı sözleşme süreçleri için bizimle iletişime geçin.\n\n` +
+               `📞 ${contactPhoneText}\n` +
+               `👤 Sorumlu Temsilci: ${brokerName}\n` +
+               `🏢 Yetkili Şube: ${brandName}\n\n` +
+               `${isRent ? `#kibrisemlak #kibriskiralik #yatirimvizyonu #kibriskiralikdaire #${propertyLocation.toLowerCase()}realestate` : `#kibrisemlak #kibrisyatirim #emlakraporu #yatirimvizyonu #kibrissatilik #${propertyLocation.toLowerCase()}realestate`}`;
+
+      case 'friendly':
+        const friendlyHashtags = isRent 
+          ? `#kibrisvizyon #keyifliyasam #kibriskiralikdaire #huzurluyasam #kibristakiralikev #homedesign`
+          : `#kibrisvizyon #keyifliyasam #kibrissatilikdaire #huzurluyasam #kibristaevsahibiol #homedesign`;
+        return `🔑 Hayalinizdeki Kıbrıs Yaşamına İlk Adımı Atın! 🔑\n\n` +
+               `Merhaba sevgili takipçilerimiz! Bugün size Kuzey Kıbrıs'ın en samimi, en huzurlu köşelerinden biri olan ${propertyLocation}'da yer alan sıcacık bir ${isRent ? 'kiralık' : ''} ${typeText.toLowerCase()} fırsatını tanıtmak istiyoruz. 😍\n\n` +
+               `✨ Neden Burayı Çok Seveceksiniz?\n` +
+               `👉 Alt Tip: ${property.subtype || typeText} ayrıcalığı\n` +
+               `👉 Tam ${roomsText || 'Geniş Yaşam Alanı'} ferahlığı\n` +
+               `👉 Metraj Konforu: ${sqmText || 'Belirtilmedi'} kullanım alanı\n` +
+               (isRent
+                 ? (property.type !== 'land' ? `👉 Kullanım Kolaylığı: ${isFurnishedVal ? 'Taşınmaya hazır, tam mobilyalı!' : 'Kendi tarzınızı yansıtabileceğiniz boş mülk.'}\n` : '') +
+                   `👉 Depozito Koşulu: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)} depozitolu` : 'Görüşülecek'}\n` +
+                   `👉 Ödeme Kolaylığı: ${property.billing_period === 'yearly' ? 'Yıllık peşin periyot' : property.billing_period === '3-monthly' ? '3 Aylık periyot' : property.billing_period === '6-monthly' ? '6 Aylık periyot' : 'Aylık ödemeli periyot'}\n`
+                 : `👉 Güvenli Tapu: ${titleType} güvencesiyle içiniz rahat\n`) +
+               `👉 Lokasyon Dostu: Alışveriş noktalarına, kafelere ve masmavi plajlara çok yakın!\n\n` +
+               `💰 Fiyat: ${priceText}${isRent ? ' / Aylık' : ''} (Hızlı karar veren fırsat sahibi olur!)\n\n` +
+               `Her sabah eşsiz Kıbrıs havasına gözlerinizi açacağınız, sevdiklerinizle huzurlu anılar biriktireceğiniz muhteşem bir konsepte sahip.\n\n` +
+               `Kahvemizi içmeye ve bu güzel mülkü yakından incelemeye davetlisiniz.\n\n` +
+               `📞 Detaylı Bilgi: ${contactPhoneText}\n` +
+               `👤 Danışman: ${brokerName}\n\n` +
+               `${friendlyHashtags}`;
+    }
+  };
+
+  const handleDownloadImage = async () => {
+    setIsRendering(true);
+    setRenderError(null);
+
+    const element = previewContainerRef.current;
+    if (!element) {
+      setRenderError("Afiş önizleme alanı yüklenemedi.");
+      setIsRendering(false);
+      return;
+    }
+
+    try {
+      // 0. Wait a bit for layout to settle
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // 1. Prepare and convert all images inside preview element to Data URLs for 100% CORS safety
+      await prepareImagesForHtml2Canvas(element);
+
+      // 2. Calculate render scale for 1080px resolution (HD Social Media standard)
+      const currentWidth = element.clientWidth || 340;
+      const targetWidth = 1080;
+      const renderScale = Math.max(3.2, targetWidth / currentWidth);
+
+      // 3. Render DOM element to high-resolution canvas with safe modern color handling
+      const canvas = await safeHtml2Canvas(element, {
+        scale: renderScale,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: null,
+        logging: false,
+        imageTimeout: 10000,
+      });
+
+      // 4. Download generated PNG
+      const sanitizedTitle = (property?.title || 'emlak-ilan')
+        .toLowerCase()
+        .replace(/[^a-z0-9ğüşıöç]/g, '-')
+        .replace(/-+/g, '-')
+        .substring(0, 25);
+
+      let dataUrl = '';
+      try {
+        dataUrl = canvas.toDataURL("image/png", 1.0);
+      } catch (e) {
+        dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+      }
+
+      const link = document.createElement("a");
+      link.download = `afis-emlak-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err: any) {
+      console.error("Real estate poster export error:", err);
+      setRenderError("Afiş görseli indirilirken bir hata oluştu: " + (err?.message || "Lütfen tekrar deneyiniz."));
+    } finally {
+      setIsRendering(false);
+    }
+  };
+
+
+
+  return (
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 overflow-y-auto font-sans" id="social-share-wizard-modal">
+      <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row border border-slate-200 animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]">
+        
+        {/* Left Side: Real Real-time Interactive Poster Preview */}
+        <div className="lg:w-1/2 bg-slate-100 p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 overflow-y-auto">
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
+                <Sparkles className="w-3.5 h-3.5" /> REELTIME AFİŞ ÖNİZLEME (EMLAK)
+              </span>
+              <div className="flex items-center gap-2">
+                {/* Collage Toggle Mode */}
+                <button
+                  onClick={() => setIsCollage(!isCollage)}
+                  className={isCollage 
+                    ? "p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 bg-amber-600 text-white border-amber-600 shadow" 
+                    : "p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}
+                  title="Detaylı 3'lü Fotoğraf Kolajı"
+                >
+                  <Grid className="w-3.5 h-3.5" />
+                  {isCollage ? "Kolaj" : "Tek Resim"}
+                </button>
+                <div className="h-5 w-[1px] bg-slate-200" />
+                <button 
+                  onClick={() => setSelectedRatio('square')}
+                  className={"p-1.5 rounded-lg border transition-all " + (selectedRatio === 'square' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')}
+                  title="Instagram Square Post (1:1)"
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => setSelectedRatio('story')}
+                  className={"p-1.5 rounded-lg border transition-all " + (selectedRatio === 'story' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')}
+                  title="Instagram Story / Vertical (9:16)"
+                >
+                  <Smartphone className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Poster Canvas container */}
+            <div className="flex justify-center items-center py-4">
+              {(() => {
+                const htmlThemeColors = {
+                  luxury_dark: { bg: 'bg-[#0b111e]', border: 'border-[#d97706]', textAccent: 'text-[#f59e0b]', barBg: 'bg-[#d97706]', textMuted: 'text-slate-300' },
+                  cyprus_warm: { bg: 'bg-[#1c0c05]', border: 'border-[#ea580c]', textAccent: 'text-[#f97316]', barBg: 'bg-[#ea580c]', textMuted: 'text-orange-200' },
+                  modern_indigo: { bg: 'bg-[#060c1d]', border: 'border-[#0284c7]', textAccent: 'text-[#38bdf8]', barBg: 'bg-[#0284c7]', textMuted: 'text-cyan-200' },
+                  minimal_carbon: { bg: 'bg-[#18181b]', border: 'border-[#a1a1aa]', textAccent: 'text-[#e4e4e7]', barBg: 'bg-[#a1a1aa]', textMuted: 'text-zinc-350' },
+                  premium_gold: { bg: 'bg-[#0f172a]', border: 'border-[#ca8a04]', textAccent: 'text-[#facc15]', barBg: 'bg-[#ca8a04]', textMuted: 'text-yellow-100' }
+                };
+                const previewColors = htmlThemeColors[selectedTheme] || htmlThemeColors.luxury_dark;
+                const activeAgent = agents.find(a => a.id === selectedAgentId);
+                const activeBrokerName = (activeAgent?.name || storeNameDisplay || "Seçkin Danışman").toUpperCase();
+                const activeBrokerPhone = activeAgent?.phone || branding?.phone || branding?.whatsapp_number || "+90 548 890 23 09";
+                const activeRefNoText = (property.reference_no || 'EMLAK-PORTFOY').toUpperCase();
+                
+                return (
+                  <div 
+                    ref={previewContainerRef}
+                    className={`relative w-[340px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans p-4 ${previewColors.bg}`}
+                    style={{ 
+                      height: selectedRatio === 'square' ? '340px' : '604px'
+                    }}
+                  >
+                    {/* Double Borders (Padded safely away from content) */}
+                    <div className={`absolute inset-2 border-[3px] rounded-2xl pointer-events-none z-10 ${previewColors.border}`} />
+                    <div className="absolute inset-3 border border-white/20 rounded-2xl pointer-events-none z-10" />
+
+                    {/* TOP CONSULTANT BAR */}
+                    <div className="relative z-20 flex justify-between items-center px-2.5 py-1.5 mx-2.5 mt-3 mb-1 text-[9px] font-black tracking-wider text-white shrink-0">
+                      <div className="flex items-center gap-1.5 min-w-0 max-w-[60%]">
+                        {activeAgent?.image_url ? (
+                          <img src={activeAgent.image_url} alt={activeBrokerName} className="w-4 h-4 rounded-full object-cover border border-white/40 shrink-0" />
+                        ) : (
+                          <span className="shrink-0 text-[9px]">👤</span>
+                        )}
+                        <span className="truncate leading-normal text-[9px] font-black py-0.5 inline-block">{activeBrokerName}</span>
+                      </div>
+                      <div className={`shrink-0 ${previewColors.textAccent} leading-normal text-[9px] font-black ml-1 py-0.5 inline-block`}>📞 {activeBrokerPhone}</div>
+                    </div>
+
+                    {/* FRAMED IMAGE AREA */}
+                    <div className={`relative flex-1 min-h-0 rounded-xl overflow-hidden border-2 z-20 ${previewColors.border} my-1`}>
+                      {isCollage && property.images && (property.images[1] || property.images[2]) ? (
+                        <div className="w-full h-full flex flex-row bg-slate-900">
+                          {/* Left Main (67%) */}
+                          <div className="w-[67%] h-full relative border-r border-black/30 overflow-hidden">
+                            {property.images[0] ? (
+                              <div style={{ backgroundImage: `url("${property.images[0]}")` }} className="w-full h-full bg-cover bg-center filter brightness-[1.12] contrast-[1.05] saturate-[1.12]" />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">🏠</div>
+                            )}
+                          </div>
+                          {/* Right stacked (33%) */}
+                          <div className="w-[33%] h-full flex flex-col">
+                            <div className="flex-1 relative border-b border-black/30 overflow-hidden">
+                              {property.images[1] ? (
+                                <div style={{ backgroundImage: `url("${property.images[1]}")` }} className="w-full h-full bg-cover bg-center filter brightness-[1.12] contrast-[1.05] saturate-[1.12]" />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">📸</div>
+                              )}
+                            </div>
+                            <div className="flex-1 relative overflow-hidden">
+                              {property.images[2] ? (
+                                <div style={{ backgroundImage: `url("${property.images[2]}")` }} className="w-full h-full bg-cover bg-center filter brightness-[1.12] contrast-[1.05] saturate-[1.12]" />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">📸</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        // Full bleed single cover image
+                        property.images && property.images[0] ? (
+                          <div style={{ backgroundImage: `url("${property.images[0]}")` }} className="w-full h-full bg-cover bg-center filter brightness-[1.12] contrast-[1.05] saturate-[1.12]" />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
+                            <span className="text-2xl">🏠</span>
+                          </div>
+                        )
+                      )}
+
+                      {/* Diagonal Banner for SOLD/RENTED (HTML Preview) */}
+                      {forcedStatus && (
+                        forcedStatus === 'deal' ? (
+                          <div className="absolute top-2 left-2 z-50 pointer-events-none">
+                            <div className="px-3 py-1 bg-gradient-to-r from-orange-500 to-red-600 text-white font-black text-[10px] rounded-lg shadow-xl tracking-widest uppercase border border-white/20">
+                              🔥 FIRSAT
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-50 pointer-events-none bg-black/20">
+                            <div className={`px-6 py-2 rounded-2xl text-center text-xl font-black tracking-[0.15em] text-white shadow-2xl uppercase border-2 border-white/20 backdrop-blur-sm ${
+                              forcedStatus === 'sold' ? 'bg-rose-600/90' : 'bg-sky-600/90'
+                            }`}>
+                              {forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI'}
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+
+                    {/* LOCATION AND SPECS AREA BELOW FRAME */}
+                    <div className="relative z-20 flex flex-col items-center justify-center py-1.5 text-center text-white shrink-0">
+                      <div className="text-[9.5px] font-black truncate max-w-full leading-tight">
+                        📍 {propertyLocation.toUpperCase()}  •  {regionText.toUpperCase()}
+                      </div>
+                      
+                      <div className={`text-[8px] font-extrabold mt-0.5 truncate max-w-full leading-tight ${previewColors.textMuted}`}>
+                        🏠 {property.type === 'land' ? 'Arsa' : (roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul'))}  •  📐 {sqmText || 'Belirtilmedi'}{property.type !== 'land' && `  •  📦 ${isFurnishedVal ? 'Eşyalı' : 'Eşyasız'}`}  •  🔑 {isRent ? (depositVal !== undefined && depositVal !== null && depositVal !== '' ? `Depozito: ${depositFormatted}` : 'Depozitosuz') : titleType}
+                      </div>
+                    </div>
+
+                    {/* SOLID BOTTOM BAR */}
+                    <div className={`relative z-20 rounded-xl p-2.5 flex justify-between items-center text-slate-900 ${previewColors.barBg} shrink-0 mt-1 mb-2`}>
+                      <div className="flex flex-col text-left justify-center min-w-0 pr-2">
+                        <span className="text-[7px] font-black tracking-widest text-[#0f172a]/90 uppercase leading-normal mb-0.5 block">
+                          {isRent ? 'AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ'}
+                        </span>
+                        <span className="text-[13px] font-black text-[#0f172a] tracking-tight leading-normal mb-0.5 block">
+                          {priceText}
+                        </span>
+                        <span className="text-[8.5px] font-black text-[#0f172a] uppercase tracking-wider truncate leading-normal block">
+                          {storeNameDisplay}
+                        </span>
+                      </div>
+                      
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className="text-[7.5px] font-black text-[#0f172a]/80 mb-0.5 tracking-widest uppercase">REF: {activeRefNoText}</span>
+                        <div className="flex items-center text-[9.5px] font-black text-[#0f172a] tracking-wider leading-normal">
+                          ENRAKİPSİZ<span className="text-[#0f172a] font-extrabold">.COM</span>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Controls for Template styles */}
+          <div className="mt-4">
+            <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">👤 DANIŞMAN SEÇİMİ</span>
+            <select
+              value={selectedAgentId || ''}
+              onChange={(e) => setSelectedAgentId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 mb-4 focus:ring-2 focus:ring-indigo-200 transition-all outline-none"
+            >
+              <option value="">Danışman Seçiniz (Fotoğraf İçin)</option>
+              {agents.map(agent => (
+                <option key={agent.id} value={agent.id}>{agent.name}</option>
+              ))}
+            </select>
+
+            <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">🎨 GÖRSEL ŞABLON RENK DETAYI</span>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              <button 
+                onClick={() => setSelectedTheme('luxury_dark')}
+                className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'luxury_dark' ? 'bg-slate-900 border-amber-500 text-white ring-2 ring-amber-500/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
+              >
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-950 to-amber-500 mb-1" />
+                <span className="text-[9px] font-bold">Lüks Siyah</span>
+              </button>
+              <button 
+                onClick={() => setSelectedTheme('cyprus_warm')}
+                className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'cyprus_warm' ? 'bg-orange-50 border-orange-500 text-amber-950 ring-2 ring-orange-400/45 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
+              >
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-200 to-orange-600 mb-1" />
+                <span className="text-[9px] font-bold">Kıbrıs Sıcak</span>
+              </button>
+              <button 
+                onClick={() => setSelectedTheme('modern_indigo')}
+                className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'modern_indigo' ? 'bg-indigo-950 border-cyan-400 text-white ring-2 ring-cyan-400/35 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
+              >
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-900 to-cyan-500 mb-1" />
+                <span className="text-[9px] font-bold">Sanal Safir</span>
+              </button>
+              <button 
+                onClick={() => setSelectedTheme('premium_gold')}
+                className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'premium_gold' ? 'bg-white border-yellow-600 text-yellow-800 ring-2 ring-yellow-500/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
+              >
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-700 mb-1" />
+                <span className="text-[9px] font-bold">Premium Gold</span>
+              </button>
+            </div>
+
+            <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">📢 DURUM ETİKETİ (OPSİYONEL)</span>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              <button 
+                onClick={() => setForcedStatus(null)}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === null ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Normal
+              </button>
+              <button 
+                onClick={() => setForcedStatus('sold')}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'sold' ? 'bg-rose-600 text-white border-rose-600 shadow-md ring-2 ring-rose-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-600')}
+              >
+                <Award className="w-3.5 h-3.5" />
+                Satıldı
+              </button>
+              <button 
+                onClick={() => setForcedStatus('rented')}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'rented' ? 'bg-sky-600 text-white border-sky-600 shadow-md ring-2 ring-sky-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-sky-50 hover:text-sky-600')}
+              >
+                <Check className="w-3.5 h-3.5" />
+                Kiralandı
+              </button>
+              <button 
+                onClick={() => setForcedStatus('deal')}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'deal' ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white border-orange-500 shadow-md ring-2 ring-orange-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-orange-50 hover:text-orange-600')}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Fırsat
+              </button>
+            </div>
+
+            {/* Offline Export Trigger Button */}
+            <div className="mt-4 flex gap-1 items-center">
+              <button 
+                onClick={handleDownloadImage}
+                disabled={isRendering}
+                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl transition-all shadow-lg text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
+              >
+                {isRendering ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {isRendering ? 'Afiş Derleniyor...' : 'Afiş Görselini İndir (PNG)'}
+              </button>
+            </div>
+            
+            {renderError && (
+              <p className="text-xs text-rose-600 mt-2 font-medium flex items-center gap-1">
+                <Info className="w-3.5 h-3.5 shrink-0" /> {renderError}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Right Side: Copywriting Caption & Social Media Posting Advisor */}
+        <div className="lg:w-1/2 p-6 flex flex-col justify-between overflow-y-auto">
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5 leading-tight">
+                <Instagram className="w-5 h-5 text-indigo-600" /> SOSYAL MEDYA PAYLAŞIM REHBERİ
+              </h2>
+              <button 
+                onClick={onClose}
+                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-slate-500 text-xs leading-relaxed mb-4">
+              Afişinizi sol panelden özelleştirip indirdikten sonra, sosyal medya gönderiniz (Instagram, Facebook post, WhatsApp durum veya WhatsApp mesajı) için hazır, sektörel standartlarda tasarlanmış <strong>kopyalanabilir pazarlama caption yazısını</strong> aşağıdan seçebilirsiniz. AI hatası veya teknik kesinti korkusu olmadan, rasyoları hesaplanmış, 100% güvenli bir paylaşım!
+            </p>
+
+            {/* Tone Selector */}
+            <div className="mb-4">
+              <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">✍️ PAYLAŞIM METNİ TEMA & USLUBU</span>
+              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-200">
+                <button 
+                  onClick={() => setSelectedTone('luxury')}
+                  className={"py-2 px-3 rounded-xl text-xs font-bold transition-all " + (selectedTone === 'luxury' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900')}
+                >
+                  ⚜️ Lüks & Prestij
+                </button>
+                <button 
+                  onClick={() => setSelectedTone('investment')}
+                  className={"py-2 px-3 rounded-xl text-xs font-bold transition-all " + (selectedTone === 'investment' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900')}
+                >
+                  📈 Yatırım Raporlu
+                </button>
+                <button 
+                  onClick={() => setSelectedTone('friendly')}
+                  className={"py-2 px-3 rounded-xl text-xs font-bold transition-all " + (selectedTone === 'friendly' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900')}
+                >
+                  ✨ Samimi & Emojili
+                </button>
+              </div>
+            </div>
+
+            {/* Copywriting Read-only Text Box */}
+            <div className="relative">
+              <span className="block text-[11px] font-black tracking-wider text-slate-400 uppercase mb-1">HAZIR PAYLAŞIM METNİ (DÜZENLENEBİLİR)</span>
+              <div className="border border-slate-200 rounded-2xl bg-slate-50 overflow-hidden">
+                <textarea 
+                  value={getCaptionText()}
+                  readOnly
+                  className="w-full h-[240px] p-4 text-xs font-medium text-slate-800 leading-relaxed bg-transparent focus:outline-none focus:ring-0 resize-none font-sans border-0 select-text"
+                />
+                
+                {/* Float copy button */}
+                <div className="p-3 bg-slate-100 border-t border-slate-200 flex justify-between items-center">
+                  <span className="text-[10px] font-extrabold text-slate-500 uppercase flex items-center gap-1">
+                    <Award className="w-3.5 h-3.5 text-indigo-600" /> LOOKPRICE MULTI-STATION SCRIPT
+                  </span>
+                  <button 
+                    onClick={handleCopyCaption}
+                    className={"px-3 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1 shadow-sm " + (copySuccess ? 'bg-emerald-650 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white')}
+                  >
+                    {copySuccess ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copySuccess ? 'Kopyalandı!' : 'Metni Kopyala'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Helper Tips */}
+            <div className="mt-4 p-3.5 bg-amber-50 rounded-2xl border border-amber-200/80 flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-black text-amber-900 leading-none">LOOKPRICE PRO-IPUCU: ADIM ADIM REHBER</h4>
+                <p className="text-[10.5px] text-amber-800 leading-relaxed mt-1">
+                  1. Sol panelden hoşunuza giden bir stil seçip <strong>"Afiş Görselini İndir"</strong> butonuyla posteri bilgisayarınıza/telefonunuza kaydedin. <br />
+                  2. Sağ panelden <strong>"Metni Kopyala"</strong> butonuna basarak metni hafızaya alın. <br />
+                  3. Instagram, Facebook veya WhatsApp'ı açın, indirdiğiniz görseli ekleyip kopyaladığınız metni yapıştırarak ilanı <strong>hızlıca ve güvenle yayına verin!</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-[11px] font-black tracking-widest text-indigo-600 uppercase">LOOKPRICE SOCIAL WIZARD v2.5</span>
+            <button 
+              onClick={onClose}
+              className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 text-slate-600 font-bold text-xs rounded-xl transition-all"
+            >
+              Kapat
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* Hidden off-screen canvas used purely for drawing high quality image rendering */}
+      <canvas ref={canvasRef} className="hidden" />
+    </div>
+  );
+};
+
+// Helper inside file for translation consistency
+const categoryLabelForPreview = (typeStr: string) => {
+  switch (typeStr) {
+    case 'residence': return '🏡 KONUT FIRSATI';
+    case 'commercial': return '🏢 TİCARİ MODÜL';
+    case 'land': return '🌿 ARSA VE PARSEL';
+    default: return '📍 SEÇKİN PORTFÖY';
+  }
+};

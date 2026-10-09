@@ -1,0 +1,1720 @@
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { getExchangeRate } from "../services/currencyService";
+import {
+  Check,
+  X,
+  ChevronRight,
+  ChevronLeft,
+  Eye,
+  MessageCircle,
+  MapPin,
+  Package,
+  Share2,
+  Link2,
+  ShoppingBag,
+  ShieldCheck,
+  Map as MapIcon,
+  Car,
+  RefreshCw,
+  ArrowDownUp,
+  Sparkles,
+  ChevronDown,
+  Feather,
+  Building2,
+  Quote,
+  Award,
+} from "lucide-react";
+import { APIProvider } from "@vis.gl/react-google-maps";
+import { api } from "../services/api";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { SectorSpecs } from "./SectorSpecs";
+import { ListingFinancingCalculator } from "./ListingFinancingCalculator";
+import { PropertyMapTour } from "./PropertyMapTour";
+import SEO from "./SEO";
+import { Product, Store as StoreInfo } from "../types";
+import { getColorHex } from "../utils/variantPresets";
+import { getLabels } from "../utils/showcase";
+import { isBookstoreStore } from "../utils/storeType";
+
+const MAP_KEY = import.meta.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || "";
+
+interface ProductDetailModalProps {
+  product: Product | null;
+  store: StoreInfo | null;
+  t: any;
+  slug: string;
+  onClose: () => void;
+  addToBasket: (p: any) => void;
+  primaryColor: string;
+  isLuxury?: boolean;
+  sector?: string;
+  showAboutModal: boolean;
+  setShowAboutModal: (show: boolean) => void;
+  allProducts?: Product[];
+  onNavigateProduct?: (p: Product) => void;
+}
+
+const formatPrice = (price: number, currency: string, sector: string, storeType?: string) => {
+  const isPortfolio = storeType === "portfolio" || storeType === "real_estate" || storeType === "motor_vehicle" || sector === "real_estate" || sector === "automotive";
+  const decimals = isPortfolio ? 0 : 2;
+  return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency || "TRY"}`;
+};
+
+const DigitalSignature: React.FC<{ storeName: string; lang: string; isPortfolio?: boolean }> = () => {
+  return null;
+};
+
+export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
+  product,
+  store,
+  t,
+  slug,
+  onClose,
+  addToBasket,
+  primaryColor,
+  isLuxury,
+  sector = "general",
+  showAboutModal,
+  setShowAboutModal,
+  allProducts = [],
+  onNavigateProduct,
+}) => {
+  const { lang } = useLanguage();
+  const [branchStocks, setBranchStocks] = useState<any[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [selectedBranchIdx, setSelectedBranchIdx] = useState(0);
+  const [convertedPrice, setConvertedPrice] = useState<number>(
+    product?.price || 0,
+  );
+
+  // Segment / Category product navigation (Önceki & Sonraki Ürün / Kitap Gezintisi)
+  const segmentProducts = React.useMemo(() => {
+    if (!allProducts || allProducts.length <= 1) return [];
+    if (!product) return allProducts;
+
+    // Filter matching category or sector/type if available
+    const sameCat = allProducts.filter(p => {
+      if (product.category && (p.category === product.category || p.category_2 === product.category)) {
+        return true;
+      }
+      if (product.type && p.type === product.type) {
+        return true;
+      }
+      return false;
+    });
+
+    return sameCat.length > 1 ? sameCat : allProducts;
+  }, [allProducts, product]);
+
+  const currentIndex = React.useMemo(() => {
+    if (!product || segmentProducts.length === 0) return -1;
+    return segmentProducts.findIndex(p => p.id === product.id);
+  }, [product?.id, segmentProducts]);
+
+  const prevProduct = currentIndex > 0 ? segmentProducts[currentIndex - 1] : null;
+  const nextProduct = currentIndex >= 0 && currentIndex < segmentProducts.length - 1 ? segmentProducts[currentIndex + 1] : null;
+
+  const handleNavigate = (targetProduct: Product | null) => {
+    if (!targetProduct || !onNavigateProduct) return;
+    setActiveImageIdx(0);
+    onNavigateProduct(targetProduct);
+  };
+
+  const consultantPhone = (product as any).consultant_phone;
+  const storeRawWa = store?.whatsapp_number || store?.phone;
+  const storeWa = (!storeRawWa || storeRawWa === "905428655000" || storeRawWa === "+905428655000") ? "905488902309" : storeRawWa;
+  const waPhone = consultantPhone || storeWa;
+
+  // States for 360° virtual tour mode
+  const [activeViewMode, setActiveViewMode] = useState<"gallery" | "tourMap">(
+    "gallery",
+  );
+
+  // Premium dynamic image gallery integration with guaranteed non-empty fallback
+  const productImages = React.useMemo(() => {
+    const list: string[] = [];
+    if (product?.image_url && typeof product.image_url === "string" && product.image_url.trim()) {
+      list.push(product.image_url.trim());
+    }
+    const rawImages = (product as any)?.images;
+    if (rawImages) {
+      if (Array.isArray(rawImages)) {
+        rawImages.forEach((img: any) => {
+          if (img && typeof img === "string" && img.trim() && !list.includes(img.trim())) {
+            list.push(img.trim());
+          }
+        });
+      } else if (typeof rawImages === "string" && rawImages.trim()) {
+        try {
+          const parsed = JSON.parse(rawImages);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((img: any) => {
+              if (img && typeof img === "string" && img.trim() && !list.includes(img.trim())) {
+                list.push(img.trim());
+              }
+            });
+          }
+        } catch (e) {
+          if ((rawImages.startsWith("http") || rawImages.startsWith("/")) && !list.includes(rawImages.trim())) {
+            list.push(rawImages.trim());
+          }
+        }
+      }
+    }
+
+    const rawPhotos = (product as any)?.photos;
+    if (Array.isArray(rawPhotos)) {
+      rawPhotos.forEach((img: any) => {
+        if (img && typeof img === "string" && img.trim() && !list.includes(img.trim())) {
+          list.push(img.trim());
+        }
+      });
+    }
+
+    // Also include images from variants if they exist
+    if (product?.variants) {
+      let vars = product.variants;
+      if (typeof vars === 'string') {
+        try { vars = JSON.parse(vars); } catch (e) { vars = []; }
+      }
+      if (Array.isArray(vars)) {
+        vars.forEach((v: any) => {
+          if (v?.image_url && typeof v.image_url === 'string' && v.image_url.trim() && !list.includes(v.image_url.trim())) {
+            list.push(v.image_url.trim());
+          }
+        });
+      }
+    }
+
+    if (list.length === 0) {
+      list.push("https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80");
+    }
+
+    return list;
+  }, [product]);
+
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
+
+  // Reset image and view states when product changes
+  useEffect(() => {
+    setActiveImageIdx(0);
+    setIsDescExpanded(false);
+  }, [product?.id]);
+
+  // Keyboard navigation for enlarged image viewer (when lightbox open)
+  useEffect(() => {
+    if (!isLightboxOpen || productImages.length === 0) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") {
+        setActiveImageIdx((prev) => (prev + 1) % productImages.length);
+      } else if (e.key === "ArrowLeft") {
+        setActiveImageIdx(
+          (prev) => (prev - 1 + productImages.length) % productImages.length,
+        );
+      } else if (e.key === "Escape") {
+        setIsLightboxOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isLightboxOpen, productImages.length]);
+
+  // Keyboard navigation for product switching (when lightbox is closed)
+  useEffect(() => {
+    if (isLightboxOpen || segmentProducts.length <= 1) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is inside an input, textarea or select
+      const activeTag = (document.activeElement?.tagName || "").toUpperCase();
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(activeTag)) return;
+
+      if (e.key === "ArrowLeft" && prevProduct) {
+        e.preventDefault();
+        handleNavigate(prevProduct);
+      } else if (e.key === "ArrowRight" && nextProduct) {
+        e.preventDefault();
+        handleNavigate(nextProduct);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isLightboxOpen, segmentProducts.length, prevProduct, nextProduct]);
+
+  const categoryLabel = product?.type === "real_estate"
+    ? (lang === "tr" ? "MÜLK TİPİ" : "PROPERTY TYPE")
+    : store?.category_label || (lang === "tr" ? "Kategori" : "Category");
+  const brandLabel = product?.type === "real_estate" 
+    ? (lang === "tr" ? "KONUM" : "LOCATION")
+    : store?.brand_label || (lang === "tr" ? "Marka" : "Brand");
+
+  const productVariants = React.useMemo(() => {
+    if (!product?.variants) return [];
+    let list = product.variants;
+    if (typeof list === "string") {
+      try { list = JSON.parse(list); } catch (e) { list = []; }
+    }
+    return Array.isArray(list) ? list : [];
+  }, [product?.variants]);
+
+  const hasVariants = (product?.has_variants === true || String(product?.has_variants) === "true" || productVariants.length > 0) && productVariants.length > 0;
+
+  const [selectedVariant, setSelectedVariant] = useState<any>(null);
+  const [variantViewMode, setVariantViewMode] = useState<"attributes" | "list">("attributes");
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
+
+  // Dynamic Attribute Groups (EAV + Legacy fallback)
+  const dynamicAttributeGroups = React.useMemo(() => {
+    if (!productVariants.length) return [];
+
+    const groupMap = new Map<string, Set<string>>();
+    const colorCodeMap = new Map<string, string>();
+    const imageMap = new Map<string, string>();
+
+    productVariants.forEach((v: any) => {
+      // 1. Check EAV attributes record
+      if (v.attributes && typeof v.attributes === "object" && Object.keys(v.attributes).length > 0) {
+        Object.entries(v.attributes).forEach(([attrName, attrVal]) => {
+          if (attrVal) {
+            const strVal = String(attrVal).trim();
+            if (!groupMap.has(attrName)) groupMap.set(attrName, new Set());
+            groupMap.get(attrName)!.add(strVal);
+
+            const isColorKey = attrName.toLowerCase().includes("renk") || attrName.toLowerCase().includes("color");
+            if (isColorKey) {
+              if (v.color_code) colorCodeMap.set(strVal, v.color_code);
+              if (v.image_url) imageMap.set(strVal, v.image_url);
+            }
+          }
+        });
+      } else {
+        // Legacy fields fallback
+        let cName = v.color_name;
+        let sVal = v.size;
+
+        if (!cName && !sVal && v.name && typeof v.name === "string") {
+          const cleanName = v.name.replace(/^.*\((.*)\)$/, "$1");
+          const parts = cleanName.split(/\s*[\/\-\|]\s*/);
+          if (parts.length >= 2) {
+            cName = parts[0].trim();
+            sVal = parts[1].trim();
+          } else if (parts.length === 1) {
+            cName = parts[0].trim();
+          }
+        }
+
+        if (cName) {
+          const attrKey = lang === "tr" ? "Renk" : "Color";
+          if (!groupMap.has(attrKey)) groupMap.set(attrKey, new Set());
+          groupMap.get(attrKey)!.add(cName);
+          if (v.color_code) colorCodeMap.set(cName, v.color_code);
+          if (v.image_url) imageMap.set(cName, v.image_url);
+        }
+        if (sVal) {
+          const attrKey = lang === "tr" ? "Beden / Seçenek" : "Size / Option";
+          if (!groupMap.has(attrKey)) groupMap.set(attrKey, new Set());
+          groupMap.get(attrKey)!.add(sVal);
+        }
+      }
+    });
+
+    return Array.from(groupMap.entries()).map(([name, valuesSet]) => {
+      const isColorType = name.toLowerCase().includes("renk") || name.toLowerCase().includes("color");
+      return {
+        name,
+        isColorType,
+        values: Array.from(valuesSet).map((val) => ({
+          value: val,
+          colorCode: colorCodeMap.get(val) || (isColorType ? getColorHex(val) : undefined),
+          imageUrl: imageMap.get(val),
+        })),
+      };
+    });
+  }, [productVariants, lang]);
+
+  const hasStructuredAttrs = dynamicAttributeGroups.length > 0;
+
+  // Initialize selected variant and default attributes
+  useEffect(() => {
+    if (hasVariants && productVariants.length > 0) {
+      const initial = productVariants[0];
+      setSelectedVariant(initial);
+
+      // Populate selected attributes from initial variant
+      const initialAttrs: Record<string, string> = {};
+      if (initial.attributes && typeof initial.attributes === "object") {
+        Object.assign(initialAttrs, initial.attributes);
+      } else {
+        let cName = initial.color_name;
+        let sVal = initial.size;
+        if (!cName && !sVal && initial.name) {
+          const clean = initial.name.replace(/^.*\((.*)\)$/, "$1");
+          const parts = clean.split(/\s*[\/\-\|]\s*/);
+          if (parts.length >= 2) {
+            cName = parts[0].trim();
+            sVal = parts[1].trim();
+          } else if (parts.length === 1) {
+            cName = parts[0].trim();
+          }
+        }
+        if (cName) initialAttrs[lang === "tr" ? "Renk" : "Color"] = cName;
+        if (sVal) initialAttrs[lang === "tr" ? "Beden / Seçenek" : "Size / Option"] = sVal;
+      }
+      setSelectedAttributes(initialAttrs);
+    } else {
+      setSelectedVariant(null);
+      setSelectedAttributes({});
+    }
+  }, [product?.id, hasVariants, productVariants, lang]);
+
+  // Handle selecting an attribute in the dynamic matrix
+  const handleSelectAttribute = (attrName: string, value: string) => {
+    const nextAttrs = { ...selectedAttributes, [attrName]: value };
+    setSelectedAttributes(nextAttrs);
+
+    // Find best match in variants
+    const match = productVariants.find((v: any) => {
+      if (v.attributes && typeof v.attributes === "object" && Object.keys(v.attributes).length > 0) {
+        return Object.entries(nextAttrs).every(([k, vVal]) => v.attributes[k] === vVal);
+      }
+      const vAttrs: Record<string, string> = {};
+      let c = v.color_name;
+      let s = v.size;
+      if (!c && !s && v.name) {
+        const clean = v.name.replace(/^.*\((.*)\)$/, "$1");
+        const parts = clean.split(/\s*[\/\-\|]\s*/);
+        if (parts.length >= 2) {
+          c = parts[0].trim();
+          s = parts[1].trim();
+        } else if (parts.length === 1) {
+          c = parts[0].trim();
+        }
+      }
+      if (c) vAttrs[lang === "tr" ? "Renk" : "Color"] = c;
+      if (s) vAttrs[lang === "tr" ? "Beden / Seçenek" : "Size / Option"] = s;
+
+      return Object.entries(nextAttrs).every(([k, vVal]) => vAttrs[k] === vVal);
+    }) || productVariants.find((v: any) => {
+      if (v.attributes && v.attributes[attrName] === value) return true;
+      return v.name && v.name.includes(value);
+    });
+
+    if (match) {
+      setSelectedVariant(match);
+      if (match.image_url && productImages.length > 0) {
+        const imgIdx = productImages.findIndex((img) => img === match.image_url);
+        if (imgIdx !== -1) setActiveImageIdx(imgIdx);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (selectedVariant?.image_url && productImages.length > 0) {
+      const imgIdx = productImages.findIndex((img) => img === selectedVariant.image_url);
+      if (imgIdx !== -1) {
+        setActiveImageIdx(imgIdx);
+      }
+    }
+  }, [selectedVariant, productImages]);
+
+  useEffect(() => {
+    if (hasVariants && productVariants.length > 0 && !selectedVariant) {
+      const firstActive = productVariants.find((v: any) => v.is_active !== false) || productVariants[0];
+      if (firstActive) {
+        setSelectedVariant(firstActive);
+      }
+    }
+  }, [hasVariants, productVariants, selectedVariant]);
+
+  const effectiveBasePrice = React.useMemo(() => {
+    if (selectedVariant && selectedVariant.price !== undefined && selectedVariant.price !== null && Number(selectedVariant.price) > 0) {
+      return Number(selectedVariant.price);
+    }
+    if (productVariants && productVariants.length > 0) {
+      const varPrices = productVariants
+        .map((v: any) => parseFloat(String(v.price || '').replace(',', '.')))
+        .filter((p: number) => !isNaN(p) && p > 0);
+      if (varPrices.length > 0) {
+        return Math.min(...varPrices);
+      }
+    }
+    return Number(product?.price || 0);
+  }, [product?.price, selectedVariant, productVariants]);
+
+  useEffect(() => {
+    if (
+      product &&
+      store?.currency &&
+      product.currency &&
+      product.currency !== store.currency
+    ) {
+      getExchangeRate(product.currency, store.currency).then((rate) => {
+        setConvertedPrice(effectiveBasePrice * rate);
+      });
+    } else if (product) {
+      setConvertedPrice(effectiveBasePrice);
+    }
+  }, [effectiveBasePrice, product?.currency, store?.currency]);
+
+  useEffect(() => {
+    if (product?.id && store?.id) {
+      const typeOfProduct = store.store_type === "real_estate" ? "property" : (store.store_type === "motor_vehicle" ? "vehicle" : "product");
+      fetch("/api/public/analytics/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_id: store.id,
+          entity_type: typeOfProduct,
+          entity_id: product.id,
+          event_type: "view",
+          referer: window.location.href
+        })
+      }).catch(e => console.error("Telemetry failed:", e));
+    }
+  }, [product?.id, store?.id]);
+
+  useEffect(() => {
+    const effectiveSlug = store?.slug || slug;
+    if (product?.barcode && effectiveSlug) {
+      setLoadingBranches(true);
+      api
+        .getPublicProductBranchStock(effectiveSlug, product.barcode)
+        .then((res) => {
+          if (!res.error) {
+            setBranchStocks(res);
+            // Preselect the first branch that has stock
+            const inStockIdx = res.findIndex((b: any) => b.stock > 0);
+            if (inStockIdx !== -1) {
+              setSelectedBranchIdx(inStockIdx);
+            }
+          }
+        })
+        .finally(() => setLoadingBranches(false));
+    }
+  }, [product?.barcode, store?.slug, slug]);
+
+  const [isCopied, setIsCopied] = useState(false);
+
+  // Helper to get annotated image URL for Sold/Rented status
+  const getAnnotatedImageUrl = (originalUrl: string) => {
+    if (!product || !originalUrl) return originalUrl;
+    let url = originalUrl;
+    if (url.includes("/api/storage/")) {
+      url = url.replace(/^https?:\/\/[^\/]+\/api\/storage\//, '/api/storage/');
+    }
+
+    const status = (product as any).status || product.sector_data?.status;
+    const labels = getLabels(product.labels).map(l => l.toLowerCase());
+    
+    const isSold = status === 'sold' || labels.includes('satildi') || labels.includes('sold');
+    const isRented = status === 'rented' || labels.includes('kiralandi') || labels.includes('rented');
+    
+    if (isSold || isRented) {
+      const normalizedStatus = isSold ? 'sold' : 'rented';
+      const origin = window.location.origin;
+      // Force absolute URL for sharing bots
+      const absoluteUrl = url.startsWith('http') ? url : `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+      return `${origin}/api/annotate-image?imageUrl=${encodeURIComponent(absoluteUrl)}&status=${normalizedStatus}`;
+    }
+
+    // Pre-emptively proxy domains known to enforce strict Hotlink / NotSameOrigin 403 blocks
+    if (
+      url &&
+      !url.includes("/api/proxy-image") &&
+      (url.includes("shopdelta.eu") ||
+        url.includes("extrememobiles.com.cy") ||
+        url.includes("wp-content/uploads/woocommerce"))
+    ) {
+      return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
+  const productUrl = React.useMemo(() => {
+    if (!product) return window.location.href;
+    const baseUrl = window.location.origin;
+    const isCustomDomain = !window.location.pathname.startsWith("/s/");
+    if (isCustomDomain) {
+      return `${baseUrl}/p/${product.barcode || product.id}`;
+    } else {
+      const effectiveStoreSlug = store?.slug || slug;
+      return `${baseUrl}/s/${effectiveStoreSlug}/p/${product.barcode || product.id}`;
+    }
+  }, [product, store?.slug, slug]);
+
+  const shareProduct = async () => {
+    const shareData = {
+      title: product?.name || "",
+      text: `${product?.name} - ${product?.price} ${store?.currency || "TRY"}`,
+      url: productUrl,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error("Share failed:", err);
+      }
+    } else {
+      copyLink();
+    }
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(productUrl);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const shareOnWhatsApp = () => {
+    if (!product) return;
+    const text = encodeURIComponent(
+      `${product.name}\nFiyat: ${product.price} ${store?.currency || "TRY"}\n\nİncelemek için: ${productUrl}`,
+    );
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+  };
+
+  if (!product) return null;
+
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description || `Buy ${product.name} at ${store?.name}`,
+    image: product.image_url,
+    sku: product.barcode,
+    brand: {
+      "@type": "Brand",
+      name: product.brand || store?.name || "FastPOS",
+    },
+    offers: {
+      "@type": "Offer",
+      priceCurrency: store?.currency || product.currency || "USD",
+      price: product.price,
+      availability: "https://schema.org/InStock",
+    },
+  };
+
+  return (
+    <APIProvider apiKey={MAP_KEY}>
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <SEO
+        title={`${product.name} | ${store?.name}`}
+        description={product.description?.substring(0, 160)}
+        ogImage={getAnnotatedImageUrl(product.image_url)}
+        schemaData={productSchema}
+      />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/40 backdrop-blur-xl animate-in fade-in duration-300"
+      />
+
+      {/* Desktop External Floating Prev/Next Buttons */}
+      {segmentProducts.length > 1 && (
+        <>
+          {prevProduct && (
+            <button
+              type="button"
+              onClick={() => handleNavigate(prevProduct)}
+              className="hidden xl:flex fixed left-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-slate-900/90 hover:bg-slate-900 text-white backdrop-blur-md shadow-2xl border border-slate-700/80 items-center justify-center hover:scale-110 active:scale-95 transition-all z-[75] cursor-pointer group"
+              title={`${lang === "tr" ? "Önceki" : "Previous"}: ${prevProduct.name}`}
+            >
+              <ChevronLeft className="w-6 h-6 group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+          )}
+          {nextProduct && (
+            <button
+              type="button"
+              onClick={() => handleNavigate(nextProduct)}
+              className="hidden xl:flex fixed right-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-slate-900/90 hover:bg-slate-900 text-white backdrop-blur-md shadow-2xl border border-slate-700/80 items-center justify-center hover:scale-110 active:scale-95 transition-all z-[75] cursor-pointer group"
+              title={`${lang === "tr" ? "Sonraki" : "Next"}: ${nextProduct.name}`}
+            >
+              <ChevronRight className="w-6 h-6 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
+
+          {/* Top Floating Segment / Category Switcher (Completely outside modal card - zero overlap with data) */}
+          <div className="fixed top-2.5 sm:top-4 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-1.5 bg-slate-900/95 text-white backdrop-blur-xl px-3 py-1.5 rounded-full shadow-2xl border border-slate-700/80 max-w-[92vw] sm:max-w-md transition-all">
+            <button
+              type="button"
+              onClick={() => handleNavigate(prevProduct)}
+              disabled={!prevProduct}
+              title={prevProduct ? `${lang === "tr" ? "Önceki" : "Previous"}: ${prevProduct.name}` : ""}
+              className="px-2 py-1 hover:bg-white/20 rounded-full disabled:opacity-25 disabled:pointer-events-none transition-all cursor-pointer flex items-center gap-1 text-[11px] font-bold text-white shrink-0"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span className="text-[10px]">{lang === "tr" ? "Önceki" : "Prev"}</span>
+            </button>
+            
+            <div className="flex items-center gap-1.5 px-2 text-[11px] font-mono text-slate-300 truncate select-none border-x border-white/20">
+              <span className="font-bold text-white">{currentIndex + 1}</span>
+              <span className="opacity-40">/</span>
+              <span>{segmentProducts.length}</span>
+              {product.category && (
+                <span className="hidden sm:inline text-[10px] font-sans text-slate-300/90 truncate max-w-[130px] ml-1">
+                  {product.category}
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleNavigate(nextProduct)}
+              disabled={!nextProduct}
+              title={nextProduct ? `${lang === "tr" ? "Sonraki" : "Next"}: ${nextProduct.name}` : ""}
+              className="px-2 py-1 hover:bg-white/20 rounded-full disabled:opacity-25 disabled:pointer-events-none transition-all cursor-pointer flex items-center gap-1 text-[11px] font-bold text-white shrink-0"
+            >
+              <span className="text-[10px]">{lang === "tr" ? "Sonraki" : "Next"}</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </>
+      )}
+
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 15 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 15 }}
+        className="bg-white w-full max-w-4xl lg:max-w-5xl rounded-2xl md:rounded-3xl shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[92vh] md:max-h-[88vh] border border-slate-200 mt-8 sm:mt-0"
+      >
+        <button
+          onClick={onClose}
+          type="button"
+          className="absolute top-3 right-3 p-2 bg-slate-900/90 text-white hover:bg-slate-800 rounded-full transition-all z-50 shadow-lg active:scale-95 cursor-pointer"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Product Image Column */}
+        <div className="w-full md:w-[46%] lg:w-[48%] shrink-0 h-[280px] sm:h-[350px] md:h-auto md:min-h-[460px] bg-slate-50/70 flex flex-col relative border-b md:border-b-0 md:border-r border-slate-200 transition-all duration-500 overflow-hidden justify-center items-center">
+          {/* Share Buttons Floating Pill */}
+          <div className="absolute top-3 left-3 flex items-center gap-1 z-20 bg-white/90 backdrop-blur-md px-2 py-1 rounded-xl border border-slate-200/80 shadow-xs">
+            <button
+              onClick={shareProduct}
+              type="button"
+              className="p-1 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-colors"
+              title={lang === "tr" ? "Paylaş" : "Share"}
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={shareOnWhatsApp}
+              type="button"
+              className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors"
+              title="WhatsApp"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+            </button>
+            <button
+              onClick={copyLink}
+              type="button"
+              className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex items-center gap-1"
+              title={lang === "tr" ? "Linki Kopyala" : "Copy Link"}
+            >
+              {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Link2 className="w-4 h-4" />}
+              {isCopied && (
+                <span className="text-[10px] font-bold text-emerald-600">
+                  {lang === "tr" ? "Kopyalandı" : "Copied"}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* View Mode Switcher */}
+          {(product.type === "real_estate" || product.type === "vehicle" || store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") && (
+            <div className="absolute top-3 right-12 z-30 transition-all duration-500">
+              <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-slate-800 flex gap-1 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => setActiveViewMode("gallery")}
+                  className={`px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase transition-all flex items-center gap-1 ${activeViewMode === "gallery" ? "bg-white text-slate-950 shadow-xs" : "text-slate-400 hover:text-white"}`}
+                >
+                  <Package className="w-3 h-3" />
+                  {lang === "tr" ? "Galeri" : "Gallery"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveViewMode("tourMap")}
+                  className={`px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase transition-all flex items-center gap-1 ${activeViewMode === "tourMap" ? "bg-white text-slate-950 shadow-xs" : "text-slate-400 hover:text-white"}`}
+                >
+                  <MapIcon className="w-3 h-3" />
+                  {lang === "tr" ? "HARİTA" : "MAP"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeViewMode === "tourMap" ? (
+            <PropertyMapTour 
+              location={(product as any).location || product.sector_data?.location || product.address || store?.address} 
+              property={product} 
+              lang={lang} 
+            />
+          ) : productImages.length > 0 ? (
+            <div className="w-full flex-1 flex flex-col justify-between bg-slate-50/70 relative p-3 md:p-4">
+              {/* Main Viewport Box */}
+              <div
+                className="flex-1 relative min-h-0 flex items-center justify-center group/gallery cursor-zoom-in py-2"
+                onClick={() => setIsLightboxOpen(true)}
+                title={
+                  lang === "tr" ? "Büyütmek için tıklayın" : "Click to enlarge"
+                }
+              >
+                <img
+                  src={getAnnotatedImageUrl(productImages[activeImageIdx])}
+                  alt={product.name}
+                  className="max-w-full max-h-[260px] sm:max-h-[330px] md:max-h-[400px] object-contain rounded-lg shadow-xs transition-all duration-300 group-hover/gallery:scale-105"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    const src = productImages[activeImageIdx];
+                    if (!target.dataset.fallback && src) {
+                      if (src.startsWith('/api/storage/') || src.startsWith('uploads/')) {
+                        target.dataset.fallback = 'relative';
+                        target.src = `${window.location.origin}${src.startsWith('/') ? '' : '/'}${src}?v=${Date.now()}`;
+                      } else if (src.startsWith('http') && !src.includes('/api/proxy-image')) {
+                        target.dataset.fallback = 'proxy';
+                        target.src = `/api/proxy-image?url=${encodeURIComponent(src)}`;
+                      } else {
+                        target.onerror = null;
+                        target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+                      }
+                    } else {
+                      target.onerror = null;
+                      target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+                    }
+                  }}
+                />
+
+                {/* Action Icon overlay */}
+                <div className="absolute top-2 right-2 bg-slate-900/60 backdrop-blur-xs text-white p-1.5 rounded-lg opacity-0 group-hover/gallery:opacity-100 transition-opacity">
+                  <Eye className="w-3.5 h-3.5" />
+                </div>
+
+                {/* Previous / Next chevrons inside the product frame */}
+                {productImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveImageIdx(
+                          (prev) =>
+                            (prev - 1 + productImages.length) %
+                            productImages.length,
+                        );
+                      }}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-md cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveImageIdx(
+                          (prev) => (prev + 1) % productImages.length,
+                        );
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-md cursor-pointer"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Thumbnails list below inside normal frame */}
+              {productImages.length > 1 && (
+                <div className="flex gap-1.5 justify-center py-1.5 px-2 overflow-x-auto no-scrollbar scrollbar-none scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-full z-10 shrink-0">
+                  {productImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImageIdx(idx)}
+                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-md overflow-hidden border transition-all flex-shrink-0 cursor-pointer ${activeImageIdx === idx ? "border-indigo-600 scale-105 shadow-xs" : "border-slate-200 hover:border-slate-400"}`}
+                    >
+                      <img
+                        src={getAnnotatedImageUrl(img)}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (!target.dataset.fallback && img) {
+                            if (img.startsWith('/api/storage/') || img.startsWith('uploads/')) {
+                              target.dataset.fallback = 'relative';
+                              target.src = `${window.location.origin}${img.startsWith('/') ? '' : '/'}${img}?v=${Date.now()}`;
+                            } else if (img.startsWith('http') && !img.includes('/api/proxy-image')) {
+                              target.dataset.fallback = 'proxy';
+                              target.src = `/api/proxy-image?url=${encodeURIComponent(img)}`;
+                            } else {
+                              target.onerror = null;
+                              target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+                            }
+                          } else {
+                            target.onerror = null;
+                            target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+                          }
+                        }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-300">
+              <Package className="w-20 h-20" />
+            </div>
+          )}
+        </div>
+
+        {/* Product Details Column */}
+        <div className="w-full md:w-[54%] lg:w-[52%] flex flex-col min-h-0 h-full max-h-[92vh] md:max-h-[88vh] bg-white">
+          {/* Scrollable Content Pane */}
+          <div className="flex-1 min-h-0 p-3.5 sm:p-4 md:p-5 overflow-y-auto no-scrollbar space-y-2.5">
+            {/* Metadata Badges (Category, Author, Publisher, Brand, Stock) */}
+            {(() => {
+              const isStoreBookstore = isBookstoreStore(store);
+              // Strict sectoral isolation: Books / Authors / Publishers ONLY exist if the store itself is a bookstore
+              const authorName = isStoreBookstore ? (product.author || (product.sector_data as any)?.author || "").trim() : "";
+              const publisherName = isStoreBookstore ? ((product.sector_data as any)?.publisher || (authorName ? product.brand : "") || "").trim() : "";
+              const brandName = (product.brand || "")?.trim();
+
+              return (
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  {getLabels(product.labels).map((label, idx) => (
+                    <span
+                      key={idx}
+                      className="text-[9px] font-bold px-2 py-0.5 rounded-md text-white shadow-2xs"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      {label}
+                    </span>
+                  ))}
+
+                  {/* Category */}
+                  <span
+                    className="text-[9px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap"
+                    style={{
+                      color: primaryColor,
+                      backgroundColor: `${primaryColor}12`,
+                    }}
+                  >
+                    {product.type === "real_estate" && lang === "tr"
+                      ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
+                      : (product.category || t.dashboard.uncategorized)}
+                  </span>
+
+                  {/* Author Badge (ONLY for Bookstore) */}
+                  {isStoreBookstore && authorName && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-900 border border-indigo-200/80 flex items-center gap-1.5 shadow-2xs">
+                      <Feather className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                      <span className="text-indigo-600/90 font-medium">{lang === "tr" ? "Yazar:" : "Author:"}</span>
+                      <span className="font-bold">{authorName}</span>
+                    </span>
+                  )}
+
+                  {/* Publisher Badge (ONLY for Bookstore) */}
+                  {isStoreBookstore && publisherName && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200/90 flex items-center gap-1.5 shadow-2xs">
+                      <Building2 className="w-2.5 h-2.5 text-slate-500 shrink-0" />
+                      <span className="text-slate-500 font-medium">{lang === "tr" ? "Yayınevi:" : "Publisher:"}</span>
+                      <span className="font-bold">{publisherName}</span>
+                    </span>
+                  )}
+
+                  {/* Standard Brand (for Retail / shopLP / Technology / General stores) */}
+                  {!isStoreBookstore && brandName && product.type !== "real_estate" && (
+                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-slate-700 whitespace-nowrap">
+                      {lang === "tr" ? "Marka" : "Brand"}: {brandName}
+                    </span>
+                  )}
+
+                  {/* Real Estate Location */}
+                  {product.type === "real_estate" && (product as any).location && (
+                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-slate-700 whitespace-nowrap">
+                      {(product as any).location}
+                    </span>
+                  )}
+
+                  {/* Branch */}
+                  {product.branch_name && product.branch_name !== store?.name && (
+                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-slate-600 whitespace-nowrap">
+                      {lang === "tr" ? "Şube" : "Branch"}: {product.branch_name}
+                    </span>
+                  )}
+
+                  {/* Stock Quantity */}
+                  {product.stock_quantity !== undefined && product.stock_quantity !== null && (
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${
+                      Number(product.stock_quantity) > 0 
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200/70" 
+                        : "bg-rose-50 text-rose-700 border border-rose-200/70"
+                    }`}>
+                      {Number(product.stock_quantity) > 0 
+                        ? `${lang === "tr" ? "Stokta" : "In Stock"} (${product.stock_quantity})`
+                        : (lang === "tr" ? "Tükendi" : "Out of stock")}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Product Name & Price Header */}
+            <div>
+              <h2
+                className={`text-lg sm:text-xl text-slate-900 leading-snug tracking-tight mb-1 ${isLuxury ? "!font-sans !font-medium" : "font-extrabold"}`}
+              >
+                {product.name}
+              </h2>
+
+              <div className="flex items-baseline gap-2">
+                <span
+                  className={`text-xl sm:text-2xl text-slate-900 ${isLuxury ? "!font-sans !font-medium" : "font-black font-display"}`}
+                >
+                  {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
+                </span>
+                {product.unit && (
+                  <span className="text-xs text-slate-400 font-medium">
+                    / {product.unit}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Trade-in badge if available */}
+            {(product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md border border-emerald-200/60">
+                <ArrowDownUp className="w-3 h-3 text-emerald-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wide">
+                  {lang === "tr" ? "Takas İmkanı Değerlendirilir" : "Trade-in Considered"}
+                </span>
+              </div>
+            )}
+
+            {/* Description / Synopsis Section */}
+            {(() => {
+              const rawDesc = (product.description && !product.description.startsWith("Şasi:")) ? product.description : "";
+              const rawSynopsis = ((product.sector_data as any)?.synopsis || (product as any).synopsis || "").trim();
+              const effectiveDesc = rawDesc || rawSynopsis;
+              if (!effectiveDesc) return null;
+
+              const story = ((product as any).market_story || (product.sector_data as any)?.market_story || "").trim().toLowerCase();
+              const tech = ((product as any).technical_description || (product.sector_data as any)?.technical_description || "").trim().toLowerCase();
+              const descLower = effectiveDesc.trim().toLowerCase();
+              if (descLower === story || descLower === tech || effectiveDesc.length <= 5) return null;
+
+              const isLong = effectiveDesc.length > 220;
+              const displayText = !isLong || isDescExpanded
+                ? effectiveDesc
+                : effectiveDesc.substring(0, 200) + "...";
+
+              return (
+                <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100 text-slate-700">
+                  <h4 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                    {lang === "tr" ? "AÇIKLAMA" : "DESCRIPTION"}
+                  </h4>
+                  <div 
+                    className="text-xs text-slate-700 leading-relaxed font-normal [&_p]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-semibold [&_*]:!text-inherit [&_a]:!text-indigo-600"
+                    dangerouslySetInnerHTML={{ __html: displayText.replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ') }} 
+                  />
+                  {isLong && (
+                    <button
+                      type="button"
+                      onClick={() => setIsDescExpanded(!isDescExpanded)}
+                      className="mt-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+                    >
+                      {isDescExpanded ? (lang === "tr" ? "Daha az göster ▲" : "Show less ▲") : (lang === "tr" ? "Devamını oku ▼" : "Read more ▼")}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Featured Quote / Spot Callout (if present) */}
+            {(() => {
+              const quoteText = ((product.sector_data as any)?.featured_quote || (product.sector_data as any)?.spot_quote || (product.sector_data as any)?.quote || (product as any).featured_quote || (product as any).quote || (product as any).spot || "")?.trim();
+              if (!quoteText) return null;
+              return (
+                <div className="relative p-3 bg-gradient-to-r from-amber-50/80 via-indigo-50/50 to-slate-50/80 rounded-xl border border-amber-200/70 shadow-2xs overflow-hidden">
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-700 shrink-0 mt-0.5">
+                      <Quote className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-[9px] font-black text-amber-900/80 uppercase tracking-widest mb-0.5">
+                        {lang === "tr" ? "ÖNE ÇIKAN ALINTI" : "FEATURED QUOTE"}
+                      </h4>
+                      <p className="text-xs font-serif italic text-slate-800 leading-relaxed font-medium">
+                        &ldquo;{quoteText}&rdquo;
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Literary Awards & Honors (if present) */}
+            {(() => {
+              const awardsText = ((product.sector_data as any)?.awards || (product.sector_data as any)?.award || (product as any).awards || "")?.trim();
+              if (!awardsText) return null;
+              return (
+                <div className="flex items-center gap-2 p-2.5 bg-amber-500/10 rounded-xl border border-amber-300/40 text-amber-950">
+                  <Award className="w-4 h-4 text-amber-600 shrink-0" />
+                  <div className="text-xs font-medium">
+                    <span className="font-bold mr-1">{lang === "tr" ? "Ödül & Başarı:" : "Awards & Honors:"}</span>
+                    <span>{awardsText}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Automotive Market Story (if present) */}
+            {((product as any).market_story || (product.sector_data as any)?.market_story) && (
+              <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100/60">
+                <h4 className="text-[9px] font-bold text-blue-700 uppercase tracking-widest mb-1">
+                  {lang === "tr" ? "PAZAR HİKAYESİ" : "MARKET STORY"}
+                </h4>
+                <p className="text-slate-800 text-xs leading-relaxed font-normal">
+                  {(product as any).market_story || (product.sector_data as any)?.market_story}
+                </p>
+              </div>
+            )}
+
+            {/* Technical Description / Chef's Note (if present) */}
+            {((product as any).technical_description || (product.sector_data as any)?.technical_description) && (
+              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/60">
+                <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                  {(store?.store_type as string) === 'horeca' || sector === 'horeca' ? (lang === "tr" ? "ŞEFİN ÖZEL NOTU & AÇIKLAMA" : "CHEF'S SPECIAL NOTE") : (lang === "tr" ? "TEKNİK AÇIKLAMA" : "TECHNICAL DESCRIPTION")}
+                </h4>
+                <p className="text-slate-700 text-xs leading-relaxed whitespace-pre-wrap font-normal">
+                  {(product as any).technical_description || (product.sector_data as any)?.technical_description}
+                </p>
+              </div>
+            )}
+
+            {/* Technical & Culinary Specifications (High-density micro cards) */}
+            <SectorSpecs
+              sector={
+                (store?.store_type as string) === "horeca" || sector === "horeca"
+                  ? "horeca"
+                  : product?.type === "vehicle" || store?.store_type === "motor_vehicle"
+                    ? "automotive"
+                    : product?.type === "real_estate" || store?.store_type === "real_estate"
+                      ? "real_estate"
+                      : sector
+              }
+              data={{
+                ...(product.sector_data || {}),
+                ...((store?.store_type as string) === "horeca" || sector === "horeca" ? {
+                  calories: (product as any).calories || (product.sector_data as any)?.calories,
+                  prep_time_min: (product as any).prep_time_min || (product.sector_data as any)?.prep_time_min,
+                  portion_size: (product as any).portion_size || (product.sector_data as any)?.portion_size,
+                  allergens: (product as any).allergens || (product.sector_data as any)?.allergens,
+                  ingredients: (product as any).ingredients || (product.sector_data as any)?.ingredients || (product as any).recipe,
+                } : {}),
+                ...(product?.type === "vehicle" || store?.store_type === "motor_vehicle" ? {
+                  hp: (product as any).hp || (product.sector_data as any)?.hp,
+                  engine: (product as any).engine || (product.sector_data as any)?.engine,
+                  transmission: (product as any).transmission || (product.sector_data as any)?.transmission,
+                  fuel: (product as any).fuel || (product as any).fuel_type || (product.sector_data as any)?.fuel,
+                  mileage: (product as any).current_mileage || (product.sector_data as any)?.current_mileage || (product as any).mileage,
+                  paint_report: (product as any).paint_report || (product.sector_data as any)?.paint_report,
+                  is_trade_in_available: (product as any).is_trade_in_available !== undefined ? (product as any).is_trade_in_available : (product.sector_data as any)?.is_trade_in_available,
+                } : {}),
+                ...(product?.type === "real_estate" || store?.store_type === "real_estate" ? {
+                  square_meters: (product as any).square_meters || (product.sector_data as any)?.square_meters,
+                  rooms: (product as any).rooms || (product.sector_data as any)?.rooms,
+                  building_age: (product as any).building_age || (product.sector_data as any)?.building_age,
+                  floor: (product as any).floor || (product.sector_data as any)?.floor,
+                  heating: (product as any).heating || (product.sector_data as any)?.heating,
+                  furnished: (product as any).furnished !== undefined ? (product as any).furnished : (product.sector_data as any)?.furnished,
+                  is_trade_in_available: (product as any).is_trade_in_available !== undefined ? (product as any).is_trade_in_available : (product.sector_data as any)?.is_trade_in_available,
+                } : {})
+              }}
+              category={product.category}
+              name={product.name}
+              description={product.description}
+            />
+
+            {((store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (() => {
+              const isRent = product.sector_data?.listing_intent === 'rent' || product.category?.toLowerCase().includes('kira') || product.category?.toLowerCase().includes('rent');
+              if (isRent) return null;
+              return (
+                <ListingFinancingCalculator
+                  price={convertedPrice}
+                  currency={store?.currency || product?.currency || 'TRY'}
+                  lang={lang}
+                  store={store}
+                />
+              );
+            })()}
+
+            <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle'} />
+
+            {hasVariants && (
+              <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200/80 space-y-2">
+                {/* Header & View Switcher */}
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      {lang === "tr" ? "Seçenekler" : "Options"}
+                    </h4>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-100/60">
+                      {productVariants.length}
+                    </span>
+                  </div>
+
+                  {hasStructuredAttrs && (
+                    <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/60">
+                      <button
+                        type="button"
+                        onClick={() => setVariantViewMode("attributes")}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                          variantViewMode === "attributes"
+                            ? "bg-white text-indigo-600 shadow-xs"
+                            : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        {lang === "tr" ? "Özellik" : "Attrs"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVariantViewMode("list")}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                          variantViewMode === "list"
+                            ? "bg-white text-indigo-600 shadow-xs"
+                            : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        {lang === "tr" ? "Liste" : "List"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Attribute Selection View */}
+                {variantViewMode === "attributes" && hasStructuredAttrs ? (
+                  <div className="space-y-2.5">
+                    {dynamicAttributeGroups.map((group, gIdx) => {
+                      const isSelectedVal = selectedAttributes[group.name];
+
+                      return (
+                        <div key={gIdx} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="font-bold text-slate-500 uppercase tracking-wider">
+                              {group.name}: <strong className="text-slate-900 font-extrabold">{isSelectedVal || "-"}</strong>
+                            </span>
+                          </div>
+
+                          {/* If color type: Color Swatches */}
+                          {group.isColorType ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {group.values.map((vItem, vIdx) => {
+                                const isSelected = isSelectedVal === vItem.value;
+                                return (
+                                  <button
+                                    key={vIdx}
+                                    type="button"
+                                    onClick={() => handleSelectAttribute(group.name, vItem.value)}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                                      isSelected
+                                        ? "bg-indigo-50 border-indigo-600 text-indigo-900 shadow-xs ring-1 ring-indigo-500/20"
+                                        : "bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    {vItem.colorCode ? (
+                                      <span
+                                        className="w-3.5 h-3.5 rounded-full border border-black/15 shadow-2xs shrink-0"
+                                        style={{ backgroundColor: vItem.colorCode }}
+                                      />
+                                    ) : vItem.imageUrl ? (
+                                      <img src={vItem.imageUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />
+                                    ) : (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                                    )}
+                                    <span>{vItem.value}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : group.values.length > 8 ? (
+                            /* Large set: Dropdown Select */
+                            <select
+                              value={isSelectedVal || ""}
+                              onChange={(e) => handleSelectAttribute(group.name, e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-indigo-600"
+                            >
+                              {group.values.map((vItem, vIdx) => (
+                                <option key={vIdx} value={vItem.value}>
+                                  {vItem.value}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            /* Standard set: Option Pills */
+                            <div className="flex flex-wrap gap-1.5">
+                              {group.values.map((vItem, vIdx) => {
+                                const isSelected = isSelectedVal === vItem.value;
+
+                                const hypotheticalAttrs = { ...selectedAttributes, [group.name]: vItem.value };
+                                const matchingVar = productVariants.find((v: any) => {
+                                  if (v.attributes && typeof v.attributes === "object") {
+                                    return Object.entries(hypotheticalAttrs).every(([k, val]) => v.attributes[k] === val);
+                                  }
+                                  return v.name && v.name.includes(vItem.value);
+                                });
+
+                                const isStockOut = matchingVar && matchingVar.stock_quantity !== undefined && Number(matchingVar.stock_quantity) <= 0;
+
+                                return (
+                                  <button
+                                    key={vIdx}
+                                    type="button"
+                                    disabled={isStockOut}
+                                    onClick={() => handleSelectAttribute(group.name, vItem.value)}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer text-center ${
+                                      isStockOut
+                                        ? "bg-slate-100 text-slate-400 border border-slate-200 line-through opacity-50 cursor-not-allowed"
+                                        : isSelected
+                                        ? "bg-slate-900 text-white border border-slate-900 shadow-xs"
+                                        : "bg-white border border-slate-200 text-slate-800 hover:border-indigo-400 hover:bg-indigo-50/40"
+                                    }`}
+                                  >
+                                    {vItem.value}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Active Selected Variant Highlight Banner */}
+                    {selectedVariant && (
+                      <div className="p-2.5 bg-white rounded-xl border border-slate-200/80 flex items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {selectedVariant.color_code && (
+                            <span
+                              className="w-3 h-3 rounded-full border border-black/10 shrink-0"
+                              style={{ backgroundColor: selectedVariant.color_code }}
+                            />
+                          )}
+                          <div className="min-w-0">
+                            <span className="font-extrabold text-slate-900 block truncate">
+                              {selectedVariant.name}
+                            </span>
+                            {selectedVariant.sku && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                SKU: {selectedVariant.sku}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {selectedVariant.stock_quantity !== undefined && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              Number(selectedVariant.stock_quantity) <= 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {Number(selectedVariant.stock_quantity) <= 0 ? (lang === 'tr' ? 'Tükendi' : 'Out') : `${selectedVariant.stock_quantity} ${lang === 'tr' ? 'Stok' : 'Stk'}`}
+                            </span>
+                          )}
+                          <span className="font-black text-indigo-700 text-xs">
+                            {formatPrice(
+                              selectedVariant.price && Number(selectedVariant.price) > 0 ? Number(selectedVariant.price) : convertedPrice,
+                              store?.currency || product?.currency || 'TRY',
+                              sector,
+                              store?.store_type
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Compact Scrollable List View */
+                  <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                    {productVariants.map((v: any, idx: number) => {
+                      const isSelected = selectedVariant?.name === v.name || (selectedVariant?.id && selectedVariant?.id === v.id);
+                      const vStock = v.stock_quantity !== undefined && v.stock_quantity !== null && v.stock_quantity !== "" ? Number(v.stock_quantity) : undefined;
+                      const isOutOfStock = vStock !== undefined && vStock <= 0;
+                      const vPrice = v.price && Number(v.price) > 0 ? Number(v.price) : convertedPrice;
+
+                      return (
+                        <button
+                          key={v.id || idx}
+                          type="button"
+                          disabled={isOutOfStock}
+                          onClick={() => {
+                            setSelectedVariant(v);
+                            if (v.image_url && productImages.length > 0) {
+                              const imgIdx = productImages.findIndex((img) => img === v.image_url);
+                              if (imgIdx !== -1) setActiveImageIdx(imgIdx);
+                            }
+                          }}
+                          className={`w-full px-2.5 py-1.5 rounded-lg border text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                            isOutOfStock
+                              ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
+                              : isSelected
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+                              : "bg-white text-slate-800 border-slate-200 hover:border-indigo-300 hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {v.image_url ? (
+                              <img src={v.image_url} alt="" className="w-5 h-5 rounded object-cover shrink-0 border border-black/10" />
+                            ) : v.color_code ? (
+                              <span className="w-3 h-3 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: v.color_code }} />
+                            ) : null}
+                            <span className="font-bold text-xs truncate">{v.name}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {vStock !== undefined && (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                isOutOfStock
+                                  ? "bg-rose-100 text-rose-700"
+                                  : isSelected
+                                  ? "bg-white/20 text-white"
+                                  : "bg-emerald-100 text-emerald-800"
+                              }`}>
+                                {isOutOfStock ? (lang === "tr" ? "Tükendi" : "Out") : `${vStock} ${lang === "tr" ? "stok" : "stk"}`}
+                              </span>
+                            )}
+                            <span className={`text-xs font-extrabold ${isSelected ? "text-white" : "text-slate-900"}`}>
+                              {formatPrice(vPrice, store?.currency || product?.currency || 'TRY', sector, store?.store_type)}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Sticky Bottom Action Bar (Branch Selector & Buy / Add-to-Cart) */}
+          <div className="p-3 sm:p-3.5 bg-slate-50/90 backdrop-blur-md border-t border-slate-200/80 shrink-0 z-20">
+            {store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" ||
+            product.type === "vehicle" ||
+            product.type === "real_estate" ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (waPhone) {
+                      fetch("/api/public/analytics/event", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          store_id: store.id,
+                          entity_type: store.store_type === "real_estate" ? "property" : (store.store_type === "motor_vehicle" ? "vehicle" : "product"),
+                          entity_id: product.id,
+                          event_type: "whatsapp_click",
+                          referer: window.location.href
+                        })
+                      }).catch(e => console.error(e));
+
+                      const message = lang === "tr" 
+                        ? `Merhaba, #${product.id} portföy numaralı ${product.name} ilanı hakkında bilgi almak istiyorum.`
+                        : `Hello, I would like to inquire about listing #${product.id} - ${product.name}.`;
+                      
+                      window.open(
+                        `https://wa.me/${waPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`,
+                        "_blank",
+                      );
+                    } else {
+                      alert(lang === "tr" ? "İletişim numarası bulunamadı." : "No contact number found.");
+                    }
+                  }}
+                  type="button"
+                  className="flex-1 h-10 sm:h-11 px-4 text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xs hover:shadow flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer bg-[#25D366]"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></svg>
+                  <span className="truncate">{lang === "tr" ? "WhatsApp ile Bilgi Al" : "Inquire via WhatsApp"}</span>
+                </button>
+
+                {(product as any).is_trade_in_available && (
+                  <button
+                    onClick={() => {
+                      if (waPhone) {
+                        fetch("/api/public/analytics/event", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            store_id: store.id,
+                            entity_type: "vehicle",
+                            entity_id: product.id,
+                            event_type: "whatsapp_click",
+                            referer: window.location.href
+                          })
+                        }).catch(e => console.error(e));
+
+                        const tradeMessage = lang === "tr"
+                          ? (product.type === 'real_estate' 
+                              ? `Merhaba, #${product.id} portföy numaralı ${product.name} gayrimenkulünüz için Takas Teklifi göndermek istiyorum. \n\nLütfen detayları buradan size iletiyorum: `
+                              : `Merhaba, #${product.id} portföy numaralı ${product.name} aracınız için Takas Teklifi göndermek istiyorum. \n\nLütfen aracımın bilgilerini ve görsellerini buradan size iletiyorum: `)
+                          : (product.type === 'real_estate'
+                              ? `Hello, I would like to send a Trade-in Offer for listing #${product.id} - ${product.name}. \n\nI am sending the details here: `
+                              : `Hello, I would like to send a Trade-in Offer for listing #${product.id} - ${product.name}. \n\nI am sending my vehicle information and photos here: `);
+                        
+                        window.open(
+                          `https://wa.me/${waPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(tradeMessage)}`,
+                          "_blank",
+                        );
+                      }
+                    }}
+                    type="button"
+                    className="h-10 sm:h-11 px-3.5 text-white rounded-xl font-bold text-xs transition-all shadow-xs hover:shadow flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer bg-blue-600 shrink-0"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
+                    <span className="truncate">{lang === "tr" ? "Takas Teklifi" : "Trade-in"}</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {/* Branch Selection Dropdown or Pill */}
+                {branchStocks.length > 1 ? (
+                  <div className="relative flex-1 max-w-[180px] sm:max-w-[210px] shrink-0">
+                    <select
+                      value={selectedBranchIdx}
+                      onChange={(e) => setSelectedBranchIdx(Number(e.target.value))}
+                      className="w-full h-10 pl-7 pr-6 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer transition-all shadow-2xs truncate appearance-none"
+                    >
+                      {branchStocks.map((branch, idx) => (
+                        <option key={idx} value={idx} disabled={branch.stock <= 0}>
+                          {branch.branch_name} ({branch.stock > 0 ? `${branch.stock} ${lang === 'tr' ? 'Stok' : 'Stock'}` : (lang === 'tr' ? 'Tükendi' : 'Out')})
+                        </option>
+                      ))}
+                    </select>
+                    <MapPin className="w-3.5 h-3.5 text-indigo-600 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                ) : branchStocks.length === 1 ? (
+                  <div className="h-10 px-2.5 bg-white border border-slate-200 rounded-xl flex items-center gap-1.5 shrink-0 text-xs font-bold text-slate-700 shadow-2xs">
+                    <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span className="truncate max-w-[100px] sm:max-w-[120px] text-xs font-bold">{branchStocks[0].branch_name}</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${branchStocks[0].stock > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                      {branchStocks[0].stock > 0 ? `${branchStocks[0].stock} ${lang === 'tr' ? 'Stok' : 'Stk'}` : (lang === 'tr' ? 'Tükendi' : 'Out')}
+                    </span>
+                  </div>
+                ) : null}
+
+                {/* Add to Basket Button */}
+                <button
+                  disabled={
+                    (branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0) ||
+                    (selectedVariant && selectedVariant.stock_quantity !== undefined && Number(selectedVariant.stock_quantity) <= 0)
+                  }
+                  type="button"
+                  onClick={() => {
+                    const isVariantOut = selectedVariant && selectedVariant.stock_quantity !== undefined && Number(selectedVariant.stock_quantity) <= 0;
+                    if (isVariantOut) return;
+
+                    if (branchStocks.length > 0) {
+                      const selectedBranch = branchStocks[selectedBranchIdx];
+                      if (selectedBranch.stock > 0) {
+                        addToBasket({
+                          ...product,
+                          id: selectedBranch.product_id,
+                          store_id: selectedBranch.store_id,
+                          branch_name: selectedBranch.branch_name,
+                          branch_slug: selectedBranch.branch_slug,
+                          stock_quantity: selectedBranch.stock,
+                          price: convertedPrice,
+                          selectedVariant: selectedVariant || null,
+                          selected_variant_name: selectedVariant ? selectedVariant.name : undefined,
+                          selected_variant_id: selectedVariant ? selectedVariant.id : undefined,
+                        });
+                        onClose();
+                      }
+                    } else {
+                      addToBasket({
+                        ...product,
+                        price: convertedPrice,
+                        selectedVariant: selectedVariant || null,
+                        selected_variant_name: selectedVariant ? selectedVariant.name : undefined,
+                        selected_variant_id: selectedVariant ? selectedVariant.id : undefined,
+                      });
+                      onClose();
+                    }
+                  }}
+                  className={`flex-1 h-10 sm:h-11 px-4 text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xs hover:shadow flex items-center justify-center gap-2 group cursor-pointer active:scale-[0.98] ${
+                    (branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0) || (selectedVariant && selectedVariant.stock_quantity !== undefined && Number(selectedVariant.stock_quantity) <= 0)
+                      ? "opacity-50 cursor-not-allowed grayscale"
+                      : ""
+                  }`}
+                  style={
+                    (branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0) || (selectedVariant && selectedVariant.stock_quantity !== undefined && Number(selectedVariant.stock_quantity) <= 0)
+                      ? { backgroundColor: "#9ca3af" }
+                      : {
+                          backgroundColor: primaryColor,
+                        }
+                  }
+                >
+                  <ShoppingBag className="w-4 h-4 group-hover:scale-110 transition-transform shrink-0" />
+                  <span className="truncate">
+                    {(branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0) || (selectedVariant && selectedVariant.stock_quantity !== undefined && Number(selectedVariant.stock_quantity) <= 0)
+                      ? t.dashboard.outOfStock
+                      : t.dashboard.addToCart}
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Sticky Contact Bar */}
+        {(store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" || product.type === "vehicle" || product.type === "real_estate") && (
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-50 flex gap-3 pb-safe">
+            <button
+              onClick={() => {
+                const phone = store?.phone;
+                if (phone) {
+                  window.open(`tel:${phone.replace(/[^0-9+]/g, "")}`, "_self");
+                }
+              }}
+              className="flex-1 py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 shadow-lg"
+            >
+              {lang === "tr" ? "Randevu Al" : "Book Info"}
+            </button>
+            <button
+              onClick={() => {
+                if (waPhone) {
+                  const message = lang === "tr"
+                    ? `Merhaba, #${product.id} portföy numaralı ${product.name} ilanı hakkında bilgi almak istiyorum.`
+                    : `Hello, I would like to inquire about listing #${product.id} - ${product.name}.`;
+                  window.open(`https://wa.me/${waPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`, "_blank");
+                }
+              }}
+              className="flex-[1.5] py-3.5 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 shadow-lg"
+              style={{ backgroundColor: "#25D366" }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></svg>
+              {lang === "tr" ? "Hızlı İletişim" : "WhatsApp"}
+            </button>
+          </div>
+        )}
+      </motion.div>
+
+      {/* Lightbox / Fullscreen Image Viewer Modal Overlay */}
+      <AnimatePresence>
+        {isLightboxOpen && productImages.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 md:p-8"
+            onClick={() => setIsLightboxOpen(false)}
+          >
+            {/* Top Bar inside Lightbox */}
+            <div className="w-full flex justify-between items-center z-[210] pointer-events-none">
+              <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-xl text-white text-xs font-bold tracking-wider uppercase">
+                {product.name} ({activeImageIdx + 1} / {productImages.length})
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLightboxOpen(false)}
+                className="pointer-events-auto p-3 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-xl transition-all active:scale-95 border border-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Central Zoom Viewport */}
+            <div
+              className="relative flex-1 w-full max-w-6xl mx-auto flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Left Arrow Button */}
+              {productImages.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveImageIdx(
+                      (prev) =>
+                        (prev - 1 + productImages.length) %
+                        productImages.length,
+                    )
+                  }
+                  className="absolute left-2 md:left-8 w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-900/85 hover:bg-slate-900 hover:scale-105 border border-white/10 text-white flex items-center justify-center shadow-2xl transition-all z-[220]"
+                >
+                  <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
+                </button>
+              )}
+
+              {/* Large Active Image inside Enlarged View */}
+              <motion.img
+                key={activeImageIdx}
+                src={getAnnotatedImageUrl(productImages[activeImageIdx])}
+                alt={product.name}
+                className="max-w-full max-h-[70vh] md:max-h-[82vh] object-contain select-none shadow-2xl rounded-xl cursor-grab active:cursor-grabbing touch-pan-y"
+                referrerPolicy="no-referrer"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.8}
+                onDragEnd={(e, { offset, velocity }) => {
+                  const swipe = offset.x;
+                  if (swipe < -50) {
+                    setActiveImageIdx((prev) => (prev + 1) % productImages.length);
+                  } else if (swipe > 50) {
+                    setActiveImageIdx((prev) => (prev - 1 + productImages.length) % productImages.length);
+                  }
+                }}
+              />
+
+              {/* Right Arrow Button */}
+              {productImages.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveImageIdx(
+                      (prev) => (prev + 1) % productImages.length,
+                    )
+                  }
+                  className="absolute right-2 md:right-8 w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-900/85 hover:bg-slate-900 hover:scale-105 border border-white/10 text-white flex items-center justify-center shadow-2xl transition-all z-[220]"
+                >
+                  <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
+                </button>
+              )}
+            </div>
+
+            {/* Lightbox Bottom thumbnail scroller bar */}
+            {productImages.length > 1 && (
+              <div
+                className="w-full max-w-4xl mx-auto flex gap-3.5 justify-center py-4 overflow-x-auto no-scrollbar"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {productImages.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveImageIdx(idx)}
+                    className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImageIdx === idx ? "border-indigo-500 scale-110 shadow-lg" : "border-slate-800 hover:border-slate-600"}`}
+                  >
+                    <img src={getAnnotatedImageUrl(img)} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      </div>
+    </APIProvider>
+  );
+};

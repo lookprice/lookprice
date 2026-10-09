@@ -1,0 +1,390 @@
+# System & Branding Guidelines
+
+This file outlines strict engineering, performance, and naming directives that must be followed by all development agents modifying the **LookPrice/Otomotiv/Emlak/Horeca/Shop** workspace ecosystem.
+
+---
+
+## 0. KESİN SEKTÖREL İZOLASYON & E-MAĞAZA (PAZARYERİ) KURALLARI (Kara Kaplı Kitap En Üst Şartı)
+
+- **Sektörel İzolasyon ve E-Mağaza (Pazaryeri) Ayrımı**:
+  - **shopLP (Genel Ürün / Perakende Mağazaları)**: Fiziksel ürün, giyim, elektronik, tüketim malzemesi vb. satışı yapılan perakende mağazalarıdır. **E-Mağazalar (Pazaryeri Entegrasyonları: Hepsiburada, Trendyol, N11, Amazon, Pazarama vb.)**, pazar yeri stok/fiyat aktarımı ve Google Merchant SADECE VE SADECE `shopLP` mağazaları içindir.
+  - **horecaLP (Kafeterya, Restoran, Otel, Horeca)**: Yiyecek, içecek, menü, adisyon, masa ve mutfak operasyonları içindir. `horecaLP` sisteminde Hepsiburada, Trendyol Pazaryeri, N11, Amazon, Pazarama veya e-Mağaza entegrasyon panelleri/özellikleri BULUNAMAZ, GÖSTERİLEMEZ ve ERİŞİLEMEZ.
+    - **Otel Konsepti Pasif Olan horecaLP İzolasyonu (Hızlı POS Rapor Kuralı)**: Otel konsepti seçili olmayan (otel modülü pasif / `hotel_module_enabled: false`) horecaLP mağazalarında, Hızlı POS (Fast POS) "Gün Sonu & Dönem Satış Raporu" modülü içerisinde oda satışları, birleşik rapor ve restoran pos rapor tipi sekmeleri/seçicileri KESİNLİKLE GÖRÜNMEMELİDİR. Sistem operatöre yalnızca doğrudan standart Restoran/POS satış raporunu ve satılan ürün kalemlerini sunmalıdır. A4 PDF veya 80mm termal fiş rapor çıktılarında da otel oda satış tabloları kesinlikle yer alamaz.
+  - **Gayrimenkul (Emlak)** ve **Otomotiv (Motorlu Araçlar)**: İlan odaklı portföy mağazalarıdır. E-Mağaza (pazaryeri) entegrasyonları, fatura/e-irsaliye modülleri bu sistemlerde kesinlikle bulunamaz.
+  - Bir sektörel modüle veya genel ürün altyapısına yapılan müdahaleler, diğer modüllerin veri yapılarını, API uçlarını, ilan/form şablonlarını veya durum yönetimlerini kesinlikle etkilememelidir.
+  - **Mağaza Oluşturma ve Yönlendirme Kuralı**: Yeni mağaza oluşturulurken veya başlatılırken, seçilen sektör (`shopLP`, `horecaLP`, Emlak, Otomotiv) sistem tarafından belirlenen şablonlara ve tema ayarlarına (`branding.store_type`, `branding.page_layout_settings.sector`) hatasız bir şekilde işlenmelidir. Hiçbir e-mağaza / pazaryeri özelliği `horecaLP` veya gayrimenkul/otomotiv mağazalarına sızdırılamaz.
+
+---
+
+## 1. Strict Naming & Corporate Mapping Rules
+
+- **Display Names Over Slugs ("Firma Adı" over "Slug")**:
+  - Always resolve and display the human-readable company/store name (e.g., `branding?.store_name` or `branding?.name` or fallback titles like `"Seçkin Emlak"`, `"Seçkin Otomotiv"`, `"Seçkin Mağaza"`) rather than printing raw technical slugs (e.g., `urlSlug`, `activeSlug`, `branding?.slug`).
+  - Raw strings containing the term `"lookprice"` should have high-confidence fallback mappings to Turkish equivalents of premium service agencies (e.g. `"Premium VIP Emlak"`, `"Seçkin Mağaza"`, `"Seçkin Emlak"`) unless specifically requested.
+
+- **Dynamic Contract Templates & Legal Documents**:
+  - All contracts generated under `/src/components/AutoContractModal.tsx`, `/src/components/LegalContractModal.tsx` must accurately inherit settings-level objects:
+    - **Firma Adı**: Dynamically bind to `branding?.store_name` or `branding?.name`. Fallbacks must reflect premium names (`"Seçkin Emlak"` or `"Seçkin Otomotiv"`), never hardcoded platform indicators.
+    - **Detaylı İletişim & Telefon**: Strictly use `branding?.phone`, `branding?.whatsapp_number`, or other sectoral profile options configures in settings.
+    - **Suites & Services Footer**: Standardized to dynamically computed store identifiers.
+
+- **Zero Manual Post-Copy Correction ("Kopyala-Yapıştır Hazır")**:
+  - Social media share modals (Real Estate, Automotive, and Product variants) must generate fully complete and accurate caption texts.
+  - Clipboard copy operations (`getCaptionText`) must never output generic, static mockup data or dummy phone numbers (such as `+90 (548) 000 0000`) if any valid phone parameters exist in `branding`.
+  - All hashtags and brand labels should dynamically sanitize special characters from the exact customer store's name.
+
+---
+
+## 2. Startup & Performance Optimization Rules
+
+- **Bypass Flash Loadings & Blocking Splashes**:
+  - Never default initial check states (e.g. `isCheckingDomain`) to `true` if they can be evaluated synchronously based on initial client-side metadata (e.g., matching known local or system hostnames synchronously).
+  - Keeps initial loading visual transitions elegant and free of unnecessary layout shifts.
+
+- **Asset Chunks and Lazy Loading (code split)**:
+  - All lazy-loaded components in `/src/App.tsx` must be retained to maintain minimal initial asset sizes.
+  - Large external bundles (utility worksheets, PDF generators, charts) must be designated inside the Vite config under target vendor chunks to avoid bundle bloat.
+
+---
+
+## 5. Sektörel İzolasyon ve Ortak Yönetim Koruma Kuralları
+
+- **Sektörel İzolasyon (İlan Odaklı Portföy Mağazaları)**: Oto Galeri (Motorlu Araçlar) ve Emlak Portföy mağazalarında 'Alış/Satış Faturaları' ve 'e-İrsaliye' modülleri tamamen gizlenmelidir. Bu özellikler sadece genel perakende mağazaları için aktif tutulmalıdır. Bu kural tüm geliştiriciler için zorunludur.
+  - **Gayrimenkul (Emlak)**, **Otomotiv (Motorlu Araçlar)** ve **Genel Ürün Yönetimi** modülleri kod düzeyinde tamamen izole kalmalıdır.
+  - Bir sektörel modüle veya genel ürün alt yapısına yapılan müdahaleler, diğer modüllerin veri yapılarını, API uçlarını, ilan/form şablonlarını veya durum yönetimlerini kesinlikle etkilememelidir.
+  - Emlak ve Otomotiv modüllerine ait özel bileşenler (`SectorSpecs`, `RealEstateModal`, vb.) bağımsız yapıdadır ve ortak ürün tablolarına geçildiğinde bu sectoral alanlar bozulmadan korunmalıdır.
+  - **Mağaza Oluşturma Kuralı**: Yeni mağaza oluşturulurken veya başlatılırken, seçilen sektör (Emlak, Otomotiv, Genel Ürün) sistem tarafından belirlenen şablonlara ve tema ayarlarına (branding.store_type, branding.page_layout_settings.sector) hatasız bir şekilde işlenmelidir. Hiçbir koşulda varsayılan "genel ürün" şablonu sektörel bir mağazaya atanmamalıdır.
+  - **horecaLP Otel Pasif / Aktif Ayrımı ve Hızlı POS Rapor İzolasyonu**: Otel konsepti seçili olmayan (otel modülü pasif / `hotel_module_enabled: false`) cafe/restoran horecaLP mağazalarında, Hızlı POS (Fast POS) "Gün Sonu & Dönem Satış Raporu" içerisindeki oda satışları, birleşik rapor ve restoran pos rapor tipi sekmeleri/seçicileri KESİNLİKLE GÖRÜNMEMELİDİR. Yalnızca otel konsepti aktif (`hotel_module_enabled: true`) olan hibrit/otel işletmelerinde bu sekmeler açılabilir. Pasif mağazalarda sistem yalnızca saf Restoran/POS satış raporunu ve satılan ürün kalemlerini listelemelidir. A4 PDF ve 80mm fiş çıktılarında da otel oda satış tabloları kesinlikle yer alamaz.
+
+- **Ortak Özelliklerin/Hataların Korunması**:
+  - Ürün Yönetimi, Alış/Satış Faturaları, Cari Hesaplar ve Stok sistemleri üzerinde hata giderilirken ortak arayüzlerin veya statik doğrulamaların (örneğin fatura durumları, ödeme yöntemleri) sektörel filtrelerle (Emlak/Oto) çakışmaması sağlanmalıdır.
+  - Tüm geliştirici ajanlar, her turn öncesinde bu izolasyon kurallarını okumak ve modül sınırlarına harfiyen uymakla yükümlüdür.
+
+---
+
+## 4. E-Fatura, E-Arşiv ve Alış/Satış Görsel Kuralları
+
+- **Alış (Gelen/Purchase) Faturaları HTML Görüntüleme**:
+  - Alınan e-faturaların HTML görsellerine kesinlikle hiçbir ek açıklama, döviz kur bilgisi, TL cinsinden hesaplama tablosu ("Döviz Karşılıkları") ya da harici müdahale eklenmemelidir.
+  - Alış faturaları entegratörden geldiği orijinal formatta ve bilgilerle, "geldiği gibi" ham HTML olarak temiz bir şekilde ekrana yansıtılmalıdır.
+
+- **Satış (Giden/Sales) Faturaları ve Döviz/Kur Bilgileri**:
+  - Sadece dövizli satış faturalarında, açıklama kısmında döviz kuru bilgisi ile TL cinsinden hesaplama tablosu ("Döviz Karşılıkları (TRY)" başlığı altında Mal Hizmet Toplam Tutarı, Hesaplanan KDV ve Vergiler Dahil Toplam Tutar) HTML görseline entegre edilmelidir.
+
+- **Satış Faturalarında KDV Oran Gruplama Kuralı**:
+  - Çok kalemli (örn. 100 satır) satış faturalarında her kalem için ayrı ayrı KDV satırı oluşturulmamalıdır.
+  - Faturadaki tüm ürünlerin KDV oranları aynı ise, bu KDV tutarlarının toplamı tek bir "Hesaplanan Katma Değer Vergisi (%X)" satırında gösterilmelidir.
+  - Eğer faturada farklı yüzdelere sahip KDV oranları mevcut ise (örn. hem %10 hem %20), her bir benzersiz KDV oranı kendi içinde gruplanarak alt alta ayrı satırlar halinde (örn. biri %10, diğeri %20 toplamı olarak) gösterilmelidir.
+
+---
+
+## 6. Core Financial & Integration Stability (e-Fatura / e-Arşiv)
+
+- **High-Risk Module Designation**:
+  - Files `/routes/einvoice.ts`, `/src/services/backend/mysoftService.ts`, `/src/services/backend/gibSyncCron.ts` and related invoice processing logic are designated as **CRITICAL FINANCIAL MODULES**. Any modification here is considered HIGH-RISK.
+  - Development agents must exercise extreme caution. **Refactoring is strictly forbidden** without an explicit, verifiable test plan that mimics production API responses for each invoice type (Purchase, Sales, E-Archive).
+
+- **GİB & Mükellef Etiket (Alias) Canlılık ve Dayanıklılık Kuralı (Zero-Stale Alias Protocol)**:
+  - GİB e-Fatura / e-İrsaliye sistemi yaşayan, mükelleflerin posta kutusu etiketlerinin (`pkAlias`) zamanla güncellenebildiği dinamik bir ekosistemdir.
+  - `official_taxpayer_cache` önbelleğinde bir mükellefin `alias` değeri `NULL`, boş (`""`) veya varsayılan `urn:mail:defaultpk` ise bu önbellek verisi ASLA güvenilir kabul edilmemeli, **anında MySoft API (`checkTaxpayer`) üzerinden canlı GİB sorgusu yapılarak** güncel posta kutusu çekilmeli ve önbellek güncellenmelidir.
+  - Fatura UBL paketinde alıcı posta kutusu adresi (`pkAlias`) ile satıcı/gönderici adresi (`gbAlias`, `senderAlias`) kesinlikle birbirine karıştırılmamalı, satıcının kendi posta kutusu alıcıya atanmamalıdır.
+  - **Arka Plan Cron Senkronizasyonu (`/src/services/backend/gibSyncCron.ts`)**: Sunucu arka planda periyodik olarak (her 30 dakikada bir) eski/geçersiz önbellek kayıtlarını onarmalı ve kuyrukta bekleyen faturaların GİB kabul/red durumlarını MySoft üzerinden tazelemelidir.
+
+- **Defensive Integration Policy**:
+  - All external API integrations (e.g., HTML invoice retrieval) **MUST** implement robust defensive programming.
+  - Unexpected or missing metadata (e.g., `e_document_type`) **MUST NOT** trigger runtime failures. Implement safe, documented fallbacks (e.g., defaulting to 'E-ARSIV') to ensure continuity of service.
+  - Logging **MUST** be verbose for HTML retrieval steps to allow immediate debugging in production without code modification.
+
+- **Mandatory Regression Verification**:
+  - Any change, no matter how small, affecting these modules **MUST** be verified by the developer agent by triggering the affected functionality (e.g., attempting to fetch a known invoice HTML or taxpayer check) immediately after the change, before completing the turn. 
+  - If integration tests fail, the change MUST be rolled back immediately.
+
+---
+
+## 7. Operator UX Continuity & Persistence Rules (Sayfa Yenileme / Tab Koruma)
+
+- **Operator Workflow Preservation (Kaldığı Yerden Devam Etme)**:
+  - Sayfa yenilendiğinde (`F5` veya `Shift+F5`) ya da oturum tazelendiğinde operatörün çalıştığı aktif sekme (örn. `products`, `fast-pos`, `sales_invoices`, `settings`), alt sekmeler ve kategori/filtre durumları sıfırlanmamalıdır.
+  - Aktif sekme `activeTab` ve kritik filtreler hem `localStorage` (`storeDashboardTab_${storeId}`, `productsTabCategory`, vb.) hem de URL arama parametreleri (`?tab=...`) ile senkronize tutulmalıdır.
+  
+---
+
+## 8. Stability & Regression Protocol (Anti-Regression)
+- **Module Identification**: Before editing any "Critical Module" (e.g., Poster System, CRM, Invoice logic, e-Waybill), explicitly identify it as such in the chain-of-thought.
+
+## 9. Real Estate Showcase Layout & A4 Poster Design Specifications
+
+- **Logo Size and Sticky Header Guard**:
+  - The sticky header in `ModernRealEstateLayout.tsx` MUST retain a compact height structure (e.g. `py-1 md:py-1.5`) while supporting an oversized logo visibility. The logo image should use negative margins (e.g. `-my-8 md:-my-10 h-28 md:h-36`) to visually overlap elegant container boundaries without expanding the physical layout grid's vertical footprint.
+
+- **A4 Portrait Real Estate Poster Layout**:
+  - The printed/PDF poster designed under `RealEstateTab.tsx` (the `handlePrintProperty` print window HTML generation) is formatted strictly for professional physical standard A4 dimensions (`210mm x 297mm`, inside a `277mm` double border with `8mm` inner padding).
+  - You are STRICTLY forbidden from using dynamically loaded external utility scripts (like Tailwind CDN) inside the generated iframe document, as they can fail, freeze page loads, or alter styling during print rendering.
+  - Rely purely on explicit inline or embedded document CSS classes to control pixel-perfect layout nodes:
+    - **Header**: Flex-based brand title & date subtitle block (exactly `20mm` height).
+    - **Title Area**: Intent badge, main property title, and region tag pills (exactly `22mm` height).
+    - **Property Image**: Perfect `108mm` height bounded cover canvas with absolute embedded pricing overlay badge.
+    - **Bento Specs**: Exactly a 4-column flat grid with `22mm` fixed height structure displaying Rooms, Area, Heating, and Deed types.
+    - **Description**: Sided highlight card exactly `26mm` height limiting the description content to 3-line clamp safely.
+    - **Agent Footer**: Fully resolved contact credentials with integrated Lookprice platform guarantee indicators (exactly `22mm` height).
+
+- **Interactive Full-Screen Map (Map Mode) & Advanced Filtering Safeguards**:
+  - On the full-screen interactive discovery layout in `IDXSplitMapView.tsx`, clicking any marker MUST toggle high-contrast visual focus styling (with scale zoom animations) and trigger a complete, fully featured floating info-popup containing a rich product cover image, formatted price tags, and immediate detail navigation links.
+  - **Category Classification Guard (`getNormalizedCategory`)**: Under no circumstances should the normalization logic be modified or bypassed. Residential indicators (e.g., `hasHouseIndicator` detecting keyword variations like "müstakil", "villa", "daire", "ev", "1+1", "2+1") MUST always take precedence over generic sector tags (e.g., land/"arsa" indicators) to prevent villas/houses from being misclassified as raw land.
+  - **Legibility & Theme Continuity**: To preserve optimal contrast and prevent invisible text in light/dark mode transitions, all containers, search drawers, filter selections, and headers MUST adhere to adaptive utility variables (e.g., `bg-white dark:bg-slate-900`, `text-slate-900 dark:text-slate-100`, and `border-slate-200 dark:border-slate-800`). No hardcoded dark-only colors (`bg-slate-950`, etc.) are allowed on core panels or interactive controls unless explicitly styled for high-contrast light mode counterparts.
+  - **Absolute Filter Isolation**: The filters inside the advanced search drawer—including tapu türü, imar durumu (zoning), KAKS, altyapı, devir/kiracı durumu, oda sayısı, eşya durumu, trafo bedeli, and KDV—are locked. No future agent is authorized to simplify, alter the filtering logic, or remove these specialized KKTC real estate parameters from the codebase.
+
+- **Eşgüdümlü İlan ve Web Filtre Standardı**: İlan düzenle içeriğinde yapılan her bir geliştirme, filtre, web sitesindeki ilgili alana tam bir eşgüdüm ile yansıtılacak!
+
+- **Fiyat Formatlama ve Görünürlük Standartları (Binlik Ayraç Kuralı)**: Tüm ilan girme/düzenleme formlarında (ör. `RealEstateModal.tsx`), fiyat giriş alanları optimum genişlikte (fiyat ve para birimi sıkışmayacak şekilde) tasarlanmalı ve fiyat değerleri hem giriş esnasında hem de gösterimde binlik ayraç (ör. `850.000` veya `1.250.000`) formatıyla sunulmalıdır. Fiyat alanı dar sütunlara sıkıştırılamaz.
+
+- **Test Path Documentation**: For every critical module, there must be a known manual test path or verification script.
+- **Pre-Post Verification**:
+    - **PRE**: Execute the manual test path to establish a baseline.
+    - **POST**: Execute the manual test path to verify no regression.
+- **Mandatory Reporting**: Every turn summary MUST explicitly state: "Regression check for [Module Name] passed."
+- **Failure Policy**: If regression tests fail post-change, the modification MUST be immediately rolled back.
+
+---
+
+## 10. TCMB Döviz Kurları ve Çapraz Kur (Forex Buying / Önceki İş Günü) Kuralı
+
+- **Döviz Alış (ForexBuying) Esası**:
+  - Faturalarda, cari hesaplarda ve çapraz kur hesaplamalarında TCMB tarafından deklare edilen **"Döviz Alış" (`ForexBuying`)** kuru kesin kural olarak esas alınmalıdır. Satış veya efektif kurları fatura değerlemesinde kullanılmamalıdır.
+- **Önceki İş Günü / Tatil Günü Kuralı**:
+  - TCMB kurları her iş günü öğleden sonra (~15:30 - 16:00) açıklanır. Örneğin 24.08.2026 Pazartesi günü için geçerli olan kur, bir önceki iş günü olan 21.08.2026 Cuma tarihli TCMB bülteninde yayınlanan kurlardır. Hafta sonu ve resmi tatillerde de bir önceki son iş gününün kurları geçerlidir.
+- **Otomatik Güncelleme (Cron) Garantisi**:
+  - Mağazaların `Ayarlar > Mağaza ayarları > Para Birimi & Dil Yerelleştirme Ayarları` altında yer alan `currency_rates` alanları, arka plandaki cron job (`syncTCMBRates`) vasıtasıyla düzenli olarak TCMB `today.xml` verisinden güncellenmeli, her mağazanın ana para birimine (TRY vb.) göre çapraz kurlar güncel ve doğru tarihli tutulmalıdır.
+
+---
+
+## 11. Renk Kontrastı ve Zıtlık Standardı (Koyu/Açık Arka Plan Kuralı)
+
+- **Zıtlık ve Okunabilirlik Kuralı**:
+  - Herhangi bir bileşen, modal başlığı, kart veya panelde **koyu renk bir arka plan** (`bg-slate-900`, `bg-slate-950`, `bg-blue-900`, vb.) tercih ediliyorsa, üzerindeki tüm yazılar, rakamlar ve ikonlar muhakkak **ters renk, yani açık renk (`text-white`, `text-slate-100`, `text-slate-200`)** olarak set edilmelidir. Hem arka planın hem de metin renginin koyu olması durumunda metinler okunmaz hale gelir (Kritik UI hatası).
+  - Benzer şekilde, **açık renk bir arka plan** (`bg-white`, `bg-slate-50`, vb.) üzerinde de yazıların ve rakamların **koyu renkli (`text-slate-900`, `text-slate-950`)** seçilmesi şarttır.
+
+---
+
+## 12. Modül Başlık Tekilliği ve Çift Başlık Yasağı (Single Module Header Rule)
+
+- **Modül ve Sekme Başlıklarının Tekilleştirilmesi**:
+  - Panellerde (`StoreDashboard`, `SuperAdmin`, `StaffDashboard`) ve tüm sektörlerde (shopLP, horecaLP, Gayrimenkul, Otomotiv) modül başlıkları KESİNLİKLE ÇİFTLENEMEZ / TEKRARLANAMAZ.
+  - Ana düzen sarmalayıcısında (`StoreDashboard/index.tsx`) modülün üzerine fazladan genel bir başlık basılıp altında ilgili modülün kendi başlığının tekrar çıkması YASAKTIR. Her modül kendi başlığını, ikonunu, filtrelerini ve aksiyon butonlarını tekil, entegre ve temiz bir başlık/araç çubuğu halinde yönetmelidir.
+  - Yeni bir modül veya sekme eklenirken ya da mevcut bir sekme düzenlenirken, ekran üzerinde aynı başlığın alt alta iki kez görünmediği titizlikle doğrulanmalıdır.
+
+---
+
+## 13. Karakter Sınırı Belli Alanlar (Kompakt Input Kuralı) ve Yüksek Bilgi Yoğunluğu (%80 Zoom Eşdeğeri Minimalist Operatör Standardı)
+
+- **Karakter Sınırı Belli Alanların Kompakt Tasarım Kuralı (Bounded-Width Input Protocol)**:
+  - Maksimum karakter sayısı önceden belli veya sınırlı olan veri alanları (barkod, para birimi, KDV oranı, stok miktarı, birim, iskonto/komisyon vb.) KESİNLİKLE tüm satırı, yarım satırı (%50) veya orantısız geniş grid sütunlarını işgal edemez.
+  - **Barkod (EAN / Barcode)**: Max 13-18 karakter. Asla %50 veya %100 genişlik alamaz; optimum `max-w-[190px]` (veya `w-40 sm:w-48`) olarak sınırlandırılmalıdır.
+  - **Para Birimi (Currency)**: Max 3-5 karakter (`TRY`, `USD`, `EUR`, `GBP`, `₺`). Asla tek başına bağımsız devasa bir kolon (%33, %50 vb.) oluşturamaz; fiyat alanına bitişik entegre grup (addon) veya kompakt `w-24` seçici olarak konumlandırılmalıdır.
+  - **KDV Oranı (VAT Rate)**: Max 2-4 karakter (`%20`, `%10`, `%1`, `%0`). Asla geniş sütun kaplayamaz; `w-20` ila `w-24` arası kompakt genişlikte olmalıdır.
+  - **Stok / Miktar (Quantity)**: Max 4-6 hane. Kompakt `w-20` ila `w-28` arası genişlikte olmalıdır.
+  - **Birim (Unit)**: Max 4-8 karakter (`Adet`, `Kg`, `Lt`, `Porsiyon`). Kompakt `w-24` ila `w-32` genişlikte olmalıdır.
+  - **İskonto / Komisyon (%)**: Max 3-5 karakter. Kompakt `w-20` ila `w-24` genişlikte olmalıdır.
+  - Formlarda bu alanlar, ürün adı/açıklama gibi esnek metin alanları ile aynı satırda mantıksal olarak gruplanarak dikey alan israfı tamamen önlenmelidir.
+
+- **Minimalist ve Yüksek Bilgi Yoğunluğu Standardı (%80 Zoom Eşdeğeri Görünüm - "Web Siteleri Hariç")**:
+  - Dışa açık müşteri web siteleri / vitrinler HARİÇ olmak üzere; tüm operatör panelleri (`StoreDashboard`, `SuperAdmin`, `StaffDashboard`, `FastPosTab`), modallar ve dijital menüler (`DigitalMenu`), operatörün sağa-sola, yukarı-aşağı kaydırma yapmasını en aza indiren yüksek bilgi yoğunluklu (high-density) yapıda olmalıdır.
+  - Masaüstü görünümde operatör panelleri `%80 - %88 zoom` perspektifinde kompakt çalışmalı (`operator-compact-layout`), gereksiz devasa `px-6 py-5` gibi tablo boşlukları yerine `px-3 py-2` veya `px-3.5 py-2.5` padding kullanılmalıdır.
+  - Kartlar, filtre araç çubukları ve başlıklar dikeyde kompakt tutulmalı; tek bir ekranda daha fazla satır ve fonksiyonun görünür olması sağlanmalıdır.
+
+---
+
+## 14. Çapraz Alan ve Çoklu Modül Proaktif Düzeltme Standardı (Horizontal Resolution Protocol)
+
+- **Proaktif Çapraz Tarama ve Tüm Kardeş Modüllere Uygulama Şartı**:
+  - Bir hatanın veya sorunun tespiti ve çözümü sırasında (örneğin pazar yeri API anahtarlarının ve kimlik bilgilerinin kaydedilememesi, tarayıcı otomatik doldurma / autofill müdahalesi, veri kaybı veya form senkronizasyon hatalarında), tespit edilen kök neden SADECE bildirilen tek bir alan veya tek bir pazar yeri (örn. Hepsiburada) ile sınırlı bırakılamaz.
+  - Aynı veri yapısına, arayüze, form giriş mantığına ve API entegrasyonuna sahip TÜM kardeş modüller (**Trendyol, N11, Amazon TR, Pazarama, Hepsiburada, Çiçeksepeti vb.**) kullanıcı ek bir komut vermeden PROAKTİF OLARAK taranmalı ve tespit edilen düzeltmeler ISTENMEDEN TÜM KARDES ALANLARA EŞZAMANLI OLARAK UYGULANMALIDIR.
+  - Tüm pazar yeri giriş alanlarında tarayıcı şifre/e-posta otomatik doldurma (autofill) müdahalelerine karşı koruma (`autoComplete="new-password"`, `data-lpignore="true"`, benzersiz name nitelikleri, `autoComplete="off"`) ve hem istemci (React state) hem sunucu (database merger) seviyesinde koruyucu veri birleştirme (defensive merge) standart kılınmıştır.
+
+---
+
+## 15. Açılır Web Ekranları ve Modalların Sayfaya Sığma Standardı (Viewport-Fit Modal Protocol)
+
+- **Açılır Pencereler, Ödeme ve Detay Ekranlarında Kompaktlık Kuralı**:
+  - Web vitrinleri ve sistem genelindeki tüm açılır pencereler (Ödeme/Checkout modalı, Ürün/Kitap İnceleme modalı, Sepet çekmecesi, İletişim modalları vb.) gereksiz devasa paddingler, aşırı büyük boşluklar veya devasa input yükseklikleri ile ekranı kaplayıp taşmamalıdır.
+  - Modallar standart ekranlarda (laptop, masaüstü ve mobil) dikeyde gereksiz kaydırma (scroll) oluşturmadan tek bir bakışta net, dengeli ve estetik bir şekilde görüntülenecek şekilde tasarlanmalıdır.
+  - Başlıklar, sipariş özetleri ve form blokları yüksek bilgi yoğunluklu, dengeli ve kompakt aralıklarla yerleştirilerek kullanıcıya sayfayı terk etmeden hızlı işlem tamamlama imkanı sunmalıdır.
+
+---
+
+## 16. TCMB Otomatik Kur Güncellemesi, Canlı Envanter ve Pazaryeri Fiyat Senkronizasyonu Protokolü
+
+- **Otomatik ve Unutulmaz TCMB Kur Güncellemesi (Daily Multi-Sync Engine)**:
+  - Döviz kurlarının güncellenmesi ASLA sadece operatörün manuel işlemine veya inisiyatifine bırakılamaz.
+  - Sistem arka planında çalışan zamanlanmış görev (`syncTCMBRates` cron), her iş günü TCMB bülten saatlerinde (`09:30`, `12:00`, `15:45` resmi açıklama ve `18:00` kapanış) ve sunucu her ayağa kalktığında otomatik olarak `https://www.tcmb.gov.tr/kurlar/today.xml` bülteninden en güncel **Döviz Alış (`ForexBuying`)** kurlarını çekerek tüm mağazaların `currency_rates` tablosunu günceller.
+
+- **Kur Değişikliğinde Pazaryeri Satış Fiyatlarının Otomatik Revizyonu (Automatic Price Re-calculation)**:
+  - TCMB kurları güncellendiği anda (ister cron vasıtasıyla otomatik, ister panelden tek tıkla manuel yapılsın), dövizli (USD, EUR, GBP) ürünlerin veya pazaryerlerinde (Hepsiburada, Trendyol, N11, Amazon TR, Pazarama) aktif olan tüm ürünlerin TL karşılığı satış fiyatları anında yeniden hesaplanır.
+  - Hesaplanan güncel TL fiyatları, kategori bazlı komisyon ve kâr marjları korunarak derhal pazaryeri API'lerine (örneğin Hepsiburada `updatePriceAndStock`) toplu envanter güncellemesi olarak iletilir. Böylece döviz kuru değiştiğinde e-pazaryerlerinde eski/zararına fiyattan satış yapılma riski %100 önlenir.
+
+- **Canlı Envanter ve Faturaların Canlı Organizma Prensibi**:
+  - Alış faturaları (mal alımı) ve satış faturaları sisteme işlendiğinde veya düzenlendiğinde, envanter (`stock_quantity`) ve stok hareketleri (`stock_movements`) canlı bir organizma gibi anında tepki verir.
+  - Pazaryerlerinden (Hepsiburada, Trendyol, vb.) gelen siparişler yüksek frekanslı cron (`*/5 * * * *`) ile çekildiğinde; sipariş satırındaki barkod, merchantSku, hbSku veya ürün kodları ile yerel ürün anında eşleştirilerek stok eksiksiz düşülür, satış faturası kaydı açılır ve diğer kanallarda oversell yaşanmaması için güncel stok derhal pazaryerlerine yansıtılır.
+
+---
+
+## 17. Ürün Detay & İnceleme Ekranlarında Ultra-Kompakt Tek Sayfa ve Yan Yana Aksiyon Standardı (Apple / Mercedes / Google UI Protocol)
+
+- **Kaydırmasız Tek Görünüm ve Kompakt Sağ Sütun Prensibi ("Sayfayı Aşağı İndir-Kaldır Yapma Zulmüne Son")**:
+  - Ürün detay modalları (`ProductDetailModal`) ve benzeri inceleme ekranlarında sağ kolon dikeyde gereksiz uzayıp kullanıcıyı aşağı-yukarı kaydırma yapmaya zorlamamalıdır.
+  - Başlıklar, fiyatlar, rozetler ve seçenekler (varyantlar) mikro ölçekli, zarif ve yüksek bilgi yoğunluklu (Apple/Google tasarım dili) tutulmalıdır.
+- **Şube Listesi & Satın Al / Sepete Ekle Butonu Yan Yana Konumlandırma**:
+  - Şube seçim alanı ile "Sepete Ekle / Satın Al / WhatsApp" butonları ASLA alt alta devasa bloklar halinde yer alamaz.
+  - Şube listesi modalın en altındaki sabit (sticky/docked) eylem çubuğunda; eğer 1 şube varsa kompakt bir rozet/hap (`MapPin` + Şube Adı + Stok Durumu), 2 veya daha fazla şube varsa kompakt bir açılır menü (`<select>`) olarak "Sepete Ekle" butonunun **hemen solunda, aynı satırda yan yana** konumlandırılmalıdır.
+  - Satın alma / sepete ekleme butonu her zaman ekranın altında sabit ve tek bakışta görünür olmalı; kullanıcı hiçbir koşulda şube seçmek veya butona tıklamak için sayfayı kaydırmak zorunda kalmamalıdır.
+  - Bu kural sistemdeki tüm benzer detay, önizleme ve işlem modallarında zorunlu olarak uygulanır.
+
+---
+
+## 18. İşlem Sonrası Ekran ve Durum Koruma Standardı (Same-View Operation Protocol)
+
+- **İşlem Yapılan Ekran/Modalda Kalma Zorunluluğu**:
+  - Panellerde, modallarda (ör. Pazaryeri İlanları & Ürün Takibi `MarketplaceListingsModal`), tablolarda ve formlarda gerçekleştirilen herhangi bir işlem (buton/ikon tıklamaları: satışa açma, yayından kaldırma, fiyat/stok güncelleme, sipariş çekme, eşleştirme, ürün düzenleme, filtreleme vb.) sonrasında kullanıcı ASLA başka bir sayfaya yönlendirilmemeli ve açık olan pencere/modal kapatılmamalıdır.
+  - Kullanıcı işlem yaptığı aktif sekmede, filtrede, modalda ve sayfada kalmaya devam etmelidir. Veriler arka planda tazelemeli (`onRefresh`), ancak kullanıcının mevcut çalışma ortamı (açık modal, seçili pazaryeri sekmesi `selectedMarketplace`, arama terimi, filtreler ve sayfa konumu) aynen korunmalıdır.
+  - İkon komutlarına tıklanarak açılan alt modallar (ör. ürün düzenleme modalı) kapandığında, operatör doğrudan işlem başlattığı üst modal/ekrana geri dönmeli ve kalınan yer korunmalıdır.
+
+---
+
+## 19. Tablo ve Liste Aksiyonlarında İkon-Odaklı Kompakt Buton Standardı (Icon-Only Action Button Protocol)
+
+- **Tablo Satırlarında ve Kompakt İşlem Hücrelerinde Metin Buton Yasağı**:
+  - Tablo satırları, veri listeleri ve kompakt operatör arayüzlerinde (özellikle Pazaryeri İlan Takibi `MarketplaceListingsModal`, Ürün Tablosu, Fatura Satırları vb.) 'Durum Sorgula', 'Onay Kontrol', 'Canlı Denetle' gibi üzeri uzun yazılı kutucuklar/butonlar KESİNLİKLE KULLANILAMAZ.
+  - Bu tür yazılı butonlar yatay işlem alanını daraltır, tablo hücrelerini patlatır, dar ekranlarda taşmaya yol açar ve gelecekte eklenecek yeni fonksiyon/ikonlar için yer bırakmaz.
+  - Bunun yerine daima **yalın, net, yüksek kontrastlı mikro İKON butonlar** (örn. `<RefreshCw className="w-3.5 h-3.5" />`, `<Clock className="w-3.5 h-3.5" />`, `<ExternalLink className="w-3.5 h-3.5" />`) kullanılmalıdır.
+  - Butonun ne işe yaradığı mutlaka zengin ve açıklayıcı `title` (tooltip) niteliğiyle sunulmalı; buton kare/kompakt yapıda (`p-1.5 rounded-lg flex items-center justify-center`) tutularak operasyonel alan maksimum verimlilikle korunmalıdır.
+
+- **Gereksiz ve Çiftlenen Dış Navigasyon İkonu Yasağı (Redundant Icon Ban)**:
+  - Modalların veya sayfaların üst araç çubuğunda ilgili pazar yerinin satıcı merkezine (Merchant Center / Seller Central) doğrudan erişim butonları/linkleri zaten yer almaktadır.
+  - Her bir tablo satırına veya ürün hücresine genel satıcı panelini açan fazlalık ikonlar (örn. mağaza/store ikonu) KESİNLİKLE EKLENEMEZ. Satır içi butonlar yalnızca o ilana/satıra özel canlı aksiyonlara (doğrudan aktif ilanı yeni sekmede açma, onay durumu sorgulama, satışa açma/kapatma, fiyat/stok basma) ayrılmalıdır.
+
+---
+
+## 20. Kitapçılık / Sahaf (Bookstore) Modülünde Rozet ve Etiket Senkronizasyonu ile Envanter Eşgüdümü Standardı (Bookstore Badge & Stock Alignment Protocol)
+
+- **Rozet/Etiket (Labels) ve sector_data.curated_badges Tam Eşgüdümü**:
+  - Kitapçılık modülünde, ürünün üst düzey `labels` listesi (ör. Çok Satan, Editörün Seçimi, Yeni Çıkanlar, Ödüllü vb.) ile `sector_data.curated_badges` dizisi, ayrıca `is_bestseller` (Çok Satan) ve `sector_data.is_weekly_pick` (Haftanın Eseri/Manşet) alanları her kayıtta ve güncellemede mutlaka **aynı anda senkronize edilerek** tek vücut halinde kaydedilmelidir.
+  - Form üzerinden gelen `labels` verisi, `useProductActions.ts` içerisinde otomatik olarak taranmalı; `curated_badges` içerisine yazılmalı ve bu alanların durumu veri tabanına gitmeden önce mükemmel bir şekilde eşitlenmelidir. Bu sayede, rozetlerin/etiketlerin aktif/pasif yapıldığında kaydının tutmaması veya eski değerlerin `sector_data` içinden geri gelip rozeti tekrar canlandırması (stale merge hatası) tamamen önlenmiştir.
+  
+- **Vitrinde Canlı Stok out (Tükendi) ve Sepet Engeli Görsel Standardı**:
+  - Dışa açık kitap konseptli web sitelerinde (ör. Netflix tarzı yatay kaydırmalı ana sayfa vitrini), bir eserin toplam stok miktarı `0` veya daha az ise:
+    - Kitap kartının ön yüzünde (`BookCardNetflix.tsx`) yarı saydam, estetik ve kırmızı renkli bir **"TÜKENDİ" (OUT OF STOCK)** overlay/banner'ı gösterilmeli, kullanıcı anında bilgilendirilmelidir.
+    - Hızlı sipariş / sepete ekleme butonu anında devre dışı bırakılmalı, rengi soluklaştırılmalı ve ikonu sepet yerine paket/envanter simgesine (`Package`) dönüşmelidir. Bu sayede web sitesi ve fiziksel/dijital mağaza envanteri betondan daha sağlam bir eşgüdümle çalışır.
+
+---
+
+## 21. Hızlı POS (Fast POS) Performans ve Raporlama Standartları (Fast POS Performance & Reporting Protocol)
+
+- **Akıllı Hibrit POS Performans Modeli (Smart Query Optimization)**:
+  - POS ekranında binlerce ürünün (özellikle kitapçı/sahaf gibi yoğun envanterlerde) tek seferde istemciye indirilip tarayıcıyı dondurması KESİNLİKLE YASAKTIR.
+  - İlk yüklemede ve boş aramalarda veri tabanından en taze ve güncel **150 ürün** (`limit=150`) çekilerek grid anında listelenir.
+  - Arama çubuğuna yazıldığında veya barkod/ISBN okutulduğunda, veri tabanına sunucu tarafında (`server-side`) dinamik ve indeksli sorgu atılarak anında en alakalı **150 eşleşen ürün** listelenir. Bu sayede POS yüklenme ve çalışma hızı 100 katına çıkartılmıştır.
+
+- **Sektörel Raporlama Eşgüdümü (Universal POS Reporting)**:
+  - "Gün Sonu & Dönem Satış Raporu" (Z-Raporu) ve "Yazıcı Tanısı" özellikleri, Horeca (kafe/restoran) sektörüyle sınırlı kalmayıp genel perakende (`shopLP` / kitapçı) mağazaları için de **İşlemler** menüsü altında aktif ve erişilebilir olmalıdır.
+  - Masa QR kodları ve Happy Hour gibi restorana özel araçlar ise sektörel izolasyon kuralı gereği sadece `isCafeRestaurant` koşulu aktif olduğunda gösterilmeye devam etmelidir.
+
+---
+
+## 22. Kitapçılık Vitrini (Bookstore Showcase) Hız ve Performans Standartları (Bookstore Showcase Speed Optimization)
+
+- **Yatay Şerit (Netflix Row) Maksimum Görünürlük Sınırı**:
+  - Netflix tarzı yatay kaydırmalı kitap satırlarında (`NetflixBookRow.tsx`), yüzlerce kitabın tek seferde DOM'a render edilerek tarayıcıyı yormasını önlemek için ürün listesi üst sınırlandırılmalıdır.
+  - Her bir yatay şerit, gelen ürün envanterini en fazla **35 ürün** (`slice(0, 35)`) ile sınırlar. Kullanıcının zaten yüzlerce kitabı yatayda kaydırmayacağı gerçeğiyle, ilk yükleme hızı ve sayfa akıcılığı maksimuma çıkarılmıştır.
+
+- **Katalog Sayfası Akıllı Sayfalama (Load More - Daha Fazla Göster)**:
+  - Kitap Koleksiyonu ve arama sonuçlarında (`BookstoreNetflixLayout.tsx`), tüm filtre uyuşumlu ürünleri tek seferde ekrana basmak yerine aşamalı render kullanılır.
+  - Varsayılan başlangıç listeleme boyutu **30** kitaptır. Sayfa altında, geriye kalan ürünler için şık, marka renginde bir **"Daha Fazla Kitap Göster" (Load More Books)** butonu sunulur. Filtreler her değiştiğinde bu sayaç sıfırlanır. Bu sayede 10.000 kitaplık bir kütüphanede dahi sayfa sıfır gecikmeyle anında render edilir.
+
+---
+
+## 23. Yönetici Paneli Ürün Listesi Performans Standartları (Operator Products Tab Performance Protocol)
+
+- **Gecikmesiz Arama Girişi (Debounced Search Input)**:
+  - Ürün listesindeki arama çubuğunda (`ProductsTab.tsx`), kullanıcının her tuşa basışında binlerce ürünün anında yeniden filtrelenerek arayüzü dondurması (jank) KESİNLİKLE YASAKTIR.
+  - Arama girişine yazıldığında, tuş vuruşları anında yerel bir duruma (`localSearch`) yansıtılır ve tamamen pürüzsüz yazım sağlanır. Gerçek ürün filtresi ise **250ms debouncing** gecikmesiyle tetiklenir. Bu sayede yazma esnasındaki jank tamamen önlenmiştir.
+
+- **Akıllı Satır Memoizasyonu (Memoized Product Rows)**:
+  - Yönetim panelindeki ürün listesi satırları (`ProductTableRow.tsx`), gereksiz React render operasyonlarından kaçınmak için `React.memo` ile sarmalanır.
+  - Sadece satırdaki ürünün güncellenme tarihi, fiyatı, stok durumu, pazar yeri aktiflikleri veya satırın seçilme/vurgulanma durumu değiştiğinde satır yeniden render edilir. Aksi takdirde, arama çubuğuna yazıldığında veya alakasız bir satır seçildiğinde diğer tüm satırlar kendilerini tekrar oluşturmaz. Bu sayede binlerce ürünün olduğu panellerde işlem hızı 50 kat artırılmıştır.
+
+---
+
+## 24. Şube ve Merkez Stok İzolasyonu ile Kesin Gerçek Envanter Standardı (Branch Stock Isolation Protocol)
+
+- **Sahte Stok ve Mock Fallback Kesin Yasağı (Zero-Mock Stock Fallback)**:
+  - Dışa açık web sitelerinde (`BookCardNetflix.tsx`, `ProductDetailModal.tsx`, `ShopRetailProductCard.tsx` vb.) ve yönetim panellerinde şube stokları listelenirken, bir şubenin stoku `0` veya tanımsız ise, ana merkezin veya genel ürünün stoku (`totalProductStock`) **ASLA VE KESİNLİKLE ŞUBEYE KOPYALANAMAZ VEYA VARSAYILAN OLARAK ATANAMAZ**.
+  - `(totalProductStock > 0 ? totalProductStock : 0)` gibi operatörü ve müşteriyi yanıltan, olmayan envanteri varmış gibi gösteren sahte fallback mantıkları KESİNLİKLE YASAKTIR.
+  - Her şube sadece ve sadece veri tabanındaki kendi gerçek stoku (`Number(branch.stock ?? branch.quantity ?? 0)`) ile listelenmelidir.
+  - Eğer bir şubede o üründen 0 adet varsa veya o şubeye tanımlı envanter kaydı yoksa, o şubenin karşısında kesin olarak **kırmızı renkte "Tükendi" / 0 Adet** ibaresi yer almalıdır. Sadece stoku `> 0` olan şubeler yeşil renkte gerçek adetleriyle gösterilmelidir.
+
+- **Merkez - Şube Envanter Ayrımı & Veri Bütünlüğü**:
+  - Çok şubeli mağaza yapılarında (Parent Store - Child Branches), ana merkezin stoku ile bağlı şubelerin stokları tamamen bağımsız envanter kayıtlarıdır.
+  - Şubeler arası stok transferi tamamlanmadan veya doğrudan şube envanterine mal girişi yapılmadan merkezdeki stok hiçbir koşulda şubeye yansıtılamaz.
+  - Backend `/api/public/store/:slug/products/:barcode/stock` uç noktası `COALESCE(p.stock_quantity, 0)` değerini döndürür; istemci arayüzleri bu değeri doğrudan tüketmeli, arayüz seviyesinde yapay stok uydurma işlemlerine asla izin verilmemelidir.
+
+---
+
+## 25. İlkel OS/Browser Emojileri Yerine Yeni Nesil Vektörel İkon Standardı ("İkonlar Çağ Dışı Olmayacak" Anayasa Kuralı)
+
+- **İlkel OS/Browser Emojili Başlık ve Buton Yasağı (Anti-Antik İkon Standardı)**:
+  - Sistem genelinde (web siteleri, vitrinler, yönetim panelleri, filtre menüleri, bölüm başlıkları, butonlar, modallar vb.) eski tip antik OS metin emojileri (örn. `⭐`, `🔥`, `🏷️`, `✨`, `📦`, `🛍️`, `🌐`, `🧡`, `🔴`) ikon veya başlık öneki olarak KESİNLİKLE KULLANILAMAZ.
+  - "İkonlar çağ dışı olmayacak" kuralı gereğince; tüm başlıklar, menüler, etiketler ve seçim elemanları daima **yeni nesil vektörel SVG ikonlar (Lucide React vektör ikonları: `<Sparkles />`, `<Flame />`, `<Tag />`, `<Star />`, `<Package />`, vb.)** ile yüksek çözünürlüklü, modern ve uyarlanabilir (adaptive dark/light) yapıda sunulmalıdır.
+  - HTML'in yerel `<select>` ve `<option>` etiketlerinde veya bölüm başlıklarında ham emoji metin önekleri yer alamaz; tüm ikonlar bileşen seviyesinde dinamik SVG vektör elemanı olarak giydirilmelidir.
+
+- **Kesin Pazaryeri Fatura Filtreleme Standardı (Strict Marketplace Filtering Protocol)**:
+  - Fatura listesi filtrelemelerinde (`matchesMarketplaceFilter`), sadece metin içinde geçen genel kelimeler (örn. notlar içinde "Amazon TR" geçmesi) üzerinden geniş arama KULLANILAMAZ.
+  - Pazaryeri satış faturaları yalnızca **pazaryeri özel fatura numarası önekleri (`AMZ-`, `TY-`, `HB-`, `N11-`, `PZR-`)**, ödeme yöntemi (`Amazon Satış`, `Trendyol Satış`, vb.) veya `invoice_type === 'marketplace'` ile tam örtüşen kesin kriterler doğrultusunda süzülmelidir. Bu sayede manuel veya kurumsal faturaların pazaryeri satışlarıyla karışması %100 önlenmiştir.
+
+---
+
+## 26. Navigasyon ve Yenileme / Geri Tuşu Bütünlüğü (Navigation & Refresh Preservation Protocol)
+
+- **Sayfa Yenileme Durum Koruma (F5 / Refresh Preservation)**:
+  - Web sitelerinde ve yönetim panellerinde, sayfa yenilendiğinde (F5, Ctrl+Alt+F5) kullanıcının bulunduğu sekme, kategori, alt kategori, sıralama ve rozet filtresi (`tab`, `category`, `subCategory`, `badge`, `brand`, `sort`) URL parametreleri ve `localStorage` ile %100 senkronize tutulmalıdır. Sayfa yenilendiğinde kullanıcı bulunduğu görünümde kalmalıdır.
+
+- **Geri Tuşu ile Modal / Katman Kapatma Güvencesi (Browser Back Modal Shield)**:
+  - Ürün detay modalı (`ProductDetailModal`), sepet drawer'ı, hızlı bakış veya herhangi bir açılır katman ilk açıldığında, tarayıcı geçmişine modal durumu işlenmelidir (`history.pushState` / URL `?product=ID`).
+  - Kullanıcı tarayıcının veya cihazın "Geri" tuşuna bastığında, web sitesinden atılıp dışarı gönderilmemeli; sadece açık olan modal/katman kapanmalı ve kullanıcı o anki sayfa görünümünde kalmalıdır.
+
+- **Modal İçi Ürün Gezintisi & Anında Kapatma Standardı (Single-History Modal Standard)**:
+  - Ürün detay modalı açıkken modal içerisinde sonraki/önceki veya ilişkili ürünler arasında gezinti yapıldığında, tarayıcı geçmişine her ürün için üst üste yeni sayfa biriktirilmesi YASAKTIR.
+  - Açık modal içerisindeki ürün değişimlerinde mevcut modal URL kaydı ezilmelidir (`{ replace: true }`).
+  - Kullanıcının "X" kapatma butonuna basması veya dış karartıya (backdrop) tıklaması durumunda `window.history.back()` döngüsüne girilmeden modal **TEK TIKLA ANINDA KAPANMALIDIR**. Gezilen tüm ürünlerin geçmişte tek tek geriye doğru oynatılması ve kapatılamaması sorunu engellenmiştir.
+
+- **Kullanıcı Yönlendirme & Belirgin Geri Dönüş Standardı**:
+  - "Tümünü Gör" veya koleksiyon kartları üzerinden katalog görünümüne geçildiğinde, tecrübesiz kullanıcıların dahi ana akışa kolayca dönebilmesi için belirgin bir **"<- Ana Sayfaya Dön / Ana Görünüme Dön"** butonu ve kırıntı (breadcrumb) navigasyonu sunulmalıdır.
+
+- **Boş Sayfa ve Boş Link Yasağı (Zero-Empty Link Constitution)**:
+  - Web sitesindeki hiçbir menü veya koleksiyon linki (Fırsatlar, Öne Çıkanlar, Kampanyalı Ürünler vb.) kesinlikle BOŞ içerik döndüremez.
+  - Eğer mağaza verisinde ilgili etiketle eşleşen özel ürün bulunmuyorsa, sistem akıllı fallback algoritmalarıyla (en çok incelenen, indirimli, fiyatı en uygun veya en yeni ürünlerle) sayfayı ve listeyi her zaman dolu, zengin ve çekici şekilde sunmalıdır.
+
+---
+
+## 27. Pazaryeri Sipariş Entegrasyonu (N11 SOAP Mimarisi) ve TR Tarih Formatı (`dd/mm/yy`) Anayasa Kuralı
+
+- **N11 SOAP Sipariş Entegrasyonu Kalıcı Mimari Kuralları (Zero-Miss Order Sync Protocol)**:
+  - **1. `OrderList` Sayfalama (Pagination) ve Tarih Filtresi Kuralı**: N11 SOAP `OrderService.OrderList` metodu, tarih filtresi (`searchData.period`) verilmediğinde mağazanın en eski siparişlerinden (Sayfa 0) başlayarak listeleme yapar. Çok sayfalı mağazalarda sadece ilk sayfa çekilirse yeni siparişler son sayfalarda kaldığı için sisteme ASLA ulaşmaz. Bu nedenle `OrderList` çağrılarında hem son 14 günlük `period` (`startDate` / `endDate` `dd/MM/yyyy` formatında) gönderilmeli hem de `pagingData.pageCount > 1` olduğunda **son sayfadan (`pageCount - 1`) geriye doğru** tarama yapılarak en güncel siparişlerin %100 yakalanması garanti altına alınmalıdır.
+  - **2. `OrderDetail` Zorunluluğu**: N11 `OrderList` yanıtı yalnızca sipariş özet başlığını döndürür; sipariş içindeki ürün kalemleri (`itemList`), barkod/stok kodu (`productSellerCode`), alıcı TC Kimlik No (`tcId`) ve teslimat/fatura adres detayları `OrderList` içinde yer almaz. Her yeni sipariş için mutlaka `OrderService.OrderDetail` çağrısı yapılarak kalemler ve müşteri bilgileri eksiksiz çekilmelidir.
+  - **3. N11 Tarih Formatı (`DD/MM/YYYY HH:mm`) ve PostgreSQL Koruması**: N11 API'si tarihleri Türkiye formatında (`DD/MM/YYYY HH:mm`, örn. `09/03/2026 22:09` = 9 Mart 2026) döndürür. Bu dize doğrudan `new Date()` veya PostgreSQL `TIMESTAMP` alanına ham olarak gönderilirse Amerikan formatı (`MM/DD/YYYY` = 3 Eylül) olarak yanlış yorumlanır veya gün > 12 olduğunda (`15/03/2026`) `DateTimeParseError` fırlatarak sipariş kaydını düşürür. Tüm N11 tarihleri `parseN11Date` / `parseSafeDateTR` ile gün, ay, yıl bileşenlerine ayrılarak güvenli ISO `Date` nesnesine dönüştürülmelidir.
+  - **4. Tam Entegre Satış, Stok ve Fatura Akışı (`n11_orders` -> `sales` -> `sales_invoices`)**: Pazaryerinden çekilen her sipariş; `customers` (müşteri), `sales` & `sale_items` (satış ve kalemleri), `products` & `stock_movements` (yerel stok düşümü ve diğer pazaryerlerine anında stok yayını) ve `sales_invoices` (`N11-...` önekli, `invoice_type: 'marketplace'`, `payment_method: 'N11 Satış'`) tablolarına tek bir atomik akışla işlenmelidir.
+  - **5. Otomatik Arka Plan Senkronizasyonu (`syncN11OrdersCron`)**: Tüm aktif N11 mağazalarının siparişleri, Hepsiburada ve Amazon TR ile eşgüdümlü olarak sunucu başlangıcında ve her **5 dakikada bir (`*/5 * * * *`)** arka planda otomatik olarak senkronize edilmelidir.
+
+- **TR Tarih Sistemi ve Tüm Excel / PDF / Rapor Çıktılarında `dd/mm/yy` Format Kuralı**:
+  - Sistem genelinde, tüm **Excel (`.xlsx`)** dışa aktarımlarında, **PDF (`jsPDF` / `autoTable` / `window.print`)** belgelerinde, termal/A4 rapor çıktılarında ve arayüzdeki tüm tarih gösterim alanlarında Türkiye tarih standardı olan **`dd/mm/yy`** (gün/ay/2-haneli-yıl, örn. `08/10/26`; saat içeren alanlarda `dd/mm/yy HH:mm`, örn. `08/10/26 14:30`) formatı ZORUNLUDUR.
+  - `YYYY-MM-DD` (ISO), `MM/DD/YYYY` (Amerikan) veya noktalı 4 haneli `dd.mm.yyyy` formatları çıktı ve gösterim alanlarında KULLANILAMAZ (yalnızca HTML `<input type="date">` elemanlarının `value` niteliği HTML5 standardı gereği `YYYY-MM-DD` alır).
+  - Tüm tarih biçimlendirmelerinde merkezi `formatDateTR` ve `formatDateTimeTR` (`/src/utils/formatUtils.ts`) yardımcı fonksiyonları kullanılmalıdır.
+
+
+
+
+
+
+
+
+
+

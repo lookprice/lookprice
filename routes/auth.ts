@@ -1,0 +1,181 @@
+import express from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { pool } from "../models/db";
+import { authenticate } from "../middleware/auth";
+
+const router = express.Router();
+const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key";
+
+// Helper for password policy (LookPrice Corporate Security Standards)
+const isValidPassword = (password: string) => {
+  if (!password || password.length < 12) return false;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  return hasUpper && hasLower && hasNumber && hasSpecial;
+};
+
+// Auth: Login
+router.post("/login", async (req, res) => {
+  const { email, password, storeCode } = req.body;
+  
+  let query = `
+    SELECT u.*, s.slug as store_slug, s.status as store_status, s.is_approved as store_is_approved, s.store_code
+    FROM users u 
+    LEFT JOIN stores s ON u.store_id = s.id 
+    WHERE u.email = $1
+  `;
+  const params: any[] = [email];
+  
+  if (storeCode) {
+    query += ` AND (s.store_code = $2 OR u.role = 'superadmin')`;
+    params.push(storeCode);
+  }
+
+  const userRes = await pool.query(query, params);
+  
+  const user = userRes.rows[0];
+  if (!user || !bcrypt.compareSync(password, user.password)) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  // Check store approval/suspension status for store users
+  if (user.role !== "superadmin" && user.store_id) {
+    if (user.store_is_approved === false || user.store_status === "suspended") {
+      return res.status(403).json({ 
+        error: "store_suspended", 
+        message: "Mağazanız askıya alınmıştır veya onaylanmamıştır. Lütfen sistem yöneticisi ile iletişime geçiniz." 
+      });
+    }
+    if (user.store_status === "pending") {
+      return res.status(403).json({ 
+        error: "store_pending", 
+        message: "Mağazanız şu anda onay beklemektedir. Lütfen onaylanmasını bekleyiniz." 
+      });
+    }
+  }
+  
+  const token = jwt.sign({ 
+    id: user.id, 
+    role: user.role, 
+    store_id: user.store_id,
+    store_slug: user.store_slug 
+  }, JWT_SECRET);
+  
+  res.json({ 
+    token, 
+    user: { 
+      email: user.email, 
+      role: user.role, 
+      store_id: user.store_id,
+      store_slug: user.store_slug,
+      password_needs_update: !isValidPassword(password)
+    } 
+  });
+});
+
+// Auth: Register
+router.post("/register", async (req, res) => {
+  const { name, email, password, phone, address, store_id } = req.body;
+  
+  try {
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: "LookPrice Kurumsal Güvenlik Standartları: Şifreniz en az 12 karakter olmalı ve büyük/küçük harf, rakam ve sembol içermelidir." });
+    }
+
+    // Check if user exists
+    const existingUser = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: "Bu e-posta adresi zaten kayıtlı." });
+    }
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    
+    const newUser = await pool.query(`
+      INSERT INTO users (name, email, password, phone, address, role, store_id) 
+      VALUES ($1, $2, $3, $4, $5, 'customer', $6) 
+      RETURNING id, name, email, role, store_id
+    `, [name, email, hashedPassword, phone, address, store_id || null]);
+
+    const user = newUser.rows[0];
+    
+    const token = jwt.sign({ 
+      id: user.id, 
+      role: user.role, 
+      store_id: user.store_id 
+    }, JWT_SECRET);
+    
+    res.json({ 
+      token, 
+      user: { 
+        email: user.email, 
+        role: user.role, 
+        store_id: user.store_id,
+        password_needs_update: false
+      } 
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({ error: "Kayıt olurken bir hata oluştu." });
+  }
+});
+
+router.post("/change-password", authenticate, async (req: any, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!isValidPassword(newPassword)) {
+    return res.status(400).json({ error: "LookPrice Kurumsal Güvenlik Standartları: Şifreniz en az 12 karakter olmalı ve büyük/küçük harf, rakam ve sembol içermelidir." });
+  }
+
+  const userRes = await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id]);
+  const user = userRes.rows[0];
+
+  if (user && bcrypt.compareSync(currentPassword, user.password)) {
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    await pool.query("UPDATE users SET password = $1 WHERE id = $2", [hashedPassword, req.user.id]);
+    res.json({ success: true, password_needs_update: false });
+  } else {
+    res.status(400).json({ error: "Mevcut şifre hatalı" });
+  }
+});
+
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+  const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+  const user = userRes.rows[0];
+
+  if (!user) {
+    return res.status(404).json({ error: "Bu e-posta adresiyle kayıtlı kullanıcı bulunamadı" });
+  }
+
+  const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const expiry = new Date(Date.now() + 3600000); // 1 hour
+
+  await pool.query("UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3", [token, expiry, user.id]);
+
+  console.log(`Password reset link: /reset-password/${token}`);
+  
+  res.json({ 
+    success: true, 
+    message: "Şifre sıfırlama bağlantısı simüle edildi.",
+    debug_token: token
+  });
+});
+
+router.post("/reset-password", async (req, res) => {
+  const { token, newPassword } = req.body;
+  const userRes = await pool.query("SELECT * FROM users WHERE reset_token = $1 AND reset_token_expiry > NOW()", [token]);
+  const user = userRes.rows[0];
+
+  if (!user) {
+    return res.status(400).json({ error: "Geçersiz veya süresi dolmuş sıfırlama bağlantısı" });
+  }
+
+  const hashedPassword = bcrypt.hashSync(newPassword, 10);
+  await pool.query("UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2", [hashedPassword, user.id]);
+  res.json({ success: true });
+});
+
+export default router;

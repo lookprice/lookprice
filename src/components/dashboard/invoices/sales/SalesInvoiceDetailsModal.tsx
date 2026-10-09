@@ -1,0 +1,203 @@
+import React from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { X, Printer, Eye } from 'lucide-react';
+import { numberToTurkishWords } from '../../../../lib/invoiceUtils';
+import { formatDateTR } from '../../../../utils/formatUtils';
+
+interface SalesInvoiceDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  invoice: any;
+  isTr: boolean;
+  invoiceRef: React.RefObject<HTMLDivElement>;
+  handlePrint: () => void;
+  onEditProduct?: (item: any) => void;
+  handleViewHtml?: (id: number) => void;
+}
+
+export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> = ({
+  isOpen,
+  onClose,
+  invoice,
+  isTr,
+  invoiceRef,
+  handlePrint,
+  onEditProduct,
+  handleViewHtml
+}) => {
+  if (!isOpen || !invoice) return null;
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white rounded-2xl shadow-xl w-full max-w-4xl my-auto overflow-hidden border border-slate-200"
+        >
+          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 className="text-xl font-bold text-slate-900">{isTr ? 'Fatura Detayı' : 'Invoice Details'}</h3>
+            <div className="flex gap-2">
+              {handleViewHtml && invoice.id && (
+                <button
+                  onClick={() => handleViewHtml(invoice.id)}
+                  className="px-3.5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Eye className="h-4 w-4" />
+                  {isTr ? 'E-Fatura Görseli' : 'E-Invoice View'}
+                </button>
+              )}
+              <button 
+                onClick={handlePrint} 
+                className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-bold cursor-pointer"
+              >
+                <Printer className="h-4 w-4" />
+                {isTr ? 'Yazdır' : 'Print'}
+              </button>
+              <button 
+                onClick={onClose} 
+                className="p-2 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
+            </div>
+          </div>
+          
+          <div className="p-6 max-h-[75vh] overflow-y-auto">
+            {(['cancelled', 'iptal', 'iptal edildi'].includes((invoice.status || '').toLowerCase().trim()) || invoice.sale_status === 'cancelled' || ['CANCELLED', 'İPTAL', 'İPTAL EDİLDİ'].includes((invoice.integration_status || '').toUpperCase())) && (
+              <div className="mb-6 p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 text-rose-700">
+                  <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-xs font-black uppercase tracking-wider">
+                    {isTr ? 'İPTAL EDİLDİ' : 'CANCELLED'}
+                  </span>
+                  <span className="text-xs font-bold">
+                    {invoice.sale_cancellation_reason || invoice.integration_message || (isTr ? 'Bu faturaya bağlı sipariş iptal edilmiştir.' : 'The order linked to this invoice has been cancelled.')}
+                  </span>
+                </div>
+              </div>
+            )}
+            <div id="print-invoice-wrapper" ref={invoiceRef} className="print-section bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              <div className="space-y-1.5">
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</p>
+                <p className="text-base font-bold text-slate-900">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name || '-'}</p>
+                {(() => {
+                  const addr = invoice.customer_address || invoice.company_address || invoice.address || '';
+                  const city = invoice.customer_city || invoice.company_city || invoice.city || '';
+                  let fullAddr = addr;
+                  if (city && !addr.toLowerCase().includes(city.toLowerCase())) {
+                    fullAddr = addr ? `${addr} / ${city.toUpperCase()}` : city.toUpperCase();
+                  }
+                  if (!fullAddr) return null;
+                  return <p className="text-xs text-slate-600 leading-relaxed">{fullAddr}</p>;
+                })()}
+                {(invoice.customer_phone || invoice.company_phone || invoice.phone) && (
+                  <p className="text-xs text-slate-500 font-mono"><span className="font-semibold text-slate-600">{isTr ? 'Tel:' : 'Phone:'}</span> {invoice.customer_phone || invoice.company_phone || invoice.phone}</p>
+                )}
+                {(invoice.tax_number || invoice.company_tax_number || invoice.customer_tax_number) && (
+                  <p className="text-xs text-slate-600 font-mono">
+                    <span className="font-bold text-slate-700">VKN/TCKN:</span> {invoice.tax_number || invoice.company_tax_number || invoice.customer_tax_number}
+                    {(invoice.tax_office || invoice.company_tax_office || invoice.customer_tax_office) && (
+                      <span className="text-slate-500 ml-1">({invoice.tax_office || invoice.company_tax_office || invoice.customer_tax_office} V.D.)</span>
+                    )}
+                  </p>
+                )}
+                {(invoice.customer_email || invoice.company_email || invoice.email) && (
+                  <p className="text-xs text-slate-400">{invoice.customer_email || invoice.company_email || invoice.email}</p>
+                )}
+              </div>
+              <div className="space-y-2 text-right">
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Fatura Bilgileri' : 'Invoice Info'}</p>
+                <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Fatura No:' : 'Inv No:'}</span> {invoice.invoice_number}</p>
+                <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Tarih:' : 'Date:'}</span> {formatDateTR(invoice.invoice_date)}</p>
+                <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency} {invoice.exchange_rate !== 1 && `(Kur: ${invoice.exchange_rate})`}</p>
+                <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Ödeme:' : 'Payment:'}</span> {invoice.payment_method}</p>
+              </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl overflow-hidden mb-8">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse whitespace-nowrap">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">{isTr ? 'Ürün' : 'Product'}</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{isTr ? 'Miktar' : 'Qty'}</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{isTr ? 'KDV %' : 'VAT %'}</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{isTr ? 'Toplam' : 'Total'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(invoice.items || []).map((item: any, idx: number) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-3">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (onEditProduct) onEditProduct(item);
+                            }}
+                            className={`text-left text-sm font-medium text-slate-900 hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                          >
+                            {item.product_name}
+                          </button>
+                          <div className="text-xs text-slate-400">{item.barcode}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-600 text-center">{Math.floor(Number(item.quantity))}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600 text-right">
+                          {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-600 text-center">%{item.tax_rate}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-slate-800 text-right">
+                          {(() => {
+                            const qty = Number(item.quantity) || 1;
+                            const unitPrice = Number(item.unit_price) || 0;
+                            const totalPrice = Number(item.total_price) || 0;
+                            const taxAmt = Number(item.tax_amount) || 0;
+                            const grossLine = Math.abs(totalPrice - (qty * unitPrice)) < 0.05 && invoice.is_tax_inclusive !== false
+                              ? totalPrice
+                              : totalPrice + taxAmt;
+                            return `${grossLine.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${invoice.currency}`;
+                          })()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row justify-between gap-8">
+              <div className="flex-1">
+                {invoice.notes && (
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
+                    <p className="text-xs font-bold text-slate-400 uppercase mb-2">{isTr ? 'NOTLAR' : 'NOTES'}</p>
+                    <p className="text-sm text-slate-700">{invoice.notes}</p>
+                  </div>
+                )}
+                <div className="text-xs text-slate-400 font-bold italic">
+                  {isTr ? 'Yalnızca:' : 'Only:'} {numberToTurkishWords(Number(invoice.grand_total), invoice.currency)}
+                </div>
+              </div>
+              <div className="w-full md:w-64 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">{isTr ? 'Ara Toplam' : 'Subtotal'}</span>
+                  <span className="font-medium">{Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">{isTr ? 'KDV Toplam' : 'VAT Total'}</span>
+                  <span className="font-medium">{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                </div>
+                <div className="flex justify-between text-lg font-semibold border-t border-slate-200 pt-2">
+                  <span>{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
+                  <span className="text-indigo-600 font-semibold">{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+};

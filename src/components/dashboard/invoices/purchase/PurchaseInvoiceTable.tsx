@@ -1,0 +1,820 @@
+import React, { useState } from 'react';
+import { 
+  Building2, 
+  Eye, 
+  Edit, 
+  Trash2, 
+  CheckCircle2, 
+  XCircle, 
+  Loader2,
+  FileText,
+  ChevronDown,
+  ChevronRight,
+  Layers,
+  Package,
+  Barcode,
+  MoreVertical,
+  Link2,
+  Unlink,
+  Search,
+  RefreshCw
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { api } from '../../../../services/api';
+import { formatDateTR } from '../../../../utils/formatUtils';
+
+interface PurchaseInvoiceTableProps {
+  invoices: any[];
+  loading: boolean;
+  isTr: boolean;
+  selectedIds: number[];
+  setSelectedIds: React.Dispatch<React.SetStateAction<number[]>>;
+  lastEditedId: number | null;
+  handleViewDetails: (inv: any) => void;
+  handleEdit: (id: number) => void;
+  handleDelete: (id: number) => void;
+  handleViewHtml?: (id: number, inv?: any) => void;
+  handleUpdateTicariStatus: (id: number, status: 'APPROVED' | 'REJECTED') => void;
+  handleUpdatePaymentStatus: (id: number, status: 'paid' | 'unpaid') => void;
+  handleConvertToStock?: (id: number) => void;
+  handleConvertToExpense?: (id: number) => void;
+  page: number;
+  totalPages: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  onEditProduct?: (item: any) => void;
+  storeId?: number;
+  products?: any[];
+  onRefresh?: () => void;
+}
+
+export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
+  invoices,
+  loading,
+  isTr,
+  selectedIds,
+  setSelectedIds,
+  lastEditedId,
+  handleViewDetails,
+  handleEdit,
+  handleDelete,
+  handleViewHtml,
+  handleUpdateTicariStatus,
+  handleUpdatePaymentStatus,
+  handleConvertToStock,
+  handleConvertToExpense,
+  page,
+  totalPages,
+  setPage,
+  onEditProduct,
+  storeId,
+  products = [],
+  onRefresh
+}) => {
+  const [expandedRowIds, setExpandedRowIds] = useState<number[]>([]);
+  const [itemsCache, setItemsCache] = useState<Record<number, any[]>>({});
+  const [loadingRowId, setLoadingRowId] = useState<number | null>(null);
+  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
+  const [matchingItemId, setMatchingItemId] = useState<number | null>(null);
+  const [matchSearch, setMatchSearch] = useState<string>("");
+  const [isUpdatingMatch, setIsUpdatingMatch] = useState<boolean>(false);
+
+  const handleMatchProduct = async (invoiceId: number, itemId: number, targetProductId: number | null) => {
+    setIsUpdatingMatch(true);
+    try {
+      const res = await api.matchPurchaseInvoiceItemProduct(invoiceId, itemId, targetProductId, storeId);
+      if (res?.success) {
+        toast.success(res.message || (isTr ? "Ürün eşleştirmesi güncellendi." : "Product match updated."));
+        setMatchingItemId(null);
+        setMatchSearch("");
+        // Refresh detail cache for this invoice
+        const detail = await api.getPurchaseInvoice(invoiceId, storeId);
+        if (detail && Array.isArray(detail.items)) {
+          setItemsCache(prev => ({ ...prev, [invoiceId]: detail.items }));
+        }
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(res?.error || (isTr ? "Eşleştirme güncellenemedi." : "Failed to update match."));
+      }
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? "Hata oluştu." : "Error occurred."));
+    } finally {
+      setIsUpdatingMatch(false);
+    }
+  };
+
+  const toggleRow = async (inv: any) => {
+    const isExpanded = expandedRowIds.includes(inv.id);
+    if (isExpanded) {
+      setExpandedRowIds(prev => prev.filter(id => id !== inv.id));
+      return;
+    }
+
+    setExpandedRowIds(prev => [...prev, inv.id]);
+
+    // Check if items already present on inv or in cache
+    const existingItems = itemsCache[inv.id] || (Array.isArray(inv.items) && inv.items.length > 0 ? inv.items : null);
+    if (!existingItems || existingItems.length === 0) {
+      try {
+        setLoadingRowId(inv.id);
+        const detail = await api.getPurchaseInvoice(inv.id, storeId);
+        if (detail && Array.isArray(detail.items)) {
+          setItemsCache(prev => ({ ...prev, [inv.id]: detail.items }));
+        }
+      } catch (err) {
+        console.error("Alış faturası kalemleri getirilemedi:", err);
+      } finally {
+        setLoadingRowId(null);
+      }
+    }
+  };
+
+  const formatCurrency = (amount: any, curr: string = 'TRY') => {
+    const num = Number(amount) || 0;
+    const symbol = curr === 'TRY' ? '₺' : curr === 'USD' ? '$' : curr === 'EUR' ? '€' : curr === 'GBP' ? '£' : curr;
+    return `${num.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="overflow-x-auto min-h-[360px]">
+        <table className="w-full text-left border-collapse min-w-[1050px]">
+          <thead>
+            <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-200">
+              <th className="px-3 py-2.5 w-10 text-center">
+                <input 
+                  type="checkbox" 
+                  checked={invoices.length > 0 && selectedIds.length === invoices.length}
+                  onChange={() => {
+                    if (selectedIds.length === invoices.length) {
+                      setSelectedIds([]);
+                    } else {
+                      setSelectedIds(invoices.map((inv: any) => inv.id));
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                />
+              </th>
+              <th className="px-2 py-2.5 text-center w-8">
+                <span className="sr-only">Detay</span>
+              </th>
+              <th className="px-3 py-2.5 font-bold">{isTr ? "Tarih" : "Date"}</th>
+              <th className="px-3 py-2.5 font-bold">{isTr ? "Fatura No" : "Inv No"}</th>
+              <th className="px-3 py-2.5 font-bold">{isTr ? "Satıcı" : "Supplier"}</th>
+              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "Matrah" : "Subtotal"}</th>
+              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "KDV" : "VAT"}</th>
+              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "Toplam" : "Total"}</th>
+              <th className="px-3 py-2.5 font-bold text-center">{isTr ? "Döviz" : "Curr"}</th>
+              <th className="px-3 py-2.5 font-bold text-center">{isTr ? "Ödeme" : "Payment"}</th>
+              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "İşlemler" : "Actions"}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading ? (
+              <tr>
+                <td colSpan={11} className="px-3 py-12 text-center text-slate-400">
+                  <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-indigo-600" /></div>
+                </td>
+              </tr>
+            ) : invoices.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="px-3 py-12 text-center text-slate-400 font-medium">
+                  {isTr ? "Fatura bulunamadı" : "No invoices found"}
+                </td>
+              </tr>
+            ) : (
+              invoices.map((invoice: any, idx: number) => {
+                const isExpanded = expandedRowIds.includes(invoice.id);
+                const items = itemsCache[invoice.id] || invoice.items || [];
+                const isRowLoading = loadingRowId === invoice.id;
+
+                return (
+                  <React.Fragment key={invoice.id}>
+                    <tr 
+                      className={`hover:bg-slate-50/70 transition-colors ${
+                        openActionMenuId === invoice.id ? 'relative z-30' : ''
+                      } ${
+                        invoice.is_out_of_sequence 
+                          ? 'bg-amber-50/60 hover:bg-amber-100/70 border-l-4 border-l-amber-500' 
+                          : invoice.is_read === false 
+                            ? 'font-bold bg-indigo-50/30' 
+                            : ''
+                      } ${
+                        lastEditedId === invoice.id ? 'bg-indigo-100/50 ring-1 ring-inset ring-indigo-200' : ''
+                      } ${
+                        isExpanded ? 'bg-indigo-50/20' : ''
+                      }`}
+                    >
+                      <td className="px-3 py-2.5 text-center">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.includes(invoice.id)}
+                          onChange={() => {
+                            setSelectedIds(prev => prev.includes(invoice.id) ? prev.filter(i => i !== invoice.id) : [...prev, invoice.id]);
+                          }}
+                          className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-2 py-2.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleRow(invoice)}
+                          title={isExpanded ? (isTr ? "Kalemleri Gizle" : "Hide Items") : (isTr ? "Kalemleri Göster" : "Show Items")}
+                          className={`p-1.5 rounded-lg border transition-all ${
+                            isExpanded 
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
+                              : 'bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border-slate-200'
+                          }`}
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          ) : (
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-slate-600 whitespace-nowrap">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-semibold text-slate-800">
+                            {formatDateTR(invoice.invoice_date)}
+                          </span>
+                          {invoice.is_out_of_sequence && (
+                            <span 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 w-fit" 
+                              title={isTr ? "Bu fatura sisteme sonradan (ara tarihli / geriye dönük) girilmiştir." : "This invoice was entered out of sequence (backdated)."}
+                            >
+                              ⚠️ {isTr ? "Ara Tarihli" : "Backdated"}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs font-bold text-slate-900 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                           {invoice.is_read === false && (
+                             <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" title={isTr ? "Yeni (Okunmadı)" : "New (Unread)"}></span>
+                           )}
+                           <span>{invoice.invoice_number}</span>
+                        </div>
+                        {invoice.e_document_type && (
+                           <div className="flex items-center gap-1.5 mt-0.5">
+                             <div className="text-[9px] text-indigo-600 font-bold uppercase">{invoice.e_document_type}</div>
+                             {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toUpperCase() === 'APPROVED' && (
+                                <span className="text-[8px] bg-emerald-100 text-emerald-700 px-1 py-0.2 rounded font-black uppercase tracking-wider">{isTr ? 'Kabul Edildi' : 'Approved'}</span>
+                             )}
+                             {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toUpperCase() === 'REJECTED' && (
+                                <span className="text-[8px] bg-rose-100 text-rose-700 px-1 py-0.2 rounded font-black uppercase tracking-wider">{isTr ? 'Reddedildi' : 'Rejected'}</span>
+                             )}
+                             {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toLowerCase() === 'pending' && (() => {
+                               const arrivalDate = new Date(invoice.created_at || invoice.invoice_date);
+                               const diffDays = (new Date().getTime() - arrivalDate.getTime()) / (1000 * 3600 * 24);
+                               return diffDays > 8;
+                             })() && (
+                                <span className="text-[8px] bg-slate-100 text-slate-500 px-1 py-0.2 rounded font-black uppercase tracking-wider" title={isTr ? "8 günlük süreyi aştığı için yasal olarak otomatik kabul edilmiştir." : "Auto accepted legally over 8 days limit."}>{isTr ? 'Oto Kabul' : 'Auto'}</span>
+                             )}
+                           </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs font-medium text-slate-700">
+                        <div className="max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate font-semibold" title={invoice.company_name || invoice.supplier_name || '-'}>
+                          {invoice.company_name || invoice.supplier_name || '-'}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {invoice.is_expense ? (
+                            <>
+                              <span className="text-[8px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-black uppercase tracking-wider inline-flex items-center gap-0.5">
+                                💼 {isTr ? `GİDER (${invoice.expense_category || 'DİĞER'})` : `EXPENSE (${invoice.expense_category || 'OTHER'})`}
+                              </span>
+                              {handleConvertToStock && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleConvertToStock(invoice.id);
+                                  }}
+                                  title={isTr ? "Bu faturayı Stoklu Alım (Ticari) faturasına dönüştür ve stokları işle" : "Convert to Stock Purchase"}
+                                  className="text-[8px] font-black bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded transition-colors inline-flex items-center gap-1 shadow-2xs"
+                                >
+                                  <Package className="w-2.5 h-2.5" />
+                                  {isTr ? "Stoklu Alıma Çevir" : "To Stock"}
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[8px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-black uppercase tracking-wider inline-flex items-center gap-0.5">
+                                📦 {isTr ? "STOKLU ALIM" : "STOCK BUY"}
+                              </span>
+                              {handleConvertToExpense && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleConvertToExpense(invoice.id);
+                                  }}
+                                  title={isTr ? "Bu faturayı Gider Faturasına dönüştür ve stokları iptal et" : "Convert to Expense Invoice"}
+                                  className="text-[8px] font-black bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 px-1.5 py-0.5 rounded transition-colors inline-flex items-center gap-1 shadow-2xs"
+                                >
+                                  <Layers className="w-2.5 h-2.5" />
+                                  {isTr ? "Gidere Çevir" : "To Expense"}
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-slate-600 text-right font-medium whitespace-nowrap">
+                        {Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-slate-600 text-right font-medium whitespace-nowrap">
+                        {Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs font-bold text-slate-900 text-right whitespace-nowrap">
+                        {Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-slate-500 text-center font-bold">
+                        {invoice.currency}
+                      </td>
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                        {invoice.payment_method && invoice.payment_method !== 'term' && invoice.payment_method !== 'vadeli' ? (
+                          <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-100">
+                            {isTr ? 'Ödendi' : 'Paid'}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleUpdatePaymentStatus(invoice.id, invoice.payment_status === 'paid' ? 'unpaid' : 'paid')}
+                            className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all border ${
+                              invoice.payment_status === 'paid' 
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                                : 'bg-rose-50 text-rose-700 border-rose-100'
+                            }`}
+                          >
+                            {invoice.payment_status === 'paid' ? (isTr ? 'Ödendi' : 'Paid') : (isTr ? 'Ödenmedi' : 'Unpaid')}
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap relative">
+                        <div className="flex justify-end items-center gap-1">
+                          {(() => {
+                            if (invoice.status?.toLowerCase() !== 'pending' || invoice.e_document_type?.toUpperCase() !== 'TICARIFATURA') return false;
+                            const arrivalDate = new Date(invoice.created_at || invoice.invoice_date);
+                            const diffDays = (new Date().getTime() - arrivalDate.getTime()) / (1000 * 3600 * 24);
+                            return diffDays <= 8;
+                          })() && (
+                            <div className="flex gap-1 mr-1 px-1.5 border-r border-slate-100">
+                              <button
+                                onClick={() => handleUpdateTicariStatus(invoice.id, 'APPROVED')}
+                                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                title={isTr ? "Ticari Faturayı Kabul Et" : "Approve Commercial Invoice"}
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleUpdateTicariStatus(invoice.id, 'REJECTED')}
+                                className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                title={isTr ? "Ticari Faturayı Reddet" : "Reject Commercial Invoice"}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                          <button 
+                            onClick={() => handleEdit(invoice.id)}
+                            className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer"
+                            title={isTr ? "Düzenle" : "Edit"}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+
+                          {/* Lookprice Standard Dropdown Menu */}
+                          <div className="relative inline-block text-left z-40">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenActionMenuId(openActionMenuId === invoice.id ? null : invoice.id);
+                              }}
+                              className={`p-1.5 rounded-lg transition-all flex items-center gap-1 border ${
+                                openActionMenuId === invoice.id
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                  : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 bg-white border-slate-200 shadow-2xs'
+                              }`}
+                              title={isTr ? "Tüm İşlemler" : "All Actions"}
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                              <span className="text-[10px] font-bold hidden sm:inline-block pr-0.5">{isTr ? 'İşlem' : 'More'}</span>
+                            </button>
+
+                            {openActionMenuId === invoice.id && (
+                              <div 
+                                className={`absolute right-0 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 ${
+                                  (invoices.length >= 4 && idx >= invoices.length - 2) ? 'bottom-full mb-1.5 origin-bottom-right' : 'top-full mt-1.5 origin-top-right'
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
+                                    {invoice.invoice_number || (isTr ? 'Fatura İşlemleri' : 'Invoice Actions')}
+                                  </span>
+                                </div>
+
+                                <div className="py-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      handleViewDetails(invoice);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                    <span>{isTr ? "Kayıt Detayları" : "Details"}</span>
+                                  </button>
+
+                                  {handleViewHtml && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        handleViewHtml(invoice.id, invoice);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                      <span>{isTr ? "Fatura Görseli (HTML)" : "View HTML"}</span>
+                                    </button>
+                                  )}
+
+                                  <div className="my-1 border-t border-slate-100" />
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      handleDelete(invoice.id);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                    <span>{isTr ? "Faturayı Sil" : "Delete"}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* EXPANDED ACCORDION ROW: Fatura Kalemleri & Ürün Listesi */}
+                    {isExpanded && (
+                      <tr className="bg-slate-50/80 border-b border-indigo-100">
+                        <td colSpan={11} className="p-0">
+                          <div className="p-4 md:p-5 m-2.5 my-2 bg-white rounded-xl border border-indigo-100/90 shadow-sm">
+                            {/* Drawer Header */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                              <div className="flex items-center gap-2.5">
+                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                                  <Layers className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                    <span>{isTr ? 'Alış Faturası Kalemleri & Ürün Detayları' : 'Purchase Invoice Items & Details'}</span>
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                      {items.length} {isTr ? 'Kalem' : 'Lines'}
+                                    </span>
+                                  </h4>
+                                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                    {isTr ? `Fatura No: #${invoice.invoice_number}` : `Invoice: #${invoice.invoice_number}`}
+                                    {invoice.company_name || invoice.supplier_name ? ` • ${invoice.company_name || invoice.supplier_name}` : ''}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Metadata Badges */}
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                {invoice.ettn && (
+                                  <span className="px-2 py-1 bg-slate-50 text-slate-600 rounded-md border border-slate-200 font-mono text-[10px]">
+                                    ETTN: {invoice.ettn}
+                                  </span>
+                                )}
+                                {invoice.waybill_number && (
+                                  <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md border border-blue-100 font-medium text-[10px]">
+                                    {isTr ? 'İrsaliye:' : 'Waybill:'} {invoice.waybill_number}
+                                  </span>
+                                )}
+                                {invoice.tax_number && (
+                                  <span className="px-2 py-1 bg-slate-50 text-slate-600 rounded-md border border-slate-200 font-medium text-[10px]">
+                                    VKN/TC: {invoice.tax_number}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Items Table */}
+                            {isRowLoading ? (
+                              <div className="py-8 flex items-center justify-center gap-2 text-slate-400 text-xs">
+                                <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                                {isTr ? 'Kalemler yükleniyor...' : 'Loading items...'}
+                              </div>
+                            ) : items.length === 0 ? (
+                              <div className="py-6 text-center text-slate-400 text-xs font-medium">
+                                <Package className="w-8 h-8 mx-auto text-slate-300 mb-1" />
+                                {isTr ? 'Bu alış faturasında kayıtlı ürün kalemi bulunmuyor.' : 'No items recorded in this purchase invoice.'}
+                              </div>
+                            ) : (
+                              <div className="mt-3 overflow-x-auto">
+                                <table className="w-full text-left border-collapse text-xs">
+                                  <thead>
+                                    <tr className="bg-slate-100/70 text-slate-600 font-bold border-y border-slate-200 text-[10px] uppercase tracking-wider">
+                                      <th className="py-2.5 px-3 w-10 text-center">#</th>
+                                      <th className="py-2.5 px-3">{isTr ? 'Ürün / Hizmet Açıklaması' : 'Product / Service'}</th>
+                                      <th className="py-2.5 px-3 text-right w-24">{isTr ? 'Miktar' : 'Qty'}</th>
+                                      <th className="py-2.5 px-3 text-right w-28">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
+                                      <th className="py-2.5 px-3 text-center w-20">{isTr ? 'KDV %' : 'VAT %'}</th>
+                                      <th className="py-2.5 px-3 text-right w-28">{isTr ? 'KDV Tutarı' : 'VAT Amt'}</th>
+                                      <th className="py-2.5 px-3 text-right w-32">{isTr ? 'Satır Toplamı' : 'Line Total'}</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {items.map((item: any, idx: number) => {
+                                      const qty = Number(item.quantity) || 0;
+                                      const unitPrice = Number(item.unit_price) || 0;
+                                      const taxRate = Number(item.tax_rate) || 0;
+                                      const taxAmt = Number(item.tax_amount) || ((qty * unitPrice * taxRate) / 100);
+                                      const lineTotal = Number(item.total_price) || (qty * unitPrice);
+                                      const matchedProd = item.product_id
+                                        ? products.find((p: any) => Number(p.id) === Number(item.product_id))
+                                        : null;
+                                      const matchedName = item.matched_product_name || matchedProd?.name || null;
+                                      const isPickerOpen = matchingItemId === item.id;
+                                      const searchLower = matchSearch.trim().toLocaleLowerCase('tr-TR');
+                                      const candidateProducts = isPickerOpen
+                                        ? products
+                                            .filter((p: any) => {
+                                              if (!searchLower) return true;
+                                              const n = (p.name || '').toLocaleLowerCase('tr-TR');
+                                              const b = (p.barcode || '').toLocaleLowerCase('tr-TR');
+                                              const c = (p.product_code || p.sku || '').toLocaleLowerCase('tr-TR');
+                                              return n.includes(searchLower) || b.includes(searchLower) || c.includes(searchLower);
+                                            })
+                                            .slice(0, 12)
+                                        : [];
+
+                                      return (
+                                        <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                                          <td className="py-2.5 px-3 text-center font-bold text-slate-400">
+                                            {idx + 1}
+                                          </td>
+                                          <td className="py-2.5 px-3">
+                                            <div className="flex flex-col gap-1.5">
+                                              <div className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
+                                                <button 
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if(onEditProduct) onEditProduct(item);
+                                                  }}
+                                                  className={`text-left hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                                                >
+                                                  {item.product_name || item.name || '-'}
+                                                </button>
+                                                {item.variant_name && (
+                                                  <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-100 font-semibold">
+                                                    {item.variant_name}
+                                                  </span>
+                                                )}
+                                                {item.barcode && (
+                                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">
+                                                    <Barcode className="w-3 h-3 text-slate-400" />
+                                                    {item.barcode}
+                                                  </span>
+                                                )}
+                                                {item.product_code && (
+                                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 font-bold">
+                                                    Kod: {item.product_code}
+                                                  </span>
+                                                )}
+                                              </div>
+
+                                              {!invoice.is_expense && (
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                  {item.product_id ? (
+                                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
+                                                      <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                                                      <span>
+                                                        {isTr ? 'Eşleşen Envanter:' : 'Matched Inventory:'}{' '}
+                                                        <strong className="font-black text-emerald-950">{matchedName || `#${item.product_id}`}</strong>
+                                                      </span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          if (isPickerOpen) {
+                                                            setMatchingItemId(null);
+                                                          } else {
+                                                            setMatchingItemId(item.id);
+                                                            setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
+                                                          }
+                                                        }}
+                                                        className="ml-1 px-1.5 py-0.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-emerald-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                                        title={isTr ? 'Farklı bir envanter ürünü ile değiştir' : 'Change matched product'}
+                                                      >
+                                                        <RefreshCw className="h-2.5 w-2.5" />
+                                                        {isTr ? 'Değiştir' : 'Change'}
+                                                      </button>
+                                                      <button
+                                                        type="button"
+                                                        disabled={isUpdatingMatch}
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          handleMatchProduct(invoice.id, item.id, null);
+                                                        }}
+                                                        className="px-1.5 py-0.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                                        title={isTr ? 'Hatalı ürün eşleştirmesini kaldır' : 'Unlink product match'}
+                                                      >
+                                                        <Unlink className="h-2.5 w-2.5" />
+                                                        {isTr ? 'Bağı Kopar' : 'Unlink'}
+                                                      </button>
+                                                    </div>
+                                                  ) : (
+                                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
+                                                      <span>{isTr ? 'Envanterde Eşleşen Ürün Yok' : 'Unmatched in Inventory'}</span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          if (isPickerOpen) {
+                                                            setMatchingItemId(null);
+                                                          } else {
+                                                            setMatchingItemId(item.id);
+                                                            setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
+                                                          }
+                                                        }}
+                                                        className="ml-1 px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                                      >
+                                                        <Link2 className="h-2.5 w-2.5" />
+                                                        {isTr ? 'Envanterden Eşleştir' : 'Link Product'}
+                                                      </button>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              )}
+
+                                              {isPickerOpen && (
+                                                <div
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="mt-1 p-2.5 bg-slate-900 text-white rounded-xl shadow-xl border border-slate-700 max-w-xl"
+                                                >
+                                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                                                      {isTr ? 'Envanterden Doğru Ürünü Seçin' : 'Select Inventory Product to Match'}
+                                                    </span>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => setMatchingItemId(null)}
+                                                      className="text-[10px] text-slate-400 hover:text-white font-bold"
+                                                    >
+                                                      {isTr ? 'Kapat ✕' : 'Close ✕'}
+                                                    </button>
+                                                  </div>
+                                                  <div className="relative mb-2">
+                                                    <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                                    <input
+                                                      type="text"
+                                                      value={matchSearch}
+                                                      onChange={(e) => setMatchSearch(e.target.value)}
+                                                      placeholder={isTr ? 'Ürün adı, model kodu veya barkod ara...' : 'Search product name, code or barcode...'}
+                                                      className="w-full pl-8 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-400"
+                                                      autoFocus
+                                                    />
+                                                  </div>
+                                                  <div className="max-h-44 overflow-y-auto divide-y divide-slate-800 rounded-lg border border-slate-800 bg-slate-950">
+                                                    {candidateProducts.length === 0 ? (
+                                                      <div className="p-3 text-center text-[11px] text-slate-400">
+                                                        {isTr ? 'Aramaya uygun envanter ürünü bulunamadı.' : 'No matching inventory product found.'}
+                                                      </div>
+                                                    ) : (
+                                                      candidateProducts.map((p: any) => (
+                                                        <button
+                                                          key={p.id}
+                                                          type="button"
+                                                          disabled={isUpdatingMatch}
+                                                          onClick={() => handleMatchProduct(invoice.id, item.id, p.id)}
+                                                          className="w-full px-2.5 py-1.5 text-left hover:bg-indigo-950/80 transition-colors flex items-center justify-between gap-2"
+                                                        >
+                                                          <div className="min-w-0">
+                                                            <div className="text-[11px] font-bold text-slate-100 truncate">{p.name}</div>
+                                                            <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
+                                                              {p.barcode && <span>Barkod: {p.barcode}</span>}
+                                                              {(p.product_code || p.sku) && <span>Kod: {p.product_code || p.sku}</span>}
+                                                              <span>Stok: {p.stock_quantity ?? 0}</span>
+                                                            </div>
+                                                          </div>
+                                                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-black shrink-0">
+                                                            {isTr ? 'Seç & Eşleştir' : 'Select'}
+                                                          </span>
+                                                        </button>
+                                                      ))
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </td>
+                                          <td className="py-2.5 px-3 text-right font-medium text-slate-700">
+                                            {qty.toLocaleString('tr-TR')}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-right font-mono text-slate-700">
+                                            {formatCurrency(unitPrice, invoice.currency)}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-center">
+                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-bold text-[10px] border border-indigo-100">
+                                              %{taxRate}
+                                            </span>
+                                          </td>
+                                          <td className="py-2.5 px-3 text-right font-mono text-slate-600">
+                                            {formatCurrency(taxAmt, invoice.currency)}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                            {formatCurrency(lineTotal, invoice.currency)}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            {/* Bottom Note & Mini Financial Summary */}
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                              <div className="text-slate-500 text-[11px] max-w-xl">
+                                {invoice.notes ? (
+                                  <div className="flex items-start gap-1.5">
+                                    <FileText className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
+                                    <span><strong className="text-slate-700">{isTr ? 'Fatura Notu:' : 'Note:'}</strong> {invoice.notes}</span>
+                                  </div>
+                                ) : (
+                                  <span className="italic text-slate-400">{isTr ? 'Ek açıklama bulunmuyor' : 'No extra notes'}</span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-4 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200">
+                                <div>
+                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{isTr ? 'Matrah' : 'Subtotal'}</span>
+                                  <span className="font-mono font-bold text-slate-700">{formatCurrency(invoice.total_amount, invoice.currency)}</span>
+                                </div>
+                                <div className="w-px h-6 bg-slate-200" />
+                                <div>
+                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{isTr ? 'KDV Toplamı' : 'VAT Total'}</span>
+                                  <span className="font-mono font-bold text-indigo-700">{formatCurrency(invoice.tax_amount, invoice.currency)}</span>
+                                </div>
+                                <div className="w-px h-6 bg-slate-200" />
+                                <div>
+                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
+                                  <span className="font-mono font-black text-slate-900">{formatCurrency(invoice.grand_total, invoice.currency)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })
+            )}
+            {openActionMenuId !== null && invoices.length < 4 && (
+              <tr className="border-none hover:bg-transparent bg-transparent">
+                <td colSpan={12} className="p-0 border-none bg-transparent">
+                  <div className="h-48 bg-transparent pointer-events-none" />
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      
+      {totalPages > 1 && (
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Page {page} of {totalPages}</span>
+          <div className="flex gap-2">
+            <button 
+              disabled={page === 1}
+              onClick={() => setPage(p => p - 1)}
+              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-slate-50 transition-colors"
+            >
+              Prev
+            </button>
+            <button 
+              disabled={page === totalPages}
+              onClick={() => setPage(p => p + 1)}
+              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-slate-50 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

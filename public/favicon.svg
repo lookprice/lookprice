@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- House Outline (Dark Navy #0f1c3f) -->
+  <path d="M 100 12 L 192 82 V 188 H 8 V 82 Z" fill="#0f1c3f" />
+  <!-- Chimney -->
+  <rect x="32" y="38" width="22" height="38" fill="#0f1c3f" />
+  
+  <!-- White Car Body inside Garage -->
+  <!-- Car Windshield & Roof -->
+  <path d="M 58 102 C 64 82, 136 82, 142 102 Z" fill="#ffffff" />
+  <!-- Car Hood & Main Body -->
+  <path d="M 38 118 C 38 105, 162 105, 162 118 V 162 C 162 170, 156 174, 146 174 H 54 C 44 174, 38 170, 38 162 Z" fill="#ffffff" />
+  <!-- Windshield Glass Cutout (Dark Navy) -->
+  <path d="M 64 105 C 70 92, 130 92, 136 105 Z" fill="#0f1c3f" />
+
+  <!-- Orange/Amber Headlights (#f59e0b) -->
+  <circle cx="60" cy="138" r="11" fill="#f59e0b" />
+  <circle cx="140" cy="138" r="11" fill="#f59e0b" />
+
+  <!-- Grille / Bumper lines -->
+  <rect x="76" y="150" width="48" height="14" rx="4" fill="#0f1c3f" />
+</svg>

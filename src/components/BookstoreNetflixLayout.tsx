@@ -1,0 +1,1198 @@
+import React, { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { 
+  Search, 
+  ShoppingBag, 
+  Sparkles, 
+  BookOpen, 
+  Heart, 
+  User, 
+  Info, 
+  SlidersHorizontal,
+  Flame,
+  Star,
+  Compass,
+  Bookmark,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Quote,
+  X,
+  Building2,
+  Layers,
+  Award,
+  Crown,
+  Clock,
+  Tag
+} from "lucide-react";
+import { Product, Store as StoreInfo } from "../types";
+import { NetflixBookRow } from "./bookstore/NetflixBookRow";
+import { BookCardNetflix } from "./bookstore/BookCardNetflix";
+import { StoreFooter } from "./showcase/StoreFooter";
+import { getBookCoverFallbackSvg } from "../utils/imageFallback";
+import { BOOKSTORE_CATEGORIES, getBookstoreSubcategories } from "../data/bookstoreCategories";
+import { bookstoreInteraction } from "../services/bookstoreInteractionService";
+import { BOOKSTORE_BADGES, hasBookstoreBadge } from "../data/bookstoreBadges";
+import { getBookstoreThemeConfig, BookstoreThemeConfig } from "../data/bookstoreThemePresets";
+
+interface BookstoreNetflixLayoutProps {
+  store: StoreInfo | null;
+  products: Product[];
+  onViewProduct: (product: Product, rowProducts?: Product[]) => void;
+  addToBasket: (product: Product) => void;
+  basket: any[];
+  setBasket: (b: any[]) => void;
+  basketTotal: number;
+  basketSubtotal: number;
+  basketShippingTotal: number;
+  onCheckout: () => void;
+  lang: string;
+  t: any;
+  customer: any;
+  onOpenProfile: (tab?: string) => void;
+  onLogout: () => void;
+  setShowAboutModal: (s: boolean) => void;
+  setShowStoreLocatorModal: (s: boolean) => void;
+  setShowAuthModal: (s: boolean) => void;
+}
+
+export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
+  store,
+  products,
+  onViewProduct,
+  addToBasket,
+  basket,
+  setBasket,
+  basketTotal,
+  basketSubtotal,
+  basketShippingTotal,
+  onCheckout,
+  lang,
+  t,
+  customer,
+  onOpenProfile,
+  onLogout,
+  setShowAboutModal,
+  setShowStoreLocatorModal,
+  setShowAuthModal
+}) => {
+  const isTr = lang === "tr";
+  
+  // Load initial states from URL search params to preserve operator workflow on refresh (Rule 7)
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("q") || "";
+  });
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("category") || "all";
+  });
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("sub_category") || "all";
+  });
+  const [selectedAuthor, setSelectedAuthor] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("author") || "all";
+  });
+  const [selectedPublisher, setSelectedPublisher] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("publisher") || "all";
+  });
+  const [selectedBadge, setSelectedBadge] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("badge") || "all";
+  });
+  const [activeTab, setActiveTab] = useState<"home" | "catalog" | "bestsellers">((() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab === "home" || tab === "catalog" || tab === "bestsellers") return tab;
+    return "home";
+  })());
+
+  const [favCount, setFavCount] = useState<number>(() => bookstoreInteraction.getFavorites(store?.id).length);
+  const [visibleCount, setVisibleCount] = useState<number>(30);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState<boolean>(false);
+
+  // Synchronize state changes to URL search params (Rule 7: Operator UX Continuity & Persistence)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    
+    if (searchQuery) params.set("q", searchQuery); else params.delete("q");
+    if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory); else params.delete("category");
+    if (selectedSubCategory && selectedSubCategory !== "all") params.set("sub_category", selectedSubCategory); else params.delete("sub_category");
+    if (selectedAuthor && selectedAuthor !== "all") params.set("author", selectedAuthor); else params.delete("author");
+    if (selectedPublisher && selectedPublisher !== "all") params.set("publisher", selectedPublisher); else params.delete("publisher");
+    if (selectedBadge && selectedBadge !== "all") params.set("badge", selectedBadge); else params.delete("badge");
+    if (activeTab && activeTab !== "home") params.set("tab", activeTab); else params.delete("tab");
+    
+    const newSearch = params.toString();
+    const newUrl = `${window.location.pathname}${newSearch ? "?" + newSearch : ""}`;
+    window.history.replaceState(window.history.state, "", newUrl);
+  }, [searchQuery, selectedCategory, selectedSubCategory, selectedAuthor, selectedPublisher, selectedBadge, activeTab]);
+
+  // Reset visibleCount on filter change
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [searchQuery, selectedCategory, selectedSubCategory, selectedAuthor, selectedPublisher, selectedBadge, activeTab]);
+
+  // Sync favorites count
+  useEffect(() => {
+    const updateFavs = () => {
+      setFavCount(bookstoreInteraction.getFavorites(store?.id).length);
+    };
+    updateFavs();
+    window.addEventListener("bookstore-favorites-changed", updateFavs);
+    return () => window.removeEventListener("bookstore-favorites-changed", updateFavs);
+  }, [store?.id]);
+
+  const storeName = store?.branding?.store_name || store?.name || (isTr ? "Seçkin Kitabevi" : "Elite Bookstore");
+  const storeLogo = store?.branding?.logo_url || store?.logo_url;
+
+  // Active theme configuration from store branding
+  const themeConfig: BookstoreThemeConfig = useMemo(() => {
+    return getBookstoreThemeConfig(store?.branding);
+  }, [store?.branding]);
+
+  // Extract distinct categories, subcategories, authors, publishers
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    // First include the official book taxonomy in standard order
+    BOOKSTORE_CATEGORIES.forEach((c) => set.add(c.mainCategory));
+    // Also include any custom category present in products
+    products.forEach((p) => {
+      if (p.category && p.category.trim()) set.add(p.category.trim());
+    });
+    return Array.from(set);
+  }, [products]);
+
+  const subCategories = useMemo(() => {
+    const set = new Set<string>();
+    // If a main category is selected, get its defined subcategories first
+    if (selectedCategory && selectedCategory !== "all") {
+      getBookstoreSubcategories(selectedCategory).forEach((sub) => set.add(sub));
+    }
+    // Also add any subcategory from existing products matching this scope
+    products.forEach((p) => {
+      if (selectedCategory === "all" || p.category === selectedCategory) {
+        const sub = p.sub_category || (p as any).sub_category_2 || (p as any).sector_data?.genre || (p as any).genre;
+        if (sub && typeof sub === "string" && sub.trim()) set.add(sub.trim());
+      }
+    });
+    return Array.from(set);
+  }, [products, selectedCategory]);
+
+  const authors = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach((p) => {
+      const a = p.author || (p as any).sector_data?.author;
+      if (a && a.trim()) set.add(a.trim());
+    });
+    return Array.from(set).sort();
+  }, [products]);
+
+  const publishers = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach((p) => {
+      const pub = p.brand || (p as any).sector_data?.publisher;
+      if (pub && pub.trim()) set.add(pub.trim());
+    });
+    return Array.from(set).sort();
+  }, [products]);
+
+  // Weekly Picks (Haftanın Eserleri) for Hero Banner
+  const weeklyBooks = useMemo(() => {
+    if (!products || products.length === 0) return [];
+    const picked = products.filter((p) => {
+      const s = (p as any).sector_data;
+      return (
+        (p as any).is_weekly_pick ||
+        s?.is_weekly_pick ||
+        (p as any).is_featured_weekly ||
+        s?.is_featured_weekly ||
+        (p as any).weekly_featured
+      );
+    });
+    if (picked.length > 0) return picked;
+    // Fallback to bestsellers or first few products
+    const best = products.filter((p) => p.is_bestseller || (p as any).is_featured);
+    return best.length > 0 ? best.slice(0, 5) : products.slice(0, 5);
+  }, [products]);
+
+  const [currentHeroIdx, setCurrentHeroIdx] = useState(0);
+  const [isHeroHovered, setIsHeroHovered] = useState(false);
+
+  // Auto rotate weekly picks (configurable duration)
+  useEffect(() => {
+    if (weeklyBooks.length <= 1 || isHeroHovered) return;
+    const rotateSeconds = themeConfig.hero_auto_rotate_seconds || 4;
+    const interval = setInterval(() => {
+      setCurrentHeroIdx((prev) => (prev + 1) % weeklyBooks.length);
+    }, rotateSeconds * 1000);
+    return () => clearInterval(interval);
+  }, [weeklyBooks.length, isHeroHovered, themeConfig.hero_auto_rotate_seconds]);
+
+  const heroBook = weeklyBooks[currentHeroIdx] || weeklyBooks[0] || products[0];
+
+  // Background Theme Class
+  const bgThemeClass = useMemo(() => {
+    switch (themeConfig.background_mode) {
+      case "library_dark":
+        return "bg-[#0d0907] text-[#f4efe6]";
+      case "navy_dark":
+        return "bg-[#060b14] text-[#e8f0fe]";
+      case "emerald_dark":
+        return "bg-[#040f0a] text-[#e6f4ed]";
+      case "burgundy_dark":
+        return "bg-[#100406] text-[#fbe8ea]";
+      case "parchment_warm":
+        return "bg-[#14120e] text-[#f8f5ee]";
+      case "midnight":
+      default:
+        return "bg-slate-950 text-slate-100";
+    }
+  }, [themeConfig.background_mode]);
+
+  // Collage background book images (sample up to 12 cover images)
+  const collageImages = useMemo(() => {
+    const valid = products.map((p) => p.image_url).filter(Boolean) as string[];
+    return valid.length > 0 ? valid.slice(0, 12) : [];
+  }, [products]);
+
+  // Categorized Rows for Netflix Home based on selectable bookstore badges
+  const bestsellerBooks = useMemo(() => {
+    const tagged = products.filter((p) => hasBookstoreBadge(p, 'bestseller') || p.is_bestseller);
+    if (tagged.length > 0) return tagged;
+    return products.filter((p) => p.is_bestseller || (p.stock_quantity && p.stock_quantity > 10));
+  }, [products]);
+
+  const featuredWeekBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'featured_week'));
+  }, [products]);
+
+  const dealBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'deal'));
+  }, [products]);
+
+  const awardWinningBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'award_winning'));
+  }, [products]);
+
+  const editorsPickBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'editors_pick'));
+  }, [products]);
+
+  const newArrivalBooks = useMemo(() => {
+    const tagged = products.filter((p) => hasBookstoreBadge(p, 'new_release'));
+    if (tagged.length > 0) return tagged;
+    return [...products].reverse();
+  }, [products]);
+
+  const comingSoonBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'coming_soon'));
+  }, [products]);
+
+  // Catalog filtered products
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const query = searchQuery.toLowerCase().trim();
+      const pAuthor = (p.author || (p as any).sector_data?.author || "").toLowerCase();
+      const pPublisher = (p.brand || (p as any).sector_data?.publisher || "").toLowerCase();
+      const pName = (p.name || "").toLowerCase();
+      const pBarcode = (p.barcode || "").toLowerCase();
+      const pSub = (p.sub_category || (p as any).sub_category_2 || (p as any).sector_data?.genre || (p as any).genre || "").trim();
+
+      const matchesSearch = !query || pName.includes(query) || pAuthor.includes(query) || pPublisher.includes(query) || pBarcode.includes(query);
+      const matchesCategory = selectedCategory === "all" || p.category === selectedCategory;
+      const matchesSubCategory = selectedSubCategory === "all" || pSub === selectedSubCategory || p.sub_category === selectedSubCategory;
+      const matchesAuthor = selectedAuthor === "all" || (p.author === selectedAuthor || (p as any).sector_data?.author === selectedAuthor);
+      const matchesPublisher = selectedPublisher === "all" || (p.brand === selectedPublisher || (p as any).sector_data?.publisher === selectedPublisher);
+      const matchesBadge = selectedBadge === "all" || hasBookstoreBadge(p, selectedBadge);
+
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesAuthor && matchesPublisher && matchesBadge;
+    });
+  }, [products, searchQuery, selectedCategory, selectedSubCategory, selectedAuthor, selectedPublisher, selectedBadge]);
+
+  const resetAllFiltersAndGoHome = () => {
+    setActiveTab("home");
+    setSearchQuery("");
+    setSelectedCategory("all");
+    setSelectedSubCategory("all");
+    setSelectedAuthor("all");
+    setSelectedPublisher("all");
+    setSelectedBadge("all");
+  };
+
+  const isSearchActive = searchQuery.trim().length > 0 || selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || selectedBadge !== "all" || activeTab === "catalog";
+
+  const basketItemCount = useMemo(() => {
+    return basket.reduce((acc, item) => acc + (item.quantity || 1), 0);
+  }, [basket]);
+
+  return (
+    <div className={`min-h-screen ${bgThemeClass} font-sans transition-colors duration-300 selection:bg-red-600 selection:text-white`}>
+      {/* Top Announcement Bar if enabled */}
+      {themeConfig.show_announcement_bar && themeConfig.announcement_text && (
+        <div
+          style={{
+            backgroundColor: themeConfig.announcement_bg_style === "dark" 
+              ? "#0f172a" 
+              : themeConfig.announcement_bg_style === "gold" 
+                ? "#d97706" 
+                : (themeConfig.primary_color || "#e50914"),
+            color: themeConfig.announcement_bg_style === "dark" ? "#fcd34d" : "#ffffff"
+          }}
+          className="px-4 py-2 text-center text-xs font-black tracking-wide flex items-center justify-center gap-2 shadow-sm transition-all z-50 relative"
+        >
+          <Sparkles className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+          <span>{themeConfig.announcement_text}</span>
+        </div>
+      )}
+
+      {/* Netflix Sticky Navbar */}
+      <header className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 transition-all">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
+          {/* Brand Logo & Store Name */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={resetAllFiltersAndGoHome}>
+              {storeLogo ? (
+                <img src={storeLogo} alt={storeName} className="h-8 md:h-9 object-contain" />
+              ) : (
+                <div 
+                  className="flex items-center gap-2 font-black tracking-tighter text-xl sm:text-2xl"
+                  style={{ color: themeConfig.primary_color || "#ef4444" }}
+                >
+                  <BookOpen className="w-7 h-7" />
+                  <span className="text-white tracking-normal font-extrabold text-base sm:text-lg">{storeName}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Navigation Links */}
+            <nav className="hidden md:flex items-center gap-6 text-xs sm:text-sm font-bold text-slate-300">
+              <button
+                type="button"
+                onClick={resetAllFiltersAndGoHome}
+                className={`transition-colors hover:text-white cursor-pointer ${activeTab === "home" && !isSearchActive ? "text-white font-black" : "text-slate-400"}`}
+              >
+                {isTr ? "Ana Sayfa" : "Home"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab("catalog"); }}
+                className={`transition-colors hover:text-white cursor-pointer ${activeTab === "catalog" || isSearchActive ? "text-white font-black" : "text-slate-400"}`}
+              >
+                {isTr ? "Kitap Kataloğu" : "Browse All"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { 
+                  setActiveTab("catalog"); 
+                  setSelectedCategory("all");
+                  setSelectedBadge("bestseller");
+                }}
+                className="text-slate-400 hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <Flame className="w-3.5 h-3.5" style={{ color: themeConfig.primary_color || "#ef4444" }} />
+                <span>{themeConfig.title_bestsellers || (isTr ? "Çok Satanlar" : "Bestsellers")}</span>
+              </button>
+            </nav>
+          </div>
+
+          {/* Search Bar & Actions */}
+          <div className="flex items-center gap-3">
+            {/* Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={isTr ? "Kitap, yazar, yayınevi veya ISBN ara..." : "Search books, authors..."}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (e.target.value && activeTab !== "catalog") {
+                    setActiveTab("catalog");
+                  }
+                }}
+                className="w-44 sm:w-64 md:w-72 pl-9 pr-8 py-1.5 bg-slate-900/90 border border-slate-800 rounded-full text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                style={{
+                  borderColor: searchQuery ? themeConfig.primary_color : undefined
+                }}
+              />
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Favorites Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (customer) {
+                  onOpenProfile("favorites");
+                } else {
+                  setShowAuthModal(true);
+                }
+              }}
+              className="relative p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-rose-500 hover:border-rose-500/40 transition-all cursor-pointer"
+              title={isTr ? "Favori Kitaplarım" : "My Favorites"}
+            >
+              <Heart className={`w-4 h-4 ${favCount > 0 ? 'text-rose-500 fill-rose-500/30' : ''}`} />
+              {favCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-md">
+                  {favCount}
+                </span>
+              )}
+            </button>
+
+            {/* Account Profile Button */}
+            {customer ? (
+              <button
+                type="button"
+                onClick={() => onOpenProfile("profile")}
+                className="p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+              >
+                <User className="w-4 h-4" style={{ color: themeConfig.primary_color || "#ef4444" }} />
+                <span className="hidden sm:inline max-w-[90px] truncate">{customer.name || customer.email}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAuthModal(true)}
+                className="p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer"
+                title={isTr ? "Giriş Yap" : "Login"}
+              >
+                <User className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Shopping Bag Button */}
+            <button
+              type="button"
+              onClick={onCheckout}
+              style={{ backgroundColor: themeConfig.primary_color || "#ef4444" }}
+              className="relative p-2 rounded-full text-white transition-all shadow-md cursor-pointer hover:opacity-90"
+              title={isTr ? "Sepetim" : "Cart"}
+            >
+              <ShoppingBag className="w-4 h-4" />
+              {basketItemCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-white text-slate-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                  {basketItemCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      {!isSearchActive && activeTab === "home" ? (
+        /* HOME VIEW: Cinematic Netflix Hero + Horizontal Streaming Rows */
+        <main>
+          {/* HAFTANIN ESERLERİ: Multi-Book Dynamic Banner with Glowing Collage Background */}
+          {themeConfig.show_hero_billboard !== false && heroBook && (
+            <section 
+              className="relative w-full overflow-hidden bg-slate-950/80 border-b border-slate-900"
+              onMouseEnter={() => setIsHeroHovered(true)}
+              onMouseLeave={() => setIsHeroHovered(false)}
+            >
+              {/* Background 1: Glowing Book Covers Mosaic Collage */}
+              {themeConfig.show_hero_collage !== false && (
+                <div 
+                  className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none transition-opacity duration-700"
+                  style={{ opacity: (themeConfig.hero_collage_opacity ?? 25) / 100 }}
+                >
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3 sm:gap-4 p-4 transform -rotate-3 scale-110 blur-[2px]">
+                    {collageImages.length > 0 ? (
+                      collageImages.concat(collageImages).slice(0, 16).map((imgUrl, i) => (
+                        <div 
+                          key={`collage-img-${i}`}
+                          className="aspect-[2/3] rounded-lg overflow-hidden shadow-2xl border border-white/10 opacity-70 transition-all duration-1000 transform hover:scale-105"
+                        >
+                          <img 
+                            src={imgUrl} 
+                            alt="" 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      ))
+                    ) : (
+                      Array.from({ length: 12 }).map((_, i) => (
+                        <div key={`collage-ph-${i}`} className="aspect-[2/3] rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/30" />
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Background 2: Active Book Ambient Glow & Cinematic Dark Vignette */}
+              <div className="absolute inset-0 z-1 pointer-events-none">
+                <div 
+                  className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-[120px] opacity-20"
+                  style={{ backgroundColor: themeConfig.primary_color || "#ef4444" }}
+                />
+                <div 
+                  className="absolute bottom-10 right-1/4 w-80 h-80 rounded-full blur-[100px] opacity-15"
+                  style={{ backgroundColor: themeConfig.secondary_color || "#f59e0b" }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-slate-950/70" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/80" />
+              </div>
+
+              {/* Hero Main Content Box */}
+              <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 md:px-12 pt-6 sm:pt-8 md:pt-10 pb-8 sm:pb-12">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+                  
+                  {/* Left Column: Book Details & Action Controls */}
+                  <div className="lg:col-span-7 xl:col-span-8 space-y-3.5 sm:space-y-4">
+                    
+                    {/* Header Badges & Switcher Pill */}
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                      <div 
+                        className="inline-flex items-center gap-1.5 px-3 py-1 text-white text-[11px] font-black uppercase tracking-widest rounded-full shadow-lg"
+                        style={{
+                          backgroundColor: themeConfig.primary_color || "#ef4444"
+                        }}
+                      >
+                        <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                        <span>{themeConfig.hero_badge_text || (isTr ? "HAFTANIN ESERLERİ" : "WEEKLY PICKS")}</span>
+                      </div>
+
+                      {weeklyBooks.length > 1 && (
+                        <span className="px-2.5 py-0.5 bg-slate-900/90 border border-slate-700 text-slate-300 text-[11px] font-black rounded-full backdrop-blur-md">
+                          {String(currentHeroIdx + 1).padStart(2, "0")} / {String(weeklyBooks.length).padStart(2, "0")}
+                        </span>
+                      )}
+
+                      {themeConfig.show_hero_meta_badges !== false && (
+                        <>
+                          <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-bold bg-black/60 border border-amber-500/30 px-2.5 py-0.5 rounded-full backdrop-blur-sm">
+                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                            <span>{(heroBook as any).sector_data?.rating || "4.9"} / 5.0</span>
+                          </span>
+
+                          {((heroBook as any).sector_data?.page_count || (heroBook as any).page_count) && (
+                            <span className="text-[11px] font-bold text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded-md border border-slate-800">
+                              {((heroBook as any).sector_data?.page_count || (heroBook as any).page_count)} {isTr ? "Sayfa" : "Pages"}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {/* Book Title */}
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={`hero-title-${heroBook.id || currentHeroIdx}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-2"
+                      >
+                        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                          {heroBook.name}
+                        </h1>
+
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm font-bold text-slate-300">
+                          <span 
+                            className="font-extrabold"
+                            style={{ color: themeConfig.secondary_color || "#f59e0b" }}
+                          >
+                            {heroBook.author || (heroBook as any).sector_data?.author || (isTr ? "Seçkin Yazar" : "Featured Author")}
+                          </span>
+                          <span className="text-slate-600">•</span>
+                          <span className="text-slate-300">{heroBook.brand || (heroBook as any).sector_data?.publisher || (isTr ? "Seçkin Yayıncılık" : "Publisher")}</span>
+                          <span className="text-slate-600">•</span>
+                          <span className="text-emerald-400 font-black text-sm sm:text-base">
+                            {Number(heroBook.price).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {heroBook.currency || "TRY"}
+                          </span>
+                        </div>
+
+                        {/* Spot Quote (Çarpıcı Alıntı) */}
+                        {(() => {
+                          const heroQuote = (heroBook as any).sector_data?.spot_quote || (heroBook as any).sector_data?.featured_quote || (heroBook as any).sector_data?.quote || (heroBook as any).spot_quote || (heroBook as any).featured_quote || (heroBook as any).quote || (heroBook as any).spot;
+                          if (themeConfig.show_hero_quote === false || !heroQuote) return null;
+                          return (
+                            <div className="p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90 text-amber-300/90 text-xs sm:text-sm italic flex items-start gap-2 max-w-xl backdrop-blur-md shadow-lg">
+                              <Quote className="w-4 h-4 shrink-0 mt-0.5 text-amber-400 opacity-85" />
+                              <p className="line-clamp-2 font-serif">
+                                &ldquo;{heroQuote}&rdquo;
+                              </p>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Short Description */}
+                        <p className="text-xs sm:text-sm text-slate-300 line-clamp-3 leading-relaxed max-w-2xl font-normal">
+                          {heroBook.description || (isTr 
+                            ? "Sayfaları çevirdikçe sizi içine çeken, kurgusu ve güçlü anlatımıyla edebiyat dünyasında derin yankı uyandıran eşsiz bir başyapıt." 
+                            : "An extraordinary novel with captivating storytelling and profound character development.")}
+                        </p>
+                      </motion.div>
+                    </AnimatePresence>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => onViewProduct(heroBook, weeklyBooks)}
+                        className="px-5 sm:px-6 py-2.5 bg-white hover:bg-slate-200 text-slate-950 font-black text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-xl cursor-pointer"
+                      >
+                        <Info className="w-4 h-4" />
+                        <span>{isTr ? "Kitabı İncele" : "Explore Details"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => addToBasket(heroBook)}
+                        style={{
+                          backgroundColor: themeConfig.primary_color || "#ef4444"
+                        }}
+                        className="px-5 sm:px-6 py-2.5 text-white font-black text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-xl cursor-pointer hover:opacity-90"
+                      >
+                        <ShoppingBag className="w-4 h-4" />
+                        <span>{isTr ? "Sepete Ekle" : "Add to Cart"}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Column: 3D Perspective Hero Book Showcase & Weekly Thumbnail Selector */}
+                  {themeConfig.show_hero_3d_cover !== false && (
+                    <div className="lg:col-span-5 xl:col-span-4 flex flex-col items-center justify-center">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={`hero-cover-${heroBook.id || currentHeroIdx}`}
+                          initial={{ opacity: 0, scale: 0.95, rotateY: -10 }}
+                          animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, rotateY: 10 }}
+                          transition={{ duration: 0.35 }}
+                          className="relative group cursor-pointer"
+                          onClick={() => onViewProduct(heroBook, weeklyBooks)}
+                        >
+                          {/* 3D Book Cover Frame */}
+                          <div className="relative w-44 sm:w-52 md:w-60 aspect-[2/3] rounded-xl overflow-hidden shadow-2xl shadow-black/80 border-2 border-slate-700/80 bg-slate-900 transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300">
+                            <img
+                              src={heroBook.image_url || getBookCoverFallbackSvg(heroBook.name, heroBook.author)}
+                              alt={heroBook.name}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                            
+                            {/* Gloss & Spine Shine */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-black/30 pointer-events-none" />
+                            <div className="absolute top-0 left-0 bottom-0 w-2.5 bg-gradient-to-r from-black/40 to-transparent pointer-events-none" />
+
+                            {/* Hover Detail Overlay */}
+                            <div className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-4 text-center">
+                              <span 
+                                className="text-xs font-black text-white px-3 py-1.5 rounded-lg shadow-lg"
+                                style={{ backgroundColor: themeConfig.primary_color || "#ef4444" }}
+                              >
+                                {isTr ? "Detayları İncele" : "View Book"}
+                              </span>
+                              <span className="text-[11px] text-slate-300 font-semibold">
+                                {heroBook.author}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Ambient Drop Glow */}
+                          <div 
+                            className="absolute -bottom-4 inset-x-4 h-6 rounded-full blur-xl -z-10 opacity-40"
+                            style={{ backgroundColor: themeConfig.primary_color || "#ef4444" }}
+                          />
+                        </motion.div>
+                      </AnimatePresence>
+
+                      {/* Weekly Picks Mini Thumbnails Switcher Strip (Sleek Glass Filmstrip with No Scrollbars) */}
+                      {weeklyBooks.length > 1 && (
+                        <div className="mt-4 flex items-center justify-center gap-1.5 sm:gap-2 max-w-full px-2">
+                          {/* Prev Button */}
+                          <button
+                            type="button"
+                            onClick={() => setCurrentHeroIdx((prev) => (prev - 1 + weeklyBooks.length) % weeklyBooks.length)}
+                            className="w-7 h-7 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 flex items-center justify-center shrink-0 transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
+                            title={isTr ? "Önceki Eser" : "Previous Book"}
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Thumbnails Container */}
+                          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scrollbar-none scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1.5 bg-slate-950/70 rounded-2xl border border-white/10 backdrop-blur-md shadow-2xl max-w-[280px] sm:max-w-[340px] md:max-w-[400px]">
+                            {weeklyBooks.map((b, bIdx) => {
+                              const isActive = bIdx === currentHeroIdx;
+                              return (
+                                <button
+                                  key={`thumb-pick-${b.id || bIdx}`}
+                                  type="button"
+                                  onClick={() => setCurrentHeroIdx(bIdx)}
+                                  className={`group relative w-8 sm:w-9 aspect-[2/3] rounded-md overflow-hidden transition-all shrink-0 cursor-pointer border ${
+                                    isActive
+                                      ? "border-red-500 scale-110 shadow-lg shadow-red-500/40 ring-2 ring-red-500/50 z-10"
+                                      : "border-slate-800 opacity-50 hover:opacity-100 hover:border-slate-500 hover:scale-105"
+                                  }`}
+                                  style={{
+                                    borderColor: isActive ? (themeConfig.primary_color || "#ef4444") : undefined
+                                  }}
+                                  title={`${b.name} - ${b.author || ""}`}
+                                >
+                                  <img
+                                    src={b.image_url || getBookCoverFallbackSvg(b.name, b.author)}
+                                    alt={b.name}
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  {isActive && (
+                                    <div 
+                                      className="absolute inset-0 opacity-40 pointer-events-none"
+                                      style={{ backgroundColor: themeConfig.primary_color || "#ef4444" }}
+                                    />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Next Button */}
+                          <button
+                            type="button"
+                            onClick={() => setCurrentHeroIdx((prev) => (prev + 1) % weeklyBooks.length)}
+                            className="w-7 h-7 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 flex items-center justify-center shrink-0 transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
+                            title={isTr ? "Sonraki Eser" : "Next Book"}
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Horizontal Netflix Rows (with clean positive breathing margin) */}
+          <div className="relative z-20 mt-6 sm:mt-8 space-y-4 pb-16">
+            {/* Row 1: Çok Satanlar (Bestsellers) */}
+            {themeConfig.show_row_bestsellers !== false && (
+              <NetflixBookRow
+                title={themeConfig.title_bestsellers || (isTr ? "Çok Satan Eserler" : "Top Bestsellers")}
+                subtitle={themeConfig.subtitle_bestsellers || (isTr ? "Okurlarımız tarafından en çok tercih edilen ve okunan başyapıtlar" : "Most popular books chosen by readers")}
+                badge="TOP 10"
+                products={bestsellerBooks.length > 0 ? bestsellerBooks : products.slice(0, 10)}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+                primaryColor={themeConfig.primary_color}
+                secondaryColor={themeConfig.secondary_color}
+                enableCardFlip={themeConfig.enable_card_flip}
+                showCardSynopsis={themeConfig.show_card_synopsis}
+                showCardBadges={themeConfig.show_card_badges}
+                showCardRating={themeConfig.show_card_rating}
+                showCardQuickAdd={themeConfig.show_card_quick_add}
+              />
+            )}
+
+            {/* Row 2: Haftanın Öne Çıkan Eserleri (Weekly Featured) */}
+            {featuredWeekBooks.length > 0 && (
+              <NetflixBookRow
+                title={themeConfig.title_weekly_picks || (isTr ? "Haftanın Öne Çıkan Eserleri" : "Books of the Week")}
+                subtitle={themeConfig.subtitle_weekly_picks || (isTr ? "Bu haftanın vitrin manşetinde yer alan özel edebi seçki" : "Handpicked weekly spotlight on our hero showcase")}
+                badge={isTr ? "HAFTANIN ESERİ" : "WEEKLY PICK"}
+                products={featuredWeekBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+                primaryColor={themeConfig.primary_color}
+                secondaryColor={themeConfig.secondary_color}
+                enableCardFlip={themeConfig.enable_card_flip}
+                showCardSynopsis={themeConfig.show_card_synopsis}
+                showCardBadges={themeConfig.show_card_badges}
+                showCardRating={themeConfig.show_card_rating}
+                showCardQuickAdd={themeConfig.show_card_quick_add}
+              />
+            )}
+
+            {/* Row 3: Fırsat & İndirimdekiler (Deals & Discounts) */}
+            {themeConfig.show_row_discounted !== false && dealBooks.length > 0 && (
+              <NetflixBookRow
+                title={themeConfig.title_discounted || (isTr ? "Haftanın Fırsat & İndirimli Eserleri" : "Special Deals & Discounts")}
+                subtitle={themeConfig.subtitle_discounted || (isTr ? "Sınırlı süreye özel avantajlı fiyatlar ve haftanın indirimli seçkin eserleri" : "Limited-time deals and advantageous prices on selected books")}
+                badge={isTr ? "FIRSAT" : "DEAL"}
+                products={dealBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+                primaryColor={themeConfig.primary_color}
+                secondaryColor={themeConfig.secondary_color}
+                enableCardFlip={themeConfig.enable_card_flip}
+                showCardSynopsis={themeConfig.show_card_synopsis}
+                showCardBadges={themeConfig.show_card_badges}
+                showCardRating={themeConfig.show_card_rating}
+                showCardQuickAdd={themeConfig.show_card_quick_add}
+              />
+            )}
+
+            {/* Row 4: Ödüllü Eserler (Award Winners) */}
+            {themeConfig.show_row_award_winning !== false && awardWinningBooks.length > 0 && (
+              <NetflixBookRow
+                title={themeConfig.title_award_winning || (isTr ? "Ödüllü Eserler & Başyapıtlar" : "Award-Winning Masterpieces")}
+                subtitle={themeConfig.subtitle_award_winning || (isTr ? "Ulusal ve uluslararası prestijli edebiyat ödülleriyle taçlandırılmış eserler" : "Books honored with prestigious national & international literary awards")}
+                badge={isTr ? "ÖDÜLLÜ" : "AWARD"}
+                products={awardWinningBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+                primaryColor={themeConfig.primary_color}
+                secondaryColor={themeConfig.secondary_color}
+                enableCardFlip={themeConfig.enable_card_flip}
+                showCardSynopsis={themeConfig.show_card_synopsis}
+                showCardBadges={themeConfig.show_card_badges}
+                showCardRating={themeConfig.show_card_rating}
+                showCardQuickAdd={themeConfig.show_card_quick_add}
+              />
+            )}
+
+            {/* Row 5: Editörün Seçimi (Editor's Pick) */}
+            {themeConfig.show_row_editors_pick !== false && editorsPickBooks.length > 0 && (
+              <NetflixBookRow
+                title={themeConfig.title_editors_pick || (isTr ? "Editörün Seçimi Eserler" : "Editor's Choice")}
+                subtitle={themeConfig.subtitle_editors_pick || (isTr ? "Edebiyat danışmanlarımız ve editörlerimiz tarafından özenle seçilen özel seçki" : "Carefully curated selections by our literary editors")}
+                badge={isTr ? "EDİTÖR" : "CURATED"}
+                products={editorsPickBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+                primaryColor={themeConfig.primary_color}
+                secondaryColor={themeConfig.secondary_color}
+                enableCardFlip={themeConfig.enable_card_flip}
+                showCardSynopsis={themeConfig.show_card_synopsis}
+                showCardBadges={themeConfig.show_card_badges}
+                showCardRating={themeConfig.show_card_rating}
+                showCardQuickAdd={themeConfig.show_card_quick_add}
+              />
+            )}
+
+            {/* Row 6: Yeni Gelenler (New Arrivals) */}
+            {themeConfig.show_row_new_arrivals !== false && (
+              <NetflixBookRow
+                title={themeConfig.title_new_arrivals || (isTr ? "Yeni Çıkanlar & Raflarda" : "New Releases & Just In")}
+                subtitle={themeConfig.subtitle_new_arrivals || (isTr ? "Bu hafta raflarımızda yerini alan en taze edebi yayınlar" : "Fresh literary publications that arrived this week")}
+                badge={isTr ? "YENİ" : "NEW"}
+                products={newArrivalBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+                primaryColor={themeConfig.primary_color}
+                secondaryColor={themeConfig.secondary_color}
+                enableCardFlip={themeConfig.enable_card_flip}
+                showCardSynopsis={themeConfig.show_card_synopsis}
+                showCardBadges={themeConfig.show_card_badges}
+                showCardRating={themeConfig.show_card_rating}
+                showCardQuickAdd={themeConfig.show_card_quick_add}
+              />
+            )}
+
+            {/* Row 7: Yakında Gelecekler & Ön Sipariş (Coming Soon) */}
+            {themeConfig.show_row_coming_soon !== false && comingSoonBooks.length > 0 && (
+              <NetflixBookRow
+                title={themeConfig.title_coming_soon || (isTr ? "Yakında Raflarda & Ön Sipariş" : "Coming Soon & Pre-Order")}
+                subtitle={themeConfig.subtitle_coming_soon || (isTr ? "Baskı aşamasında olan ve merakla beklenen yeni yayınlar" : "Upcoming anticipated releases and pre-orders")}
+                badge={isTr ? "YAKINDA" : "COMING SOON"}
+                products={comingSoonBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+                primaryColor={themeConfig.primary_color}
+                secondaryColor={themeConfig.secondary_color}
+                enableCardFlip={themeConfig.enable_card_flip}
+                showCardSynopsis={themeConfig.show_card_synopsis}
+                showCardBadges={themeConfig.show_card_badges}
+                showCardRating={themeConfig.show_card_rating}
+                showCardQuickAdd={themeConfig.show_card_quick_add}
+              />
+            )}
+
+            {/* Category Specific Rows (Netflix Horizontal Style) */}
+            {themeConfig.show_row_categories !== false && categories.map((catName) => {
+              const catProducts = products.filter((p) => p.category === catName);
+              if (catProducts.length === 0) return null;
+              return (
+                <NetflixBookRow
+                  key={`cat-row-${catName}`}
+                  title={catName}
+                  subtitle={isTr ? `${catName} kategorisindeki seçkin kitaplar` : `Curated books in ${catName}`}
+                  products={catProducts}
+                  store={store}
+                  lang={lang}
+                  onViewProduct={onViewProduct}
+                  addToBasket={addToBasket}
+                  primaryColor={themeConfig.primary_color}
+                  secondaryColor={themeConfig.secondary_color}
+                  enableCardFlip={themeConfig.enable_card_flip}
+                  showCardSynopsis={themeConfig.show_card_synopsis}
+                  showCardBadges={themeConfig.show_card_badges}
+                  showCardRating={themeConfig.show_card_rating}
+                  showCardQuickAdd={themeConfig.show_card_quick_add}
+                />
+              );
+            })}
+          </div>
+        </main>
+      ) : (
+        /* CATALOG & SEARCH VIEW: Filter Bar + Responsive Card Grid */
+        <main className="max-w-7xl mx-auto px-3 sm:px-8 py-4 sm:py-8">
+          {/* Header & Filter Bar */}
+          <div className="mb-5 sm:mb-8 space-y-3">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-2xl font-black text-white flex items-center gap-2 truncate">
+                  <Compass className="w-5 h-5 text-red-500 shrink-0" />
+                  <span className="truncate">{selectedCategory !== "all" ? selectedCategory : (isTr ? "Kitap Koleksiyonu" : "Book Collection")}</span>
+                </h1>
+                <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 tabular-nums">
+                  {isTr ? `${filteredProducts.length} eser listeleniyor` : `Showing ${filteredProducts.length} titles`}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+                  className="sm:hidden px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-red-500" />
+                  <span>{isTr ? "Filtrele" : "Filter"}</span>
+                </button>
+
+                {/* Clear filters button */}
+                {(selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || selectedBadge !== "all" || searchQuery) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory("all");
+                      setSelectedSubCategory("all");
+                      setSelectedAuthor("all");
+                      setSelectedPublisher("all");
+                      setSelectedBadge("all");
+                      setSearchQuery("");
+                    }}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline">{isTr ? "Sıfırla" : "Reset"}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Badge / Concept Filter Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setSelectedBadge("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 border ${
+                  selectedBadge === "all"
+                    ? "bg-red-600 border-red-500 text-white shadow-md shadow-red-600/30"
+                    : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <span>{isTr ? "Tüm Eserler" : "All Books"}</span>
+                <span className="text-[10px] opacity-75">({products.length})</span>
+              </button>
+
+              {BOOKSTORE_BADGES.map((b) => {
+                const count = products.filter(p => hasBookstoreBadge(p, b.id)).length;
+                const active = selectedBadge === b.id;
+                const IconComp = 
+                  b.iconName === 'Flame' ? Flame :
+                  b.iconName === 'Sparkles' ? Sparkles :
+                  b.iconName === 'Star' ? Star :
+                  b.iconName === 'Award' ? Award :
+                  b.iconName === 'Crown' ? Crown :
+                  b.iconName === 'Clock' ? Clock : Tag;
+                return (
+                  <button
+                    key={`catalog-badge-${b.id}`}
+                    type="button"
+                    onClick={() => setSelectedBadge(active ? "all" : b.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 border ${
+                      active
+                        ? `${b.badgeBgClass} border-transparent shadow-md text-white`
+                        : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <IconComp className={`w-3.5 h-3.5 ${active ? "text-white" : b.textClass}`} />
+                    <span>{isTr ? b.labelTr : b.labelEn}</span>
+                    {count > 0 && (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        active ? "bg-white/20 text-white" : "bg-slate-800 text-slate-400"
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Filter Selectors Grid - Collapsible on Mobile */}
+            <div className={`${isMobileFiltersOpen ? "grid" : "hidden sm:grid"} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1`}>
+              {/* Category Filter */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Bookmark className="w-3 h-3 text-red-500" />
+                  <span>{isTr ? "Kategori" : "Category"}</span>
+                </label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => {
+                    setSelectedCategory(e.target.value);
+                    setSelectedSubCategory("all");
+                  }}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all cursor-pointer"
+                >
+                  <option value="all">{isTr ? "Tüm Kategoriler" : "All Categories"}</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sub Category Filter */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Layers className="w-3 h-3 text-red-500" />
+                  <span>{isTr ? "Alt Kategori / Tür" : "Sub-Category / Genre"}</span>
+                </label>
+                <select
+                  value={selectedSubCategory}
+                  onChange={(e) => setSelectedSubCategory(e.target.value)}
+                  disabled={subCategories.length === 0}
+                  className={`w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all ${
+                    subCategories.length === 0 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+                >
+                  <option value="all">{isTr ? "Tüm Alt Kategoriler" : "All Sub-Categories"}</option>
+                  {subCategories.map((sub) => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Author Filter */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <User className="w-3 h-3 text-red-500" />
+                  <span>{isTr ? "Yazar" : "Author"}</span>
+                </label>
+                <select
+                  value={selectedAuthor}
+                  onChange={(e) => setSelectedAuthor(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all cursor-pointer"
+                >
+                  <option value="all">{isTr ? "Tüm Yazarlar" : "All Authors"}</option>
+                  {authors.map((a) => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Publisher Filter */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Building2 className="w-3 h-3 text-red-500" />
+                  <span>{isTr ? "Yayınevi" : "Publisher"}</span>
+                </label>
+                <select
+                  value={selectedPublisher}
+                  onChange={(e) => setSelectedPublisher(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all cursor-pointer"
+                >
+                  <option value="all">{isTr ? "Tüm Yayınevleri" : "All Publishers"}</option>
+                  {publishers.map((pub) => (
+                    <option key={pub} value={pub}>{pub}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Book Cards Grid */}
+          {filteredProducts.length > 0 ? (
+            <div className="flex flex-col gap-8 sm:gap-10">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+                {filteredProducts.slice(0, visibleCount).map((product) => (
+                  <BookCardNetflix
+                    key={`catalog-book-${product.id}`}
+                    product={product}
+                    store={store}
+                    lang={lang}
+                    onView={onViewProduct}
+                    addToBasket={addToBasket}
+                    primaryColor={themeConfig.primary_color}
+                    secondaryColor={themeConfig.secondary_color}
+                    enableCardFlip={themeConfig.enable_card_flip}
+                    showCardSynopsis={themeConfig.show_card_synopsis}
+                    showCardBadges={themeConfig.show_card_badges}
+                    showCardRating={themeConfig.show_card_rating}
+                    showCardQuickAdd={themeConfig.show_card_quick_add}
+                  />
+                ))}
+              </div>
+
+              {filteredProducts.length > visibleCount && (
+                <div className="flex justify-center pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => prev + 30)}
+                    className="px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-wider text-white shadow-lg shadow-black/40 hover:scale-102 active:scale-98 transition-all cursor-pointer flex items-center gap-2 border border-white/10"
+                    style={{ backgroundColor: themeConfig.primary_color || "#ef4444" }}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>{isTr ? "Daha Fazla Kitap Göster" : "Load More Books"}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="py-20 text-center space-y-3 bg-slate-900/50 rounded-3xl border border-slate-800">
+              <BookOpen className="w-12 h-12 text-slate-600 mx-auto stroke-1" />
+              <h3 className="text-base font-bold text-white">
+                {isTr ? "Aradığınız kriterlere uygun kitap bulunamadı" : "No books found matching criteria"}
+              </h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {isTr ? "Farklı anahtar kelimelerle arama yapabilir veya filtreleri sıfırlayabilirsiniz." : "Try adjusting your search terms or clearing filters."}
+              </p>
+            </div>
+          )}
+        </main>
+      )}
+
+      {/* Footer */}
+      <StoreFooter
+        store={store}
+        lang={lang}
+        setShowAboutModal={setShowAboutModal}
+        setShowStoreLocatorModal={setShowStoreLocatorModal}
+        onOpenProfile={(tab) => onOpenProfile(tab)}
+      />
+    </div>
+  );
+};

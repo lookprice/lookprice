@@ -1,0 +1,1684 @@
+import { toast } from "sonner";
+import React, { useState, useEffect, useDeferredValue, useRef } from "react";
+import { 
+  Plus, 
+  Search, 
+  Trash2, 
+  FileDown, 
+  Eye, 
+  X, 
+  Save, 
+  Calendar, 
+  User as UserIcon, 
+  Hash, 
+  Package, 
+  CreditCard, 
+  Percent, 
+  FileSpreadsheet, 
+  FileText, 
+  FileSearch, 
+  CheckCircle2, 
+  Edit, 
+  Building2, 
+  Printer, 
+  CloudUpload, 
+  RefreshCw, 
+  Loader2, 
+  XCircle,
+  Truck,
+  Clock,
+  AlertTriangle,
+  Check,
+  Store,
+  ChevronDown,
+  Globe,
+  Box,
+  Tag,
+  Layers,
+  ShoppingBag
+} from "lucide-react";
+import { normalizeSearch } from "../lib/searchUtils";
+import { formatDateTR, formatFileDateTR } from "../utils/formatUtils";
+import { getConnectedMarketplaces } from "../utils/marketplaceEStores";
+import { motion, AnimatePresence } from "motion/react";
+// import * as XLSX from 'xlsx';
+import { useReactToPrint } from 'react-to-print';
+
+import { SalesInvoiceStats } from "./dashboard/invoices/sales/SalesInvoiceStats";
+import { SalesInvoiceTable } from "./dashboard/invoices/sales/SalesInvoiceTable";
+import { SalesInvoiceDetailsModal } from "./dashboard/invoices/sales/SalesInvoiceDetailsModal";
+import { SalesInvoiceHtmlModal } from "./dashboard/invoices/sales/SalesInvoiceHtmlModal";
+import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
+import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
+import { SalesInvoiceFormModal } from "./dashboard/invoices/sales/SalesInvoiceFormModal";
+import { SalesInvoiceWaybillModal } from "./dashboard/invoices/sales/SalesInvoiceWaybillModal";
+import { calculateInvoiceTotals } from "../lib/invoiceUtils";
+
+export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, initialData, onCloseInitialData, products: propProducts, onEditProduct }: any) {
+  const storeId = initialStoreId || currentStoreId;
+  const isTr = lang === 'tr';
+  const isTrBoolean = isTr;
+
+  // Data States
+  const [invoices, setInvoices] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // UI States
+  const [showModal, setShowModal] = useState(false);
+  const lastSyncedIdRef = useRef<string | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showWaybillModal, setShowWaybillModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [search, setSearch] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isBulkPrinting, setIsBulkPrinting] = useState(false);
+  const [showHtmlModal, setShowHtmlModal] = useState(false);
+  const [htmlContent, setHtmlContent] = useState("");
+  const [htmlLoading, setHtmlLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'rejected'>('all');
+  const [marketplaceFilter, setMarketplaceFilter] = useState<'all' | 'web' | 'trendyol' | 'hepsiburada' | 'amazon' | 'n11' | 'pazarama'>('all');
+  const [showStats, setShowStats] = useState(false);
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 15;
+
+  // E-Marketplace Filter Eligibility (Condition 1: shopLP store, Condition 2: At least 1 marketplace API connected)
+  const connectedMarketplaces = getConnectedMarketplaces(branding);
+  const isShopLpStore = Boolean(
+    branding?.store_type === 'shop' ||
+    branding?.store_type === 'product' ||
+    branding?.store_type === 'retail' ||
+    (branding?.store_type !== 'cafe_restaurant' &&
+     branding?.store_type !== 'real_estate' &&
+     branding?.store_type !== 'motor_vehicle' &&
+     branding?.store_type !== 'portfolio' &&
+     branding?.page_layout_settings?.sector !== 'cafe_restaurant' &&
+     branding?.page_layout_settings?.sector !== 'real_estate' &&
+     branding?.page_layout_settings?.sector !== 'automotive')
+  );
+  const showMarketplaceFilter = isShopLpStore && connectedMarketplaces.hasAnyConnected;
+
+  const [marketplaceDropdownOpen, setMarketplaceDropdownOpen] = useState(false);
+  const marketplaceDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (marketplaceDropdownRef.current && !marketplaceDropdownRef.current.contains(event.target as Node)) {
+        setMarketplaceDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const isAmazonInv = (inv: any) => {
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const pMethod = (inv.payment_method || '').toLowerCase().trim();
+    const notes = (inv.notes || '').toLowerCase().trim();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    return (
+      invNum.startsWith('AMZ-') ||
+      pMethod === 'amazon satış' ||
+      pMethod === 'amazon' ||
+      (invType === 'marketplace' && (pMethod.includes('amazon') || notes.startsWith('amazon siparişi')))
+    );
+  };
+
+  const isTrendyolInv = (inv: any) => {
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const pMethod = (inv.payment_method || '').toLowerCase().trim();
+    const notes = (inv.notes || '').toLowerCase().trim();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    return (
+      invNum.startsWith('TY-') ||
+      pMethod === 'trendyol satış' ||
+      pMethod === 'trendyol' ||
+      (invType === 'marketplace' && (pMethod.includes('trendyol') || notes.startsWith('trendyol siparişi')))
+    );
+  };
+
+  const isHepsiburadaInv = (inv: any) => {
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const pMethod = (inv.payment_method || '').toLowerCase().trim();
+    const notes = (inv.notes || '').toLowerCase().trim();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    return (
+      invNum.startsWith('HB-') ||
+      pMethod === 'hepsiburada satış' ||
+      pMethod === 'hepsiburada' ||
+      (invType === 'marketplace' && (pMethod.includes('hepsiburada') || notes.startsWith('hepsiburada siparişi')))
+    );
+  };
+
+  const isN11Inv = (inv: any) => {
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const pMethod = (inv.payment_method || '').toLowerCase().trim();
+    const notes = (inv.notes || '').toLowerCase().trim();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    return (
+      invNum.startsWith('N11-') ||
+      pMethod === 'n11 satış' ||
+      pMethod === 'n11' ||
+      (invType === 'marketplace' && (pMethod.includes('n11') || notes.startsWith('n11 siparişi')))
+    );
+  };
+
+  const isPazaramaInv = (inv: any) => {
+    const invNum = (inv.invoice_number || '').toUpperCase();
+    const pMethod = (inv.payment_method || '').toLowerCase().trim();
+    const notes = (inv.notes || '').toLowerCase().trim();
+    const invType = (inv.invoice_type || '').toLowerCase();
+
+    return (
+      invNum.startsWith('PZR-') ||
+      invNum.startsWith('PAZARAMA-') ||
+      pMethod === 'pazarama satış' ||
+      pMethod === 'pazarama' ||
+      (invType === 'marketplace' && (pMethod.includes('pazarama') || notes.startsWith('pazarama siparişi')))
+    );
+  };
+
+  const matchesMarketplaceFilter = (inv: any) => {
+    if (!showMarketplaceFilter || marketplaceFilter === 'all') return true;
+
+    if (marketplaceFilter === 'amazon') return isAmazonInv(inv);
+    if (marketplaceFilter === 'trendyol') return isTrendyolInv(inv);
+    if (marketplaceFilter === 'hepsiburada') return isHepsiburadaInv(inv);
+    if (marketplaceFilter === 'n11') return isN11Inv(inv);
+    if (marketplaceFilter === 'pazarama') return isPazaramaInv(inv);
+    if (marketplaceFilter === 'web') {
+      const isMp = isAmazonInv(inv) || isTrendyolInv(inv) || isHepsiburadaInv(inv) || isN11Inv(inv) || isPazaramaInv(inv);
+      return !isMp;
+    }
+    return true;
+  };
+  
+  // Marketplace Shipment States
+  const [showMarketplaceShipModal, setShowMarketplaceShipModal] = useState(false);
+  const [selectedMarketplaceInv, setSelectedMarketplaceInv] = useState<any>(null);
+  const [carrierCode, setCarrierCode] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [shippingSubmitting, setShippingSubmitting] = useState(false);
+
+  // Form States
+  const [customerId, setCustomerId] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [waybillNumber, setWaybillNumber] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [invoiceTime, setInvoiceTime] = useState(new Date().toLocaleTimeString('tr-TR', { hour12: false }));
+  const [notes, setNotes] = useState("");
+  const [items, setItems] = useState<any[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const deferredProductSearch = useDeferredValue(productSearch);
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank'>('term');
+  const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
+  const [exchangeRate, setExchangeRate] = useState("1");
+  const [status, setStatus] = useState<'draft' | 'approved' | 'cancelled'>('draft');
+  const [eDocumentType, setEDocumentType] = useState<string | null>(null);
+  const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA' | 'EARSIVFATURA'>('TICARIFATURA');
+  const [giInvoiceType, setGiInvoiceType] = useState<string>('SATIS');
+  const [isReturn, setIsReturn] = useState(false);
+  const [returnInvoiceNumber, setReturnInvoiceNumber] = useState("");
+  const [returnInvoiceDate, setReturnInvoiceDate] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [exemptionReasonCode, setExemptionReasonCode] = useState("");
+  const [exemptionReasonText, setExemptionReasonText] = useState("");
+  const [withholdingTaxCode, setWithholdingTaxCode] = useState("");
+  const [isCheckingTaxpayer, setIsCheckingTaxpayer] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
+  const [saleId, setSaleId] = useState<number | null>(null);
+  const [isTaxInclusive, setIsTaxInclusive] = useState(false);
+  const [editTaxNumber, setEditTaxNumber] = useState("");
+  const [editTaxOffice, setEditTaxOffice] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const deferredCustomerSearch = useDeferredValue(customerSearch);
+  const [lastEditedId, setLastEditedId] = useState<number | null>(null);
+  const [showQuickProductModal, setShowQuickProductModal] = useState(false);
+  const [quickProductForm, setQuickProductForm] = useState({
+    name: "",
+    price: "",
+    barcode: "",
+    category: "",
+    sub_category: "",
+    tax_rate: String(branding?.default_tax_rate ?? 20),
+    currency: branding?.default_currency || 'TRY'
+  });
+
+  const [showQuickCariModal, setShowQuickCariModal] = useState(false);
+  const [quickCariSearchInitial, setQuickCariSearchInitial] = useState("");
+
+  const handleQuickCariSubmit = async (data: any) => {
+    try {
+      if (data.type === 'company') {
+        const newCompany = await api.addCompany({
+          title: data.title,
+          representative: data.phone ? data.title + " Temsilcisi" : undefined,
+          phone: data.phone,
+          email: data.email,
+          tax_office: data.tax_office,
+          tax_number: data.tax_number,
+          currency: data.currency,
+          address: data.address,
+          delivery_address: data.delivery_address,
+          status: 'active'
+        }, storeId);
+        setCompanies((prev: any) => [...prev, newCompany]);
+        setCompanyId(String(newCompany.id));
+        setCustomerId("");
+        setCustomerSearch(newCompany.title || newCompany.company_title || "");
+      } else {
+        const newCust = await api.addCustomer({
+          name: data.title,
+          phone: data.phone,
+          email: data.email,
+          currency: data.currency,
+          address: data.address,
+          status: 'active'
+        }, storeId);
+        setCustomers((prev: any) => [...prev, newCust]);
+        setCustomerId(String(newCust.id));
+        setCompanyId("");
+        setCustomerSearch(newCust.name || newCust.customer_name || "");
+      }
+      setShowQuickCariModal(false);
+      toast.success(isTr ? "Cari başarıyla kaydedildi" : "Cari successfully registered");
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? "Cari kaydedilemedi" : "Cari register failed"));
+    }
+  };
+
+  const invoiceRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({ contentRef: invoiceRef });
+
+  const selectedCompany = companies.find((c: any) => String(c.id) === String(companyId));
+  const selectedCustomer = customers.find((c: any) => String(c.id) === String(customerId));
+
+  const handleMarketplaceShip = (inv: any) => {
+    setSelectedMarketplaceInv(inv);
+    setCarrierCode("");
+    setTrackingNumber("");
+    setShowMarketplaceShipModal(true);
+  };
+
+  const submitMarketplaceShipment = async () => {
+    if (!carrierCode || !trackingNumber) {
+      toast.error(isTr ? "Kargo firması ve takip numarası zorunludur." : "Carrier and tracking number are required.");
+      return;
+    }
+    
+    setShippingSubmitting(true);
+    try {
+      const notes = selectedMarketplaceInv?.notes || "";
+      let platform = "unknown";
+      if (notes.toLowerCase().includes("amazon")) platform = "amazon";
+      
+      if (platform === "amazon") {
+        const orderIdMatch = notes.match(/Amazon Siparişi:\s*([A-Za-z0-9\-]+)/i);
+        const orderIdStr = orderIdMatch ? orderIdMatch[1] : null;
+        
+        if (orderIdStr) {
+          await api.post(`/api/integrations/amazon/orders/${orderIdStr.trim()}/ship`, {
+            carrierCode,
+            trackingNumber,
+            storeId: role === 'superadmin' ? (storeId || undefined) : undefined
+          });
+          toast.success(isTr ? "Kargo bildirimi Amazon'a başarıyla iletildi." : "Shipment tracking submitted to Amazon.");
+          setShowMarketplaceShipModal(false);
+          fetchInvoicesData();
+        } else {
+          toast.error(isTr ? "Sipariş ID bulunamadı." : "Order ID not found in notes.");
+        }
+      } else {
+        toast.error(isTr ? "Bu platform için kargo bildirimi aktif değil." : "Shipment tracking not active for this platform.");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || "Kargo bildirimi sırasında hata oluştu.");
+    } finally {
+      setShippingSubmitting(false);
+    }
+  };
+
+  // Data Fetching
+  const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string, silent = false) => {
+    if (role === 'superadmin' && !storeId) return;
+    if (!silent) setLoading(true);
+    try {
+      const [invRes, custRes, compRes, prodRes] = await Promise.all([
+        api.getSalesInvoices(role === 'superadmin' ? storeId : undefined, searchStr, sDate || startDate, eDate || endDate),
+        api.getCustomers(role === 'superadmin' ? storeId : undefined),
+        api.getCompanies(false, role === 'superadmin' ? storeId : undefined),
+        api.getProducts("", role === 'superadmin' ? storeId : undefined)
+      ]);
+      setInvoices(Array.isArray(invRes) ? invRes : []);
+      setCustomers(Array.isArray(custRes) ? custRes : []);
+      setCompanies(Array.isArray(compRes) ? compRes : []);
+      setProducts(Array.isArray(prodRes) ? prodRes : []);
+    } catch (error) {
+      console.error("Error fetching sales invoices data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInvoicesData(activeSearch, startDate, endDate);
+  }, [storeId, activeSearch, startDate, endDate]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setActiveSearch(search), 600);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Initial Data Handling
+  useEffect(() => {
+    if (initialData) {
+      setEditingInvoiceId(null);
+      setSaleId(initialData.sale_id || null);
+      setCustomerId(initialData.customer_id || "");
+      setCompanyId(initialData.company_id || "");
+      setCustomerSearch(initialData.customer_name || initialData.company_title || "");
+      setInvoiceNumber(initialData.invoice_number || `SATIŞ-${new Date().getTime().toString().slice(-6)}`);
+      setNotes(initialData.notes || "");
+      setItems(initialData.items || []);
+      setCurrency(initialData.currency || branding?.default_currency || 'TRY');
+      setPaymentMethod(initialData.payment_method || 'term');
+      setEDocumentType(initialData.e_document_type || null);
+      setGiInvoiceType(initialData.gi_invoice_type || 'SATIS');
+      setCustomerEmail(initialData.customer_email || "");
+      setExemptionReasonCode(initialData.gi_exemption_reason_code || "");
+      setWithholdingTaxCode(initialData.gi_withholding_tax_code || "");
+      setReturnInvoiceNumber(initialData.return_invoice_number || "");
+      setReturnInvoiceDate(initialData.return_invoice_date || "");
+      setIsReturn((initialData.gi_invoice_type || 'SATIS') === 'IADE');
+      setIsNewCustomer(false);
+      setIsTaxInclusive(initialData.is_tax_inclusive !== undefined ? initialData.is_tax_inclusive : true);
+      setShowModal(true);
+      if (onCloseInitialData) onCloseInitialData();
+    }
+  }, [initialData, branding, onCloseInitialData]);
+
+  // Taxpayer Checking
+  useEffect(() => {
+    const fetchTaxType = async () => {
+      if (!branding?.einvoice_settings?.is_active || editingInvoiceId) return;
+      let vkn = selectedCompany?.tax_number || selectedCustomer?.tax_number || "";
+      if (vkn && (vkn.length === 10 || vkn.length === 11)) {
+        try {
+          const res = await api.checkTaxpayer(vkn, role === 'superadmin' ? storeId : undefined);
+          if (res.documentType === 'E-FATURA') {
+            if (invoiceProfile === 'EARSIVFATURA') setInvoiceProfile('TICARIFATURA');
+            setEDocumentType('E-FATURA');
+          } else {
+            setInvoiceProfile('EARSIVFATURA');
+            setEDocumentType('E-ARŞİV');
+          }
+        } catch (err) {
+          setEDocumentType('E-ARŞİV');
+        }
+      }
+    };
+    fetchTaxType();
+  }, [companyId, customerId, selectedCompany, selectedCustomer, editingInvoiceId]);
+
+  // Reset lastSyncedIdRef on modal open/close
+  useEffect(() => {
+    if (!showModal) {
+      lastSyncedIdRef.current = null;
+    }
+  }, [showModal]);
+
+  // Sync selected cari details to form states
+  useEffect(() => {
+    const currentId = companyId ? `company-${companyId}` : customerId ? `customer-${customerId}` : "";
+    if (currentId !== lastSyncedIdRef.current) {
+      if (selectedCompany) {
+        setEditTaxNumber(selectedCompany.tax_number || "");
+        setEditTaxOffice(selectedCompany.tax_office || "");
+        setEditAddress(selectedCompany.address || "");
+        setCustomerEmail(selectedCompany.email || "");
+        setCustomerSearch(selectedCompany.title || selectedCompany.company_title || "");
+        lastSyncedIdRef.current = currentId;
+      } else if (selectedCustomer) {
+        setEditTaxNumber(selectedCustomer.tax_number || "");
+        setEditTaxOffice(selectedCustomer.tax_office || "");
+        setEditAddress(selectedCustomer.address || "");
+        setCustomerEmail(selectedCustomer.email || "");
+        setCustomerSearch(selectedCustomer.name || selectedCustomer.customer_name || "");
+        lastSyncedIdRef.current = currentId;
+      } else if (!isNewCustomer) {
+        // Only clear if explicitly empty IDs and not a manual new customer form
+        if (!companyId && !customerId) {
+          setEditTaxNumber("");
+          setEditTaxOffice("");
+          setEditAddress("");
+          setCustomerEmail("");
+          lastSyncedIdRef.current = "";
+        }
+      }
+    }
+  }, [companyId, customerId, selectedCompany, selectedCustomer, isNewCustomer]);
+
+  const handleCheckTaxpayer = async () => {
+    if (!editTaxNumber) {
+      toast.error(isTr ? "Sorgulama için Vergi/TC numarası gereklidir." : "Tax or ID number is required for checking.");
+      return;
+    }
+    setIsCheckingTaxpayer(true);
+    try {
+      const res = await api.checkTaxpayer(editTaxNumber, role === 'superadmin' ? storeId : undefined);
+      if (res.error) throw new Error(res.error);
+      
+      if (res.documentType === 'E-FATURA') {
+        toast.info(isTr ? "E-Fatura Mükellefi" : "E-Invoice Taxpayer");
+        setInvoiceProfile('TICARIFATURA');
+        setEDocumentType('E-FATURA');
+      } else {
+        toast.info(isTr ? "E-Arşiv Mükellefi" : "E-Archive Taxpayer");
+        setInvoiceProfile('EARSIVFATURA');
+        setEDocumentType('E-ARŞİV');
+      }
+
+      if (res.title) {
+        setCustomerSearch(res.title);
+        toast.success(isTr ? "Cari ünvanı otomatik güncellendi!" : "Company title automatically updated!");
+      }
+      if (res.taxOffice) {
+        setEditTaxOffice(res.taxOffice);
+      }
+      if (res.address) {
+        setEditAddress(res.address);
+      }
+    } catch (err: any) {
+      toast.error(isTr ? `Sorgulama hatası: ${err.message || 'Mükellef bulunamadı'}` : `Query error: ${err.message || 'Taxpayer not found'}`);
+    } finally {
+      setIsCheckingTaxpayer(false);
+    }
+  };
+
+  // Form Handlers
+  const handleAddProduct = (product: any) => {
+    const productCurrency = product.currency || branding?.default_currency || 'TRY';
+    const targetCurrency = items.length === 0 ? productCurrency : currency;
+    if (items.length === 0 && productCurrency !== currency) {
+      setCurrency(productCurrency);
+      setExchangeRate("1");
+    }
+    setItems((prevItems) => {
+      const existingItem = prevItems.find(item => item.product_id === product.id);
+      if (existingItem) {
+        return prevItems.map(item => 
+          item.product_id === product.id 
+            ? { ...item, quantity: String(Math.floor(Number(item.quantity) + 1)) }
+            : item
+        );
+      } else {
+        const taxRate = Math.floor(Number(product.tax_rate ?? branding?.default_tax_rate ?? 20));
+        let unitPrice = isTaxInclusive 
+          ? (Number(product.price) || 0)
+          : (product.price_2 && Number(product.price_2) > 0 ? Number(product.price_2) : (Number(product.price) || 0) / (1 + taxRate / 100));
+
+        if (productCurrency !== targetCurrency) {
+          const rates = branding?.currency_rates || {};
+          const fromRate = rates[productCurrency] || 1;
+          const toRate = rates[targetCurrency] || 1;
+          unitPrice = (unitPrice * fromRate) / toRate;
+        }
+
+        return [...prevItems, {
+          product_id: product.id,
+          product_name: product.name,
+          barcode: product.barcode,
+          quantity: "1",
+          unit_price: unitPrice.toFixed(2),
+          tax_rate: String(taxRate)
+        }];
+      }
+    });
+    setProductSearch("");
+    setShowProductDropdown(false);
+  };
+
+  const updateItem = (index: number, field: string, value: any) => {
+    setItems(prevItems => {
+      const newItems = [...prevItems];
+      if (field === 'tax_rate') {
+        newItems[index][field] = value.replace(/[^0-9]/g, '').substring(0, 2);
+      } else if (field === 'quantity') {
+        newItems[index][field] = value.replace(/[^0-9]/g, '');
+      } else {
+        newItems[index][field] = value;
+      }
+      return newItems;
+    });
+  };
+
+  const resetForm = () => {
+    setEditingInvoiceId(null);
+    setSaleId(null);
+    setCustomerId("");
+    setCompanyId("");
+    setCustomerSearch("");
+    setInvoiceNumber("");
+    setWaybillNumber("");
+    setInvoiceDate(new Date().toISOString().split('T')[0]);
+    setInvoiceTime(new Date().toLocaleTimeString('tr-TR', { hour12: false }));
+    setNotes("");
+    setItems([]);
+    setProductSearch("");
+    setPaymentMethod('term');
+    setCurrency(branding?.default_currency || 'TRY');
+    setExchangeRate("1");
+    setStatus('draft');
+    setEDocumentType(null);
+    setInvoiceProfile('TICARIFATURA');
+    setGiInvoiceType('SATIS');
+    setIsReturn(false);
+    setReturnInvoiceNumber("");
+    setReturnInvoiceDate("");
+    setCustomerEmail("");
+    setExemptionReasonCode("");
+    setExemptionReasonText("");
+    setWithholdingTaxCode("");
+    setIsTaxInclusive(false);
+    setEditTaxNumber("");
+    setEditTaxOffice("");
+    setEditAddress("");
+    setIsNewCustomer(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerId && !companyId && !isNewCustomer) {
+      toast.error(isTr ? "Lütfen bir müşteri veya cari seçin" : "Please select a customer or company");
+      return;
+    }
+    if (items.length === 0) {
+      toast.error(isTr ? "Lütfen en az bir ürün ekleyin" : "Please add at least one product");
+      return;
+    }
+
+    if (currency !== (branding?.default_currency || 'TRY')) {
+      const rateNum = Number(exchangeRate);
+      if (!rateNum || rateNum <= 1) {
+        toast.error(isTr ? "Lütfen geçerli bir döviz kuru girin. Kur 1.0000 olamaz." : "Please enter a valid exchange rate. Rate cannot be 1.0000.");
+        return;
+      }
+    }
+
+    if (isReturn) {
+      const cleanNo = returnInvoiceNumber.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+      if (!cleanNo) {
+        toast.error(isTr ? "Lütfen iade edilen fatura numarasını girin" : "Please enter the returned invoice number");
+        return;
+      }
+      if (cleanNo.length !== 16) {
+        toast.error(isTr 
+          ? `İade edilen fatura numarası tam olarak 16 haneli olmalıdır (Örn: GIB2026000001234). Girilen: ${returnInvoiceNumber}`
+          : `Returned invoice number must be exactly 16 characters (e.g., GIB2026000001234). Entered: ${returnInvoiceNumber}`
+        );
+        return;
+      }
+      if (!returnInvoiceDate) {
+        toast.error(isTr ? "Lütfen iade edilen fatura tarihini seçin" : "Please select the returned invoice date");
+        return;
+      }
+    }
+
+    const isEArchive = eDocumentType === 'E-ARSIV' || eDocumentType === 'E-ARŞİV' || invoiceProfile === 'EARSIVFATURA';
+    if (isEArchive && (!customerEmail || !customerEmail.trim())) {
+      toast.error(isTr 
+        ? "E-Arşiv faturalarında alıcı e-posta adresi zorunludur. Lütfen geçerli bir e-posta adresi giriniz." 
+        : "Customer email is mandatory for E-Archive invoices."
+      );
+      return;
+    }
+
+    const payload = {
+      storeId: role === 'superadmin' ? (storeId || undefined) : undefined,
+      sale_id: saleId,
+      customer_id: customerId || null,
+      company_id: companyId || null,
+      invoice_number: invoiceNumber,
+      waybill_number: waybillNumber,
+      invoice_date: invoiceDate,
+      invoice_time: invoiceTime,
+      notes,
+      items: items.map(item => ({
+        ...item,
+        quantity: Number(String(item.quantity).replace(',', '.')) || 0,
+        unit_price: Number(String(item.unit_price).replace(',', '.')) || 0,
+        tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
+      })),
+      payment_method: paymentMethod,
+      currency,
+      exchange_rate: Number(exchangeRate) || 1,
+      status,
+      e_document_type: eDocumentType,
+      invoice_profile: invoiceProfile,
+      gi_invoice_type: isReturn ? 'IADE' : giInvoiceType,
+      gi_exemption_reason_code: exemptionReasonCode,
+      gi_exemption_reason_text: exemptionReasonText,
+      gi_withholding_tax_code: withholdingTaxCode,
+      return_invoice_number: isReturn ? returnInvoiceNumber.toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
+      return_invoice_date: isReturn ? returnInvoiceDate : null,
+      customer_email: customerEmail,
+      is_tax_inclusive: isTaxInclusive,
+      tax_number: editTaxNumber,
+      tax_office: editTaxOffice,
+      address: editAddress
+    };
+
+    setShowModal(false);
+    const savePromise = (async () => {
+      const res = editingInvoiceId 
+        ? await api.updateSalesInvoice(editingInvoiceId, payload, payload.storeId)
+        : await api.addSalesInvoice(payload, payload.storeId);
+      if (res.error) throw new Error(res.error);
+      setLastEditedId(editingInvoiceId || res.id);
+      await fetchInvoicesData(activeSearch, startDate, endDate, true);
+      if (onSave) await onSave(true);
+      resetForm();
+      return res;
+    })();
+
+    toast.promise(savePromise, {
+      loading: isTr ? "Fatura kaydediliyor..." : "Saving invoice...",
+      success: isTr ? "Fatura başarıyla kaydedildi" : "Invoice saved successfully",
+      error: (err) => err.message || (isTr ? "Fatura kaydedilirken hata oluştu" : "Error saving invoice")
+    });
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm(isTr ? "Bu faturayı silmek istediğinize emin misiniz?" : "Are you sure?")) return;
+    try {
+      const res = await api.deleteSalesInvoice(id, role === 'superadmin' ? storeId : undefined);
+      if (res.error) throw new Error(res.error);
+      await fetchInvoicesData();
+      if (onSave) onSave(true);
+      toast.success(isTr ? "Fatura silindi" : "Invoice deleted");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleEdit = async (id: number) => {
+    try {
+      const data = await api.getSalesInvoice(id, role === 'superadmin' ? storeId : undefined);
+      if (data.error) throw new Error(data.error);
+      setEditingInvoiceId(id);
+      setSaleId(data.sale_id);
+      setCustomerId(data.customer_id ? String(data.customer_id) : "");
+      setCompanyId(data.company_id ? String(data.company_id) : "");
+
+      let initialSearch = data.company_title || data.customer_name || "";
+      if (data.company_id) {
+        const matchedComp = (companies as any[]).find(c => String(c.id) === String(data.company_id));
+        if (matchedComp) {
+          initialSearch = matchedComp.title || matchedComp.company_title || initialSearch;
+        }
+      } else if (data.customer_id) {
+        const matchedCust = (customers as any[]).find(c => String(c.id) === String(data.customer_id));
+        if (matchedCust) {
+          initialSearch = (matchedCust.full_name && matchedCust.full_name.trim()) || [matchedCust.name, matchedCust.surname].filter(Boolean).join(' ').trim() || matchedCust.customer_name || initialSearch;
+        }
+      }
+      setCustomerSearch(initialSearch);
+      setInvoiceNumber(data.invoice_number);
+      setWaybillNumber(data.waybill_number || "");
+      setInvoiceDate(new Date(data.invoice_date).toISOString().split('T')[0]);
+      setInvoiceTime(data.invoice_time || new Date().toLocaleTimeString('tr-TR', { hour12: false }));
+      setNotes(data.notes || "");
+      setPaymentMethod(data.payment_method);
+      setCurrency(data.currency);
+      setExchangeRate(String(data.exchange_rate || 1));
+      const rawSt = (data.status || '').toLowerCase().trim();
+      const normStatus = ['cancelled', 'iptal', 'iptal edildi'].includes(rawSt) || data.sale_status === 'cancelled'
+        ? 'cancelled'
+        : ['approved', 'completed', 'onaylandi', 'onaylandı'].includes(rawSt)
+          ? 'approved'
+          : 'draft';
+      setStatus(normStatus);
+      setEDocumentType(data.e_document_type);
+      setGiInvoiceType(data.gi_invoice_type);
+      setIsReturn(data.gi_invoice_type === 'IADE');
+      setReturnInvoiceNumber(data.return_invoice_number || "");
+      setReturnInvoiceDate(data.return_invoice_date ? new Date(data.return_invoice_date).toISOString().split('T')[0] : "");
+      setExemptionReasonCode(data.gi_exemption_reason_code || "");
+      setExemptionReasonText(data.gi_exemption_reason_text || data.tax_exemption_reason || "");
+      setWithholdingTaxCode(data.gi_withholding_tax_code || "");
+      setInvoiceProfile(data.invoice_profile);
+
+      let resolvedTaxNumber = data.tax_number || "";
+      let resolvedTaxOffice = data.tax_office || "";
+      let resolvedAddress = data.address || "";
+      let resolvedEmail = data.customer_email || "";
+
+      if (!resolvedTaxNumber || !resolvedTaxOffice || !resolvedAddress || !resolvedEmail) {
+        if (data.customer_id) {
+          const matchedCari = (customers as any[]).find(c => String(c.id) === String(data.customer_id));
+          if (matchedCari) {
+            resolvedTaxNumber = resolvedTaxNumber || matchedCari.tax_number || "";
+            resolvedTaxOffice = resolvedTaxOffice || matchedCari.tax_office || "";
+            resolvedAddress = resolvedAddress || matchedCari.address || "";
+            resolvedEmail = resolvedEmail || matchedCari.email || "";
+          }
+        } else if (data.company_id) {
+          const matchedCari = (companies as any[]).find(c => String(c.id) === String(data.company_id));
+          if (matchedCari) {
+            resolvedTaxNumber = resolvedTaxNumber || matchedCari.tax_number || "";
+            resolvedTaxOffice = resolvedTaxOffice || matchedCari.tax_office || "";
+            resolvedAddress = resolvedAddress || matchedCari.address || "";
+            resolvedEmail = resolvedEmail || matchedCari.email || "";
+          }
+        }
+      }
+
+      setEditTaxNumber(resolvedTaxNumber);
+      setEditTaxOffice(resolvedTaxOffice);
+      setEditAddress(resolvedAddress);
+      setCustomerEmail(resolvedEmail);
+      setIsTaxInclusive(data.is_tax_inclusive !== undefined ? Boolean(data.is_tax_inclusive) : false);
+      setItems((data.items || []).map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        barcode: item.barcode,
+        quantity: String(Number(item.quantity)),
+        unit_price: String(Number(item.unit_price).toFixed(2)),
+        tax_rate: String(Number(item.tax_rate))
+      })));
+      setShowModal(true);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleViewDetails = async (inv: any, print?: boolean) => {
+    try {
+      const data = await api.getSalesInvoice(inv.id, role === 'superadmin' ? storeId : undefined);
+      if (data.error) throw new Error(data.error);
+      setSelectedInvoice(data);
+      setShowDetailsModal(true);
+      if (print) {
+        setTimeout(() => {
+          handlePrint();
+        }, 500);
+      }
+    } catch (error: any) {
+      toast.error(isTr ? "Fatura detayları yüklenemedi." : "Could not load invoice details.");
+      console.error(error);
+    }
+  };
+
+  const handleOpenWaybillModal = (inv: any) => {
+    setSelectedInvoice(inv);
+    setShowWaybillModal(true);
+  };
+
+  const handleViewHtml = async (id: number) => {
+    setHtmlLoading(true);
+    setShowHtmlModal(true);
+    try {
+      const res = await api.getSalesInvoiceHtml(id, role === 'superadmin' ? storeId : undefined);
+      if (res && res.html) setHtmlContent(res.html);
+      else {
+        toast.error(isTr ? "Fatura görseli bulunamadı." : "Invoice HTML not found.");
+        setShowHtmlModal(false);
+      }
+    } catch (err) {
+      toast.error(isTr ? "Görsel yükleme hatası" : "Error loading preview");
+      setShowHtmlModal(false);
+    } finally {
+      setHtmlLoading(false);
+    }
+  };
+
+  const handleSendToGIB = async (id: number) => {
+    const targetInvoice = invoices.find((inv: any) => inv.id === id);
+    const docType = targetInvoice?.e_document_type || (targetInvoice?.invoice_profile === 'EARSIVFATURA' ? 'E-ARSIV' : 'E-FATURA');
+    let customerEmail = (targetInvoice?.customer_email || targetInvoice?.email || "").trim();
+
+    if (!customerEmail) {
+      if (targetInvoice?.company_id) {
+        const comp = companies.find((c: any) => c.id === targetInvoice.company_id);
+        if (comp?.email) customerEmail = comp.email.trim();
+      } else if (targetInvoice?.customer_id) {
+        const cust = customers.find((c: any) => c.id === targetInvoice.customer_id);
+        if (cust?.email) customerEmail = cust.email.trim();
+      }
+    }
+
+    const isEArchive = docType === 'E-ARSIV' || docType === 'E-ARŞİV' || targetInvoice?.invoice_profile === 'EARSIVFATURA';
+
+    if (isEArchive && !customerEmail) {
+      const enteredEmail = window.prompt(
+        isTr 
+          ? "E-Arşiv faturalarında alıcıya ait e-posta (e-mail) bilgisi zorunludur!\nLütfen müşterinin e-posta adresini giriniz:"
+          : "Customer email is mandatory for E-Archive invoices!\nPlease enter the customer's email address:"
+      );
+      if (!enteredEmail || !enteredEmail.trim()) {
+        toast.error(
+          isTr 
+            ? "E-posta adresi girilmediği için fatura GİB'e gönderilemedi. Lütfen faturayı düzenleyip veya buraya geçerli bir e-posta adresi giriniz."
+            : "Invoice could not be sent to GİB because customer email was not provided."
+        );
+        return;
+      }
+      try {
+        await api.updateSalesInvoice(id, { customer_email: enteredEmail.trim() }, role === 'superadmin' ? storeId : undefined);
+        customerEmail = enteredEmail.trim();
+        toast.success(isTr ? "E-posta adresi faturaya kaydedildi." : "Email saved to invoice.");
+      } catch (err: any) {
+        toast.error(err.message || (isTr ? "E-posta güncellenemedi" : "Failed to update email"));
+        return;
+      }
+    }
+
+    if (!window.confirm(isTr ? "Faturayı GİB / Entegratöre iletmek istediğinize emin misiniz?" : "Confirm send to integrator?")) return;
+    try {
+      toast.info(isTr ? "GİB'e gönderiliyor..." : "Sending to GİB...");
+      const res = await api.sendEInvoice(id);
+      if (res.error) throw new Error(res.error);
+      toast.success(isTr ? "Fatura başarıyla GİB'e iletildi!" : "Successfully pushed to GİB!");
+      await fetchInvoicesData();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleCancelGIB = async (id: number) => {
+    const reason = prompt(isTr ? "İptal nedeni:" : "Reason:");
+    if (!reason) return;
+    try {
+      const res = await api.cancelEInvoice(id, reason);
+      if (res.error) throw new Error(res.error);
+      toast.success(isTr ? "Fatura iptal edildi." : "Cancelled.");
+      await fetchInvoicesData();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleCheckEInvoiceStatus = async (id: number) => {
+    try {
+      const res = await api.checkEInvoiceStatus(id);
+      if (res.error) throw new Error(res.error);
+      toast.success(`${isTr ? "Durum" : "Status"}: ${res.status}`);
+      await fetchInvoicesData();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleQuickProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const taxRate = Number(quickProductForm.tax_rate) || 20;
+      const price = Number(quickProductForm.price);
+      const cur = quickProductForm.currency;
+      const newProduct = await api.addProduct({
+        ...quickProductForm,
+        tax_rate: taxRate,
+        stock_quantity: 0,
+        status: 'active'
+      }, role === 'superadmin' ? storeId : undefined);
+      setProducts(prev => [...prev, newProduct]);
+      handleAddProduct(newProduct);
+      setShowQuickProductModal(false);
+    } catch (error) {
+      toast.error(isTr ? "Ürün ekleme hatası" : "Product add error");
+    }
+  };
+
+  const handleExportExcel = async () => {
+    const XLSX = await import('xlsx');
+    const targetInvoices = selectedIds.length > 0 
+      ? invoices.filter((i: any) => selectedIds.includes(i.id))
+      : invoices;
+    
+    if (selectedIds.length > 0) {
+      toast.success(isTr ? `Seçili ${selectedIds.length} fatura Excel'e aktarılıyor...` : `Exporting ${selectedIds.length} selected invoices...`);
+    }
+
+    const data = targetInvoices.map((inv: any) => ({
+      [isTr ? 'Tarih' : 'Date']: formatDateTR(inv.invoice_date),
+      [isTr ? 'Fatura No' : 'Invoice No']: inv.invoice_number,
+      [isTr ? 'Müşteri / Cari' : 'Customer / Company']: inv.customer_name || inv.company_title || '-',
+      [isTr ? 'Matrah' : 'Subtotal']: Number(inv.total_amount),
+      [isTr ? 'KDV' : 'VAT']: Number(inv.tax_amount),
+      [isTr ? 'Toplam' : 'Total']: Number(inv.grand_total),
+      [isTr ? 'Para Birimi' : 'Currency']: inv.currency
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Invoices");
+    XLSX.writeFile(wb, `satis_faturalari_${formatFileDateTR()}.xlsx`);
+  };
+
+  const handleBulkPrint = () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkPrinting(true);
+    toast.info(isTr ? "Toplu yazdırma hazırlanıyor..." : "Preparing bulk print...");
+    setTimeout(() => {
+      window.print();
+      setIsBulkPrinting(false);
+    }, 1000);
+  };
+
+  const totals = calculateInvoiceTotals(items, isTaxInclusive);
+  
+  const removeItem = (index: number) => {
+    setItems(prevItems => prevItems.filter((_, i) => i !== index));
+  };
+  
+  const isInvoiceCancelled = (inv: any) => {
+    const rawSt = (inv?.status || '').toLowerCase().trim();
+    const intSt = (inv?.integration_status || '').toUpperCase().trim();
+    return ['cancelled', 'iptal', 'iptal edildi'].includes(rawSt) || ['CANCELLED', 'İPTAL', 'İPTAL EDİLDİ'].includes(intSt) || inv?.sale_status === 'cancelled';
+  };
+
+  const activeValidInvoices = invoices.filter((inv: any) => !isInvoiceCancelled(inv));
+  const totalCalculatedTax = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalSalesAmount = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalGrandTotal = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
+
+  const filteredProducts = products.filter((p: any) => {
+    const searchTerms = normalizeSearch(deferredProductSearch).split(/\s+/).filter(Boolean);
+    if (searchTerms.length === 0) return true;
+    
+    return searchTerms.every(term => 
+      normalizeSearch(p.name).includes(term) || 
+      (p.barcode || "").toLowerCase().includes(term) ||
+      (p.brand || "").toLowerCase().includes(term) ||
+      (p.description || "").toLowerCase().includes(term)
+    );
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Collapsible Financial Summary & VAT Dashboard */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setShowStats(!showStats)}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-300 shadow-2xs transition-all cursor-pointer select-none"
+        >
+          <Percent className="w-3.5 h-3.5 text-indigo-500" />
+          <span>{isTr ? "Finansal Göstergeler & KDV Özeti" : "Financial Summary & VAT"}</span>
+          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${showStats ? 'rotate-180 text-indigo-600' : ''}`} />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showStats && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <SalesInvoiceStats 
+              isTr={isTr}
+              totalCalculatedTax={totalCalculatedTax}
+              totalSalesAmount={totalSalesAmount}
+              totalGrandTotal={totalGrandTotal}
+              branding={branding}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex-1 flex flex-wrap items-center gap-2.5 w-full">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder={isTr ? "Fatura no, müşteri ara..." : "Search invoice, customer..."}
+              className="w-full pl-9 pr-10 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs sm:text-sm"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <input 
+              type="date"
+              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <span className="text-slate-300">-</span>
+            <input 
+              type="date"
+              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button 
+            onClick={handleExportExcel}
+            className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all shadow-2xs cursor-pointer"
+            title={isTr ? "Excel'e Aktar" : "Export to Excel"}
+          >
+            <FileDown className="h-4 w-4 mx-auto" />
+          </button>
+          <button 
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+            className="flex-1 md:flex-none px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            {isTr ? "Fatura Ekle" : "Add Invoice"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between mb-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => { setStatusFilter('all'); setPage(1); }}
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+              statusFilter === 'all' 
+                ? 'bg-slate-800 text-white shadow-xs' 
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            }`}
+            title={isTr ? "Tüm Faturalar" : "All Invoices"}
+          >
+            {isTr ? "Tümü" : "All"}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStatusFilter(statusFilter === 'draft' ? 'all' : 'draft'); setPage(1); }}
+            className={`p-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer border ${
+              statusFilter === 'draft' 
+                ? 'bg-amber-600 text-white border-amber-600 shadow-xs' 
+                : 'bg-white text-amber-600 border-amber-200 hover:bg-amber-50'
+            }`}
+            title={isTr ? "Taslaklar" : "Drafts"}
+          >
+            <Clock className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStatusFilter(statusFilter === 'rejected' ? 'all' : 'rejected'); setPage(1); }}
+            className={`p-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer border ${
+              statusFilter === 'rejected' 
+                ? 'bg-rose-600 text-white border-rose-600 shadow-xs' 
+                : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'
+            }`}
+            title={isTr ? "Reddedilenler / Hatalı" : "Rejected / Error"}
+          >
+            <XCircle className="h-4 w-4" />
+          </button>
+
+          {/* CONTEMPORARY E-MARKETPLACE FILTER POPOVER (NO PRIMITIVE EMOJIS) */}
+          {showMarketplaceFilter && (
+            <div className="relative ml-auto sm:ml-2" ref={marketplaceDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setMarketplaceDropdownOpen(!marketplaceDropdownOpen)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-xl shadow-2xs transition-all cursor-pointer"
+              >
+                {marketplaceFilter === 'all' && <Store className="w-3.5 h-3.5 text-indigo-500" />}
+                {marketplaceFilter === 'web' && <Globe className="w-3.5 h-3.5 text-blue-500" />}
+                {marketplaceFilter === 'trendyol' && <ShoppingBag className="w-3.5 h-3.5 text-orange-500" />}
+                {marketplaceFilter === 'hepsiburada' && <ShoppingBag className="w-3.5 h-3.5 text-amber-500" />}
+                {marketplaceFilter === 'amazon' && <Box className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />}
+                {marketplaceFilter === 'n11' && <Tag className="w-3.5 h-3.5 text-red-500" />}
+                {marketplaceFilter === 'pazarama' && <Store className="w-3.5 h-3.5 text-purple-500" />}
+
+                <span>
+                  {marketplaceFilter === 'all' && (isTr ? 'Kanallar' : 'Channels')}
+                  {marketplaceFilter === 'web' && (isTr ? 'Doğrudan Web' : 'Direct Web')}
+                  {marketplaceFilter === 'trendyol' && 'Trendyol'}
+                  {marketplaceFilter === 'hepsiburada' && 'Hepsiburada'}
+                  {marketplaceFilter === 'amazon' && 'Amazon'}
+                  {marketplaceFilter === 'n11' && 'N11'}
+                  {marketplaceFilter === 'pazarama' && 'Pazarama'}
+                </span>
+
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${marketplaceDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {marketplaceDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 w-56 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl space-y-1 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    type="button"
+                    onClick={() => { setMarketplaceFilter('all'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'all' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+                        <Store className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <span>{isTr ? 'Tüm Kanallar' : 'All Channels'}</span>
+                    </div>
+                    {marketplaceFilter === 'all' && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setMarketplaceFilter('web'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'web' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                        <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span>{isTr ? 'Doğrudan Web' : 'Direct Web'}</span>
+                    </div>
+                    {marketplaceFilter === 'web' && <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+                  </button>
+
+                  {connectedMarketplaces.trendyol && (
+                    <button
+                      type="button"
+                      onClick={() => { setMarketplaceFilter('trendyol'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'trendyol' ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center">
+                          <ShoppingBag className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <span>Trendyol</span>
+                      </div>
+                      {marketplaceFilter === 'trendyol' && <Check className="w-4 h-4 text-orange-600 dark:text-orange-400" />}
+                    </button>
+                  )}
+
+                  {connectedMarketplaces.hepsiburada && (
+                    <button
+                      type="button"
+                      onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'hepsiburada' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                          <ShoppingBag className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <span>Hepsiburada</span>
+                      </div>
+                      {marketplaceFilter === 'hepsiburada' && <Check className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
+                    </button>
+                  )}
+
+                  {connectedMarketplaces.amazon && (
+                    <button
+                      type="button"
+                      onClick={() => { setMarketplaceFilter('amazon'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'amazon' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-amber-200/60 dark:bg-amber-900/60 flex items-center justify-center">
+                          <Box className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300" />
+                        </div>
+                        <span>Amazon</span>
+                      </div>
+                      {marketplaceFilter === 'amazon' && <Check className="w-4 h-4 text-amber-700 dark:text-amber-300" />}
+                    </button>
+                  )}
+
+                  {connectedMarketplaces.n11 && (
+                    <button
+                      type="button"
+                      onClick={() => { setMarketplaceFilter('n11'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'n11' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
+                          <Tag className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <span>N11</span>
+                      </div>
+                      {marketplaceFilter === 'n11' && <Check className="w-4 h-4 text-red-600 dark:text-red-400" />}
+                    </button>
+                  )}
+
+                  {connectedMarketplaces.pazarama && (
+                    <button
+                      type="button"
+                      onClick={() => { setMarketplaceFilter('pazarama'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'pazarama' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+                          <Store className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <span>Pazarama</span>
+                      </div>
+                      {marketplaceFilter === 'pazarama' && <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <SalesInvoiceTable 
+        invoices={(() => {
+          let filtered = invoices;
+          if (statusFilter === 'draft') {
+            filtered = filtered.filter((inv: any) => ['draft', 'taslak'].includes((inv.status || '').toLowerCase().trim()) && !isInvoiceCancelled(inv));
+          } else if (statusFilter === 'rejected') {
+            filtered = filtered.filter((inv: any) => 
+               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || isInvoiceCancelled(inv)
+            );
+          }
+          if (showMarketplaceFilter && marketplaceFilter !== 'all') {
+            filtered = filtered.filter(matchesMarketplaceFilter);
+          }
+          return filtered;
+        })().slice((page - 1) * itemsPerPage, page * itemsPerPage)}
+        loading={loading}
+        isTr={isTr}
+        selectedIds={selectedIds}
+        setSelectedIds={setSelectedIds}
+        lastEditedId={lastEditedId}
+        branding={branding}
+        handleSendToGIB={handleSendToGIB}
+        handleCancelGIB={handleCancelGIB}
+        handleCheckEInvoiceStatus={handleCheckEInvoiceStatus}
+        handleViewHtml={handleViewHtml}
+        handleEdit={handleEdit}
+        handleViewDetails={handleViewDetails}
+        handleDelete={handleDelete}
+        handleOpenWaybillModal={handleOpenWaybillModal}
+        handleMarketplaceShip={handleMarketplaceShip}
+        page={page}
+        totalPages={Math.ceil((() => {
+          let filtered = invoices;
+          if (statusFilter === 'draft') {
+            filtered = filtered.filter((inv: any) => ['draft', 'taslak'].includes((inv.status || '').toLowerCase().trim()) && !isInvoiceCancelled(inv));
+          } else if (statusFilter === 'rejected') {
+            filtered = filtered.filter((inv: any) => 
+               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || isInvoiceCancelled(inv)
+            );
+          }
+          if (showMarketplaceFilter && marketplaceFilter !== 'all') {
+            filtered = filtered.filter(matchesMarketplaceFilter);
+          }
+          return filtered.length;
+        })() / itemsPerPage)}
+        setPage={setPage}
+        products={propProducts || products}
+        onEditProduct={onEditProduct}
+      />
+
+      <SalesInvoiceFormModal 
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        isTr={isTr}
+        editingInvoiceId={editingInvoiceId}
+        handleSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        status={status}
+        setStatus={setStatus}
+        customers={customers}
+        companies={companies}
+        customerId={customerId}
+        setCustomerId={setCustomerId}
+        companyId={companyId}
+        setCompanyId={setCompanyId}
+        customerSearch={customerSearch}
+        setCustomerSearch={setCustomerSearch}
+        invoiceNumber={invoiceNumber}
+        setInvoiceNumber={setInvoiceNumber}
+        waybillNumber={waybillNumber}
+        setWaybillNumber={setWaybillNumber}
+        invoiceDate={invoiceDate}
+        setInvoiceDate={setInvoiceDate}
+        invoiceTime={invoiceTime}
+        setInvoiceTime={setInvoiceTime}
+        invoiceProfile={invoiceProfile}
+        setInvoiceProfile={(val: any) => setInvoiceProfile(val)}
+        eDocumentType={eDocumentType}
+        setEDocumentType={(val: any) => setEDocumentType(val)}
+        giInvoiceType={giInvoiceType}
+        setGiInvoiceType={setGiInvoiceType}
+        exemptionReasonCode={exemptionReasonCode}
+        setExemptionReasonCode={setExemptionReasonCode}
+        exemptionReasonText={exemptionReasonText}
+        setExemptionReasonText={setExemptionReasonText}
+        withholdingTaxCode={withholdingTaxCode}
+        setWithholdingTaxCode={setWithholdingTaxCode}
+        isReturn={isReturn}
+        setIsReturn={setIsReturn}
+        returnInvoiceNumber={returnInvoiceNumber}
+        setReturnInvoiceNumber={setReturnInvoiceNumber}
+        returnInvoiceDate={returnInvoiceDate}
+        setReturnInvoiceDate={setReturnInvoiceDate}
+        isTaxInclusive={isTaxInclusive}
+        setIsTaxInclusive={setIsTaxInclusive}
+        editTaxOffice={editTaxOffice}
+        setEditTaxOffice={setEditTaxOffice}
+        editTaxNumber={editTaxNumber}
+        setEditTaxNumber={setEditTaxNumber}
+        handleCheckTaxpayer={handleCheckTaxpayer}
+        isCheckingTaxpayer={isCheckingTaxpayer}
+        customerEmail={customerEmail}
+        setCustomerEmail={setCustomerEmail}
+        editAddress={editAddress}
+        setEditAddress={setEditAddress}
+        selectedCompany={selectedCompany}
+        selectedCustomer={selectedCustomer}
+        isNewCustomer={isNewCustomer}
+        productSearch={productSearch}
+        setProductSearch={setProductSearch}
+        showProductDropdown={showProductDropdown}
+        setShowProductDropdown={setShowProductDropdown}
+        filteredProducts={filteredProducts}
+        handleAddProduct={handleAddProduct}
+        setShowQuickProductModal={setShowQuickProductModal}
+        paymentMethod={paymentMethod}
+        setPaymentMethod={(val: any) => setPaymentMethod(val)}
+        currency={currency}
+        setCurrency={setCurrency}
+        exchangeRate={exchangeRate}
+        setExchangeRate={setExchangeRate}
+        branding={branding}
+        items={items}
+        updateItem={updateItem}
+        removeItem={removeItem}
+        notes={notes}
+        setNotes={setNotes}
+        totals={totals}
+        onQuickCariAdd={(searchStr) => {
+          setQuickCariSearchInitial(searchStr);
+          setShowQuickCariModal(true);
+        }}
+        setQuickProductForm={setQuickProductForm}
+        onEditProduct={onEditProduct}
+      />
+
+      <SalesInvoiceDetailsModal 
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        invoice={selectedInvoice}
+        isTr={isTr}
+        invoiceRef={invoiceRef}
+        handlePrint={handlePrint}
+        onEditProduct={onEditProduct}
+      />
+
+      <SalesInvoiceWaybillModal 
+        isOpen={showWaybillModal}
+        onClose={() => setShowWaybillModal(false)}
+        invoice={selectedInvoice}
+        isTr={isTr}
+        onRefresh={() => fetchInvoicesData(activeSearch, startDate, endDate)}
+      />
+
+      <SalesInvoiceHtmlModal 
+        isOpen={showHtmlModal}
+        onClose={() => setShowHtmlModal(false)}
+        htmlContent={htmlContent}
+        htmlLoading={htmlLoading}
+        isTr={isTr}
+      />
+
+      <QuickProductModal 
+        isOpen={showQuickProductModal}
+        onClose={() => setShowQuickProductModal(false)}
+        isTr={isTr}
+        quickProductForm={quickProductForm}
+        setQuickProductForm={setQuickProductForm}
+        handleQuickProductSubmit={handleQuickProductSubmit}
+      />
+
+      <QuickCariModal
+        isOpen={showQuickCariModal}
+        onClose={() => setShowQuickCariModal(false)}
+        isTr={isTr}
+        onSubmit={handleQuickCariSubmit}
+        initialValue={quickCariSearchInitial}
+      />
+
+      {/* Floating Bulk Action Bar */}
+      <AnimatePresence>
+        {selectedIds.length > 0 && (
+          <motion.div 
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[130] bg-slate-900 border border-slate-800 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-6"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-black">{selectedIds.length}</span>
+              <span className="text-sm font-bold text-slate-300">{isTr ? "Seçili Fatura" : "Selected Invoices"}</span>
+            </div>
+            <div className="h-5 w-px bg-slate-800" />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBulkPrint}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                {isTr ? "SEÇİLENLERİ YAZDIR" : "PRINT SELECTED"}
+              </button>
+              <button
+                onClick={handleExportExcel}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                {isTr ? "EXCEL AKTAR" : "EXPORT EXCEL"}
+              </button>
+              <button
+                onClick={() => setSelectedIds([])}
+                className="p-2 hover:bg-slate-800 rounded-xl transition-all text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Hidden container that is only displayed during @media print printing */}
+      {isBulkPrinting && (
+        <div id="print-invoice-wrapper" className="print-section bg-white text-slate-900 font-sans p-6">
+          {invoices.filter((inv: any) => selectedIds.includes(inv.id)).map((invoice: any, idx: number) => (
+            <div key={invoice.id} className="mb-12 border-b-2 border-dashed border-slate-300 pb-12" style={{ pageBreakAfter: 'always' }}>
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-900">{branding?.store_name || "Seçkin Mağaza"}</h1>
+                  <p className="text-xs text-slate-500 mt-1">{isTr ? 'Satış Faturası' : 'Sales Invoice'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-slate-900">{invoice.invoice_number}</p>
+                  <p className="text-xs text-slate-500">{formatDateTR(invoice.invoice_date)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 mb-8 text-xs">
+                <div>
+                  <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'ALICI (MÜŞTERİ)' : 'CUSTOMER'}</p>
+                  <p className="font-bold text-slate-800 text-sm">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name}</p>
+                  <p className="text-slate-500 mt-1">{invoice.customer_address || invoice.company_address || '-'}</p>
+                  {invoice.tax_number && <p className="text-slate-500 mt-1">{isTr ? "VKN/TCKN:" : "Tax ID:"} {invoice.tax_number}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'FATURA DETAYI' : 'DETAILS'}</p>
+                  <p className="text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency}</p>
+                  <p className="text-slate-600"><span className="font-bold">{isTr ? 'Ödeme Yöntemi:' : 'Payment:'}</span> {invoice.payment_method}</p>
+                </div>
+              </div>
+
+              <table className="w-full text-left text-xs border-collapse border border-slate-200 mb-8">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-500 uppercase font-black border-b border-slate-200">
+                    <th className="p-2 border border-slate-200">{isTr ? 'Ürün/Hizmet' : 'Product/Service'}</th>
+                    <th className="p-2 border border-slate-200 text-center">{isTr ? 'Miktar' : 'Qty'}</th>
+                    <th className="p-2 border border-slate-200 text-right">{isTr ? 'Birim Fiyat' : 'Price'}</th>
+                    <th className="p-2 border border-slate-200 text-center">{isTr ? 'KDV %' : 'VAT %'}</th>
+                    <th className="p-2 border border-slate-200 text-right">{isTr ? 'Toplam' : 'Total'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(invoice.items || []).map((item: any, i: number) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="p-2 border border-slate-200 font-medium">{item.product_name}</td>
+                      <td className="p-2 border border-slate-200 text-center">{item.quantity}</td>
+                      <td className="p-2 border border-slate-200 text-right">{Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>
+                      <td className="p-2 border border-slate-200 text-center">%{item.tax_rate}</td>
+                      <td className="p-2 border border-slate-200 text-right font-bold">
+                        {(() => {
+                          const qty = Number(item.quantity) || 1;
+                          const unitPrice = Number(item.unit_price) || 0;
+                          const totalPrice = Number(item.total_price) || 0;
+                          const taxAmt = Number(item.tax_amount) || 0;
+                          const grossLine = Math.abs(totalPrice - (qty * unitPrice)) < 0.05 && invoice.is_tax_inclusive !== false
+                            ? totalPrice
+                            : totalPrice + taxAmt;
+                          return `${grossLine.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${invoice.currency}`;
+                        })()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="flex justify-between items-start text-xs">
+                <div className="max-w-md italic text-slate-500">
+                  {invoice.notes && <p className="mb-2"><span className="font-bold">{isTr ? 'Not:' : 'Note:'}</span> {invoice.notes}</p>}
+                </div>
+                <div className="w-64 space-y-1.5 text-right font-semibold">
+                  <div className="flex justify-between text-slate-500">
+                    <span>{isTr ? 'Ara Toplam' : 'Subtotal'}</span>
+                    <span>{Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500">
+                    <span>{isTr ? 'KDV Toplam' : 'VAT Total'}</span>
+                    <span>{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold border-t border-slate-200 pt-2 text-indigo-600">
+                    <span>{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
+                    <span>{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Marketplace Shipment Modal */}
+      <AnimatePresence>
+        {showMarketplaceShipModal && selectedMarketplaceInv && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <Truck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {isTr ? "Kargo Bildirimi (Pazar Yeri)" : "Marketplace Shipment"}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium">{selectedMarketplaceInv.invoice_number}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMarketplaceShipModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                    {isTr ? "Kargo Firması (Carrier Code)" : "Carrier Code"}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full h-11 px-4 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl text-sm transition-all"
+                    placeholder="Aras, MNG, Yurtici vs."
+                    value={carrierCode}
+                    onChange={(e) => setCarrierCode(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                    {isTr ? "Takip Numarası" : "Tracking Number"}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full h-11 px-4 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl text-sm transition-all font-mono"
+                    placeholder="TR123456789"
+                    value={trackingNumber}
+                    onChange={(e) => setTrackingNumber(e.target.value)}
+                  />
+                </div>
+                
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-2">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                    <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                      {isTr 
+                        ? "Kargo bildirimini yaptıktan sonra pazar yeri tarafında siparişin durumu 'Kargolandı' olarak güncellenecektir. Hatalı bilgi gönderimi sipariş puanınızı etkileyebilir." 
+                        : "Submitting tracking info will update the order status to 'Shipped' on the marketplace. Incorrect information may affect your seller metrics."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+                <button
+                  onClick={() => setShowMarketplaceShipModal(false)}
+                  className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-all"
+                >
+                  {isTr ? "İptal" : "Cancel"}
+                </button>
+                <button
+                  onClick={submitMarketplaceShipment}
+                  disabled={shippingSubmitting || !carrierCode || !trackingNumber}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all flex items-center gap-2"
+                >
+                  {shippingSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                  {isTr ? "Kargolandı Olarak Bildir" : "Mark as Shipped"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

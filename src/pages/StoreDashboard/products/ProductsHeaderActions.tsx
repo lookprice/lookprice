@@ -1,0 +1,259 @@
+import React from "react";
+import { 
+  Plus, 
+  Trash2, 
+  Upload, 
+  Download, 
+  Sparkles, 
+  Tag, 
+  Cloud,
+  Layers,
+  Activity,
+  Barcode as BarcodeIcon,
+  FolderTree
+} from "lucide-react";
+import { toast } from "sonner";
+import { api } from "@/services/api";
+
+interface ProductsHeaderActionsProps {
+  t: any;
+  lang: string;
+  isViewer: boolean;
+  isCafe: boolean;
+  selectedIds: number[];
+  onAddNew: () => void;
+  onImport: () => void;
+  onExportReport: () => void;
+  onOpenXRay: () => void;
+  showXRay?: boolean;
+  handleBulkDeleteSelected: () => void;
+  handleSyncNamesFromInvoices: () => void;
+  isFixingNames: boolean;
+  setIsMergeModalOpen: (open: boolean) => void;
+  setIsEanModalOpen?: (open: boolean) => void;
+  setIsTaxonomyModalOpen?: (open: boolean) => void;
+  setIsAiMenuModalOpen: (open: boolean) => void;
+  driveConnected: boolean;
+  isBackupLoading: boolean;
+  setIsBackupLoading: (loading: boolean) => void;
+  isBookstore?: boolean;
+  onRefresh?: () => void;
+  currentStoreId?: number;
+}
+
+export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
+  t,
+  lang,
+  isViewer,
+  isCafe,
+  selectedIds,
+  onAddNew,
+  onImport,
+  onExportReport,
+  onOpenXRay,
+  showXRay = false,
+  handleBulkDeleteSelected,
+  handleSyncNamesFromInvoices,
+  isFixingNames,
+  setIsMergeModalOpen,
+  setIsEanModalOpen,
+  setIsTaxonomyModalOpen,
+  setIsAiMenuModalOpen,
+  driveConnected,
+  isBackupLoading,
+  setIsBackupLoading,
+  isBookstore,
+  onRefresh,
+  currentStoreId,
+}) => {
+  return (
+    <div className="flex items-center justify-between gap-3 w-full">
+      <div className="flex items-center space-x-3 min-w-0">
+        <div className="bg-indigo-600 rounded-full h-8 sm:h-9 w-1 shrink-0" />
+        <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase truncate">
+          {t.products || "ÜRÜNLER"}
+        </h2>
+      </div>
+
+      {/* Action icons sitting right next to the title on the right */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        {!isViewer && (
+          <div className="flex items-center gap-1.5">
+            {isCafe && (
+              <button
+                type="button"
+                onClick={() => setIsAiMenuModalOpen(true)}
+                className="os-btn-secondary p-2 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title={lang === 'tr' ? "Yapay Zeka ile Menü Oku (Görselden)" : "Scan Menu with AI (From Image)"}
+              >
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span className="text-[11px] font-bold hidden md:inline whitespace-nowrap">
+                  {lang === 'tr' ? "Menü Tara" : "AI Menu"}
+                </span>
+              </button>
+            )}
+            <button 
+              type="button"
+              onClick={onImport}
+              className="os-btn-secondary p-2 text-slate-500 hover:text-indigo-600 rounded-lg transition-all border border-slate-200 hover:border-indigo-200 active:scale-95 shadow-xs cursor-pointer"
+              title={t.importBtn}
+            >
+              <Upload className="h-4 w-4" />
+            </button>
+            <button 
+              type="button"
+              onClick={onAddNew}
+              className="os-btn-primary p-2 text-white rounded-lg transition-all border border-indigo-600 hover:bg-indigo-700 active:scale-95 shadow-xs cursor-pointer"
+              title={t.addEntry}
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+
+            {selectedIds.length === 2 && (
+              <button 
+                type="button"
+                onClick={() => setIsMergeModalOpen(true)}
+                className="p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg transition-all border border-indigo-200 hover:border-indigo-700 active:scale-95 font-bold flex items-center gap-1.5 shadow-xs text-xs cursor-pointer animate-in fade-in duration-200"
+                title={lang === 'tr' ? "Seçilen 2 Mükerrer Ürünü Birleştir" : "Merge Selected 2 Products"}
+              >
+                <Layers className="h-4 w-4" />
+                <span className="text-[10px] tracking-tight uppercase hidden xs:inline sm:inline">
+                  {lang === 'tr' ? "2 ÜRÜNÜ BİRLEŞTİR" : "MERGE 2"}
+                </span>
+              </button>
+            )}
+
+            {selectedIds.length > 0 && (
+              <button 
+                type="button"
+                onClick={handleBulkDeleteSelected}
+                className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg transition-all border border-rose-200 hover:border-rose-700 active:scale-95 font-bold flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-300 shadow-xs text-xs cursor-pointer"
+                title={lang === 'tr' ? "Seçilenleri Sil" : "Delete Selected"}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="text-[10px] tracking-tight uppercase hidden xs:inline sm:inline">
+                  {lang === 'tr' ? `SİL (${selectedIds.length})` : `DEL (${selectedIds.length})`}
+                </span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {showXRay && (
+          <button
+            type="button"
+            onClick={onOpenXRay}
+            className="hidden md:flex os-btn-secondary px-3 py-2 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 rounded-lg transition-all border border-indigo-200 dark:border-indigo-800 active:scale-95 shadow-xs items-center gap-1.5 cursor-pointer font-bold text-xs"
+            title={lang === 'tr' ? "Çok Kanallı Ürün Röntgeni & Kanal Senaryo Raporu" : "Multi-Channel Product X-Ray Report"}
+          >
+            <Activity className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+            <span className="whitespace-nowrap">
+              {lang === 'tr' ? "Ürün Röntgeni" : "Product X-Ray"}
+            </span>
+          </button>
+        )}
+
+        <button 
+          type="button"
+          onClick={onExportReport}
+          className="os-btn-secondary p-2 text-slate-500 hover:text-indigo-600 rounded-lg transition-all border border-slate-200 hover:border-indigo-200 active:scale-95 shadow-xs cursor-pointer"
+          title={t.report}
+        >
+          <Download className="h-4 w-4" />
+        </button>
+
+        {!isViewer && (
+          <>
+            {isBookstore && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const promise = api.bulkEnrichBooks(currentStoreId);
+                  toast.promise(promise, {
+                    loading: lang === 'tr' ? 'Kitaplar Google Books ve Yapay Zeka ile eşleştiriliyor...' : 'Matching books with Google Books and AI...',
+                    success: (res: any) => {
+                      if (onRefresh) onRefresh();
+                      return res.message || (lang === 'tr' ? 'Eşleştirme tamamlandı!' : 'Matching completed!');
+                    },
+                    error: lang === 'tr' ? 'Eşleştirme başarısız oldu.' : 'Enrichment failed.'
+                  });
+                }}
+                className="os-btn-secondary p-2 text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-all border border-violet-200 hover:border-violet-300 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title={lang === 'tr' ? "Google Books & Yapay Zeka ile Barkodlu Kitapları Toplu Eşleştir" : "Bulk Match Books with Google Books & AI"}
+              >
+                <Sparkles className="h-4 w-4 text-violet-600 shrink-0" />
+                <span className="text-[11px] font-bold text-violet-900 hidden lg:inline whitespace-nowrap">
+                  {lang === 'tr' ? "Kitapları Eşleştir" : "Match Books"}
+                </span>
+              </button>
+            )}
+            <button 
+              type="button"
+              onClick={() => setIsMergeModalOpen(true)}
+              className="os-btn-secondary p-2 text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-all border border-amber-200 hover:border-amber-300 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
+              title={lang === 'tr' ? "Mükerrer Ürünleri Birleştir / Envanter Temizliği" : "Merge Duplicate Products / Clean Inventory"}
+            >
+              <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
+              <span className="text-[11px] font-bold text-amber-900 hidden lg:inline whitespace-nowrap">
+                {lang === 'tr' ? "Mükerrer Birleştir" : "Merge Duplicates"}
+              </span>
+            </button>
+            {setIsEanModalOpen && (
+              <button 
+                type="button"
+                onClick={() => setIsEanModalOpen(true)}
+                className="os-btn-secondary p-2 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all border border-blue-200 hover:border-blue-300 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title={lang === 'tr' ? "Geçici Barkodları Orijinal EAN-13 Barkodlarına Dönüştür" : "Enrich Temporary Barcodes to Original EAN"}
+              >
+                <BarcodeIcon className="h-4 w-4 text-blue-600 shrink-0" />
+                <span className="text-[11px] font-bold text-blue-900 hidden lg:inline whitespace-nowrap">
+                  {lang === 'tr' ? "EAN Tamamla" : "Enrich EAN"}
+                </span>
+              </button>
+            )}
+            {setIsTaxonomyModalOpen && (
+              <button 
+                type="button"
+                onClick={() => setIsTaxonomyModalOpen(true)}
+                className="os-btn-secondary p-2 text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all border border-indigo-200 hover:border-indigo-300 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title={lang === 'tr' ? "Standart Sektör & Hepsiburada Kategori Ağacını Eşitle" : "Sync Sector & Hepsiburada Taxonomy"}
+              >
+                <FolderTree className="h-4 w-4 text-indigo-600 shrink-0" />
+                <span className="text-[11px] font-bold text-indigo-900 hidden lg:inline whitespace-nowrap">
+                  {lang === 'tr' ? "Kategori Şablonu" : "Taxonomy"}
+                </span>
+              </button>
+            )}
+          </>
+        )}
+
+        {driveConnected && (
+          <button 
+            type="button"
+            onClick={async () => {
+              setIsBackupLoading(true);
+              const promise = api.exportToGoogleDrive({ targetType: 'products', format: 'xls' });
+              toast.promise(promise, {
+                loading: 'Ürün şeması Google Drive\'a yedekleniyor...',
+                success: 'Ürün şeması Excel formatında Google Drive\'a başarıyla kaydoldu!',
+                error: 'Google Drive yedeklemesi başarısız oldu.'
+              });
+              try {
+                await promise;
+              } catch (e) {
+                console.error(e);
+              } finally {
+                setIsBackupLoading(false);
+              }
+            }}
+            disabled={isBackupLoading}
+            className="os-btn-secondary p-2 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+            title={lang === 'tr' ? "Google Drive'a Yedekle" : "Backup to Google Drive"}
+          >
+            <Cloud className="h-4 w-4 text-emerald-600" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};

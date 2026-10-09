@@ -1,0 +1,4460 @@
+import express from "express";
+import crypto from "crypto";
+import { pool, addStockMovement } from "../models/db";
+import { authenticate, getAuthorizedStoreId } from "../middleware/auth";
+import { MySoftService } from "../src/services/backend/mysoftService";
+import { IntegrationService } from "../src/services/IntegrationService";
+import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
+import { numberToTurkishWords } from "../src/utils/formatUtils";
+import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification } from "./store/invoiceMatching";
+
+const router = express.Router();
+
+export const KDV_EXEMPTION_CODES_MAP: Record<string, string> = {
+  "301": "11/1-a Mal İhracatı",
+  "302": "11/1-b Hizmet İhracatı",
+  "303": "11/1-c Roaming Hizmetleri",
+  "311": "13/a Deniz, Hava ve Demiryolu Araçlarına İlişkin İstisna",
+  "312": "13/b Liman ve Hava Meydanlarında Yapılan Hizmetler",
+  "313": "13/c Altın, Gümüş, Platin vb. Arama İşletme ve Zenginleştirme",
+  "314": "13/d Makine ve Teçhizat Teslimleri (Yatırım Teşvik)",
+  "315": "13/e Limanlara Bağlantı Yapan Demiryolu Hatları İstisnası",
+  "316": "13/f Ulusal Güvenlik Amaçlı Teslim ve Hizmetler",
+  "317": "13/g Külçe Altın ve Gümüş Teslimleri",
+  "318": "13/h Engellilerin Kullanımına Mahsus Araç ve Gereçler",
+  "323": "13/k Teknoloji Geliştirme Bölgesinde Yapılan Teslimler",
+  "324": "13/m Hastanelere Yapılan Teslim ve Hizmetler",
+  "325": "13/i Ar-Ge Makineleri İstisnası",
+  "350": "Diğerleri (Tam İstisna)",
+  "201": "17/1 Kültür ve Eğitim Amacı Taşıyan İşlemler",
+  "202": "17/2-a Sağlık, Çevre ve Sosyal Yardım Amaçlı İşlemler",
+  "204": "17/2-c Yabancı Diplomatik Misyonlara Yapılan Teslimler",
+  "207": "17/4-c Gümrük Antrepoları ve Geçici Depolama Yerleri",
+  "208": "17/4-d Banka ve Sigorta Muameleleri",
+  "211": "17/4-g Külçe Altın, Külçe Gümüş, Kıymetli Taş Teslimleri",
+  "213": "17/4-i Serbest Bölgelerde Yapılan Fason İşler",
+  "214": "17/4-ı Serbest Bölgelerde Verilen Hizmetler",
+  "215": "17/4-j Boru Hattı ile Taşımacılık Hizmetleri",
+  "221": "17/4-r Kurumların Aktifindeki Taşınmaz ve İştirak Hissesi",
+  "223": "17/4-t Serbest Bölgelere İhraç Amaçlı Yük Taşıma",
+  "225": "17/4-y Taşınmaz Satışları İstisnası",
+  "226": "17/4-z Zirai Amaçlı Su Teslimleri",
+  "235": "16/1-c Transit ve Gümrük Antrepo Rejimi",
+  "250": "Diğerleri (Kısmi İstisna)",
+  "701": "11/1-c İhraç Kayıtlı Teslimler",
+  "702": "11/1-c İhraç Kayıtlı Hizmet Teslimleri"
+};
+
+// Helper function to extract full title (Ad + Soyad) for sole proprietorships and companies
+export function extractSenderTitleFromUblOrDetails(source: any, defaultTitle: string = 'Bilinmeyen Tedarikçi'): string {
+  if (!source) return defaultTitle;
+
+  const supplierObj = source.supplierInfo || source.accountingSupplierParty?.party || source.supplier || source;
+  const personObj = supplierObj.person || supplierObj.Person || source.person || source.Person || {};
+  
+  const firstName = (
+    supplierObj.firstName || supplierObj.FirstName || supplierObj.first_name ||
+    personObj.firstName || personObj.FirstName || source.firstName || source.FirstName || ""
+  ).toString().trim();
+
+  const familyName = (
+    supplierObj.familyName || supplierObj.FamilyName || supplierObj.family_name ||
+    supplierObj.lastName || supplierObj.LastName || supplierObj.last_name ||
+    supplierObj.surname || supplierObj.Surname ||
+    personObj.familyName || personObj.FamilyName || personObj.lastName || personObj.LastName ||
+    source.familyName || source.FamilyName || source.lastName || source.LastName || source.surname || source.Surname || ""
+  ).toString().trim();
+
+  let rawTitle = (
+    supplierObj.partyName || supplierObj.PartyName ||
+    supplierObj.customerName || supplierObj.CustomerName ||
+    supplierObj.supplierName || supplierObj.SupplierName ||
+    source.senderTitle || source.SenderTitle ||
+    source.title || source.Title ||
+    source.senderName || source.SenderName ||
+    source.companyName || source.CompanyName ||
+    source.taxpayerName || source.TaxpayerName ||
+    defaultTitle
+  ).toString().trim();
+
+  if (firstName && familyName) {
+    const fullPersonName = `${firstName} ${familyName}`;
+    if (!rawTitle || rawTitle === defaultTitle || rawTitle.toLowerCase() === firstName.toLowerCase()) {
+      return fullPersonName;
+    }
+    if (!rawTitle.toLowerCase().includes(familyName.toLowerCase())) {
+      return `${rawTitle} ${familyName}`;
+    }
+    return rawTitle;
+  }
+
+  if (rawTitle && rawTitle !== defaultTitle) {
+    return rawTitle;
+  }
+
+  if (firstName) {
+    return firstName;
+  }
+
+  return defaultTitle;
+}
+
+// Self-Healing database schema updates for e_waybills and sales_invoices cargo fields
+export async function initCargoSchema() {
+  try {
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS delivery_term TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS transport_mode TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS carrier_name TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS tracking_number TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS is_cargo_shipment BOOLEAN DEFAULT FALSE;`);
+
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_is_cargo_shipment BOOLEAN DEFAULT FALSE;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_carrier_name TEXT;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_tracking_number TEXT;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_delivery_term TEXT;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_transport_mode TEXT;`);
+
+    console.log("Self-healing schema verification: e_waybills and sales_invoices cargo columns processed successfully.");
+  } catch (error) {
+    console.error("Self-healing schema error for cargo columns:", error);
+  }
+}
+
+// Get the E-Invoice service instance based on Store Settings
+export const getEInvoiceService = async (storeId: number) => {
+  console.log(`[getEInvoiceService] Fetching settings for storeId: ${storeId}`);
+  const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+  if (storeRes.rows.length === 0) {
+    console.error(`[getEInvoiceService] Store not found: ${storeId}`);
+    throw new Error("Mağaza bulunamadı");
+  }
+  
+  let settings = storeRes.rows[0].einvoice_settings || {};
+  if (typeof settings === 'string') {
+    try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+  }
+  let branding = storeRes.rows[0].branding || {};
+  if (typeof branding === 'string') {
+    try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+  }
+  const brandingSettings = branding.einvoice_settings || {};
+  settings = { ...brandingSettings, ...settings };
+  
+  console.log(`[getEInvoiceService] Settings found:`, settings ? JSON.stringify(settings).substring(0, 50) + "..." : 'No');
+  if (!settings || !settings.is_active) {
+    throw new Error("E-Fatura sistemi bu mağaza için aktif değil");
+  }
+
+  if (settings.provider === 'mysoft') {
+    return new MySoftService(settings);
+  } else {
+    throw new Error(`Desteklenmeyen entegratör: ${settings.provider}`);
+  }
+};
+
+// Helper to get series status with last used number and next sequence for each prefix
+export const getSeriesStatusList = async (storeId: number) => {
+  const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+  if (storeRes.rows.length === 0) return [];
+  
+  let settings = storeRes.rows[0].einvoice_settings || {};
+  if (typeof settings === 'string') {
+    try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+  }
+  let branding = storeRes.rows[0].branding || {};
+  if (typeof branding === 'string') {
+    try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+  }
+  const merged = { ...(branding.einvoice_settings || {}), ...settings };
+  
+  let seriesList = merged.series_list;
+  if (!Array.isArray(seriesList) || seriesList.length === 0) {
+    const efPrefix = (merged.einvoice_prefix || 'GEF').toUpperCase().substring(0, 3);
+    const eaPrefix = (merged.earchive_prefix || 'GEA').toUpperCase().substring(0, 3);
+    seriesList = [
+      { id: 'series_ef_default', prefix: efPrefix, type: 'E-FATURA', description: 'Ana E-Fatura Serisi', is_default: true },
+      { id: 'series_ea_default', prefix: eaPrefix, type: 'E-ARSIV', description: 'Ana E-Arşiv Serisi', is_default: true }
+    ];
+  }
+
+  const currentYear = new Date().getFullYear().toString();
+  const results = [];
+
+  for (const s of seriesList) {
+    const cleanPrefix = (s.prefix || 'GAP').toUpperCase().substring(0, 3).padEnd(3, 'X');
+    const prefixWithYear = `${cleanPrefix}${currentYear}`;
+
+    const seqRes = await pool.query(
+      `SELECT COALESCE(document_number, invoice_number) as doc_num 
+       FROM sales_invoices 
+       WHERE store_id = $1 
+         AND (document_number LIKE $2 OR invoice_number LIKE $2) 
+         AND (LENGTH(document_number) = 16 OR LENGTH(invoice_number) = 16)
+       ORDER BY COALESCE(document_number, invoice_number) DESC 
+       LIMIT 1`,
+      [storeId, `${prefixWithYear}%`]
+    );
+
+    let lastDocNum = null;
+    let nextSeq = 1;
+    if (seqRes.rows.length > 0) {
+      lastDocNum = seqRes.rows[0].doc_num;
+      const lastSeqPart = lastDocNum.substring(7);
+      const parsed = parseInt(lastSeqPart, 10);
+      if (!isNaN(parsed)) {
+        nextSeq = parsed + 1;
+      }
+    }
+
+    const nextDocNum = `${prefixWithYear}${nextSeq.toString().padStart(9, '0')}`;
+
+    results.push({
+      id: s.id || `series_${cleanPrefix}_${s.type}`,
+      prefix: cleanPrefix,
+      type: s.type || 'E-FATURA',
+      description: s.description || `${cleanPrefix} Serisi`,
+      is_default: !!s.is_default,
+      year: currentYear,
+      last_document_number: lastDocNum,
+      next_sequence: nextSeq,
+      next_document_number: nextDocNum
+    });
+  }
+
+  return results;
+};
+
+// 0. GET Invoice Series Status
+router.get("/einvoice/series", authenticate, async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const series = await getSeriesStatusList(storeId);
+    res.json(series);
+  } catch (error: any) {
+    console.error("Error fetching invoice series status:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 0.1 POST Invoice Series (Save/Add/Update Series)
+router.post("/einvoice/series", authenticate, async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const { series_list } = req.body;
+    if (!Array.isArray(series_list)) {
+      return res.status(400).json({ error: "series_list bir dizi olmalıdır" });
+    }
+
+    // Fetch existing settings
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+
+    let settings = storeRes.rows[0].einvoice_settings || {};
+    if (typeof settings === 'string') {
+      try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+    }
+    let branding = storeRes.rows[0].branding || {};
+    if (typeof branding === 'string') {
+      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+    }
+
+    // Sanitize series list
+    const sanitizedList = series_list.map((s: any, idx: number) => {
+      const cleanPrefix = (s.prefix || 'GAP').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 3).padEnd(3, 'X');
+      return {
+        id: s.id || `series_${cleanPrefix}_${Date.now()}_${idx}`,
+        prefix: cleanPrefix,
+        type: s.type === 'E-ARSIV' ? 'E-ARSIV' : 'E-FATURA',
+        description: s.description || `${cleanPrefix} Serisi`,
+        is_default: !!s.is_default
+      };
+    });
+
+    // Determine active defaults for einvoice_prefix and earchive_prefix
+    const defaultEF = sanitizedList.find(s => s.is_default && s.type === 'E-FATURA') || sanitizedList.find(s => s.type === 'E-FATURA');
+    const defaultEA = sanitizedList.find(s => s.is_default && s.type === 'E-ARSIV') || sanitizedList.find(s => s.type === 'E-ARSIV');
+
+    settings.series_list = sanitizedList;
+    if (defaultEF) settings.einvoice_prefix = defaultEF.prefix;
+    if (defaultEA) settings.earchive_prefix = defaultEA.prefix;
+
+    if (!branding.einvoice_settings) branding.einvoice_settings = {};
+    branding.einvoice_settings.series_list = sanitizedList;
+    if (defaultEF) branding.einvoice_settings.einvoice_prefix = defaultEF.prefix;
+    if (defaultEA) branding.einvoice_settings.earchive_prefix = defaultEA.prefix;
+
+    await pool.query(
+      "UPDATE stores SET einvoice_settings = $1, branding = $2 WHERE id = $3",
+      [JSON.stringify(settings), JSON.stringify(branding), storeId]
+    );
+
+    const updatedSeries = await getSeriesStatusList(storeId);
+    res.json({ success: true, series: updatedSeries, einvoice_prefix: settings.einvoice_prefix, earchive_prefix: settings.earchive_prefix });
+  } catch (error: any) {
+    console.error("Error saving invoice series:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 1. Check Taxpayer endpoint
+router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const { vknTckn } = req.body;
+    
+    if (!vknTckn) return res.status(400).json({ error: "VKN veya TCKN gereklidir" });
+
+    const service = await getEInvoiceService(storeId);
+    
+    // Check official taxpayer cache first (ensure alias is valid and not null)
+    const cacheRes = await pool.query("SELECT taxpayer_title, alias FROM official_taxpayer_cache WHERE vkn = $1", [vknTckn]);
+    
+    let result;
+    if (cacheRes.rows.length > 0 && cacheRes.rows[0].alias && cacheRes.rows[0].alias.trim() !== '') {
+      console.log(`[checkTaxpayer] VKN ${vknTckn} found in official cache with valid alias.`);
+      result = { isTaxpayer: true, documentType: 'E-FATURA', title: cacheRes.rows[0].taxpayer_title, alias: cacheRes.rows[0].alias };
+    } else {
+      result = await service.checkTaxpayer(vknTckn);
+      if (result && result.isTaxpayer) {
+        await pool.query("INSERT INTO official_taxpayer_cache (vkn, taxpayer_title, alias, last_updated) VALUES ($1, $2, $3, NOW()) ON CONFLICT (vkn) DO UPDATE SET taxpayer_title = EXCLUDED.taxpayer_title, alias = EXCLUDED.alias, last_updated = NOW()", [vknTckn, result.title || '', result.alias || '']);
+      }
+    }
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error("Check Taxpayer endpoint error:", error);
+    // Return a friendly payload so frontend won't raise unhandled 500 developer alerts
+    res.json({ 
+      isTaxpayer: false, 
+      documentType: 'E-ARSIV', 
+      alias: "", 
+      error: "Mükellef kaydı entegratörden sorgulanamadı (E-Arşiv ile devam edebilir ve/veya manuel E-Fatura seçebilirsiniz)" 
+    });
+  }
+});
+
+// 2. Send Sales Invoice to Entegrator
+router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => {
+  const { invoiceId } = req.params;
+  let storeId = req.user.store_id; 
+  let ettn: string | undefined = undefined;
+  console.log(`[INVOICE-SEND-ENTRY] InvoiceID: ${invoiceId}, UserStoreId: ${storeId}`);
+  try {
+    // 1. Fetch the invoice first to identify the correct storeId
+    let invoice;
+    if (req.user.role === 'superadmin') {
+      const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      invoice = invRes.rows[0];
+      storeId = invoice.store_id;
+    } else {
+      const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      invoice = invRes.rows[0];
+    }
+
+    // Dynamically fallback to linked companies or customers details if blank on the invoice itself
+    if (invoice.company_id && (!invoice.tax_number || !invoice.address || !invoice.company_title)) {
+      const compRes = await pool.query(
+        "SELECT title, tax_number, tax_office, address, email FROM companies WHERE id = $1",
+        [invoice.company_id]
+      );
+      if (compRes.rows.length > 0) {
+        const comp = compRes.rows[0];
+        invoice.tax_number = invoice.tax_number || comp.tax_number;
+        invoice.tax_office = invoice.tax_office || comp.tax_office;
+        invoice.address = invoice.address || comp.address;
+        invoice.company_title = invoice.company_title || comp.title;
+        invoice.customer_email = invoice.customer_email || comp.email;
+      }
+    } else if (invoice.customer_id) {
+      const custRes = await pool.query(
+        "SELECT name, surname, full_name, tax_number, tax_office, address, city, email FROM customers WHERE id = $1",
+        [invoice.customer_id]
+      );
+      if (custRes.rows.length > 0) {
+        const cust = custRes.rows[0];
+        invoice.tax_number = invoice.tax_number || cust.tax_number;
+        invoice.tax_office = invoice.tax_office || cust.tax_office;
+        invoice.address = invoice.address || cust.address;
+        invoice.customer_city = cust.city;
+        const realName = cust.full_name || `${cust.name || ''} ${cust.surname || ''}`.trim();
+        if (realName && (!invoice.customer_name || invoice.customer_name === 'Amazon Müşterisi' || invoice.customer_name === 'Bireysel Web Müşterisi')) {
+          invoice.customer_name = realName;
+        }
+        invoice.customer_email = invoice.customer_email || cust.email;
+      }
+    }
+
+    // Fetch Invoice Items early to detect zero-tax exemptions
+    const itemsRes = await pool.query("SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1", [invoiceId]);
+    const items = itemsRes.rows;
+
+    if (items.length === 0) {
+      return res.status(400).json({ error: "Faturaya ait ürün/hizmet kalemi bulunamadı." });
+    }
+
+    const hasZeroTaxItem = items.some((item: any) => Number(item.tax_rate) === 0);
+
+    const service = await getEInvoiceService(storeId);
+    
+    // Validate recipient taxpayer number
+    const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
+    if (!taxNumber || (taxNumber.length !== 10 && taxNumber.length !== 11)) {
+       return res.status(400).json({ error: "Geçerli bir VKN (10 hane) veya TCKN (11 hane) bulunamadı." });
+    }
+
+    // Dynamic GİB taxpayer lookup
+    let docType = invoice.e_document_type || 'E-ARSIV';
+    let pkAlias = '';
+    
+    // Fetch Store settings for sender parameters
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) throw new Error("Mağaza ayarları bulunamadı.");
+    const row = storeRes.rows[0] || {};
+    const settings = row.einvoice_settings || {};
+    const branding = row.branding || {};
+
+    try {
+      console.log(`[INVOICE-SEND] Querying registry for buyer VKN/TCKN: ${taxNumber}`);
+      
+      // Check official taxpayer cache first (require non-empty alias)
+      const cacheRes = await pool.query("SELECT taxpayer_title, alias FROM official_taxpayer_cache WHERE vkn = $1", [taxNumber]);
+      
+      let taxpayerCheck;
+      if (cacheRes.rows.length > 0 && cacheRes.rows[0].alias && cacheRes.rows[0].alias.trim() !== '') {
+        console.log(`[checkTaxpayer (send)] VKN ${taxNumber} found in official cache with valid alias.`);
+        taxpayerCheck = { isTaxpayer: true, documentType: 'E-FATURA', title: cacheRes.rows[0].taxpayer_title, alias: cacheRes.rows[0].alias };
+      } else {
+        taxpayerCheck = await service.checkTaxpayer(taxNumber);
+        if (taxpayerCheck && taxpayerCheck.isTaxpayer) {
+          await pool.query("INSERT INTO official_taxpayer_cache (vkn, taxpayer_title, alias, last_updated) VALUES ($1, $2, $3, NOW()) ON CONFLICT (vkn) DO UPDATE SET taxpayer_title = EXCLUDED.taxpayer_title, alias = EXCLUDED.alias, last_updated = NOW()", [taxNumber, taxpayerCheck.title || '', taxpayerCheck.alias || '']);
+        }
+      }
+      
+      if (taxpayerCheck && taxpayerCheck.isTaxpayer) {
+        docType = 'E-FATURA';
+        if (taxpayerCheck.alias && taxpayerCheck.alias.trim() !== '') {
+          pkAlias = taxpayerCheck.alias;
+          console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User! Correcting docType to E-FATURA and using alias: ${pkAlias}`);
+        } else {
+          // If taxpayer is registered but cache had no alias, do a fresh live lookup
+          const liveCheck = await service.checkTaxpayer(taxNumber);
+          if (liveCheck && liveCheck.alias) {
+            pkAlias = liveCheck.alias;
+            await pool.query("UPDATE official_taxpayer_cache SET alias = $1, last_updated = NOW() WHERE vkn = $2", [pkAlias, taxNumber]);
+            console.log(`[INVOICE-SEND] Fresh GİB lookup found alias: ${pkAlias}`);
+          } else {
+            pkAlias = '';
+            console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User. No specific alias returned.`);
+          }
+        }
+      } else {
+        docType = 'E-ARSIV';
+        console.log(`[INVOICE-SEND] GİB Check: Receiver is not an e-Invoice user. Correcting docType to E-ARSIV.`);
+      }
+    } catch (checkErr) {
+      console.warn("[INVOICE-SEND] Taxpayer GİB registry check failed. Keeping draft selection:", checkErr);
+      docType = invoice.e_document_type || 'E-ARSIV';
+    }
+
+    if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "" || pkAlias === 'urn:mail:defaultpk')) {
+       // Attempt one last direct lookup before rejecting
+       try {
+         const finalCheck = await service.checkTaxpayer(taxNumber);
+         if (finalCheck && finalCheck.alias) {
+           pkAlias = finalCheck.alias;
+           await pool.query("UPDATE official_taxpayer_cache SET alias = $1, taxpayer_title = $2, last_updated = NOW() WHERE vkn = $3", [pkAlias, finalCheck.title || '', taxNumber]);
+         }
+       } catch (e) {
+         console.warn("[INVOICE-SEND] Final fallback alias lookup failed:", e);
+       }
+
+       if (!pkAlias || pkAlias.trim() === "" || pkAlias === 'urn:mail:defaultpk') {
+         return res.status(400).json({ 
+           error: `Bu mükellef (${invoice.company_title || invoice.customer_name || taxNumber}) E-Fatura kullanıcısı olarak görünüyor ancak GİB kayıtlarında aktif bir 'Etiket' (Posta Kutusu / Alias) adresi bulunamadı. (VKN: ${taxNumber})` 
+         });
+       }
+    }
+
+    let giInvoiceType = invoice.gi_invoice_type || 'SATIS';
+    
+    // Auto-upgrade to ISTISNA if there's any 0% tax item and it's currently SATIS
+    if (hasZeroTaxItem && giInvoiceType === 'SATIS') {
+      giInvoiceType = 'ISTISNA';
+    }
+
+    const exemptionCode = invoice.gi_exemption_reason_code || (giInvoiceType === 'ISTISNA' ? '350' : (invoice.tax_exemption_reason ? '350' : null));
+    const rawExemptionReason = (invoice.gi_exemption_reason_text || invoice.tax_exemption_reason || "").trim();
+    const mappedExemptionLabel = exemptionCode ? (KDV_EXEMPTION_CODES_MAP[exemptionCode] ? `${exemptionCode} - ${KDV_EXEMPTION_CODES_MAP[exemptionCode]}` : `KDV Kanunu Madde ${exemptionCode} İstisnası`) : "350 - Diğerleri (KDV İstisnası)";
+    
+    // GİB Schematron requires at least 5 characters for TaxExemptionReason
+    let exemptionReason = rawExemptionReason;
+    if (!exemptionReason || exemptionReason.length < 5) {
+      exemptionReason = mappedExemptionLabel;
+    }
+    const effectiveExemptionCode = String(exemptionCode || "350");
+    const effectiveExemptionReason = exemptionReason;
+    const withholdingCode = invoice.gi_withholding_tax_code;
+
+    // --- GİB Compliance Validations ---
+    if (giInvoiceType === 'IADE') {
+       const returnNo = (invoice.return_invoice_number || "").toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+       if (!returnNo) {
+          return res.status(400).json({ error: "İade faturaları için 'İade Edilen Fatura No' zorunludur." });
+       }
+       if (returnNo.length !== 16) {
+          return res.status(400).json({ 
+             error: `GİB kurallarına göre İADE faturalarında referans gösterilen fatura numarası (İade Edilen Fatura No) tam olarak 16 haneli olmalıdır (3 hane harf öneki, 4 hane yıl ve 9 hane sıra numarası, örn: GIB2026000001234). Girilen değer: "${invoice.return_invoice_number || ''}" (${returnNo.length} hane)` 
+          });
+       }
+       if (!invoice.return_invoice_date) {
+          return res.status(400).json({ error: "İade faturaları için 'İade Edilen Fatura Tarihi' zorunludur." });
+       }
+    }
+
+    if (giInvoiceType === 'ISTISNA' && !exemptionCode) {
+       return res.status(400).json({ error: "İstisna faturaları için 'İstisna Muafiyet Kodu' zorunludur." });
+    }
+    if (giInvoiceType === 'TEVKIFAT' && !withholdingCode) {
+       return res.status(400).json({ error: "Tevkifatlı faturalar için 'Tevkifat Kodu' zorunludur." });
+    }
+
+    // 2. Email for E-Archive (GİB Mandatory for some scenarios, highly recommended for all)
+    const customerEmail = invoice.customer_email || invoice.email;
+    if (docType === 'E-ARSIV' && !customerEmail) {
+       return res.status(400).json({ error: "E-Arşiv faturaları için müşteri e-posta adresi zorunludur." });
+    }
+
+    console.log(`[INVOICE-SEND] settings: ${JSON.stringify(settings).substring(0, 100)}`);
+
+    // Determine Store VKN for tenantIdentifierNumber
+    let storeTaxNumber = (settings.vkn || settings.tax_number || branding.tax_number || "").replace(/\s/g, '').replace(/\D/g, '');
+    if (!storeTaxNumber && settings.tenant_id && (settings.tenant_id.length === 10 || settings.tenant_id.length === 11)) {
+      storeTaxNumber = settings.tenant_id.replace(/\s/g, '').replace(/\D/g, '');
+    }
+
+    if (!storeTaxNumber || (storeTaxNumber.length !== 10 && storeTaxNumber.length !== 11)) {
+      return res.status(400).json({ 
+        error: `Geçersiz veya eksik Firma VKN/TCKN (${storeTaxNumber || 'Boş'}). Lütfen Ayarlar > E-Fatura paneline gidin, 10 haneli Vergi Kimlik Numarasını (VKN) veya 11 haneli T.C. Kimlik Numarasını (TCKN) girerek kaydedin.`
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (customerEmail && !emailRegex.test(customerEmail)) {
+        res.status(400).json({ error: "Geçerli bir müşteri e-posta adresi girilmelidir." });
+        return;
+    }
+    
+    // Ensure ETTN and Document Number are present and atomic
+    let documentNumber = invoice.document_number;
+    ettn = invoice.ettn;
+    
+    // Determine expected prefix based on CORRECTED docType and defined series
+    const seriesList: any[] = Array.isArray(settings.series_list) ? settings.series_list : [];
+    const requestedPrefix = (req.body?.prefix || invoice.prefix || '').toUpperCase().substring(0, 3);
+    const existingDocPrefix = (documentNumber || '').toUpperCase().substring(0, 3);
+    const existingInvPrefix = (invoice.invoice_number || '').toUpperCase().substring(0, 3);
+
+    let expectedPrefix = '';
+    const matchingSeries = seriesList.find((s: any) => 
+      s.prefix && (s.prefix.toUpperCase() === requestedPrefix || s.prefix.toUpperCase() === existingDocPrefix || s.prefix.toUpperCase() === existingInvPrefix) &&
+      (s.type === docType || s.type === 'ALL')
+    );
+
+    if (matchingSeries) {
+      expectedPrefix = matchingSeries.prefix.toUpperCase();
+    } else {
+      const defaultSeries = seriesList.find((s: any) => s.is_default && (s.type === docType || s.type === 'ALL'));
+      if (defaultSeries && defaultSeries.prefix) {
+        expectedPrefix = defaultSeries.prefix.toUpperCase();
+      } else {
+        expectedPrefix = docType === 'E-FATURA' ? (settings.einvoice_prefix || 'GEF') : (settings.earchive_prefix || 'GEA');
+      }
+    }
+    expectedPrefix = expectedPrefix.substring(0, 3).padEnd(3, 'X');
+    const actualPrefix = documentNumber ? documentNumber.substring(0, 3) : '';
+    
+    // If the docType changed or prefix doesn't match the designated series, regenerate document number!
+    const docTypeMismatch = invoice.e_document_type && invoice.e_document_type !== docType;
+    const isIncorrectPrefix = actualPrefix && actualPrefix.toUpperCase() !== expectedPrefix.toUpperCase();
+    
+    console.log(`[INVOICE-SEND] Invoice ID: ${invoiceId}, Existing DocNumber: ${documentNumber}, Expected Prefix: ${expectedPrefix}, Mismatch? ${docTypeMismatch || isIncorrectPrefix}`);
+    
+    // Only regenerate if documentNumber is missing, ETTN is missing, or it's the first attempt and there's a configuration mismatch.
+    if (!documentNumber || !ettn || ((!invoice.integration_status || invoice.integration_status === 'UNKNOWN') && (docTypeMismatch || isIncorrectPrefix))) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        
+        // Regenerate doc number using prefix with invoice date year
+        let prefix = expectedPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
+        const currentYear = (invoice.invoice_date ? new Date(invoice.invoice_date).getFullYear() : new Date().getFullYear()).toString();
+        const prefixWithYear = `${prefix}${currentYear}`;
+        
+        const seqRes = await client.query(
+           `SELECT COALESCE(document_number, invoice_number) as doc_num 
+            FROM sales_invoices 
+            WHERE store_id = $1 
+              AND (document_number LIKE $2 OR invoice_number LIKE $2) 
+              AND (LENGTH(document_number) = 16 OR LENGTH(invoice_number) = 16) 
+            ORDER BY COALESCE(document_number, invoice_number) DESC 
+            LIMIT 1 FOR UPDATE`,
+           [storeId, `${prefixWithYear}%`]
+        );
+        
+        let nextSequenceNumber = 1;
+        if (seqRes.rows.length > 0) {
+            const lastDocNum = seqRes.rows[0].doc_num;
+            const lastSequencePart = lastDocNum.substring(7);
+            const parsedSeq = parseInt(lastSequencePart, 10);
+            if (!isNaN(parsedSeq)) {
+               nextSequenceNumber = parsedSeq + 1;
+            }
+        }
+        
+        const sequenceString = nextSequenceNumber.toString().padStart(9, '0');
+        documentNumber = `${prefixWithYear}${sequenceString}`;
+        invoice.document_number = documentNumber;
+
+        // Regenerate ETTN if docTypeMismatch, isIncorrectPrefix, or if previous attempt was in draft/failed/error state to ensure clean submission
+        if (!ettn || docTypeMismatch || isIncorrectPrefix || invoice.integration_status === 'HATALI' || invoice.integration_status === 'FAILED' || invoice.integration_status === 'DRAFT') {
+          ettn = crypto.randomUUID();
+          invoice.ettn = ettn;
+        }
+        
+        invoice.e_document_type = docType;
+        if (giInvoiceType === 'IADE') {
+          invoice.invoice_profile = docType === 'E-ARSIV' ? 'EARSIVFATURA' : 'TEMELFATURA';
+        } else {
+          invoice.invoice_profile = docType === 'E-ARSIV' ? 'EARSIVFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
+        }
+        
+        // Save correct document_number, ettn, e_document_type, and set invoice_profile to EARSIVFATURA if E-Arşiv
+        await client.query(
+           "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
+           [documentNumber, ettn, docType, invoice.invoice_profile, invoiceId]
+        );
+        await client.query("COMMIT");
+        console.log(`[INVOICE-SEND] Updated draft number: ${documentNumber}, updated docType: ${docType}`);
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    // If previously failed or error state, assign fresh ETTN for clean retry
+    if (invoice.integration_status === 'HATALI' || invoice.integration_status === 'FAILED') {
+      ettn = crypto.randomUUID();
+      invoice.ettn = ettn;
+      await pool.query("UPDATE sales_invoices SET ettn = $1 WHERE id = $2", [ettn, invoiceId]);
+      console.log(`[INVOICE-SEND] Refreshed ETTN for previously failed invoice: ${ettn}`);
+    }
+
+    // Determine Party Information
+    console.log("[DEBUG-INVOICE-DATA] Invoice Object:", JSON.stringify(invoice, null, 2));
+
+    const isCorporate = taxNumber.length === 10;
+    // Prioritize explicitly stored title or name, fallback to generic
+    let customerName = invoice.company_title || invoice.customer_name || invoice.sale_customer_name || 'Bilinmeyen Müşteri';
+    let customerTitle = customerName;
+    let taxOffice = invoice.tax_office || "BilinmeyenVD";
+    let address = invoice.address || "Girilmemiş Adres, Türkiye";
+    
+    console.log(`[DEBUG-CUSTOMER] Name: ${customerName}, Title: ${customerTitle}`);
+
+    // Improved Address handling for GİB/MySoft
+    let cityName = (invoice.customer_city || invoice.city || "").toString().trim().toUpperCase();
+    let districtName = (invoice.customer_district || invoice.district || "").toString().trim().toUpperCase();
+    let cleanAddress = (address || "").replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!cityName && cleanAddress) {
+       const cleanAddr = cleanAddress.replace(/, Türkiye/gi, '').replace(/,Turkey/gi, '').trim();
+       const parts = cleanAddr.split(/[,/]+/).map(p => p.trim()).filter(Boolean);
+       if (parts.length >= 2) {
+          cityName = parts[parts.length - 1].toUpperCase().substring(0, 30);
+          districtName = districtName || parts[parts.length - 2].toUpperCase().substring(0, 30);
+       } else if (parts.length === 1) {
+          cityName = parts[0].toUpperCase().substring(0, 30);
+       }
+    }
+    if (!cityName) cityName = "İSTANBUL";
+    if (!districtName) districtName = "MERKEZ";
+
+    // Date formatting
+    const docDate = new Date(invoice.invoice_date || new Date());
+    if (isNaN(docDate.getTime())) {
+      return res.status(400).json({ error: "Fatura tarihi geçersiz." });
+    }
+    const formattedDate = docDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
+    
+    // Time formatting - use local TR time (UTC+3) rather than UTC
+    let formattedTime = "12:00:00";
+    try {
+      // Create a date string in YYYY-MM-DD HH:mm:ss format which MySoft often expects for docTime
+      const now = new Date(docDate.getTime() + (3 * 60 * 60 * 1000));
+      const timePart = now.toISOString().split('T')[1].substring(0, 8);
+      formattedTime = `${formattedDate} ${timePart}`;
+    } catch (e) {
+      console.warn("Could not format time from docDate, using default");
+      formattedTime = `${formattedDate} 12:00:00`;
+    }
+    
+    if (invoice.invoice_time) {
+        // user provided time, ensure it's in HH:mm:ss format and combine with date
+        let userTime = "12:00:00";
+        if (invoice.invoice_time.length === 5) {
+            userTime = invoice.invoice_time + ":00";
+        } else if (invoice.invoice_time.length >= 8) {
+            userTime = invoice.invoice_time.substring(0, 8);
+        }
+        formattedTime = `${formattedDate} ${userTime}`;
+    }
+
+    const nameParts = (invoice.customer_name || "").split(' ');
+    const surname = nameParts.length > 1 ? nameParts.pop() : "";
+    const name = nameParts.join(' ') || (invoice.customer_name || "Müşteri");
+
+    // LINES (mapped to invoiceDetail for MySoft)
+    const isTaxInclusive = !!invoice.is_tax_inclusive;
+    const InvoiceDetail = items.map((item, index) => {
+      const qty = Number(String(item.quantity).replace(',', '.')) || 1;
+      const price = Number(String(item.unit_price).replace(',', '.')) || 0;
+      const taxRate = Number(String(item.tax_rate).replace(',', '.')) || 0;
+      
+      let lineExtensionAmount: number; // tax exclusive total
+      let unitPrice: number; // tax exclusive unit price
+      let taxAmount: number;
+
+      if (isTaxInclusive) {
+        const itemTotalIncl = qty * price;
+        lineExtensionAmount = itemTotalIncl / (1 + (taxRate / 100));
+        unitPrice = lineExtensionAmount / qty;
+        taxAmount = itemTotalIncl - lineExtensionAmount;
+      } else {
+        lineExtensionAmount = qty * price;
+        unitPrice = price;
+        taxAmount = (lineExtensionAmount * taxRate) / 100;
+      }
+
+      const rawUnit = (item.unit_code || "").trim();
+      const norm = rawUnit.toLowerCase();
+      const unitMapping: { [key: string]: string } = {
+        "adet": "C62",
+        "ad": "C62",
+        "pcs": "C62",
+        "piece": "C62",
+        "kg": "KGM",
+        "kilogram": "KGM",
+        "gr": "GRM",
+        "litre": "LTR",
+        "lt": "LTR",
+        "meter": "MTR",
+        "metre": "MTR",
+        "paket": "PA",
+        "kutu": "BX",
+        "ton": "TNE",
+        "metrekare": "MTK",
+        "m2": "MTK",
+        "gün": "DAY",
+        "gun": "DAY",
+        "saat": "HUR",
+        "ay": "MON",
+        "yıl": "ANN"
+      };
+      const unitCodeVal = rawUnit ? (unitMapping[norm] || rawUnit) : UNIT_CODES.PIECE;
+      const isItemZeroOrExempt = Number(taxRate) === 0 || giInvoiceType === 'ISTISNA' || Number(taxAmount) === 0;
+
+      const lineSubObj: any = {
+        taxableAmount: Number(lineExtensionAmount.toFixed(2)),
+        TaxableAmount: Number(lineExtensionAmount.toFixed(2)),
+        taxAmount: Number(taxAmount.toFixed(2)),
+        TaxAmount: Number(taxAmount.toFixed(2)),
+        calculationSequenceNumeric: 0,
+        CalculationSequenceNumeric: 0,
+        percent: Number(taxRate.toFixed(2)),
+        Percent: Number(taxRate.toFixed(2)),
+        taxName: "Katma Değer Vergisi",
+        TaxName: "Katma Değer Vergisi",
+        taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+        TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+        taxCategory: {
+          taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+          TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+          name: "Katma Değer Vergisi",
+          Name: "Katma Değer Vergisi",
+          taxScheme: {
+            name: "Katma Değer Vergisi",
+            Name: "Katma Değer Vergisi",
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          TaxScheme: {
+            name: "Katma Değer Vergisi",
+            Name: "Katma Değer Vergisi",
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          ...(isItemZeroOrExempt ? {
+            taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReasonName: effectiveExemptionReason,
+            taxExemptionReason: effectiveExemptionReason,
+            taxExemptionReasonText: effectiveExemptionReason,
+            exemptionReasonCode: effectiveExemptionCode,
+            exemptionReason: effectiveExemptionReason,
+            TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReasonName: effectiveExemptionReason,
+            TaxExemptionReason: effectiveExemptionReason
+          } : {})
+        },
+        TaxCategory: {
+          taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+          TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+          name: "Katma Değer Vergisi",
+          Name: "Katma Değer Vergisi",
+          taxScheme: {
+            name: "Katma Değer Vergisi",
+            Name: "Katma Değer Vergisi",
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          TaxScheme: {
+            name: "Katma Değer Vergisi",
+            Name: "Katma Değer Vergisi",
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          ...(isItemZeroOrExempt ? {
+            taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReasonName: effectiveExemptionReason,
+            taxExemptionReason: effectiveExemptionReason,
+            taxExemptionReasonText: effectiveExemptionReason,
+            exemptionReasonCode: effectiveExemptionCode,
+            exemptionReason: effectiveExemptionReason,
+            TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReasonName: effectiveExemptionReason,
+            TaxExemptionReason: effectiveExemptionReason
+          } : {})
+        },
+        ...(isItemZeroOrExempt ? {
+          taxExemptionReasonCode: effectiveExemptionCode,
+          taxExemptionReasonName: effectiveExemptionReason,
+          taxExemptionReason: effectiveExemptionReason,
+          taxExemptionReasonText: effectiveExemptionReason,
+          exemptionReasonCode: effectiveExemptionCode,
+          exemptionReason: effectiveExemptionReason,
+          TaxExemptionReasonCode: effectiveExemptionCode,
+          TaxExemptionReasonName: effectiveExemptionReason,
+          TaxExemptionReason: effectiveExemptionReason
+        } : {})
+      };
+
+      const lineTaxTotalStructure = [
+        {
+          taxAmount: Number(taxAmount.toFixed(2)),
+          TaxAmount: Number(taxAmount.toFixed(2)),
+          taxSubtotalList: [lineSubObj],
+          ...(isItemZeroOrExempt ? {
+            taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReasonName: effectiveExemptionReason,
+            taxExemptionReason: effectiveExemptionReason,
+            taxExemptionReasonText: effectiveExemptionReason,
+            exemptionReasonCode: effectiveExemptionCode,
+            exemptionReason: effectiveExemptionReason,
+            TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReasonName: effectiveExemptionReason,
+            TaxExemptionReason: effectiveExemptionReason
+          } : {})
+        }
+      ];
+
+      return {
+        lineNumber: index + 1,
+        lineId: String(index + 1),
+        itemName: item.product_name || "Ürün/Hizmet",
+        name: item.product_name || "Ürün/Hizmet",
+        productName: item.product_name || "Ürün/Hizmet",
+        quantity: Number(qty.toFixed(4)),
+        qty: Number(qty.toFixed(4)),
+        unitCode: unitCodeVal,
+        price: Number(unitPrice.toFixed(4)),
+        unitPrice: Number(unitPrice.toFixed(4)),
+        unitPriceTra: Number(unitPrice.toFixed(4)),
+        allowance: 0.0,
+        lineTotal: Number(lineExtensionAmount.toFixed(2)),
+        amtTra: Number(lineExtensionAmount.toFixed(2)),
+        lineExtensionAmount: Number(lineExtensionAmount.toFixed(2)),
+        vatRate: Number(taxRate.toFixed(2)),
+        percent: Number(taxRate.toFixed(2)),
+        amtVatTra: Number(taxAmount.toFixed(2)),
+        taxAmount: Number(taxAmount.toFixed(2)),
+        taxableAmtTra: Number(lineExtensionAmount.toFixed(2)),
+        taxableAmount: Number(lineExtensionAmount.toFixed(2)),
+        taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+        taxTotal: lineTaxTotalStructure,
+        taxes: [
+          {
+            taxCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            taxRate: Number(taxRate.toFixed(2)),
+            taxAmount: Number(taxAmount.toFixed(2)),
+            ...(isItemZeroOrExempt ? {
+              taxExemptionReasonCode: effectiveExemptionCode,
+              taxExemptionReasonName: effectiveExemptionReason,
+              taxExemptionReason: effectiveExemptionReason,
+              taxExemptionReasonText: effectiveExemptionReason,
+              exemptionReasonCode: effectiveExemptionCode,
+              exemptionReason: effectiveExemptionReason,
+              TaxExemptionReasonCode: effectiveExemptionCode,
+              TaxExemptionReasonName: effectiveExemptionReason,
+              TaxExemptionReason: effectiveExemptionReason
+            } : {})
+          }
+        ],
+        taxLists: [
+          {
+            taxCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            taxRate: Number(taxRate.toFixed(2)),
+            taxAmount: Number(taxAmount.toFixed(2)),
+            ...(isItemZeroOrExempt ? {
+              taxExemptionReasonCode: effectiveExemptionCode,
+              taxExemptionReasonName: effectiveExemptionReason,
+              taxExemptionReason: effectiveExemptionReason,
+              taxExemptionReasonText: effectiveExemptionReason,
+              exemptionReasonCode: effectiveExemptionCode,
+              exemptionReason: effectiveExemptionReason,
+              TaxExemptionReasonCode: effectiveExemptionCode,
+              TaxExemptionReasonName: effectiveExemptionReason,
+              TaxExemptionReason: effectiveExemptionReason
+            } : {})
+          }
+        ],
+        taxCategory: {
+          taxScheme: {
+            name: "Katma Değer Vergisi",
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          ...(isItemZeroOrExempt ? {
+            taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReasonName: effectiveExemptionReason,
+            taxExemptionReason: effectiveExemptionReason,
+            taxExemptionReasonText: effectiveExemptionReason,
+            exemptionReasonCode: effectiveExemptionCode,
+            exemptionReason: effectiveExemptionReason,
+            TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReasonName: effectiveExemptionReason,
+            TaxExemptionReason: effectiveExemptionReason
+          } : {})
+        },
+        TaxCategory: {
+          TaxScheme: {
+            Name: "Katma Değer Vergisi",
+            TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          ...(isItemZeroOrExempt ? {
+            taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReasonName: effectiveExemptionReason,
+            taxExemptionReason: effectiveExemptionReason,
+            taxExemptionReasonText: effectiveExemptionReason,
+            exemptionReasonCode: effectiveExemptionCode,
+            exemptionReason: effectiveExemptionReason,
+            TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReasonName: effectiveExemptionReason,
+            TaxExemptionReason: effectiveExemptionReason
+          } : {})
+        },
+        ...(isItemZeroOrExempt ? {
+          taxExemptionReasonCode: effectiveExemptionCode,
+          taxExemptionReasonName: effectiveExemptionReason,
+          taxExemptionReason: effectiveExemptionReason,
+          taxExemptionReasonText: effectiveExemptionReason,
+          exemptionReasonCode: effectiveExemptionCode,
+          exemptionReason: effectiveExemptionReason,
+          TaxExemptionReasonCode: effectiveExemptionCode,
+          TaxExemptionReasonName: effectiveExemptionReason,
+          TaxExemptionReason: effectiveExemptionReason
+        } : {})
+      };
+    });
+
+    // Construct UBL JSON Data matching MySoft standard payload (Outbox format)
+    if (!invoice.document_number) throw new Error("Fatura numarası oluşturulamadı.");
+    
+    // Explicitly compute totals from lines to ensure consistency
+    const totalLineExtension = InvoiceDetail.reduce((acc, item) => acc + Number(item.amtTra), 0);
+    const totalTax = InvoiceDetail.reduce((acc, item) => acc + Number(item.amtVatTra), 0);
+    const grandTotal = totalLineExtension + totalTax;
+
+    const taxSubTotals = (() => {
+       const groups: { [key: string]: { taxableAmount: number; taxAmount: number } } = {};
+       InvoiceDetail.forEach(detail => {
+          const rate = String(Number(detail.vatRate || detail.percent || 0));
+          const taxable = Number(detail.taxableAmtTra || detail.taxableAmount || 0);
+          const tax = Number(detail.amtVatTra || detail.taxAmount || 0);
+          if (!groups[rate]) {
+             groups[rate] = { taxableAmount: 0, taxAmount: 0 };
+          }
+          groups[rate].taxableAmount += taxable;
+          groups[rate].taxAmount += tax;
+       });
+       return Object.keys(groups).map(rate => {
+          const numRate = Number(rate);
+          const isZeroOrExempt = numRate === 0 || giInvoiceType === 'ISTISNA' || groups[rate].taxAmount === 0;
+          const subObj: any = {
+             taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
+             TaxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
+             taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
+             TaxAmount: Number(groups[rate].taxAmount.toFixed(2)),
+             calculationSequenceNumeric: 0,
+             CalculationSequenceNumeric: 0,
+             percent: numRate,
+             Percent: numRate,
+             taxName: "Katma Değer Vergisi",
+             TaxName: "Katma Değer Vergisi",
+             taxTypeCode: "0015",
+             TaxTypeCode: "0015",
+             taxCategory: {
+               taxTypeCode: "0015",
+               TaxTypeCode: "0015",
+               name: "Katma Değer Vergisi",
+               Name: "Katma Değer Vergisi",
+               taxScheme: {
+                 name: "Katma Değer Vergisi",
+                 Name: "Katma Değer Vergisi",
+                 taxTypeCode: "0015",
+                 TaxTypeCode: "0015"
+               },
+               TaxScheme: {
+                 name: "Katma Değer Vergisi",
+                 Name: "Katma Değer Vergisi",
+                 taxTypeCode: "0015",
+                 TaxTypeCode: "0015"
+               }
+             },
+             TaxCategory: {
+               taxTypeCode: "0015",
+               TaxTypeCode: "0015",
+               name: "Katma Değer Vergisi",
+               Name: "Katma Değer Vergisi",
+               taxScheme: {
+                 name: "Katma Değer Vergisi",
+                 Name: "Katma Değer Vergisi",
+                 taxTypeCode: "0015",
+                 TaxTypeCode: "0015"
+               },
+               TaxScheme: {
+                 name: "Katma Değer Vergisi",
+                 Name: "Katma Değer Vergisi",
+                 taxTypeCode: "0015",
+                 TaxTypeCode: "0015"
+               }
+             }
+          };
+          if (isZeroOrExempt) {
+             subObj.taxExemptionReasonCode = effectiveExemptionCode;
+             subObj.taxExemptionReasonName = effectiveExemptionReason;
+             subObj.taxExemptionReason = effectiveExemptionReason;
+             subObj.taxExemptionReasonText = effectiveExemptionReason;
+             subObj.exemptionReasonCode = effectiveExemptionCode;
+             subObj.exemptionReason = effectiveExemptionReason;
+             subObj.TaxExemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxExemptionReasonName = effectiveExemptionReason;
+             subObj.TaxExemptionReason = effectiveExemptionReason;
+             
+             subObj.taxCategory.taxExemptionReasonCode = effectiveExemptionCode;
+             subObj.taxCategory.taxExemptionReasonName = effectiveExemptionReason;
+             subObj.taxCategory.taxExemptionReason = effectiveExemptionReason;
+             subObj.taxCategory.taxExemptionReasonText = effectiveExemptionReason;
+             subObj.taxCategory.exemptionReasonCode = effectiveExemptionCode;
+             subObj.taxCategory.exemptionReason = effectiveExemptionReason;
+             subObj.taxCategory.TaxExemptionReasonCode = effectiveExemptionCode;
+             subObj.taxCategory.TaxExemptionReasonName = effectiveExemptionReason;
+             subObj.taxCategory.TaxExemptionReason = effectiveExemptionReason;
+
+             subObj.TaxCategory.taxExemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxCategory.taxExemptionReasonName = effectiveExemptionReason;
+             subObj.TaxCategory.taxExemptionReason = effectiveExemptionReason;
+             subObj.TaxCategory.taxExemptionReasonText = effectiveExemptionReason;
+             subObj.TaxCategory.exemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxCategory.exemptionReason = effectiveExemptionReason;
+             subObj.TaxCategory.TaxExemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxCategory.TaxExemptionReasonName = effectiveExemptionReason;
+             subObj.TaxCategory.TaxExemptionReason = effectiveExemptionReason;
+          }
+          return subObj;
+       });
+    })();
+
+    const taxTotalItem: any = {
+       taxAmount: Number(totalTax.toFixed(2)),
+       TaxAmount: Number(totalTax.toFixed(2)),
+       taxSubtotalList: taxSubTotals
+    };
+    if (giInvoiceType === 'ISTISNA' || totalTax === 0) {
+       taxTotalItem.taxExemptionReasonCode = effectiveExemptionCode;
+       taxTotalItem.taxExemptionReasonName = effectiveExemptionReason;
+       taxTotalItem.taxExemptionReason = effectiveExemptionReason;
+       taxTotalItem.taxExemptionReasonText = effectiveExemptionReason;
+       taxTotalItem.exemptionReasonCode = effectiveExemptionCode;
+       taxTotalItem.exemptionReason = effectiveExemptionReason;
+       taxTotalItem.TaxExemptionReasonCode = effectiveExemptionCode;
+       taxTotalItem.TaxExemptionReasonName = effectiveExemptionReason;
+       taxTotalItem.TaxExemptionReason = effectiveExemptionReason;
+    }
+
+    const taxStructure = [taxTotalItem];
+
+    const ublData: any = {
+       isCalculateByApi: false,
+       isManuelCalculation: true,
+       id: 0, 
+       connectorGuid: settings.connector_guid || undefined,
+       eDocumentType: docType === 'E-FATURA' ? 'EFATURA' : 'EARSIVFATURA',
+       profile: (() => {
+          if (giInvoiceType === 'IADE') {
+             return docType === 'E-ARSIV' ? 'EARSIVFATURA' : 'TEMELFATURA';
+          }
+          return docType === 'E-ARSIV' ? 'TEMELFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
+       })(),
+       invoiceProfileDescription: (() => {
+          if (giInvoiceType === 'IADE') {
+             return docType === 'E-ARSIV' ? 'EARSIVFATURA' : 'TEMELFATURA';
+          }
+          return docType === 'E-ARSIV' ? 'TEMELFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
+       })(),
+       invoiceType: giInvoiceType,
+       documentTypeCode: giInvoiceType,
+       invoiceTypeCodeDescription: giInvoiceType,
+       docDate: formattedDate,
+       issueDate: formattedDate,
+       docTime: formattedTime,
+       issueTime: formattedTime,
+       ettn: ettn,
+       uuid: ettn,
+       docNo: documentNumber,
+       documentNo: documentNumber,
+       invoiceNumber: documentNumber,
+       note: invoice.notes || "",
+       notes: (invoice.notes || "").split('\n').map((n: string) => ({ note: n.trim() })).filter((n: any) => n.note),
+       noteList: (invoice.notes || "").split('\n').map((n: string) => n.trim()).filter(Boolean),
+       notesList: (invoice.notes || "").split('\n').map((n: string) => n.trim()).filter(Boolean),
+       currencyCode: (invoice.currency || 'TRY').toUpperCase(),
+       currencyRate: String(Number(Number(invoice.exchange_rate || 1).toFixed(4))),
+       tenantIdentifierNumber: storeTaxNumber,
+       
+       pkAlias: docType === 'E-FATURA' ? pkAlias : undefined,
+       gbAlias: settings.sender_alias || undefined,
+       senderAlias: settings.sender_alias || undefined,
+       
+       // Handle Billing Reference for Return (IADE) Invoices (Mandatory UBL fields)
+       ...(giInvoiceType === 'IADE' && invoice.return_invoice_number ? (() => {
+          // Helper to format invoice number to exactly 16 characters required by GİB Schematron check
+          const formatInvoiceNumber16 = (input: string, fallbackYear = "2026"): string => {
+             let cleaned = (input || "").toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+             if (cleaned.length === 16) {
+                return cleaned;
+             }
+             if (!cleaned) {
+                return `IAD${fallbackYear}000000001`;
+             }
+             const prefixMatch = cleaned.match(/^([A-Z]{3})/);
+             const prefix = prefixMatch ? prefixMatch[1] : "IAD";
+             let rest = prefixMatch ? cleaned.substring(3) : cleaned;
+             const yearMatch = rest.match(/(20\d{2})/);
+             const year = yearMatch ? yearMatch[1] : fallbackYear;
+             if (yearMatch) {
+                rest = rest.replace(year, '');
+             }
+             const sequenceDigits = rest.replace(/[^0-9]/g, '');
+             const sequenceStr = sequenceDigits ? sequenceDigits.substring(0, 9) : "1";
+             const paddedSequence = sequenceStr.padStart(9, '0');
+             return `${prefix}${year}${paddedSequence}`;
+          };
+
+          const refId = formatInvoiceNumber16(invoice.return_invoice_number, formattedDate.substring(0, 4));
+
+          // Robustly format reference date to YYYY-MM-DD string
+          let refDate = formattedDate;
+          if (invoice.return_invoice_date) {
+             try {
+                const rDate = new Date(invoice.return_invoice_date);
+                if (!isNaN(rDate.getTime())) {
+                   refDate = rDate.toISOString().split('T')[0];
+                } else {
+                   const rawDateStr = String(invoice.return_invoice_date);
+                   refDate = rawDateStr.includes('T') ? rawDateStr.split('T')[0] : rawDateStr;
+                }
+             } catch (e) {
+                const rawDateStr = String(invoice.return_invoice_date);
+                refDate = rawDateStr.includes('T') ? rawDateStr.split('T')[0] : rawDateStr;
+             }
+          }
+          
+          return {
+             // Standard Mysoft root-level properties for return referencing (e-Invoice / e-Archive outbox schema)
+             billingRefInvoiceNo: refId,
+             billingRefInvoiceDate: refDate,
+             billingRefInvoiceTypeCode: 'IADE',
+
+             // 1. Nested array variations (most common for modern standard-compliant integrators)
+             billingReference: [
+                {
+                   invoiceDocumentReference: {
+                      id: refId,
+                      issueDate: refDate,
+                      documentTypeCode: 'IADE',
+                      documentType: 'IADE'
+                   }
+                }
+             ],
+             billingReferences: [
+                {
+                   invoiceDocumentReference: {
+                      id: refId,
+                      issueDate: refDate,
+                      documentTypeCode: 'IADE',
+                      documentType: 'IADE'
+                   }
+                }
+             ],
+             BillingReference: [
+                {
+                   InvoiceDocumentReference: {
+                      ID: refId,
+                      IssueDate: refDate,
+                      DocumentTypeCode: 'IADE',
+                      DocumentType: 'IADE'
+                   }
+                }
+             ],
+             BillingReferences: [
+                {
+                   InvoiceDocumentReference: {
+                      ID: refId,
+                      IssueDate: refDate,
+                      DocumentTypeCode: 'IADE',
+                      DocumentType: 'IADE'
+                   }
+                }
+             ],
+
+             // 2. Nested single object variations (for APIs that simplify singleton arrays to single objects)
+             billingReferenceObject: {
+                invoiceDocumentReference: {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE',
+                   documentType: 'IADE'
+                }
+             },
+             BillingReferenceObject: {
+                InvoiceDocumentReference: {
+                   ID: refId,
+                   IssueDate: refDate,
+                   DocumentTypeCode: 'IADE',
+                   DocumentType: 'IADE'
+                }
+             },
+
+             // 3. Flat list variations (for simplified APIs that flatten the intermediate UBL layer)
+             billingReferenceFlatList: [
+                {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE',
+                   documentType: 'IADE'
+                }
+             ],
+             billingReferencesFlatList: [
+                {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE',
+                   documentType: 'IADE'
+                }
+             ],
+
+             // 4. Flat direct key variations
+             billingRefList: [
+                {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE'
+                }
+             ],
+             billingRef: {
+                id: refId,
+                issueDate: refDate,
+                documentTypeCode: 'IADE'
+             },
+             BillingRef: {
+                ID: refId,
+                IssueDate: refDate,
+                DocumentTypeCode: 'IADE'
+             },
+
+             // 5. Additional references variations (such as Izibiz, or generic XML attachment models)
+             additionalReferences: [
+                {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE',
+                   documentType: 'IADE'
+                }
+             ],
+             additionalDocumentReference: [
+                {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE',
+                   documentType: 'IADE'
+                }
+             ],
+             AdditionalDocumentReference: [
+                {
+                   ID: refId,
+                   IssueDate: refDate,
+                   DocumentTypeCode: 'IADE',
+                   DocumentType: 'IADE'
+                }
+             ]
+          };
+       })() : {}),
+       
+       customerTaxNumber: taxNumber,
+       customerTitle: (customerTitle || (isCorporate ? customerTitle : `${name} ${surname}`)).substring(0, 100),
+       customerTaxOffice: taxOffice || "",
+       customerAddress: (cleanAddress || "Girilmemiş Adres").substring(0, 250),
+       customerCity: cityName || "İSTANBUL",
+       customerCountry: "Türkiye",
+
+       buyerInformation: {
+          vknTckn: taxNumber,
+          title: (customerTitle || (isCorporate ? customerTitle : `${name} ${surname}`)).substring(0, 100),
+          taxOffice: taxOffice || "",
+          address: (cleanAddress || "Girilmemiş Adres").substring(0, 250),
+          city: cityName || "İSTANBUL",
+          country: "Türkiye"
+       },
+       
+       invoiceAccount: {
+          vknTckn: taxNumber,
+          accountName: (customerTitle || (isCorporate ? customerTitle : `${name} ${surname}`)).substring(0, 100),
+          taxOfficeName: taxOffice || "",
+          email1: customerEmail || "",
+          countryName: "Türkiye",
+          cityName: cityName || "İSTANBUL",
+          citySubdivision: districtName || "MERKEZ",
+          streetName: (cleanAddress || "Girilmemiş Adres").substring(0, 250)
+       },
+
+       taxTotal: taxStructure,
+       ...( (giInvoiceType === 'ISTISNA' || totalTax === 0 || InvoiceDetail.some(d => d.percent === 0 || d.taxAmount === 0)) ? {
+          taxExemptionReasonCode: effectiveExemptionCode,
+          taxExemptionReasonName: effectiveExemptionReason,
+          taxExemptionReason: effectiveExemptionReason,
+          taxExemptionReasonText: effectiveExemptionReason,
+          exemptionReasonCode: effectiveExemptionCode,
+          exemptionReason: effectiveExemptionReason,
+          kdvExemptionReasonCode: effectiveExemptionCode,
+          kdvExemptionReason: effectiveExemptionReason,
+          TaxExemptionReasonCode: effectiveExemptionCode,
+          TaxExemptionReasonName: effectiveExemptionReason,
+          TaxExemptionReason: effectiveExemptionReason,
+       } : {}),
+
+       invoiceDetail: InvoiceDetail,
+       invoiceLines: InvoiceDetail,
+
+       totalAmounts: {
+          lineTotalAmount: Number(totalLineExtension.toFixed(2)),
+          taxExclusiveAmount: Number(totalLineExtension.toFixed(2)),
+          taxTotalAmount: Number(totalTax.toFixed(2)),
+          payableAmount: Number(grandTotal.toFixed(2))
+       },
+
+       invoiceTotals: {
+          lineTotalAmount: Number(totalLineExtension.toFixed(2)),
+          taxExclusiveAmount: Number(totalLineExtension.toFixed(2)),
+          taxAmountTotal: Number(totalTax.toFixed(2)),
+          payableAmount: Number(grandTotal.toFixed(2))
+       },
+
+       invoiceCalculation: {
+          lineExtensionAmount: Number(totalLineExtension.toFixed(2)),
+          taxExclusiveAmount: Number(totalLineExtension.toFixed(2)),
+          taxInclusiveAmount: Number(grandTotal.toFixed(2)),
+          payableAmount: Number(grandTotal.toFixed(2)),
+          grandTotalAmountText: numberToTurkishWords(Number(grandTotal.toFixed(2)), (invoice.currency || 'TRY').toUpperCase()),
+          allowanceTotalAmount: 0
+       }
+    };
+
+
+    // Sending
+    let result;
+    try {
+      console.log(`[INVOICE-SEND] Initiating sendInvoice with docType: ${docType}, documentNumber: ${documentNumber}`);
+      result = await service.sendInvoice(ublData);
+    } catch (sendErr: any) {
+      const errMsg = sendErr.message || "";
+      console.warn(`[INVOICE-SEND] Primary attempt failed: "${errMsg}". Checking if auto-recovery applies...`);
+
+      const isProfileMismatch = 
+        errMsg.includes("Profile alanında") || 
+        errMsg.includes("E-Fatura için") || 
+        errMsg.includes("uygun Profile") ||
+        errMsg.includes("Profile değeri") ||
+        errMsg.includes("geçersiz değer");
+
+      const isEArchiveRequired =
+        errMsg.includes("mükellef değil") ||
+        errMsg.includes("E-Fatura kullanıcısı değil") ||
+        errMsg.includes("E-Arşiv Fatura olarak") ||
+        errMsg.includes("E-Arşiv faturası") ||
+        errMsg.includes("not registered") ||
+        errMsg.includes("mükellefi değildir");
+
+      if (isProfileMismatch && docType === 'E-ARSIV') {
+        console.warn(`[INVOICE-SEND-RECOVERY] Integrator rejected E-Arşiv due to target being an active E-Fatura taxpayer. Attempting auto-recovery as E-FATURA...`);
+        docType = 'E-FATURA';
+        pkAlias = 'urn:mail:defaultpk';
+        
+        const defaultEF = seriesList.find((s: any) => s.is_default && s.type === 'E-FATURA');
+        const expectedPrefix = defaultEF?.prefix || settings.einvoice_prefix || 'GEF';
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          let prefix = expectedPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
+          const currentYear = (invoice.invoice_date ? new Date(invoice.invoice_date).getFullYear() : new Date().getFullYear()).toString();
+          const prefixWithYear = `${prefix}${currentYear}`;
+          
+          const seqRes = await client.query(
+             `SELECT COALESCE(document_number, invoice_number) as doc_num 
+              FROM sales_invoices 
+              WHERE store_id = $1 
+                AND (document_number LIKE $2 OR invoice_number LIKE $2) 
+                AND (LENGTH(document_number) = 16 OR LENGTH(invoice_number) = 16) 
+              ORDER BY COALESCE(document_number, invoice_number) DESC 
+              LIMIT 1 FOR UPDATE`,
+             [storeId, `${prefixWithYear}%`]
+          );
+          
+          let nextSequenceNumber = 1;
+          if (seqRes.rows.length > 0) {
+              const lastDocNum = seqRes.rows[0].doc_num;
+              const lastSequencePart = lastDocNum.substring(7);
+              const parsedSeq = parseInt(lastSequencePart, 10);
+              if (!isNaN(parsedSeq)) {
+                 nextSequenceNumber = parsedSeq + 1;
+              }
+          }
+          
+          const sequenceString = nextSequenceNumber.toString().padStart(9, '0');
+          documentNumber = `${prefixWithYear}${sequenceString}`;
+          
+          ettn = crypto.randomUUID();
+          
+          await client.query(
+             "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
+             [documentNumber, ettn, docType, 'TEMELFATURA', invoiceId]
+          );
+          await client.query("COMMIT");
+          console.log(`[INVOICE-SEND-RECOVERY] Successfully set sequence and saved as E-FATURA: ${documentNumber}`);
+        } catch (dbErr) {
+          await client.query("ROLLBACK");
+          console.error("[INVOICE-SEND-RECOVERY] DB Update failed inside E-FATURA recovery branch:", dbErr);
+          throw dbErr;
+        } finally {
+          client.release();
+        }
+
+        // Reconstruct fields for E-FATURA
+        ublData.eDocumentType = 'EFATURA';
+        ublData.profile = giInvoiceType === 'IADE' ? 'TEMELFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
+        ublData.docNo = documentNumber;
+        ublData.pkAlias = pkAlias;
+        ublData.ettn = ettn;
+
+        console.log("[INVOICE-SEND-RECOVERY] Retrying sendInvoice with updated E-FATURA sequence payload...");
+        result = await service.sendInvoice(ublData);
+
+      } else if (isEArchiveRequired && docType === 'E-FATURA') {
+        console.warn(`[INVOICE-SEND-RECOVERY] Integrator rejected E-Fatura due to target NOT being an active e-Invoice taxpayer. Attempting auto-recovery as E-ARSIV...`);
+        docType = 'E-ARSIV';
+        pkAlias = '';
+
+        const defaultEA = seriesList.find((s: any) => s.is_default && s.type === 'E-ARSIV');
+        const expectedPrefix = defaultEA?.prefix || settings.earchive_prefix || 'GEA';
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          let prefix = expectedPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
+          const currentYear = (invoice.invoice_date ? new Date(invoice.invoice_date).getFullYear() : new Date().getFullYear()).toString();
+          const prefixWithYear = `${prefix}${currentYear}`;
+
+          const seqRes = await client.query(
+             `SELECT COALESCE(document_number, invoice_number) as doc_num 
+              FROM sales_invoices 
+              WHERE store_id = $1 
+                AND (document_number LIKE $2 OR invoice_number LIKE $2) 
+                AND (LENGTH(document_number) = 16 OR LENGTH(invoice_number) = 16) 
+              ORDER BY COALESCE(document_number, invoice_number) DESC 
+              LIMIT 1 FOR UPDATE`,
+             [storeId, `${prefixWithYear}%`]
+          );
+
+          let nextSequenceNumber = 1;
+          if (seqRes.rows.length > 0) {
+              const lastDocNum = seqRes.rows[0].doc_num;
+              const lastSequencePart = lastDocNum.substring(7);
+              const parsedSeq = parseInt(lastSequencePart, 10);
+              if (!isNaN(parsedSeq)) {
+                 nextSequenceNumber = parsedSeq + 1;
+              }
+          }
+
+          const sequenceString = nextSequenceNumber.toString().padStart(9, '0');
+          documentNumber = `${prefixWithYear}${sequenceString}`;
+
+          ettn = crypto.randomUUID();
+
+          await client.query(
+             "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
+             [documentNumber, ettn, docType, 'EARSIVFATURA', invoiceId]
+          );
+          await client.query("COMMIT");
+          console.log(`[INVOICE-SEND-RECOVERY] Successfully set sequence and saved as E-ARSIV: ${documentNumber}`);
+        } catch (dbErr) {
+          await client.query("ROLLBACK");
+          console.error("[INVOICE-SEND-RECOVERY] DB Update failed inside E-ARSIV recovery branch:", dbErr);
+          throw dbErr;
+        } finally {
+          client.release();
+        }
+
+        // Reconstruct fields for E-ARSIV
+        ublData.eDocumentType = 'EARSIVFATURA';
+        ublData.profile = 'TEMELFATURA';
+        ublData.docNo = documentNumber;
+        ublData.pkAlias = undefined;
+        ublData.ettn = ettn;
+
+        console.log("[INVOICE-SEND-RECOVERY] Retrying sendInvoice with updated E-ARSIV sequence payload...");
+        result = await service.sendInvoice(ublData);
+
+      } else {
+        // Unhandled error, propagate
+        throw sendErr;
+      }
+    }
+
+    // Format DB Update
+    if (result.isSuccess) {
+       await pool.query(
+         "UPDATE sales_invoices SET integration_status = $1, integration_message = $2, ettn = $3, e_document_type = $4, document_number = $5 WHERE id = $6", 
+         ['QUEUED', result.message, result.ettn, docType, documentNumber, invoiceId]
+       );
+    }
+
+    res.json(result);
+  } catch (error: any) {
+    if (error.message && error.message.includes("Aynı belge numarasından daha önce kayıt oluşturulmuştur")) {
+        console.log(`[INVOICE-SEND-RECOVERY] Intercepted duplicate document number error for invoice ${invoiceId}. Marking as QUEUED automatically.`);
+        await pool.query(
+          "UPDATE sales_invoices SET integration_status = $1, integration_message = $2 WHERE id = $3", 
+          ['QUEUED', 'Fatura başarıyla entegratöre iletilmiş (Tekrar gönderimi engellendi).', invoiceId]
+        );
+        return res.json({
+           isSuccess: true,
+           ettn: ettn,
+           message: "Fatura zaten sisteme başarıyla gönderilmiş! Durumu senkronize edildi."
+        });
+    }
+
+    console.error(`[EINVOICE-SEND-CRITICAL-ERROR] Invoice: ${invoiceId}, Store: ${storeId}:`, error);
+    try {
+      await pool.query(
+        "UPDATE sales_invoices SET integration_status = $1, integration_message = $2 WHERE id = $3",
+        ['HATALI', (error.message || 'Gönderim hatası').substring(0, 500), invoiceId]
+      );
+    } catch (dbErr) {
+      console.warn("Failed to set HATALI status on sales_invoices:", dbErr);
+    }
+    await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Send Invoice ${invoiceId}`, error);
+    res.status(500).json({ 
+      error: error.message || "Bilinmeyen bir iç sunucu hatası oluştu.",
+      details: error.response?.data || undefined
+    });
+  }
+});
+
+// 3. Check Status of a Sent Invoice
+router.get("/einvoice/status/:invoiceId", authenticate, async (req: any, res) => {
+  const { invoiceId } = req.params;
+  let storeId = req.user.store_id;
+  try {
+    let ettn;
+    
+    if (req.user.role === 'superadmin') {
+      const invRes = await pool.query("SELECT store_id, ettn FROM sales_invoices WHERE id = $1", [invoiceId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      storeId = invRes.rows[0].store_id;
+      ettn = invRes.rows[0].ettn;
+    } else {
+      const invRes = await pool.query("SELECT ettn FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      ettn = invRes.rows[0].ettn;
+    }
+
+    if (!ettn) {
+      return res.status(404).json({ error: "Geçerli bir ETTN bulunamadı." });
+    }
+    
+    const service = await getEInvoiceService(storeId);
+    console.log(`[INVOICE-STATUS-CHECK] Checking status for ETTN: ${ettn}`);
+    const status = await service.getInvoiceStatus(ettn);
+    console.log(`[INVOICE-STATUS-CHECK] Got status:`, status);
+
+    // Update DB to reflect new status
+    await pool.query(
+      "UPDATE sales_invoices SET integration_status = $1, integration_message = $2 WHERE id = $3", 
+      [status.status, status.message, invoiceId]
+    );
+
+    res.json(status);
+  } catch (error: any) {
+     await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Status Check ${invoiceId}`, error);
+     res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
+  }
+});
+
+// 4. Cancel E-Archive Invoice
+router.post("/einvoice/cancel/:invoiceId", authenticate, async (req: any, res) => {
+  const { invoiceId } = req.params;
+  const { reason } = req.body;
+  let storeId = req.user.store_id;
+  try {
+    let invoice;
+    
+    if (req.user.role === 'superadmin') {
+      const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      invoice = invRes.rows[0];
+      storeId = invoice.store_id;
+    } else {
+      const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      invoice = invRes.rows[0];
+    }
+
+    if (!invoice.ettn) {
+      return res.status(404).json({ error: "Fatura bulunamadı veya ETTN'si yok." });
+    }
+    
+    const service = await getEInvoiceService(storeId);
+
+    // Only allow E-ARSIV for cancellation via MySoft (E-FATURA usually requires different processes or portal)
+    if (invoice.e_document_type !== 'E-ARSIV') {
+        return res.status(400).json({ error: "Sadece E-Arşiv faturaları sistem üzerinden iptal edilebilir." });
+    }
+
+    // the 8-day rule for E-Archive
+    const invoiceDate = new Date(invoice.invoice_date);
+    const currentDate = new Date();
+    const diffTime = Math.abs(currentDate.getTime() - invoiceDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 8) {
+       return res.status(400).json({ error: "E-Arşiv faturaları, düzenlenme tarihinden itibaren sadece 8 gün içerisinde iptal edilebilir." });
+    }
+
+    const ettn = invoice.ettn;
+    const eDocType = invoice.e_document_type;
+    
+    const result = await (service as any).cancelInvoice(ettn, reason || "İptal talebi", eDocType);
+
+    if (result.isSuccess) {
+       await pool.query(
+         "UPDATE sales_invoices SET integration_status = $1, integration_message = $2 WHERE id = $3", 
+         ['CANCELLED', result.message, invoiceId]
+       );
+    }
+
+    res.json(result);
+  } catch (error: any) {
+     await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Cancel Invoice ${invoiceId}`, error);
+     res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
+  }
+});
+
+// 5. Sync Incoming Invoices
+router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
+    let storeIdRaw = req.user.role === 'superadmin' ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+    const storeId = storeIdRaw ? parseInt(String(storeIdRaw)) : null;
+    const { startDate, endDate } = req.body;
+  try {
+    
+    console.log(`[SYNC-INBOX] Store: ${storeId}, Dates: ${startDate} to ${endDate}`);
+    
+    if (!storeId || isNaN(storeId)) return res.status(400).json({ error: "Geçerli bir Mağaza ID bulunamadı." });
+    if (!startDate || !endDate) {
+       return res.status(400).json({ error: "Başlangıç ve bitiş tarihi gereklidir." });
+    }
+
+    const service = await getEInvoiceService(storeId);
+    if (!service) return res.status(400).json({ error: "E-Fatura servisi başlatılamadı." });
+    
+    // Fetch raw incoming invoices from MySoft
+    let incomingInvoices = [];
+    try {
+      console.log(`[SYNC-INBOX] Calling integrator service...`);
+      incomingInvoices = await service.getIncomingInvoices(startDate, endDate);
+      console.log(`[SYNC-INBOX] Received ${incomingInvoices.length} invoices from integrator.`);
+    } catch (apiErr: any) {
+      console.error("[SYNC-INBOX] MySoft API call failed:", apiErr.message);
+      return res.status(500).json({ error: `Entegratör hatası: ${apiErr.message}` });
+    }
+    
+    let importedCount = 0;
+    // Helper to normalize Turkish date format (DD.MM.YYYY) to (YYYY-MM-DD)
+    const normalizeDate = (dateStr: any) => {
+      if (typeof dateStr !== 'string') return dateStr;
+      if (dateStr.includes('.')) {
+        const parts = dateStr.split('.');
+        if (parts.length === 3 && parts[2].length === 4) {
+          return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+      return dateStr;
+    };
+
+    // Process and insert them into purchase_invoices
+    for (const inv of incomingInvoices) {
+       let invoiceDetails = inv;
+       
+       // If basic info is missing but ETTN exists, fetch full details early
+       const rawForLines = inv.raw || (typeof inv === 'object' ? inv : {});
+       const linesAtRoot = rawForLines.detailList || rawForLines.InvoiceLines || rawForLines.lines || rawForLines.InvoiceLine || rawForLines.Lines || rawForLines.invoiceLines;
+       
+       if (!linesAtRoot && inv.ettn) {
+         console.log(`Fetching full details for invoice: ${inv.ettn} before processing...`);
+         const details = await service.getInvoiceDetailsByUuid(inv.ettn);
+         if (details) {
+           const detailsBase = details.legalMonetaryTotal?.taxExclusiveAmount || details.TaxExclusiveAmount || 0;
+           const detailsTaxArr = details.taxTotal || details.TaxTotal || [];
+           const detailsTax = Array.isArray(detailsTaxArr) 
+             ? detailsTaxArr.reduce((sum: number, tax: any) => sum + (Number(tax.taxAmount || tax.TaxAmount || 0)), 0)
+             : (Number(detailsTaxArr.taxAmount || detailsTaxArr.TaxAmount) || 0);
+
+           invoiceDetails = {
+             ...inv,
+             documentNumber: details.docNo || details.Id || details.id || inv.documentNumber,
+             issueDate: normalizeDate(details.docDate || details.IssueDate || details.issueDate || inv.issueDate),
+             senderTitle: extractSenderTitleFromUblOrDetails(details, inv.senderTitle || 'Bilinmeyen Tedarikçi'),
+             senderVkn: details.supplierInfo?.identifierNumber || details.SenderVkn || details.senderVkn || inv.senderVkn,
+             payableAmount: details.legalMonetaryTotal?.payableAmount || details.PayableAmount || details.payableAmount || inv.payableAmount,
+             baseAmount: Number(detailsBase) || inv.baseAmount || 0,
+             taxAmount: Number(detailsTax) || inv.taxAmount || 0,
+             currency: details.documentCurrencyCode || details.CurrencyCode || details.currencyCode || inv.currency,
+             exchangeRate: Number(details.pricingExchangeRate?.calculationRate || details.PricingExchangeRate?.CalculationRate || details.paymentExchangeRate?.calculationRate || details.exchangeRate || details.ExchangeRate || details.currencyRate || 1) || 1,
+             documentType: details.profileId || details.InvoiceTypeCode || details.invoiceTypeCode || inv.documentType,
+             raw: details
+           };
+         }
+       } else {
+         // Even if we have lines, normalize the date in inv
+         invoiceDetails = {
+           ...inv,
+           issueDate: normalizeDate(inv.issueDate)
+         };
+       }
+
+       // Check if invoice already exists
+       const existingRes = await pool.query(
+         "SELECT id, ettn FROM purchase_invoices WHERE store_id = $1 AND (ettn = $2 OR document_number = $3)", 
+         [storeId, invoiceDetails.ettn, invoiceDetails.documentNumber]
+       );
+
+       if (existingRes.rows.length > 0) {
+          // If it exists but has no ETTN, update it
+          const existing = existingRes.rows[0];
+          if (!existing.ettn && invoiceDetails.ettn) {
+             console.log(`Updating missing ETTN for existing invoice ${invoiceDetails.documentNumber}: ${invoiceDetails.ettn}`);
+             await pool.query(
+               "UPDATE purchase_invoices SET ettn = $1 WHERE id = $2",
+               [invoiceDetails.ettn, existing.id]
+             );
+          }
+          continue; // Already processed
+       }
+
+        if (true) {
+          // 1. Find or create company
+          let companyId = null;
+          if (invoiceDetails.senderVkn) {
+            let resolvedTitle = (invoiceDetails.senderTitle || '').trim();
+            if (!resolvedTitle || resolvedTitle === 'Bilinmeyen Tedarikçi' || resolvedTitle.split(/\s+/).length === 1) {
+              // Try to get full title from official_taxpayer_cache or customers table
+              const cachedTp = await pool.query("SELECT title FROM official_taxpayer_cache WHERE vkn = $1 LIMIT 1", [invoiceDetails.senderVkn]);
+              if (cachedTp.rows.length > 0 && cachedTp.rows[0].title && cachedTp.rows[0].title.trim().length > resolvedTitle.length) {
+                resolvedTitle = cachedTp.rows[0].title.trim();
+              } else {
+                const custCheck = await pool.query("SELECT full_name, name, surname FROM customers WHERE tc_id = $1 OR tax_number = $1 LIMIT 1", [invoiceDetails.senderVkn]);
+                if (custCheck.rows.length > 0) {
+                  const c = custCheck.rows[0];
+                  const first = (c.name || c.full_name || '').trim();
+                  const last = (c.surname || '').trim();
+                  if (last && first && !first.toLowerCase().includes(last.toLowerCase())) {
+                    resolvedTitle = `${first} ${last}`;
+                  } else if (first || last) {
+                    resolvedTitle = first || last;
+                  }
+                }
+              }
+            }
+            if (!resolvedTitle) resolvedTitle = 'Bilinmeyen Tedarikçi';
+
+            const compRes = await pool.query("SELECT id, title FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
+            if (compRes.rows.length > 0) {
+              companyId = compRes.rows[0].id;
+              const existingTitle = (compRes.rows[0].title || '').trim();
+              if (resolvedTitle && resolvedTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < resolvedTitle.split(' ').length || (existingTitle.toLowerCase() !== resolvedTitle.toLowerCase() && existingTitle.length < resolvedTitle.length))) {
+                await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [resolvedTitle, companyId]);
+              }
+            } else {
+              // Create company
+              const newComp = await pool.query(
+                "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
+                [storeId, resolvedTitle, invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
+              );
+              companyId = newComp.rows[0].id;
+            }
+          }
+
+          const grandAmt = Math.round((Number(invoiceDetails.payableAmount) || 0) * 100) / 100;
+          const taxAmt = Math.round((Number(invoiceDetails.taxAmount) || 0) * 100) / 100;
+          const baseAmt = Math.round(((Number(invoiceDetails.baseAmount) || (grandAmt - taxAmt))) * 100) / 100;
+
+          const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+            supplierTitle: invoiceDetails.senderTitle,
+            supplierVkn: invoiceDetails.senderVkn,
+            companyId,
+            pinToCompany: true
+          });
+
+          const isExpense = expenseCheck.isExpense;
+          const expenseCategory = expenseCheck.expenseCategory;
+          const expenseCenter = expenseCheck.expenseCenter;
+
+          const invInsertRes = await pool.query(
+            `INSERT INTO purchase_invoices 
+            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_expense, expense_category, expense_center)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`,
+            [
+              storeId, 
+              companyId,
+              invoiceDetails.documentNumber, 
+              invoiceDetails.documentNumber, 
+              invoiceDetails.ettn, 
+              invoiceDetails.documentType, 
+              invoiceDetails.senderTitle,
+              invoiceDetails.senderVkn,
+              (() => {
+                const d = invoiceDetails.issueDate;
+                if (!d) return new Date().toISOString();
+                if (typeof d !== 'string') return d;
+                // If it's DD.MM.YYYY format
+                if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
+                  const [day, month, year] = d.split('.');
+                  return `${year}-${month}-${day}`;
+                }
+                // Try standard parsing
+                try {
+                  const parsed = new Date(d);
+                  if (!isNaN(parsed.getTime())) return parsed.toISOString();
+                } catch (e) {}
+                return new Date().toISOString();
+              })(),
+              baseAmt,
+              taxAmt,
+              grandAmt,
+              invoiceDetails.currency,
+              invoiceDetails.exchangeRate || 1,
+              'approved', 
+              'RECEIVED',
+              'term',
+              'unpaid',
+              false, // E-invoices are imported as Exclusive (KDV Hariç) by default
+              isExpense,
+              expenseCategory,
+              expenseCenter
+            ]
+          );
+          
+          const newInvoiceId = invInsertRes.rows[0].id;
+
+          // 3. Attempt to parse lines and match with existing products
+          const rawData = invoiceDetails.raw || (typeof inv === 'object' ? inv : {});
+          let rawLines = rawData.detailList || rawData.InvoiceLines || rawData.lines || rawData.InvoiceLine || rawData.Lines || rawData.invoiceLines || [];
+          if (rawLines && !Array.isArray(rawLines)) {
+            rawLines = [rawLines];
+          }
+          
+          if (Array.isArray(rawLines)) {
+            for (const line of rawLines) {
+              const productName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || line.Name || line.name || line.InvoicedQuantity?.['@_unitCode'] || 'Bilinmeyen Ürün';
+              
+              const sellerCodeRaw = line.detailItem?.sellersItemIdentificationId || line.detailItem?.sellersItemIdentification || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.sellersItemIdentification;
+              const sellerCode = typeof sellerCodeRaw === 'string' ? sellerCodeRaw.trim() : (typeof sellerCodeRaw === 'number' ? String(sellerCodeRaw) : null);
+
+              const buyerCodeRaw = line.detailItem?.buyersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.buyersItemIdentification;
+              const buyerCode = typeof buyerCodeRaw === 'string' ? buyerCodeRaw.trim() : (typeof buyerCodeRaw === 'number' ? String(buyerCodeRaw) : null);
+
+              const barcodeRaw = line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.ItemInstance?.ProductTraceID;
+              const barcode = typeof barcodeRaw === 'string' ? barcodeRaw.trim() : (typeof barcodeRaw === 'number' ? String(barcodeRaw) : null);
+
+              const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 0;
+              const unitCode = line.unitCode || line.UnitCode || line.InvoicedQuantity?.['@_unitCode'] || 'C62'; // C62 is Piece
+              
+              const qty = Number(String(qtyRaw).replace(',', '.')) || 0;
+              
+              const upRaw = line.unitPrice || line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
+              const up = Number(String(upRaw).replace(',', '.')) || 0;
+              
+              const trRaw = line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 0;
+              const tr = Number(String(trRaw).replace(',', '.')) || 0;
+              
+              const lineTotal = qty * up;
+              const taxAmount = (lineTotal * tr) / 100;
+
+              // If it's an expense invoice (e.g. TTNET, Telekom, Elektrik, Su, etc.):
+              // NEVER link to products or create stock or stock movements!
+              if (isExpense) {
+                await pool.query(
+                  `INSERT INTO purchase_invoice_items 
+                   (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                  [newInvoiceId, null, productName, null, null, qty, up, tr, taxAmount, lineTotal, unitCode]
+                );
+                continue;
+              }
+
+              // 5-Tier Intelligent product matching
+              const match = await findMatchingProduct(pool, storeId, {
+                supplierVkn: invoiceDetails.senderVkn,
+                productName,
+                barcode,
+                productCode: sellerCode || buyerCode,
+                sellerCode,
+                buyerCode
+              });
+
+              let productId = match ? match.productId : null;
+              let finalBarcode: string;
+              let finalProductCode: string | null;
+
+              if (match) {
+                productId = match.productId;
+                finalProductCode = match.productCode || sellerCode || buyerCode || null;
+                // If incoming invoice line has its own valid standard barcode, ALWAYS preserve it
+                const incomingSanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, finalProductCode);
+                if (isValidStandardBarcode(incomingSanitized.barcode) && !incomingSanitized.isTempBarcode) {
+                  finalBarcode = incomingSanitized.barcode;
+                } else if (isValidStandardBarcode(match.barcode)) {
+                  finalBarcode = match.barcode;
+                } else {
+                  finalBarcode = incomingSanitized.barcode;
+                }
+                if (!finalProductCode) finalProductCode = incomingSanitized.productCode;
+              } else {
+                // Sanitize code values: non-standard strings like "TRU16977" become product_code, and a valid temp numeric barcode is generated
+                const sanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, null);
+                finalBarcode = sanitized.barcode;
+                finalProductCode = sanitized.productCode || sellerCode || buyerCode || null;
+
+                const existingProd = await pool.query(
+                  "SELECT id, barcode, product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR (product_code IS NOT NULL AND product_code = $3))",
+                  [storeId, finalBarcode, finalProductCode || '__NONE__']
+                );
+                if (existingProd.rows.length > 0) {
+                  productId = existingProd.rows[0].id;
+                  finalBarcode = existingProd.rows[0].barcode;
+                  finalProductCode = existingProd.rows[0].product_code || finalProductCode;
+                } else {
+                  productId = null;
+                }
+              }
+
+              // Save supplier mapping for recurring supplier items
+              if (invoiceDetails.senderVkn && productName && productId) {
+                await saveSupplierMapping(pool, storeId, invoiceDetails.senderVkn, productName, productId, finalProductCode);
+              }
+
+              await pool.query(
+                `INSERT INTO purchase_invoice_items 
+                 (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                [newInvoiceId, productId, productName, finalBarcode, finalProductCode, qty, up, tr, taxAmount, lineTotal, unitCode]
+              );
+              
+              // If product exists, update its stock automatically
+              if (productId) {
+                const prodInfo = await pool.query("SELECT volume_ml, unit FROM products WHERE id = $1", [productId]);
+                const volMl = Number(prodInfo.rows[0]?.volume_ml) || 0;
+                const baseUnit = String(prodInfo.rows[0]?.unit || '').toLowerCase();
+                
+                let effectiveQty = qty;
+                let descExtra = "";
+                
+                // If product is tracked in ML/GR but bought in Bottle/Case/Pack
+                const isBulkUnit = ['bo', 'cs', 'pk', 'bg', 'bx', 'cl'].includes(String(unitCode).toLowerCase());
+                const isMlGrBase = ['ml', 'gr', 'g', 'cc'].includes(baseUnit);
+                
+                if (volMl > 0 && isBulkUnit && isMlGrBase) {
+                  effectiveQty = qty * volMl;
+                  descExtra = ` (${qty} ${unitCode} x ${volMl}ml)`;
+                }
+
+                await pool.query(
+                  "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
+                  [effectiveQty, up, invoiceDetails.currency || 'TRY', productId]
+                );
+                
+                // Log stock movement with direct invoice link
+                await addStockMovement(
+                  pool, 
+                  storeId, 
+                  productId, 
+                  'in', 
+                  effectiveQty, 
+                  'purchase_invoice', 
+                  `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}${descExtra}`, 
+                  up, 
+                  invoiceDetails.senderTitle, 
+                  invoiceDetails.currency,
+                  null,
+                  newInvoiceId,
+                  'purchase',
+                  invoiceDetails.documentNumber
+                );
+              }
+            }
+          }
+
+          // 4. Create Transaction
+          if (companyId) {
+            await pool.query(
+              `INSERT INTO current_account_transactions 
+                (store_id, company_id, purchase_invoice_id, type, amount, currency, description, transaction_date) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [storeId, companyId, newInvoiceId, 'credit', grandAmt, invoiceDetails.currency || 'TRY', `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}`, invoiceDetails.issueDate || new Date()]
+            );
+
+            if (invoiceDetails.paymentStatus === 'paid' || (invoiceDetails.paymentMethod && invoiceDetails.paymentMethod !== 'term')) {
+              await pool.query(
+                `INSERT INTO current_account_transactions 
+                  (store_id, company_id, purchase_invoice_id, type, amount, currency, description, payment_method, transaction_date) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [
+                  storeId, companyId, newInvoiceId, 'debt', grandAmt,
+                  invoiceDetails.currency || 'TRY', `E-Fatura Ödemesi: ${invoiceDetails.documentNumber}`,
+                  invoiceDetails.paymentMethod || 'nakit', invoiceDetails.issueDate || new Date()
+                ]
+              );
+            }
+          }
+
+          importedCount++;
+       }
+    }
+
+    res.json({ message: `${importedCount} adet yeni fatura içeri aktarıldı.`, importedCount });
+  } catch (error: any) {
+    await IntegrationService.logIntegrationError(storeId || 0, 'E-Fatura', `Sync Inbox`, error);
+    res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
+  }
+});
+
+// 5. Test Connection
+router.post("/einvoice/test-connection", authenticate, async (req: any, res) => {
+  try {
+    const storeId = req.user.role === 'superadmin' ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    console.log(`[test-connection] Starting for storeId: ${storeId}`);
+    const service = await getEInvoiceService(storeId);
+    
+    // We can test connection by attempting a trivial check taxpayer call on a known VKN (like MySoft itself or a static one)
+    // or just checking if authenticate() works.
+    const result = await service.checkTaxpayer("4840843430"); // MySoft VKN for testing
+    
+    res.json({ 
+      success: true, 
+      message: "Bağlantı başarılı. Entegratör sistemi ile iletişim sağlandı.",
+      data: result 
+    });
+  } catch (error: any) {
+    console.error("Test Connection endpoint error:", error);
+    res.status(500).json({ error: `Bağlantı Hatası: ${error.message}` });
+  }
+});
+
+// Helper to group and deduplicate VAT rows in invoice HTML
+export function cleanInvoiceHtmlVatRows(html: string): string {
+  if (!html || typeof html !== "string") return html;
+
+  // Single row regex that ensures it does not cross multiple <tr> tags
+  const singleRowRegex = /<tr\b[^>]*>(?:(?!<tr\b)[\s\S])*?Hesaplanan Katma Değer Vergisi[\s\S]*?<\/tr>/gi;
+  
+  const groups = new Map<string, {
+    firstMatch: string;
+    currency: string;
+    rate: string;
+    isTL: boolean;
+    amounts: number[];
+    originalMatches: string[];
+  }>();
+
+  let m;
+  while ((m = singleRowRegex.exec(html)) !== null) {
+    const fullRow = m[0];
+    const isTL = fullRow.includes("(TL)") || fullRow.includes("TL</span>") || fullRow.includes(" TRY") || fullRow.includes("TRY</span>");
+    const rateMatch = fullRow.match(/%\s*(\d+(?:[.,]\d+)?)/);
+    const rate = rateMatch ? rateMatch[1].replace(",", ".") : "0";
+    const key = `${rate}_${isTL ? "TL" : "MAIN"}`;
+
+    const tdMatches = fullRow.match(/<td[^>]*>([\s\S]*?)<\/td>/gi);
+    const lastTd = tdMatches ? tdMatches[tdMatches.length - 1] : "";
+    const cleanTdText = lastTd.replace(/<[^>]+>/g, "").trim();
+    
+    const numMatch = cleanTdText.match(/([0-9.]+),([0-9]{2})/);
+    let amount = 0;
+    let curr = isTL ? "TL" : "";
+    if (numMatch) {
+      const normalizedNum = numMatch[1].replace(/\./g, "") + "." + numMatch[2];
+      amount = parseFloat(normalizedNum);
+      const afterNum = cleanTdText.replace(numMatch[0], "").trim();
+      if (afterNum && !isTL) curr = afterNum;
+    }
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        firstMatch: fullRow,
+        currency: curr,
+        rate,
+        isTL,
+        amounts: [amount],
+        originalMatches: [fullRow]
+      });
+    } else {
+      const g = groups.get(key)!;
+      g.amounts.push(amount);
+      g.originalMatches.push(fullRow);
+    }
+  }
+
+  let resultHtml = html;
+
+  for (const [key, g] of groups.entries()) {
+    if (g.originalMatches.length > 1) {
+      const allIdentical = g.amounts.every(a => Math.abs(a - g.amounts[0]) < 0.001);
+      
+      let finalRowHtml = g.firstMatch;
+      if (!allIdentical) {
+        const totalAmount = g.amounts.reduce((sum, a) => sum + a, 0);
+        const formattedAmount = totalAmount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        finalRowHtml = g.firstMatch.replace(/(<td[^>]*>)([\s\S]*?)(<\/td>(\s*<\/tr>)?$)/i, (tdM, p1, p2, p3) => {
+          if (p2.includes("<span>")) {
+            return `${p1}<span>${formattedAmount} ${g.currency || (g.isTL ? "TL" : "")}</span>${p3}`;
+          }
+          return `${p1}${formattedAmount}${g.currency || (g.isTL ? "TL" : "")}${p3}`;
+        });
+      }
+
+      let isFirst = true;
+      for (const origRow of g.originalMatches) {
+        if (isFirst) {
+          resultHtml = resultHtml.replace(origRow, finalRowHtml);
+          isFirst = false;
+        } else {
+          resultHtml = resultHtml.replace(origRow, "");
+        }
+      }
+    }
+  }
+
+  return resultHtml;
+}
+
+// 6. Get Invoice HTML
+export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: number): Promise<string> {
+  const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+  if (invRes.rows.length === 0) throw new Error("Fatura bulunamadı");
+  const inv = invRes.rows[0];
+
+  const itemsRes = await pool.query(
+    "SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1 ORDER BY id ASC",
+    [invoiceId]
+  );
+  const items = itemsRes.rows;
+
+  const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+  const store = storeRes.rows[0] || {};
+  let branding = store.branding || {};
+  if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch (e) { branding = {}; } }
+  let einvoiceSettings = store.einvoice_settings || {};
+  if (typeof einvoiceSettings === 'string') { try { einvoiceSettings = JSON.parse(einvoiceSettings); } catch (e) { einvoiceSettings = {}; } }
+
+  // Supplier info
+  const storeName = store.store_name || store.name || branding.store_name || branding.name || 'Seçkin Mağaza';
+  const supplierVkn = einvoiceSettings.vkn || branding.tax_number || store.tax_number || '1111111111';
+  const supplierTaxOffice = einvoiceSettings.tax_office || branding.tax_office || store.tax_office || '-';
+  const supplierAddress = einvoiceSettings.address || branding.address || store.address || '-';
+  const supplierPhone = einvoiceSettings.phone || branding.phone || store.phone || '';
+  const supplierEmail = einvoiceSettings.email || branding.email || store.email || '';
+  const supplierMersis = einvoiceSettings.mersis_no || branding.mersis_no || '';
+  const supplierWeb = einvoiceSettings.web_address || branding.website || '';
+  const logoUrl = branding.logo_url || branding.logo || '';
+
+  // Buyer info
+  const customerName = inv.customer_name || inv.company_title || inv.sale_customer_name || 'Cari Müşteri';
+  const customerVkn = inv.tax_number || '-';
+  const customerTaxOffice = inv.tax_office || '-';
+  const customerAddress = inv.address || inv.customer_address || '-';
+  const customerEmail = inv.customer_email || inv.email || '';
+  const customerPhone = inv.customer_phone || inv.phone || '';
+
+  // Document Info
+  const docNumber = inv.document_number || inv.invoice_number || 'TASLAK-' + inv.id;
+  const ettnVal = inv.ettn || "[GİB'e Gönderilmedi]";
+  const invoiceDate = inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('tr-TR') : new Date().toLocaleDateString('tr-TR');
+  const invoiceTime = inv.invoice_time || '00:00:00';
+  
+  let computedDocType = 'E-ARŞİV FATURA';
+  const docType = (inv.e_document_type || '').toUpperCase();
+  const profile = (inv.invoice_profile || '').toUpperCase();
+  if (docType === 'E-FATURA' || profile === 'TICARIFATURA' || profile === 'TEMELFATURA') {
+    computedDocType = 'E-FATURA';
+  } else if (docType === 'E-IRSALIYE' || docType === 'E-İRSALİYE') {
+    computedDocType = 'E-İRSALİYE';
+  }
+
+  const profileLabel = profile === 'TICARIFATURA' ? 'TİCARİ FATURA' : profile === 'TEMELFATURA' ? 'TEMEL FATURA' : 'EARSIVFATURA';
+  const typeLabel = inv.gi_invoice_type || inv.invoice_type || 'SATIS';
+
+  // Determine Stamp / Watermark
+  const statusLower = (inv.status || 'draft').toLowerCase();
+  const intStatusUpper = (inv.integration_status || '').toUpperCase();
+  const isApprovedAndSent = ['APPROVED', 'ONAYLANDI', '1300', 'SUCCESS'].includes(intStatusUpper) && Boolean(inv.ettn);
+
+  let stampTitle = "TASLAK";
+  let stampSubtitle = "TASLAK FATURA • RESMİ NİTELİĞİ YOKTUR";
+  let stampColor = "#d97706";
+  let stampBg = "#fffbeb";
+  let stampBorder = "#f59e0b";
+
+  if (statusLower === 'cancelled' || intStatusUpper === 'CANCELLED' || intStatusUpper === 'İPTAL') {
+    stampTitle = "İPTAL EDİLDİ";
+    stampSubtitle = "İPTAL FATURA • GEÇERSİZDİR";
+    stampColor = "#dc2626";
+    stampBg = "#fef2f2";
+    stampBorder = "#ef4444";
+  } else if (statusLower === 'approved' && !isApprovedAndSent) {
+    stampTitle = "GİB'E GÖNDERİLMEDİ";
+    stampSubtitle = "GİB'E GÖNDERİLMEDİ • BİLGİLENDİRME ÖN İZLEMESİ";
+    stampColor = "#ea580c";
+    stampBg = "#fff7ed";
+    stampBorder = "#f97316";
+  } else if (statusLower === 'draft' || intStatusUpper === 'DRAFT' || intStatusUpper === 'NOT_SENT') {
+    stampTitle = "TASLAK";
+    stampSubtitle = "TASLAK FATURA • RESMİ NİTELİĞİ YOKTUR";
+    stampColor = "#d97706";
+    stampBg = "#fffbeb";
+    stampBorder = "#f59e0b";
+  }
+
+  // Items and totals calculation
+  let subtotal = 0;
+  let totalDiscount = 0;
+  let totalVat = 0;
+  const vatMap: Record<number, number> = {};
+
+  const itemsRows = items.map((item: any, idx: number) => {
+    const qty = Number(item.quantity) || 1;
+    const price = Number(item.unit_price) || 0;
+    let vatRate = Number(item.tax_rate ?? item.vat_rate ?? item.vat_percent ?? item.kdv_rate ?? 0);
+    const disc = Number(item.discount_amount ?? item.discount ?? 0);
+
+    let lineSubtotal = qty * price - disc;
+    let lineVat = 0;
+
+    if (inv.is_tax_inclusive) {
+      const lineNet = qty * price - disc;
+      lineSubtotal = vatRate > 0 ? lineNet / (1 + vatRate / 100) : lineNet;
+      lineVat = lineNet - lineSubtotal;
+    } else {
+      if (item.tax_amount !== undefined && item.tax_amount !== null && Number(item.tax_amount) > 0) {
+        lineVat = Number(item.tax_amount);
+        if (vatRate === 0 && lineSubtotal > 0) {
+          vatRate = Math.round((lineVat / lineSubtotal) * 100);
+        }
+      } else {
+        lineVat = lineSubtotal * (vatRate / 100);
+      }
+    }
+
+    // Fallback: If item.tax_rate was 0 but invoice has inv.tax_amount > 0 and inv.total_amount > 0
+    if (vatRate === 0 && items.length === 1 && Number(inv.tax_amount) > 0 && Number(inv.total_amount) > 0) {
+      const invSubtotal = Number(inv.total_amount);
+      const invTax = Number(inv.tax_amount);
+      vatRate = Math.round((invTax / invSubtotal) * 100);
+      lineVat = invTax;
+    }
+
+    const lineTotal = item.total_price ? Number(item.total_price) : (lineSubtotal + lineVat);
+
+    subtotal += lineSubtotal;
+    totalDiscount += disc;
+    totalVat += lineVat;
+
+    vatMap[vatRate] = (vatMap[vatRate] || 0) + lineVat;
+
+    return `
+      <tr>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600;">${idx + 1}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 11px; font-weight: 600; color: #0f172a;">${item.product_name || '-'}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600;">${qty.toLocaleString('tr-TR')} ${item.unit || item.unit_code || 'Adet'}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 600; font-family: monospace;">${price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 600; font-family: monospace;">${disc > 0 ? disc.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600;">%${vatRate}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 600; font-family: monospace;">${lineVat.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 700; font-family: monospace; color: #0f172a;">${lineTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Use DB inv totals if present and valid, otherwise fallback to calculated subtotal / totalVat
+  const invSubtotal = Number(inv.total_amount);
+  const invTax = Number(inv.tax_amount);
+  const invGrandTotal = Number(inv.grand_total);
+
+  const finalSubtotal = !isNaN(invSubtotal) && invSubtotal > 0 ? invSubtotal : subtotal;
+  const finalTotalVat = !isNaN(invTax) && invTax >= 0 ? invTax : totalVat;
+  const finalGrandTotal = !isNaN(invGrandTotal) && invGrandTotal > 0 ? invGrandTotal : (finalSubtotal + finalTotalVat);
+
+  // Ensure vatMap reflects finalTotalVat accurately (never empty)
+  const sumVatInMap = Object.values(vatMap).reduce((acc, v) => acc + v, 0);
+  if (finalTotalVat > 0 && (Object.keys(vatMap).length === 0 || sumVatInMap === 0)) {
+    delete vatMap[0];
+    const inferredRate = finalSubtotal > 0 ? Math.round((finalTotalVat / finalSubtotal) * 100) : 20;
+    vatMap[inferredRate] = finalTotalVat;
+  } else if (Object.keys(vatMap).length === 0) {
+    vatMap[0] = 0;
+  }
+
+  const curr = inv.currency || 'TRY';
+  const currSymbol = (curr === 'TRY' || curr === 'TL') ? 'TL' : curr;
+  const amountWordsRaw = numberToTurkishWords(finalGrandTotal, curr);
+  const amountWords = amountWordsRaw.replace(/\s+/g, '');
+
+  // Grouped VAT rows according to Rule #4
+  let vatRowsHtml = Object.entries(vatMap)
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([rate, amt]) => `
+      <tr>
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; font-size: 11px; color: #334155;">Hesaplanan KDV (%${rate})</td>
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-size: 11px; font-family: monospace; color: #0f172a;">${amt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+      </tr>
+    `).join('');
+
+  if (!vatRowsHtml.trim()) {
+    const fallbackRate = finalSubtotal > 0 ? Math.round((finalTotalVat / finalSubtotal) * 100) : 20;
+    vatRowsHtml = `
+      <tr>
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; font-size: 11px; color: #334155;">Hesaplanan KDV (%${fallbackRate})</td>
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-size: 11px; font-family: monospace; color: #0f172a;">${finalTotalVat.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+      </tr>
+    `;
+  }
+
+  if (Object.keys(vatMap).length > 1) {
+    vatRowsHtml += `
+      <tr style="background-color: #f1f5f9;">
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 700; font-size: 11px; color: #0f172a;">Toplam KDV</td>
+        <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 800; font-size: 11px; font-family: monospace; color: #0f172a;">${finalTotalVat.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+      </tr>
+    `;
+  }
+
+  let exchangeRateBlock = '';
+  if (curr !== 'TRY' && curr !== 'TL') {
+    let exRate = Number(inv.exchange_rate) || 0;
+    if (exRate <= 0) {
+      let currRates = store.currency_rates || {};
+      if (typeof currRates === 'string') { try { currRates = JSON.parse(currRates); } catch (e) {} }
+      exRate = Number(currRates[curr]) || 1.0;
+    }
+
+    const trySubtotalNum = finalSubtotal * exRate;
+    const tryVatNum = finalTotalVat * exRate;
+    const tryGrandTotalNum = finalGrandTotal * exRate;
+
+    const trySubtotal = trySubtotalNum.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const tryVat = tryVatNum.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const tryGrandTotal = tryGrandTotalNum.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const tryVatRows = Object.entries(vatMap)
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([rate, amt]) => {
+        const tryAmt = (amt * exRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `
+          <tr>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; font-size: 11px; color: #334155;">Hesaplanan KDV (%${rate}) (TL)</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-size: 11px; font-family: monospace; color: #0f172a;">${tryAmt} TL</td>
+          </tr>
+        `;
+      }).join('');
+
+    exchangeRateBlock = `
+      <div style="margin-top: 12px; border: 1.5px solid #0f172a; border-radius: 6px; overflow: hidden; background: #ffffff;">
+        <div style="background: #0f172a; color: #ffffff; padding: 6px 12px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;">
+          <span>DÖVİZ KARŞILIKLARI (TRY)</span>
+          <span style="font-size: 10.5px; font-weight: 700; background: #22c55e; color: #000000; padding: 2px 6px; border-radius: 4px;">1 ${curr} = ${exRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} TRY</span>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <tbody>
+            <tr>
+              <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; color: #334155;">Mal Hizmet Toplam Tutarı (TL)</td>
+              <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-family: monospace;">${trySubtotal} TL</td>
+            </tr>
+            ${tryVatRows}
+            <tr style="background-color: #f8fafc;">
+              <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-weight: 800; color: #0f172a; font-size: 11.5px;">Vergiler Dahil Toplam Tutar (TL)</td>
+              <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-weight: 900; font-size: 12px; font-family: monospace; color: #0f172a;">${tryGrandTotal} TL</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${computedDocType} - ${docNumber}</title>
+  <style>
+    @media print {
+      @page { size: A4 portrait; margin: 8mm; }
+      body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      background-color: #fff;
+      margin: 0;
+      padding: 20px;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Watermark background for non-official / draft / unsent invoices -->
+  ${!isApprovedAndSent ? `
+  <div style="position: fixed; top: 38%; left: 5%; width: 90%; text-align: center; transform: rotate(-28deg); pointer-events: none; z-index: 9999; opacity: 0.13;">
+    <div style="font-size: 58px; font-weight: 900; color: ${stampColor}; text-transform: uppercase; letter-spacing: 5px; border: 8px solid ${stampColor}; padding: 14px 28px; display: inline-block; border-radius: 12px;">
+      ${stampTitle}
+    </div>
+    <div style="font-size: 18px; font-weight: 800; color: ${stampColor}; margin-top: 8px; letter-spacing: 1.5px;">
+      ${stampSubtitle}
+    </div>
+  </div>
+  ` : ''}
+
+  <!-- Header Container -->
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+    <tr>
+      <td style="width: 55%; vertical-align: top; padding-right: 12px;">
+        ${logoUrl ? `<img src="${logoUrl}" alt="${storeName}" style="max-height: 55px; max-width: 200px; object-fit: contain; margin-bottom: 8px; display: block;" />` : ''}
+        <div style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">${storeName}</div>
+        <div style="font-size: 11px; color: #334155; line-height: 1.45;">
+          ${supplierAddress}<br/>
+          <strong>VKN/TC:</strong> ${supplierVkn} &nbsp;|&nbsp; <strong>Vergi Dairesi:</strong> ${supplierTaxOffice}<br/>
+          ${supplierPhone ? `<strong>Tel:</strong> ${supplierPhone}` : ''} ${supplierEmail ? `&nbsp;|&nbsp; <strong>E-Posta:</strong> ${supplierEmail}` : ''}<br/>
+          ${supplierMersis ? `<strong>Mersis No:</strong> ${supplierMersis}` : ''} ${supplierWeb ? `&nbsp;|&nbsp; <strong>Web:</strong> ${supplierWeb}` : ''}
+        </div>
+      </td>
+      <td style="width: 45%; vertical-align: top; text-align: right;">
+        <div style="font-size: 20px; font-weight: 900; color: #1e293b; letter-spacing: 1px; margin-bottom: 6px;">${computedDocType}</div>
+        
+        <!-- Stamp Badge Box -->
+        <div style="margin-bottom: 8px;">
+          <div style="border: 2px dashed ${stampBorder}; background-color: ${stampBg}; color: ${stampColor}; padding: 6px 12px; border-radius: 8px; text-align: center; display: inline-block;">
+            <div style="font-size: 14px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">${stampTitle}</div>
+            <div style="font-size: 8.5px; font-weight: 700; margin-top: 2px;">${stampSubtitle}</div>
+          </div>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+          <tr>
+            <td style="text-align: right; font-weight: 600; color: #64748b; padding: 2px 4px;">Fatura No:</td>
+            <td style="text-align: right; font-weight: 800; color: #0f172a; padding: 2px 4px; font-family: monospace;">${docNumber}</td>
+          </tr>
+          <tr>
+            <td style="text-align: right; font-weight: 600; color: #64748b; padding: 2px 4px;">ETTN:</td>
+            <td style="text-align: right; font-weight: 700; color: #334155; padding: 2px 4px; font-family: monospace; font-size: 10px;">${ettnVal}</td>
+          </tr>
+          <tr>
+            <td style="text-align: right; font-weight: 600; color: #64748b; padding: 2px 4px;">Tarih / Saat:</td>
+            <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 2px 4px;">${invoiceDate} ${invoiceTime}</td>
+          </tr>
+          <tr>
+            <td style="text-align: right; font-weight: 600; color: #64748b; padding: 2px 4px;">Senaryo / Tip:</td>
+            <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 2px 4px;">${profileLabel} / ${typeLabel}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Buyer Box -->
+  <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; background-color: #f8fafc;">
+    <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">SAYIN (ALICI)</div>
+    <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">${customerName}</div>
+    <div style="font-size: 11px; color: #334155; line-height: 1.4;">
+      <strong>VKN / TCKN:</strong> ${customerVkn} &nbsp;|&nbsp; <strong>Vergi Dairesi:</strong> ${customerTaxOffice}<br/>
+      ${customerAddress}<br/>
+      ${customerPhone ? `<strong>Tel:</strong> ${customerPhone}` : ''} ${customerEmail ? `&nbsp;|&nbsp; <strong>E-Posta:</strong> ${customerEmail}` : ''}
+    </div>
+  </div>
+
+  <!-- Items Table -->
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+    <thead>
+      <tr style="background-color: #0f172a; color: #ffffff; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: center; width: 35px;">S.No</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: left;">Mal / Hizmet Açıklaması</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: center; width: 80px;">Miktar</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; width: 90px;">Birim Fiyat</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; width: 75px;">İskonto</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: center; width: 60px;">KDV %</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; width: 85px;">KDV Tutarı</th>
+        <th style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; width: 105px;">Toplam Tutar</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemsRows}
+    </tbody>
+  </table>
+
+  <!-- Totals & Notes Section -->
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <!-- Left side: Notes & Amount in Words -->
+      <td style="width: 58%; vertical-align: top; padding-right: 12px;">
+        <div style="border: 1.5px solid #000; padding: 8px 12px; border-radius: 6px; font-weight: 800; font-size: 11.5px; background: #fff; margin-bottom: 10px;">
+          YALNIZ: # ${amountWords} #
+        </div>
+
+        ${inv.notes ? `
+        <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; background: #f8fafc; font-size: 11px;">
+          <strong style="display: block; text-transform: uppercase; color: #475569; font-size: 10px; margin-bottom: 4px;">Notlar / Açıklamalar:</strong>
+          <div style="white-space: pre-wrap; color: #0f172a;">${inv.notes}</div>
+        </div>
+        ` : ''}
+
+        ${exchangeRateBlock}
+      </td>
+
+      <!-- Right side: Financial Totals Box -->
+      <td style="width: 42%; vertical-align: top;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <tr>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600;">Mal Hizmet Toplam Tutarı</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-family: monospace;">${finalSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+          </tr>
+          ${totalDiscount > 0 ? `
+          <tr>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; color: #dc2626;">Toplam İskonto</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-family: monospace; color: #dc2626;">-${totalDiscount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+          </tr>
+          ` : ''}
+          
+          <!-- Grouped VAT Rows -->
+          ${vatRowsHtml}
+
+          <tr style="background-color: #0f172a; color: #ffffff;">
+            <td style="border: 1px solid #0f172a; padding: 7px 8px; font-weight: 800; font-size: 12px;">Ödenecek Toplam Tutar</td>
+            <td style="border: 1px solid #0f172a; padding: 7px 8px; text-align: right; font-weight: 900; font-size: 13px; font-family: monospace;">${finalGrandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currSymbol}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
+}
+
+router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
+  try {
+    const isSuperAdmin = req.user.role === 'superadmin';
+    const requestedStoreId = req.query.storeId ? Number(req.query.storeId) : undefined;
+    const invoiceId = req.params.id;
+    const invoiceType = req.query.type || 'purchase';
+
+    let invoiceRes;
+    try {
+        if (invoiceType === 'sales') {
+            if (isSuperAdmin && !requestedStoreId) {
+                invoiceRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+            } else {
+                invoiceRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, requestedStoreId || req.user.store_id]);
+            }
+        } else {
+            if (isSuperAdmin && !requestedStoreId) {
+                invoiceRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1", [invoiceId]);
+            } else {
+                invoiceRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, requestedStoreId || req.user.store_id]);
+            }
+        }
+    } catch (queryErr) {
+        console.error("[DB-ERROR] Error fetching invoice details:", queryErr);
+        if (invoiceType === 'sales') {
+            if (isSuperAdmin && !requestedStoreId) {
+                invoiceRes = await pool.query("SELECT id, store_id, ettn, document_number, notes FROM sales_invoices WHERE id = $1", [invoiceId]);
+            } else {
+                invoiceRes = await pool.query("SELECT id, store_id, ettn, document_number, notes FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, requestedStoreId || req.user.store_id]);
+            }
+        } else {
+            if (isSuperAdmin && !requestedStoreId) {
+                invoiceRes = await pool.query("SELECT id, store_id, ettn, document_number, notes FROM purchase_invoices WHERE id = $1", [invoiceId]);
+            } else {
+                invoiceRes = await pool.query("SELECT id, store_id, ettn, document_number, notes FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, requestedStoreId || req.user.store_id]);
+            }
+        }
+    }
+
+    if (!invoiceRes || invoiceRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+
+    const invData = invoiceRes.rows[0];
+    const targetStoreId = invData.store_id || requestedStoreId || req.user.store_id;
+
+    if (!isSuperAdmin && invData.store_id && invData.store_id !== req.user.store_id) {
+        return res.status(403).json({ error: "Yetkisiz işlem: Bu faturaya erişim yetkiniz bulunmamaktadır." });
+    }
+
+    // Handle Sales Invoice Preview (Draft, Unsent, or Sent)
+    if (invoiceType === 'sales') {
+      const isDraftOrUnsent = invData.status === 'draft' ||
+                              ['DRAFT', 'NOT_SENT'].includes(invData.integration_status) ||
+                              !invData.ettn;
+
+      if (!isDraftOrUnsent) {
+        try {
+          const service = await getEInvoiceService(targetStoreId);
+          if ('getInvoiceHtml' in service) {
+            const docTypeToUse = invData.e_document_type || 'E-ARSIV';
+            let html = await (service as any).getInvoiceHtml(invData.ettn, invData.document_number, docTypeToUse, false);
+            if (html && typeof html === 'string' && html.trim().length > 0) {
+              html = cleanInvoiceHtmlVatRows(html);
+              return res.json({ html });
+            }
+          }
+        } catch (serviceErr) {
+          console.warn("[HTML-FETCH] MySoft service call failed for sales invoice, generating local stamped HTML:", serviceErr);
+        }
+      }
+
+      // Local HTML fallback with watermark & status stamps
+      const localHtml = await generateLocalSalesInvoiceHtml(Number(invoiceId), targetStoreId);
+      return res.json({ html: localHtml });
+    }
+
+    // Purchase Invoice
+    const { ettn, document_number, notes, currency, exchange_rate } = invData;
+    const grand_total = invData.grand_total || invData.payable_amount || invData.total_amount || 0;
+    const subtotal = invData.subtotal || invData.total_amount || (Number(grand_total) - Number(invData.tax_amount || 0));
+    const tax_amount = invData.tax_amount || 0;
+    if (!ettn && !document_number) return res.status(400).json({ error: "Faturanın ETTN'si veya numarası bulunmuyor." });
+
+    const service = await getEInvoiceService(targetStoreId);
+    if ('getInvoiceHtml' in service) {
+      const docTypeToUse = invData.e_document_type || 'E-ARSIV';
+      let html = await (service as any).getInvoiceHtml(ettn, document_number, docTypeToUse, true);
+      return res.json({ html });
+    }
+
+    res.status(400).json({ error: "Kullandığınız entegratör için HTML önizleme desteği bulunmuyor." });
+  } catch (error: any) {
+    console.error("Get HTML endpoint error:", error);
+    res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
+  }
+});
+
+export const runGlobalEInvoiceSync = async () => {
+  console.log("[runGlobalEInvoiceSync] Triggering background sync for all active stores");
+  try {
+    const storesRes = await pool.query(
+      "SELECT id FROM stores WHERE einvoice_settings->>'is_active' = 'true'"
+    );
+    for (const store of storesRes.rows) {
+      try {
+        const storeId = store.id;
+        const service = await getEInvoiceService(storeId);
+        
+        // Let's pull the last 3 days
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        // Fetch raw incoming invoices
+        const incomingInvoices = await service.getIncomingInvoices(startDate, endDate);
+        
+        let importedCount = 0;
+        const normalizeDate = (dateStr: any) => {
+          if (typeof dateStr !== 'string') return dateStr;
+          if (dateStr.includes('.')) {
+            const parts = dateStr.split('.');
+            if (parts.length === 3 && parts[2].length === 4) {
+              return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+          }
+          return dateStr;
+        };
+
+        for (const inv of incomingInvoices) {
+           let invoiceDetails = inv;
+           
+           const rawForLines = inv.raw || (typeof inv === 'object' ? inv : {});
+           const linesAtRoot = rawForLines.detailList || rawForLines.InvoiceLines || rawForLines.lines || rawForLines.InvoiceLine || rawForLines.Lines || rawForLines.invoiceLines;
+           
+           if (!linesAtRoot && inv.ettn) {
+             const details = await service.getInvoiceDetailsByUuid(inv.ettn);
+             if (details) {
+               const detailsBase = details.legalMonetaryTotal?.taxExclusiveAmount || details.TaxExclusiveAmount || 0;
+               const detailsTaxArr = details.taxTotal || details.TaxTotal || [];
+               const detailsTax = Array.isArray(detailsTaxArr) 
+                 ? detailsTaxArr.reduce((sum: number, tax: any) => sum + (Number(tax.taxAmount || tax.TaxAmount || 0)), 0)
+                 : (Number(detailsTaxArr.taxAmount || detailsTaxArr.TaxAmount) || 0);
+
+               invoiceDetails = {
+                 ...inv,
+                 documentNumber: details.docNo || details.Id || details.id || inv.documentNumber,
+                 issueDate: normalizeDate(details.docDate || details.IssueDate || details.issueDate || inv.issueDate),
+                 senderTitle: extractSenderTitleFromUblOrDetails(details, inv.senderTitle || 'Bilinmeyen Tedarikçi'),
+                 senderVkn: details.supplierInfo?.identifierNumber || details.SenderVkn || details.senderVkn || inv.senderVkn,
+                 payableAmount: details.legalMonetaryTotal?.payableAmount || details.PayableAmount || details.payableAmount || inv.payableAmount,
+                 baseAmount: Number(detailsBase) || inv.baseAmount || 0,
+                 taxAmount: Number(detailsTax) || inv.taxAmount || 0,
+                 currency: details.documentCurrencyCode || details.CurrencyCode || details.currencyCode || inv.currency,
+                 exchangeRate: Number(details.pricingExchangeRate?.calculationRate || details.PricingExchangeRate?.CalculationRate || details.paymentExchangeRate?.calculationRate || details.exchangeRate || details.ExchangeRate || details.currencyRate || 1) || 1,
+                 documentType: details.profileId || details.InvoiceTypeCode || details.invoiceTypeCode || inv.documentType,
+                 raw: details
+               };
+             }
+           } else {
+             invoiceDetails = {
+               ...inv,
+               issueDate: normalizeDate(inv.issueDate)
+             };
+           }
+
+           const existingRes = await pool.query(
+             "SELECT id, ettn FROM purchase_invoices WHERE store_id = $1 AND (ettn = $2 OR document_number = $3)", 
+             [storeId, invoiceDetails.ettn, invoiceDetails.documentNumber]
+           );
+
+           if (existingRes.rows.length > 0) {
+              const existing = existingRes.rows[0];
+              if (!existing.ettn && invoiceDetails.ettn) {
+                 await pool.query(
+                   "UPDATE purchase_invoices SET ettn = $1 WHERE id = $2",
+                   [invoiceDetails.ettn, existing.id]
+                 );
+              }
+              continue;
+           }
+
+           let companyId = null;
+           if (invoiceDetails.senderVkn) {
+             const compRes = await pool.query("SELECT id, title FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
+             if (compRes.rows.length > 0) {
+               companyId = compRes.rows[0].id;
+               const existingTitle = (compRes.rows[0].title || '').trim();
+               const newTitle = (invoiceDetails.senderTitle || '').trim();
+               if (newTitle && newTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < newTitle.split(' ').length || (existingTitle.toLowerCase() !== newTitle.toLowerCase() && existingTitle.length < newTitle.length))) {
+                 await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [newTitle, companyId]);
+               }
+             } else {
+               const newComp = await pool.query(
+                 "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
+                 [storeId, invoiceDetails.senderTitle || 'Bilinmeyen Tedarikçi', invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
+               );
+               companyId = newComp.rows[0].id;
+             }
+           }
+
+           const baseAmt = Number(invoiceDetails.baseAmount) || (Number(invoiceDetails.payableAmount) - Number(invoiceDetails.taxAmount || 0));
+           const taxAmt = Number(invoiceDetails.taxAmount) || 0;
+           const grandAmt = Number(invoiceDetails.payableAmount) || (baseAmt + taxAmt);
+
+           const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+             supplierTitle: invoiceDetails.senderTitle,
+             supplierVkn: invoiceDetails.senderVkn,
+             companyId,
+             pinToCompany: true
+           });
+
+           const isExpense = expenseCheck.isExpense;
+           const expenseCategory = expenseCheck.expenseCategory;
+           const expenseCenter = expenseCheck.expenseCenter;
+
+            await pool.query(
+              `INSERT INTO purchase_invoices 
+              (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_read, is_expense, expense_category, expense_center)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, false, $20, $21, $22) RETURNING id`,
+              [
+                storeId, 
+                companyId,
+                invoiceDetails.documentNumber, 
+                invoiceDetails.documentNumber, 
+                invoiceDetails.ettn, 
+                invoiceDetails.documentType, 
+                invoiceDetails.senderTitle,
+                invoiceDetails.senderVkn,
+                (() => {
+                  const d = invoiceDetails.issueDate;
+                  if (!d) return new Date().toISOString();
+                  if (typeof d !== 'string') return d;
+                  if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
+                    const [day, month, year] = d.split('.');
+                    return `${year}-${month}-${day}`;
+                  }
+                  try {
+                    const parsed = new Date(d);
+                    if (!isNaN(parsed.getTime())) return parsed.toISOString();
+                  } catch (e) {}
+                  return new Date().toISOString();
+                })(),
+                baseAmt,
+                taxAmt,
+                grandAmt,
+                invoiceDetails.currency || 'TRY',
+                invoiceDetails.exchangeRate || 1,
+                'pending',
+                'RECEIVED',
+                'term',
+                'unpaid',
+                false,
+                isExpense,
+                expenseCategory,
+                expenseCenter
+              ]
+            );
+           
+           importedCount++;
+        }
+        console.log(`[runGlobalEInvoiceSync] Store ${storeId} imported ${importedCount} new invoices.`);
+      } catch (err) {
+         console.error(`[runGlobalEInvoiceSync] Error in store ${store.id}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error(`[runGlobalEInvoiceSync] Failed to query active stores:`, err);
+  }
+};
+
+// --- E-WAYBILL (E-İRSALİYE) ENDPOINTS ---
+
+// 1. Save Waybill Details Draft on Invoice
+router.post("/einvoice/waybill/save/:invoiceId", authenticate, async (req: any, res) => {
+  const { invoiceId } = req.params;
+  const {
+    driverName,
+    driverSurname,
+    driverVkn,
+    plateNumber,
+    trailerPlate,
+    actualDate,
+    actualTime,
+    prefix,
+    isCargoShipment,
+    carrierName,
+    trackingNumber,
+    deliveryTerm,
+    transportMode
+  } = req.body;
+
+  try {
+    const storeId = req.user.store_id;
+    let query = "";
+    let params: any[] = [];
+
+    if (req.user.role === 'superadmin') {
+      query = `
+        UPDATE sales_invoices 
+        SET waybill_driver_name = $1, waybill_driver_surname = $2, waybill_driver_vkn = $3, 
+            waybill_plate_number = $4, waybill_trailer_plate = $5, waybill_actual_date = $6, 
+            waybill_actual_time = $7, waybill_prefix = $8,
+            waybill_is_cargo_shipment = $9, waybill_carrier_name = $10, waybill_tracking_number = $11,
+            waybill_delivery_term = $12, waybill_transport_mode = $13
+        WHERE id = $14
+      `;
+      params = [
+        driverName, driverSurname, driverVkn, plateNumber, trailerPlate, actualDate || null, actualTime || null, prefix || 'IRS',
+        !!isCargoShipment, carrierName || null, trackingNumber || null, deliveryTerm || null, transportMode || null,
+        invoiceId
+      ];
+    } else {
+      query = `
+        UPDATE sales_invoices 
+        SET waybill_driver_name = $1, waybill_driver_surname = $2, waybill_driver_vkn = $3, 
+            waybill_plate_number = $4, waybill_trailer_plate = $5, waybill_actual_date = $6, 
+            waybill_actual_time = $7, waybill_prefix = $8,
+            waybill_is_cargo_shipment = $9, waybill_carrier_name = $10, waybill_tracking_number = $11,
+            waybill_delivery_term = $12, waybill_transport_mode = $13
+        WHERE id = $14 AND store_id = $15
+      `;
+      params = [
+        driverName, driverSurname, driverVkn, plateNumber, trailerPlate, actualDate || null, actualTime || null, prefix || 'IRS',
+        !!isCargoShipment, carrierName || null, trackingNumber || null, deliveryTerm || null, transportMode || null,
+        invoiceId, storeId
+      ];
+    }
+
+    await pool.query(query, params);
+    res.json({ success: true, message: "İrsaliye taslak bilgileri kaydedildi." });
+  } catch (err: any) {
+    console.error("Save Waybill Error:", err);
+    res.status(500).json({ error: "İrsaliye bilgileri kaydedilemedi: " + err.message });
+  }
+});
+
+// 2. Send E-Waybill to Entegrator (MySoft)
+router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, res) => {
+  const { invoiceId } = req.params;
+  let storeId = req.user.store_id;
+
+  try {
+    let invoice;
+    if (req.user.role === 'superadmin') {
+      const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      invoice = invRes.rows[0];
+      storeId = invoice.store_id;
+    } else {
+      const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      invoice = invRes.rows[0];
+    }
+
+    // Safeguard linked company / customer properties
+    if (invoice.company_id && (!invoice.tax_number || !invoice.address || !invoice.company_title)) {
+      const compRes = await pool.query(
+        "SELECT title, tax_number, tax_office, address, email FROM companies WHERE id = $1",
+        [invoice.company_id]
+      );
+      if (compRes.rows.length > 0) {
+        const comp = compRes.rows[0];
+        invoice.tax_number = invoice.tax_number || comp.tax_number;
+        invoice.tax_office = invoice.tax_office || comp.tax_office;
+        invoice.address = invoice.address || comp.address;
+        invoice.company_title = invoice.company_title || comp.title;
+        invoice.customer_email = invoice.customer_email || comp.email;
+      }
+    } else if (invoice.customer_id && (!invoice.tax_number || !invoice.address || !invoice.customer_name)) {
+      const custRes = await pool.query(
+        "SELECT name, full_name, tax_number, tax_office, address, email FROM customers WHERE id = $1",
+        [invoice.customer_id]
+      );
+      if (custRes.rows.length > 0) {
+        const cust = custRes.rows[0];
+        invoice.tax_number = invoice.tax_number || cust.tax_number;
+        invoice.tax_office = invoice.tax_office || cust.tax_office;
+        invoice.address = invoice.address || cust.address;
+        invoice.customer_name = invoice.customer_name || cust.full_name || cust.name;
+        invoice.customer_email = invoice.customer_email || cust.email;
+      }
+    }
+
+    // Recipient tax details
+    const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
+    if (!taxNumber || (taxNumber.length !== 10 && taxNumber.length !== 11)) {
+       return res.status(400).json({ error: "Alıcı firmaya ait geçerli bir TCKN/VKN bulunamadı." });
+    }
+
+    // Driver / Plate validations (Mandatory for GİB E-Waybill unless cargo)
+    const isCargoShipment = !!invoice.waybill_is_cargo_shipment;
+    const driverName = invoice.waybill_driver_name || "Sürücü";
+    const driverSurname = invoice.waybill_driver_surname || "Bey/Hanım";
+    const driverVkn = (invoice.waybill_driver_vkn || "11111111111").replace(/\D/g, '');
+    const plateNumber = (invoice.waybill_plate_number || "").replace(/\s/g, '').toUpperCase();
+    const trailerPlate = invoice.waybill_trailer_plate || "";
+    const actualDate = invoice.waybill_actual_date ? new Date(invoice.waybill_actual_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const actualTime = invoice.waybill_actual_time || new Date().toTimeString().split(' ')[0];
+
+    if (!isCargoShipment && !plateNumber) {
+      return res.status(400).json({ error: "GİB Şema/Şematron kuralları gereği Araç Plaka Numarası girilmesi zorunludur." });
+    }
+
+    // Let's increment sequence number atomicaly
+    const defaultPrefix = (invoice.waybill_prefix || "IRS").toUpperCase().substring(0, 3);
+    const currentYear = new Date().getFullYear().toString();
+    const prefixWithYear = `${defaultPrefix}${currentYear}`;
+
+    const client = await pool.connect();
+    let waybillNumber = invoice.waybill_number;
+    let waybillEttn = invoice.waybill_ettn || crypto.randomUUID();
+
+    try {
+      await client.query("BEGIN");
+
+      if (!waybillNumber || waybillNumber.startsWith("TASLAK") || waybillNumber.substring(0,3) !== defaultPrefix) {
+        // Count existing successfully processed waybills under this prefix/year to increment sequence
+        const seqRes = await client.query(
+           "SELECT waybill_number FROM sales_invoices WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16 ORDER BY waybill_number DESC LIMIT 1 FOR UPDATE",
+           [storeId, `${prefixWithYear}%`]
+        );
+
+        let nextSequenceNumber = 1;
+        if (seqRes.rows.length > 0 && seqRes.rows[0].waybill_number) {
+            const lastDocNum = seqRes.rows[0].waybill_number;
+            const lastSequencePart = lastDocNum.substring(7);
+            const parsed = parseInt(lastSequencePart, 10);
+            if (!isNaN(parsed)) {
+               nextSequenceNumber = parsed + 1;
+            }
+        }
+
+        const paddedSequence = nextSequenceNumber.toString().padStart(9, '0');
+        waybillNumber = `${prefixWithYear}${paddedSequence}`;
+      }
+
+      // Update local record to hold this reserved number
+      await client.query(
+        "UPDATE sales_invoices SET waybill_number = $1, waybill_ettn = $2, waybill_status = 'QUEUED' WHERE id = $3",
+        [waybillNumber, waybillEttn, invoiceId]
+      );
+
+      await client.query("COMMIT");
+    } catch (dbErr) {
+      await client.query("ROLLBACK");
+      throw dbErr;
+    } finally {
+      client.release();
+    }
+
+    // Load store settings
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) throw new Error("Mağaza ayarları bulunamadı.");
+    const settings = storeRes.rows[0].einvoice_settings || {};
+    const branding = storeRes.rows[0].branding || {};
+
+    let storeTaxNumber = (settings.vkn || settings.tax_number || branding.tax_number || "").replace(/\s/g, '').replace(/\D/g, '');
+    if (!storeTaxNumber && settings.tenant_id) {
+      storeTaxNumber = settings.tenant_id.replace(/\s/g, '').replace(/\D/g, '');
+    }
+
+    // Retrieve items
+    const itemsRes = await pool.query("SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1", [invoiceId]);
+    const lines = itemsRes.rows;
+    if (lines.length === 0) {
+      return res.status(400).json({ error: "İrsaliye içeriğinde sevk edilecek ürün bulunamadı." });
+    }
+
+    // Build details
+    const DespatchLines = lines.map((item, index) => {
+      const quantity = Number(item.quantity) || 1;
+      return {
+        lineIndex: index + 1,
+        id: String(index + 1),
+        lineId: String(index + 1),
+        stockName: (item.product_name || "Ürün").substring(0, 200),
+        name: (item.product_name || "Ürün").substring(0, 200),
+        productName: (item.product_name || "Ürün").substring(0, 200),
+        item: {
+          name: (item.product_name || "Ürün").substring(0, 200),
+          description: (item.product_name || "Ürün").substring(0, 200),
+          sellersItemIdentification: {
+            id: String(item.product_id || index + 1)
+          }
+        },
+        quantity: quantity,
+        deliveredQuantity: quantity,
+        qty: quantity.toString(),
+        unitCode: (() => {
+          const rawUnit = (item.unit_code || "").trim();
+          if (!rawUnit) return UNIT_CODES.PIECE || "C62";
+          const norm = rawUnit.toLowerCase();
+          const mapping: { [key: string]: string } = {
+            "adet": "C62", "ad": "C62", "pcs": "C62", "piece": "C62",
+            "kg": "KGM", "kilogram": "KGM", "gr": "GRM", "gram": "GRM",
+            "litre": "LTR", "lt": "LTR", "meter": "MTR", "metre": "MTR",
+            "paket": "PA", "kutu": "BX", "ton": "TNE",
+            "metrekare": "MTK", "m2": "MTK", "gün": "DAY", "gun": "DAY", "saat": "HUR"
+          };
+          if (mapping[norm]) return mapping[norm];
+          if (/^[A-Z0-9]{2,3}$/.test(rawUnit.toUpperCase())) {
+            return rawUnit.toUpperCase();
+          }
+          return "C62";
+        })(),
+        price: 0,
+        unitPriceTra: "0",
+        amtTra: "0",
+        vatRate: "0",
+        amtVatTra: "0",
+        taxableAmtTra: "0",
+        taxPercent: 0,
+        taxAmount: 0,
+        lineExtensionAmount: 0,
+        totalAmount: 0,
+        allowanceAmount: 0,
+        taxTypeCode: "0015"
+      };
+    });
+
+    const isCorporate = taxNumber.length === 10;
+    const customerTitle = invoice.company_title || invoice.customer_name || "Seçkin Müşteri";
+
+    // Split names
+    const parts = customerTitle.trim().split(/\s+/);
+    const surname = parts.length > 1 ? parts.pop() : "ŞAHIS";
+    const name = parts.join(" ") || "PERAKENDE";
+
+    // Build address mapping
+    const addressTokens = (invoice.address || "İstanbul Merkez").trim().split(/\s+/);
+    const cityName = addressTokens[addressTokens.length - 1] || "İSTANBUL";
+    const districtName = addressTokens[addressTokens.length - 2] || "MERKEZ";
+
+    const service = await getEInvoiceService(storeId);
+    let pkAlias = "urn:mail:defaultpk"; // default for virtual e-waybill
+    try {
+      const taxpayerCheck = await service.checkTaxpayer(taxNumber);
+      if (taxpayerCheck.isTaxpayer && taxpayerCheck.waybillAlias) {
+         pkAlias = taxpayerCheck.waybillAlias;
+         console.log(`[MySoft e-Waybill] Found e-Waybill alias for ${taxNumber}: ${pkAlias}`);
+      } else if (taxpayerCheck.isTaxpayer && taxpayerCheck.alias) {
+         pkAlias = taxpayerCheck.alias; // fallback to e-fatura pk
+         console.log(`[MySoft e-Waybill] Found e-Fatura alias for ${taxNumber}: ${pkAlias}`);
+      }
+    } catch (e) {
+      console.warn("Taxpayer check failed for waybill:", e);
+    }
+
+    // Map UBL-TR compliant MySoft e-Waybill JSON Payload
+    const ublData: any = {
+      isCalculateByApi: false,
+      isManuelCalculation: true,
+      connectorGuid: settings.connector_guid || undefined,
+      eDocumentType: "IRSALIYE",
+      profile: "TEMELIRSALIYE",
+      despatchAdviceType: "SEVK",
+      docDate: new Date(invoice.invoice_date).toISOString().split('T')[0],
+      docTime: invoice.invoice_time || "12:00:00",
+      issueDate: new Date(invoice.invoice_date).toISOString().split('T')[0],
+      issueTime: invoice.invoice_time || "12:00:00",
+      ettn: waybillEttn,
+      docNo: waybillNumber,
+      currencyCode: (invoice.currency || 'TRY').toUpperCase(),
+      currencyRate: String(Number(Number(invoice.exchange_rate || 1).toFixed(4))),
+      tenantIdentifierNumber: storeTaxNumber,
+      note: invoice.notes || "",
+      notes: (invoice.notes || "").split('\n').map(n => ({ note: n.trim() })).filter(n => n.note),
+      noteList: (invoice.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
+      notesList: (invoice.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
+      
+      // Receiver mailbox setup
+      pkAlias: pkAlias,
+
+      orderReference: {
+        id: invoice.invoice_number || "TASLAK",
+        issueDate: new Date(invoice.invoice_date).toISOString().split('T')[0]
+      },
+
+      despatchSupplierParty: {
+        vknTckn: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        postalAddress: {
+          streetName: settings.address || "İstanbul",
+          cityName: (settings.city || "İSTANBUL").toUpperCase(),
+          citySubdivisionName: (settings.district || "MERKEZ").toUpperCase(),
+          countryName: "Türkiye"
+        }
+      },
+      despatchSupplierAccount: {
+        vknTckn: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        cityName: (settings.city || "İSTANBUL").toUpperCase(),
+        streetName: settings.address || "İstanbul"
+      },
+      sellerSupplierParty: {
+        vknTckn: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || ""
+      },
+      sellerAccount: {
+        vknTckn: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza"
+      },
+
+      deliveryCustomerParty: {
+        vknTckn: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: invoice.tax_office || "",
+        email1: invoice.customer_email || "",
+        postalAddress: {
+          streetName: (invoice.address || "İstanbul").substring(0, 250),
+          cityName: cityName.toUpperCase(),
+          citySubdivisionName: districtName.toUpperCase(),
+          countryName: "Türkiye"
+        }
+      },
+      deliveryAccount: {
+        vknTckn: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: invoice.tax_office || "",
+        email1: invoice.customer_email || "",
+        cityName: cityName.toUpperCase(),
+        streetName: (invoice.address || "İstanbul").substring(0, 250)
+      },
+      buyerCustomerParty: {
+        vknTckn: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: invoice.tax_office || "",
+        email1: invoice.customer_email || ""
+      },
+      buyerAccount: {
+        vknTckn: taxNumber,
+        accountName: customerTitle.substring(0, 100)
+      },
+
+      despatchLines: DespatchLines,
+      despatchAdviceDetail: DespatchLines,
+      despatchDetail: DespatchLines, // Mirror key redundancy
+      invoiceDetail: DespatchLines, // Mirror key redundancy
+
+      // GİB shipment logistics block (Carrier/Driver)
+      shipment: (() => {
+        const isCargo = !!invoice.waybill_is_cargo_shipment;
+        const carrierName = invoice.waybill_carrier_name || "Aras Kargo";
+        const carrierVknMap: { [key: string]: string } = {
+          "yurtiçi kargo": "9830022295",
+          "yurtici kargo": "9830022295",
+          "aras kargo": "0720039649",
+          "mng kargo": "6220353119",
+          "ptt kargo": "7330135756",
+          "sürat kargo": "7820257003",
+          "surat kargo": "7820257003",
+          "ups kargo": "9130018597",
+          "horoz lojistik": "4640030588",
+          "borusan lojistik": "1800033100"
+        };
+        const carrierVkn = carrierVknMap[carrierName.toLowerCase().trim()] || "3900383509";
+
+        return {
+          carrierParty: {
+            vknTckn: isCargo ? carrierVkn : storeTaxNumber,
+            accountName: isCargo ? carrierName : (branding.store_name || "Seçkin Mağaza"),
+            postalAddress: {
+              streetName: settings.address || "İstanbul",
+              cityName: (settings.city || "İSTANBUL").toUpperCase(),
+              countryName: "Türkiye"
+            }
+          },
+          ...(!isCargo ? {
+            driverPerson: [
+              {
+                firstName: driverName,
+                familyName: driverSurname,
+                id: driverVkn
+              }
+            ]
+          } : {}),
+          delivery: {
+            actualDeliveryDate: actualDate,
+            actualDeliveryTime: actualTime
+          },
+          ...((isCargo && !plateNumber) ? {} : {
+            transportMeans: {
+              roadTransportMeans: {
+                plateId: plateNumber || "KARGO"
+              }
+            }
+          }),
+          shipmentStage: isCargo ? [
+            {
+              transportModeCode: invoice.waybill_transport_mode || "5",
+              carrierParty: {
+                vknTckn: carrierVkn,
+                accountName: carrierName
+              }
+            }
+          ] : [
+            {
+              transportMeans: {
+                roadTransportMeans: {
+                  plateId: plateNumber
+                }
+              }
+            }
+          ],
+          ...(!isCargo ? {
+            plateNumber: plateNumber,
+            trailerPlateNumber: trailerPlate || undefined
+          } : {}),
+          ...(isCargo && invoice.waybill_tracking_number ? {
+            specialInstructions: `Kargo Takip No: ${invoice.waybill_tracking_number}`
+          } : {})
+        };
+      })()
+    };
+
+    console.log(`[MySoft e-Waybill] Triggering sendWaybill with document number: ${waybillNumber}`);
+    
+    const result = await service.sendWaybill(ublData);
+
+    if (result.isSuccess) {
+      await pool.query(
+        "UPDATE sales_invoices SET waybill_status = 'SUCCESS', waybill_message = $1, waybill_number = $2 WHERE id = $3",
+        ["Gönderim Başarılı: Kuyruğa Alındı. GİB onayı bekleniyor.", waybillNumber, invoiceId]
+      );
+      return res.json({ success: true, waybillNumber, ettn: waybillEttn, message: "E-İrsaliye başarıyla kuyruğa iletildi." });
+    } else {
+      throw new Error(result.message || "Mysoft bilinmeyen bir hata verdi.");
+    }
+
+  } catch (err: any) {
+    console.error("Transmitting Waybill to MySoft Failed:", err);
+    await pool.query(
+      "UPDATE sales_invoices SET waybill_status = 'ERROR', waybill_message = $1 WHERE id = $2",
+      [err.message || "Portakal entegratörü ile bağlantı hatası.", invoiceId]
+    );
+    res.status(500).json({ error: "E-İrsaliye gönderim adımı başarısız oldu: " + err.message });
+  }
+});
+
+// 3. Durum Sorgulama E-Waybill status endpoint
+router.get("/einvoice/waybill/status/:invoiceId", authenticate, async (req: any, res) => {
+  const { invoiceId } = req.params;
+  try {
+    const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Kayıt bulunamadı" });
+    const invoice = invRes.rows[0];
+
+    if (!invoice.waybill_ettn) {
+      return res.status(400).json({ error: "Bu fatura için iletilmiş bir E-İrsaliye bulunmamaktadır." });
+    }
+
+    const service = await getEInvoiceService(invoice.store_id);
+    const result = await service.getWaybillStatus(invoice.waybill_ettn);
+
+    // Update status in local DB
+    await pool.query(
+      "UPDATE sales_invoices SET waybill_status = $1, waybill_message = $2 WHERE id = $3",
+      [result.status.toUpperCase(), result.message, invoiceId]
+    );
+
+    res.json({ success: true, status: result.status, message: result.message });
+  } catch (err: any) {
+    console.error("Fetch Waybill Status Error:", err);
+    res.status(500).json({ error: "İrsaliye durum sorgulaması başarısız: " + err.message });
+  }
+});
+
+// 4. Fetch E-Waybill representation (HTML / Web View)
+router.get("/einvoice/waybill/html/:invoiceId", authenticate, async (req: any, res) => {
+  const { invoiceId } = req.params;
+  try {
+    const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Kayıt bulunamadı" });
+    const invoice = invRes.rows[0];
+
+    if (!invoice.waybill_ettn) {
+      return res.status(400).json({ error: "Bu faturaya ait bir E-İrsaliye ETTN kodu bulunamadı." });
+    }
+
+    const service = await getEInvoiceService(invoice.store_id);
+    const htmlContent = await service.getWaybillHtml(invoice.waybill_ettn, invoice.notes || "");
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(htmlContent);
+  } catch (err: any) {
+    console.error("Waybill HTML Visualization failed:", err);
+    res.status(500).json({ error: "İrsaliye görüntüsü oluşturulamadı: " + err.message });
+  }
+});
+
+// ==========================================
+// INDEPENDENT E-WAYBILL (E-İRSALİYE) ENDPOINTS
+// ==========================================
+
+// 1. List independent waybills
+router.get("/independent-waybills", authenticate, async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    let query = `
+      SELECT ew.*, 
+             c.title as company_name, c.title as company_title,
+             cust.name as customer_name, cust.surname as customer_surname,
+             si.invoice_number as linked_invoice_number
+      FROM e_waybills ew
+      LEFT JOIN companies c ON ew.company_id = c.id
+      LEFT JOIN customers cust ON ew.customer_id = cust.id
+      LEFT JOIN sales_invoices si ON ew.invoice_id = si.id
+      WHERE ew.store_id = $1
+    `;
+    let params: any[] = [storeId];
+
+    const { search, status } = req.query;
+    let paramIndex = 2;
+
+    if (status) {
+      query += ` AND ew.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (search) {
+      const searchTerm = `%${search}%`;
+      query += ` AND (
+        ew.waybill_number ILIKE $${paramIndex} OR
+        c.title ILIKE $${paramIndex} OR
+        cust.name ILIKE $${paramIndex} OR
+        cust.surname ILIKE $${paramIndex}
+      )`;
+      params.push(searchTerm);
+      paramIndex++;
+    }
+
+    query += " ORDER BY ew.waybill_date DESC, ew.id DESC";
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err: any) {
+    console.error("List Independent Waybills Error:", err);
+    res.status(500).json({ error: "İrsaliyeler yüklenemedi: " + err.message });
+  }
+});
+
+// 2. Clear Waybill/Details
+router.get("/independent-waybills/:id", authenticate, async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const waybillRes = await pool.query(
+      `SELECT ew.*, 
+              c.title as company_name, c.title as company_title, c.tax_number as company_tax_number, c.tax_office as company_tax_office, c.address as company_address, c.email as company_email,
+              cust.name as customer_name, cust.surname as customer_surname, cust.phone as customer_phone, cust.email as customer_email, cust.address as customer_address,
+              si.invoice_number as linked_invoice_number
+       FROM e_waybills ew
+       LEFT JOIN companies c ON ew.company_id = c.id
+       LEFT JOIN customers cust ON ew.customer_id = cust.id
+       LEFT JOIN sales_invoices si ON ew.invoice_id = si.id
+       WHERE ew.id = $1 AND ew.store_id = $2`,
+      [req.params.id, storeId]
+    );
+
+    if (waybillRes.rows.length === 0) {
+      return res.status(404).json({ error: "İrsaliye bulunamadı." });
+    }
+
+    const waybill = waybillRes.rows[0];
+
+    // Grab items
+    const itemsRes = await pool.query(
+      "SELECT * FROM e_waybill_items WHERE waybill_id = $1 ORDER BY id ASC",
+      [waybill.id]
+    );
+
+    waybill.items = itemsRes.rows;
+    res.json(waybill);
+  } catch (err: any) {
+    console.error("Get Waybill Detail Error:", err);
+    res.status(500).json({ error: "İrsaliye detayları yüklenemedi: " + err.message });
+  }
+});
+
+// 3. Create independent waybill
+router.post("/independent-waybills", authenticate, async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
+  const {
+    company_id,
+    customer_id,
+    waybill_date,
+    waybill_time,
+    actual_date,
+    actual_time,
+    prefix,
+    scenario,
+    waybill_type,
+    driver_name,
+    driver_surname,
+    driver_vkn,
+    plate_number,
+    trailer_plate,
+    notes,
+    currency,
+    exchange_rate,
+    delivery_address,
+    items,
+    delivery_term,
+    transport_mode,
+    carrier_name,
+    tracking_number,
+    is_cargo_shipment
+  } = req.body;
+
+  if (!items || items.length === 0) {
+    return res.status(400).json({ error: "İrsaliye oluşturmak için en az bir ürün eklemelisiniz." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Draft number generation placeholder
+    const draftPrefix = (prefix || 'IRS').toUpperCase();
+    const draftNum = `TASLAK-${draftPrefix}-${Date.now().toString().slice(-6)}`;
+
+    // Total calculations
+    let totalAmount = 0;
+    let taxAmount = 0;
+    let grandTotal = 0;
+
+    for (const item of items) {
+      const q = Number(item.quantity) || 1;
+      const up = Number(item.unit_price) || 0;
+      const tr = Number(item.tax_rate) || 20;
+
+      const itemTotal = q * up;
+      const itemTax = itemTotal * (tr / 100);
+      const itemGrand = itemTotal + itemTax;
+
+      totalAmount += itemTotal;
+      taxAmount += itemTax;
+      grandTotal += itemGrand;
+    }
+
+    const waybillRes = await client.query(
+      `INSERT INTO e_waybills (
+        store_id, company_id, customer_id, waybill_number, waybill_date, waybill_time,
+        actual_date, actual_time, prefix, scenario, waybill_type,
+        driver_name, driver_surname, driver_vkn, plate_number, trailer_plate,
+        notes, status, total_amount, tax_amount, grand_total, currency, exchange_rate, delivery_address,
+        delivery_term, transport_mode, carrier_name, tracking_number, is_cargo_shipment
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'draft', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+      RETURNING id`,
+      [
+        storeId,
+        company_id || null,
+        customer_id || null,
+        draftNum,
+        waybill_date || new Date().toISOString().split('T')[0],
+        waybill_time || "12:00:00",
+        actual_date || new Date().toISOString().split('T')[0],
+        actual_time || "12:00:00",
+        draftPrefix,
+        scenario || 'TEMEL IRSALİYE',
+        waybill_type || 'SEVK',
+        driver_name || '',
+        driver_surname || '',
+        driver_vkn || '',
+        plate_number || '',
+        trailer_plate || '',
+        notes || '',
+        totalAmount,
+        taxAmount,
+        grandTotal,
+        currency || 'TRY',
+        exchange_rate || 1,
+        delivery_address || null,
+        delivery_term || null,
+        transport_mode || null,
+        carrier_name || null,
+        tracking_number || null,
+        !!is_cargo_shipment
+      ]
+    );
+
+    const waybillId = waybillRes.rows[0].id;
+
+    // Insert items
+    for (const item of items) {
+      const q = Number(item.quantity) || 1;
+      const up = Number(item.unit_price) || 0;
+      const tr = Number(item.tax_rate) || 20;
+
+      const itemTotal = q * up;
+      const itemTax = itemTotal * (tr / 100);
+
+      await client.query(
+        `INSERT INTO e_waybill_items (
+          waybill_id, product_id, product_name, barcode, quantity, unit_code, unit_price, tax_rate, tax_amount, total_price
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          waybillId,
+          item.product_id || null,
+          item.product_name,
+          item.barcode || '',
+          q,
+          item.unit_code || 'Adet',
+          up,
+          tr,
+          itemTax,
+          itemTotal
+        ]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.status(201).json({ success: true, id: waybillId, draftNum });
+  } catch (err: any) {
+    await client.query("ROLLBACK");
+    console.error("Create Waybill Error:", err);
+    res.status(500).json({ error: "İrsaliye oluşturulamadı: " + err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// 4. Update independent waybill
+router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
+  const { id } = req.params;
+  const {
+    company_id,
+    customer_id,
+    waybill_date,
+    waybill_time,
+    actual_date,
+    actual_time,
+    prefix,
+    scenario,
+    waybill_type,
+    driver_name,
+    driver_surname,
+    driver_vkn,
+    plate_number,
+    trailer_plate,
+    notes,
+    currency,
+    exchange_rate,
+    delivery_address,
+    items,
+    delivery_term,
+    transport_mode,
+    carrier_name,
+    tracking_number,
+    is_cargo_shipment
+  } = req.body;
+
+  if (!items || items.length === 0) {
+    return res.status(400).json({ error: "İrsaliyede en az bir ürün bulunmalıdır." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Check if waybill is editable (can only edit draft status)
+    const statusCheck = await client.query(
+      "SELECT status, waybill_number FROM e_waybills WHERE id = $1 AND store_id = $2",
+      [id, storeId]
+    );
+
+    if (statusCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Güncellenecek irsaliye bulunamadı." });
+    }
+
+    const currentWaybill = statusCheck.rows[0];
+    if (currentWaybill.status !== 'draft' && currentWaybill.status !== 'error') {
+      return res.status(400).json({ error: "Sadece Taslak veya Hatalı durumundaki irsaliyeler düzenlenebilir." });
+    }
+
+    // Recalculate totals
+    let totalAmount = 0;
+    let taxAmount = 0;
+    let grandTotal = 0;
+
+    for (const item of items) {
+      const q = Number(item.quantity) || 1;
+      const up = Number(item.unit_price) || 0;
+      const tr = Number(item.tax_rate) || 20;
+
+      const itemTotal = q * up;
+      const itemTax = itemTotal * (tr / 100);
+      const itemGrand = itemTotal + itemTax;
+
+      totalAmount += itemTotal;
+      taxAmount += itemTax;
+      grandTotal += itemGrand;
+    }
+
+    // Keep prefix compliant if draft string unmodified
+    let finalWaybillNumber = currentWaybill.waybill_number;
+    if (finalWaybillNumber.startsWith("TASLAK-")) {
+      const draftPrefix = (prefix || 'IRS').toUpperCase();
+      finalWaybillNumber = `TASLAK-${draftPrefix}-${Date.now().toString().slice(-6)}`;
+    }
+
+    await client.query(
+      `UPDATE e_waybills SET 
+        company_id = $1, customer_id = $2, waybill_number = $3, waybill_date = $4, waybill_time = $5,
+        actual_date = $6, actual_time = $7, prefix = $8, scenario = $9, waybill_type = $10,
+        driver_name = $11, driver_surname = $12, driver_vkn = $13, plate_number = $14, trailer_plate = $15,
+        notes = $16, total_amount = $17, tax_amount = $18, grand_total = $19, currency = $20, exchange_rate = $21, delivery_address = $22,
+        delivery_term = $23, transport_mode = $24, carrier_name = $25, tracking_number = $26, is_cargo_shipment = $27
+      WHERE id = $28 AND store_id = $29`,
+      [
+        company_id || null,
+        customer_id || null,
+        finalWaybillNumber,
+        waybill_date,
+        waybill_time,
+        actual_date,
+        actual_time,
+        prefix || 'IRS',
+        scenario || 'TEMEL IRSALİYE',
+        waybill_type || 'SEVK',
+        driver_name || '',
+        driver_surname || '',
+        driver_vkn || '',
+        plate_number || '',
+        trailer_plate || '',
+        notes || '',
+        totalAmount,
+        taxAmount,
+        grandTotal,
+        currency || 'TRY',
+        exchange_rate || 1,
+        delivery_address || null,
+        delivery_term || null,
+        transport_mode || null,
+        carrier_name || null,
+        tracking_number || null,
+        !!is_cargo_shipment,
+        id,
+        storeId
+      ]
+    );
+
+    // Wipe and recreate items
+    await client.query("DELETE FROM e_waybill_items WHERE waybill_id = $1", [id]);
+
+    for (const item of items) {
+      const q = Number(item.quantity) || 1;
+      const up = Number(item.unit_price) || 0;
+      const tr = Number(item.tax_rate) || 20;
+
+      const itemTax = q * up * (tr / 100);
+
+      await client.query(
+        `INSERT INTO e_waybill_items (
+          waybill_id, product_id, product_name, barcode, quantity, unit_code, unit_price, tax_rate, tax_amount, total_price
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          id,
+          item.product_id || null,
+          item.product_name,
+          item.barcode || '',
+          q,
+          item.unit_code || 'Adet',
+          up,
+          tr,
+          itemTax,
+          q * up
+        ]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, message: "İrsaliye güncellendi." });
+  } catch (err: any) {
+    await client.query("ROLLBACK");
+    console.error("Update Waybill Error:", err);
+    res.status(500).json({ error: "İrsaliye güncellenemedi: " + err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// 5. Delete independent waybill
+router.delete("/independent-waybills/:id", authenticate, async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+  try {
+    const statusCheck = await pool.query(
+      "SELECT status FROM e_waybills WHERE id = $1 AND store_id = $2",
+      [req.params.id, storeId]
+    );
+
+    if (statusCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Silinecek irsaliye bulunamadı." });
+    }
+
+    const currentStatus = statusCheck.rows[0].status;
+    if (currentStatus === 'success' || currentStatus === 'queued') {
+      return res.status(400).json({ error: "Resmileşmiş veya işlem sırasındaki irsaliyeler silinemez." });
+    }
+
+    await pool.query("DELETE FROM e_waybills WHERE id = $1 AND store_id = $2", [req.params.id, storeId]);
+    res.json({ success: true, message: "İrsaliye başarıyla silindi." });
+  } catch (err: any) {
+    console.error("Delete Waybill Error:", err);
+    res.status(500).json({ error: "İrsaliye silinemedi: " + err.message });
+  }
+});
+
+// 6. Transmit independent waybill to MySoft
+router.post("/independent-waybills/:id/send", authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
+
+  try {
+    const waybillRes = await pool.query(
+      `SELECT ew.*, 
+              c.title as company_name, c.title as company_title, c.tax_number as company_tax_number, c.tax_office as company_tax_office, c.address as company_address, c.delivery_address as company_delivery_address, c.email as company_email,
+              cust.name as customer_name, cust.surname as customer_surname, cust.phone as customer_phone, cust.email as customer_email, cust.address as customer_address
+       FROM e_waybills ew
+       LEFT JOIN companies c ON ew.company_id = c.id
+       LEFT JOIN customers cust ON ew.customer_id = cust.id
+       WHERE ew.id = $1 AND ew.store_id = $2`,
+      [id, storeId]
+    );
+
+    if (waybillRes.rows.length === 0) {
+      return res.status(404).json({ error: "İrsaliye bulunamadı." });
+    }
+
+    const waybill = waybillRes.rows[0];
+
+    // GİB shipment logistics block validations
+    const driverName = waybill.driver_name || "Bilinmeyen";
+    const driverSurname = waybill.driver_surname || "Sürücü";
+    const driverVkn = (waybill.driver_vkn || "11111111111").replace(/\D/g, '');
+    const plateNumber = (waybill.plate_number || "").replace(/\s/g, '').toUpperCase();
+    const trailerPlate = waybill.trailer_plate || "";
+    const actualDate = waybill.actual_date ? new Date(waybill.actual_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const actualTime = waybill.actual_time || "12:00:00";
+
+    const isCargoShipment = !!waybill.is_cargo_shipment;
+    if (!isCargoShipment && !plateNumber) {
+      return res.status(400).json({ error: "GİB kuralları gereği İrsaliye Gönderiminde Araç Plakası girilmesi zorunludur." });
+    }
+
+    // Sequence Generator
+    const prefix = (waybill.prefix || "IRS").toUpperCase().substring(0,3);
+    const year = new Date().getFullYear().toString();
+    const prefixWithYear = `${prefix}${year}`;
+
+    const client = await pool.connect();
+    let waybillNumber = waybill.waybill_number;
+    let waybillEttn = waybill.ettn || crypto.randomUUID();
+
+    try {
+      await client.query("BEGIN");
+
+      if (!waybillNumber || waybillNumber.startsWith("TASLAK") || waybillNumber.substring(0,3) !== prefix) {
+        // Count existing e-waybills under this prefix/year
+        const seqRes = await client.query(
+          `SELECT waybill_number FROM e_waybills 
+           WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16 
+           ORDER BY waybill_number DESC LIMIT 1 FOR UPDATE`,
+          [storeId, `${prefixWithYear}%`]
+        );
+
+        let nextSequenceNumber = 1;
+        if (seqRes.rows.length > 0 && seqRes.rows[0].waybill_number) {
+          const lastDocNum = seqRes.rows[0].waybill_number;
+          const lastSequencePart = lastDocNum.substring(7);
+          const parsed = parseInt(lastSequencePart, 10);
+          if (!isNaN(parsed)) {
+            nextSequenceNumber = Math.max(nextSequenceNumber, parsed + 1);
+          }
+        }
+
+        const paddedSequence = nextSequenceNumber.toString().padStart(9, '0');
+        waybillNumber = `${prefixWithYear}${paddedSequence}`;
+      }
+
+      await client.query(
+        "UPDATE e_waybills SET waybill_number = $1, ettn = $2, status = 'queued' WHERE id = $3",
+        [waybillNumber, waybillEttn, id]
+      );
+
+      await client.query("COMMIT");
+    } catch (dbErr) {
+      await client.query("ROLLBACK");
+      throw dbErr;
+    } finally {
+      client.release();
+    }
+
+    // Load store setup
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) throw new Error("Mağaza ayarları yüklenemedi.");
+    const settings = storeRes.rows[0].einvoice_settings || {};
+    const branding = storeRes.rows[0].branding || {};
+
+    let storeTaxNumber = (settings.vkn || settings.tax_number || branding.tax_number || "").replace(/\s/g, '').replace(/\D/g, '');
+    if (!storeTaxNumber && settings.tenant_id) {
+      storeTaxNumber = settings.tenant_id.replace(/\s/g, '').replace(/\D/g, '');
+    }
+
+    // Pull items
+    const itemsRes = await pool.query("SELECT * FROM e_waybill_items WHERE waybill_id = $1 ORDER BY id ASC", [id]);
+    const items = itemsRes.rows;
+
+    const DespatchLines = items.map((item: any, idx: number) => {
+      const q = Number(item.quantity) || 1;
+      
+      // Standard Unit Code mapping for UBL-TR
+      const unitCode = (() => {
+        const rawUnit = (item.unit_code || "").trim();
+        if (!rawUnit) return "C62";
+        const norm = rawUnit.toLowerCase();
+        const mapping: { [key: string]: string } = {
+          "adet": "C62", "ad": "C62", "pcs": "C62", "piece": "C62",
+          "kg": "KGM", "kilogram": "KGM", "gr": "GRM", "litre": "LTR", "lt": "LTR",
+          "meter": "MTR", "metre": "MTR", "paket": "PA", "kutu": "BX", "ton": "TNE",
+          "metrekare": "MTK", "m2": "MTK", "gün": "DAY", "gun": "DAY", "saat": "HUR"
+        };
+        return mapping[norm] || "C62";
+      })();
+
+      return {
+        lineIndex: idx + 1,
+        id: (idx + 1).toString(),
+        lineId: (idx + 1).toString(),
+        barcodeField: item.barcode || "",
+        stockCode: item.barcode || "M-" + (item.product_id || idx),
+        stockName: item.product_name.substring(0, 200),
+        name: item.product_name.substring(0, 200),
+        productName: item.product_name.substring(0, 200),
+        item: {
+           name: item.product_name.substring(0, 200),
+           description: item.product_name.substring(0, 200),
+           sellersItemIdentification: {
+             id: String(item.product_id || idx)
+           }
+        },
+        quantity: q,
+        deliveredQuantity: q,
+        outstandingQuantity: 0,
+        invoicedQuantity: 0,
+        qty: q.toString(),
+        unitCode: unitCode,
+        price: Number(item.unit_price) || 0,
+        unitPriceTra: String(Number(item.unit_price) || 0),
+        amtTra: String((Number(item.unit_price) || 0) * q),
+        vatRate: String(Number(item.tax_rate) || 0),
+        amtVatTra: String(Number(item.tax_amount) || 0),
+        taxableAmtTra: String((Number(item.unit_price) || 0) * q),
+        taxPercent: Number(item.tax_rate) || 0,
+        taxAmount: Number(item.tax_amount) || 0,
+        lineExtensionAmount: (Number(item.unit_price) || 0) * q,
+        totalAmount: Number(item.total_price) || 0,
+        allowanceAmount: 0
+      };
+    });
+
+    const taxNumber = (waybill.company_tax_number || "").trim() || "11111111111";
+    const customerTitle = waybill.company_title || waybill.company_name || `${waybill.customer_name || 'Bireysel'} ${waybill.customer_surname || 'Müşteri'}`;
+    const address = waybill.delivery_address || waybill.company_address || waybill.customer_address || "İstanbul Merkez";
+
+    const parts = customerTitle.trim().split(/\s+/);
+    const surname = parts.length > 1 ? parts.pop() : "ŞAHIS";
+    const name = parts.join(" ") || "PERAKENDE";
+
+    const addressTokens = address.trim().split(/\s+/);
+    const cityName = addressTokens[addressTokens.length - 1] || "İSTANBUL";
+    const districtName = addressTokens[addressTokens.length - 2] || "MERKEZ";
+
+    const service = await getEInvoiceService(storeId);
+    let pkAlias = "urn:mail:defaultpk"; // default for virtual e-waybill
+    try {
+      const taxpayerCheck = await service.checkTaxpayer(taxNumber);
+      if (taxpayerCheck.isTaxpayer && taxpayerCheck.waybillAlias) {
+         pkAlias = taxpayerCheck.waybillAlias;
+         console.log(`[MySoft Independent e-Waybill] Found e-Waybill alias for ${taxNumber}: ${pkAlias}`);
+      } else if (taxpayerCheck.isTaxpayer && taxpayerCheck.alias) {
+         pkAlias = taxpayerCheck.alias; // fallback to e-fatura pk if no waybill specific pk
+         console.log(`[MySoft Independent e-Waybill] Found e-Fatura alias for ${taxNumber}: ${pkAlias}`);
+      }
+    } catch (e) {
+      console.warn("Taxpayer check failed for waybill:", e);
+    }
+
+    // Ensure times have seconds
+    const normalizeTime = (t: string) => {
+      if (!t) return "12:00:00";
+      const parts = t.split(':');
+      if (parts.length === 2) return `${t}:00`;
+      if (parts.length === 1) return `${t}:00:00`;
+      return t;
+    };
+
+    const waybillDocTime = normalizeTime(waybill.waybill_time);
+    const waybillActualTime = normalizeTime(waybill.actual_time);
+
+    const ublData: any = {
+      isCalculateByApi: false,
+      isManuelCalculation: true,
+      connectorGuid: settings.connector_guid || undefined,
+      eDocumentType: "IRSALIYE",
+      profile: "TEMELIRSALIYE",
+      despatchAdviceType: "SEVK",
+      docDate: new Date(waybill.waybill_date).toISOString().split('T')[0],
+      docTime: waybillDocTime,
+      issueDate: new Date(waybill.waybill_date).toISOString().split('T')[0],
+      issueTime: waybillDocTime,
+      ettn: waybillEttn,
+      docNo: waybillNumber,
+      currencyCode: (waybill.currency || 'TRY').toUpperCase(),
+      currencyRate: String(Number(Number(waybill.exchange_rate || 1).toFixed(4))),
+      tenantIdentifierNumber: storeTaxNumber,
+      note: waybill.notes || "",
+      notes: (waybill.notes || "").split('\n').map(n => ({ note: n.trim() })).filter(n => n.note),
+      noteList: (waybill.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
+      notesList: (waybill.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
+      pkAlias: pkAlias,
+
+      // References
+      orderReference: {
+         id: waybillNumber,
+         issueDate: new Date(waybill.waybill_date).toISOString().split('T')[0]
+      },
+      additionalDocumentReference: [
+         { id: waybillEttn, issueDate: new Date(waybill.waybill_date).toISOString().split('T')[0], documentTypeCode: "SDR" }
+      ],
+
+      // Sender details
+      despatchSupplierParty: {
+        vknTckn: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        postalAddress: {
+          streetName: settings.address || "İstanbul",
+          cityName: (settings.city || "İSTANBUL").toUpperCase(),
+          citySubdivisionName: (settings.district || "MERKEZ").toUpperCase(),
+          countryName: "Türkiye"
+        }
+      },
+      despatchSupplierAccount: {
+        vknTckn: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        cityName: (settings.city || "İSTANBUL").toUpperCase(),
+        streetName: settings.address || "İstanbul"
+      },
+      sellerSupplierParty: {
+        vknTckn: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || ""
+      },
+
+      deliveryCustomerParty: {
+        vknTckn: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: waybill.company_tax_office || "",
+        email1: waybill.company_email || waybill.customer_email || "",
+        postalAddress: {
+          streetName: address.substring(0, 250),
+          cityName: cityName.toUpperCase(),
+          citySubdivisionName: districtName.toUpperCase(),
+          countryName: "Türkiye"
+        }
+      },
+      deliveryCustomerAccount: {
+        vknTckn: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: waybill.company_tax_office || "",
+        email1: waybill.company_email || waybill.customer_email || "",
+        cityName: cityName.toUpperCase(),
+        streetName: address.substring(0, 250)
+      },
+      buyerCustomerParty: {
+        vknTckn: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: waybill.company_tax_office || "",
+        email1: waybill.company_email || waybill.customer_email || ""
+      },
+      despatchLines: DespatchLines,
+      despatchAdviceDetail: DespatchLines,
+
+      shipment: (() => {
+        const isCargo = !!waybill.is_cargo_shipment;
+        const carrierName = waybill.carrier_name || "Aras Kargo";
+        const carrierVknMap: { [key: string]: string } = {
+          "yurtiçi kargo": "9830022295",
+          "yurtici kargo": "9830022295",
+          "aras kargo": "0720039649",
+          "mng kargo": "6220353119",
+          "ptt kargo": "7330135756",
+          "sürat kargo": "7820257003",
+          "surat kargo": "7820257003",
+          "ups kargo": "9130018597",
+          "horoz lojistik": "4640030588",
+          "borusan lojistik": "1800033100"
+        };
+        const carrierVkn = carrierVknMap[carrierName.toLowerCase().trim()] || "3900383509";
+
+        return {
+          carrierParty: {
+            vknTckn: isCargo ? carrierVkn : storeTaxNumber,
+            accountName: isCargo ? carrierName : (branding.store_name || "Seçkin Mağaza"),
+            postalAddress: {
+              streetName: settings.address || "İstanbul",
+              cityName: (settings.city || "İSTANBUL").toUpperCase(),
+              countryName: "Türkiye"
+            }
+          },
+          ...(!isCargo ? {
+            driverPerson: [
+              {
+                firstName: driverName,
+                familyName: driverSurname,
+                id: driverVkn
+              }
+            ]
+          } : {}),
+          delivery: {
+            actualDeliveryDate: actualDate,
+            actualDeliveryTime: waybillActualTime
+          },
+          ...((isCargo && !plateNumber) ? {} : {
+            transportMeans: {
+              roadTransportMeans: {
+                plateId: plateNumber || "KARGO"
+              }
+            }
+          }),
+          shipmentStage: isCargo ? [
+            {
+              transportModeCode: waybill.transport_mode || "5",
+              carrierParty: {
+                vknTckn: carrierVkn,
+                accountName: carrierName
+              }
+            }
+          ] : [
+            {
+              transportMeans: {
+                roadTransportMeans: {
+                  plateId: plateNumber
+                }
+              },
+              driverPerson: [
+                {
+                  firstName: driverName,
+                  familyName: driverSurname,
+                  id: driverVkn
+                }
+              ]
+            }
+          ],
+          ...(!isCargo ? {
+            plateNumber: plateNumber,
+            trailerPlateNumber: trailerPlate || undefined
+          } : {}),
+          ...(isCargo && waybill.tracking_number ? {
+            specialInstructions: `Kargo Takip No: ${waybill.tracking_number}`
+          } : {})
+        };
+      })()
+    };
+
+    console.log(`[MySoft Independent e-Waybill] Transmitting e-Waybill #${waybillNumber}`);
+    const result = await service.sendWaybill(ublData);
+
+    if (result.isSuccess) {
+      await pool.query(
+        "UPDATE e_waybills SET status = 'success', message = $1, waybill_number = $2 WHERE id = $3",
+        ["İletildi: Yetkili onayına sunuldu.", waybillNumber, id]
+      );
+      return res.json({ success: true, waybillNumber, ettn: waybillEttn, message: "E-İrsaliye başarıyla kuyruğa iletildi." });
+    } else {
+      throw new Error(result.message || "MySoft entegratöründe hata oluştu.");
+    }
+
+  } catch (err: any) {
+    console.error("Transmitting Independent Waybill Failed:", err);
+    await pool.query(
+      "UPDATE e_waybills SET status = 'error', message = $1 WHERE id = $2",
+      [err.message || "MySoft entegratör bağlantı hatası.", id]
+    );
+    res.status(500).json({ error: "E-İrsaliye döküman iletimi başarısız oldu: " + err.message });
+  }
+});
+
+// 7. Status checker
+router.get("/independent-waybills/:id/status", authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId);
+  try {
+    const waybillRes = await pool.query("SELECT * FROM e_waybills WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (waybillRes.rows.length === 0) return res.status(404).json({ error: "İrsaliye bulunamadı." });
+    const waybill = waybillRes.rows[0];
+
+    if (!waybill.ettn) {
+      return res.status(400).json({ error: "Bu irsaliye henüz GİB/entegratör kuyruğuna iletilmemiştir." });
+    }
+
+    const service = await getEInvoiceService(storeId);
+    const result = await service.getWaybillStatus(waybill.ettn);
+
+    await pool.query(
+      "UPDATE e_waybills SET status = $1, message = $2 WHERE id = $3",
+      [result.status.toLowerCase() === 'success' ? 'success' : 'error', result.message, id]
+    );
+
+    res.json({ success: true, status: result.status, message: result.message });
+  } catch (err: any) {
+    console.error("Check independent waybill status error:", err);
+    res.status(500).json({ error: "Durum kontrolü gerçekleştirilemedi: " + err.message });
+  }
+});
+
+// 8. HTML visualization of independent waybill
+router.get("/independent-waybills/:id/html", authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const isSuperAdmin = req.user.role === 'superadmin';
+  const requestedStoreId = req.query.storeId ? Number(req.query.storeId) : undefined;
+  try {
+    let waybillRes;
+    if (isSuperAdmin && !requestedStoreId) {
+      waybillRes = await pool.query("SELECT * FROM e_waybills WHERE id = $1", [id]);
+    } else {
+      waybillRes = await pool.query("SELECT * FROM e_waybills WHERE id = $1 AND store_id = $2", [id, requestedStoreId || req.user.store_id]);
+    }
+    if (waybillRes.rows.length === 0) return res.status(404).json({ error: "İrsaliye bulunamadı." });
+    const waybill = waybillRes.rows[0];
+
+    if (!waybill.ettn) {
+      return res.status(400).json({ error: "Bu irsaliye taslaktır. Resmileşmiş görsel alınamaz." });
+    }
+
+    const service = await getEInvoiceService(waybill.store_id || requestedStoreId || req.user.store_id);
+    const htmlContent = await service.getWaybillHtml(waybill.ettn, waybill.notes || "");
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(htmlContent);
+  } catch (err: any) {
+    console.error("Print Waybill HTML failed:", err);
+    res.status(500).json({ error: "Görsel döküman yüklenemedi: " + err.message });
+  }
+});
+
+// 9. Convert multiple waybills to a single Sales Invoice
+router.post("/independent-waybills/convert-to-invoice", authenticate, async (req: any, res) => {
+  const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
+  const { waybillIds, invoiceProfile, giInvoiceType, paymentMethod, notes, currency } = req.body;
+
+  if (!waybillIds || waybillIds.length === 0) {
+    return res.status(400).json({ error: "Faturaya dönüştürmek için en az bir irsaliye seçmelisiniz." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Gather active waybills
+    const placeholders = waybillIds.map((_: any, idx: number) => `$${idx + 2}`).join(",");
+    const waybillsRes = await client.query(
+      `SELECT * FROM e_waybills WHERE store_id = $1 AND id IN (${placeholders})`,
+      [storeId, ...waybillIds]
+    );
+
+    if (waybillsRes.rows.length === 0) {
+      throw new Error("Seçilen irsaliyeler bulunamadı.");
+    }
+
+    // Validate if any are already invoiced
+    const alreadyInvoiced = waybillsRes.rows.filter(w => w.is_invoiced);
+    if (alreadyInvoiced.length > 0) {
+      throw new Error("Seçilen irsaliyelerin bazısı zaten faturaya dönüştürülmüştür.");
+    }
+
+    // Verify they belong to the same Customer or Company to consolidate properly
+    const firstWaybill = waybillsRes.rows[0];
+    for (const item of waybillsRes.rows) {
+      if (item.company_id !== firstWaybill.company_id || item.customer_id !== firstWaybill.customer_id) {
+        throw new Error("Toplu faturalandırma için tüm irsaliyeler aynı Cari/Müşteriye ait olmalıdır.");
+      }
+    }
+
+    // Pull item entries for all selected waybills
+    const itemsRes = await client.query(
+      `SELECT * FROM e_waybill_items WHERE waybill_id IN (${placeholders}) ORDER BY id ASC`,
+      [...waybillIds]
+    );
+    const waybillItems = itemsRes.rows;
+
+    // Consolidate identical products
+    const consolidatedMap = new Map<string, any>();
+    for (const wi of waybillItems) {
+      const key = `${wi.product_id || 'null'}-${wi.product_name}-${wi.barcode || ''}-${wi.unit_price}-${wi.tax_rate}`;
+      if (consolidatedMap.has(key)) {
+        const existing = consolidatedMap.get(key);
+        existing.quantity += Number(wi.quantity);
+        existing.tax_amount += Number(wi.tax_amount);
+        existing.total_price += Number(wi.total_price);
+      } else {
+        consolidatedMap.set(key, {
+          product_id: wi.product_id,
+          product_name: wi.product_name,
+          barcode: wi.barcode,
+          quantity: Number(wi.quantity),
+          unit_code: wi.unit_code,
+          unit_price: Number(wi.unit_price),
+          tax_rate: Number(wi.tax_rate),
+          tax_amount: Number(wi.tax_amount),
+          total_price: Number(wi.total_price)
+        });
+      }
+    }
+
+    const consolidatedItems = Array.from(consolidatedMap.values());
+
+    // Auto generate Sales Invoice Draft number
+    const prefixRes = await client.query("SELECT einvoice_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = prefixRes.rows[0]?.einvoice_settings || {};
+    const salesPrefix = (settings.einvoice_prefix || "GAP").substring(0, 3);
+    const currentYear = new Date().getFullYear().toString();
+
+    const countRes = await client.query(
+      "SELECT COUNT(*) FROM sales_invoices WHERE store_id = $1 AND invoice_number LIKE $2",
+      [storeId, `${salesPrefix}${currentYear}%`]
+    );
+    const count = Number(countRes.rows[0].count) + 1;
+    const finalInvoiceNumber = `${salesPrefix}${currentYear}${count.toString().padStart(9, '0')}`;
+
+    // Get company/customer address data dynamically from DB
+    let taxNumber = "11111111111";
+    let taxOffice = "";
+    let customerEmail = "";
+    let address = "İstanbul Merkez";
+
+    if (firstWaybill.company_id) {
+      const compRes = await client.query("SELECT * FROM companies WHERE id = $1", [firstWaybill.company_id]);
+      if (compRes.rows.length > 0) {
+        const comp = compRes.rows[0];
+        taxNumber = comp.tax_number || "11111111111";
+        taxOffice = comp.tax_office || "";
+        customerEmail = comp.email || "";
+        address = comp.address || "İstanbul Merkez";
+      }
+    } else if (firstWaybill.customer_id) {
+      const custRes = await client.query("SELECT * FROM customers WHERE id = $1", [firstWaybill.customer_id]);
+      if (custRes.rows.length > 0) {
+        const cust = custRes.rows[0];
+        taxNumber = (cust.phone || "11111111111").replace(/\D/g, '').substring(0, 11);
+        customerEmail = cust.email || "";
+        address = cust.address || "İstanbul Merkez";
+      }
+    }
+
+    // Totals
+    let totalNet = 0;
+    let totalTax = 0;
+    let totalGrand = 0;
+
+    for (const ci of consolidatedItems) {
+      const lineNet = ci.quantity * ci.unit_price;
+      const lineTax = lineNet * (ci.tax_rate / 100);
+      const lineTotal = lineNet + lineTax;
+
+      totalNet += lineNet;
+      totalTax += lineTax;
+      totalGrand += lineTotal;
+    }
+
+    // Create sales invoice draft
+    const invoiceRes = await client.query(
+      `INSERT INTO sales_invoices (
+        store_id, company_id, customer_id, invoice_number, invoice_date, invoice_time,
+        total_amount, tax_amount, grand_total, currency, exchange_rate,
+        notes, payment_method, invoice_type, status, e_document_type,
+        invoice_profile, is_tax_inclusive, tax_number, tax_office, address, customer_email,
+        gi_invoice_type
+      ) VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_TIME, $5, $6, $7, $8, $9, $10, $11, 'manual', 'draft', $12, $13, FALSE, $14, $15, $16, $17, $18)
+      RETURNING id`,
+      [
+        storeId,
+        firstWaybill.company_id || null,
+        firstWaybill.customer_id || null,
+        finalInvoiceNumber,
+        totalNet,
+        totalTax,
+        totalGrand,
+        currency || firstWaybill.currency || 'TRY',
+        firstWaybill.exchange_rate || 1,
+        notes || `İrsaliyelerden otomatik birleştirildi: ${waybillsRes.rows.map(w => w.waybill_number).join(", ")}`,
+        paymentMethod || 'none',
+        "EFATURA",
+        invoiceProfile || "TICARIFATURA",
+        taxNumber,
+        taxOffice,
+        address,
+        customerEmail,
+        giInvoiceType || "SATIS"
+      ]
+    );
+
+    const invoiceId = invoiceRes.rows[0].id;
+
+    // Create Invoice items
+    for (const ci of consolidatedItems) {
+      const lineNet = ci.quantity * ci.unit_price;
+      const lineTax = lineNet * (ci.tax_rate / 100);
+      const lineGrand = lineNet + lineTax;
+
+      await client.query(
+        `INSERT INTO sales_invoice_items (
+          sales_invoice_id, product_id, product_name, barcode, quantity, unit_code, unit_price, tax_rate, tax_amount, total_price
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          invoiceId,
+          ci.product_id,
+          ci.product_name,
+          ci.barcode || '',
+          ci.quantity,
+          ci.unit_code || 'Adet',
+          ci.unit_price,
+          ci.tax_rate,
+          lineTax,
+          lineGrand
+        ]
+      );
+    }
+
+    // Link waybills to invoice
+    await client.query(
+      `UPDATE e_waybills 
+       SET is_invoiced = TRUE, invoice_id = $1, status = 'success' 
+       WHERE store_id = $2 AND id IN (${placeholders})`,
+      [invoiceId, storeId, ...waybillIds]
+    );
+
+    await client.query("COMMIT");
+    res.status(201).json({ success: true, invoiceId, invoiceNumber: finalInvoiceNumber });
+  } catch (err: any) {
+    await client.query("ROLLBACK");
+    console.error("Convert Waybills to Invoice Error:", err);
+    res.status(500).json({ error: "Faturaya dönüştürme işlemi başarısız: " + err.message });
+  } finally {
+    client.release();
+  }
+});
+
+export default router;

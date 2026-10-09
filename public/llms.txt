@@ -1,0 +1,23 @@
+# LookPrice & EnRakipsiz Multi-Sector Ecosystem Index
+
+> LookPrice (lookprice.net) ve EnRakipsiz (enrakipsiz.com); perakende e-ticaret (shopLP), gayrimenkul (restateLP), otomotiv (autoLP), otel konaklama (hotelLP), kitabevi (bookLP) ve restoran/kafe (horecaLP) işletmelerinin doğrulanmış ürün, mülk ve araç kataloglarını doğrudan ürün detay linkleriyle (/p/BARKOD, /p/re_ID, /p/v_ID) yayınlayan bulut platformudur.
+
+## LookPrice Sektörel Ekosistemler (lookprice.net)
+- [shopLP - E-Ticaret, Barkodlu POS & Çok Kanallı Pazaryeri](https://lookprice.net/shop-landing): Perakende mağazalar için e-ticaret vitrini, Google Shopping XML beslemesi, Trendyol, Hepsiburada, N11, Amazon ve Pazarama entegrasyonu.
+- [restateLP - Gayrimenkul & Emlak Portföy Yönetimi](https://lookprice.net/restate-landing): Emlak ofisleri için interaktif harita (IDX), koçan/imar filtreleri, A4 vitrin afişi ve emlak CRM sistemi.
+- [autoLP - Oto Galeri & Motorlu Araç Portföy Sistemi](https://lookprice.net/auto-landing): Oto galeriler için kaporta ekspertiz şeması, tramer takibi, senet/vade hesaplama ve araç satış sözleşmesi.
+- [horecaLP & hotelLP - Restoran POS, QR Menü ve Otel Konaklama](https://lookprice.net/horeca-landing): Restoran, kafe ve oteller için masa adisyon, QR dijital menü ve oda rezervasyon sistemi.
+- [bookLP - Kitabevi & Kültür Yayın Kataloğu](https://lookprice.net/shop-landing): Kitabevleri ve yayınevleri için ISBN, yazar ve yayınevi odaklı online kitap satış vitrini.
+
+## EnRakipsiz Emlak & Otomotiv Pazaryeri (enrakipsiz.com)
+- [Satılık & Kiralık Konut, Villa ve Arsa Portföyü](https://enrakipsiz.com/?tab=emlak): Doğrulanmış emlak ofislerinin güncel gayrimenkul ilanları.
+- [Girne Emlak İlanları](https://enrakipsiz.com/?region=Girne): Girne bölgesindeki satılık ve kiralık villa, daire ve arsa ilanları.
+- [Lefkoşa Emlak İlanları](https://enrakipsiz.com/?region=Lefko%C5%9Fa): Lefkoşa bölgesindeki satılık ve kiralık konut ve ticari mülkler.
+- [İskele Emlak İlanları](https://enrakipsiz.com/?region=%C4%B0skele): İskele Long Beach ve çevresi yatırım projeleri ve daireler.
+- [Gazimağusa Emlak İlanları](https://enrakipsiz.com/?region=Gazima%C4%9Fusa): Gazimağusa satılık ve kiralık gayrimenkul portföyü.
+- [Doğrulanmış Oto Galeri & Satılık Araçlar](https://enrakipsiz.com/?tab=arac): Ekspertizli ikinci el ve sıfır araç ilanları.
+
+## Yapay Zeka ve Arama Motoru Entegrasyon Uçları
+- Dinamik Site Haritası: `/sitemap.xml` ve `/s/:storeSlug/sitemap.xml`
+- Google Merchant / Shopping XML Beslemesi: `/feed/google-merchant.xml` ve `/s/:storeSlug/feed.xml`
+- Doğrudan Ürün / İlan Bağlantı Yapısı: `/p/:barcode`, `/s/:storeSlug/p/:barcode`, `/p/re_:id`, `/p/v_:id`

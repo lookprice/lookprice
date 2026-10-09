@@ -1,0 +1,2089 @@
+import React, { useState, useEffect, useCallback, useMemo, useRef, useTransition, useDeferredValue, Suspense } from "react";
+import { useParams } from "react-router-dom";
+import { 
+  Activity,
+  ArrowLeftRight,
+  Bell,
+  Building2,
+  Car,
+  LayoutDashboard, 
+  Package, 
+  Settings as SettingsIcon, 
+  Plus, 
+  Store,
+  History,
+  Home,
+  BarChart3,
+  Briefcase,
+  Radar,
+  CreditCard,
+  Scan,
+  FileText,
+  Users,
+  Wallet,
+  Globe,
+  ShoppingBag,
+  Facebook,
+  BookOpen,
+  Database,
+  Truck,
+  Wrench,
+  Printer,
+  X,
+  QrCode,
+  Download,
+  FileCheck,
+  FileDown,
+  Edit2,
+  Trash2,
+  HelpCircle,
+  Send,
+  Smartphone,
+  Sparkles,
+  ShieldCheck,
+  UserPlus,
+  CheckCircle2,
+  Copy,
+  ChevronRight
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { translations } from "@/translations";
+import { playHotelReservationChime } from "../../utils/hotelSound";
+import { formatDateTR, formatDateTimeTR, formatFileDateTR } from "../../utils/formatUtils";
+import { useLanguage } from "../../contexts/LanguageContext";
+import { useDashboardController } from "../../hooks/useDashboardController";
+import { useProducts } from "../../hooks/useProducts";
+import { useQuotations } from "../../hooks/useQuotations";
+import { useSales } from "../../hooks/useSales";
+import { useCompanies } from "../../hooks/useCompanies";
+import { useRealEstate } from "../../hooks/useRealEstate";
+import { api } from "../../services/api";
+import { User, Product } from "../../types";
+import { useReactToPrint } from 'react-to-print';
+import { toast } from "sonner";
+import { handleDownloadQuotationPDF } from "../../utils/dashboardUtils";
+import { numberToTurkishWords } from "../../utils/formatUtils";
+import { resolveDomainId, hasSectorCapability } from "../../utils/sectorCapability";
+import { StaffWaiter, getStoreWaiters, generateWaiterWhatsappInviteUrl } from "../../utils/staffHelpers";
+
+// Modular Components
+import { DashboardLayout } from "./DashboardLayout";
+import { DashboardModals } from "./DashboardModals";
+
+// Lazy Tabs
+const CockpitTab = React.lazy(() => import("./CockpitTab"));
+const ProductsTab = React.lazy(() => import("./ProductsTab"));
+const PurchaseInvoices = React.lazy(() => import("../../components/PurchaseInvoices"));
+const SalesInvoices = React.lazy(() => import("../../components/SalesInvoices"));
+const AnalyticsTab = React.lazy(() => import("./AnalyticsTab"));
+const PortfolioAnalyticsTab = React.lazy(() => import("./PortfolioAnalyticsTab"));
+const PortfolioNotificationsTab = React.lazy(() => import("./PortfolioNotificationsTab").then(m => ({ default: m.PortfolioNotificationsTab })));
+const PortfolioWebsiteGeneratorTab = React.lazy(() => import("./PortfolioWebsiteGenerator").then(m => ({ default: m.PortfolioWebsiteGenerator })));
+const RealEstateWebsiteGeneratorTab = React.lazy(() => import("./RealEstateWebsiteGenerator").then(m => ({ default: m.RealEstateWebsiteGenerator })));
+const AutomotiveWebsiteGeneratorTab = React.lazy(() => import("./AutomotiveWebsiteGenerator").then(m => ({ default: m.AutomotiveWebsiteGenerator })));
+const TeamCrmTab = React.lazy(() => import("./TeamCrmTab").then(m => ({ default: m.TeamCrmTab })));
+const RealEstateCrmTab = React.lazy(() => import("./RealEstateCrmTab"));
+const QuotationsTab = React.lazy(() => import("./QuotationsTab"));
+const CompaniesTab = React.lazy(() => import("./CompaniesTab"));
+const PosTab = React.lazy(() => import("./PosTab"));
+const FastPosTab = React.lazy(() => import("../../components/FastPosTab"));
+const AuditLogTab = React.lazy(() => import("../../components/AuditLogTab"));
+const SettingsTab = React.lazy(() => import("./SettingsTab"));
+const BlogTab = React.lazy(() => import("./BlogTab"));
+const ProcurementTab = React.lazy(() => import("./ProcurementTab").then(m => ({ default: m.ProcurementTab })));
+const ServiceTab = React.lazy(() => import("./ServiceTab").then(m => ({ default: m.ServiceTab })));
+const StockTransferTab = React.lazy(() => import("./StockTransferTab"));
+const AuthorityTransferTab = React.lazy(() => import("./AuthorityTransferTab"));
+const FleetTab = React.lazy(() => import("./FleetTab"));
+const MetaIntegrationTab = React.lazy(() => import("./MetaIntegrationTab"));
+const GoogleMerchantTab = React.lazy(() => import("./GoogleMerchantTab"));
+const RealEstateTab = React.lazy(() => import("./RealEstateTab"));
+const RadarAlertsTab = React.lazy(() => import("./RadarAlertsTab").then(m => ({ default: m.RadarAlertsTab })));
+const PortfolioFinancesTab = React.lazy(() => import("./PortfolioFinancesTab"));
+const SEOTab = React.lazy(() => import("./SEOTab"));
+const EWaybillsTab = React.lazy(() => import("../../components/EWaybillsTab"));
+const FaqTab = React.lazy(() => import("./FaqTab"));
+const HotelRoomManagement = React.lazy(() => import("../../components/horeca/HotelRoomManagement").then(m => ({ default: m.HotelRoomManagement })));
+
+import ShippingSlip from "../../components/ShippingSlip";
+import { ChangePasswordModal } from "../../components/ChangePasswordModal";
+
+interface StoreDashboardProps {
+  user: User;
+  onLogout: () => void;
+}
+
+export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) {
+  const { slug } = useParams();
+  const { lang } = useLanguage();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPasswordBanner, setShowPasswordBanner] = useState(false);
+  const isTr = lang === 'tr';
+  const txt = (tr: string, en: string, el: string) => {
+    if (lang === 'tr') return tr;
+    if (lang === 'el') return el;
+    return en;
+  };
+  const [shipCarrier, setShipCarrier] = useState('');
+  const [shipTrackingNumber, setShipTrackingNumber] = useState('');
+  const [dismissedWebSales, setDismissedWebSales] = useState(false);
+  const [dismissedHotelReservations, setDismissedHotelReservations] = useState(false);
+
+  const t = translations[lang].dashboard;
+  const {
+    activeTab, setActiveTab,
+    branding, setBranding
+  } = useDashboardController(user);
+
+  const domainId = resolveDomainId(branding);
+  const isRealEstate = domainId === 'REAL_ESTATE';
+  const isAutomotive = domainId === 'AUTOMOTIVE';
+  const isPortfolio = isRealEstate || isAutomotive;
+  const isCafeRestaurant = domainId === 'HORECA' || domainId === 'HOTEL';
+  const isHotelModuleActive = domainId === 'HOTEL';
+  const isBookstoreModuleActive = domainId === 'BOOKSTORE';
+  const isShopLp = domainId === 'RETAIL' || domainId === 'BOOKSTORE';
+
+  // Cafe/Restaurant Role-based authorization state
+  const [activeStaffRole, setActiveStaffRole] = useState<'manager' | 'cashier' | 'waiter'>(() => {
+    return (localStorage.getItem('lookprice_active_staff_role') as 'manager' | 'cashier' | 'waiter') || 'manager';
+  });
+
+  const [activeWaiterId, setActiveWaiterId] = useState<string>(() => {
+    return localStorage.getItem('lookprice_active_waiter_id') || 'w_1';
+  });
+  const [activeWaiterName, setActiveWaiterName] = useState<string>(() => {
+    return localStorage.getItem('lookprice_active_waiter_name') || 'Garson 1 (Ahmet)';
+  });
+
+  const [managerPin, setManagerPin] = useState(() => localStorage.getItem('lookprice_manager_pin') || '1234');
+  const [cashierPin, setCashierPin] = useState(() => localStorage.getItem('lookprice_cashier_pin') || '2222');
+  const [waiterPin, setWaiterPin] = useState(() => localStorage.getItem('lookprice_waiter_pin') || '3333');
+
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [modalRole, setModalRole] = useState<'manager' | 'cashier' | 'waiter'>('waiter');
+  const [modalSelectedWaiterId, setModalSelectedWaiterId] = useState<string>('w_1');
+  const [pinValue, setPinValue] = useState('');
+  const [pinError, setPinError] = useState(false);
+  const [isEditingPins, setIsEditingPins] = useState(false);
+  const [staffConfigTab, setStaffConfigTab] = useState<'pins' | 'waiters'>('waiters');
+  const [editableWaiters, setEditableWaiters] = useState<StaffWaiter[]>([]);
+
+  const waiterList = useMemo(() => {
+    return getStoreWaiters(branding);
+  }, [branding]);
+
+  useEffect(() => {
+    if (waiterList && waiterList.length > 0) {
+      setEditableWaiters(JSON.parse(JSON.stringify(waiterList)));
+      if (!modalSelectedWaiterId || !waiterList.some(w => w.id === modalSelectedWaiterId)) {
+        setModalSelectedWaiterId(waiterList[0]?.id || 'w_1');
+      }
+    }
+  }, [waiterList]);
+
+  // Sync state with localStorage
+  useEffect(() => {
+    localStorage.setItem('lookprice_active_staff_role', activeStaffRole);
+  }, [activeStaffRole]);
+
+  useEffect(() => {
+    localStorage.setItem('lookprice_active_waiter_id', activeWaiterId);
+    localStorage.setItem('lookprice_active_waiter_name', activeWaiterName);
+  }, [activeWaiterId, activeWaiterName]);
+
+  useEffect(() => {
+    const rawStoreName = (branding?.store_name || "").trim();
+    const rawName = (branding?.name || "").trim();
+    const storeName = (rawStoreName && !/^lookprice$/i.test(rawStoreName))
+      ? rawStoreName
+      : (rawName && !/^lookprice$/i.test(rawName))
+      ? rawName
+      : "Seçkin Mağaza";
+      
+    document.title = `${storeName} - Bulut Panel`;
+
+    const faviconUrl = branding?.favicon_url || branding?.logo_url || branding?.logo;
+    if (faviconUrl) {
+      const link = (document.querySelector("link[rel~='icon']") as HTMLLinkElement) || document.createElement("link");
+      link.rel = "icon";
+      link.href = faviconUrl;
+      document.head.appendChild(link);
+    }
+  }, [branding]);
+
+  useEffect(() => {
+    localStorage.setItem('lookprice_manager_pin', managerPin);
+  }, [managerPin]);
+
+  useEffect(() => {
+    localStorage.setItem('lookprice_cashier_pin', cashierPin);
+  }, [cashierPin]);
+
+  useEffect(() => {
+    localStorage.setItem('lookprice_waiter_pin', waiterPin);
+  }, [waiterPin]);
+
+  const handleVerifyRolePin = (pinToVerify: string) => {
+    let isValid = false;
+    let resolvedWaiter: StaffWaiter | undefined;
+
+    if (modalRole === 'manager') {
+      isValid = (pinToVerify === managerPin);
+    } else if (modalRole === 'cashier') {
+      isValid = (pinToVerify === cashierPin);
+    } else if (modalRole === 'waiter') {
+      // Check if matches currently selected waiter in chip
+      resolvedWaiter = waiterList.find(w => w.id === modalSelectedWaiterId);
+      if (resolvedWaiter && resolvedWaiter.pin === pinToVerify) {
+        isValid = true;
+      } else {
+        // Fallback: check if matches ANY active waiter's pin or global waiter pin
+        const matchingWaiter = waiterList.find(w => w.active && w.pin === pinToVerify);
+        if (matchingWaiter) {
+          isValid = true;
+          resolvedWaiter = matchingWaiter;
+        } else if (pinToVerify === waiterPin) {
+          isValid = true;
+          resolvedWaiter = waiterList[0];
+        }
+      }
+    }
+
+    if (isValid) {
+      setActiveStaffRole(modalRole);
+      if (modalRole === 'waiter' && resolvedWaiter) {
+        setActiveWaiterId(resolvedWaiter.id);
+        setActiveWaiterName(resolvedWaiter.name);
+      }
+      setShowRoleModal(false);
+      setPinValue('');
+      setPinError(false);
+      toast.success(isTr 
+        ? `${modalRole === 'manager' ? 'Yönetici' : modalRole === 'cashier' ? 'Kasiyer' : `Garson (${resolvedWaiter?.name || 'Garson'})`} oturumu açıldı!` 
+        : `Switched to ${modalRole === 'manager' ? 'Manager' : modalRole === 'cashier' ? 'Cashier' : `Waiter (${resolvedWaiter?.name || 'Waiter'})`} role!`
+      );
+    } else {
+      setPinError(true);
+      setPinValue('');
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+    }
+  };
+
+  const handleSaveStaffConfig = async () => {
+    try {
+      const updatedBranding = {
+        ...branding,
+        waiter_list: editableWaiters
+      };
+      await api.updateBranding(updatedBranding, currentStoreId);
+      setBranding(updatedBranding);
+      setIsEditingPins(false);
+      toast.success(isTr ? 'Kadro & PIN yapılandırması başarıyla kaydedildi!' : 'Staff & PIN settings saved!');
+    } catch (e) {
+      toast.error(isTr ? 'Kaydedilirken hata oluştu' : 'Failed to save staff settings');
+    }
+  };
+  
+  
+  const [isPending, startTransition] = useTransition();
+
+  const [includeBranches, setIncludeBranches] = useState(false);
+  const [branches, setBranches] = useState<any[]>([]);
+
+  const planLimits: Record<string, number> = {
+    free: 50,
+    basic: 100,
+    pro: 500,
+    enterprise: Infinity
+  };
+
+  const {
+    products, setProducts,
+    loading, setLoading,
+    showProductModal, setShowProductModal,
+    showBulkPriceModal, setShowBulkPriceModal,
+    bulkPriceForm, setBulkPriceForm,
+    editingProduct, setEditingProduct,
+    showDescription, setShowDescription,
+    showImportModal, setShowImportModal,
+    isImporting, setIsImporting,
+    importFile, setImportFile,
+    importColumns, setImportColumns,
+    mapping, setMapping,
+    convertCurrency, setConvertCurrency,
+    handleAddProduct,
+    handleDeleteProduct,
+    handleDeleteAllProducts,
+    handleBulkDelete,
+    handleApplyTaxRule,
+    handleBulkPriceSubmit,
+    handleFileSelect,
+    handleImport,
+    handleExportProducts,
+    handleBulkRecalculatePrice2,
+    handleBulkAdd,
+    handleBulkRename,
+    handleReformatProductNames,
+    fetchData: fetchProductsData,
+    currentStoreId
+  } = useProducts(user, slug, includeBranches, branding, planLimits, lang);
+
+  const {
+    quotationList, setQuotationList,
+    showQuotationModal, setShowQuotationModal,
+    showNotes, setShowNotes,
+    quotationProductSearch, setQuotationProductSearch,
+    showQuickProductModal, setShowQuickProductModal,
+    quickProductForm, setQuickProductForm,
+    quotationItems, setQuotationItems,
+    editingQuotation, setEditingQuotation,
+    quotationSearch, setQuotationSearch,
+    quotationStatusFilter, setQuotationStatusFilter,
+    selectedQuotationDetails, setSelectedQuotationDetails,
+    showQuotationDetailsModal, setShowQuotationDetailsModal,
+    isTaxInclusive, setIsTaxInclusive,
+    quotationNotes, setQuotationNotes,
+    fetchQuotations,
+    handleQuickAddProduct,
+    handleAddQuotation,
+    handleApproveQuotation,
+    handleCancelQuotation,
+    handleDeleteQuotation,
+    handleUpdateQuotationStatus
+  } = useQuotations(currentStoreId, fetchProductsData, branding, lang);
+
+  const [customers, setCustomers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (currentStoreId) {
+      api.getCustomers(currentStoreId).then(setCustomers);
+    }
+  }, [currentStoreId]);
+
+  const {
+    sales, setSales,
+    salesLoading, setSalesLoading,
+    salesStatusFilter, setSalesStatusFilter,
+    salesStartDate, setSalesStartDate,
+    salesEndDate, setSalesEndDate,
+    selectedSale, setSelectedSale,
+    showSaleDetailsModal, setShowSaleDetailsModal,
+    showSaleModal, setShowSaleModal,
+    isConfirmingSale, setIsConfirmingSale,
+    selectedQuotation, setSelectedQuotation,
+    paymentMethod, setPaymentMethod,
+    dueDate, setDueDate,
+    saleNotes, setSaleNotes,
+    createCompanyFromSale, setCreateCompanyFromSale,
+    completingSale, setCompletingSale,
+    posPaymentMethod, setPosPaymentMethod,
+    fetchSales,
+    handleUpdateSaleItem,
+    handleRemoveSaleItem,
+    handleCancelPendingSale,
+    handleShipSale,
+    handleDeliverSale,
+    handleCompletePendingSale,
+    handleConvertToSale,
+    handleConfirmSale,
+    handleDeleteSale,
+    handleExportSales,
+    getConvertedPrice
+  } = useSales(user, currentStoreId, branding, lang, fetchProductsData);
+
+  const {
+    companies, setCompanies,
+    showCompanyModal, setShowCompanyModal,
+    editingCompany, setEditingCompany,
+    selectedCompany, setSelectedCompany,
+    showTransactionModal, setShowTransactionModal,
+    includeZeroBalance, setIncludeZeroBalance,
+    companyTransactions, setCompanyTransactions,
+    openingBalances, setOpeningBalances,
+    transactionLoading, setTransactionLoading,
+    transactionStartDate, setTransactionStartDate,
+    transactionEndDate, setTransactionEndDate,
+    showAddTransactionModal, setShowAddTransactionModal,
+    newTransactionType, setNewTransactionType,
+    newTransactionAmount, setNewTransactionAmount,
+    newTransactionDescription, setNewTransactionDescription,
+    newTransactionDate, setNewTransactionDate,
+    newTransactionPaymentMethod, setNewTransactionPaymentMethod,
+    newTransactionCurrency, setNewTransactionCurrency,
+    newTransactionExchangeRate, setNewTransactionExchangeRate,
+    selectedCurrency, setSelectedCurrency,
+    fetchCompanies,
+    handleAddCompany,
+    handleDeleteCompany,
+    handleExportCompanies,
+    handleFetchTransactions,
+    handleDeleteTransaction,
+    handleEditTransaction,
+    handleExportTransactionsPDF,
+    handleExportTransactionsExcel,
+    handleAddTransaction
+  } = useCompanies(user, currentStoreId, lang, branding);
+
+  const { properties, contacts, loading: realEstateLoading, saveProperty, saveContact, deleteProperty, deleteContact } = useRealEstate(currentStoreId);
+
+  const webOwnerLeadsCount = useMemo(() => {
+    if (!Array.isArray(contacts)) return 0;
+    return contacts.filter(c => c.notes && c.notes.includes('[MÜLK SAHİBİ BAŞVURUSU]')).length;
+  }, [contacts]);
+
+  useEffect(() => {
+    localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
+  }, [activeTab, user.store_id]);
+  
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [realEstateStatusFilter, setRealEstateStatusFilter] = useState("all");
+  const shippingSlipRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({ contentRef: shippingSlipRef });
+  const [selectedPurchaseInvoice, setSelectedPurchaseInvoice] = useState<any>(null);
+  const qrPrintRef = useRef<HTMLDivElement>(null);
+  const handlePrintQR = useReactToPrint({ contentRef: qrPrintRef });
+  const [showPurchaseInvoiceDetailsModal, setShowPurchaseInvoiceDetailsModal] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('desktopSidebarCollapsed') === 'true';
+  });
+
+  const companyList = Array.isArray(companies) ? companies : [];
+
+  useEffect(() => {
+    localStorage.setItem('desktopSidebarCollapsed', desktopSidebarCollapsed.toString());
+  }, [desktopSidebarCollapsed]);
+
+  useEffect(() => {
+    if (editingQuotation) {
+      setIsTaxInclusive(!!editingQuotation.is_tax_inclusive);
+      setQuotationNotes(editingQuotation.notes || "");
+    } else {
+      setIsTaxInclusive(true);
+    }
+  }, [editingQuotation]);
+
+  useEffect(() => {
+    if (showQuotationModal) {
+      const trDahil = '*Fiyatlarımıza Vergiler Dahildir!';
+      const trHaric = '*Fiyatlarımıza KDV Dahil Değildir. Vergi Oranı Ürün Satırında Belirtilmiştir.';
+      const enDahil = '*Prices Include Taxes!';
+      const enHaric = '*Prices Exclude VAT. Tax Rates are Specified in Product Lines.';
+      
+      const isDefault = quotationNotes === '' || 
+                        quotationNotes === trDahil || 
+                        quotationNotes === trHaric ||
+                        quotationNotes === enDahil ||
+                        quotationNotes === enHaric;
+
+      if (isDefault) {
+        if (isTaxInclusive) {
+          setQuotationNotes(lang === 'tr' ? trDahil : enDahil);
+        } else {
+          setQuotationNotes(lang === 'tr' ? trHaric : enHaric);
+        }
+      }
+    }
+  }, [isTaxInclusive, showQuotationModal, lang, editingQuotation]);
+
+  const [showCancelReasonModal, setShowCancelReasonModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [showDailyReportModal, setShowDailyReportModal] = useState(false);
+  const [saleToCancel, setSaleToCancel] = useState<number | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+
+  const handleCancelSale = async () => {
+    if (!saleToCancel || !cancelReason) return;
+    await handleCancelPendingSale(saleToCancel, cancelReason);
+    setShowCancelReasonModal(false);
+    setCancelReason("");
+    setSaleToCancel(null);
+  };
+  const [dailyReportData, setDailyReportData] = useState<{ summary: any[], details: any[] }>({ summary: [], details: [] });
+  const [reportStartDate, setReportStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reportEndDate, setReportEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const isViewer = user.role === 'viewer';
+  const effectiveSlug = branding.parent_slug || slug || user.store_slug;
+  const publicUrl = `${window.location.origin}/s/${effectiveSlug}`;
+  const scanUrl = `${window.location.origin}/scan/${effectiveSlug}`;
+
+  const hasDashboardInitialLoaded = useRef(false);
+
+  const fetchAnalytics = async (start?: string, end?: string) => {
+    if (!currentStoreId) return;
+    try {
+      const res = await api.getAnalytics(currentStoreId, start, end);
+      setAnalytics(res && !res.error ? res : null);
+    } catch (error) {
+      console.error("Fetch analytics error:", error);
+    }
+  };
+
+  const fetchData = useCallback(async (isSilent = false) => {
+    const silent = isSilent || hasDashboardInitialLoaded.current;
+    try {
+      if (!silent) setLoading(true);
+      
+      let targetStoreId = currentStoreId || user.store_id;
+      
+      if (slug) {
+        const storeInfo = await api.getBranding(undefined, slug);
+        if (storeInfo && storeInfo.id) {
+          targetStoreId = storeInfo.id;
+        } else if (storeInfo && storeInfo.error) {
+          if (!silent) setLoading(false);
+          return;
+        }
+      } else if (user.role === 'superadmin' && !targetStoreId) {
+        window.location.href = "/admin";
+        return;
+      }
+      
+      if (targetStoreId === undefined || targetStoreId === null) {
+        if (!silent) setLoading(false);
+        return;
+      }
+      
+      const requests: any[] = [
+        api.getProducts("", targetStoreId, includeBranches),
+        api.getBranding(targetStoreId),
+        api.getUsers(targetStoreId),
+        api.getBranches(targetStoreId)
+      ];
+
+      const results = await Promise.all(requests);
+      const [productsRes, brandingRes, usersRes, branchesRes] = results;
+
+      if (Array.isArray(productsRes)) {
+        setProducts(productsRes);
+      }
+      if (brandingRes && !brandingRes.error) setBranding(brandingRes);
+      setUsers(Array.isArray(usersRes) ? usersRes : []);
+      setBranches(Array.isArray(branchesRes) ? branchesRes : []);
+
+      hasDashboardInitialLoaded.current = true;
+    } catch (error) {
+      console.error("Fetch error in StoreDashboard:", error);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [includeBranches, user.role, user.store_id, slug, currentStoreId, setProducts, setBranding, setLoading]);
+
+  const fetchDailySalesReport = async () => {
+    if (!currentStoreId) return;
+    try {
+      setReportLoading(true);
+      const res = await api.getDailySalesReport(reportStartDate, reportEndDate, currentStoreId);
+      setDailyReportData(res && res.summary ? res : { summary: [], details: [] });
+    } catch (error) {
+      console.error("Fetch daily report error:", error);
+      setDailyReportData({ summary: [], details: [] });
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleDownloadDailyReportExcel = async () => {
+    const XLSX = await import('xlsx');
+    if (!dailyReportData.details || dailyReportData.details.length === 0) {
+      alert(t.noDataToDownload || "İndirilecek veri bulunamadı");
+      return;
+    }
+
+    const data = dailyReportData.details.map(d => ({
+      [t.statements.date]: formatDateTimeTR(d.created_at),
+      [t.customer]: d.customer_name || '-',
+      [t.amount]: d.amount,
+      [t.paymentMethod || 'Payment Method']: t[d.payment_method] || d.payment_method,
+      [t.statements.source]: t.sources[d.source] || d.source,
+      [t.saleId || 'Sale ID']: d.sale_id ? `#${d.sale_id}` : '-'
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, t.cashReport || "Kasa Raporu");
+    XLSX.writeFile(wb, `${t.cashReport || 'Kasa_Raporu'}_${formatFileDateTR(reportStartDate)}_${formatFileDateTR(reportEndDate)}.xlsx`);
+  };
+
+  const [notifications, setNotifications] = useState<any>({
+    transfers: 0,
+    service: 0,
+    quotations: 0,
+    sales: 0,
+    web_sales: 0,
+    hotel_reservations: 0,
+    fleet: 0,
+    sales_invoices: 0,
+    purchase_invoices: 0
+  });
+
+  const prevHotelResCount = useRef<number>(0);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!currentStoreId) return;
+    try {
+      const data = await api.getNotifications(currentStoreId);
+      setNotifications(data);
+
+      const newHotelCount = Number(data?.hotel_reservations || 0);
+      if (newHotelCount > prevHotelResCount.current && newHotelCount > 0) {
+        setDismissedHotelReservations(false);
+        playHotelReservationChime();
+      }
+      prevHotelResCount.current = newHotelCount;
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  }, [currentStoreId]);
+
+  useEffect(() => {
+    fetchData();
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, isHotelModuleActive ? 30000 : 300000); 
+    return () => clearInterval(interval);
+  }, [fetchData, fetchNotifications, isHotelModuleActive]);
+
+  // Real-time custom event listeners for hotel reservations
+  useEffect(() => {
+    const handleHotelReservationCreated = (e: any) => {
+      if (e.detail?.storeId === currentStoreId) {
+        setDismissedHotelReservations(false);
+        playHotelReservationChime();
+        fetchNotifications();
+      }
+    };
+
+    const handleHotelReservationsUpdated = (e: any) => {
+      if (e.detail?.storeId === currentStoreId) {
+        fetchNotifications();
+      }
+    };
+
+    const handleHotelRoomsUpdated = (e: any) => {
+      if (e.detail?.storeId === currentStoreId) {
+        fetchNotifications();
+        if (e.detail?.rooms && Array.isArray(e.detail.rooms)) {
+          setBranding((prev: any) => prev ? { ...prev, hotel_rooms: e.detail.rooms } : prev);
+        }
+      }
+    };
+
+    window.addEventListener('hotel_reservation_created', handleHotelReservationCreated);
+    window.addEventListener('hotel_reservations_updated', handleHotelReservationsUpdated);
+    window.addEventListener('hotel_rooms_updated', handleHotelRoomsUpdated);
+
+    return () => {
+      window.removeEventListener('hotel_reservation_created', handleHotelReservationCreated);
+      window.removeEventListener('hotel_reservations_updated', handleHotelReservationsUpdated);
+      window.removeEventListener('hotel_rooms_updated', handleHotelRoomsUpdated);
+    };
+  }, [currentStoreId, fetchNotifications]);
+
+  useEffect(() => {
+    if (currentStoreId) {
+      fetchQuotations();
+      fetchCompanies();
+    }
+  }, [fetchQuotations, fetchCompanies, currentStoreId]);
+
+  useEffect(() => {
+    if ((activeTab === 'analytics' || activeTab === 'notifications') && !analytics && currentStoreId) {
+      fetchAnalytics();
+    }
+  }, [activeTab, analytics, currentStoreId]);
+
+  useEffect(() => {
+    if (activeTab === 'pos') {
+      fetchSales();
+    }
+  }, [activeTab, fetchSales]);
+
+  const handleSaleSuccess = async (saleId?: any) => {
+    await fetchData();
+    if (saleId) {
+      handleFetchSalesInvoiceDetails(saleId);
+    }
+  };
+
+  const onBrandingChange = (field: string, value: any) => {
+    setBranding((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const [savingBranding, setSavingBranding] = useState(false);
+
+  const handleSaveBranding = async () => {
+    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    setSavingBranding(true);
+    try {
+      await api.updateBranding(branding, targetStoreId);
+      await fetchData(); 
+      toast.success(t.saveSuccess || (lang === 'tr' ? "Başarıyla kaydedildi" : "Saved successfully"));
+    } catch (error) {
+      toast.error(lang === 'tr' ? "Ayarlar kaydedilirken bir hata oluştu" : "An error occurred while saving settings");
+    } finally {
+      setSavingBranding(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon' | 'banner') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await api.uploadFile(formData);
+      const urlField = type === 'logo' ? 'logo_url' : type === 'favicon' ? 'favicon_url' : 'hero_image_url';
+      onBrandingChange(urlField, res.url);
+      toast.success(lang === 'tr' ? 'Dosya yüklendi' : 'File uploaded');
+    } catch (error) {
+      toast.error("Yükleme hatası");
+    }
+  };
+
+  const quotationPrintRef = useRef<HTMLDivElement>(null);
+  const onDownloadQuotationPDF = async (quotation: any) => {
+    let qData = quotation;
+    if (!quotation.items || quotation.items.length === 0) {
+      try {
+        const response = await api.getQuotation(quotation.id, currentStoreId);
+        qData = response.id ? response : (response.data || response);
+      } catch (error) {
+        console.error("Fetch quotation error for PDF:", error);
+      }
+    }
+    handleDownloadQuotationPDF(qData, branding, lang);
+  };
+
+  const handlePrintQuotation = useReactToPrint({
+    contentRef: quotationPrintRef,
+  });
+
+  const handleExportQuotations = async () => {
+    const XLSX = await import('xlsx');
+    const data = quotationList.map(q => ({
+      [t.quotationNo || 'Quotation No']: q.id,
+      [t.statements.date]: formatDateTR(q.created_at),
+      [t.customer]: q.customer_name,
+      [t.amount]: `${Number(q.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${q.currency?.slice(0, 3)}`,
+      [t.status]: q.status === 'approved' || q.status === 'sold' ? t.completed : q.status === 'cancelled' ? t.cancelled : t.pending
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, t.quotations);
+    XLSX.writeFile(wb, `${t.quotations}_${formatFileDateTR()}.xlsx`);
+  };
+
+  const handleFetchPurchaseInvoiceDetails = async (id: number) => {
+    try {
+      const res = await api.getPurchaseInvoice(id, currentStoreId);
+      setSelectedPurchaseInvoice(res);
+      setShowPurchaseInvoiceDetailsModal(true);
+    } catch (error) {
+      console.error("Fetch purchase invoice details error:", error);
+    }
+  };
+
+  const handleFetchSalesInvoiceDetails = async (id: number) => {
+    try {
+      const res = await api.getSalesInvoice(id, currentStoreId);
+      setSelectedSale(res);
+      setShowSaleDetailsModal(true);
+    } catch (error) {
+      console.error("Fetch sales invoice details error:", error);
+    }
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetStoreId = user?.role === 'superadmin' ? currentStoreId : undefined;
+    const formData = new FormData(e.target as HTMLFormElement);
+    const data = Object.fromEntries(formData.entries());
+    try {
+      await api.addUser(data, targetStoreId);
+      setShowUserModal(false);
+      fetchData();
+    } catch (error: any) {
+      alert(error.response?.data?.error || "Hata oluştu");
+    }
+  };
+
+  const handleDeleteUser = async (id: number) => {
+    const targetStoreId = user?.role === 'superadmin' ? currentStoreId : undefined;
+    if (window.confirm(t.confirmDelete)) {
+      try {
+        await api.deleteUser(id, targetStoreId);
+        fetchData();
+      } catch (error) {
+        alert("Hata oluştu");
+      }
+    }
+  };
+
+  // Redirection effects have been unified below permittedTabIds definition for dynamic/lazy execution.
+
+  const rawNavItems = isPortfolio ? [
+    { type: 'category', key: "real_estate", title: txt('Portföy & İlan', 'Portfolios & Listings', 'Χαρτοφυλάκιο & Αγγελίες'), items: [
+      ...(isRealEstate ? [{ id: "real_estate", label: txt('Gayrimenkul Portföyü', 'Real Estate Portfolio', 'Χαρτοφυλάκιο Ακινήτων'), icon: Home }] : []),
+      ...(isAutomotive ? [{ id: "fleet", label: txt('Oto Galeri / Araçlar', 'Automotive / Vehicles', 'Αντιπροσωπεία / Οχήματα'), icon: Car, badge: notifications.fleet }] : []),
+    ]},
+    { type: 'category', key: "finance_operations", title: txt('Finans & Operasyon', 'Finance & Operations', 'Οικονομικά & Λειτουργίες'), items: [
+      ...(!isPortfolio ? [{ id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices }] : []),
+      ...(!isPortfolio ? [{ id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' }] : []),
+      ...(!isPortfolio ? [{ id: "e_waybills", label: txt('e-İrsaliyeler', 'e-Waybills', 'Ηλεκτρονικά Δελτία Αποστολής'), icon: Truck }] : []),
+      { id: "companies", label: t.companies, icon: Store },
+      { id: "portfolio_finances", label: txt('Gelir & Gider / Kasa', 'Finances & Cash Flow', 'Έσοδα & Έξοδα / Ταμείο'), icon: Wallet },
+    ]},
+    { type: 'category', key: "team", title: txt('Personel & Şube', 'Staff & Branches', 'Προσωπικό & Υποκαταστήματα'), items: [
+      { id: "team-crm", label: txt('Personel & Şube Yönetimi', 'Staff & Branch CRM', 'Διαχείριση Προσωπικού & Υποκαταστημάτων'), icon: Users },
+      { id: "real_estate_crm", label: txt('Mülk Sahibi & Yatırımcı CRM', 'Property Owner & Investor CRM', 'CRM Ιδιοκτητών & Επενδυτών'), icon: Users, badge: webOwnerLeadsCount > 0 ? webOwnerLeadsCount : undefined, badgeType: 'error' },
+      ...(isRealEstate ? [{ id: "authority_transfer", label: txt('Yetki Devri (Tapu)', 'Authority Transfer', 'Μεταβίβαση Εξουσιοδότησης'), icon: Briefcase }] : []),
+    ]},
+    { type: 'category', key: "integrations", title: txt('Yedekleme & Kanallar', 'Backup & Channels', 'Δημιουργία Αντιγράφων & Κανάλια'), items: [
+      { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
+      { id: "settings_yedekleme", label: txt('Yedekleme', 'Backup', 'Δημιουργία Αντιγράφων'), icon: Database },
+    ]},
+    { type: 'category', key: "dashboard", title: txt('İstatistik & Rapor', 'Analytics & Logs', 'Στατιστικά & Αναφορές'), items: [
+      { id: "analytics", label: t.analytics, icon: BarChart3 },
+      { id: "radar_alerts", label: txt(isAutomotive ? 'Motorlu Taşıtlar & Haber Radarı' : 'İmar & Haber Radarı', 'Radar & Alerts', 'Ραντάρ & Ειδοποιήσεις'), icon: Radar },
+      { id: "notifications", label: txt('Bildirimler', 'Notifications', 'Ειδοποιήσεις'), icon: Bell },
+      { id: "blog", label: txt('Blog', 'Blog', 'Blog'), icon: BookOpen },
+      { id: "seo", label: txt('SEO Sayfaları', 'SEO Pages', 'Σελίδες SEO'), icon: Globe },
+      { id: "website-generator", label: txt('Web Sitesi & Footer Yönetimi', 'Website & Footer Management', 'Διαχείριση Ιστοσελίδας & Footer'), icon: Globe },
+      { id: "audit-logs", label: t.auditLogs, icon: History },
+    ]},
+    { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
+  ] : [
+    { type: 'category', key: "operations", title: txt('Operasyonlar', 'Operations', 'Λειτουργίες'), items: [
+      { id: "products", label: t.products, icon: Package },
+      ...(isHotelModuleActive ? [{ 
+        id: "hotel-rooms", 
+        label: txt('Otel & Oda Yönetimi', 'Hotel & Room Management', 'Διαχείριση Δωματίων'), 
+        icon: Building2,
+        badge: Number(notifications?.hotel_reservations || 0),
+        badgeType: 'warning'
+      }] : []),
+      { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices },
+      ...(!isCafeRestaurant ? [{ id: "service", label: t.service, icon: Wrench, badge: notifications.service }] : []),
+      ...(!isCafeRestaurant ? [{ id: "fleet", label: txt('Filo Yönetimi', 'Fleet Management', 'Διαχείριση Στόλου'), icon: Car, badge: notifications.fleet }] : []),
+      { id: "procurements", label: t.procurements, icon: Truck },
+      { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
+    ]},
+    { type: 'category', key: "sales", title: txt('Finans', 'Finance', 'Οικονομικά'), items: [
+      ...(!isCafeRestaurant ? [{ id: "quotations", label: t.quotations, icon: FileCheck }] : []),
+      { id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' },
+      ...(!isCafeRestaurant ? [{ id: "e_waybills", label: txt('e-İrsaliyeler', 'e-Waybills', 'Ηλεκτρονικά Δελτία Αποστολής'), icon: Truck }] : []),
+      { id: "companies", label: t.companies, icon: Store },
+      { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
+      { id: "fast-pos", label: t.fastPos, icon: Scan },
+    ]},
+    { type: 'category', key: "integrations", title: txt('Yedekleme & Kanallar', 'Backup & Channels', 'Δημιουργία Αντιγράφων & Κανάλια'), items: [
+      { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
+      ...(!isCafeRestaurant ? [{ id: "google-merchant", label: "Google Merchant", icon: ShoppingBag }] : []),
+      { id: "settings_yedekleme", label: txt('Yedekleme', 'Backup', 'Δημιουργία Αντιγράφων'), icon: Database },
+    ]},
+    { type: 'category', key: "dashboard", title: txt('İstatistik & Blog', 'Analytics & Blog', 'Στατιστικά & Blog'), items: [
+      { id: "analytics", label: t.analytics, icon: BarChart3 },
+      { id: "notifications", label: txt('Bildirimler', 'Notifications', 'Ειδοποιήσεις'), icon: Bell },
+      { id: "blog", label: txt('Blog', 'Blog', 'Blog'), icon: BookOpen },
+      ...(!isCafeRestaurant ? [{ id: "faq", label: txt('S.S.S', 'FAQ', 'Συχνές Ερωτήσεις'), icon: HelpCircle }] : []),
+      { id: "audit-logs", label: t.auditLogs, icon: History },
+    ]},
+    { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
+  ];
+
+  const navItems = React.useMemo(() => {
+    if (!isCafeRestaurant) return rawNavItems;
+    
+    // Cafe/Restaurant menu: Only show required items
+    const restaurantItems = rawNavItems
+      .map(category => {
+        if (category.type === 'category') {
+          return {
+            ...category,
+            items: category.items.filter(item => 
+              // Hide these specifically for cafe/restaurant
+              !['service', 'fleet', 'quotations', 'e_waybills', 'google-merchant'].includes(item.id)
+            )
+          };
+        }
+        return category;
+      })
+      .filter(category => category.type === 'item' || (category.type === 'category' && category.items.length > 0));
+
+    if (activeStaffRole === 'waiter') {
+      return [
+        { type: 'item', id: "fast-pos", label: txt('Hızlı POS / Masalar', 'Fast POS / Tables', 'Γρήγορο POS / Τραπέζια'), icon: Scan }
+      ];
+    }
+    if (activeStaffRole === 'cashier') {
+      return [
+        { type: 'item', id: "fast-pos", label: txt('Hızlı POS / Masalar', 'Fast POS / Tables', 'Γρήγορο POS / Τραπέζια'), icon: Scan },
+        { type: 'item', id: "products", label: txt('Ürün & Fiyat Listesi', 'Products & Price List', 'Προϊόντα & Τιμοκατάλογος'), icon: Package },
+        { type: 'item', id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
+        { type: 'item', id: "procurements", label: t.procurements, icon: Truck },
+        { type: 'item', id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight },
+        { type: 'item', id: "sales_invoices", label: txt('Satış Faturaları', 'Sales Invoices', 'Τιμολόγια Πώλησης'), icon: FileText },
+        { type: 'item', id: "companies", label: t.companies, icon: Store },
+        { type: 'item', id: "pos", label: t.pos, icon: CreditCard }
+      ];
+    }
+    return restaurantItems;
+  }, [rawNavItems, activeStaffRole, isCafeRestaurant, isTr, t.companies, t.purchase_invoices, t.procurements, t.stock_transfer]);
+
+  const currentMenuItem: any = (navItems as any[]).flatMap(c => c.type === 'category' ? c.items : [c]).find(i => i && i.id === activeTab);
+
+  const permittedTabIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    navItems.forEach((item: any) => {
+      if (item.type === 'category') {
+        item.items?.forEach((child: any) => {
+          if (child?.id) ids.add(child.id);
+        });
+      } else if (item.id) {
+        ids.add(item.id);
+      }
+    });
+    // ALWAYS permit 'settings' and 'settings_yedekleme' as a fallback safety
+    ids.add('settings');
+    ids.add('settings_yedekleme');
+    return ids;
+  }, [navItems]);
+
+  // Bulletproof fallback redirection for unauthorized/unrelated tabs (Zero-Stale Tab Protocol)
+  useEffect(() => {
+    if (permittedTabIds.size > 0 && !permittedTabIds.has(activeTab)) {
+      // If we are in portfolio, prefer real_estate/fleet over fast-pos or default
+      if (isPortfolio) {
+        if (isAutomotive && !isRealEstate && permittedTabIds.has('fleet')) {
+          setActiveTab('fleet');
+          return;
+        }
+        if (permittedTabIds.has('real_estate')) {
+          setActiveTab('real_estate');
+          return;
+        }
+      }
+      
+      // If we are in cafe/restaurant, prefer fast-pos
+      if (isCafeRestaurant && permittedTabIds.has('fast-pos')) {
+        setActiveTab('fast-pos');
+        return;
+      }
+
+      // Default fallback
+      const firstTab = Array.from(permittedTabIds)[0];
+      if (firstTab) {
+        setActiveTab(firstTab);
+      }
+    }
+  }, [permittedTabIds, activeTab, setActiveTab, isPortfolio, isAutomotive, isRealEstate, isCafeRestaurant]);
+
+  return (
+    <DashboardLayout
+      lang={lang}
+      loading={loading}
+      sidebarProps={{
+        navItems,
+        activeTab,
+        setActiveTab,
+        branding,
+        publicUrl,
+        scanUrl,
+        isPortfolio,
+        isRealEstate,
+        isAutomotive,
+        isCafeRestaurant,
+        currentStoreId,
+        onLogout,
+        setShowQrModal,
+        activeStaffRole,
+        onOpenRoleModal: () => {
+          setModalRole(activeStaffRole);
+          setPinValue('');
+          setPinError(false);
+          setIsEditingPins(false);
+          setShowRoleModal(true);
+        },
+        sidebarOpen,
+        setSidebarOpen,
+        desktopSidebarCollapsed,
+        setDesktopSidebarCollapsed,
+        translations: t,
+        startTransition
+      }}
+    >
+      <div className={activeTab === 'fast-pos' ? "space-y-0" : "space-y-8"}>
+        {user?.password_needs_update && (
+          <div className="mb-6">
+            {!showPasswordBanner ? (
+              <button 
+                onClick={() => setShowPasswordBanner(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors shadow-sm"
+              >
+                <span className="text-sm">🛡️</span> {isTr ? 'Şifre Güvenlik Uyarısı' : 'Password Security Alert'}
+              </button>
+            ) : (
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm relative">
+                <button 
+                  onClick={() => setShowPasswordBanner(false)}
+                  className="absolute top-2 right-2 text-rose-400 hover:text-rose-600 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="flex items-start gap-2.5 pr-6">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500 text-white flex items-center justify-center font-black shrink-0 text-lg">
+                    🛡️
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-rose-700 text-xs uppercase tracking-tight">{isTr ? 'Güvenlik Uyarısı' : 'Security Alert'}</h4>
+                    <p className="text-rose-600 font-medium text-[11px] mt-0.5 leading-tight max-w-lg">
+                      {isTr ? 'Hesabınızın güvenliği için lütfen şifrenizi güncelleyiniz. (En az 12 karakter, büyük/küçük harf, rakam ve sembol).' : 'Please update your password for your account security. (Min 12 characters, uppercase/lowercase, numbers and symbols).'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowPasswordModal(true)}
+                  className="px-3 py-1.5 bg-rose-600 text-white text-[11px] font-bold uppercase tracking-wider rounded-lg hover:bg-rose-700 transition-colors shrink-0 cursor-pointer"
+                >
+                  {isTr ? 'Şifremi Değiştir' : 'Change Password'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <ChangePasswordModal 
+          isOpen={showPasswordModal}
+          onClose={() => setShowPasswordModal(false)}
+          onSuccess={() => {
+            // Optimistically update local user state
+            const updatedUser = { ...user, password_needs_update: false };
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            toast.success("Şifreniz başarıyla güncellendi.");
+            // A page reload or state update would ideally happen here to hide the banner,
+            // but we can just reload the window for simplicity and security after password change.
+            window.location.reload();
+          }}
+          translations={t}
+        />
+
+        {!dismissedWebSales && notifications?.web_sales > 0 && (
+          <div className="mb-6 bg-rose-500/10 border-2 border-rose-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center text-xl font-black shrink-0 shadow">
+                🛍️
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                    {isTr ? `YENİ WEB SİPARİŞİ (${notifications.web_sales} Bekleyen)` : `NEW WEB ORDER (${notifications.web_sales})`}
+                  </span>
+                  <span className="animate-pulse px-2 py-0.5 bg-rose-500 text-white font-black text-[10px] rounded-full uppercase">
+                    {isTr ? 'Aksiyon Bekliyor' : 'Action Required'}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                  {isTr 
+                    ? 'E-Ticaret siteniz üzerinden yeni siparişleriniz var. Sipariş durumlarını "Satışlar" (Finans) sekmesinden güncelleyebilirsiniz.' 
+                    : 'You have new orders from your website. Please check the Sales tab to process them.'}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => { setActiveTab("pos"); setDismissedWebSales(true); }}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-rose-400 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center gap-1.5 border border-rose-500/30"
+            >
+              <span>{isTr ? 'Satışları Görüntüle' : 'View Sales'}</span>
+              <span>→</span>
+            </button>
+          </div>
+        )}
+
+        {!dismissedHotelReservations && isHotelModuleActive && Number(notifications?.hotel_reservations || 0) > 0 && (
+          <div className="mb-6 bg-amber-500/10 border-2 border-amber-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md animate-fadeIn">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl font-black shrink-0 shadow">
+                🏨
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                    {isTr ? `YENİ OTEL REZERVASYONU (${notifications.hotel_reservations} Bekleyen)` : `NEW HOTEL RESERVATION (${notifications.hotel_reservations})`}
+                  </span>
+                  <span className="animate-pulse px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-[10px] rounded-full uppercase">
+                    {isTr ? 'Aksiyon Bekliyor' : 'Action Required'}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                  {isTr 
+                    ? 'Web siteniz üzerinden yeni oda rezervasyonu alındı. Misafir kayıt, check-in veya oda ataması yapmak için rezervasyonları inceleyebilirsiniz.' 
+                    : 'A new online hotel reservation was completed. Please check room assignments or check-in to confirm.'}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => { setActiveTab("hotel-rooms"); setDismissedHotelReservations(true); }}
+                className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center justify-center gap-1.5 border border-amber-500/30 cursor-pointer"
+              >
+                <span>{isTr ? 'Rezervasyonları Yönet' : 'Manage Reservations'}</span>
+                <span>→</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {webOwnerLeadsCount > 0 && (
+          <div className="mb-6 bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl font-black shrink-0 shadow">
+                🏡
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                    {isTr ? `YENİ MÜLK SAHİBİ BAŞVURUSU (${webOwnerLeadsCount} Talep)` : `NEW PROPERTY OWNER LEAD (${webOwnerLeadsCount})`}
+                  </span>
+                  <span className="animate-pulse px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-[10px] rounded-full uppercase">
+                    {isTr ? 'Aksiyon Bekliyor' : 'Action Required'}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                  {isTr 
+                    ? 'Web sitenizdeki "Mülk Sahibi Başvuru Formu" üzerinden yeni mülk değerleme ve portföye ekleme talepleri alındı.' 
+                    : 'New property valuation & portfolio listing requests received from website owner application forms.'}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveTab("real_estate_crm")}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center gap-1.5 border border-amber-500/30"
+            >
+              <span>{isTr ? 'Mülk Sahibi CRM Taleplerini Aç' : 'View Owner Leads'}</span>
+              <span>→</span>
+            </button>
+          </div>
+        )}
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className={`transition-opacity duration-200 max-w-full overflow-x-clip ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
+          >
+            <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+              {activeTab === "faq" && isCafeRestaurant && permittedTabIds.has("faq") && <FaqTab />}
+              {activeTab === "products" && permittedTabIds.has("products") && (
+                <ProductsTab 
+                  products={products}
+                  loading={loading}
+                  isViewer={isViewer || (isCafeRestaurant && activeStaffRole !== 'manager')}
+                  onDeleteAll={handleDeleteAllProducts}
+                  onBulkDelete={handleBulkDelete}
+                  onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
+                  onAddNew={() => { setEditingProduct(null); setShowProductModal(true); }}
+                  onImport={() => setShowImportModal(true)}
+                  onDelete={handleDeleteProduct}
+                  onExportReport={handleExportProducts}
+                  onApplyTaxRule={handleApplyTaxRule}
+                  onBulkPriceUpdate={() => setShowBulkPriceModal(true)}
+                  onBulkRecalculatePrice2={handleBulkRecalculatePrice2}
+                  onBulkAdd={handleBulkAdd}
+                  onBulkRename={handleBulkRename}
+                  onReformatNames={handleReformatProductNames}
+                  onShowQr={() => setShowQrModal(true)}
+                  branding={branding}
+                  isCafeRestaurant={isCafeRestaurant}
+                  showStoreName={branding?.show_store_name}
+                  currentStoreId={currentStoreId!}
+                  includeBranches={includeBranches}
+                  branches={branches}
+                  setIncludeBranches={setIncludeBranches}
+                  propertiesCount={properties.length}
+                  onSwitchTab={(tab) => setActiveTab(tab)}
+                  onRefresh={fetchProductsData}
+                />
+              )}
+              {activeTab === "real_estate" && permittedTabIds.has("real_estate") && (
+                <RealEstateTab 
+                  properties={properties}
+                  loading={realEstateLoading}
+                  onSave={saveProperty}
+                  onDelete={deleteProperty}
+                  user={user}
+                  branding={branding}
+                  initialStatusFilter={realEstateStatusFilter}
+                  onResetStatusFilter={() => setRealEstateStatusFilter("all")}
+                  storeId={currentStoreId!}
+                />
+              )}
+              {activeTab === "fleet" && permittedTabIds.has("fleet") && (
+                <FleetTab storeId={currentStoreId!} isViewer={isViewer} branding={branding} />
+              )}
+              {activeTab === "analytics" && permittedTabIds.has("analytics") && (
+                isPortfolio ? (
+                  <PortfolioAnalyticsTab 
+                    analytics={analytics} 
+                    branding={branding} 
+                    loading={loading}
+                    onDateChange={(start, end) => fetchAnalytics(start, end)}
+                    onNavigateTab={(tab) => setActiveTab(tab)}
+                  />
+                ) : (
+                  <AnalyticsTab 
+                    analytics={analytics} 
+                    branding={branding} 
+                    onDateChange={(start, end) => fetchAnalytics(start, end)} 
+                    loading={loading} 
+                  />
+                )
+              )}
+              {activeTab === "pos" && permittedTabIds.has("pos") && (
+                <PosTab 
+                  sales={sales}
+                  loading={salesLoading}
+                  statusFilter={salesStatusFilter}
+                  onStatusFilterChange={setSalesStatusFilter}
+                  startDate={salesStartDate}
+                  onStartDateChange={setSalesStartDate}
+                  endDate={salesEndDate}
+                  onEndDateChange={setSalesEndDate}
+                  onViewDetails={(s) => { setSelectedSale(s); setShowSaleDetailsModal(true); }}
+                  onDeleteSale={(id) => { setSaleToCancel(id); setShowCancelReasonModal(true); }}
+                  onExportReport={handleExportSales}
+                  isViewer={isViewer}
+                  activeStoreId={currentStoreId}
+                  onRefreshSales={fetchSales}
+                  branding={branding}
+                />
+              )}
+              {showCancelReasonModal && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6"
+                  >
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">{txt('İptal Sebebi', 'Cancellation Reason', 'Λόγος Ακύρωσης')}</h3>
+                    <textarea 
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4"
+                      rows={3}
+                      placeholder={txt('İptal nedenini girin...', 'Enter cancellation reason...', 'Εισαγάγετε τον λόγο ακύρωσης...')}
+                    />
+                    <div className="flex justify-end gap-3">
+                      <button onClick={() => setShowCancelReasonModal(false)} className="px-4 py-2 text-slate-500 font-bold">{t.cancel}</button>
+                      <button onClick={handleCancelSale} className="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold">{txt('İptal Et', 'Cancel', 'Ακύρωση')}</button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+              {activeTab === "fast-pos" && permittedTabIds.has("fast-pos") && (
+                <FastPosTab 
+                  branding={branding} 
+                  onSaleComplete={handleSaleSuccess}
+                  storeId={currentStoreId!} 
+                  activeStaffRole={activeStaffRole}
+                  setShowQuickProductModal={setShowQuickProductModal}
+                  setQuickProductForm={setQuickProductForm}
+                />
+              )}
+              {activeTab === "sales_invoices" && !isPortfolio && permittedTabIds.has("sales_invoices") && (
+                <SalesInvoices 
+                  storeId={currentStoreId} 
+                  role={user.role} 
+                  lang={lang} 
+                  api={api} 
+                  branding={branding} 
+                  onFetchDetails={handleFetchSalesInvoiceDetails}
+                  products={products}
+                  onEditProduct={(item: any) => {
+                    const normItemName = (item.product_name || item.name || '').trim().toLowerCase();
+                    const normItemBarcode = (item.barcode || '').trim();
+
+                    const found = products.find((p: any) => {
+                      if (item.product_id && Number(p.id) === Number(item.product_id)) return true;
+                      if (normItemName && p.name && p.name.trim().toLowerCase() === normItemName) return true;
+                      if (normItemBarcode && normItemName && p.barcode && p.name && p.barcode.trim() === normItemBarcode && p.name.trim().toLowerCase() === normItemName) return true;
+                      return false;
+                    });
+
+                    if (found) {
+                      setEditingProduct(found);
+                    } else {
+                      setEditingProduct({
+                        id: item.product_id ? Number(item.product_id) : undefined,
+                        name: item.product_name || item.name || '',
+                        barcode: item.barcode || '',
+                        price: Number(item.unit_price) || 0,
+                        cost_price: Number(item.unit_price) * 0.8 || 0,
+                        tax_rate: Number(item.tax_rate) || 20,
+                        stock_quantity: Number(item.quantity) || 0
+                      } as any);
+                    }
+                    setShowProductModal(true);
+                  }}
+                />
+              )}
+              {activeTab === "e_waybills" && !isPortfolio && permittedTabIds.has("e_waybills") && (
+                <EWaybillsTab 
+                  storeId={currentStoreId} 
+                  lang={lang} 
+                  api={api} 
+                  branding={branding} 
+                />
+              )}
+              {activeTab === "quotations" && permittedTabIds.has("quotations") && (
+                <QuotationsTab 
+                  quotations={quotationList}
+                  isViewer={isViewer}
+                  onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
+                  onGeneratePDF={onDownloadQuotationPDF}
+                  onApprove={handleApproveQuotation}
+                  onCancel={handleCancelQuotation}
+                  onConvertToSale={(q) => { setSelectedQuotation(q); setShowSaleModal(true); }}
+                  onEdit={(q) => { setEditingQuotation(q); setQuotationItems(q.items || []); setShowQuotationModal(true); }}
+                  onDelete={handleDeleteQuotation}
+                  onSearchChange={setQuotationSearch}
+                  onStatusFilterChange={setQuotationStatusFilter}
+                  onExportReport={handleExportQuotations}
+                  statusFilter={quotationStatusFilter}
+                  onShowQr={() => setShowQrModal(true)}
+                  onNewQuotation={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }}
+                />
+              )}
+              {activeTab === "companies" && permittedTabIds.has("companies") && (
+                <CompaniesTab 
+                  companies={companyList} 
+                  isViewer={isViewer}
+                  onViewTransactions={(c) => { setSelectedCompany(c); setShowTransactionModal(true); }}
+                  onEdit={(c) => { setEditingCompany(c); setShowCompanyModal(true); }} 
+                  onDelete={handleDeleteCompany} 
+                  onExportReport={handleExportCompanies}
+                  includeZero={includeZeroBalance}
+                  onIncludeZeroChange={setIncludeZeroBalance}
+                  defaultCurrency={branding.default_currency}
+                  onNewCompany={() => { setEditingCompany(null); setShowCompanyModal(true); }}
+                />
+              )}
+              {activeTab === "procurements" && permittedTabIds.has("procurements") && (
+                <ProcurementTab storeId={currentStoreId!} isViewer={isViewer} />
+              )}
+              {activeTab === "purchase_invoices" && !isPortfolio && permittedTabIds.has("purchase_invoices") && (
+                <PurchaseInvoices 
+                  storeId={currentStoreId} 
+                  role={user.role} 
+                  lang={lang} 
+                  api={api} 
+                  branding={branding} 
+                  onFetchDetails={handleFetchPurchaseInvoiceDetails}
+                  products={products}
+                  onEditProduct={(item: any) => {
+                    const normItemName = (item.product_name || item.name || '').trim().toLowerCase();
+                    const normItemBarcode = (item.barcode || '').trim();
+                    const normItemCode = (item.product_code || '').trim().toLowerCase();
+
+                    const found = products.find((p: any) => {
+                      if (item.product_id && Number(p.id) === Number(item.product_id)) return true;
+                      if (normItemBarcode && p.barcode && p.barcode.trim() === normItemBarcode) return true;
+                      if (normItemCode && p.product_code && p.product_code.trim().toLowerCase() === normItemCode) return true;
+                      if (normItemName && p.name && p.name.trim().toLowerCase() === normItemName) return true;
+                      return false;
+                    });
+
+                    if (found) {
+                      setEditingProduct({
+                        ...found,
+                        _purchaseInvoiceItemId: item.id
+                      });
+                    } else {
+                      setEditingProduct({
+                        id: item.product_id ? Number(item.product_id) : undefined,
+                        _purchaseInvoiceItemId: item.id,
+                        name: item.product_name || item.name || '',
+                        barcode: item.barcode || '',
+                        product_code: item.product_code || '',
+                        cost_price: Number(item.unit_price) || 0,
+                        price: Number(item.unit_price) * 1.25 || 0,
+                        tax_rate: Number(item.tax_rate) || 20,
+                        stock_quantity: Number(item.quantity) || 0
+                      } as any);
+                    }
+                    setShowProductModal(true);
+                  }}
+                />
+              )}
+              {activeTab === "stock_transfer" && permittedTabIds.has("stock_transfer") && (
+                <StockTransferTab 
+                  storeId={currentStoreId!} 
+                  products={products}
+                  isViewer={isViewer} 
+                  includeBranches={includeBranches}
+                  onUpdate={fetchData}
+                  branding={branding}
+                />
+              )}
+              {activeTab === "service" && permittedTabIds.has("service") && (
+                <ServiceTab 
+                  storeId={currentStoreId!} 
+                  isViewer={isViewer} 
+                  products={products} 
+                  role={user.role} 
+                  onTabChange={(tab) => setActiveTab(tab)} 
+                />
+              )}
+              {activeTab === "audit-logs" && permittedTabIds.has("audit-logs") && (
+                <AuditLogTab storeId={currentStoreId!} />
+              )}
+              {(activeTab === "settings" || activeTab === "settings_yedekleme") && permittedTabIds.has(activeTab) && (
+                <SettingsTab 
+                  branding={branding}
+                  onBrandingChange={onBrandingChange}
+                  onSaveBranding={handleSaveBranding}
+                  onLogoUpload={(e) => handleFileUpload(e, 'logo')}
+                  onFaviconUpload={(e) => handleFileUpload(e, 'favicon')}
+                  onBannerUpload={(e) => handleFileUpload(e, 'banner')}
+                  onAddUser={() => setShowUserModal(true)}
+                  onDeleteUser={handleDeleteUser}
+                  users={users}
+                  currentUser={user}
+                  currentStoreId={currentStoreId!}
+                  products={products}
+                  onRefresh={() => fetchData(true)}
+                  bulkPriceForm={bulkPriceForm}
+                  setBulkPriceForm={setBulkPriceForm}
+                  handleBulkPriceSubmit={handleBulkPriceSubmit}
+                  initialSubTab={activeTab === "settings_yedekleme" ? "integrations" : undefined}
+                  savingBranding={savingBranding}
+                />
+              )}
+              {activeTab === "blog" && permittedTabIds.has("blog") && (
+                <BlogTab 
+                  storeId={currentStoreId!} 
+                  storeName={branding?.store_name || branding?.name || ""} 
+                  isTr={lang === 'tr'} 
+                />
+              )}
+              {activeTab === "seo" && permittedTabIds.has("seo") && (
+                <SEOTab storeId={currentStoreId!} />
+              )}
+              {activeTab === "meta" && permittedTabIds.has("meta") && (
+                <MetaIntegrationTab />
+              )}
+              {activeTab === "google-merchant" && permittedTabIds.has("google-merchant") && (
+                <GoogleMerchantTab />
+              )}
+              {activeTab === "hotel-rooms" && isHotelModuleActive && permittedTabIds.has("hotel-rooms") && (
+                <HotelRoomManagement 
+                  storeId={currentStoreId!} 
+                  isTr={isTr} 
+                  initialRooms={branding?.hotel_rooms} 
+                  onRoomsUpdated={(updatedRooms) => {
+                    setBranding((prev: any) => prev ? { ...prev, hotel_rooms: updatedRooms } : prev);
+                  }}
+                />
+              )}
+              {activeTab === "notifications" && permittedTabIds.has("notifications") && (
+                <PortfolioNotificationsTab analytics={analytics} />
+              )}
+              {activeTab === "website-generator" && permittedTabIds.has("website-generator") && (
+                <PortfolioWebsiteGeneratorTab storeId={currentStoreId!} />
+              )}
+              {activeTab === "team-crm" && permittedTabIds.has("team-crm") && (
+                <TeamCrmTab 
+                  storeId={currentStoreId!} 
+                  storeName={branding?.store_name || branding?.name || ""}
+                  isAutomotive={isAutomotive} 
+                  isRealEstate={isRealEstate}
+                />
+              )}
+              {activeTab === "real_estate_crm" && permittedTabIds.has("real_estate_crm") && (
+                <RealEstateCrmTab 
+                  contacts={contacts}
+                  onSaveContact={saveContact}
+                  onDeleteContact={deleteContact}
+                />
+              )}
+              {activeTab === "radar_alerts" && permittedTabIds.has("radar_alerts") && (
+                <RadarAlertsTab sector={branding?.sector || branding?.store_type} />
+              )}
+              {activeTab === "authority_transfer" && permittedTabIds.has("authority_transfer") && (
+                <AuthorityTransferTab 
+                  storeId={currentStoreId!} 
+                  properties={properties} 
+                  isViewer={isViewer} 
+                  includeBranches={includeBranches} 
+                  onUpdate={fetchData}
+                />
+              )}
+              {activeTab === "portfolio_finances" && permittedTabIds.has("portfolio_finances") && (
+                <PortfolioFinancesTab 
+                  storeId={currentStoreId!} 
+                  isAutomotive={isAutomotive} 
+                  isRealEstate={isRealEstate}
+                />
+              )}
+            </Suspense>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      <DashboardModals 
+        showQrModal={showQrModal}
+        setShowQrModal={setShowQrModal}
+        branding={branding}
+        scanUrl={scanUrl}
+        publicUrl={publicUrl}
+        isPortfolio={isPortfolio}
+        isCafeRestaurant={isCafeRestaurant}
+        isShopLp={isShopLp}
+        translations={t}
+        handlePrintQR={handlePrintQR}
+        qrPrintRef={qrPrintRef}
+        showPurchaseInvoiceDetailsModal={showPurchaseInvoiceDetailsModal}
+        setShowPurchaseInvoiceDetailsModal={setShowPurchaseInvoiceDetailsModal}
+        selectedPurchaseInvoice={selectedPurchaseInvoice}
+        lang={lang}
+        showSaleDetailsModal={showSaleDetailsModal}
+        setShowSaleDetailsModal={setShowSaleDetailsModal}
+        selectedSale={selectedSale}
+        handlePrint={handlePrint}
+        shippingSlipRef={shippingSlipRef}
+        
+        showQuotationDetailsModal={showQuotationDetailsModal}
+        setShowQuotationDetailsModal={setShowQuotationDetailsModal}
+        selectedQuotationDetails={selectedQuotationDetails}
+        onDownloadQuotationPDF={onDownloadQuotationPDF}
+        numberToTurkishWords={numberToTurkishWords}
+        quotationPrintRef={quotationPrintRef}
+        
+        showDailyReportModal={showDailyReportModal}
+        setShowDailyReportModal={setShowDailyReportModal}
+        dailyReportData={dailyReportData}
+        reportStartDate={reportStartDate}
+        setReportStartDate={setReportStartDate}
+        reportEndDate={reportEndDate}
+        setReportEndDate={setReportEndDate}
+        fetchDailySalesReport={fetchDailySalesReport}
+        reportLoading={reportLoading}
+        handleDownloadDailyReportExcel={handleDownloadDailyReportExcel}
+        
+        showTransactionModal={showTransactionModal}
+        setShowTransactionModal={setShowTransactionModal}
+        selectedCompany={selectedCompany}
+        companyTransactions={companyTransactions}
+        selectedCurrency={selectedCurrency}
+        setSelectedCurrency={setSelectedCurrency}
+        transactionStartDate={transactionStartDate}
+        setTransactionStartDate={setTransactionStartDate}
+        transactionEndDate={transactionEndDate}
+        setTransactionEndDate={setTransactionEndDate}
+        handleFetchTransactions={handleFetchTransactions}
+        transactionLoading={transactionLoading}
+        handleExportTransactionsPDF={handleExportTransactionsPDF}
+        handleExportTransactionsExcel={handleExportTransactionsExcel}
+        openingBalances={openingBalances}
+        companies={companyList}
+        
+        setShowAddTransactionModal={setShowAddTransactionModal}
+        handleEditTransaction={handleEditTransaction}
+        handleDeleteTransaction={handleDeleteTransaction}
+        
+        showAddTransactionModal={showAddTransactionModal}
+        newTransactionType={newTransactionType}
+        setNewTransactionType={setNewTransactionType}
+        newTransactionAmount={newTransactionAmount}
+        setNewTransactionAmount={setNewTransactionAmount}
+        newTransactionCurrency={newTransactionCurrency}
+        setNewTransactionCurrency={setNewTransactionCurrency}
+        newTransactionExchangeRate={newTransactionExchangeRate}
+        setNewTransactionExchangeRate={setNewTransactionExchangeRate}
+        newTransactionPaymentMethod={newTransactionPaymentMethod}
+        setNewTransactionPaymentMethod={setNewTransactionPaymentMethod}
+        newTransactionDescription={newTransactionDescription}
+        setNewTransactionDescription={setNewTransactionDescription}
+        newTransactionDate={newTransactionDate}
+        setNewTransactionDate={setNewTransactionDate}
+        handleAddTransaction={handleAddTransaction}
+        
+        showSaleModal={showSaleModal}
+        setShowSaleModal={setShowSaleModal}
+        selectedQuotation={selectedQuotation}
+        handleConfirmSale={handleConfirmSale}
+        isConfirmingSale={isConfirmingSale}
+        dueDate={dueDate}
+        setDueDate={setDueDate}
+        saleNotes={saleNotes}
+        setSaleNotes={setSaleNotes}
+        createCompanyFromSale={createCompanyFromSale}
+        setCreateCompanyFromSale={setCreateCompanyFromSale}
+        
+        showBulkPriceModal={showBulkPriceModal}
+        setShowBulkPriceModal={setShowBulkPriceModal}
+        bulkPriceForm={bulkPriceForm}
+        setBulkPriceForm={setBulkPriceForm}
+        handleBulkPriceSubmit={handleBulkPriceSubmit}
+        products={products}
+
+        // Missing Modals Props
+        showProductModal={showProductModal}
+        setShowProductModal={setShowProductModal}
+        editingProduct={editingProduct}
+        setEditingProduct={setEditingProduct}
+        handleAddProduct={handleAddProduct}
+        
+        showCompanyModal={showCompanyModal}
+        setShowCompanyModal={setShowCompanyModal}
+        editingCompany={editingCompany}
+        setEditingCompany={setEditingCompany}
+        handleAddCompany={handleAddCompany}
+        
+        showUserModal={showUserModal}
+        setShowUserModal={setShowUserModal}
+        handleAddUser={handleAddUser}
+        
+        showQuotationModal={showQuotationModal}
+        setShowQuotationModal={setShowQuotationModal}
+        editingQuotation={editingQuotation}
+        setEditingQuotation={setEditingQuotation}
+        quotationItems={quotationItems}
+        setQuotationItems={setQuotationItems}
+        handleAddQuotation={handleAddQuotation}
+        isTaxInclusive={isTaxInclusive}
+        setIsTaxInclusive={setIsTaxInclusive}
+        quotationNotes={quotationNotes}
+        setQuotationNotes={setQuotationNotes}
+        showQuickProductModal={showQuickProductModal}
+        setShowQuickProductModal={setShowQuickProductModal}
+        quickProductForm={quickProductForm}
+        setQuickProductForm={setQuickProductForm}
+        handleQuickAddProduct={handleQuickAddProduct}
+        
+        showImportModal={showImportModal}
+        setShowImportModal={setShowImportModal}
+        isImporting={isImporting}
+        importFile={importFile}
+        importColumns={importColumns}
+        mapping={mapping}
+        setMapping={setMapping}
+        convertCurrency={convertCurrency}
+        setConvertCurrency={setConvertCurrency}
+        handleFileSelect={handleFileSelect}
+        handleImport={handleImport}
+      />
+
+      {/* Cafe/Restaurant Futuristic Minimalist Role Switcher & Waiter Terminal Modal */}
+      <AnimatePresence>
+        {showRoleModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.94, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 15 }}
+              className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl max-w-[360px] w-full overflow-hidden text-slate-100 max-h-[94vh] flex flex-col"
+            >
+              {/* Futuristic Terminal Header */}
+              <div className="px-4 py-3 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                      {txt('Terminal Oturumu & PIN', 'Terminal Session & PIN', 'Συνεδρία Τερματικού & PIN')}
+                    </div>
+                    <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest">
+                      {txt('Yetkilendirilmiş Giriş', 'Authorized Access', 'Εξουσιοδοτημένη Είσοδος')}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowRoleModal(false);
+                    setIsEditingPins(false);
+                    setPinValue('');
+                  }}
+                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-3.5 sm:p-4 overflow-y-auto flex-1 space-y-3">
+                {!isEditingPins ? (
+                  <>
+                    {/* Role Selection Segmented Control */}
+                    <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950/70 rounded-xl border border-slate-800">
+                      {(['manager', 'cashier', 'waiter'] as const).map((r) => {
+                        const isSel = modalRole === r;
+                        const label = r === 'manager' ? txt('Yönetici', 'Manager', 'Διευθυντής') : r === 'cashier' ? txt('Kasiyer', 'Cashier', 'Ταμίας') : txt('Garson', 'Waiter', 'Σερβιτόρος');
+                        const icon = r === 'manager' ? '👑' : r === 'cashier' ? '💳' : '🍽️';
+                        return (
+                          <button
+                            key={r}
+                            onClick={() => {
+                              setModalRole(r);
+                              setPinValue('');
+                              setPinError(false);
+                            }}
+                            className={`py-2 px-1.5 rounded-lg font-black text-[11px] flex flex-col items-center gap-0.5 transition-all ${
+                              isSel
+                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400/50'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                            }`}
+                          >
+                            <span className="text-sm">{icon}</span>
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Waiter Roster Quick Selector (when in waiter mode) */}
+                    {modalRole === 'waiter' && (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <span>{txt('Personel Seçimi', 'Select Staff', 'Επιλογή Προσωπικού')}</span>
+                          <span className="text-indigo-400 font-mono text-[9px]">
+                            {waiterList.filter(w => w.active).length} {txt('Aktif', 'Active', 'Ενεργό')}
+                          </span>
+                        </div>
+                        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                          {waiterList.filter(w => w.active).map((w) => {
+                            const isWSelected = modalSelectedWaiterId === w.id;
+                            return (
+                              <button
+                                key={w.id}
+                                onClick={() => {
+                                  setModalSelectedWaiterId(w.id);
+                                  setPinValue('');
+                                  setPinError(false);
+                                }}
+                                className={`px-2.5 py-1.5 rounded-lg border text-left shrink-0 transition-all text-xs font-bold ${
+                                  isWSelected
+                                    ? 'bg-indigo-500/20 border-indigo-400 text-indigo-300 ring-1 ring-indigo-500/40'
+                                    : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:border-slate-600'
+                                }`}
+                              >
+                                <div className="text-[11px] font-extrabold text-slate-200">{w.name}</div>
+                                <div className="text-[9px] text-slate-400 font-normal">{w.section || 'Saha'}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PIN Display Segmented Indicators */}
+                    <div className="py-1 flex flex-col items-center justify-center space-y-1.5">
+                      <div className="flex gap-2.5 justify-center">
+                        {Array.from({ length: 4 }).map((_, idx) => {
+                          const hasChar = pinValue.length > idx;
+                          return (
+                            <motion.div
+                              key={idx}
+                              animate={pinError ? { x: [0, -8, 8, -8, 8, 0] } : {}}
+                              transition={{ duration: 0.35 }}
+                              className={`w-4 h-4 rounded-md border-2 transition-all flex items-center justify-center ${
+                                hasChar
+                                  ? 'bg-indigo-500 border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.6)] scale-105'
+                                  : 'border-slate-700 bg-slate-950/60'
+                              }`}
+                            >
+                              {hasChar && <div className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />}
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                      {pinError && (
+                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest animate-pulse">
+                          ⚠️ {txt('Hatalı PIN Kodu!', 'Invalid PIN!', 'Λανθασμένο PIN!')}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Compact Tactile Keypad */}
+                    <div className="grid grid-cols-3 gap-1.5 max-w-[260px] mx-auto">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => {
+                            if (pinValue.length < 4) {
+                              setPinError(false);
+                              const newVal = pinValue + num;
+                              setPinValue(newVal);
+                              if (newVal.length === 4) {
+                                handleVerifyRolePin(newVal);
+                              }
+                            }
+                          }}
+                          className="h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-base font-black text-slate-100 rounded-xl border border-slate-700/80 transition-all flex items-center justify-center shadow-xs"
+                        >
+                          {num}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setPinValue('');
+                          setPinError(false);
+                        }}
+                        className="h-10 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/60 text-rose-300 rounded-xl text-[10px] font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center"
+                      >
+                        {txt('SİL', 'CLR', 'ΔΙΑΓ')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (pinValue.length < 4) {
+                            setPinError(false);
+                            const newVal = pinValue + '0';
+                            setPinValue(newVal);
+                            if (newVal.length === 4) {
+                              handleVerifyRolePin(newVal);
+                            }
+                          }
+                        }}
+                        className="h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-base font-black text-slate-100 rounded-xl border border-slate-700/80 transition-all flex items-center justify-center shadow-xs"
+                      >
+                        0
+                      </button>
+                      <button
+                        onClick={() => handleVerifyRolePin(pinValue)}
+                        className="h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center shadow-md shadow-emerald-700/30"
+                      >
+                        {txt('GİRİŞ', 'ENTER', 'ΕΙΣ')}
+                      </button>
+                    </div>
+
+                    {/* Manager Staff & PIN Config Link */}
+                    {activeStaffRole === 'manager' && (
+                      <div className="pt-2 border-t border-slate-800 text-center">
+                        <button
+                          onClick={() => {
+                            setIsEditingPins(true);
+                            setEditableWaiters(JSON.parse(JSON.stringify(waiterList)));
+                          }}
+                          className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 uppercase tracking-widest inline-flex items-center gap-1.5 transition-colors"
+                        >
+                          <Smartphone className="w-3 h-3" />
+                          {txt('Kadro & WhatsApp Davet Portalı', 'Staff & WhatsApp Invite Hub', 'Προσωπικό & Πρόσκληση WhatsApp')}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* Staff & PIN Management Sub-View */
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                      <div className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[10px] font-bold">
+                        <button
+                          onClick={() => setStaffConfigTab('waiters')}
+                          className={`px-2.5 py-1 rounded-md transition-all ${
+                            staffConfigTab === 'waiters'
+                              ? 'bg-indigo-600 text-white'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          🍽️ {txt('Garson Kadrosu', 'Waiters', 'Σερβιτόροι')}
+                        </button>
+                        <button
+                          onClick={() => setStaffConfigTab('pins')}
+                          className={`px-2.5 py-1 rounded-md transition-all ${
+                            staffConfigTab === 'pins'
+                              ? 'bg-indigo-600 text-white'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          🔑 {txt('Yönetici/Kasa PIN', 'Admin/Cashier PIN', 'PIN Διαχείρισης')}
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => setIsEditingPins(false)}
+                        className="text-[10px] text-slate-400 hover:text-white font-bold"
+                      >
+                        ✕ {txt('Kapat', 'Close', 'Κλείσιμο')}
+                      </button>
+                    </div>
+
+                    {staffConfigTab === 'waiters' ? (
+                      <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            {txt('Sezonluk & Etkinlik Kadrosu', 'Seasonal & Event Staff', 'Εποχικό Προσωπικό')}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newId = `w_${Date.now()}`;
+                              setEditableWaiters(prev => [
+                                ...prev,
+                                { id: newId, name: `Garson ${prev.length + 1}`, pin: `${1000 + prev.length + 1}`, section: 'Genel Saha', phone: '', active: true }
+                              ]);
+                            }}
+                            className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md"
+                          >
+                            <UserPlus className="w-3 h-3" />
+                            {txt('+ Yeni Garson', '+ Add Waiter', '+ Νέος')}
+                          </button>
+                        </div>
+
+                        {editableWaiters.map((w, idx) => (
+                          <div key={w.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <input
+                                type="text"
+                                placeholder={txt('Garson Adı', 'Waiter Name', 'Όνομα')}
+                                value={w.name}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditableWaiters(prev => prev.map((item, i) => i === idx ? { ...item, name: val } : item));
+                                }}
+                                className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs font-bold text-slate-100 flex-1 outline-none focus:border-indigo-400"
+                              />
+                              <input
+                                type="text"
+                                maxLength={4}
+                                placeholder="PIN"
+                                value={w.pin}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  setEditableWaiters(prev => prev.map((item, i) => i === idx ? { ...item, pin: val } : item));
+                                }}
+                                className="w-14 bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs font-mono text-center font-bold text-amber-400 outline-none focus:border-indigo-400"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditableWaiters(prev => prev.filter((_, i) => i !== idx));
+                                }}
+                                className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/50 rounded"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                placeholder={txt('Bölüm (Örn: Havuz / Şezlong)', 'Section (e.g. Pool)', 'Τομέας')}
+                                value={w.section || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditableWaiters(prev => prev.map((item, i) => i === idx ? { ...item, section: val } : item));
+                                }}
+                                className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-[10.5px] text-slate-300 outline-none focus:border-indigo-400"
+                              />
+                              <input
+                                type="tel"
+                                placeholder="WhatsApp (905...)"
+                                value={w.phone || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditableWaiters(prev => prev.map((item, i) => i === idx ? { ...item, phone: val } : item));
+                                }}
+                                className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-[10.5px] font-mono text-slate-300 outline-none focus:border-indigo-400"
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[10px]">
+                              <label className="flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={w.active}
+                                  onChange={(e) => {
+                                    const val = e.target.checked;
+                                    setEditableWaiters(prev => prev.map((item, i) => i === idx ? { ...item, active: val } : item));
+                                  }}
+                                  className="w-3.5 h-3.5 rounded text-indigo-600 bg-slate-900 border-slate-700"
+                                />
+                                <span>{w.active ? txt('Aktif', 'Active', 'Ενεργό') : txt('Pasif', 'Inactive', 'Ανενεργό')}</span>
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const inviteUrl = generateWaiterWhatsappInviteUrl(
+                                    w,
+                                    branding?.store_name || branding?.name || 'LookPrice',
+                                    publicUrl
+                                  );
+                                  window.open(inviteUrl, '_blank');
+                                }}
+                                className="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 bg-emerald-950/80 border border-emerald-700/60 px-2 py-0.5 rounded"
+                              >
+                                <Send className="w-2.5 h-2.5" />
+                                <span>{txt('WhatsApp ile Gönder', 'Send WhatsApp', 'Αποστολή WhatsApp')}</span>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* Fixed Manager & Cashier PINs */
+                      <div className="space-y-2.5">
+                        <div className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            👑 {txt('Yönetici PIN Kodu', 'Manager PIN', 'PIN Διευθυντή')}
+                          </label>
+                          <input
+                            type="password"
+                            maxLength={4}
+                            value={managerPin}
+                            onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ''))}
+                            className="w-full px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-700 text-slate-100 font-mono text-center tracking-[0.4em] text-sm font-bold outline-none focus:border-indigo-400"
+                          />
+                        </div>
+
+                        <div className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            💳 {txt('Kasiyer PIN Kodu', 'Cashier PIN', 'PIN Ταμία')}
+                          </label>
+                          <input
+                            type="password"
+                            maxLength={4}
+                            value={cashierPin}
+                            onChange={(e) => setCashierPin(e.target.value.replace(/\D/g, ''))}
+                            className="w-full px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-700 text-slate-100 font-mono text-center tracking-[0.4em] text-sm font-bold outline-none focus:border-indigo-400"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex gap-2 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingPins(false)}
+                        className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all"
+                      >
+                        {txt('İptal', 'Cancel', 'Ακύρωση')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveStaffConfig}
+                        className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-700/40"
+                      >
+                        {txt('Kaydet', 'Save', 'Αποθήκευση')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </DashboardLayout>
+  );
+}

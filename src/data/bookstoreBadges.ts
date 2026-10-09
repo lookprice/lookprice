@@ -1,0 +1,688 @@
+import React from "react";
+import { 
+  Flame, 
+  Sparkles, 
+  Star, 
+  Award, 
+  Crown, 
+  Clock, 
+  Tag
+} from "lucide-react";
+import { Product } from "../types";
+
+export interface BookstoreBadgeDefinition {
+  id: string;
+  labelTr: string;
+  labelEn: string;
+  badgeTr: string;
+  badgeEn: string;
+  gridTitleTr: string;
+  gridTitleEn: string;
+  gridSubtitleTr: string;
+  gridSubtitleEn: string;
+  iconName: "Flame" | "Sparkles" | "Star" | "Award" | "Crown" | "Clock" | "Tag";
+  bgClass: string;
+  textClass: string;
+  borderClass: string;
+  badgeBgClass: string;
+  glowColor: string;
+  aliases: string[];
+}
+
+export const BOOKSTORE_BADGES: BookstoreBadgeDefinition[] = [
+  {
+    id: "bestseller",
+    labelTr: "Çok Satanlar",
+    labelEn: "Bestsellers",
+    badgeTr: "ÇOK SATAN",
+    badgeEn: "BESTSELLER",
+    gridTitleTr: "Çok Satan Eserler",
+    gridTitleEn: "Top Bestsellers",
+    gridSubtitleTr: "Okurlarımız tarafından en çok tercih edilen ve okunan başyapıtlar",
+    gridSubtitleEn: "Most popular titles chosen by readers",
+    iconName: "Flame",
+    bgClass: "bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400",
+    textClass: "text-red-500",
+    borderClass: "border-red-500/30",
+    badgeBgClass: "bg-red-600 text-white shadow-red-600/40",
+    glowColor: "rgba(239, 68, 68, 0.4)",
+    aliases: [
+      "bestseller", "bestsellers", "cok_satan", "cok_satanlar", "cok satanlar", 
+      "çok satanlar", "çok satan", "en cok satanlar", "en çok satanlar", "populer", "popular", "top10", "top_10"
+    ]
+  },
+  {
+    id: "featured_week",
+    labelTr: "Haftanın Eseri",
+    labelEn: "Book of the Week",
+    badgeTr: "HAFTANIN ESERİ",
+    badgeEn: "WEEKLY PICK",
+    gridTitleTr: "Haftanın Öne Çıkan Eserleri",
+    gridTitleEn: "Books of the Week",
+    gridSubtitleTr: "Bu haftanın vitrin manşetinde yer alan özel edebi seçki",
+    gridSubtitleEn: "Handpicked weekly spotlight on our hero showcase",
+    iconName: "Crown",
+    bgClass: "bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400",
+    textClass: "text-purple-500",
+    borderClass: "border-purple-500/30",
+    badgeBgClass: "bg-purple-600 text-white shadow-purple-600/40",
+    glowColor: "rgba(168, 85, 247, 0.4)",
+    aliases: [
+      "featured_week", "weekly_pick", "weekly_picks", "haftanin_eseri", "haftanın eseri", 
+      "haftanin_kitabi", "haftanın kitabı", "haftanin eseri", "haftanin kitabi", "haftanin_secimi", 
+      "haftanın seçimi", "haftanin secimi", "haftanin_onerisi", "haftanın önerisi"
+    ]
+  },
+  {
+    id: "deal",
+    labelTr: "Haftanın & Günün Fırsatı",
+    labelEn: "Deals & Discounts",
+    badgeTr: "HAFTANIN FIRSATI",
+    badgeEn: "SPECIAL DEAL",
+    gridTitleTr: "Haftanın Fırsat & İndirimli Eserleri",
+    gridTitleEn: "Special Literary Deals",
+    gridSubtitleTr: "Sınırlı süreye özel avantajlı fiyatlar ve haftanın indirimli seçkin eserleri",
+    gridSubtitleEn: "Limited-time deals and advantageous prices on selected books",
+    iconName: "Tag",
+    bgClass: "bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400",
+    textClass: "text-orange-500",
+    borderClass: "border-orange-500/30",
+    badgeBgClass: "bg-orange-600 text-white shadow-orange-600/40",
+    glowColor: "rgba(234, 88, 12, 0.4)",
+    aliases: [
+      "deal", "daily_deal", "weekly_deal", "haftanin_firsat", "haftanin_firsati", 
+      "haftanın fırsatı", "haftanın fırsat", "haftanin firsati", "haftanin firsat", 
+      "gunun_firsati", "gunun firsati", "günün fırsatı", "günün fırsat", "firsat", "fırsat", 
+      "firsat_kitabi", "fırsat kitabı", "discounted", "indirim", "indirimli", "avantaj", "kampanya"
+    ]
+  },
+  {
+    id: "award_winning",
+    labelTr: "Ödüllü Eserler",
+    labelEn: "Award Winners",
+    badgeTr: "ÖDÜLLÜ ESER",
+    badgeEn: "AWARD WINNER",
+    gridTitleTr: "Ödüllü Eserler & Başyapıtlar",
+    gridTitleEn: "Award-Winning Masterpieces",
+    gridSubtitleTr: "Ulusal ve uluslararası saygın edebiyat ödüllerine layık görülen eserler",
+    gridSubtitleEn: "Masterpieces recognized with prestigious national and global literary prizes",
+    iconName: "Award",
+    bgClass: "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400",
+    textClass: "text-amber-500",
+    borderClass: "border-amber-500/30",
+    badgeBgClass: "bg-amber-500 text-slate-950 shadow-amber-500/40",
+    glowColor: "rgba(245, 158, 11, 0.4)",
+    aliases: [
+      "award_winning", "award_winner", "award_winners", "award", "awards", 
+      "odullu", "odullu_eser", "odullu_eserler", "odullu eserler", "odullu eser", 
+      "ödüllü", "ödüllü eser", "ödüllü eserler", "ödüllü eserler & başyapıtlar", 
+      "odullu kitaplar", "ödüllü kitaplar", "nobel", "pulitzer", "man booker", "sedat simavi", "yunus nadi"
+    ]
+  },
+  {
+    id: "editors_pick",
+    labelTr: "Editörün Seçimi",
+    labelEn: "Editor's Pick",
+    badgeTr: "EDİTÖRÜN SEÇİMİ",
+    badgeEn: "EDITOR'S PICK",
+    gridTitleTr: "Editörün Seçimi Eserler",
+    gridTitleEn: "Editor's Choice",
+    gridSubtitleTr: "Edebiyat danışmanlarımızın ve editörlerimizin özel tavsiyeleri",
+    gridSubtitleEn: "Special curated recommendations from our literary editors",
+    iconName: "Star",
+    bgClass: "bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400",
+    textClass: "text-indigo-500",
+    borderClass: "border-indigo-500/30",
+    badgeBgClass: "bg-indigo-600 text-white shadow-indigo-600/40",
+    glowColor: "rgba(99, 102, 241, 0.4)",
+    aliases: [
+      "editors_pick", "editor_pick", "editor_choice", "editorun_secimi", "editorun secimi", 
+      "editörün seçimi", "editörün secimi", "editörün seçtiği", "editor", "secilmis", "curated"
+    ]
+  },
+  {
+    id: "new_release",
+    labelTr: "Yeni Çıkanlar & Raflarda",
+    labelEn: "New Releases",
+    badgeTr: "YENİ ÇIKAN",
+    badgeEn: "NEW RELEASE",
+    gridTitleTr: "Yeni Çıkanlar & Raflarda",
+    gridTitleEn: "New Releases & Just In",
+    gridSubtitleTr: "Bu hafta raflarımızda yerini alan en taze edebi yayınlar",
+    gridSubtitleEn: "Fresh literary publications that arrived this week",
+    iconName: "Sparkles",
+    bgClass: "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+    textClass: "text-emerald-500",
+    borderClass: "border-emerald-500/30",
+    badgeBgClass: "bg-emerald-600 text-white shadow-emerald-600/40",
+    glowColor: "rgba(16, 185, 129, 0.4)",
+    aliases: [
+      "new_release", "new_releases", "new_arrival", "new_arrivals", "yeni", 
+      "yeni_cikan", "yeni_cikanlar", "yeni cikanlar", "yeni çıkanlar", "yeni çıkan", 
+      "yeni_gelenler", "yeni gelenler", "taze", "just_in"
+    ]
+  },
+  {
+    id: "coming_soon",
+    labelTr: "Yakında Gelecekler & Ön Sipariş",
+    labelEn: "Coming Soon & Pre-Order",
+    badgeTr: "YAKINDA",
+    badgeEn: "COMING SOON",
+    gridTitleTr: "Yakında Raflarda & Ön Sipariş",
+    gridTitleEn: "Coming Soon & Pre-Order",
+    gridSubtitleTr: "Baskı aşamasında olan ve yakında okuyucuyla buluşacak beklenen eserler",
+    gridSubtitleEn: "Highly anticipated titles arriving at our bookstore soon",
+    iconName: "Clock",
+    bgClass: "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400",
+    textClass: "text-cyan-500",
+    borderClass: "border-cyan-500/30",
+    badgeBgClass: "bg-cyan-600 text-white shadow-cyan-600/40",
+    glowColor: "rgba(6, 182, 212, 0.4)",
+    aliases: [
+      "coming_soon", "yakinda", "yakında", "yakinda_gelecekler", "yakında gelecekler", 
+      "on_siparis", "ön sipariş", "pre_order", "preorder", "baskida", "baskıda"
+    ]
+  }
+];
+
+// Sector-specific contextual definitions for shopLP, horecaLP, hotel and bookstore
+export function getSectorBadges(storeType?: string): BookstoreBadgeDefinition[] {
+  const normType = (storeType || "").toLowerCase().trim();
+
+  // HorecaLP (Restaurant, Cafe, Bar, Horeca)
+  if (normType === "cafe" || normType === "restaurant" || normType === "horeca" || normType === "horecalp") {
+    return [
+      {
+        ...BOOKSTORE_BADGES[0],
+        labelTr: "Çok Satan & Popüler Lezzetler",
+        labelEn: "Popular & Bestsellers",
+        badgeTr: "ÇOK SATAN",
+        badgeEn: "BESTSELLER",
+        gridTitleTr: "En Çok Tercih Edilen Lezzetler",
+        gridTitleEn: "Most Popular Dishes",
+        gridSubtitleTr: "Misafirlerimizin en beğendiği ve en çok sipariş verdiği menü lezzetleri",
+        gridSubtitleEn: "Guest favorite top choices"
+      },
+      {
+        ...BOOKSTORE_BADGES[1],
+        labelTr: "Şefin İmzası & Spesiyal",
+        labelEn: "Chef's Signature Pick",
+        badgeTr: "ŞEFİN İMZASI",
+        badgeEn: "CHEF'S SPECIAL",
+        gridTitleTr: "Şefin Özel İmzalı Lezzetleri",
+        gridTitleEn: "Chef's Signature Selections",
+        gridSubtitleTr: "Mutfak şefimizin özel reçetesiyle hazırlanan eşsiz spesiyaller",
+        gridSubtitleEn: "Exclusive recipes crafted by our head chef"
+      },
+      {
+        ...BOOKSTORE_BADGES[2],
+        labelTr: "Günün Menüsü & Fırsat",
+        labelEn: "Daily Special & Deal",
+        badgeTr: "GÜNÜN FIRSATI",
+        badgeEn: "DAILY SPECIAL",
+        gridTitleTr: "Günün Menüleri & Fırsatlar",
+        gridTitleEn: "Daily Special Offers",
+        gridSubtitleTr: "Güne özel avantajlı fiyata sahip enfes menüler ve ikramlar",
+        gridSubtitleEn: "Special advantageous daily offerings"
+      },
+      {
+        ...BOOKSTORE_BADGES[3],
+        labelTr: "Ödüllü & Tescilli Lezzetler",
+        labelEn: "Award-Winning Recipes",
+        badgeTr: "ÖDÜLLÜ LEZZET",
+        badgeEn: "AWARD WINNER",
+        gridTitleTr: "Gastronomi Ödüllü Lezzetler",
+        gridTitleEn: "Award-Winning Gourmet Picks",
+        gridSubtitleTr: "Gastronomi otoriteleri tarafından ödüle layık görülen tescilli tatlar",
+        gridSubtitleEn: "Celebrated recipes with gastronomy recognition"
+      },
+      {
+        ...BOOKSTORE_BADGES[4],
+        labelTr: "Gurme Seçimi & Önerilen",
+        labelEn: "Gourmet Choice",
+        badgeTr: "GURME SEÇİMİ",
+        badgeEn: "GOURMET PICK",
+        gridTitleTr: "Gurme Seçimi Özel Tabaklar",
+        gridTitleEn: "Gourmet Curated Plates",
+        gridSubtitleTr: "Farklı damak zevklerine hitap eden özel lezzet eşleşmeleri",
+        gridSubtitleEn: "Curated pairings for discerning tastes"
+      },
+      {
+        ...BOOKSTORE_BADGES[5],
+        labelTr: "Yeni Eklenen Lezzetler",
+        labelEn: "New Dishes",
+        badgeTr: "YENİ LEZZET",
+        badgeEn: "NEW DISH",
+        gridTitleTr: "Menümüze Yeni Katılanlar",
+        gridTitleEn: "New Additions to Our Menu",
+        gridSubtitleTr: "Mutfak ekibimizin bu sezon menümüze dahil ettiği taze tabaklar",
+        gridSubtitleEn: "Fresh new additions to our menu"
+      },
+      {
+        ...BOOKSTORE_BADGES[6],
+        labelTr: "Sezonluk & Günlük Taze",
+        labelEn: "Seasonal & Daily Fresh",
+        badgeTr: "SEZONLUK",
+        badgeEn: "SEASONAL",
+        gridTitleTr: "Mevsimlik & Sezonluk Lezzetler",
+        gridTitleEn: "Seasonal Fresh Specials",
+        gridSubtitleTr: "Mevsiminde toplanan taze malzemelerle sınırlı süre sunulan tatlar",
+        gridSubtitleEn: "Limited-time recipes made with seasonal produce"
+      }
+    ];
+  }
+
+  // Hotel (Otel, Butik Otel, Tatil Köyü, Konaklama)
+  if (normType === "hotel" || normType === "otel") {
+    return [
+      {
+        ...BOOKSTORE_BADGES[0],
+        labelTr: "En Çok Tercih Edilen Odalar",
+        labelEn: "Most Booked Rooms",
+        badgeTr: "ÇOK TERCİH EDİLEN",
+        badgeEn: "MOST BOOKED",
+        gridTitleTr: "En Çok Tercih Edilen Süit & Odalar",
+        gridTitleEn: "Most Popular Rooms & Suites",
+        gridSubtitleTr: "Misafirlerimizin en yüksek puan verdiği ve en çok konakladığı odalar",
+        gridSubtitleEn: "Top-rated accommodations chosen by our guests"
+      },
+      {
+        ...BOOKSTORE_BADGES[1],
+        labelTr: "VIP & Balayı Süiti",
+        labelEn: "VIP & Honeymoon Pick",
+        badgeTr: "VIP SÜİT",
+        badgeEn: "VIP SUITE",
+        gridTitleTr: "VIP & Balayı Özel Süitleri",
+        gridTitleEn: "VIP & Honeymoon Suites",
+        gridSubtitleTr: "Özel jakuzili, geniş teraslı ve kusursuz konfor sunan lüks süitler",
+        gridSubtitleEn: "Exclusive luxury suites with private jacuzzi and panoramic views"
+      },
+      {
+        ...BOOKSTORE_BADGES[2],
+        labelTr: "Erken Rezervasyon & Fırsat",
+        labelEn: "Early Bird Deals",
+        badgeTr: "ERKEN REZERVASYON",
+        badgeEn: "SPECIAL OFFER",
+        gridTitleTr: "Fırsat & Erken Rezervasyon Odaları",
+        gridTitleEn: "Special Discounted Accommodations",
+        gridSubtitleTr: "Avantajlı fiyatlar ve ücretsiz iptal güvencesiyle sınırlı kontenjan",
+        gridSubtitleEn: "Advantageous rates with flexible cancellation"
+      },
+      {
+        ...BOOKSTORE_BADGES[3],
+        labelTr: "Panoramik Manzara & Premium",
+        labelEn: "Panoramic View & Premium",
+        badgeTr: "PANORAMİK MANZARA",
+        badgeEn: "PANORAMIC VIEW",
+        gridTitleTr: "Deniz & Doğa Manzaralı Premium Odalar",
+        gridTitleEn: "Sea & Nature View Premium Rooms",
+        gridSubtitleTr: "Büyüleyici manzaraya ve geniş yaşam alanına sahip seçkin odalar",
+        gridSubtitleEn: "Unobstructed breathtaking views and premium amenities"
+      },
+      {
+        ...BOOKSTORE_BADGES[4],
+        labelTr: "Otel Tavsiyesi & Öne Çıkan",
+        labelEn: "Hotel's Choice",
+        badgeTr: "OTEL TAVSİYESİ",
+        badgeEn: "HOTEL'S CHOICE",
+        gridTitleTr: "Tesisimizin Öne Çıkan Tavsiyeleri",
+        gridTitleEn: "Handpicked Recommendations",
+        gridSubtitleTr: "Konfor, konum ve fiyat/performans dengesi en yüksek odalarımız",
+        gridSubtitleEn: "Best balance of comfort, location and value"
+      },
+      {
+        ...BOOKSTORE_BADGES[5],
+        labelTr: "Yeni & Yenilenen Odalar",
+        labelEn: "Newly Renovated",
+        badgeTr: "YENİLENEN ODA",
+        badgeEn: "RENOVATED",
+        gridTitleTr: "Yepyeni & Yenilenen Süitler",
+        gridTitleEn: "Newly Renovated Accommodations",
+        gridSubtitleTr: "En son teknoloji ve modern mobilyalarla baştan yaratılan odalar",
+        gridSubtitleEn: "Recently redesigned with modern aesthetics and supreme comfort"
+      },
+      {
+        ...BOOKSTORE_BADGES[6],
+        labelTr: "Son Kontenjan & Fırsatlar",
+        labelEn: "Last Rooms Available",
+        badgeTr: "SON ODALAR",
+        badgeEn: "LAST ROOMS",
+        gridTitleTr: "Son Kalan Odalar & Sınırlı Kontenjan",
+        gridTitleEn: "Last Available Rooms",
+        gridSubtitleTr: "Bu tarih aralığı için hızla tükenen son müsait odalar",
+        gridSubtitleEn: "High demand rooms selling out fast"
+      }
+    ];
+  }
+
+  // Bookstore (Kitap, Kırtasiye, Sahaf)
+  if (normType === "bookstore" || normType === "kitap") {
+    return BOOKSTORE_BADGES;
+  }
+
+  // General Retail / shopLP (Elektronik, Giyim, Kozmetik, Perakende)
+  return [
+    {
+      ...BOOKSTORE_BADGES[0],
+      labelTr: "Çok Satanlar & Popüler",
+      labelEn: "Bestsellers & Popular",
+      badgeTr: "ÇOK SATAN",
+      badgeEn: "BESTSELLER",
+      gridTitleTr: "Çok Satan ve Popüler Ürünler",
+      gridTitleEn: "Top Bestselling Products",
+      gridSubtitleTr: "Müşterilerimiz tarafından en çok sipariş verilen favori ürünler",
+      gridSubtitleEn: "Customer favorite top-selling products"
+    },
+    {
+      ...BOOKSTORE_BADGES[1],
+      labelTr: "Haftanın & Ayın Ürünü",
+      labelEn: "Product of the Week",
+      badgeTr: "HAFTANIN ÜRÜNÜ",
+      badgeEn: "WEEKLY PICK",
+      gridTitleTr: "Haftanın Öne Çıkan Ürünleri",
+      gridTitleEn: "Featured Products of the Week",
+      gridSubtitleTr: "Bu haftanın vitrin manşetinde yer alan özel seçki",
+      gridSubtitleEn: "Handpicked weekly featured spotlight products"
+    },
+    {
+      ...BOOKSTORE_BADGES[2],
+      labelTr: "Günün & Haftanın Fırsatı",
+      labelEn: "Deals & Discounts",
+      badgeTr: "FIRSAT ÜRÜNÜ",
+      badgeEn: "SPECIAL DEAL",
+      gridTitleTr: "Fırsat & İndirimli Ürünler",
+      gridTitleEn: "Special Product Deals",
+      gridSubtitleTr: "Sınırlı süreye özel avantajlı fiyatlar ve indirimli seçkin ürünler",
+      gridSubtitleEn: "Limited-time deals and advantageous prices on selected items"
+    },
+    {
+      ...BOOKSTORE_BADGES[3],
+      labelTr: "Premium & Seçkin Seri",
+      labelEn: "Premium & Award Winners",
+      badgeTr: "PREMIUM",
+      badgeEn: "PREMIUM",
+      gridTitleTr: "Premium & Ödüllü Tasarımlar",
+      gridTitleEn: "Award-Winning & Premium Collection",
+      gridSubtitleTr: "Üstün kalite standartlarına ve tasarım ödüllerine sahip modeller",
+      gridSubtitleEn: "Superior quality and recognized design excellence"
+    },
+    {
+      ...BOOKSTORE_BADGES[4],
+      labelTr: "Editörün & Uzmanın Seçimi",
+      labelEn: "Editor's Choice",
+      badgeTr: "ÖNE ÇIKAN",
+      badgeEn: "EDITOR'S PICK",
+      gridTitleTr: "Uzmanlarımızın Seçtiği Ürünler",
+      gridTitleEn: "Expert Curated Products",
+      gridSubtitleTr: "Ürün uzmanlarımızın performans ve dayanıklılık tavsiyeleri",
+      gridSubtitleEn: "Curated recommendations based on performance and quality"
+    },
+    {
+      ...BOOKSTORE_BADGES[5],
+      labelTr: "Yeni Gelenler & Trendler",
+      labelEn: "New Arrivals & Trends",
+      badgeTr: "YENİ GELEN",
+      badgeEn: "NEW ARRIVAL",
+      gridTitleTr: "Yeni Gelenler & Sezon Trendleri",
+      gridTitleEn: "New Arrivals & Season Trends",
+      gridSubtitleTr: "Koleksiyonumuza yeni eklenen en taze ve popüler ürünler",
+      gridSubtitleEn: "Fresh additions and current season trends"
+    },
+    {
+      ...BOOKSTORE_BADGES[6],
+      labelTr: "Sınırlı Stok & Ön Sipariş",
+      labelEn: "Limited Stock & Pre-Order",
+      badgeTr: "ÖN SİPARİŞ",
+      badgeEn: "PRE-ORDER",
+      gridTitleTr: "Sınırlı Kontenjan & Ön Sipariş",
+      gridTitleEn: "Limited Edition & Pre-Order",
+      gridSubtitleTr: "Hızla tükenen sınırlı üretimler ve ön sipariş fırsatları",
+      gridSubtitleEn: "Limited production batches and pre-order availability"
+    }
+  ];
+}
+
+
+// Helper to normalize labels array from product
+export function extractProductLabels(product: any): string[] {
+  if (!product) return [];
+  let rawLabels: string[] = [];
+
+  // 1. Array labels
+  if (Array.isArray(product.labels)) {
+    rawLabels.push(...product.labels.map((l: any) => String(l).trim()));
+  } else if (typeof product.labels === "string" && product.labels.trim()) {
+    try {
+      const parsed = JSON.parse(product.labels);
+      if (Array.isArray(parsed)) rawLabels.push(...parsed.map((l: any) => String(l).trim()));
+    } catch {
+      rawLabels.push(...product.labels.split(",").map((l: string) => l.trim()).filter(Boolean));
+    }
+  }
+
+  // 2. Array tags
+  if (Array.isArray(product.tags)) {
+    rawLabels.push(...product.tags.map((l: any) => String(l).trim()));
+  } else if (typeof product.tags === "string" && product.tags.trim()) {
+    try {
+      const parsed = JSON.parse(product.tags);
+      if (Array.isArray(parsed)) rawLabels.push(...parsed.map((l: any) => String(l).trim()));
+    } catch {
+      rawLabels.push(...product.tags.split(",").map((l: string) => l.trim()).filter(Boolean));
+    }
+  }
+
+  // 3. Array badges
+  if (Array.isArray(product.badges)) {
+    rawLabels.push(...product.badges.map((l: any) => String(l).trim()));
+  }
+
+  // 4. Also check sector_data
+  const sec = typeof product.sector_data === "string" 
+    ? (() => { try { return JSON.parse(product.sector_data); } catch { return {}; } })()
+    : (product.sector_data || {});
+
+  if (Array.isArray(sec.curated_badges)) {
+    rawLabels.push(...sec.curated_badges.map((l: any) => String(l).trim()));
+  }
+  if (Array.isArray(sec.labels)) {
+    rawLabels.push(...sec.labels.map((l: any) => String(l).trim()));
+  }
+
+  // 5. Check explicit flags and map to canonical badge IDs
+  if ((product.is_bestseller || product.is_popular || sec.is_bestseller) && !rawLabels.includes("bestseller")) {
+    rawLabels.push("bestseller");
+  }
+  if ((sec.is_weekly_pick || product.is_weekly_pick || sec.is_featured_weekly) && !rawLabels.includes("featured_week")) {
+    rawLabels.push("featured_week");
+  }
+  if ((sec.awards || product.awards) && !rawLabels.includes("award_winning")) {
+    rawLabels.push("award_winning");
+  }
+  if ((sec.is_deal || sec.is_discounted || product.discounted_price) && !rawLabels.includes("deal")) {
+    rawLabels.push("deal");
+  }
+  if (sec.is_editors_pick && !rawLabels.includes("editors_pick")) {
+    rawLabels.push("editors_pick");
+  }
+  if ((sec.is_new_release || product.is_new) && !rawLabels.includes("new_release")) {
+    rawLabels.push("new_release");
+  }
+  if (sec.is_coming_soon && !rawLabels.includes("coming_soon")) {
+    rawLabels.push("coming_soon");
+  }
+
+  // Resolve rawLabels to canonical badge ids if matching any badge alias
+  const normalizedLabels: string[] = [];
+  rawLabels.forEach((raw) => {
+    const clean = raw.toLowerCase().trim();
+    if (!clean || clean === "curated_badges" || clean === "curated_badge" || clean === "labels" || clean === "sector_data") return;
+    
+    // Check if clean matches any badge id or alias
+    const matchedBadge = BOOKSTORE_BADGES.find(b => 
+      b.id.toLowerCase() === clean || 
+      b.aliases.some(a => a.toLowerCase() === clean) ||
+      b.labelTr.toLowerCase() === clean ||
+      b.badgeTr.toLowerCase() === clean ||
+      b.labelEn.toLowerCase() === clean ||
+      b.badgeEn.toLowerCase() === clean
+    );
+
+    if (matchedBadge) {
+      if (!normalizedLabels.includes(matchedBadge.id)) {
+        normalizedLabels.push(matchedBadge.id);
+      }
+    } else {
+      if (!normalizedLabels.includes(clean)) {
+        normalizedLabels.push(clean);
+      }
+    }
+  });
+
+  return normalizedLabels;
+}
+
+// Check if product has specific badge
+export function hasBookstoreBadge(product: any, badgeId: string): boolean {
+  if (!product || !badgeId) return false;
+  const labels = extractProductLabels(product);
+  const normalizedBadgeId = badgeId.toLowerCase().trim();
+
+  // 1. Direct canonical id match in extracted labels
+  if (labels.some(l => l.toLowerCase() === normalizedBadgeId)) return true;
+
+  // 2. Find badge definition
+  const def = BOOKSTORE_BADGES.find(b => 
+    b.id.toLowerCase() === normalizedBadgeId ||
+    b.aliases.some(a => a.toLowerCase() === normalizedBadgeId)
+  );
+
+  if (def) {
+    // Check if product has canonical def.id or any alias in labels
+    if (labels.some(l => l.toLowerCase() === def.id.toLowerCase())) return true;
+    if (labels.some(l => def.aliases.some(a => a.toLowerCase() === l.toLowerCase()))) return true;
+  }
+
+  // 3. Fallback explicit checks
+  const sec = typeof product.sector_data === "string" 
+    ? (() => { try { return JSON.parse(product.sector_data); } catch { return {}; } })()
+    : (product.sector_data || {});
+
+  if (normalizedBadgeId === "bestseller" && (product.is_bestseller || product.is_popular || sec.is_bestseller)) return true;
+  if ((normalizedBadgeId === "featured_week" || normalizedBadgeId === "weekly_pick") && (sec.is_weekly_pick || product.is_weekly_pick || sec.is_featured_weekly)) return true;
+  if ((normalizedBadgeId === "award_winning" || normalizedBadgeId === "odullu_eserler" || normalizedBadgeId === "odullu") && (Boolean(sec.awards) || Boolean(product.awards))) return true;
+  if ((normalizedBadgeId === "deal" || normalizedBadgeId === "haftanin_firsati" || normalizedBadgeId === "haftanin_firsat" || normalizedBadgeId === "discounted") && (Boolean(sec.is_deal) || Boolean(sec.is_discounted) || Boolean(product.discounted_price))) return true;
+  if (normalizedBadgeId === "editors_pick" && Boolean(sec.is_editors_pick)) return true;
+  if ((normalizedBadgeId === "new_release" || normalizedBadgeId === "new_arrival") && (Boolean(sec.is_new_release) || Boolean(product.is_new))) return true;
+  if (normalizedBadgeId === "coming_soon" && Boolean(sec.is_coming_soon)) return true;
+
+  return false;
+}
+
+// Get all matched badge definitions for a product
+export function getProductBookstoreBadges(product: any): BookstoreBadgeDefinition[] {
+  if (!product) return [];
+  return BOOKSTORE_BADGES.filter(badge => hasBookstoreBadge(product, badge.id));
+}
+
+// Get matched badge definitions for a product with sector awareness
+export function getProductSectorBadges(product: any, storeType?: string): BookstoreBadgeDefinition[] {
+  if (!product) return [];
+  const list = getSectorBadges(storeType);
+  return list.filter(badge => hasBookstoreBadge(product, badge.id));
+}
+
+// Helper to toggle badge on product and return updated fields for API
+export function toggleBookstoreBadgeData(product: any, badgeId: string) {
+  const currentLabels = extractProductLabels(product);
+  const hasIt = hasBookstoreBadge(product, badgeId);
+
+  // Find canonical badge
+  const def = BOOKSTORE_BADGES.find(b => 
+    b.id.toLowerCase() === badgeId.toLowerCase() ||
+    b.aliases.some(a => a.toLowerCase() === badgeId.toLowerCase())
+  );
+  const canonicalId = def ? def.id : badgeId.toLowerCase();
+
+  let newLabels: string[];
+  if (hasIt) {
+    const removeList = def ? [def.id.toLowerCase(), ...def.aliases.map(a => a.toLowerCase())] : [canonicalId];
+    newLabels = currentLabels.filter(l => !removeList.includes(l.toLowerCase()));
+  } else {
+    newLabels = Array.from(new Set([...currentLabels, canonicalId]));
+  }
+
+  // Parse existing sector_data
+  let sec = typeof product.sector_data === "string"
+    ? (() => { try { return JSON.parse(product.sector_data); } catch { return {}; } })()
+    : { ...(product.sector_data || {}) };
+
+  sec.curated_badges = newLabels;
+
+  const willHaveBadge = !hasIt;
+
+  if (canonicalId === "bestseller") {
+    sec.is_bestseller = willHaveBadge;
+    return {
+      labels: newLabels,
+      is_bestseller: willHaveBadge,
+      sector_data: sec
+    };
+  }
+
+  if (canonicalId === "featured_week") {
+    sec.is_weekly_pick = willHaveBadge;
+    sec.is_featured_weekly = willHaveBadge;
+    return {
+      labels: newLabels,
+      is_weekly_pick: willHaveBadge,
+      sector_data: sec
+    };
+  }
+
+  if (canonicalId === "deal") {
+    sec.is_deal = willHaveBadge;
+    sec.is_discounted = willHaveBadge;
+    return {
+      labels: newLabels,
+      sector_data: sec
+    };
+  }
+
+  if (canonicalId === "award_winning") {
+    sec.awards = willHaveBadge ? (sec.awards || "Ödüllü Eser & Başyapıt") : "";
+    return {
+      labels: newLabels,
+      sector_data: sec
+    };
+  }
+
+  if (canonicalId === "editors_pick") {
+    sec.is_editors_pick = willHaveBadge;
+    return {
+      labels: newLabels,
+      sector_data: sec
+    };
+  }
+
+  if (canonicalId === "new_release") {
+    sec.is_new_release = willHaveBadge;
+    return {
+      labels: newLabels,
+      sector_data: sec
+    };
+  }
+
+  if (canonicalId === "coming_soon") {
+    sec.is_coming_soon = willHaveBadge;
+    return {
+      labels: newLabels,
+      sector_data: sec
+    };
+  }
+
+  return {
+    labels: newLabels,
+    sector_data: sec
+  };
+}
