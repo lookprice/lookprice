@@ -580,7 +580,7 @@ export async function initPurchaseInvoiceSchema() {
         WHERE cat.company_id = c.id AND (cat.store_id IS NULL OR cat.store_id = 0)
       `);
 
-      // h) Auto-repair products with stock_quantity that lack initial stock_movements records
+      // h) Auto-repair products with stock_quantity that lack initial stock_movements records (only if no initial_stock exists yet)
       await pool.query(`
         INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
         SELECT 
@@ -602,6 +602,10 @@ export async function initPurchaseInvoiceSchema() {
           GROUP BY product_id
         ) sm_sum ON p.id = sm_sum.product_id
         WHERE (p.stock_quantity - COALESCE(sm_sum.net_qty, 0)) > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM stock_movements sm_init
+            WHERE sm_init.product_id = p.id AND sm_init.source = 'initial_stock'
+          )
       `);
   } catch (e) {
     console.error("Failed to alter purchase_invoice_items schema / stock sync:", e);
@@ -1249,7 +1253,10 @@ router.put("/sales/:id", async (req: any, res) => {
       }
     }
     
-    await client.query("DELETE FROM stock_movements WHERE source = 'sales_invoice' AND (description LIKE $1 OR description LIKE $2 OR description LIKE $3)", [`%${oldInvoice.invoice_number}%`, `%${oldInvoice.document_number || oldInvoice.invoice_number}%`, `%${oldInvoice.invoice_number}%`]);
+    await client.query(
+      "DELETE FROM stock_movements WHERE store_id = $1 AND (invoice_id = $2 OR (sale_id IS NOT NULL AND sale_id = $3) OR (source IN ('sales_invoice', 'AMAZON', 'hepsiburada', 'trendyol', 'n11', 'pazarama') AND (description LIKE $4 OR description LIKE $5 OR invoice_number = $6)))",
+      [storeId, req.params.id, oldInvoice.sale_id || -1, `%${oldInvoice.invoice_number}%`, `%${oldInvoice.document_number || oldInvoice.invoice_number}%`, oldInvoice.invoice_number]
+    );
 
     await client.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [req.params.id]);
     await client.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [req.params.id]);
@@ -2667,9 +2674,10 @@ router.delete("/sales/:id", async (req: any, res) => {
       }
     }
 
-    if (invoice.invoice_number) {
-      await pool.query("DELETE FROM stock_movements WHERE source = 'sales_invoice' AND description LIKE $1", [`%${invoice.invoice_number}%`]);
-    }
+    await pool.query(
+      "DELETE FROM stock_movements WHERE store_id = $1 AND (invoice_id = $2 OR (sale_id IS NOT NULL AND sale_id = $3) OR (invoice_number IS NOT NULL AND invoice_number = $4) OR (source = 'sales_invoice' AND description LIKE $5))",
+      [storeId, id, invoice.sale_id || -1, invoice.invoice_number || '', `%${invoice.invoice_number || id}%`]
+    );
     await pool.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [id]);
     await pool.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [id]);
     if (invoice.quotation_id || invoice.sale_id) {

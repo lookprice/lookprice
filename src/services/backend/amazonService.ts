@@ -934,24 +934,44 @@ export class AmazonService {
             );
           } else {
             const exRow = existing.rows[0];
+            const prevStatus = String(exRow.status || '').trim();
+            const wasAlreadyCanceled = prevStatus === 'Canceled' || prevStatus === 'Cancelled' || prevStatus === 'Unfulfillable';
             await pool.query(
               "UPDATE amazon_orders SET status = $1, order_data = $2 WHERE store_id = $3 AND amazon_order_id = $4",
               [orderStatus || 'Canceled', order, this.storeId, amazonOrderId]
             );
-            if (isCanceled && (exRow.sale_id || exRow.sales_invoice_id)) {
+            if (isCanceled && !wasAlreadyCanceled && (exRow.sale_id || exRow.sales_invoice_id)) {
               if (exRow.sales_invoice_id) {
                 await pool.query("UPDATE sales_invoices SET status = 'cancelled' WHERE id = $1 AND store_id = $2", [exRow.sales_invoice_id, this.storeId]);
               }
               if (exRow.sale_id) {
+                const saleCheck = await pool.query("SELECT status FROM sales WHERE id = $1 AND store_id = $2", [exRow.sale_id, this.storeId]);
+                const wasSaleCancelled = ['cancelled', 'iptal', 'canceled'].includes(String(saleCheck.rows[0]?.status || '').toLowerCase().trim());
                 await pool.query("UPDATE sales SET status = 'cancelled', cancellation_reason = COALESCE(cancellation_reason, 'Amazon Siparişi İptal Edildi') WHERE id = $1 AND store_id = $2", [exRow.sale_id, this.storeId]);
-                const items = await pool.query("SELECT product_id, quantity FROM sale_items WHERE sale_id = $1", [exRow.sale_id]);
-                for (const it of items.rows) {
-                  if (it.product_id && it.quantity > 0) {
-                    await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3", [it.quantity, it.product_id, this.storeId]);
+                if (!wasSaleCancelled) {
+                  const items = await pool.query("SELECT product_id, quantity, unit_price FROM sale_items WHERE sale_id = $1", [exRow.sale_id]);
+                  for (const it of items.rows) {
+                    if (it.product_id && it.quantity > 0) {
+                      await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3", [it.quantity, it.product_id, this.storeId]);
+                    }
                   }
+                  await pool.query(
+                    "DELETE FROM stock_movements WHERE store_id = $1 AND (sale_id = $2 OR (invoice_id IS NOT NULL AND invoice_id = $3) OR invoice_number = $4)",
+                    [this.storeId, exRow.sale_id, exRow.sales_invoice_id || -1, `AMZ-${amazonOrderId}`]
+                  );
                 }
-                await pool.query("DELETE FROM stock_movements WHERE sale_id = $1 AND store_id = $2", [exRow.sale_id, this.storeId]);
               }
+            } else if (isCanceled && (exRow.sale_id || exRow.sales_invoice_id)) {
+              if (exRow.sales_invoice_id) {
+                await pool.query("UPDATE sales_invoices SET status = 'cancelled' WHERE id = $1 AND store_id = $2 AND COALESCE(status, '') != 'cancelled'", [exRow.sales_invoice_id, this.storeId]);
+              }
+              if (exRow.sale_id) {
+                await pool.query("UPDATE sales SET status = 'cancelled', cancellation_reason = COALESCE(cancellation_reason, 'Amazon Siparişi İptal Edildi') WHERE id = $1 AND store_id = $2 AND COALESCE(status, '') != 'cancelled'", [exRow.sale_id, this.storeId]);
+              }
+              await pool.query(
+                "DELETE FROM stock_movements WHERE store_id = $1 AND (sale_id = $2 OR (invoice_id IS NOT NULL AND invoice_id = $3) OR invoice_number = $4)",
+                [this.storeId, exRow.sale_id || -1, exRow.sales_invoice_id || -1, `AMZ-${amazonOrderId}`]
+              );
             }
           }
         } catch (e: any) {

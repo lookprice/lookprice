@@ -794,6 +794,9 @@ router.post("/:id/status", async (req: any, res) => {
   }
 
   try {
+    const prevSaleRes = await pool.query("SELECT status FROM sales WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const prevSaleStatus = String(prevSaleRes.rows[0]?.status || '').toLowerCase().trim();
+
     let query = "UPDATE sales SET status = $1";
     const params: any[] = [status];
     let pIdx = 2;
@@ -825,6 +828,27 @@ router.post("/:id/status", async (req: any, res) => {
         "UPDATE sales_invoices SET status = 'cancelled' WHERE sale_id = $1 AND store_id = $2 AND (ettn IS NULL OR ettn = '')",
         [id, storeId]
       );
+      if (!['cancelled', 'iptal', 'canceled'].includes(prevSaleStatus)) {
+        const itemsRes = await pool.query("SELECT product_id, quantity FROM sale_items WHERE sale_id = $1", [id]);
+        for (const item of itemsRes.rows) {
+          if (item.product_id && item.quantity > 0) {
+            await pool.query(
+              "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
+              [item.quantity, item.product_id, storeId]
+            );
+          }
+        }
+        await pool.query(
+          `DELETE FROM stock_movements
+           WHERE store_id = $1
+             AND (
+               sale_id = $2
+               OR invoice_id IN (SELECT id FROM sales_invoices WHERE sale_id = $2 AND store_id = $1)
+               OR invoice_number IN (SELECT invoice_number FROM sales_invoices WHERE sale_id = $2 AND store_id = $1 AND invoice_number IS NOT NULL)
+             )`,
+          [storeId, id]
+        );
+      }
     }
 
     await logAction(storeId, req.user.id, "sale_status_update", "sales", parseInt(id), `Sipariş durumu güncellendi: ${status}`);
@@ -944,11 +968,17 @@ router.post("/:id/cancel", async (req: any, res) => {
 
     await client.query("UPDATE sales SET status = 'cancelled', cancellation_reason = $1 WHERE id = $2", [reason, req.params.id]);
 
-    // Sync cancellation status to linked sales_invoices
-    await client.query(
-      "UPDATE sales_invoices SET status = 'cancelled' WHERE sale_id = $1 AND store_id = $2",
+    // Sync cancellation status to linked sales_invoices and clean up any auto-created sales_invoice stock movements that lack a reversal
+    const linkedInvRes = await client.query(
+      "UPDATE sales_invoices SET status = 'cancelled' WHERE sale_id = $1 AND store_id = $2 RETURNING id, invoice_number",
       [sale.id, storeId]
     );
+    for (const inv of linkedInvRes.rows) {
+      await client.query(
+        "DELETE FROM stock_movements WHERE store_id = $1 AND source = 'sales_invoice' AND (invoice_id = $2 OR invoice_number = $3) AND sale_id IS NULL",
+        [storeId, inv.id, inv.invoice_number || '']
+      );
+    }
 
     if (sale.quotation_id) {
       await client.query("UPDATE quotations SET status = 'cancelled', is_sale = FALSE WHERE id = $1", [sale.quotation_id]);

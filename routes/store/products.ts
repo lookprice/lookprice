@@ -1955,23 +1955,36 @@ export async function ensureProductMovements(productId: number, storeId: number)
         )
     `, [productId]);
 
+    // d) Remove any stock_movements linked to cancelled/rejected sales_invoices so cancelled orders do not deduct stock in ledger
+    await pool.query(`
+      DELETE FROM stock_movements sm
+      USING sales_invoices si
+      WHERE sm.product_id = $1
+        AND (
+          sm.invoice_id = si.id
+          OR (si.sale_id IS NOT NULL AND sm.sale_id = si.sale_id)
+          OR (sm.invoice_number IS NOT NULL AND sm.invoice_number = si.invoice_number)
+        )
+        AND LOWER(COALESCE(si.status, '')) IN ('cancelled', 'iptal', 'canceled', 'rejected', 'reddedildi')
+    `, [productId]);
+
     // 0.2 Auto-link unlinked purchase_invoice_items and sales_invoice_items for this product (Guarded by 5-Gate Conflict Veto)
     if (prodBarcode || prodCode || prodSku || prodName.length >= 2) {
       const candPii = await pool.query(`
         SELECT pii.id, pii.product_name
         FROM purchase_invoice_items pii
         JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
-        WHERE pi.store_id = $6
+        WHERE pi.store_id = $5
           AND (pii.product_id IS NULL OR pii.product_id = 0)
           AND COALESCE(pi.is_expense, FALSE) = FALSE
           AND (
-            ($2 != '' AND pii.barcode = $2)
-            OR ($3 != '' AND (pii.product_code = $3 OR pii.barcode = $3))
-            OR ($4 != '' AND (pii.product_code = $4 OR pii.barcode = $4))
-            OR ($5 != '' AND LOWER(TRIM(pii.product_name)) = $5)
-            OR ($5 != '' AND LENGTH($5) >= 6 AND LOWER(pii.product_name) LIKE '%' || $5 || '%')
+            ($1::text != '' AND pii.barcode = $1::text)
+            OR ($2::text != '' AND (pii.product_code = $2::text OR pii.barcode = $2::text))
+            OR ($3::text != '' AND (pii.product_code = $3::text OR pii.barcode = $3::text))
+            OR ($4::text != '' AND LOWER(TRIM(pii.product_name)) = $4::text)
+            OR ($4::text != '' AND LENGTH($4::text) >= 6 AND LOWER(pii.product_name) LIKE '%' || $4::text || '%')
           )
-      `, [prod.id, prodBarcode, prodCode, prodSku, prodName, prod.store_id]);
+      `, [prodBarcode, prodCode, prodSku, prodName, prod.store_id]);
 
       for (const piiRow of candPii.rows) {
         if (!hasProductMatchConflict(piiRow.product_name, prod.name)) {
@@ -1983,16 +1996,16 @@ export async function ensureProductMovements(productId: number, storeId: number)
         SELECT sii.id, sii.product_name
         FROM sales_invoice_items sii
         JOIN sales_invoices si ON sii.sales_invoice_id = si.id
-        WHERE si.store_id = $6
+        WHERE si.store_id = $5
           AND (sii.product_id IS NULL OR sii.product_id = 0)
           AND (
-            ($2 != '' AND sii.barcode = $2)
-            OR ($3 != '' AND sii.barcode = $3)
-            OR ($4 != '' AND sii.barcode = $4)
-            OR ($5 != '' AND LOWER(TRIM(sii.product_name)) = $5)
-            OR ($5 != '' AND LENGTH($5) >= 6 AND LOWER(sii.product_name) LIKE '%' || $5 || '%')
+            ($1::text != '' AND sii.barcode = $1::text)
+            OR ($2::text != '' AND sii.barcode = $2::text)
+            OR ($3::text != '' AND sii.barcode = $3::text)
+            OR ($4::text != '' AND LOWER(TRIM(sii.product_name)) = $4::text)
+            OR ($4::text != '' AND LENGTH($4::text) >= 6 AND LOWER(sii.product_name) LIKE '%' || $4::text || '%')
           )
-      `, [prod.id, prodBarcode, prodCode, prodSku, prodName, prod.store_id]);
+      `, [prodBarcode, prodCode, prodSku, prodName, prod.store_id]);
 
       for (const siiRow of candSii.rows) {
         if (!hasProductMatchConflict(siiRow.product_name, prod.name)) {
@@ -2034,7 +2047,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
         )
     `, [productId]);
 
-    // 2. Sync missing sales_invoice_items for this product
+    // 2. Sync missing sales_invoice_items for this product (exclude cancelled/rejected invoices and cancelled sales)
     await pool.query(`
       INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
       SELECT 
@@ -2053,6 +2066,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
         COALESCE(NULLIF(si.document_number, ''), si.invoice_number)
       FROM sales_invoice_items sii
       JOIN sales_invoices si ON sii.sales_invoice_id = si.id
+      LEFT JOIN sales s ON si.sale_id = s.id
       LEFT JOIN companies c ON si.company_id = c.id
       LEFT JOIN customers cust ON si.customer_id = cust.id
       WHERE (
@@ -2062,6 +2076,8 @@ export async function ensureProductMovements(productId: number, storeId: number)
           OR ($4 != '' AND sii.barcode = $4)
           OR ($5 != '' AND LOWER(TRIM(sii.product_name)) = $5)
         )
+        AND LOWER(COALESCE(si.status, '')) NOT IN ('cancelled', 'iptal', 'canceled', 'rejected', 'reddedildi')
+        AND LOWER(COALESCE(s.status, '')) NOT IN ('cancelled', 'iptal', 'canceled')
         AND NOT EXISTS (
           SELECT 1 FROM stock_movements sm
           WHERE sm.product_id = $1
@@ -2072,11 +2088,12 @@ export async function ensureProductMovements(productId: number, storeId: number)
               OR sm.description LIKE '%' || si.invoice_number || '%'
               OR (si.invoice_number LIKE 'HB-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
               OR (si.invoice_number LIKE 'TY-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
+              OR (si.invoice_number LIKE 'AMZ-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 5) || '%')
             )
         )
     `, [productId, prodBarcode, prodCode, prodSku, prodName]);
 
-    // 3. Sync missing sale_items (POS) for this product/barcode (exclude marketplace and invoice-linked sales)
+    // 3. Sync missing sale_items (POS) for this product/barcode (exclude marketplace, cancelled, and invoice-linked sales)
     await pool.query(`
       INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, sale_id)
       SELECT 
@@ -2095,6 +2112,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
       JOIN sales s ON si.sale_id = s.id
       LEFT JOIN customers c ON s.customer_id = c.id
       WHERE (si.product_id = $1 OR ($2 != '' AND si.barcode = $2))
+        AND LOWER(COALESCE(s.status, '')) NOT IN ('cancelled', 'iptal', 'canceled')
         AND COALESCE(s.source, '') NOT IN ('hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti', 'marketplace')
         AND COALESCE(s.payment_method, '') NOT LIKE '%Hepsiburada%'
         AND COALESCE(s.payment_method, '') NOT LIKE '%Trendyol%'
@@ -2117,51 +2135,36 @@ export async function ensureProductMovements(productId: number, storeId: number)
     `, [productId, prodBarcode]);
 
     // 4. Calculate net movements vs product stock_quantity
-    const smSumRes = await pool.query(`
-      SELECT SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END) as net_qty
-      FROM stock_movements
-      WHERE product_id = $1
-    `, [productId]);
-
-    const netQty = parseFloat(smSumRes.rows[0]?.net_qty || '0');
-    let currentStock = parseFloat(prod.stock_quantity || '0');
-
-    // Self-heal products.stock_quantity if duplicate 'out' movements were just removed or if stock_quantity was corrupted negative while real net movements are >= 0
-    if (refundedDupOutQty > 0 || (currentStock < 0 && netQty >= 0)) {
-      currentStock = netQty;
-      await pool.query("UPDATE products SET stock_quantity = $1 WHERE id = $2", [currentStock, productId]);
-    }
-
-    const diff = currentStock - netQty;
-
     const existingInitialRes = await pool.query(
       "SELECT id, quantity FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock' ORDER BY id ASC LIMIT 1",
       [productId]
     );
 
-    if (Math.abs(diff) > 0.001) {
-      if (existingInitialRes.rows.length > 0) {
-        const initialRow = existingInitialRes.rows[0];
-        const newInitialQty = Math.max(0, parseFloat(initialRow.quantity) + diff);
-        if (newInitialQty > 0) {
-          await pool.query(
-            "UPDATE stock_movements SET quantity = $1 WHERE id = $2",
-            [newInitialQty, initialRow.id]
-          );
-        } else {
-          await pool.query("DELETE FROM stock_movements WHERE id = $1", [initialRow.id]);
-        }
-      } else if (diff > 0) {
+    const smSumRes = await pool.query(`
+      SELECT COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as net_qty
+      FROM stock_movements
+      WHERE product_id = $1
+    `, [productId]);
+
+    let netQty = parseFloat(smSumRes.rows[0]?.net_qty || '0');
+    let currentStock = parseFloat(prod.stock_quantity || '0');
+
+    if (existingInitialRes.rows.length === 0) {
+      // No initial_stock record exists yet: if currentStock > netQty, create the single initial_stock record
+      const diff = currentStock - netQty;
+      if (diff > 0.001) {
         await pool.query(`
           INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
           VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok / Devir Kaydı', $4, $5, COALESCE($6, CURRENT_TIMESTAMP))
         `, [prod.store_id, prod.id, diff, parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY', prod.created_at]);
-      } else {
-        await pool.query(`
-          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-          VALUES ($1, $2, 'out', $3, 'manual_adjustment', 'Stok Düzeltme / Manuel Düşüş', $4, $5, CURRENT_TIMESTAMP)
-        `, [prod.store_id, prod.id, Math.abs(diff), parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY']);
+        netQty += diff;
       }
+    }
+
+    // Ledger is the single source of truth once initial_stock exists: synchronize products.stock_quantity to match netQty
+    if (Math.abs(currentStock - netQty) > 0.001) {
+      currentStock = netQty;
+      await pool.query("UPDATE products SET stock_quantity = $1 WHERE id = $2", [currentStock, productId]);
     }
 
     // 5. Absolute Fallback: if total movements count is 0, always insert initial_stock
