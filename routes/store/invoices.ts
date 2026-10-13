@@ -914,11 +914,52 @@ router.post("/sales", async (req: any, res) => {
     total_amount = Math.round(total_amount * 100) / 100;
     tax_amount = Math.round(tax_amount * 100) / 100;
     grand_total = Math.round(grand_total * 100) / 100;
+
+    const bankDetails = (branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details || '').trim();
+    let finalNotes = (notes || req.body.notes || '').trim();
+    if (!finalNotes) {
+      finalNotes = ["İrsaliye Yerine Geçer.", bankDetails ? `Banka Hesap ve IBAN Bilgileri:\n${bankDetails}` : ""].filter(Boolean).join("\n\n");
+    } else {
+      if (!finalNotes.includes("İrsaliye Yerine Geçer")) {
+        finalNotes = `İrsaliye Yerine Geçer.\n\n${finalNotes}`;
+      }
+      if (bankDetails && !finalNotes.includes(bankDetails.substring(0, 8))) {
+        finalNotes = `${finalNotes}\n\nBanka Hesap ve IBAN Bilgileri:\n${bankDetails}`;
+      }
+    }
     
+    // Resolve Due Date & Terms for Term / Credit Invoices
+    let inputDueDate = req.body.due_date || null;
+    let inputDueDays = Math.max(0, parseInt(req.body.due_days, 10) || 0);
+    let inputLateRate = Math.max(0, parseFloat(req.body.late_interest_rate) || 0);
+
+    if (company_id && (inputDueDays === 0 || inputLateRate === 0 || !inputDueDate)) {
+      try {
+        const compTermsRes = await client.query("SELECT due_days, late_interest_rate FROM companies WHERE id = $1", [company_id]);
+        if (compTermsRes.rows.length > 0) {
+          const cRow = compTermsRes.rows[0];
+          if (inputDueDays === 0 && cRow.due_days) inputDueDays = Number(cRow.due_days);
+          if (inputLateRate === 0 && cRow.late_interest_rate) inputLateRate = Number(cRow.late_interest_rate);
+        }
+      } catch (e) {
+        console.error("Error reading company payment terms:", e);
+      }
+    }
+
+    if (!inputDueDate && inputDueDays > 0) {
+      try {
+        const baseDate = invoice_date ? new Date(invoice_date) : new Date();
+        baseDate.setDate(baseDate.getDate() + inputDueDays);
+        inputDueDate = baseDate.toISOString().split('T')[0];
+      } catch {
+        inputDueDate = null;
+      }
+    }
+
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, invoice_time, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, invoice_profile, is_tax_inclusive, customer_email, tax_number, tax_office, address, gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code, return_invoice_number, return_invoice_date, gi_exemption_reason_text) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31) RETURNING id`,
+        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, invoice_time, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, invoice_profile, is_tax_inclusive, customer_email, tax_number, tax_office, address, gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code, return_invoice_number, return_invoice_date, gi_exemption_reason_text, due_date, due_days, late_interest_rate) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34) RETURNING id`,
       [
         storeId, 
         sale_id || null, 
@@ -933,7 +974,7 @@ router.post("/sales", async (req: any, res) => {
         grand_total, 
         currency || branding?.default_currency || 'TRY', 
         exchange_rate || 1, 
-        notes, 
+        finalNotes, 
         invoice_type || 'manual', 
         status || 'draft', 
         payment_method || 'cash', 
@@ -950,7 +991,10 @@ router.post("/sales", async (req: any, res) => {
         req.body.gi_withholding_tax_code || null,
         req.body.return_invoice_number ? String(req.body.return_invoice_number).toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
         req.body.return_invoice_date || null,
-        req.body.gi_exemption_reason_text || req.body.tax_exemption_reason || null
+        req.body.gi_exemption_reason_text || req.body.tax_exemption_reason || null,
+        inputDueDate || null,
+        inputDueDays || 0,
+        inputLateRate || 0
       ]
     );
     
@@ -1093,9 +1137,9 @@ router.post("/sales", async (req: any, res) => {
 
       await client.query(
         `INSERT INTO current_account_transactions 
-          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [storeId, company_id, invoiceId, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`, invoice_date || new Date()]
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, transaction_date, due_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [storeId, company_id, invoiceId, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`, invoice_date || new Date(), inputDueDate || null]
       );
 
       if (payment_method && payment_method !== 'term') {
@@ -1269,6 +1313,49 @@ router.put("/sales/:id", async (req: any, res) => {
       e_document_type = 'E-ARŞİV';
     }
 
+    const storeBrandingRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+    const updateBranding = storeBrandingRes.rows[0]?.branding || {};
+    const bankDetails = (updateBranding?.payment_settings?.bank_details || updateBranding?.payment_settings?.hotel_bank_details || '').trim();
+    let finalNotes = (notes || req.body.notes || '').trim();
+    if (!finalNotes) {
+      finalNotes = ["İrsaliye Yerine Geçer.", bankDetails ? `Banka Hesap ve IBAN Bilgileri:\n${bankDetails}` : ""].filter(Boolean).join("\n\n");
+    } else {
+      if (!finalNotes.includes("İrsaliye Yerine Geçer")) {
+        finalNotes = `İrsaliye Yerine Geçer.\n\n${finalNotes}`;
+      }
+      if (bankDetails && !finalNotes.includes(bankDetails.substring(0, 8))) {
+        finalNotes = `${finalNotes}\n\nBanka Hesap ve IBAN Bilgileri:\n${bankDetails}`;
+      }
+    }
+
+    // Resolve Due Date & Terms for Term / Credit Invoices
+    let inputDueDate = req.body.due_date || null;
+    let inputDueDays = Math.max(0, parseInt(req.body.due_days, 10) || 0);
+    let inputLateRate = Math.max(0, parseFloat(req.body.late_interest_rate) || 0);
+
+    if (company_id && (inputDueDays === 0 || inputLateRate === 0 || !inputDueDate)) {
+      try {
+        const compTermsRes = await client.query("SELECT due_days, late_interest_rate FROM companies WHERE id = $1", [company_id]);
+        if (compTermsRes.rows.length > 0) {
+          const cRow = compTermsRes.rows[0];
+          if (inputDueDays === 0 && cRow.due_days) inputDueDays = Number(cRow.due_days);
+          if (inputLateRate === 0 && cRow.late_interest_rate) inputLateRate = Number(cRow.late_interest_rate);
+        }
+      } catch (e) {
+        console.error("Error reading company payment terms on update:", e);
+      }
+    }
+
+    if (!inputDueDate && inputDueDays > 0) {
+      try {
+        const baseDate = invoice_date ? new Date(invoice_date) : new Date();
+        baseDate.setDate(baseDate.getDate() + inputDueDays);
+        inputDueDate = baseDate.toISOString().split('T')[0];
+      } catch {
+        inputDueDate = null;
+      }
+    }
+
     await client.query(
       `UPDATE sales_invoices 
        SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, 
@@ -1283,12 +1370,15 @@ router.put("/sales/:id", async (req: any, res) => {
         return_invoice_date = $27,
         gi_exemption_reason_text = $28,
         integration_status = CASE WHEN integration_status = 'HATALI' THEN 'DRAFT' ELSE integration_status END,
-        integration_message = CASE WHEN integration_status = 'HATALI' THEN NULL ELSE integration_message END
-    WHERE id = $29 AND store_id = $30`,
+        integration_message = CASE WHEN integration_status = 'HATALI' THEN NULL ELSE integration_message END,
+        due_date = $29,
+        due_days = $30,
+        late_interest_rate = $31
+    WHERE id = $32 AND store_id = $33`,
     [
       company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, 
       total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, 
-      notes, payment_method, invoice_type, status, e_document_type, 
+      finalNotes, payment_method, invoice_type, status, e_document_type, 
       invoice_profile || (e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'), 
       finalIsTaxInclusive,
       req.body.customer_email || null,
@@ -1298,6 +1388,9 @@ router.put("/sales/:id", async (req: any, res) => {
       req.body.return_invoice_number ? String(req.body.return_invoice_number).toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
       req.body.return_invoice_date || null,
       req.body.gi_exemption_reason_text || req.body.tax_exemption_reason || null,
+      inputDueDate || null,
+      inputDueDays || 0,
+      inputLateRate || 0,
       req.params.id, storeId
     ]
     );
@@ -1419,9 +1512,9 @@ router.put("/sales/:id", async (req: any, res) => {
 
       await client.query(
         `INSERT INTO current_account_transactions 
-          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [storeId, company_id, req.params.id, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`, invoice_date || new Date()]
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, transaction_date, due_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [storeId, company_id, req.params.id, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`, invoice_date || new Date(), inputDueDate || null]
       );
 
       if (payment_method && payment_method !== 'term') {

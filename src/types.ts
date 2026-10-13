@@ -90,6 +90,7 @@ export interface Product {
   labels?: string[];
   _purchaseInvoiceItemId?: number | string;
   sector_data?: any;
+  is_active?: boolean;
   is_web_sale?: boolean;
   is_bestseller?: boolean;
   is_sellable?: boolean;
@@ -299,6 +300,28 @@ export interface Quotation {
   payment_method?: string;
   due_date?: string;
   is_tax_inclusive?: boolean;
+}
+
+export interface Company {
+  id: number;
+  store_id?: number;
+  title: string;
+  tax_office?: string;
+  tax_number?: string;
+  address?: string;
+  delivery_address?: string;
+  phone?: string;
+  email?: string;
+  contact_person?: string;
+  representative?: string;
+  is_expense?: boolean;
+  expense_category?: string;
+  expense_center?: string;
+  due_days?: number;
+  late_interest_rate?: number;
+  currency?: string;
+  notes?: string;
+  created_at?: string;
 }
 
 export interface QuotationItem {

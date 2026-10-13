@@ -149,6 +149,13 @@ interface SalesInvoiceFormModalProps {
   // Payment & Currency
   paymentMethod: string;
   setPaymentMethod: (val: string) => void;
+  dueDate?: string;
+  setDueDate: (val: string) => void;
+  dueDays?: number;
+  setDueDays: (val: number) => void;
+  lateInterestRate?: number;
+  setLateInterestRate: (val: number) => void;
+  onUpdateTerms?: (days: number, rate: number, targetDueDate?: string) => void;
   currency: string;
   setCurrency: (val: string) => void;
   exchangeRate: string;
@@ -240,6 +247,13 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
   setQuickProductForm,
   paymentMethod,
   setPaymentMethod,
+  dueDate,
+  setDueDate,
+  dueDays,
+  setDueDays,
+  lateInterestRate,
+  setLateInterestRate,
+  onUpdateTerms,
   currency,
   setCurrency,
   exchangeRate,
@@ -906,6 +920,71 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {paymentMethod === 'term' && (
+                <div className="p-3 bg-indigo-950/60 border border-indigo-800/80 rounded-xl grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-indigo-300 uppercase tracking-wider block">
+                      {isTr ? "Vade Süresi (Gün)" : "Due Term (Days)"}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="365"
+                      value={dueDays ?? 0}
+                      onChange={(e) => {
+                        const days = parseInt(e.target.value, 10) || 0;
+                        if (onUpdateTerms) onUpdateTerms(days, lateInterestRate ?? 0, dueDate);
+                      }}
+                      className="w-full px-3 py-2 bg-slate-900 border border-indigo-700 text-white rounded-lg text-xs font-black text-center focus:outline-none focus:border-indigo-400"
+                      placeholder="30"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-indigo-300 uppercase tracking-wider block">
+                      {isTr ? "Vade Tarihi (dd/mm/yyyy)" : "Due Date"}
+                    </label>
+                    <input
+                      type="date"
+                      value={dueDate || ''}
+                      onChange={(e) => {
+                        const newDate = e.target.value;
+                        if (setDueDate) setDueDate(newDate);
+                        if (newDate && invoiceDate) {
+                          try {
+                            const d1 = new Date(invoiceDate);
+                            const d2 = new Date(newDate);
+                            const diffTime = d2.getTime() - d1.getTime();
+                            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                            if (diffDays >= 0 && onUpdateTerms) {
+                              onUpdateTerms(diffDays, lateInterestRate ?? 0, newDate);
+                            }
+                          } catch {}
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-slate-900 border border-indigo-700 text-white rounded-lg text-xs font-bold text-center focus:outline-none focus:border-indigo-400"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-indigo-300 uppercase tracking-wider block">
+                      {isTr ? "Aylık Vade Farkı (%)" : "Monthly Late Fee (%)"}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={lateInterestRate ?? 0}
+                      onChange={(e) => {
+                        const rate = parseFloat(e.target.value) || 0;
+                        if (onUpdateTerms) onUpdateTerms(dueDays ?? 0, rate, dueDate);
+                      }}
+                      className="w-full px-3 py-2 bg-slate-900 border border-indigo-700 text-amber-300 rounded-lg text-xs font-black text-center focus:outline-none focus:border-indigo-400"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* 4. ITEMS TABLE - Compact & Clean Grid */}
               <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">

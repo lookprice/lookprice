@@ -437,9 +437,15 @@ router.post("/:id/approve", async (req: any, res) => {
 
       const invoiceNumber = `TASLAK-${Date.now().toString().slice(-6)}`;
       
-      const invoiceNotes = quotation.service_id 
+      const storeBrandingRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+      const storeBranding = storeBrandingRes.rows[0]?.branding || {};
+      const bankDetails = (storeBranding?.payment_settings?.bank_details || storeBranding?.payment_settings?.hotel_bank_details || '').trim();
+
+      const quoteNote = quotation.service_id 
         ? `Teknik Servis #${quotation.service_id} - Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`
         : `Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`;
+      
+      const invoiceNotes = ["İrsaliye Yerine Geçer.", quoteNote, bankDetails ? `Banka Hesap ve IBAN Bilgileri:\n${bankDetails}` : ""].filter(Boolean).join("\n\n");
       
       const invRes = await client.query(
         `INSERT INTO sales_invoices 

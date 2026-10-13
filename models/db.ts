@@ -441,6 +441,12 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='expense_center') THEN
           ALTER TABLE companies ADD COLUMN expense_center TEXT;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='due_days') THEN
+          ALTER TABLE companies ADD COLUMN due_days INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='late_interest_rate') THEN
+          ALTER TABLE companies ADD COLUMN late_interest_rate DECIMAL(5,2) DEFAULT 0;
+        END IF;
       END $$;
 
       CREATE TABLE IF NOT EXISTS current_account_transactions (
@@ -467,6 +473,9 @@ export async function initDb() {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='exchange_rate') THEN
           ALTER TABLE current_account_transactions ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='due_date') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN due_date DATE;
         END IF;
       END $$;
 
@@ -685,6 +694,7 @@ export async function initDb() {
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS is_expense BOOLEAN DEFAULT FALSE;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS expense_category TEXT;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS expense_center TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS due_date DATE;
       
       -- Update foreign key to SET NULL
       DO $$ 
@@ -771,6 +781,9 @@ export async function initDb() {
 
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS quotation_id INTEGER;
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS invoice_time TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS due_date DATE;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS due_days INTEGER DEFAULT 0;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS late_interest_rate DECIMAL(5,2) DEFAULT 0;
 
       CREATE TABLE IF NOT EXISTS sales_invoice_items (
         id SERIAL PRIMARY KEY,

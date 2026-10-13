@@ -1136,13 +1136,51 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        docNo: documentNumber,
        documentNo: documentNumber,
        invoiceNumber: documentNumber,
-       note: invoice.notes || "",
-       notes: (invoice.notes || "").split('\n').map((n: string) => ({ note: n.trim() })).filter((n: any) => n.note),
-       noteList: (invoice.notes || "").split('\n').map((n: string) => n.trim()).filter(Boolean),
-       notesList: (invoice.notes || "").split('\n').map((n: string) => n.trim()).filter(Boolean),
+       note: (() => {
+          let n = (invoice.notes || "").trim();
+          const bankDetails = (branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details || "").trim();
+          if (!n) {
+             return ["İrsaliye Yerine Geçer.", bankDetails ? `Banka Hesap ve IBAN Bilgileri:\n${bankDetails}` : ""].filter(Boolean).join("\n\n");
+          }
+          let res = n;
+          if (!res.includes("İrsaliye Yerine Geçer")) {
+             res = `İrsaliye Yerine Geçer.\n\n${res}`;
+          }
+          if (bankDetails && !res.includes(bankDetails.substring(0, 8))) {
+             res = `${res}\n\nBanka Hesap ve IBAN Bilgileri:\n${bankDetails}`;
+          }
+          return res;
+       })(),
+       notes: (() => {
+          let n = (invoice.notes || "").trim();
+          const bankDetails = (branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details || "").trim();
+          let res = n || ["İrsaliye Yerine Geçer.", bankDetails ? `Banka Hesap ve IBAN Bilgileri:\n${bankDetails}` : ""].filter(Boolean).join("\n\n");
+          if (!res.includes("İrsaliye Yerine Geçer")) res = `İrsaliye Yerine Geçer.\n\n${res}`;
+          if (bankDetails && !res.includes(bankDetails.substring(0, 8))) res = `${res}\n\nBanka Hesap ve IBAN Bilgileri:\n${bankDetails}`;
+          return res.split('\n').map((str: string) => ({ note: str.trim() })).filter((obj: any) => obj.note);
+       })(),
+       noteList: (() => {
+          let n = (invoice.notes || "").trim();
+          const bankDetails = (branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details || "").trim();
+          let res = n || ["İrsaliye Yerine Geçer.", bankDetails ? `Banka Hesap ve IBAN Bilgileri:\n${bankDetails}` : ""].filter(Boolean).join("\n\n");
+          if (!res.includes("İrsaliye Yerine Geçer")) res = `İrsaliye Yerine Geçer.\n\n${res}`;
+          if (bankDetails && !res.includes(bankDetails.substring(0, 8))) res = `${res}\n\nBanka Hesap ve IBAN Bilgileri:\n${bankDetails}`;
+          return res.split('\n').map((str: string) => str.trim()).filter(Boolean);
+       })(),
+       notesList: (() => {
+          let n = (invoice.notes || "").trim();
+          const bankDetails = (branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details || "").trim();
+          let res = n || ["İrsaliye Yerine Geçer.", bankDetails ? `Banka Hesap ve IBAN Bilgileri:\n${bankDetails}` : ""].filter(Boolean).join("\n\n");
+          if (!res.includes("İrsaliye Yerine Geçer")) res = `İrsaliye Yerine Geçer.\n\n${res}`;
+          if (bankDetails && !res.includes(bankDetails.substring(0, 8))) res = `${res}\n\nBanka Hesap ve IBAN Bilgileri:\n${bankDetails}`;
+          return res.split('\n').map((str: string) => str.trim()).filter(Boolean);
+       })(),
        currencyCode: (invoice.currency || 'TRY').toUpperCase(),
        currencyRate: String(Number(Number(invoice.exchange_rate || 1).toFixed(4))),
        tenantIdentifierNumber: storeTaxNumber,
+       dueDate: invoice.due_date ? String(invoice.due_date).split('T')[0] : undefined,
+       paymentDueDate: invoice.due_date ? String(invoice.due_date).split('T')[0] : undefined,
+       paymentTerms: invoice.due_days ? `${invoice.due_days} Gün Vade` : undefined,
        
        pkAlias: docType === 'E-FATURA' ? pkAlias : undefined,
        gbAlias: settings.sender_alias || undefined,
@@ -2298,6 +2336,7 @@ export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: 
   const docNumber = inv.document_number || inv.invoice_number || 'TASLAK-' + inv.id;
   const ettnVal = inv.ettn || "[GİB'e Gönderilmedi]";
   const invoiceDate = inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('tr-TR') : new Date().toLocaleDateString('tr-TR');
+  const dueDateFormatted = inv.due_date ? new Date(inv.due_date).toLocaleDateString('tr-TR') : '';
   const invoiceTime = inv.invoice_time || '00:00:00';
   
   let computedDocType = 'E-ARŞİV FATURA';
@@ -2508,6 +2547,22 @@ export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: 
     `;
   }
 
+  const bankDetails = (branding.payment_settings?.bank_details || branding.payment_settings?.hotel_bank_details || '').trim();
+  const effectiveInvoiceNotes = (() => {
+    let n = (inv.notes || "").trim();
+    if (!n) {
+      return ["İrsaliye Yerine Geçer.", bankDetails ? `Banka Hesap ve IBAN Bilgileri:\n${bankDetails}` : ""].filter(Boolean).join("\n\n");
+    }
+    let res = n;
+    if (!res.includes("İrsaliye Yerine Geçer")) {
+      res = `İrsaliye Yerine Geçer.\n\n${res}`;
+    }
+    if (bankDetails && !res.includes(bankDetails.substring(0, 8))) {
+      res = `${res}\n\nBanka Hesap ve IBAN Bilgileri:\n${bankDetails}`;
+    }
+    return res;
+  })();
+
   return `<!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -2584,6 +2639,11 @@ export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: 
             <td style="text-align: right; font-weight: 600; color: #64748b; padding: 2px 4px;">Senaryo / Tip:</td>
             <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 2px 4px;">${profileLabel} / ${typeLabel}</td>
           </tr>
+          ${dueDateFormatted ? `
+          <tr>
+            <td style="text-align: right; font-weight: 700; color: #b91c1c; padding: 2px 4px;">Vade Tarihi:</td>
+            <td style="text-align: right; font-weight: 800; color: #b91c1c; padding: 2px 4px;">${dueDateFormatted}${inv.due_days ? ` (${inv.due_days} Gün)` : ''}</td>
+          </tr>` : ''}
         </table>
       </td>
     </tr>
@@ -2628,12 +2688,10 @@ export async function generateLocalSalesInvoiceHtml(invoiceId: number, storeId: 
           YALNIZ: # ${amountWords} #
         </div>
 
-        ${inv.notes ? `
-        <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; background: #f8fafc; font-size: 11px;">
-          <strong style="display: block; text-transform: uppercase; color: #475569; font-size: 10px; margin-bottom: 4px;">Notlar / Açıklamalar:</strong>
-          <div style="white-space: pre-wrap; color: #0f172a;">${inv.notes}</div>
+        <div style="border: 1.5px solid #0f172a; border-radius: 6px; padding: 10px 14px; background: #ffffff; font-size: 11.5px; margin-bottom: 10px; line-height: 1.55;">
+          <strong style="display: block; text-transform: uppercase; color: #475569; font-size: 10px; letter-spacing: 0.5px; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">Fatura Açıklaması / Notlar:</strong>
+          <div style="white-space: pre-wrap; color: #0f172a; font-weight: 600;">${effectiveInvoiceNotes}</div>
         </div>
-        ` : ''}
 
         ${exchangeRateBlock}
       </td>

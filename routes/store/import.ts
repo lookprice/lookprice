@@ -72,39 +72,50 @@ router.post("/", upload.single("file"), async (req: any, res) => {
 
     await client.query("BEGIN");
     const importLogs: any[] = [];
+
+    const parsePriceVal = (raw: any): number => {
+      if (raw === undefined || raw === null) return 0;
+      let s = String(raw).trim().replace(/[^0-9.,]/g, "");
+      if (!s) return 0;
+      if (s.includes('.') && s.includes(',')) {
+        if (s.lastIndexOf('.') > s.lastIndexOf(',')) {
+          s = s.replace(/,/g, "");
+        } else {
+          s = s.replace(/\./g, "").replace(",", ".");
+        }
+      } else if (s.includes(',')) {
+        if (s.match(/,\d{2}$/)) {
+          s = s.replace(",", ".");
+        } else if (s.match(/,\d{3}/)) {
+          s = s.replace(",", "");
+        } else {
+          s = s.replace(",", ".");
+        }
+      }
+      return parseFloat(s) || 0;
+    };
+
+    // Group rows by barcode to support variant rows sharing the same parent barcode
+    const groupedMap = new Map<string, any[]>();
     for (const item of data as any[]) {
       const barcode = String(item[mapping.barcode] || "").trim();
-      const name = String(item[mapping.name] || "").trim();
-      const rawPrice = item[mapping.price];
-      let price = 0;
-      if (rawPrice !== undefined && rawPrice !== null) {
-        let s = String(rawPrice).trim();
-        // Remove currency symbols and other non-numeric chars except . and ,
-        s = s.replace(/[^0-9.,]/g, "");
-        
-        if (s.includes('.') && s.includes(',')) {
-          if (s.lastIndexOf('.') > s.lastIndexOf(',')) {
-            s = s.replace(/,/g, "");
-          } else {
-            s = s.replace(/\./g, "").replace(",", ".");
-          }
-        } else if (s.includes(',')) {
-          if (s.match(/,\d{2}$/)) {
-            s = s.replace(",", ".");
-          } else if (s.match(/,\d{3}/)) {
-            s = s.replace(",", "");
-          } else {
-            s = s.replace(",", ".");
-          }
-        }
-        price = parseFloat(s) || 0;
+      if (!barcode) continue;
+      if (!groupedMap.has(barcode)) {
+        groupedMap.set(barcode, []);
       }
+      groupedMap.get(barcode)!.push(item);
+    }
+
+    for (const [barcode, items] of groupedMap.entries()) {
+      const item = items[0];
+      const name = String(item[mapping.name] || "").trim();
+      let price = parsePriceVal(item[mapping.price]);
 
       if (importLogs.length < 20) {
         importLogs.push({ barcode, name, price, rawPrice: item[mapping.price] });
       }
 
-      if (barcode && !isNaN(price)) {
+      if (barcode) {
         const existing = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND barcode = $2", [storeId, barcode]);
 
         let currency = item[mapping.currency] || mapping.currency || 'TRY';
@@ -121,7 +132,7 @@ router.post("/", upload.single("file"), async (req: any, res) => {
 
         const stockQuantityRaw = item[mapping.stock_quantity];
         const hasStockUpdate = stockQuantityRaw !== undefined && stockQuantityRaw !== null && String(stockQuantityRaw).trim() !== "";
-        const stockQuantity = hasStockUpdate ? parseInt(String(stockQuantityRaw)) || 0 : 0;
+        let stockQuantity = hasStockUpdate ? parseInt(String(stockQuantityRaw)) || 0 : 0;
         
         const minStockLevel = parseInt(String(item[mapping.min_stock_level] || "5")) || 5;
         const unit = (mapping.unit && item[mapping.unit] !== undefined && item[mapping.unit] !== null && String(item[mapping.unit]).trim() !== "") 
@@ -136,13 +147,12 @@ router.post("/", upload.single("file"), async (req: any, res) => {
         const hasTaxRateUpdate = taxRateRaw !== undefined && taxRateRaw !== null && String(taxRateRaw).trim() !== "";
         const taxRate = hasTaxRateUpdate ? parseFloat(String(taxRateRaw)) : null;
 
-        // Extract main image and extra images from mapped columns and any extra image headers
+        // Extract main image and extra images from all rows in this group
         const extractedImages: string[] = [];
         const pushRawUrlString = (rawVal: any) => {
           if (rawVal === undefined || rawVal === null) return;
           const str = String(rawVal).trim();
           if (!str) return;
-          // Support multiple URLs separated by comma, semicolon, pipe or newline in a single cell
           const parts = str.split(/[\n\r;|]+|,(?=\s*https?:\/\/)/i).map(p => p.trim()).filter(Boolean);
           for (const part of parts) {
             if ((part.startsWith("http://") || part.startsWith("https://") || part.startsWith("/")) && !extractedImages.includes(part)) {
@@ -152,21 +162,94 @@ router.post("/", upload.single("file"), async (req: any, res) => {
         };
 
         const imageMappingKeys = ["image_url", "image_url_2", "image_url_3", "image_url_4", "image_url_5", "image_url_6", "image_url_7", "image_url_8"];
-        for (const mKey of imageMappingKeys) {
-          if (mapping[mKey] && item[mapping[mKey]] !== undefined) {
-            pushRawUrlString(item[mapping[mKey]]);
+        for (const rowItem of items) {
+          for (const mKey of imageMappingKeys) {
+            if (mapping[mKey] && rowItem[mapping[mKey]] !== undefined) {
+              pushRawUrlString(rowItem[mapping[mKey]]);
+            }
           }
-        }
-
-        // Also scan any unmapped columns in the Excel row that clearly represent extra image columns (e.g., "Ek Resim 2", "Görsel 3", "Image 2")
-        for (const colKey of Object.keys(item)) {
-          if (/^(ek\s*resim|ekstra\s*resim|ek\s*görsel|ek\s*gorsel|resim\s*\d+|görsel\s*\d+|gorsel\s*\d+|image\s*\d+|image_url_\d+|img\s*\d+|foto\s*\d+)$/i.test(colKey.trim())) {
-            pushRawUrlString(item[colKey]);
+          for (const colKey of Object.keys(rowItem)) {
+            if (/^(ek\s*resim|ekstra\s*resim|ek\s*görsel|ek\s*gorsel|resim\s*\d+|görsel\s*\d+|gorsel\s*\d+|image\s*\d+|image_url_\d+|img\s*\d+|foto\s*\d+)$/i.test(colKey.trim())) {
+              pushRawUrlString(rowItem[colKey]);
+            }
           }
         }
 
         const hasImagesUpdate = extractedImages.length > 0;
         const primaryImageUrl = hasImagesUpdate ? extractedImages[0] : "";
+
+        // Extract and build variant matrix from items
+        const variantsList: any[] = [];
+        for (let idx = 0; idx < items.length; idx++) {
+          const row = items[idx];
+          const vName = String(
+            (mapping.variant_name && row[mapping.variant_name]) || 
+            row["Varyant Adı / Seçeneği"] || 
+            row["Varyant Adı"] || 
+            row["Varyant"] || 
+            ""
+          ).trim();
+          const vColor = String(
+            (mapping.variant_color && row[mapping.variant_color]) || 
+            row["Varyant Rengi"] || 
+            row["Renk"] || 
+            ""
+          ).trim();
+          const vSize = String(
+            (mapping.variant_size && row[mapping.variant_size]) || 
+            row["Varyant Bedeni"] || 
+            row["Varyant Bedeni / Numarası"] || 
+            row["Beden"] || 
+            ""
+          ).trim();
+          const vBarcode = String(
+            (mapping.variant_barcode && row[mapping.variant_barcode]) || 
+            row["Varyant Barkodu"] || 
+            row["Varyant Barkod"] || 
+            ""
+          ).trim();
+          const vRawPrice = (mapping.variant_price && row[mapping.variant_price] !== undefined) 
+            ? row[mapping.variant_price] 
+            : (row["Varyant Satış Fiyatı"] || row["Varyant Fiyatı"]);
+          const vRawStock = (mapping.variant_stock && row[mapping.variant_stock] !== undefined) 
+            ? row[mapping.variant_stock] 
+            : (row["Varyant Stok Miktarı"] || row["Varyant Stok"]);
+          const vImage = String(
+            (mapping.variant_image && row[mapping.variant_image]) || 
+            row["Varyant Özel Resim Linki"] || 
+            row["Varyant Resim Linki"] || 
+            ""
+          ).trim();
+
+          if (vName || vColor || vSize || vBarcode || items.length > 1) {
+            const parsedVPrice = parsePriceVal(vRawPrice);
+            const parsedVStock = parseInt(String(vRawStock)) || 0;
+            const finalVName = vName || [vColor, vSize].filter(Boolean).join(" / ") || `Varyant ${idx + 1}`;
+            variantsList.push({
+              id: "var_" + Date.now().toString(36) + "_" + idx + "_" + Math.random().toString(36).substring(2, 6),
+              name: finalVName,
+              barcode: vBarcode || (vName ? `${barcode}-${idx + 1}` : ""),
+              price: parsedVPrice > 0 ? parsedVPrice : (price > 0 ? price : undefined),
+              stock_quantity: parsedVStock,
+              color_name: vColor || undefined,
+              size: vSize || undefined,
+              image_url: vImage || undefined,
+              attributes: {
+                ...(vColor ? { "Renk": vColor } : {}),
+                ...(vSize ? { "Beden": vSize } : {})
+              },
+              is_active: true
+            });
+          }
+        }
+
+        const hasVariants = variantsList.length > 0;
+        if (hasVariants && stockQuantity === 0) {
+          stockQuantity = variantsList.reduce((acc, curr) => acc + (Number(curr.stock_quantity) || 0), 0);
+        }
+        if (price === 0 && hasVariants && variantsList[0].price) {
+          price = Number(variantsList[0].price);
+        }
 
         if (existing.rows.length > 0) {
           const existingId = existing.rows[0].id;
@@ -191,7 +274,7 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             paramIdx++;
           }
 
-          if (hasStockUpdate) {
+          if (hasStockUpdate || hasVariants) {
             updateQuery += `, stock_quantity = $${paramIdx}`;
             updateParams.push(stockQuantity);
             paramIdx++;
@@ -257,6 +340,12 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             paramIdx += 2;
           }
 
+          if (hasVariants) {
+            updateQuery += `, has_variants = true, variants = $${paramIdx}::jsonb`;
+            updateParams.push(JSON.stringify(variantsList));
+            paramIdx++;
+          }
+
           updateQuery += ` WHERE id = $1`;
           await client.query(updateQuery, updateParams);
           successCount++;
@@ -267,8 +356,8 @@ router.post("/", upload.single("file"), async (req: any, res) => {
           const price_2 = price / (1 + effectiveTaxRate / 100.0);
 
           await client.query(`
-            INSERT INTO products (store_id, barcode, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, tax_rate, price_2, price_2_currency, image_url, images, updated_at) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, CURRENT_TIMESTAMP)
+            INSERT INTO products (store_id, barcode, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, tax_rate, price_2, price_2_currency, image_url, images, has_variants, variants, updated_at) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20::jsonb, CURRENT_TIMESTAMP)
           `, [
             storeId,
             barcode,
@@ -287,7 +376,9 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             price_2,
             currency,
             primaryImageUrl,
-            JSON.stringify(extractedImages)
+            JSON.stringify(extractedImages),
+            hasVariants,
+            JSON.stringify(variantsList)
           ]);
           successCount++;
         }

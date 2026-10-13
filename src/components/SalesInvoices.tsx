@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import React, { useState, useEffect, useDeferredValue, useRef } from "react";
+import React, { useState, useEffect, useDeferredValue, useRef, useCallback } from "react";
 import { 
   Plus, 
   Search, 
@@ -215,6 +215,68 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [trackingNumber, setTrackingNumber] = useState("");
   const [shippingSubmitting, setShippingSubmitting] = useState(false);
 
+  // Short format dd/mm/yy for terms
+  const formatDueDateShort = useCallback((dStr: string) => {
+    if (!dStr) return '';
+    const parts = dStr.split('-');
+    if (parts.length === 3) {
+      const y = parts[0];
+      const m = parts[1];
+      const d = parts[2];
+      return `${d}/${m}/${y.slice(-2)}`;
+    }
+    return dStr;
+  }, []);
+
+  // Full notes helper including "İrsaliye Yerine Geçer", bank details, and payment terms / late fee
+  const buildFullNotesWithTerms = useCallback((currentNotes: string, targetDueDate: string, targetDueDays: number, targetLateRate: number) => {
+    const parts: string[] = ["İrsaliye Yerine Geçer."];
+
+    if (targetDueDays > 0 && targetDueDate) {
+      const formattedD = formatDueDateShort(targetDueDate);
+      let termLine = `Vade Tarihi: ${formattedD} - Vadeniz ${targetDueDays} Gündür.`;
+      if (targetLateRate > 0) {
+        termLine += ` Vadesinde ödenmeyen faturalar için %${targetLateRate} vade farkı uygulanır.`;
+      }
+      parts.push(termLine);
+    }
+
+    const bankDetails = branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details;
+    if (bankDetails && String(bankDetails).trim()) {
+      parts.push(`Banka Hesap ve IBAN Bilgileri:\n${String(bankDetails).trim()}`);
+    }
+
+    // Preserve custom lines user might have entered
+    if (currentNotes) {
+      const customLines = currentNotes.split('\n')
+        .map(l => l.trim())
+        .filter(l => l &&
+          !l.includes("İrsaliye Yerine Geçer") &&
+          !l.startsWith("Vade Tarihi:") &&
+          !l.includes("Vadeniz") &&
+          !l.includes("vade farkı uygulanır") &&
+          !l.includes("Banka Hesap ve IBAN") &&
+          !l.includes("IBAN:") &&
+          !l.startsWith("TR")
+        );
+      if (customLines.length > 0) {
+        parts.push(customLines.join('\n'));
+      }
+    }
+
+    return parts.join("\n\n");
+  }, [branding?.payment_settings?.bank_details, branding?.payment_settings?.hotel_bank_details, formatDueDateShort]);
+
+  // Default notes helper including "İrsaliye Yerine Geçer" and store bank/IBAN details
+  const getDefaultNotes = useCallback(() => {
+    const parts: string[] = ["İrsaliye Yerine Geçer."];
+    const bankDetails = branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details;
+    if (bankDetails && String(bankDetails).trim()) {
+      parts.push(`Banka Hesap ve IBAN Bilgileri:\n${String(bankDetails).trim()}`);
+    }
+    return parts.join("\n\n");
+  }, [branding?.payment_settings?.bank_details, branding?.payment_settings?.hotel_bank_details]);
+
   // Form States
   const [customerId, setCustomerId] = useState("");
   const [companyId, setCompanyId] = useState("");
@@ -222,7 +284,17 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [waybillNumber, setWaybillNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [invoiceTime, setInvoiceTime] = useState(new Date().toLocaleTimeString('tr-TR', { hour12: false }));
-  const [notes, setNotes] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [dueDays, setDueDays] = useState<number>(0);
+  const [lateInterestRate, setLateInterestRate] = useState<number>(0);
+  const [notes, setNotes] = useState(() => {
+    const parts: string[] = ["İrsaliye Yerine Geçer."];
+    const bankDetails = branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details;
+    if (bankDetails && String(bankDetails).trim()) {
+      parts.push(`Banka Hesap ve IBAN Bilgileri:\n${String(bankDetails).trim()}`);
+    }
+    return parts.join("\n\n");
+  });
   const [items, setItems] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const deferredProductSearch = useDeferredValue(productSearch);
@@ -452,7 +524,19 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setCompanyId(initialData.company_id || "");
       setCustomerSearch(initialData.customer_name || initialData.company_title || "");
       setInvoiceNumber(initialData.invoice_number || `SATIŞ-${new Date().getTime().toString().slice(-6)}`);
-      setNotes(initialData.notes || "");
+      let initialNotes = (initialData.notes || "").trim();
+      if (!initialNotes) {
+        initialNotes = getDefaultNotes();
+      } else {
+        if (!initialNotes.includes("İrsaliye Yerine Geçer")) {
+          initialNotes = `İrsaliye Yerine Geçer.\n\n${initialNotes}`;
+        }
+        const bankDetails = branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details;
+        if (bankDetails && String(bankDetails).trim() && !initialNotes.includes(String(bankDetails).trim().substring(0, 10))) {
+          initialNotes = `${initialNotes}\n\nBanka Hesap ve IBAN Bilgileri:\n${String(bankDetails).trim()}`;
+        }
+      }
+      setNotes(initialNotes);
       setItems(initialData.items || []);
       setCurrency(initialData.currency || branding?.default_currency || 'TRY');
       setPaymentMethod(initialData.payment_method || 'term');
@@ -469,7 +553,19 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setShowModal(true);
       if (onCloseInitialData) onCloseInitialData();
     }
-  }, [initialData, branding, onCloseInitialData]);
+  }, [initialData, branding, onCloseInitialData, getDefaultNotes]);
+
+  // Keep default notes up-to-date with store branding bank details when modal is fresh
+  useEffect(() => {
+    if (!editingInvoiceId && !initialData) {
+      setNotes((prev) => {
+        if (!prev || prev === "İrsaliye Yerine Geçer.") {
+          return getDefaultNotes();
+        }
+        return prev;
+      });
+    }
+  }, [getDefaultNotes, editingInvoiceId, initialData]);
 
   // Taxpayer Checking
   useEffect(() => {
@@ -511,6 +607,22 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         setEditAddress(selectedCompany.address || "");
         setCustomerEmail(selectedCompany.email || "");
         setCustomerSearch(selectedCompany.title || selectedCompany.company_title || "");
+
+        // Auto assign payment terms from company
+        const compDueDays = Number(selectedCompany.due_days || 0);
+        const compLateRate = Number(selectedCompany.late_interest_rate || 0);
+        setDueDays(compDueDays);
+        setLateInterestRate(compLateRate);
+
+        if (compDueDays > 0) {
+          setPaymentMethod('term');
+          const baseD = invoiceDate ? new Date(invoiceDate) : new Date();
+          baseD.setDate(baseD.getDate() + compDueDays);
+          const autoDueDate = baseD.toISOString().split('T')[0];
+          setDueDate(autoDueDate);
+          setNotes(prev => buildFullNotesWithTerms(prev, autoDueDate, compDueDays, compLateRate));
+        }
+
         lastSyncedIdRef.current = currentId;
       } else if (selectedCustomer) {
         setEditTaxNumber(selectedCustomer.tax_number || "");
@@ -530,7 +642,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         }
       }
     }
-  }, [companyId, customerId, selectedCompany, selectedCustomer, isNewCustomer]);
+  }, [companyId, customerId, selectedCompany, selectedCustomer, isNewCustomer, invoiceDate, buildFullNotesWithTerms]);
 
   const handleCheckTaxpayer = async () => {
     if (!editTaxNumber) {
@@ -636,7 +748,10 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     setWaybillNumber("");
     setInvoiceDate(new Date().toISOString().split('T')[0]);
     setInvoiceTime(new Date().toLocaleTimeString('tr-TR', { hour12: false }));
-    setNotes("");
+    setDueDate("");
+    setDueDays(0);
+    setLateInterestRate(0);
+    setNotes(getDefaultNotes());
     setItems([]);
     setProductSearch("");
     setPaymentMethod('term');
@@ -716,6 +831,9 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       waybill_number: waybillNumber,
       invoice_date: invoiceDate,
       invoice_time: invoiceTime,
+      due_date: paymentMethod === 'term' ? (dueDate || null) : null,
+      due_days: paymentMethod === 'term' ? (dueDays || 0) : 0,
+      late_interest_rate: paymentMethod === 'term' ? (lateInterestRate || 0) : 0,
       notes,
       items: items.map(item => ({
         ...item,
@@ -801,6 +919,9 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setWaybillNumber(data.waybill_number || "");
       setInvoiceDate(new Date(data.invoice_date).toISOString().split('T')[0]);
       setInvoiceTime(data.invoice_time || new Date().toLocaleTimeString('tr-TR', { hour12: false }));
+      setDueDate(data.due_date ? String(data.due_date).split('T')[0] : "");
+      setDueDays(Number(data.due_days || 0));
+      setLateInterestRate(Number(data.late_interest_rate || 0));
       setNotes(data.notes || "");
       setPaymentMethod(data.payment_method);
       setCurrency(data.currency);
@@ -1450,7 +1571,37 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         handleAddProduct={handleAddProduct}
         setShowQuickProductModal={setShowQuickProductModal}
         paymentMethod={paymentMethod}
-        setPaymentMethod={(val: any) => setPaymentMethod(val)}
+        setPaymentMethod={(val: any) => {
+          setPaymentMethod(val);
+          if (val === 'term' && dueDays > 0 && dueDate) {
+            setNotes(prev => buildFullNotesWithTerms(prev, dueDate, dueDays, lateInterestRate));
+          } else if (val !== 'term') {
+            setNotes(prev => {
+              const lines = prev.split('\n').filter(l => !l.startsWith("Vade Tarihi:") && !l.includes("Vadeniz"));
+              return lines.join('\n');
+            });
+          }
+        }}
+        dueDate={dueDate}
+        setDueDate={setDueDate}
+        dueDays={dueDays}
+        setDueDays={setDueDays}
+        lateInterestRate={lateInterestRate}
+        setLateInterestRate={setLateInterestRate}
+        onUpdateTerms={(days: number, rate: number, targetDueDate?: string) => {
+          setDueDays(days);
+          setLateInterestRate(rate);
+          let calcDate = targetDueDate;
+          if (!calcDate && days > 0) {
+            const baseD = invoiceDate ? new Date(invoiceDate) : new Date();
+            baseD.setDate(baseD.getDate() + days);
+            calcDate = baseD.toISOString().split('T')[0];
+          }
+          if (calcDate) setDueDate(calcDate);
+          if (days > 0 && calcDate) {
+            setNotes(prev => buildFullNotesWithTerms(prev, calcDate!, days, rate));
+          }
+        }}
         currency={currency}
         setCurrency={setCurrency}
         exchangeRate={exchangeRate}

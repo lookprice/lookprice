@@ -340,7 +340,7 @@ router.post("/merge-duplicates", async (req: any, res) => {
 
 // Create Company
 router.post("/", async (req: any, res) => {
-  const { tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative, is_expense, expense_category, expense_center } = req.body;
+  const { tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative, is_expense, expense_category, expense_center, due_days, late_interest_rate, notes } = req.body;
   const title = String(req.body.title || "").trim();
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
@@ -374,9 +374,11 @@ router.post("/", async (req: any, res) => {
     }
 
     const finalIsExpense = is_expense === true || is_expense === 'true';
+    const parsedDueDays = Math.max(0, parseInt(due_days, 10) || 0);
+    const parsedLateRate = Math.max(0, parseFloat(late_interest_rate) || 0);
     const result = await pool.query(
-      "INSERT INTO companies (store_id, title, tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative, is_expense, expense_category, expense_center) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *",
-      [storeId, title, tax_office, cleanVkn || tax_number, address, delivery_address || null, phone, email, contact_person, representative, finalIsExpense, expense_category || null, expense_center || null]
+      "INSERT INTO companies (store_id, title, tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative, is_expense, expense_category, expense_center, due_days, late_interest_rate, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *",
+      [storeId, title, tax_office, cleanVkn || tax_number, address, delivery_address || null, phone, email, contact_person, representative, finalIsExpense, expense_category || null, expense_center || null, parsedDueDays, parsedLateRate, notes || null]
     );
     res.json(result.rows[0]);
   } catch (err: any) {
@@ -386,7 +388,7 @@ router.post("/", async (req: any, res) => {
 
 // Update Company
 router.put("/:id", async (req: any, res) => {
-  const { title, tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative, is_expense, expense_category, expense_center } = req.body;
+  const { title, tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative, is_expense, expense_category, expense_center, due_days, late_interest_rate, notes } = req.body;
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
     // 1. Strict VKN/TCKN deduplication check for other companies
@@ -410,9 +412,11 @@ router.put("/:id", async (req: any, res) => {
     }
 
     const finalIsExpense = is_expense === true || is_expense === 'true';
+    const parsedDueDays = due_days !== undefined ? Math.max(0, parseInt(due_days, 10) || 0) : 0;
+    const parsedLateRate = late_interest_rate !== undefined ? Math.max(0, parseFloat(late_interest_rate) || 0) : 0;
     const result = await pool.query(
-      "UPDATE companies SET title = $1, tax_office = $2, tax_number = $3, address = $4, delivery_address = $5, phone = $6, email = $7, contact_person = $8, representative = $9, is_expense = $10, expense_category = $11, expense_center = $12 WHERE id = $13 AND store_id = $14 RETURNING *",
-      [title, tax_office, cleanVkn || tax_number, address, delivery_address || null, phone, email, contact_person, representative, finalIsExpense, expense_category || null, expense_center || null, req.params.id, storeId]
+      "UPDATE companies SET title = $1, tax_office = $2, tax_number = $3, address = $4, delivery_address = $5, phone = $6, email = $7, contact_person = $8, representative = $9, is_expense = $10, expense_category = $11, expense_center = $12, due_days = $13, late_interest_rate = $14, notes = $15 WHERE id = $16 AND store_id = $17 RETURNING *",
+      [title, tax_office, cleanVkn || tax_number, address, delivery_address || null, phone, email, contact_person, representative, finalIsExpense, expense_category || null, expense_center || null, parsedDueDays, parsedLateRate, notes || null, req.params.id, storeId]
     );
     res.json(result.rows[0]);
   } catch (err: any) {
@@ -500,6 +504,14 @@ router.get("/:id/transactions", async (req: any, res) => {
       });
     }
 
+    // Fetch company profile for defined due days and late interest rate
+    const compMetaRes = await pool.query(
+      "SELECT id, title, due_days, late_interest_rate FROM companies WHERE id = $1 AND (store_id = $2 OR store_id IS NULL)",
+      [req.params.id, storeId]
+    );
+    const compDueDays = Number(compMetaRes.rows[0]?.due_days || 0);
+    const compLateRate = Number(compMetaRes.rows[0]?.late_interest_rate || 0);
+
     let query = `
       SELECT 
         c.*, 
@@ -513,6 +525,7 @@ router.get("/:id/transactions", async (req: any, res) => {
         ) as direct_purchase_invoice_number,
         COALESCE(NULLIF(pi.exchange_rate, 1), 1) as pi_exchange_rate,
         pi.currency as pi_currency,
+        pi.due_date as pi_due_date,
         si.id as direct_sales_invoice_id,
         COALESCE(
           NULLIF(si.invoice_number, ''), 
@@ -520,22 +533,29 @@ router.get("/:id/transactions", async (req: any, res) => {
         ) as direct_sales_invoice_number,
         COALESCE(NULLIF(si.exchange_rate, 1), 1) as si_exchange_rate,
         si.currency as si_currency,
+        si.due_date as si_due_date,
+        si.due_days as si_due_days,
+        si.late_interest_rate as si_late_interest_rate,
         si_fallback.id as fallback_sales_invoice_id,
         COALESCE(
           NULLIF(si_fallback.invoice_number, ''), 
           NULLIF(si_fallback.document_number, '')
         ) as fallback_sales_invoice_number,
+        si_fallback.due_date as si_fallback_due_date,
+        si_fallback.due_days as si_fallback_due_days,
+        si_fallback.late_interest_rate as si_fallback_late_interest_rate,
         pi_fallback.id as fallback_purchase_invoice_id,
         COALESCE(
           NULLIF(pi_fallback.invoice_number, ''), 
           NULLIF(pi_fallback.document_number, '')
-        ) as fallback_purchase_invoice_number
+        ) as fallback_purchase_invoice_number,
+        pi_fallback.due_date as pi_fallback_due_date
       FROM current_account_transactions c
       LEFT JOIN sales s ON c.sale_id = s.id
       LEFT JOIN purchase_invoices pi ON c.purchase_invoice_id = pi.id
       LEFT JOIN sales_invoices si ON c.sales_invoice_id = si.id
       LEFT JOIN LATERAL (
-        SELECT id, invoice_number, document_number, exchange_rate, currency
+        SELECT id, invoice_number, document_number, exchange_rate, currency, due_date, due_days, late_interest_rate
         FROM sales_invoices si_m
         WHERE si_m.company_id = c.company_id
           AND (
@@ -550,7 +570,7 @@ router.get("/:id/transactions", async (req: any, res) => {
         LIMIT 1
       ) si_fallback ON c.sales_invoice_id IS NULL
       LEFT JOIN LATERAL (
-        SELECT id, invoice_number, document_number, exchange_rate, currency
+        SELECT id, invoice_number, document_number, exchange_rate, currency, due_date
         FROM purchase_invoices pi_m
         WHERE pi_m.company_id = c.company_id
           AND c.purchase_invoice_id IS NULL
@@ -582,7 +602,8 @@ router.get("/:id/transactions", async (req: any, res) => {
     const compSalesInvoicesRes = await pool.query(
       `SELECT id, COALESCE(NULLIF(invoice_number, ''), NULLIF(document_number, ''), 'Fatura #' || id) as invoice_number, 
               COALESCE(NULLIF(grand_total, 0), total_amount, 0)::FLOAT as total_amount,
-              currency, COALESCE(invoice_date::timestamp, created_at) as invoice_date
+              currency, COALESCE(invoice_date::timestamp, created_at) as invoice_date,
+              due_date, due_days, late_interest_rate
        FROM sales_invoices 
        WHERE company_id = $1 AND (store_id = $2 OR store_id IS NULL)
        ORDER BY COALESCE(invoice_date::timestamp, created_at) ASC, id ASC`,
@@ -592,7 +613,8 @@ router.get("/:id/transactions", async (req: any, res) => {
     const compPurchaseInvoicesRes = await pool.query(
       `SELECT id, COALESCE(NULLIF(invoice_number, ''), NULLIF(document_number, ''), 'Alış #' || id) as invoice_number, 
               COALESCE(NULLIF(grand_total, 0), total_amount, 0)::FLOAT as total_amount,
-              currency, COALESCE(invoice_date::timestamp, created_at) as invoice_date
+              currency, COALESCE(invoice_date::timestamp, created_at) as invoice_date,
+              due_date
        FROM purchase_invoices 
        WHERE company_id = $1 AND (store_id = $2 OR store_id IS NULL)
        ORDER BY COALESCE(invoice_date::timestamp, created_at) ASC, id ASC`,
@@ -768,6 +790,58 @@ router.get("/:id/transactions", async (req: any, res) => {
         }
       }
 
+      // Due Date and Payment Terms Calculation
+      let dueDateRaw = row.due_date || row.si_due_date || row.si_fallback_due_date || row.pi_due_date || row.pi_fallback_due_date || null;
+      let dueDaysVal = Number(row.si_due_days || row.si_fallback_due_days || compDueDays || 0);
+      let lateRateVal = Number(row.si_late_interest_rate || row.si_fallback_late_interest_rate || compLateRate || 0);
+
+      let dueDateStr: string | null = null;
+      if (dueDateRaw) {
+        try {
+          dueDateStr = new Date(dueDateRaw).toISOString().split('T')[0];
+        } catch {
+          dueDateStr = String(dueDateRaw).split('T')[0];
+        }
+      } else if (dueDaysVal > 0 && row.transaction_date && (isDirectSalesInvoice || isDirectPurchaseInvoice || isPosSale)) {
+        try {
+          const autoD = new Date(row.transaction_date);
+          autoD.setDate(autoD.getDate() + dueDaysVal);
+          dueDateStr = autoD.toISOString().split('T')[0];
+        } catch {
+          dueDateStr = null;
+        }
+      }
+
+      let dueStatus = 'normal'; // 'overdue' | 'due_today' | 'upcoming' | 'normal'
+      let overdueDays = 0;
+      let daysLeft = 0;
+      let isOverdue = false;
+      let estimatedLateFee = 0;
+
+      if (dueDateStr) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const targetD = new Date(dueDateStr);
+        targetD.setHours(0, 0, 0, 0);
+        const diffMs = today.getTime() - targetD.getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays > 0) {
+          dueStatus = 'overdue';
+          isOverdue = true;
+          overdueDays = diffDays;
+          if (lateRateVal > 0 && rawAmt > 0 && isDebt) {
+            // Monthly lateRateVal simple interest pro-rated by overdue days
+            estimatedLateFee = Number(((rawAmt * (lateRateVal / 100) * overdueDays) / 30).toFixed(2));
+          }
+        } else if (diffDays === 0) {
+          dueStatus = 'due_today';
+        } else {
+          dueStatus = 'upcoming';
+          daysLeft = Math.abs(diffDays);
+        }
+      }
+
       return {
         ...row,
         // Genuine Sales Invoice ID / Number only if actually a sales invoice or closed invoice link
@@ -784,15 +858,48 @@ router.get("/:id/transactions", async (req: any, res) => {
         closed_invoice_number: closedInvNo || '-',
         description: desc,
         currency: curr,
-        exchange_rate: rate
+        exchange_rate: rate,
+        // Due Date & Terms Fields
+        due_date: dueDateStr,
+        due_days: dueDaysVal,
+        late_interest_rate: lateRateVal,
+        due_status: dueStatus,
+        is_overdue: isOverdue,
+        overdue_days: overdueDays,
+        days_left: daysLeft,
+        estimated_late_fee: estimatedLateFee
       };
+    });
+
+    // Compute Company-level Aging & Overdue Summaries
+    let overdueBalance = 0;
+    let upcomingBalance = 0;
+    let totalEstimatedLateFee = 0;
+
+    enrichedTransactions.forEach(tx => {
+      // For sales invoices / debt transactions not closed:
+      if (tx.type === 'debt' && (tx.is_invoice || tx.due_date)) {
+        if (tx.due_status === 'overdue') {
+          overdueBalance += Number(tx.amount || 0);
+          totalEstimatedLateFee += Number(tx.estimated_late_fee || 0);
+        } else if (tx.due_status === 'upcoming' || tx.due_status === 'due_today') {
+          upcomingBalance += Number(tx.amount || 0);
+        }
+      }
     });
 
     res.json({
       transactions: enrichedTransactions,
       opening_balances: openingBalances,
       opening_balances_base: openingBalancesBase,
-      default_currency: defaultCurrency
+      default_currency: defaultCurrency,
+      company_terms: {
+        due_days: compDueDays,
+        late_interest_rate: compLateRate,
+        overdue_balance: Number(overdueBalance.toFixed(2)),
+        upcoming_balance: Number(upcomingBalance.toFixed(2)),
+        total_estimated_late_fee: Number(totalEstimatedLateFee.toFixed(2))
+      }
     });
   } catch (err: any) {
     console.error("Error fetching company transactions:", err);

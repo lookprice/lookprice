@@ -193,6 +193,69 @@ export const CompanyModal = ({
               />
             </div>
 
+            {/* Vade ve Finansal Koşullar Kartı */}
+            <div className="p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
+                  {isTr ? "Vade ve Finansal Koşullar" : "Payment Terms & Late Fee"}
+                </span>
+                <span className="text-[10px] text-indigo-600 font-semibold">
+                  {isTr ? "Otomatik Fatura Entegrasyonu" : "Auto-Invoice Sync"}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider ml-1">
+                    {isTr ? "Vade Süresi (Gün)" : "Due Term (Days)"}
+                  </label>
+                  <input
+                    type="number"
+                    name="due_days"
+                    min="0"
+                    max="365"
+                    placeholder={isTr ? "örn: 30" : "e.g. 30"}
+                    className="w-full px-3 py-2.5 bg-white border-2 border-indigo-200/80 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-black text-slate-900 text-sm text-center"
+                    defaultValue={editingCompany?.due_days ?? 0}
+                  />
+                  <span className="text-[9px] text-slate-400 block px-1">
+                    {isTr ? "0 = Peşin / Vadesiz" : "0 = Cash on Delivery"}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider ml-1">
+                    {isTr ? "Aylık Vade Farkı (%)" : "Monthly Late Fee (%)"}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="late_interest_rate"
+                    min="0"
+                    max="100"
+                    placeholder={isTr ? "örn: 3.50" : "e.g. 3.50"}
+                    className="w-full px-3 py-2.5 bg-white border-2 border-indigo-200/80 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-black text-slate-900 text-sm text-center"
+                    defaultValue={editingCompany?.late_interest_rate ?? 0}
+                  />
+                  <span className="text-[9px] text-slate-400 block px-1">
+                    {isTr ? "Geciken günler için oran" : "Rate for overdue terms"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                {isTr ? "Cari Özel Notlar / Açıklamalar" : "Company Notes / Remarks"}
+              </label>
+              <textarea
+                name="notes"
+                rows={2}
+                placeholder={isTr ? "Cari hakkında özel notlar, hatırlatmalar..." : "Special notes about company..."}
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-semibold text-slate-800 text-xs"
+                defaultValue={editingCompany?.notes || ""}
+              />
+            </div>
+
             {!editingCompany && (
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">

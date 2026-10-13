@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
-import { X, Upload, FileUp, Image as ImageIcon, Download, Sparkles } from "lucide-react";
+import { X, Upload, FileUp, Image as ImageIcon, Download, Sparkles, Layers } from "lucide-react";
 import * as XLSX from "xlsx";
 
 interface ImportModalProps {
@@ -54,6 +54,13 @@ export const ImportModal = ({
     image_url_3: { label: isTr ? "3. Ekstra Resim Linki" : "3. Extra Image URL", isImage: true },
     image_url_4: { label: isTr ? "4. Ekstra Resim Linki" : "4. Extra Image URL", isImage: true },
     image_url_5: { label: isTr ? "5. Ekstra Resim Linki" : "5. Extra Image URL", isImage: true },
+    variant_name: { label: isTr ? "Varyant Adı / Seçeneği (örn: Siyah / M, 256GB)" : "Variant Name / Option" },
+    variant_barcode: { label: isTr ? "Varyant Barkodu / Özel SKU" : "Variant Barcode / SKU" },
+    variant_price: { label: isTr ? "Varyant Satış Fiyatı" : "Variant Sale Price" },
+    variant_stock: { label: isTr ? "Varyant Stok Miktarı" : "Variant Stock Quantity" },
+    variant_color: { label: isTr ? "Varyant Rengi" : "Variant Color" },
+    variant_size: { label: isTr ? "Varyant Bedeni / Numarası" : "Variant Size / Number" },
+    variant_image: { label: isTr ? "Varyant Özel Resim Linki" : "Variant Image URL" }
   };
 
   const handleDownloadSampleExcel = () => {
@@ -67,10 +74,82 @@ export const ImportModal = ({
         "Satış Fiyatı": 1499.90,
         "Stok Miktarı": 25,
         "Birim": "Adet",
+        "Varyant Adı / Seçeneği": "",
+        "Varyant Barkodu": "",
+        "Varyant Satış Fiyatı": "",
+        "Varyant Stok Miktarı": "",
+        "Varyant Rengi": "",
+        "Varyant Bedeni": "",
         "Açıklama": "Yüksek ses kalitesi ve aktif gürültü engelleme özellikli bluetooth kulaklık.",
         "Ana Resim Linki": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800",
         "Ek Resim 2": "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=800",
         "Ek Resim 3": "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800",
+        "Ek Resim 4": "",
+        "Ek Resim 5": ""
+      },
+      {
+        "Barkod": "8690000000002",
+        "Ürün Adı": "Örnek Pamuklu Polo Tişört",
+        "Kategori": "Giyim",
+        "Alt Kategori": "Tişört",
+        "Marka": "LookStyle",
+        "Satış Fiyatı": 599.90,
+        "Stok Miktarı": 30,
+        "Birim": "Adet",
+        "Varyant Adı / Seçeneği": "Siyah / S",
+        "Varyant Barkodu": "8690000000021",
+        "Varyant Satış Fiyatı": 599.90,
+        "Varyant Stok Miktarı": 10,
+        "Varyant Rengi": "Siyah",
+        "Varyant Bedeni": "S",
+        "Açıklama": "%100 organik pamuk kumaş, slim fit polo tişört.",
+        "Ana Resim Linki": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800",
+        "Ek Resim 2": "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=800",
+        "Ek Resim 3": "",
+        "Ek Resim 4": "",
+        "Ek Resim 5": ""
+      },
+      {
+        "Barkod": "8690000000002",
+        "Ürün Adı": "Örnek Pamuklu Polo Tişört",
+        "Kategori": "Giyim",
+        "Alt Kategori": "Tişört",
+        "Marka": "LookStyle",
+        "Satış Fiyatı": 599.90,
+        "Stok Miktarı": 30,
+        "Birim": "Adet",
+        "Varyant Adı / Seçeneği": "Siyah / M",
+        "Varyant Barkodu": "8690000000022",
+        "Varyant Satış Fiyatı": 599.90,
+        "Varyant Stok Miktarı": 12,
+        "Varyant Rengi": "Siyah",
+        "Varyant Bedeni": "M",
+        "Açıklama": "%100 organik pamuk kumaş, slim fit polo tişört.",
+        "Ana Resim Linki": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800",
+        "Ek Resim 2": "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=800",
+        "Ek Resim 3": "",
+        "Ek Resim 4": "",
+        "Ek Resim 5": ""
+      },
+      {
+        "Barkod": "8690000000002",
+        "Ürün Adı": "Örnek Pamuklu Polo Tişört",
+        "Kategori": "Giyim",
+        "Alt Kategori": "Tişört",
+        "Marka": "LookStyle",
+        "Satış Fiyatı": 599.90,
+        "Stok Miktarı": 30,
+        "Birim": "Adet",
+        "Varyant Adı / Seçeneği": "Beyaz / L",
+        "Varyant Barkodu": "8690000000023",
+        "Varyant Satış Fiyatı": 599.90,
+        "Varyant Stok Miktarı": 8,
+        "Varyant Rengi": "Beyaz",
+        "Varyant Bedeni": "L",
+        "Açıklama": "%100 organik pamuk kumaş, slim fit polo tişört.",
+        "Ana Resim Linki": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800",
+        "Ek Resim 2": "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=800",
+        "Ek Resim 3": "",
         "Ek Resim 4": "",
         "Ek Resim 5": ""
       }
@@ -83,6 +162,7 @@ export const ImportModal = ({
 
   const standardKeys = ["barcode", "name", "price", "stock_quantity", "category", "sub_category", "brand", "author", "unit", "description"];
   const imageKeys = ["image_url", "image_url_2", "image_url_3", "image_url_4", "image_url_5"];
+  const variantKeys = ["variant_name", "variant_barcode", "variant_price", "variant_stock", "variant_color", "variant_size", "variant_image"];
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md">
@@ -95,10 +175,10 @@ export const ImportModal = ({
         <div className="px-5 py-3.5 border-b border-slate-800 flex justify-between items-center bg-slate-900 text-white shrink-0">
           <div>
             <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-white">
-              {t.importProducts || (isTr ? "Excel İle Toplu Ürün & Çoklu Görsel Aktar" : "Bulk Product & Multi-Image Import")}
+              {t.importProducts || (isTr ? "Excel İle Toplu Ürün & Çoklu Görsel / Varyant Aktar" : "Bulk Product & Multi-Image / Variant Import")}
             </h3>
             <p className="text-[11px] text-slate-300 mt-0.5">
-              {isTr ? "Ana görsel ve 4 adede kadar ekstra ürün görsel linkini sütunlardan eşleştirebilirsiniz." : "Map main product image and up to 4 additional image link columns."}
+              {isTr ? "Ana görsel, 4 adet ekstra resim ve beden/renk varyant sütunlarını eşleştirebilirsiniz." : "Map main image, up to 4 extra image links, and variant/option columns."}
             </p>
           </div>
           <button type="button" onClick={() => setShowImportModal(false)} className="p-1.5 hover:bg-white/10 rounded-full transition-colors text-slate-300 hover:text-white cursor-pointer">
@@ -112,8 +192,8 @@ export const ImportModal = ({
               <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
               <span>
                 {isTr 
-                  ? "Çoklu resim destekli örnek Excel şablonunu indirip doldurabilirsiniz." 
-                  : "Download the sample Excel template with multiple image columns."}
+                  ? "Varyant ve çoklu resim destekli örnek Excel şablonunu indirip doldurabilirsiniz." 
+                  : "Download the sample Excel template with variants and multiple image columns."}
               </span>
             </div>
             <button
@@ -151,7 +231,7 @@ export const ImportModal = ({
               {/* 1. Standart Ürün Sütunları */}
               <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
                 <p className="text-[11px] font-black text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-1.5">
-                  {t.columnMapping || (isTr ? "1. Ürün Bilgisi Sütun Eşleştirme" : "1. Product Information Columns")}
+                  {t.columnMapping || (isTr ? "1. Temel Ürün Bilgisi Sütun Eşleştirme" : "1. Product Information Columns")}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {standardKeys.map((key) => {
@@ -203,6 +283,44 @@ export const ImportModal = ({
                           value={mapping[key] || ""}
                           onChange={(e) => setMapping({ ...mapping, [key]: e.target.value })}
                           className="p-2 bg-white border border-indigo-200 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 outline-none"
+                        >
+                          <option value="">{t.selectColumn || (isTr ? "-- Sütun Seç (İsteğe Bağlı) --" : "-- Optional Column --")}</option>
+                          {importColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Varyant Sütun Eşleştirmesi */}
+              <div className="p-3.5 bg-amber-50/50 rounded-2xl border border-amber-200/80 space-y-2.5">
+                <div className="flex items-center justify-between border-b border-amber-200/70 pb-1.5">
+                  <p className="text-[11px] font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{isTr ? "3. Varyant & Seçenek Sütun Eşleştirmesi (Beden, Renk, Seçenekler)" : "3. Variant & Options Column Mapping"}</span>
+                  </p>
+                  <span className="text-[10px] font-bold text-amber-800 bg-white px-2 py-0.5 rounded-full border border-amber-200">
+                    {isTr ? "Varyant Matrisi" : "Variants"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  {isTr 
+                    ? "Excel dosyanızda varyantlı ürünler (farklı renk, beden veya seçenekler) varsa ilgili sütunları seçin. Aynı ürünün farklı varyantları aynı ana barkod veya ürün adı altında otomatik olarak birleştirilip tek bir ana ürün altına varyant matrisi olarak eklenir." 
+                    : "If your Excel file contains variant products, map the variant columns below. Variants sharing the same parent barcode or name will automatically be grouped into a single product."}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {variantKeys.map((key) => {
+                    const meta = fieldLabels[key] || { label: key };
+                    return (
+                      <div key={key} className="flex flex-col gap-1">
+                        <span className="text-[11px] font-bold text-amber-950">
+                          {meta.label}
+                        </span>
+                        <select 
+                          value={mapping[key] || ""}
+                          onChange={(e) => setMapping({ ...mapping, [key]: e.target.value })}
+                          className="p-2 bg-white border border-amber-200 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-600 outline-none"
                         >
                           <option value="">{t.selectColumn || (isTr ? "-- Sütun Seç (İsteğe Bağlı) --" : "-- Optional Column --")}</option>
                           {importColumns.map(col => <option key={col} value={col}>{col}</option>)}

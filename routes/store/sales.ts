@@ -1299,9 +1299,13 @@ router.post("/:id/create-invoice", async (req: any, res) => {
     const rawPayment = (sale.payment_method || "cash").toLowerCase();
     const paymentLabel = paymentMethodMap[rawPayment] || sale.payment_method || "Online Ödeme";
 
-    let professionalNote = `Bu fatura ${storeName} web sitesinden verilen #${id} nolu siparişe aittir. Ödeme Yöntemi: ${paymentLabel} ile ödenmiştir.`;
+    const bankDetails = (branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details || '').trim();
+    let professionalNote = `İrsaliye Yerine Geçer.\n\nBu fatura ${storeName} web sitesinden verilen #${id} nolu siparişe aittir. Ödeme Yöntemi: ${paymentLabel} ile ödenmiştir.`;
     if (customerNotesParts.length > 0) {
       professionalNote += `\n\nMüşteri Notu: ${customerNotesParts.join(' | ')}`;
+    }
+    if (bankDetails) {
+      professionalNote += `\n\nBanka Hesap ve IBAN Bilgileri:\n${bankDetails}`;
     }
     
     // Generate invoice number

@@ -25,7 +25,14 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
     image_url_2: "",
     image_url_3: "",
     image_url_4: "",
-    image_url_5: ""
+    image_url_5: "",
+    variant_name: "",
+    variant_barcode: "",
+    variant_price: "",
+    variant_stock: "",
+    variant_color: "",
+    variant_size: "",
+    variant_image: ""
   });
   const [convertCurrency, setConvertCurrency] = useState(false);
 
@@ -45,7 +52,14 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
       image_url_2: "",
       image_url_3: "",
       image_url_4: "",
-      image_url_5: ""
+      image_url_5: "",
+      variant_name: "",
+      variant_barcode: "",
+      variant_price: "",
+      variant_stock: "",
+      variant_color: "",
+      variant_size: "",
+      variant_image: ""
     };
 
     const usedCols = new Set<string>();
@@ -91,6 +105,36 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
     next.image_url_5 = findMatch([
       /(resim|görsel|gorsel|image|img|foto|ek resim|ekstra resim).*5/i,
       /^(image_url_5|resim5|gorsel5)$/i
+    ]);
+
+    // Variant columns auto-detection
+    next.variant_name = findMatch([
+      /^(varyant adı|varyant adi|varyant seçeneği|varyant secenegi|varyant|variant name|variant|seçenek|secenek|alt ürün)$/i,
+      /varyant adı|variant name|varyant|variant/i
+    ]);
+    next.variant_barcode = findMatch([
+      /^(varyant barkod|varyant barkodu|variant barcode|alt barkod|varyant sku)$/i,
+      /varyant barkod|variant barcode/i
+    ]);
+    next.variant_price = findMatch([
+      /^(varyant fiyatı|varyant fiyati|varyant satış fiyatı|variant price)$/i,
+      /varyant fiyat|variant price/i
+    ]);
+    next.variant_stock = findMatch([
+      /^(varyant stok|varyant stoku|varyant miktarı|variant stock)$/i,
+      /varyant stok|variant stock/i
+    ]);
+    next.variant_color = findMatch([
+      /^(varyant renk|varyant rengi|renk|color|colour)$/i,
+      /renk|color/i
+    ]);
+    next.variant_size = findMatch([
+      /^(varyant beden|varyant boyutu|beden|size|numara|boyut)$/i,
+      /beden|size/i
+    ]);
+    next.variant_image = findMatch([
+      /^(varyant resim|varyant görsel|varyant resim linki|variant image)$/i,
+      /varyant resim|variant image/i
     ]);
 
     setMapping(next);
