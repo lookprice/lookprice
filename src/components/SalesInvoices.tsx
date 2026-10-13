@@ -1276,20 +1276,19 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => { setStatusFilter('all'); setPage(1); }}
-            className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center gap-1.5 border ${
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
               statusFilter === 'all' 
-                ? 'bg-slate-800 text-white border-slate-800 shadow-xs' 
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                ? 'bg-slate-800 text-white shadow-xs' 
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
             }`}
             title={isTr ? "Tüm Faturalar" : "All Invoices"}
           >
-            <FileText className="h-4 w-4" />
             {isTr ? "Tümü" : "All"}
           </button>
           <button
             type="button"
             onClick={() => { setStatusFilter(statusFilter === 'draft' ? 'all' : 'draft'); setPage(1); }}
-            className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer border ${
+            className={`p-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer border ${
               statusFilter === 'draft' 
                 ? 'bg-amber-600 text-white border-amber-600 shadow-xs' 
                 : 'bg-white text-amber-600 border-amber-200 hover:bg-amber-50'
@@ -1297,12 +1296,11 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             title={isTr ? "Taslaklar" : "Drafts"}
           >
             <Clock className="h-4 w-4" />
-            {isTr ? "Taslaklar" : "Drafts"}
           </button>
           <button
             type="button"
             onClick={() => { setStatusFilter(statusFilter === 'rejected' ? 'all' : 'rejected'); setPage(1); }}
-            className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer border ${
+            className={`p-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer border ${
               statusFilter === 'rejected' 
                 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' 
                 : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'
@@ -1310,7 +1308,6 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             title={isTr ? "Reddedilenler / Hatalı" : "Rejected / Error"}
           >
             <XCircle className="h-4 w-4" />
-            {isTr ? "Hatalı" : "Failed"}
           </button>
 
           {/* CONTEMPORARY E-MARKETPLACE FILTER POPOVER (NO PRIMITIVE EMOJIS) */}

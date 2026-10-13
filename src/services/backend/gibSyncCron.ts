@@ -1,18 +1,15 @@
 import { pool } from '../../../models/db';
 import { getEInvoiceService } from '../../../routes/einvoice';
-import { logAudit } from './auditService';
 
 /**
  * GİB & Entegratör (MySoft) Otomatik Sağlık, Önbellek Tazeleme ve Durum Senkronizasyon Servisi
+ * Bu servis:
+ * 1. Bekleyen / Gönderilen fatura durumlarını MySoft'tan sorgulayıp DB'yi günceller (QUEUED -> ACCEPTED / REJECTED)
+ * 2. Önbellekteki (official_taxpayer_cache) mükellef etiketlerini belirli aralıklarla tazeleyip null/boş etiketleri onarır
+ * 3. GİB canlı mükellefiyet listesi ile senkronizasyon kontrollerini sağlar
  */
 export async function runGibSyncCron(): Promise<void> {
-  let storeId = 0;
-  const anyStore = await pool.query("SELECT id FROM stores LIMIT 1");
-  if (anyStore.rows.length > 0) {
-    storeId = anyStore.rows[0].id;
-  }
   console.log('[GİB-CRON] Starting periodic GİB / MySoft synchronization cycle...');
-  await logAudit(storeId, null, 'GIB_SYNC_START', 'SYSTEM', null, 'Cron job started');
   
   try {
     // 1. ADIM: Boş veya Geçersiz Önbellek Kayıtlarını Temizle & Onar
@@ -23,6 +20,7 @@ export async function runGibSyncCron(): Promise<void> {
     if (invalidCache.rows.length > 0) {
       console.log(`[GİB-CRON] Found ${invalidCache.rows.length} invalid/empty taxpayer cache entries. Re-validating with MySoft...`);
       
+      // Aktif bir mağazanın e-fatura servisini al
       const activeStore = await pool.query(
         "SELECT id FROM stores WHERE einvoice_settings IS NOT NULL AND (einvoice_settings->>'is_active')::boolean = true LIMIT 1"
       );
@@ -41,6 +39,7 @@ export async function runGibSyncCron(): Promise<void> {
               );
               console.log(`[GİB-CRON] Successfully refreshed taxpayer ${row.vkn} with alias: ${check.alias}`);
             } else {
+              // Hala bulunamıyorsa cache'den sil ki bir sonraki işlemde canlı sorgulansın
               await pool.query("DELETE FROM official_taxpayer_cache WHERE vkn = $1", [row.vkn]);
               console.log(`[GİB-CRON] Removed dead cache entry for VKN ${row.vkn}`);
             }
@@ -110,10 +109,8 @@ export async function runGibSyncCron(): Promise<void> {
     }
 
     console.log('[GİB-CRON] Synchronization cycle finished successfully.');
-    await logAudit(storeId, null, 'GIB_SYNC_SUCCESS', 'SYSTEM', null, 'Cron job finished successfully');
   } catch (globalErr: any) {
     console.error('[GİB-CRON] Global error in GİB sync cron:', globalErr);
-    await logAudit(storeId, null, 'GIB_SYNC_ERROR', 'SYSTEM', null, `Cron error: ${globalErr.message}`);
   }
 }
 
