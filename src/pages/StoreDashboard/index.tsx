@@ -58,6 +58,8 @@ import { useSales } from "../../hooks/useSales";
 import { useCompanies } from "../../hooks/useCompanies";
 import { useRealEstate } from "../../hooks/useRealEstate";
 import { api } from "../../services/api";
+import { checkFinancialAlerts, checkGibAlerts, checkInventoryAlerts, checkReconciliationAlerts, checkSystemAlerts } from "../../services/AlertService";
+import { useAlerts } from "../../contexts/AlertContext";
 import { User, Product } from "../../types";
 import { useReactToPrint } from 'react-to-print';
 import { toast } from "sonner";
@@ -107,6 +109,7 @@ const HotelRoomManagement = React.lazy(() => import("../../components/horeca/Hot
 
 import ShippingSlip from "../../components/ShippingSlip";
 import { ChangePasswordModal } from "../../components/ChangePasswordModal";
+import { NewOrderBanner } from "../../components/NewOrderBanner";
 
 interface StoreDashboardProps {
   user: User;
@@ -646,9 +649,20 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   useEffect(() => {
     fetchData();
     fetchNotifications();
+    
+    // Main notifications interval (30s or 5m)
     const interval = setInterval(fetchNotifications, isHotelModuleActive ? 30000 : 300000); 
-    return () => clearInterval(interval);
-  }, [fetchData, fetchNotifications, isHotelModuleActive]);
+    
+    // Faster order monitor (15s)
+    const orderInterval = setInterval(() => {
+        fetchSales(); // Assuming this fetches the latest sales
+    }, 15000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(orderInterval);
+    };
+  }, [fetchData, fetchNotifications, isHotelModuleActive, fetchSales]);
 
   // Real-time custom event listeners for hotel reservations
   useEffect(() => {
@@ -692,6 +706,40 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       fetchCompanies();
     }
   }, [fetchQuotations, fetchCompanies, currentStoreId]);
+
+  const { addAlert } = useAlerts();
+
+  useEffect(() => {
+    if (companies && companies.length > 0) {
+      const financialAlerts = checkFinancialAlerts(companies);
+      financialAlerts.forEach(alert => addAlert(alert));
+    }
+    if (sales && sales.length > 0) {
+      const gibAlerts = checkGibAlerts(sales);
+      gibAlerts.forEach(alert => addAlert(alert));
+    }
+    if (products && products.length > 0) {
+      const inventoryAlerts = checkInventoryAlerts(products);
+      inventoryAlerts.forEach(alert => addAlert(alert));
+    }
+    // New reconciliation alert check
+    if (currentStoreId) {
+        api.getReconciliations(currentStoreId).then(res => {
+            if (res && !res.error) {
+                const reconAlerts = checkReconciliationAlerts(Array.isArray(res) ? res : (res.reconciliations || []));
+                reconAlerts.forEach(alert => addAlert(alert));
+            }
+        });
+        
+        // System/Cron Report check
+        api.getAuditLogs(currentStoreId).then(res => {
+            if (res && !res.error) {
+                const systemAlerts = checkSystemAlerts(Array.isArray(res) ? res : []);
+                systemAlerts.forEach(alert => addAlert(alert));
+            }
+        });
+    }
+  }, [companies, sales, products, addAlert, currentStoreId]);
 
   useEffect(() => {
     if ((activeTab === 'analytics' || activeTab === 'notifications') && !analytics && currentStoreId) {
@@ -1030,7 +1078,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         startTransition
       }}
     >
-      <div className={activeTab === 'fast-pos' ? "space-y-0" : "space-y-8"}>
+      <div className={activeTab === 'fast-pos' ? "h-full w-full" : "w-full"}>
+        {activeTab !== 'fast-pos' && (notifications.sales > 0 || notifications.hotel_reservations > 0) && (
+          <NewOrderBanner 
+            count={(notifications.sales || 0) + (notifications.hotel_reservations || 0)}
+            onClick={() => setActiveTab('pos')}
+          />
+        )}
         {user?.password_needs_update && (
           <div className="mb-6">
             {!showPasswordBanner ? (
@@ -1510,7 +1564,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 />
               )}
               {activeTab === "notifications" && permittedTabIds.has("notifications") && (
-                <PortfolioNotificationsTab analytics={analytics} />
+                <PortfolioNotificationsTab notifications={notifications} />
               )}
               {activeTab === "website-generator" && permittedTabIds.has("website-generator") && (
                 <PortfolioWebsiteGeneratorTab storeId={currentStoreId!} />

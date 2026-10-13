@@ -926,7 +926,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                 <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{t.statements?.date || "Tarih"}</th>
                                 <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{isTr ? "Türü" : "Type"}</th>
                                 <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{isTr ? "Belge No" : "Doc No"}</th>
-                                <th className="py-2 px-3 text-[10px] font-black text-indigo-700 uppercase tracking-wider bg-indigo-50/70">{isTr ? "İlişkili Fatura" : "Linked Inv"}</th>
                                 <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{t.statements?.description || "Açıklama / İşlem"}</th>
                                 <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{isTr ? "Döviz / Kur" : "Currency / Rate"}</th>
                                 <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.debt || "Borç"}</th>
@@ -1149,42 +1148,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                             )}
                                           </td>
 
-                                          {/* Kapattığı / İlişkili Fatura (Ekstra ERP Yaşlandırma Sütunu) */}
-                                          <td className="py-2 px-3 whitespace-nowrap bg-indigo-50/20">
-                                            {closedInvNo && closedInvNo !== '-' ? (
-                                              <div className="inline-flex items-center gap-1">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => resolveAndOpenInvoice(tx, closedInvNo, false)}
-                                                  disabled={loadingInvoiceTxId === tx.id}
-                                                  title={isTr ? 'Kapattığı Fatura Detayını Görüntüle' : 'View Closed Invoice Details'}
-                                                  className="inline-flex items-center gap-1 font-mono font-bold text-indigo-700 hover:text-indigo-950 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 hover:border-indigo-400 shadow-2xs text-[11px] transition-all cursor-pointer disabled:opacity-60"
-                                                >
-                                                  {loadingInvoiceTxId === tx.id ? (
-                                                    <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
-                                                  ) : (
-                                                    <FileText className="h-3 w-3 text-indigo-500 shrink-0" />
-                                                  )}
-                                                  <span>{closedInvNo}</span>
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => resolveAndOpenInvoice(tx, closedInvNo, true)}
-                                                  disabled={loadingInvoiceTxId === tx.id}
-                                                  title={isTr ? 'Resmi E-Fatura Görselini Aç' : 'Open Official E-Invoice Preview'}
-                                                  className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded border border-transparent hover:border-indigo-200 transition-colors cursor-pointer"
-                                                >
-                                                  <Eye className="h-3.5 w-3.5" />
-                                                </button>
-                                              </div>
-                                            ) : (
-                                              <span className="text-slate-400 font-mono text-[11px]">-</span>
-                                            )}
-                                          </td>
 
-                                          <td className="py-2 px-3 text-slate-900 font-medium max-w-xs">
+                                          <td className="py-2 px-3 text-slate-900 font-medium max-w-[150px] truncate" title={tx.description || ''}>
                                             <span className="truncate block">
-                                              {tx.description || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit'))}
+                                              {(tx.description || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit')))
+                                                .replace(/(Satış Faturası:?|Alış Faturası Ödemesi:?|Sales Invoice:?|Purchase Invoice Payment:?)/gi, '')
+                                                .replace(/\s*\(.*?\)\s*/g, '')
+                                                .trim()
+                                                .substring(0, 20) + ((tx.description || '').length > 20 ? '...' : '')}
                                             </span>
                                           </td>
                                           <td className="py-2 px-3 whitespace-nowrap">

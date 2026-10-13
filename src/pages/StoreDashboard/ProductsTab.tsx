@@ -601,7 +601,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="w-full">
       {/* 1. Header and Primary Action Buttons */}
       <ProductsHeaderActions
         t={t}

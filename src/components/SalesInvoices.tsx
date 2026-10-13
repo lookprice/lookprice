@@ -1189,7 +1189,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   });
 
   return (
-    <div className="space-y-4">
+    <div className="w-full px-4 sm:px-6">
       {/* Collapsible Financial Summary & VAT Dashboard */}
       <div className="flex items-center justify-between">
         <button
@@ -1276,19 +1276,20 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => { setStatusFilter('all'); setPage(1); }}
-            className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center gap-1.5 border ${
               statusFilter === 'all' 
-                ? 'bg-slate-800 text-white shadow-xs' 
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                ? 'bg-slate-800 text-white border-slate-800 shadow-xs' 
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
             title={isTr ? "Tüm Faturalar" : "All Invoices"}
           >
+            <FileText className="h-4 w-4" />
             {isTr ? "Tümü" : "All"}
           </button>
           <button
             type="button"
             onClick={() => { setStatusFilter(statusFilter === 'draft' ? 'all' : 'draft'); setPage(1); }}
-            className={`p-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer border ${
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer border ${
               statusFilter === 'draft' 
                 ? 'bg-amber-600 text-white border-amber-600 shadow-xs' 
                 : 'bg-white text-amber-600 border-amber-200 hover:bg-amber-50'
@@ -1296,11 +1297,12 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             title={isTr ? "Taslaklar" : "Drafts"}
           >
             <Clock className="h-4 w-4" />
+            {isTr ? "Taslaklar" : "Drafts"}
           </button>
           <button
             type="button"
             onClick={() => { setStatusFilter(statusFilter === 'rejected' ? 'all' : 'rejected'); setPage(1); }}
-            className={`p-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer border ${
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer border ${
               statusFilter === 'rejected' 
                 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' 
                 : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'
@@ -1308,6 +1310,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             title={isTr ? "Reddedilenler / Hatalı" : "Rejected / Error"}
           >
             <XCircle className="h-4 w-4" />
+            {isTr ? "Hatalı" : "Failed"}
           </button>
 
           {/* CONTEMPORARY E-MARKETPLACE FILTER POPOVER (NO PRIMITIVE EMOJIS) */}
@@ -1589,18 +1592,21 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         lateInterestRate={lateInterestRate}
         setLateInterestRate={setLateInterestRate}
         onUpdateTerms={(days: number, rate: number, targetDueDate?: string) => {
-          setDueDays(days);
-          setLateInterestRate(rate);
-          let calcDate = targetDueDate;
-          if (!calcDate && days > 0) {
+          const effectiveDays = days > 0 ? days : 0;
+          const effectiveRate = effectiveDays > 0 ? rate : 0;
+          let calcDate = targetDueDate || "";
+          if (effectiveDays > 0 && !calcDate) {
             const baseD = invoiceDate ? new Date(invoiceDate) : new Date();
-            baseD.setDate(baseD.getDate() + days);
+            baseD.setDate(baseD.getDate() + effectiveDays);
             calcDate = baseD.toISOString().split('T')[0];
           }
-          if (calcDate) setDueDate(calcDate);
-          if (days > 0 && calcDate) {
-            setNotes(prev => buildFullNotesWithTerms(prev, calcDate!, days, rate));
+          if (effectiveDays === 0) {
+            calcDate = "";
           }
+          setDueDays(effectiveDays);
+          setLateInterestRate(effectiveRate);
+          setDueDate(calcDate);
+          setNotes(prev => buildFullNotesWithTerms(prev, calcDate, effectiveDays, effectiveRate));
         }}
         currency={currency}
         setCurrency={setCurrency}

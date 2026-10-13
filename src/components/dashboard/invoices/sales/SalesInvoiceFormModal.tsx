@@ -790,30 +790,30 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                 </div>
               </div>
 
-              {/* 3. PRODUCT ADDITION BAR - High-Contrast, Eye-Catching & Distinct Section */}
-              <div className="bg-slate-900 border-2 border-indigo-500/80 rounded-2xl p-3 sm:p-4 shadow-lg text-white space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-800">
+                            {/* 3. PRODUCT ADDITION BAR - Compact & Minimalist */}
+              <div className="bg-slate-900 border border-indigo-500/60 rounded-xl p-2.5 shadow-md text-white space-y-1.5">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-800">
                   <div className="flex items-center gap-2">
                     <span className="p-1 bg-indigo-500 rounded text-white">
-                      <Package className="h-4 w-4" />
+                      <Package className="h-3.5 w-3.5" />
                     </span>
-                    <span className="text-xs font-black uppercase tracking-wider text-indigo-200">
-                      {isTr ? '3. Faturaya Ürün / Hizmet Kalemi Ekle' : '3. Add Product / Service Item'}
+                    <span className="text-[11px] font-black uppercase tracking-wider text-indigo-200">
+                      {isTr ? '3. Ürün / Hizmet Kalemi Ekle' : '3. Add Product / Service Item'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-300">
-                    <span className="hidden sm:inline text-slate-400">{isTr ? 'Seçili Kalem:' : 'Items:'} <strong className="text-white">{items.length}</strong></span>
+                  <div className="text-[10px] font-semibold text-slate-400">
+                    {isTr ? 'Seçili Kalem:' : 'Items:'} <strong className="text-white">{items.length}</strong>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-center pt-1">
+                <div className="flex flex-wrap lg:flex-nowrap items-center gap-2">
                   {/* Search input with live dropdown */}
-                  <div className="lg:col-span-7 relative">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-400" />
+                  <div className="w-full lg:w-[420px] relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-indigo-400" />
                     <input 
                       type="text" 
                       placeholder={isTr ? "Ürün adı, barkod veya stok kodu yazarak arayın..." : "Search by product name, barcode or SKU..."}
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-white text-slate-900 placeholder:text-slate-400 rounded-xl text-xs sm:text-sm font-bold border-2 border-transparent focus:border-amber-400 focus:outline-none shadow-inner"
+                      className="w-full pl-9 pr-3 py-2 bg-white text-slate-900 placeholder:text-slate-400 rounded-lg text-xs font-bold border border-transparent focus:border-amber-400 focus:outline-none shadow-inner"
                       value={productSearch}
                       onChange={(e) => {
                         setProductSearch(e.target.value);
@@ -823,7 +823,7 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                     />
                     
                     {showProductDropdown && productSearch && (
-                      <div className="absolute z-[120] left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto p-1.5 text-slate-800">
+                      <div className="absolute z-[120] left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-56 overflow-y-auto p-1.5 text-slate-800">
                         <div className="p-1 border-b border-slate-100 mb-1">
                           <button
                             type="button"
@@ -842,19 +842,19 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                           <button
                             key={p.id}
                             type="button"
-                            className="w-full text-left px-3 py-2 hover:bg-indigo-50 rounded-lg transition-colors flex items-center justify-between group"
+                            className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 rounded-lg transition-colors flex items-center justify-between group"
                             onClick={() => handleAddProduct(p)}
                           >
-                            <div className="flex items-center gap-2.5">
-                              <div className="p-1.5 bg-slate-100 rounded group-hover:bg-indigo-100 transition-colors">
-                                <Package className="h-3.5 w-3.5 text-slate-600 group-hover:text-indigo-600" />
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="p-1 bg-slate-100 rounded group-hover:bg-indigo-100 transition-colors shrink-0">
+                                <Package className="h-3 w-3 text-slate-600 group-hover:text-indigo-600" />
                               </div>
-                              <div>
-                                <div className="text-xs font-bold text-slate-800">{p.name}</div>
-                                <div className="text-[9px] text-slate-400">{p.barcode || p.sku || '-'}</div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-slate-800 truncate">{p.name}</div>
+                                <div className="text-[9px] text-slate-400 font-mono">{p.barcode || p.sku || '-'}</div>
                               </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right shrink-0 ml-2">
                               <div className="text-xs font-black text-indigo-600">
                                 {Number(p.price).toLocaleString('tr-TR')} {p.currency || branding?.default_currency || 'TRY'}
                               </div>
@@ -863,7 +863,7 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                           </button>
                         ))}
                         {filteredProducts.length === 0 && (
-                          <div className="p-3 text-center text-xs text-slate-500">
+                          <div className="p-2.5 text-center text-xs text-slate-500">
                             {isTr ? "Eşleşen başka ürün bulunamadı." : "No matching products found."}
                           </div>
                         )}
@@ -871,24 +871,102 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                     )}
                   </div>
 
-                  {/* Payment & Currency Controls embedded inside high-contrast bar */}
-                  <div className="lg:col-span-5 flex items-center gap-2">
-                    <div className="flex-1">
-                      <select 
-                        className="w-full px-2.5 py-2.5 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs font-bold focus:border-indigo-400 focus:outline-none"
-                        value={paymentMethod}
-                        onChange={(e: any) => setPaymentMethod(e.target.value)}
-                      >
-                        <option value="cash">{isTr ? 'Nakit Ödeme' : 'Cash'}</option>
-                        <option value="credit_card">{isTr ? 'Kredi Kartı' : 'Credit Card'}</option>
-                        <option value="bank">{isTr ? 'Banka / Havale' : 'Bank Transfer'}</option>
-                        <option value="term">{isTr ? 'Vadeli / Açık Hesap' : 'Term Account'}</option>
-                      </select>
-                    </div>
+                  {/* Inline Payment & Term controls */}
+                  <div className="flex-1 flex flex-wrap items-center gap-1.5">
+                    <select 
+                      className="w-28 px-2 py-2 bg-slate-800 border border-slate-700 text-white rounded-lg text-xs font-bold focus:border-indigo-400 focus:outline-none"
+                      value={paymentMethod}
+                      onChange={(e: any) => setPaymentMethod(e.target.value)}
+                    >
+                      <option value="cash">{isTr ? 'Nakit' : 'Cash'}</option>
+                      <option value="credit_card">{isTr ? 'Kredi Kartı' : 'Credit Card'}</option>
+                      <option value="bank">{isTr ? 'Banka' : 'Bank Transfer'}</option>
+                      <option value="term">{isTr ? 'Vadeli' : 'Term'}</option>
+                    </select>
 
-                    <div className="flex items-center gap-1">
+                    {paymentMethod === 'term' && (
+                      <div className="flex items-center gap-1.5 bg-indigo-950/80 border border-indigo-800/80 px-2 py-1 rounded-lg">
+                        <div className="flex items-center gap-1" title={isTr ? "Vadesi (Gün)" : "Due Term (Days)"}>
+                          <span className="text-[9px] font-black text-indigo-300 uppercase">{isTr ? 'Vadesi (Gün)' : 'Term'}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="365"
+                            value={dueDays ?? 0}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const days = val === "" ? 0 : (parseInt(val, 10) || 0);
+                              let newDueDate = "";
+                              let newRate = days > 0 ? (lateInterestRate ?? 0) : 0;
+                              if (days > 0 && invoiceDate) {
+                                try {
+                                  const base = new Date(invoiceDate);
+                                  base.setDate(base.getDate() + days);
+                                  newDueDate = base.toISOString().split('T')[0];
+                                } catch {}
+                              }
+                              if (setDueDate) setDueDate(newDueDate);
+                              if (onUpdateTerms) onUpdateTerms(days, newRate, newDueDate);
+                            }}
+                            className="w-14 px-1 py-0.5 bg-slate-900 border border-indigo-700 text-white rounded text-xs font-black text-center focus:outline-none"
+                            placeholder="30"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1" title={isTr ? "Vadesi" : "Due Date"}>
+                          <span className="text-[9px] font-black text-indigo-300 uppercase">{isTr ? 'Vadesi' : 'Date'}</span>
+                          <input
+                            type="date"
+                            value={dueDate || ''}
+                            onChange={(e) => {
+                              const newDate = e.target.value;
+                              if (setDueDate) setDueDate(newDate);
+                              if (!newDate) {
+                                if (onUpdateTerms) onUpdateTerms(0, 0, "");
+                                return;
+                              }
+                              if (newDate && invoiceDate) {
+                                try {
+                                  const d1 = new Date(invoiceDate);
+                                  const d2 = new Date(newDate);
+                                  const diffTime = d2.getTime() - d1.getTime();
+                                  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                                  if (diffDays >= 0 && onUpdateTerms) {
+                                    onUpdateTerms(diffDays, lateInterestRate ?? 0, newDate);
+                                  } else if (onUpdateTerms) {
+                                    onUpdateTerms(0, 0, "");
+                                  }
+                                } catch {
+                                  if (onUpdateTerms) onUpdateTerms(0, 0, "");
+                                }
+                              }
+                            }}
+                            className="w-26 px-1 py-0.5 bg-slate-900 border border-indigo-700 text-white rounded text-xs font-bold text-center focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1" title={isTr ? "Aylık Vade Farkı (%)" : "Monthly Late Fee (%)"}>
+                          <span className="text-[9px] font-black text-indigo-300 uppercase">%</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            value={lateInterestRate ?? 0}
+                            onChange={(e) => {
+                              const rate = parseFloat(e.target.value) || 0;
+                              if (onUpdateTerms) onUpdateTerms(dueDays ?? 0, rate, dueDate);
+                            }}
+                            className="w-12 px-1 py-0.5 bg-slate-900 border border-indigo-700 text-amber-300 rounded text-xs font-black text-center focus:outline-none"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-1 ml-auto">
                       <select 
-                        className="px-2.5 py-2.5 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs font-black focus:border-indigo-400 focus:outline-none"
+                        className="px-2 py-2 bg-slate-800 border border-slate-700 text-white rounded-lg text-xs font-black focus:border-indigo-400 focus:outline-none"
                         value={currency}
                         onChange={(e) => {
                           const newCurrency = e.target.value;
@@ -910,10 +988,10 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                       {currency !== (branding?.default_currency || 'TRY') && (
                         <input
                           type="text"
-                          placeholder={isTr ? "Döviz Kuru" : "Rate"}
+                          placeholder={isTr ? "Kur" : "Rate"}
                           value={exchangeRate}
                           onChange={(e) => setExchangeRate(e.target.value.replace(',', '.'))}
-                          className="w-20 px-2 py-2.5 bg-slate-800 border border-slate-700 text-amber-300 rounded-xl text-xs font-bold text-center focus:border-amber-400 focus:outline-none"
+                          className="w-16 px-1.5 py-2 bg-slate-800 border border-slate-700 text-amber-300 rounded-lg text-xs font-bold text-center focus:outline-none"
                         />
                       )}
                     </div>
@@ -921,96 +999,31 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                 </div>
               </div>
 
-              {paymentMethod === 'term' && (
-                <div className="p-3 bg-indigo-950/60 border border-indigo-800/80 rounded-xl grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-indigo-300 uppercase tracking-wider block">
-                      {isTr ? "Vade Süresi (Gün)" : "Due Term (Days)"}
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="365"
-                      value={dueDays ?? 0}
-                      onChange={(e) => {
-                        const days = parseInt(e.target.value, 10) || 0;
-                        if (onUpdateTerms) onUpdateTerms(days, lateInterestRate ?? 0, dueDate);
-                      }}
-                      className="w-full px-3 py-2 bg-slate-900 border border-indigo-700 text-white rounded-lg text-xs font-black text-center focus:outline-none focus:border-indigo-400"
-                      placeholder="30"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-indigo-300 uppercase tracking-wider block">
-                      {isTr ? "Vade Tarihi (dd/mm/yyyy)" : "Due Date"}
-                    </label>
-                    <input
-                      type="date"
-                      value={dueDate || ''}
-                      onChange={(e) => {
-                        const newDate = e.target.value;
-                        if (setDueDate) setDueDate(newDate);
-                        if (newDate && invoiceDate) {
-                          try {
-                            const d1 = new Date(invoiceDate);
-                            const d2 = new Date(newDate);
-                            const diffTime = d2.getTime() - d1.getTime();
-                            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-                            if (diffDays >= 0 && onUpdateTerms) {
-                              onUpdateTerms(diffDays, lateInterestRate ?? 0, newDate);
-                            }
-                          } catch {}
-                        }
-                      }}
-                      className="w-full px-3 py-2 bg-slate-900 border border-indigo-700 text-white rounded-lg text-xs font-bold text-center focus:outline-none focus:border-indigo-400"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-indigo-300 uppercase tracking-wider block">
-                      {isTr ? "Aylık Vade Farkı (%)" : "Monthly Late Fee (%)"}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      value={lateInterestRate ?? 0}
-                      onChange={(e) => {
-                        const rate = parseFloat(e.target.value) || 0;
-                        if (onUpdateTerms) onUpdateTerms(dueDays ?? 0, rate, dueDate);
-                      }}
-                      className="w-full px-3 py-2 bg-slate-900 border border-indigo-700 text-amber-300 rounded-lg text-xs font-black text-center focus:outline-none focus:border-indigo-400"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* 4. ITEMS TABLE - Compact & Clean Grid */}
+              {/* 4. ITEMS TABLE - Compact Grid */}
               <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-                <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                <div className="overflow-x-auto max-h-48 overflow-y-auto">
                   <table className="w-full text-left border-collapse min-w-[650px]">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200">
-                        <th className="py-2.5 px-3">{isTr ? 'Ürün / Hizmet Açıklaması' : 'Product / Description'}</th>
-                        <th className="py-2.5 px-2 text-center w-24">{isTr ? 'Miktar' : 'Qty'}</th>
-                        <th className="py-2.5 px-2 text-right w-32">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
-                        <th className="py-2.5 px-2 text-center w-20">{isTr ? 'KDV %' : 'VAT %'}</th>
-                        <th className="py-2.5 px-3 text-right w-36">{isTr ? 'Tutar' : 'Total'}</th>
-                        <th className="py-2.5 px-2 text-center w-12"></th>
+                        <th className="py-2 px-3">{isTr ? 'Ürün / Hizmet Açıklaması' : 'Product / Description'}</th>
+                        <th className="py-2 px-2 text-center w-20">{isTr ? 'Miktar' : 'Qty'}</th>
+                        <th className="py-2 px-2 text-right w-28">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
+                        <th className="py-2 px-2 text-center w-16">{isTr ? 'KDV %' : 'VAT %'}</th>
+                        <th className="py-2 px-3 text-right w-32">{isTr ? 'Tutar' : 'Total'}</th>
+                        <th className="py-2 px-2 text-center w-10"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
                       {items.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-400 text-xs font-semibold">
+                          <td colSpan={6} className="py-6 text-center text-slate-400 text-xs font-semibold">
                             {isTr ? "Henüz ürün eklenmedi. Yukarıdaki arama çubuğundan ürün ekleyebilirsiniz." : "No items added yet. Search products above."}
                           </td>
                         </tr>
                       ) : (
                         items.map((item, idx) => (
                           <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-2 px-3">
+                            <td className="py-1.5 px-3">
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1018,47 +1031,47 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                                   if (onEditProduct) onEditProduct(item);
                                 }}
                                 title={item.product_name || item.name || '-'}
-                                className={`text-left font-bold text-slate-800 hover:text-indigo-600 transition-colors line-clamp-2 break-words leading-tight max-w-[240px] sm:max-w-[320px] ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                                className={`text-left font-bold text-slate-800 hover:text-indigo-600 transition-colors line-clamp-1 break-words leading-tight max-w-[240px] sm:max-w-[320px] ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
                               >
                                 {item.product_name || item.name || '-'}
                               </button>
-                              <div className="text-[10px] text-slate-400 font-mono">{item.barcode || item.sku || ''}</div>
+                              <div className="text-[9px] text-slate-400 font-mono">{item.barcode || item.sku || ''}</div>
                             </td>
-                            <td className="py-2 px-2">
+                            <td className="py-1.5 px-2">
                               <input 
                                 type="text"
                                 inputMode="numeric"
-                                className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center font-bold text-slate-800 focus:bg-white focus:border-indigo-500 font-mono tabular-nums text-xs"
+                                className="w-full px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-center font-bold text-slate-800 focus:bg-white focus:border-indigo-500 font-mono tabular-nums text-xs"
                                 value={item.quantity}
                                 onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
                               />
                             </td>
-                            <td className="py-2 px-2">
+                            <td className="py-1.5 px-2">
                               <div className="relative">
                                 <input 
                                   type="text"
-                                  className="w-full pl-2 pr-6 py-1 bg-slate-50 border border-slate-200 rounded text-right font-bold text-slate-800 focus:bg-white focus:border-indigo-500 font-mono tabular-nums text-xs"
+                                  className="w-full pl-1.5 pr-5 py-0.5 bg-slate-50 border border-slate-200 rounded text-right font-bold text-slate-800 focus:bg-white focus:border-indigo-500 font-mono tabular-nums text-xs"
                                   value={item.unit_price}
                                   onChange={(e) => updateItem(idx, 'unit_price', e.target.value)}
                                 />
-                                <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 font-sans">{currency}</span>
+                                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-400 font-sans">{currency}</span>
                               </div>
                             </td>
-                            <td className="py-2 px-2">
+                            <td className="py-1.5 px-2">
                               <input 
                                 type="text"
-                                className="w-full px-1 py-1 bg-slate-50 border border-slate-200 rounded text-center font-bold text-slate-800 focus:bg-white focus:border-indigo-500 font-mono tabular-nums text-xs"
+                                className="w-full px-1 py-0.5 bg-slate-50 border border-slate-200 rounded text-center font-bold text-slate-800 focus:bg-white focus:border-indigo-500 font-mono tabular-nums text-xs"
                                 value={Math.floor(Number(item.tax_rate) || 0)}
                                 onChange={(e) => updateItem(idx, 'tax_rate', e.target.value)}
                               />
                             </td>
-                            <td className="py-2 px-3 text-right font-mono tabular-nums font-bold text-slate-900">
+                            <td className="py-1.5 px-3 text-right font-mono tabular-nums font-bold text-slate-900">
                               {(isTaxInclusive 
                                 ? ((Number(String(item.quantity).replace(',', '.')) || 0) * (Number(String(item.unit_price).replace(',', '.')) || 0))
                                 : ((Number(String(item.quantity).replace(',', '.')) || 0) * (Number(String(item.unit_price).replace(',', '.')) || 0)) * (1 + (Number(item.tax_rate) || 0) / 100)
-                              ).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 font-sans font-normal">{currency}</span>
+                              ).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[9px] text-slate-400 font-sans font-normal">{currency}</span>
                             </td>
-                            <td className="py-2 px-2 text-center">
+                            <td className="py-1.5 px-2 text-center">
                               <button 
                                 type="button"
                                 onClick={() => removeItem(idx)}
@@ -1076,46 +1089,46 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                 </div>
               </div>
 
-              {/* 5. NOTES & SUMMARY CARDS */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 pt-1 items-stretch">
-                {/* Notes Column */}
-                <div className="md:col-span-6 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1.5 flex flex-col">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{isTr ? 'Fatura Açıklaması / Notlar' : 'Invoice Notes'}</label>
-                  <textarea 
-                    className="flex-1 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:bg-white focus:border-indigo-500 transition-all min-h-[70px] resize-none"
-                    placeholder={isTr ? "Fatura üzerinde yer alacak ek not veya banka IBAN bilgileri..." : "Additional notes or bank info..."}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                  />
-                </div>
-
-                {/* Financial Summary Column */}
-                <div className="md:col-span-6 bg-slate-900 rounded-xl p-3.5 text-white shadow-md border border-slate-800 flex flex-col justify-between space-y-2">
-                  <div className="grid grid-cols-2 gap-2 text-xs opacity-80 pb-2 border-b border-slate-800">
+               {/* 5. FINANCIAL SUMMARY & NOTES (Side-by-Side 2-Column Layout for Space Efficiency) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 pt-1">
+                {/* Financial Summary */}
+                <div className="lg:col-span-5 bg-slate-900 rounded-xl p-3 text-white shadow-md border border-slate-800 flex flex-col justify-between space-y-2">
+                  <div className="grid grid-cols-2 gap-2 text-xs opacity-80 pb-1.5 border-b border-slate-800">
                     <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">{isTr ? 'Ara Toplam (Matrah):' : 'Subtotal:'}</span>
+                      <span className="font-semibold text-slate-400">{isTr ? 'Ara Toplam:' : 'Subtotal:'}</span>
                       <span className="font-mono font-bold">{totals.subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">{isTr ? 'KDV Toplamı:' : 'VAT Total:'}</span>
+                      <span className="font-semibold text-slate-400">{isTr ? 'KDV:' : 'VAT:'}</span>
                       <span className="font-mono font-bold">{totals.taxTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-baseline justify-between pt-1">
+                  <div className="flex items-baseline justify-between pt-0.5">
                     <div>
-                      <span className="text-xs font-black uppercase tracking-wider text-indigo-300 block">{isTr ? 'ÖDENECEK GENEL TOPLAM' : 'GRAND TOTAL'}</span>
-                      <span className="text-[10px] text-slate-400 italic">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300 block">{isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
+                      <span className="text-[9px] text-slate-400 italic line-clamp-1">
                         {isTr ? 'Yalnız: ' : 'Only: '} {numberToTurkishWords(totals.grandTotal, currency)}
                       </span>
                     </div>
-                    <div className="text-right flex items-baseline gap-1.5">
-                      <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white">
+                    <div className="text-right flex items-baseline gap-1">
+                      <span className="text-xl sm:text-2xl font-black font-mono tracking-tight text-white">
                         {totals.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
-                      <span className="text-xs font-bold text-indigo-400 font-sans">{currency}</span>
+                      <span className="text-[10px] font-bold text-indigo-400 font-sans">{currency}</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Notes Section */}
+                <div className="lg:col-span-7 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-1 flex flex-col">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{isTr ? 'Fatura Açıklaması / Notlar' : 'Invoice Notes'}</label>
+                  <textarea 
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:bg-white focus:border-indigo-500 transition-all min-h-[65px] max-h-[110px] resize-y"
+                    placeholder={isTr ? "Fatura üzerinde yer alacak ek not veya banka IBAN bilgileri..." : "Additional notes or bank info..."}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
                 </div>
               </div>
             </div>

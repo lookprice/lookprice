@@ -494,7 +494,7 @@ const CompaniesTab = ({
                           {c.title ? c.title.charAt(0).toUpperCase() : 'C'}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-900 text-sm tracking-tight">{c.title}</p>
+                          <p className="font-semibold text-slate-900 text-[13px] tracking-tight truncate max-w-[220px]" title={c.title}>{c.title}</p>
                           <p className="text-xs text-slate-500 font-medium">{c.phone || c.email || '-'}</p>
                         </div>
                       </div>
