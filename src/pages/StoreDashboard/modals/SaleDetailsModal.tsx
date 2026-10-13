@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { X, Printer, AlertCircle, Gift, Clock, Truck, CheckCircle2, FileText } from "lucide-react";
 import ShippingSlip from "../../../components/ShippingSlip";
 import { api } from "../../../services/api";
+import { formatDateTR } from "../../../utils/formatUtils";
 
 interface SaleDetailsModalProps {
   showSaleDetailsModal: boolean;
@@ -41,7 +42,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
           <div>
             <h3 className="text-xl font-bold text-gray-900">{t.saleDetails}</h3>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
-              #{selectedSale.id} • {new Date(selectedSale.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+              #{selectedSale.id} • {formatDateTR(selectedSale.created_at)}
             </p>
           </div>
           <div className="flex items-center gap-2">

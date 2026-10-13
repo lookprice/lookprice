@@ -2,6 +2,7 @@ import React from "react";
 import { Search, Filter, Download, Database, Users, ChevronRight, Edit2, Trash2, Building2, Layers } from "lucide-react";
 import { Store } from "../../types/superadmin";
 import StoreLogo from "../StoreLogo";
+import { formatDateTR } from "../../utils/formatUtils";
 
 interface SuperAdminStoresTableProps {
   stores: Store[];
@@ -193,7 +194,7 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                     </td>
                     <td className="px-6 py-4">
                       <div className={`text-xs font-mono font-bold ${isExpired ? 'text-red-500' : 'text-gray-900'}`}>
-                        {new Date(store.subscription_end).toLocaleDateString()}
+                        {formatDateTR(store.subscription_end)}
                       </div>
                     </td>
                     <td className="px-6 py-4">

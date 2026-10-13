@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { api } from "../services/api";
 import { translations } from "../translations";
 import { Product } from "../types";
+import { formatFileDateTR } from "../utils/formatUtils";
 
 export const useProductUtils = (user: any, currentStoreId: number | undefined, includeBranches: boolean, products: Product[], lang: string, fetchData: (background?: boolean) => Promise<void>) => {
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
@@ -123,7 +124,7 @@ export const useProductUtils = (user: any, currentStoreId: number | undefined, i
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, isTr ? "Ürünler" : "Products");
-    XLSX.writeFile(wb, `${isTr ? 'Urun_Listesi' : 'Product_List'}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `${isTr ? 'Urun_Listesi' : 'Product_List'}_${formatFileDateTR()}.xlsx`);
   };
 
   return { showBulkPriceModal, setShowBulkPriceModal, bulkPriceForm, setBulkPriceForm, handleApplyTaxRule, handleBulkPriceSubmit, handleBulkRecalculatePrice2, handleExportProducts };

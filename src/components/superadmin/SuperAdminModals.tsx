@@ -3,6 +3,7 @@ import { X, AlertTriangle, LogOut, Phone, Mail, MessageCircle, User, Calendar, B
 import { motion, AnimatePresence } from "motion/react";
 import { Store, Lead, EnrakipsizSlide, EnrakipsizAd } from "../../types/superadmin";
 import { DEVELOPED_COUNTRIES } from "../../constants";
+import { formatDateTR } from "../../utils/formatUtils";
 
 interface ModalProps {
   isOpen: boolean;
@@ -287,7 +288,7 @@ export const LeadModal: React.FC<{
           </div>
           {lead?.created_at && (
             <span className="text-[10px] text-gray-400 font-mono">
-              {new Date(lead.created_at).toLocaleDateString('tr-TR')}
+              {formatDateTR(lead.created_at)}
             </span>
           )}
         </div>
@@ -751,7 +752,7 @@ export const StoreDetailsModal: React.FC<{
         </div>
         <div className="bg-gray-50 p-3 rounded-lg">
           <p className="text-[9px] text-gray-400 uppercase font-bold">{st.subscriptionEndDate}</p>
-          <p className="text-xs text-gray-900">{new Date(store.subscription_end).toLocaleDateString()}</p>
+          <p className="text-xs text-gray-900">{formatDateTR(store.subscription_end)}</p>
         </div>
         
         <div className="pt-2">
@@ -889,9 +890,9 @@ export const AddStoreModal: React.FC<{
                   {(newStore.store_type === 'product' || !newStore.store_type) && (
                     <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200/80 mt-2 space-y-2">
                       <div>
-                        <span className="text-xs font-black text-indigo-950 block">🌳 Hepsiburada Kategori & Sektör Şablonu</span>
+                        <span className="text-xs font-black text-indigo-950 block">🌳 Kategori & Sektör Şablonu Seçimi (İsteğe Bağlı)</span>
                         <span className="text-[10px] text-indigo-800 font-medium block">
-                          Mağaza açılışında Hepsiburada standart kategori ağacı, alt kategoriler ve dinamik filtreler otomatik tanımlanır.
+                          Hiçbir kategori seçilmezse mağaza boş/sıfır kategoriyle açılır. Kitap konsepti seçilmezse genel perakende (shopLP) şablonu uygulanır ve kitap terimleri sızdırılmaz.
                         </span>
                       </div>
                       <div className="grid grid-cols-1 gap-1.5">
@@ -900,17 +901,18 @@ export const AddStoreModal: React.FC<{
                           { id: "photography_camera", label: "📷 Fotoğraf & Kamera (Kamera, Lens, Aksesuar & Stüdyo)" },
                           { id: "small_appliances", label: "☕ Küçük Ev Aletleri (Mutfak, Süpürge, Ütü & Kişisel Bakım)" },
                           { id: "consumer_electronics", label: "📺 Elektronik, TV, Ses & Akıllı Ev Güvenlik Sistemleri" },
+                          { id: "bookstore", label: "📚 Kitap, Kırtasiye & Yayınevi (BookLP Konsepti & Sinematik Vitrin)" },
                         ].map((pkg) => {
                           const currentList: string[] = Array.isArray(newStore.sector_taxonomy_packages)
                             ? newStore.sector_taxonomy_packages
-                            : ["tech_computer", "photography_camera", "small_appliances", "consumer_electronics"];
+                            : [];
                           const isChecked = currentList.includes(pkg.id);
                           return (
                             <label
                               key={pkg.id}
                               className={`flex items-center gap-2 p-1.5 rounded-lg border cursor-pointer transition-all ${
                                 isChecked
-                                  ? "bg-white border-indigo-400 shadow-2xs"
+                                  ? "bg-white border-indigo-400 shadow-2xs ring-1 ring-indigo-200"
                                   : "bg-white/50 border-indigo-100 opacity-75"
                               }`}
                             >
@@ -922,7 +924,11 @@ export const AddStoreModal: React.FC<{
                                   const next = e.target.checked
                                     ? Array.from(new Set([...currentList, pkg.id]))
                                     : currentList.filter((id) => id !== pkg.id);
-                                  setNewStore({ ...newStore, sector_taxonomy_packages: next });
+                                  setNewStore({ 
+                                    ...newStore, 
+                                    sector_taxonomy_packages: next,
+                                    store_concept: next.includes('bookstore') ? 'bookstore' : (newStore.store_concept === 'bookstore' ? 'product' : newStore.store_concept)
+                                  });
                                 }}
                               />
                               <span className="text-[11px] font-bold text-slate-900 leading-tight">{pkg.label}</span>

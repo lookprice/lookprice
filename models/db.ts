@@ -1872,6 +1872,43 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_sales_invoice_items_invoice_id ON sales_invoice_items (sales_invoice_id);
       CREATE INDEX IF NOT EXISTS idx_purchase_invoice_items_invoice_id ON purchase_invoice_items (purchase_invoice_id);
       CREATE INDEX IF NOT EXISTS idx_current_account_transactions_store_comp ON current_account_transactions (store_id, company_id);
+
+      CREATE TABLE IF NOT EXISTS company_reconciliations (
+        id BIGINT PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        company_id INTEGER,
+        company_title TEXT NOT NULL,
+        company_address TEXT,
+        tax_office TEXT,
+        tax_number TEXT,
+        store_name TEXT,
+        store_address TEXT,
+        store_tax_office TEXT,
+        store_tax_number TEXT,
+        currency VARCHAR(10) DEFAULT 'TRY',
+        balance DOUBLE PRECISION DEFAULT 0,
+        carry_over_balance DOUBLE PRECISION DEFAULT 0,
+        start_date TEXT,
+        period_month_name TEXT,
+        transactions JSONB DEFAULT '[]',
+        babs_invoice_count INTEGER DEFAULT 0,
+        babs_total_sum DOUBLE PRECISION DEFAULT 0,
+        date_str TEXT,
+        status VARCHAR(30) DEFAULT 'pending',
+        dispute_note TEXT,
+        responder_name TEXT,
+        responder_ip TEXT,
+        responded_at TIMESTAMP,
+        is_archived BOOLEAN DEFAULT FALSE,
+        archived_at TIMESTAMP,
+        archive_note TEXT,
+        notes TEXT,
+        payload JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_company_reconciliations_store ON company_reconciliations (store_id, is_archived, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_company_reconciliations_company ON company_reconciliations (store_id, company_id);
     `);
     console.log("Database optimizations and indexes applied successfully.");
 

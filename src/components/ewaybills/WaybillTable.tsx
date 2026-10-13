@@ -10,6 +10,7 @@ import {
   Eye,
   FileText
 } from "lucide-react";
+import { formatDateTR } from "../../utils/formatUtils";
 
 interface WaybillTableProps {
   isTr: boolean;
@@ -159,7 +160,7 @@ export const WaybillTable: React.FC<WaybillTableProps> = ({
                       )}
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-slate-600">
-                      <div>{new Date(w.waybill_date).toLocaleDateString('tr-TR')}</div>
+                      <div>{formatDateTR(w.waybill_date)}</div>
                       <div className="text-xs text-slate-400 mt-0.5">{w.waybill_time || "12:00"}</div>
                     </td>
                     <td className="py-3.5 px-4 text-xs text-slate-600">

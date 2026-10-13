@@ -540,6 +540,7 @@ export async function initProductSchema() {
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS prep_time_min NUMERIC DEFAULT 0;`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS portion_size VARCHAR(100) DEFAULT '';`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS marketplace_data JSONB DEFAULT '{}'::jsonb;`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;`);
 
     // Run product name sync in background
     syncProductNamesFromInvoices().catch(e => console.error("Error running syncProductNamesFromInvoices in initProductSchema:", e));
@@ -770,9 +771,22 @@ router.get("/", async (req: any, res) => {
     if (search) {
       const searchTerms = search.split(/\s+/).filter(Boolean);
       searchTerms.forEach(term => {
-        const pIdx = params.length + 1;
-        query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.product_code, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sku, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)})`;
-        params.push(normalizeTurkishParam(term));
+        const normTerm = term.toLowerCase().replace(/[-_/.+]/g, '');
+        if (normTerm === 'usbc' || normTerm === 'typec') {
+          const pIdx1 = params.length + 1;
+          const pIdx2 = params.length + 2;
+          query += ` AND (
+            ${getTurkishSearchSnippet('p.name', pIdx1)} OR 
+            ${getTurkishSearchSnippet('p.name', pIdx2)} OR 
+            ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx1)} OR
+            ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx2)}
+          )`;
+          params.push('%type%c%', '%usb%c%');
+        } else {
+          const pIdx = params.length + 1;
+          query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.product_code, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sku, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)})`;
+          params.push(normalizeTurkishParam(term));
+        }
       });
     }
 
@@ -801,7 +815,7 @@ router.post("/", async (req: any, res) => {
     barcode, product_code, sku, name, price, currency, cost_price, cost_currency, description, 
     stock_quantity, min_stock_level, unit, category, sub_category, 
     category_2, sub_category_2, has_variants, variants,
-    brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, 
+    brand, author, labels, image_url, images, is_web_sale, is_bestseller, product_type, 
     price_2, price_2_currency, tax_rate, volume_ml, allergens, calories, prep_time_min, portion_size,
     marketplace_data, sector_data
   } = req.body;
@@ -815,6 +829,29 @@ router.post("/", async (req: any, res) => {
     } catch (e) {
       parsedVariants = [];
     }
+  }
+
+  let parsedImages: string[] = [];
+  if (images) {
+    try {
+      const rawImgs = Array.isArray(images) ? images : (typeof images === 'string' ? JSON.parse(images || '[]') : []);
+      if (Array.isArray(rawImgs)) {
+        rawImgs.forEach((img: any) => {
+          const s = String(img || '').trim();
+          if (s && !parsedImages.includes(s)) parsedImages.push(s);
+        });
+      }
+    } catch (e) {
+      if (typeof images === 'string' && images.trim()) {
+        images.split(/[\n\r;|,]+/).map(x => x.trim()).filter(Boolean).forEach(x => {
+          if (!parsedImages.includes(x)) parsedImages.push(x);
+        });
+      }
+    }
+  }
+  const cleanMainImage = String(image_url || '').trim() || (parsedImages.length > 0 ? parsedImages[0] : '');
+  if (cleanMainImage && !parsedImages.includes(cleanMainImage)) {
+    parsedImages.unshift(cleanMainImage);
   }
 
   const hasVariantsVal = has_variants === true || has_variants === 'true' || has_variants === 'on' || (Array.isArray(parsedVariants) && parsedVariants.length > 0);
@@ -856,6 +893,7 @@ router.post("/", async (req: any, res) => {
     const isWebSaleVal = is_web_sale === true || is_web_sale === 'true' || is_web_sale === 'on';
     const isBestsellerVal = is_bestseller === true || is_bestseller === 'true' || is_bestseller === 'on';
     const variantsVal = JSON.stringify(parsedVariants);
+    const imagesVal = JSON.stringify(parsedImages);
     const allergensVal = JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : []));
     const marketplaceDataVal = JSON.stringify(typeof marketplace_data === 'object' && marketplace_data !== null ? marketplace_data : (typeof marketplace_data === 'string' ? JSON.parse(marketplace_data || '{}') : {}));
     const sectorDataVal = JSON.stringify(typeof sector_data === 'object' && sector_data !== null ? sector_data : (typeof sector_data === 'string' ? JSON.parse(sector_data || '{}') : {}));
@@ -865,11 +903,11 @@ router.post("/", async (req: any, res) => {
       INSERT INTO products (
         store_id, barcode, product_code, sku, name, price, currency, cost_price, cost_currency, description, 
         stock_quantity, min_stock_level, unit, category, sub_category, category_2, sub_category_2,
-        has_variants, variants, brand, author, labels, image_url, is_web_sale, is_bestseller, 
+        has_variants, variants, brand, author, labels, image_url, images, is_web_sale, is_bestseller, 
         product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, volume_ml, is_sellable,
         allergens, calories, prep_time_min, portion_size, marketplace_data, sector_data, updated_at
       ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::jsonb, $34, $35, $36, $37::jsonb, $38::jsonb, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22, $23, $24::jsonb, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34::jsonb, $35, $36, $37, $38::jsonb, $39::jsonb, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
       storeId, finalBarcode, finalProductCode, finalProductCode, name, finalPrice, currency || 'TRY',  
@@ -877,7 +915,7 @@ router.post("/", async (req: any, res) => {
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
       category || '', sub_category || '', category_2 || '', sub_category_2 || '',
       hasVariantsVal, variantsVal, brand || '', author || '', 
-      JSON.stringify(labels || []), image_url || '', 
+      JSON.stringify(labels || []), cleanMainImage, imagesVal,
       isWebSaleVal,
       isBestsellerVal,
       product_type || 'product',
@@ -920,19 +958,24 @@ router.post("/", async (req: any, res) => {
         
         if (existsRes.rows.length === 0) {
           await pool.query(`
-            INSERT INTO products (store_id, barcode, name, price, currency, description, unit, category, sub_category, brand, author, image_url, labels, product_type, tax_rate, stock_quantity, is_web_sale, is_sellable, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, false, $16, CURRENT_TIMESTAMP)
+            INSERT INTO products (store_id, barcode, name, price, currency, description, unit, category, sub_category, brand, author, image_url, images, labels, product_type, tax_rate, stock_quantity, is_web_sale, is_sellable, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15, $16, 0, false, $17, CURRENT_TIMESTAMP)
           `, [
             bId, finalBarcode, name, parseFloat(price), currency || 'TRY', 
             description || '', unit || 'Adet', category || '', 
             sub_category || '', brand || '', author || '', 
-            image_url || '', JSON.stringify(labels || []), product_type || 'product', 
+            cleanMainImage, imagesVal, JSON.stringify(labels || []), product_type || 'product', 
             (tax_rate !== undefined && tax_rate !== null && tax_rate !== "") ? parseFloat(tax_rate) : defaultTaxRate,
             req.body.is_sellable !== undefined ? req.body.is_sellable : true
           ]);
         }
       }
     }
+
+    try {
+      const { publicApiCache } = await import("../public.js");
+      publicApiCache.clear();
+    } catch {}
 
     res.json(result.rows[0]);
   } catch (e: any) {
@@ -1271,13 +1314,13 @@ router.put("/:id", async (req: any, res) => {
     barcode, product_code, sku, name, price, currency, cost_price, cost_currency, description, 
     stock_quantity, min_stock_level, unit, category, sub_category, 
     category_2, sub_category_2, has_variants, variants,
-    brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, 
+    brand, author, labels, image_url, images, is_web_sale, is_bestseller, product_type, 
     price_2, price_2_currency, tax_rate, shipping_profile_id, sync_group, volume_ml, is_sellable,
     allergens, calories, prep_time_min, portion_size, marketplace_data, sector_data
   } = req.body;
 
   try {
-    const existingProductRes = await pool.query("SELECT labels, barcode, product_code, is_sellable, is_bestseller, allergens, calories, prep_time_min, portion_size, marketplace_data, sector_data, stock_quantity, price, cost_price, currency FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const existingProductRes = await pool.query("SELECT labels, barcode, product_code, is_sellable, is_bestseller, allergens, calories, prep_time_min, portion_size, marketplace_data, sector_data, stock_quantity, price, cost_price, currency, image_url, images FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (existingProductRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
     const oldStock = parseFloat(existingProductRes.rows[0]?.stock_quantity || '0');
     let existingLabels = existingProductRes.rows[0]?.labels || [];
@@ -1305,6 +1348,37 @@ router.put("/:id", async (req: any, res) => {
     }
     const finalHasVariants = (has_variants !== undefined ? (has_variants === true || has_variants === 'true' || has_variants === 'on') : false) || (Array.isArray(parsedVariants) && parsedVariants.length > 0);
     const finalVariants = JSON.stringify(parsedVariants);
+
+    let parsedImages: string[] = [];
+    if (images !== undefined) {
+      try {
+        const rawImgs = Array.isArray(images) ? images : (typeof images === 'string' ? JSON.parse(images || '[]') : []);
+        if (Array.isArray(rawImgs)) {
+          rawImgs.forEach((img: any) => {
+            const s = String(img || '').trim();
+            if (s && !parsedImages.includes(s)) parsedImages.push(s);
+          });
+        }
+      } catch (e) {
+        if (typeof images === 'string' && images.trim()) {
+          images.split(/[\n\r;|,]+/).map(x => x.trim()).filter(Boolean).forEach(x => {
+            if (!parsedImages.includes(x)) parsedImages.push(x);
+          });
+        }
+      }
+    } else if (Array.isArray(existingProductRes.rows[0]?.images)) {
+      parsedImages = [...existingProductRes.rows[0].images];
+    } else if (typeof existingProductRes.rows[0]?.images === 'string') {
+      try { parsedImages = JSON.parse(existingProductRes.rows[0].images); } catch { parsedImages = []; }
+    }
+
+    const cleanMainImage = image_url !== undefined
+      ? (String(image_url || '').trim() || (parsedImages.length > 0 ? parsedImages[0] : ''))
+      : (existingProductRes.rows[0]?.image_url || (parsedImages.length > 0 ? parsedImages[0] : ''));
+    if (cleanMainImage && !parsedImages.includes(cleanMainImage)) {
+      parsedImages.unshift(cleanMainImage);
+    }
+    const finalImagesVal = JSON.stringify(parsedImages);
 
     let finalPrice = parseFloat(String(price || '').replace(',', '.'));
     const variantPrices = parsedVariants
@@ -1356,6 +1430,32 @@ router.put("/:id", async (req: any, res) => {
       ? (typeof sector_data === 'object' && sector_data !== null ? sector_data : JSON.parse(sector_data || '{}'))
       : existingSectorData;
 
+    // Sector Isolation: Purge book-exclusive keys if store is not a bookstore
+    const storeRowRes = await pool.query("SELECT store_type, branding FROM stores WHERE id = $1", [storeId]);
+    const storeBranding = storeRowRes.rows[0]?.branding || {};
+    const parsedStoreBranding = typeof storeBranding === 'string' ? JSON.parse(storeBranding || '{}') : storeBranding;
+    const isBookstoreStore = parsedStoreBranding?.store_concept === 'bookstore' || parsedStoreBranding?.bookstore_module_enabled === true;
+
+    if (!isBookstoreStore && finalSectorData && typeof finalSectorData === 'object') {
+      delete finalSectorData.publisher;
+      delete finalSectorData.author;
+      delete finalSectorData.isbn;
+      delete finalSectorData.translator;
+      delete finalSectorData.edition;
+      delete finalSectorData.edition_number;
+      delete finalSectorData.cover_type;
+      delete finalSectorData.paper_type;
+      delete finalSectorData.publication_year;
+      delete finalSectorData.publish_year;
+      delete finalSectorData.featured_quote;
+      delete finalSectorData.spot_quote;
+      delete finalSectorData.quote;
+      delete finalSectorData.spot;
+      delete finalSectorData.awards;
+      delete finalSectorData.award;
+      delete finalSectorData.rating;
+    }
+
     const finalBarcode = barcode ? String(barcode).trim() : (existingProductRes.rows[0]?.barcode || 'GEN-' + Date.now().toString());
 
     const rawHbSku = cleanMpString(req.body.hepsiburada_sku);
@@ -1405,22 +1505,22 @@ router.put("/:id", async (req: any, res) => {
         stock_quantity = $9, min_stock_level = $10, unit = $11, 
         category = $12, sub_category = $13, category_2 = $14, sub_category_2 = $15,
         has_variants = $16, variants = $17::jsonb, brand = $18, author = $19, 
-        labels = $20, image_url = $21, is_web_sale = $22, is_bestseller = $23, product_type = $24,
-        price_2 = $25, price_2_currency = $26, tax_rate = $27, shipping_profile_id = $28, volume_ml = $29, is_sellable = $30,
-        allergens = $31::jsonb, calories = $32, prep_time_min = $33, portion_size = $34,
-        marketplace_data = $35::jsonb, sector_data = $36::jsonb,
-        hepsiburada_sku = $37, is_hepsiburada_active = $38,
-        amazon_asin = $39, amazon_sku = $40, is_amazon_active = $41,
-        hepsiburada_url = $42, amazon_url = $43,
+        labels = $20, image_url = $21, images = $22::jsonb, is_web_sale = $23, is_bestseller = $24, product_type = $25,
+        price_2 = $26, price_2_currency = $27, tax_rate = $28, shipping_profile_id = $29, volume_ml = $30, is_sellable = $31,
+        allergens = $32::jsonb, calories = $33, prep_time_min = $34, portion_size = $35,
+        marketplace_data = $36::jsonb, sector_data = $37::jsonb,
+        hepsiburada_sku = $38, is_hepsiburada_active = $39,
+        amazon_asin = $40, amazon_sku = $41, is_amazon_active = $42,
+        hepsiburada_url = $43, amazon_url = $44,
         updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $44 AND store_id = $45
+      WHERE id = $45 AND store_id = $46
     `, [
       finalBarcode, finalProductCode, name, finalPrice, currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
       category || '', sub_category || '', category_2 || '', sub_category_2 || '',
       finalHasVariants, finalVariants, brand || '', author || '', 
-      JSON.stringify(updatedLabels), image_url || '',
+      JSON.stringify(updatedLabels), cleanMainImage, finalImagesVal,
       finalIsWebSale,
       finalIsBestseller,
       product_type || 'product',
@@ -1474,6 +1574,7 @@ router.put("/:id", async (req: any, res) => {
         console.error("Failed to log product update stock movement:", smErr);
       }
     }
+    await ensureProductMovements(Number(id), storeId);
 
     if (sync_group && barcode) {
       const storeRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
@@ -1493,30 +1594,35 @@ router.put("/:id", async (req: any, res) => {
               name = $1, price = $2, currency = $3, 
               description = $4, unit = $5, category = $6, 
               sub_category = $7, brand = $8, author = $9, 
-              image_url = $10, labels = $11, product_type = $12, 
-              tax_rate = $13, updated_at = CURRENT_TIMESTAMP 
-            WHERE id = $14
+              image_url = $10, images = $11::jsonb, labels = $12, product_type = $13, 
+              tax_rate = $14, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $15
           `, [
             name, parseFloat(price), currency || 'TRY', 
             description || '', unit || 'Adet', category || '', 
             sub_category || '', brand || '', author || '', 
-            image_url || '', JSON.stringify(updatedLabels), product_type || 'product', 
+            cleanMainImage, finalImagesVal, JSON.stringify(updatedLabels), product_type || 'product', 
             parseFloat(tax_rate) || 0, existsRes.rows[0].id
           ]);
         } else {
           await pool.query(`
-            INSERT INTO products (store_id, barcode, name, price, currency, description, unit, category, sub_category, brand, author, image_url, labels, product_type, tax_rate, stock_quantity, is_web_sale, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, false, CURRENT_TIMESTAMP)
+            INSERT INTO products (store_id, barcode, name, price, currency, description, unit, category, sub_category, brand, author, image_url, images, labels, product_type, tax_rate, stock_quantity, is_web_sale, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15, $16, 0, false, CURRENT_TIMESTAMP)
           `, [
             bId, String(barcode), name, parseFloat(price), currency || 'TRY', 
             description || '', unit || 'Adet', category || '', 
             sub_category || '', brand || '', author || '', 
-            image_url || '', JSON.stringify(updatedLabels), product_type || 'product', 
+            cleanMainImage, finalImagesVal, JSON.stringify(updatedLabels), product_type || 'product', 
             parseFloat(tax_rate) || 0
           ]);
         }
       }
     }
+    
+    try {
+      const { publicApiCache } = await import("../public.js");
+      publicApiCache.clear();
+    } catch {}
     
     await logAction(
       storeId, 
@@ -1647,7 +1753,11 @@ router.put("/:id", async (req: any, res) => {
       })();
     }
 
-    res.json({ success: true });
+    const updatedProdRes = await pool.query(
+      "SELECT p.*, s.name as store_name FROM products p JOIN stores s ON p.store_id = s.id WHERE p.id = $1",
+      [id]
+    );
+    res.json({ success: true, product: updatedProdRes.rows[0] });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
   }
@@ -1890,14 +2000,10 @@ export async function ensureProductMovements(productId: number, storeId: number)
     );
     if (prodRes.rows.length === 0) return;
     const prod = prodRes.rows[0];
-    const prodBarcode = prod.barcode ? String(prod.barcode).trim() : '';
-    const prodCode = prod.product_code ? String(prod.product_code).trim() : '';
-    const prodSku = prod.sku ? String(prod.sku).trim() : '';
-    const prodName = prod.name ? String(prod.name).trim().toLowerCase() : '';
 
-    // 0.1 Deduplicate existing redundant movements for this product:
+    // 1. Deduplicate existing redundant movements for this product:
     // a) Deduplicate multiple 'out' movements for the exact same invoice_id (keep earliest/single record per invoice)
-    const delDupOutRes = await pool.query(`
+    await pool.query(`
       DELETE FROM stock_movements sm1
       WHERE sm1.product_id = $1
         AND sm1.type = 'out'
@@ -1907,42 +2013,11 @@ export async function ensureProductMovements(productId: number, storeId: number)
           WHERE sm2.product_id = sm1.product_id
             AND sm2.type = 'out'
             AND sm2.invoice_id = sm1.invoice_id
-            AND sm2.id > sm1.id
-        )
-      RETURNING quantity
-    `, [productId]);
-
-    let refundedDupOutQty = 0;
-    for (const r of delDupOutRes.rows) {
-      refundedDupOutQty += parseFloat(r.quantity || '0');
-    }
-
-    // b) Deduplicate redundant pos_sale or legacy marketplace movements when a sales_invoice movement exists for the same order/sale/invoice
-    await pool.query(`
-      DELETE FROM stock_movements sm1
-      WHERE sm1.product_id = $1
-        AND sm1.source IN ('pos_sale', 'hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti')
-        AND EXISTS (
-          SELECT 1 FROM stock_movements sm2
-          WHERE sm2.product_id = sm1.product_id
-            AND sm2.id != sm1.id
-            AND sm2.source = 'sales_invoice'
-            AND (
-              (sm1.sale_id IS NOT NULL AND sm2.sale_id = sm1.sale_id)
-              OR (sm1.invoice_id IS NOT NULL AND sm2.invoice_id = sm1.invoice_id)
-              OR (sm2.invoice_number IS NOT NULL AND (
-                sm1.description LIKE '%' || sm2.invoice_number || '%'
-                OR (sm2.invoice_number LIKE 'HB-%' AND sm1.description LIKE '%' || SUBSTRING(sm2.invoice_number FROM 4) || '%')
-                OR (sm2.invoice_number LIKE 'TY-%' AND sm1.description LIKE '%' || SUBSTRING(sm2.invoice_number FROM 4) || '%')
-                OR (sm2.invoice_number LIKE 'N11-%' AND sm1.description LIKE '%' || SUBSTRING(sm2.invoice_number FROM 5) || '%')
-                OR (sm2.invoice_number LIKE 'AMZ-%' AND sm1.description LIKE '%' || SUBSTRING(sm2.invoice_number FROM 5) || '%')
-                OR (sm2.invoice_number LIKE 'PZR-%' AND sm1.description LIKE '%' || SUBSTRING(sm2.invoice_number FROM 5) || '%')
-              ))
-            )
+            AND sm2.id < sm1.id
         )
     `, [productId]);
 
-    // c) Deduplicate multiple initial_stock records (keep the earliest original record)
+    // b) Deduplicate multiple initial_stock records (keep the earliest original record)
     await pool.query(`
       DELETE FROM stock_movements sm1
       WHERE sm1.product_id = $1
@@ -1955,226 +2030,71 @@ export async function ensureProductMovements(productId: number, storeId: number)
         )
     `, [productId]);
 
-    // 0.2 Auto-link unlinked purchase_invoice_items and sales_invoice_items for this product (Guarded by 5-Gate Conflict Veto)
-    if (prodBarcode || prodCode || prodSku || prodName.length >= 2) {
-      const candPii = await pool.query(`
-        SELECT pii.id, pii.product_name
-        FROM purchase_invoice_items pii
-        JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
-        WHERE pi.store_id = $6
-          AND (pii.product_id IS NULL OR pii.product_id = 0)
-          AND COALESCE(pi.is_expense, FALSE) = FALSE
-          AND (
-            ($2 != '' AND pii.barcode = $2)
-            OR ($3 != '' AND (pii.product_code = $3 OR pii.barcode = $3))
-            OR ($4 != '' AND (pii.product_code = $4 OR pii.barcode = $4))
-            OR ($5 != '' AND LOWER(TRIM(pii.product_name)) = $5)
-            OR ($5 != '' AND LENGTH($5) >= 6 AND LOWER(pii.product_name) LIKE '%' || $5 || '%')
-          )
-      `, [prod.id, prodBarcode, prodCode, prodSku, prodName, prod.store_id]);
-
-      for (const piiRow of candPii.rows) {
-        if (!hasProductMatchConflict(piiRow.product_name, prod.name)) {
-          await pool.query("UPDATE purchase_invoice_items SET product_id = $1 WHERE id = $2", [prod.id, piiRow.id]);
-        }
-      }
-
-      const candSii = await pool.query(`
-        SELECT sii.id, sii.product_name
-        FROM sales_invoice_items sii
-        JOIN sales_invoices si ON sii.sales_invoice_id = si.id
-        WHERE si.store_id = $6
-          AND (sii.product_id IS NULL OR sii.product_id = 0)
-          AND (
-            ($2 != '' AND sii.barcode = $2)
-            OR ($3 != '' AND sii.barcode = $3)
-            OR ($4 != '' AND sii.barcode = $4)
-            OR ($5 != '' AND LOWER(TRIM(sii.product_name)) = $5)
-            OR ($5 != '' AND LENGTH($5) >= 6 AND LOWER(sii.product_name) LIKE '%' || $5 || '%')
-          )
-      `, [prod.id, prodBarcode, prodCode, prodSku, prodName, prod.store_id]);
-
-      for (const siiRow of candSii.rows) {
-        if (!hasProductMatchConflict(siiRow.product_name, prod.name)) {
-          await pool.query("UPDATE sales_invoice_items SET product_id = $1 WHERE id = $2", [prod.id, siiRow.id]);
-        }
-      }
-    }
-
-    // 1. Sync missing purchase_invoice_items for this product (Strictly only for validated product_id = $1)
+    // c) Remove any stock_movements linked to cancelled/rejected sales_invoices
     await pool.query(`
-      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
-      SELECT 
-        pi.store_id,
-        $1,
-        'in',
-        pii.quantity,
-        'purchase_invoice',
-        'Alış Faturası: ' || COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number),
-        pii.unit_price,
-        COALESCE(pi.supplier_name, c.title, 'Tedarikçi'),
-        COALESCE(pi.currency, 'TRY'),
-        COALESCE(pi.invoice_date::timestamp, pi.created_at),
-        pi.id,
-        'purchase',
-        COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number)
-      FROM purchase_invoice_items pii
-      JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
-      LEFT JOIN companies c ON pi.company_id = c.id
-      WHERE pii.product_id = $1
-        AND COALESCE(pi.is_expense, FALSE) = FALSE
-        AND NOT EXISTS (
-          SELECT 1 FROM stock_movements sm
-          WHERE sm.product_id = $1
-            AND (
-              sm.invoice_id = pi.id
-              OR (sm.invoice_number IS NOT NULL AND (sm.invoice_number = pi.invoice_number OR sm.invoice_number = pi.document_number))
-              OR sm.description LIKE '%' || pi.invoice_number || '%'
-            )
+      DELETE FROM stock_movements sm
+      USING sales_invoices si
+      WHERE sm.product_id = $1
+        AND (
+          sm.invoice_id = si.id
+          OR (si.sale_id IS NOT NULL AND sm.sale_id = si.sale_id)
+          OR (sm.invoice_number IS NOT NULL AND sm.invoice_number = si.invoice_number)
         )
+        AND LOWER(COALESCE(si.status, '')) IN ('cancelled', 'iptal', 'canceled', 'rejected', 'reddedildi')
     `, [productId]);
 
-    // 2. Sync missing sales_invoice_items for this product
-    await pool.query(`
-      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
-      SELECT 
-        si.store_id,
-        $1,
-        'out',
-        sii.quantity,
-        'sales_invoice',
-        'Satış Faturası: ' || COALESCE(NULLIF(si.document_number, ''), si.invoice_number),
-        sii.unit_price,
-        COALESCE(c.title, cust.full_name, si.customer_name, 'Müşteri'),
-        COALESCE(si.currency, 'TRY'),
-        COALESCE(si.invoice_date::timestamp, si.created_at),
-        si.id,
-        'sales',
-        COALESCE(NULLIF(si.document_number, ''), si.invoice_number)
-      FROM sales_invoice_items sii
-      JOIN sales_invoices si ON sii.sales_invoice_id = si.id
-      LEFT JOIN companies c ON si.company_id = c.id
-      LEFT JOIN customers cust ON si.customer_id = cust.id
-      WHERE (
-          sii.product_id = $1 
-          OR ($2 != '' AND sii.barcode = $2)
-          OR ($3 != '' AND sii.barcode = $3)
-          OR ($4 != '' AND sii.barcode = $4)
-          OR ($5 != '' AND LOWER(TRIM(sii.product_name)) = $5)
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM stock_movements sm
-          WHERE sm.product_id = $1
-            AND (
-              sm.invoice_id = si.id
-              OR (si.sale_id IS NOT NULL AND sm.sale_id = si.sale_id)
-              OR (sm.invoice_number IS NOT NULL AND (sm.invoice_number = si.invoice_number OR sm.invoice_number = si.document_number))
-              OR sm.description LIKE '%' || si.invoice_number || '%'
-              OR (si.invoice_number LIKE 'HB-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
-              OR (si.invoice_number LIKE 'TY-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
-            )
-        )
-    `, [productId, prodBarcode, prodCode, prodSku, prodName]);
-
-    // 3. Sync missing sale_items (POS) for this product/barcode (exclude marketplace and invoice-linked sales)
-    await pool.query(`
-      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, sale_id)
-      SELECT 
-        s.store_id,
-        $1,
-        'out',
-        si.quantity,
-        'pos_sale',
-        'POS Satışı: #' || s.id,
-        si.unit_price,
-        COALESCE(c.full_name, 'Perakende Müşteri'),
-        'TRY',
-        s.created_at,
-        s.id
-      FROM sale_items si
-      JOIN sales s ON si.sale_id = s.id
-      LEFT JOIN customers c ON s.customer_id = c.id
-      WHERE (si.product_id = $1 OR ($2 != '' AND si.barcode = $2))
-        AND COALESCE(s.source, '') NOT IN ('hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti', 'marketplace')
-        AND COALESCE(s.payment_method, '') NOT LIKE '%Hepsiburada%'
-        AND COALESCE(s.payment_method, '') NOT LIKE '%Trendyol%'
-        AND COALESCE(s.payment_method, '') NOT LIKE '%N11%'
-        AND COALESCE(s.payment_method, '') NOT LIKE '%Amazon%'
-        AND COALESCE(s.payment_method, '') NOT LIKE '%Pazarama%'
-        AND NOT EXISTS (
-          SELECT 1 FROM sales_invoices inv
-          WHERE inv.sale_id = s.id
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM stock_movements sm
-          WHERE sm.product_id = $1
-            AND (
-              sm.sale_id = s.id
-              OR (sm.invoice_id IS NOT NULL AND EXISTS (SELECT 1 FROM sales_invoices inv WHERE inv.sale_id = s.id AND inv.id = sm.invoice_id))
-              OR sm.description LIKE '%#' || s.id || '%'
-            )
-        )
-    `, [productId, prodBarcode]);
-
-    // 4. Calculate net movements vs product stock_quantity
+    // 2. Ensure stock_movements net sum matches products.stock_quantity (products.stock_quantity is the authoritative source of truth)
+    // NEVER overwrite products.stock_quantity from stock_movements!
     const smSumRes = await pool.query(`
-      SELECT SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END) as net_qty
+      SELECT COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as net_qty,
+             COUNT(*) as total_cnt
       FROM stock_movements
       WHERE product_id = $1
     `, [productId]);
 
     const netQty = parseFloat(smSumRes.rows[0]?.net_qty || '0');
-    let currentStock = parseFloat(prod.stock_quantity || '0');
-
-    // Self-heal products.stock_quantity if duplicate 'out' movements were just removed or if stock_quantity was corrupted negative while real net movements are >= 0
-    if (refundedDupOutQty > 0 || (currentStock < 0 && netQty >= 0)) {
-      currentStock = netQty;
-      await pool.query("UPDATE products SET stock_quantity = $1 WHERE id = $2", [currentStock, productId]);
-    }
-
+    const totalCnt = parseInt(smSumRes.rows[0]?.total_cnt || '0');
+    const currentStock = parseFloat(prod.stock_quantity || '0');
     const diff = currentStock - netQty;
 
-    const existingInitialRes = await pool.query(
-      "SELECT id, quantity FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock' ORDER BY id ASC LIMIT 1",
-      [productId]
-    );
-
-    if (Math.abs(diff) > 0.001) {
-      if (existingInitialRes.rows.length > 0) {
-        const initialRow = existingInitialRes.rows[0];
-        const newInitialQty = Math.max(0, parseFloat(initialRow.quantity) + diff);
-        if (newInitialQty > 0) {
-          await pool.query(
-            "UPDATE stock_movements SET quantity = $1 WHERE id = $2",
-            [newInitialQty, initialRow.id]
-          );
-        } else {
-          await pool.query("DELETE FROM stock_movements WHERE id = $1", [initialRow.id]);
-        }
-      } else if (diff > 0) {
-        await pool.query(`
-          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-          VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok / Devir Kaydı', $4, $5, COALESCE($6, CURRENT_TIMESTAMP))
-        `, [prod.store_id, prod.id, diff, parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY', prod.created_at]);
+    if (totalCnt === 0) {
+      await pool.query(`
+        INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+        VALUES ($1, $2, $3, $4, 'initial_stock', 'Açılış Stok / Devir Kaydı', $5, $6, COALESCE($7, CURRENT_TIMESTAMP))
+      `, [
+        prod.store_id,
+        prod.id,
+        currentStock >= 0 ? 'in' : 'out',
+        Math.abs(currentStock),
+        parseFloat(prod.cost_price) || parseFloat(prod.price) || 0,
+        prod.currency || 'TRY',
+        prod.created_at
+      ]);
+    } else if (Math.abs(diff) > 0.001) {
+      // Adjust initial_stock if possible, or insert a baseline adjustment so ledger sum equals products.stock_quantity
+      const initRes = await pool.query(
+        "SELECT id, type, quantity FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock' ORDER BY id ASC LIMIT 1",
+        [productId]
+      );
+      if (initRes.rows.length > 0 && initRes.rows[0].type === 'in' && (parseFloat(initRes.rows[0].quantity) + diff) >= 0) {
+        await pool.query(
+          "UPDATE stock_movements SET quantity = $1 WHERE id = $2",
+          [parseFloat(initRes.rows[0].quantity) + diff, initRes.rows[0].id]
+        );
       } else {
         await pool.query(`
           INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-          VALUES ($1, $2, 'out', $3, 'manual_adjustment', 'Stok Düzeltme / Manuel Düşüş', $4, $5, CURRENT_TIMESTAMP)
-        `, [prod.store_id, prod.id, Math.abs(diff), parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY']);
+          VALUES ($1, $2, $3, $4, 'manual_adjustment', $5, $6, $7, CURRENT_TIMESTAMP)
+        `, [
+          prod.store_id,
+          prod.id,
+          diff > 0 ? 'in' : 'out',
+          Math.abs(diff),
+          diff > 0 ? 'Envanter Stok Senkronizasyonu (+)' : 'Envanter Stok Senkronizasyonu (-)',
+          parseFloat(prod.cost_price) || parseFloat(prod.price) || 0,
+          prod.currency || 'TRY'
+        ]);
       }
-    }
-
-    // 5. Absolute Fallback: if total movements count is 0, always insert initial_stock
-    const totalMovCountRes = await pool.query(
-      "SELECT COUNT(*) as cnt FROM stock_movements WHERE product_id = $1",
-      [productId]
-    );
-    if (parseInt(totalMovCountRes.rows[0]?.cnt || '0') === 0) {
-      const initialQty = parseFloat(prod.stock_quantity || '0') > 0 ? parseFloat(prod.stock_quantity) : (parseFloat(prod.stock_quantity) === 0 ? 0 : 1);
-      await pool.query(`
-        INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-        VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok / Devir Kaydı', $4, $5, COALESCE($6, CURRENT_TIMESTAMP))
-      `, [prod.store_id, prod.id, initialQty, parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY', prod.created_at]);
     }
   } catch (err) {
     console.error("ensureProductMovements error for product", productId, err);
@@ -2220,8 +2140,9 @@ router.get("/:id/movements/export", async (req: any, res) => {
       [id]
     );
 
+    const { formatDateTimeTR } = await import("../../src/utils/formatUtils");
     const data = movementsRes.rows.map((m: any) => ({
-      [lang === "tr" ? "Tarih" : "Date"]: new Date(m.created_at).toLocaleString(lang === "tr" ? "tr-TR" : "en-US"),
+      [lang === "tr" ? "Tarih" : "Date"]: formatDateTimeTR(m.created_at),
       [lang === "tr" ? "Tür" : "Type"]: m.type === "in" ? (lang === "tr" ? "Giriş" : "In") : (lang === "tr" ? "Çıkış" : "Out"),
       [lang === "tr" ? "Miktar" : "Quantity"]: m.quantity,
       [lang === "tr" ? "Kaynak" : "Source"]: m.source,

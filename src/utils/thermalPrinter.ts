@@ -1,3 +1,5 @@
+import { formatDateTR, formatDateTimeTR } from "./formatUtils";
+
 export interface ThermalReceiptItem {
   name: string;
   quantity: number;
@@ -53,7 +55,7 @@ export const printThermalReceipt = (options: ThermalReceiptOptions) => {
     waiterName,
     customerName,
     saleId,
-    date = new Date().toLocaleString('tr-TR'),
+    date = formatDateTimeTR(new Date()),
     items = [],
     totalAmount = 0,
     paymentMethod = "NAKİT",
@@ -243,7 +245,7 @@ export const printThermalZReport = (options: ThermalZReportOptions) => {
   const {
     title,
     storeName = "TELOCA CAFE",
-    reportDate = new Date().toISOString().split('T')[0],
+    reportDate = formatDateTR(new Date()),
     isRange = false,
     cashTotal = 0,
     cardTotal = 0,
@@ -252,7 +254,7 @@ export const printThermalZReport = (options: ThermalZReportOptions) => {
     saleCount = 0,
     totalItemsSold,
     products = [],
-    printTime = new Date().toLocaleString('tr-TR')
+    printTime = formatDateTimeTR(new Date())
   } = options;
 
   const reportHeaderTitle = title || (isRange ? "SATIŞ & CİRO DÖNEM RAPORU" : "GÜN SONU Z RAPORU");

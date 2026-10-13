@@ -222,73 +222,73 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Top Banner & Mode Toggle */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-indigo-900 text-white rounded-2xl shadow-md border border-indigo-700">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-300" />
-            <h3 className="text-sm font-black uppercase tracking-wider text-white">
-              {isTr ? 'Dinamik Çok Sektörlü Varyant & Matris Motoru' : 'Dynamic Multi-Sector Variant Matrix'}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 sm:p-4 bg-indigo-950 text-white rounded-xl sm:rounded-2xl shadow-md border border-indigo-800">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+            <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+              {isTr ? 'Varyant & Matris Motoru' : 'Variant Matrix'}
             </h3>
-            <span className="px-2 py-0.5 text-[10px] font-black bg-indigo-700 text-indigo-100 rounded-full border border-indigo-500">
+            <span className="px-2 py-0.5 text-[10px] font-black bg-indigo-800 text-indigo-100 rounded-full border border-indigo-600">
               {variants.length} {isTr ? 'Varyant' : 'Variants'}
             </span>
           </div>
-          <p className="text-xs text-indigo-200">
+          <p className="text-[11px] sm:text-xs text-indigo-200 line-clamp-1 sm:line-clamp-none">
             {isTr 
-              ? 'EAV tabanlı sınırsız nitelik, akıllı görsel değişimi, bağımsız stok & fiyat ve Google Merchant uyumu.' 
-              : 'EAV dynamic attributes, smart image switching, independent stock/pricing and Google Merchant sync.'}
+              ? 'Nitelik, stok, fiyat ve varyant yönetimi.' 
+              : 'Attributes, stock, pricing and variant management.'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
           <button
             type="button"
             onClick={() => setShowGenerator(!showGenerator)}
-            className={`px-3 py-1.5 rounded-xl font-black text-xs uppercase flex items-center gap-1.5 transition-all cursor-pointer ${
+            className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               showGenerator 
                 ? 'bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300' 
                 : 'bg-indigo-800 hover:bg-indigo-700 text-white border border-indigo-600'
             }`}
           >
             <Wand2 className="w-3.5 h-3.5" />
-            <span>{showGenerator ? (isTr ? 'Matris Ayarlarını Gizle' : 'Hide Matrix') : (isTr ? '⚡ Matris Oluşturucu' : '⚡ Matrix Generator')}</span>
+            <span>{showGenerator ? (isTr ? 'Ayarları Gizle' : 'Hide') : (isTr ? '⚡ Sihirbaz' : '⚡ Wizard')}</span>
           </button>
 
           <button
             type="button"
             onClick={handleAddSingleVariant}
-            className="px-3 py-1.5 bg-white text-indigo-950 hover:bg-indigo-50 rounded-xl font-black text-xs uppercase flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+            className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 bg-white text-indigo-950 hover:bg-indigo-50 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5 text-indigo-600" />
-            <span>{isTr ? '+ Tekli Varyant' : '+ Single Variant'}</span>
+            <span>{isTr ? '+ Varyant' : '+ Variant'}</span>
           </button>
         </div>
       </div>
 
       {/* MATRIX GENERATOR WIZARD */}
       {showGenerator && (
-        <div className="p-5 bg-slate-900 text-slate-100 rounded-2xl border border-slate-800 shadow-xl space-y-5 animate-fadeIn">
+        <div className="p-3.5 sm:p-5 bg-slate-900 text-slate-100 rounded-xl sm:rounded-2xl border border-slate-800 shadow-xl space-y-4 animate-fadeIn">
           {/* Sector Preset Buttons */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5" />
-                {isTr ? '1. Sektörel Hazır Nitelik Setleri (1-Tıkla Yükle)' : '1. Sector Attribute Presets (1-Click)'}
+                {isTr ? '1. Hazır Şablonlar' : '1. Attribute Presets'}
               </span>
-              <span className="text-[10px] text-slate-400">
-                {isTr ? 'Sektörünüze özel hazır şablonu seçebilirsiniz' : 'Select a preset for your industry'}
+              <span className="text-[10px] text-slate-400 hidden sm:inline">
+                {isTr ? 'Tek tıkla hazır şablon seçin' : 'Select a preset'}
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {SECTOR_VARIANT_PRESETS.map(preset => (
                 <button
                   key={preset.id}
                   type="button"
                   onClick={() => handleApplyPreset(preset)}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                  className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-200 border border-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
                 >
                   <span>{preset.name}</span>
                 </button>
@@ -301,29 +301,29 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
                 <Settings2 className="w-3.5 h-3.5" />
-                {isTr ? '2. Nitelik ve Değerleri Belirleyin (EAV Matrix)' : '2. Define Attributes & Values'}
+                {isTr ? '2. Nitelikler & Değerler' : '2. Attributes & Values'}
               </span>
 
               <button
                 type="button"
                 onClick={handleAddAttribute}
-                className="px-2.5 py-1 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 border border-indigo-500/40"
+                className="px-2 py-1 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded-lg text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 border border-indigo-500/40"
               >
                 <Plus className="w-3 h-3" />
-                <span>{isTr ? '+ Yeni Nitelik Ekle' : '+ Add Attribute'}</span>
+                <span>{isTr ? '+ Nitelik Ekle' : '+ Add'}</span>
               </button>
             </div>
 
             {workingAttributes.map((attr, attrIdx) => (
-              <div key={attr.id} className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div key={attr.id} className="p-3 sm:p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2.5">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5">
                   <div className="flex-1 w-full sm:w-auto">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      {isTr ? 'Nitelik Adı (Örn: Renk, Beden, Hafıza, Kumaş)' : 'Attribute Name'}
+                      {isTr ? 'Nitelik Adı' : 'Attribute Name'}
                     </label>
                     <input
                       type="text"
-                      placeholder={isTr ? 'Örn: Renk, Beden, Porsiyon, Materyal' : 'e.g. Color, Size, Storage'}
+                      placeholder={isTr ? 'Örn: Renk, Beden' : 'e.g. Color, Size'}
                       value={attr.name}
                       onChange={e => {
                         const next = [...workingAttributes];
@@ -336,7 +336,7 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
 
                   <div className="w-full sm:w-44">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      {isTr ? 'Arayüz Görünümü' : 'Display Mode'}
+                      {isTr ? 'Görünüm' : 'Display Mode'}
                     </label>
                     <select
                       value={attr.display_type}
@@ -347,9 +347,9 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
                       }}
                       className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs font-bold focus:border-indigo-500 focus:outline-none"
                     >
-                      <option value="swatch">{isTr ? 'Renk Kutusu (Swatch)' : 'Color Swatch'}</option>
-                      <option value="button">{isTr ? 'Buton / Kutu (Pills)' : 'Button Pills'}</option>
-                      <option value="dropdown">{isTr ? 'Açılır Liste (Dropdown)' : 'Dropdown List'}</option>
+                      <option value="swatch">{isTr ? 'Renk (Swatch)' : 'Color Swatch'}</option>
+                      <option value="button">{isTr ? 'Buton (Pill)' : 'Button Pills'}</option>
+                      <option value="dropdown">{isTr ? 'Seçim Listesi' : 'Dropdown List'}</option>
                     </select>
                   </div>
 
@@ -368,13 +368,13 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
                 {/* Values Tag Input */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                    {isTr ? 'Değerler (Yazıp Enter veya Ekle\'ye basın)' : 'Values'}
+                    {isTr ? 'Değerler' : 'Values'}
                   </label>
 
                   <div className="flex items-center gap-2 mb-2">
                     <input
                       type="text"
-                      placeholder={isTr ? 'Yeni değer yazın (Örn: Kırmızı veya XL)' : 'Enter value'}
+                      placeholder={isTr ? 'Yeni değer (Örn: Siyah, XL)' : 'Enter value'}
                       value={attr.inputValue}
                       onChange={e => {
                         const next = [...workingAttributes];
@@ -430,19 +430,19 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
             ))}
 
             {/* Matrix Calculation Summary & Generate Button */}
-            <div className="p-4 bg-indigo-950/60 rounded-2xl border border-indigo-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="p-3 sm:p-4 bg-indigo-950/60 rounded-xl sm:rounded-2xl border border-indigo-800 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="space-y-0.5 text-center sm:text-left">
                 <span className="text-xs font-black text-amber-300 flex items-center justify-center sm:justify-start gap-1.5">
                   <Wand2 className="w-4 h-4" />
-                  {isTr ? 'Matris Kombinasyon Hesabı' : 'Combinations Calculation'}
+                  {isTr ? 'Kombinasyon Hesabı' : 'Combinations'}
                 </span>
                 <p className="text-xs text-slate-300">
                   {validAttrs.length > 0 ? (
                     <>
-                      {validAttrs.map(a => `${a.name} (${a.values.length})`).join(' × ')} = <strong className="text-white font-extrabold">{estimatedCount} {isTr ? 'Benzersiz Kombinasyon' : 'Combinations'}</strong>
+                      {validAttrs.map(a => `${a.name} (${a.values.length})`).join(' × ')} = <strong className="text-white font-extrabold">{estimatedCount} {isTr ? 'Kombinasyon' : 'Combinations'}</strong>
                     </>
                   ) : (
-                    isTr ? 'Lütfen nitelik ve değerleri giriniz' : 'Please define attributes and values'
+                    isTr ? 'Nitelik ve değerleri giriniz' : 'Define attributes'
                   )}
                 </p>
               </div>
@@ -454,7 +454,7 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
                 className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50"
               >
                 <Wand2 className="w-4 h-4" />
-                <span>{isTr ? `⚡ Kombinasyonları Oluştur (${estimatedCount} Adet)` : `⚡ Generate Matrix (${estimatedCount})`}</span>
+                <span>{isTr ? `⚡ Varyantları Oluştur (${estimatedCount})` : `⚡ Generate (${estimatedCount})`}</span>
               </button>
             </div>
           </div>
@@ -463,15 +463,15 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
 
       {/* BULK ACTIONS & SEARCH BAR */}
       {variants.length > 0 && (
-        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div className="p-3 sm:p-4 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-200 space-y-2.5">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder={isTr ? 'Varyant adı, SKU veya barkod ara...' : 'Filter variants...'}
+                placeholder={isTr ? 'Varyant, SKU veya barkod ara...' : 'Filter variants...'}
                 value={filterQuery}
                 onChange={e => setFilterQuery(e.target.value)}
-                className="px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none w-full md:w-64 shadow-2xs"
+                className="px-3 py-1.5 sm:py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none w-full md:w-64 shadow-2xs"
               />
               <span className="text-[11px] font-bold text-slate-500 shrink-0">
                 {displayedVariants.length} / {variants.length}
@@ -479,40 +479,40 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
             </div>
 
             {/* Bulk Controls */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-2">
               {/* Bulk Price */}
-              <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
+              <div className="flex items-center gap-1 flex-1 sm:flex-none">
                 <input
                   type="number"
-                  placeholder={isTr ? 'Toplu Fiyat' : 'Bulk Price'}
+                  placeholder={isTr ? 'Toplu Fiyat' : 'Price'}
                   value={bulkPrice}
                   onChange={e => setBulkPrice(e.target.value)}
-                  className="w-full sm:w-28 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none shadow-2xs"
+                  className="w-full sm:w-24 px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none shadow-2xs"
                 />
                 <button
                   type="button"
                   onClick={handleApplyBulkPrice}
-                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs"
+                  className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs"
                 >
-                  {isTr ? 'Fiyat Ata' : 'Set Price'}
+                  {isTr ? 'Fiyat' : 'Set'}
                 </button>
               </div>
 
               {/* Bulk Stock */}
-              <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
+              <div className="flex items-center gap-1 flex-1 sm:flex-none">
                 <input
                   type="number"
-                  placeholder={isTr ? 'Toplu Stok' : 'Bulk Stock'}
+                  placeholder={isTr ? 'Toplu Stok' : 'Stock'}
                   value={bulkStock}
                   onChange={e => setBulkStock(e.target.value)}
-                  className="w-full sm:w-28 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none shadow-2xs"
+                  className="w-full sm:w-24 px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none shadow-2xs"
                 />
                 <button
                   type="button"
                   onClick={handleApplyBulkStock}
-                  className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs"
+                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs"
                 >
-                  {isTr ? 'Stok Ata' : 'Set Stock'}
+                  {isTr ? 'Stok' : 'Set'}
                 </button>
               </div>
             </div>

@@ -1817,18 +1817,35 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
             }
             if (!resolvedTitle) resolvedTitle = 'Bilinmeyen Tedarikçi';
 
-            const compRes = await pool.query("SELECT id, title FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
+            const cleanSenderVkn = invoiceDetails.senderVkn ? String(invoiceDetails.senderVkn).replace(/\D/g, '').trim() : '';
+            let compRes = { rows: [] as any[] };
+            if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
+              compRes = await pool.query(
+                "SELECT id, title FROM companies WHERE store_id = $1 AND clean_tax_number(tax_number) = $2 LIMIT 1",
+                [storeId, cleanSenderVkn]
+              );
+            }
+            if (compRes.rows.length === 0 && resolvedTitle && resolvedTitle !== 'Bilinmeyen Tedarikçi') {
+              compRes = await pool.query(
+                "SELECT id, title FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1",
+                [storeId, resolvedTitle]
+              );
+            }
+
             if (compRes.rows.length > 0) {
               companyId = compRes.rows[0].id;
               const existingTitle = (compRes.rows[0].title || '').trim();
               if (resolvedTitle && resolvedTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < resolvedTitle.split(' ').length || (existingTitle.toLowerCase() !== resolvedTitle.toLowerCase() && existingTitle.length < resolvedTitle.length))) {
                 await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [resolvedTitle, companyId]);
               }
+              if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
+                await pool.query("UPDATE companies SET tax_number = $1 WHERE id = $2 AND (tax_number IS NULL OR clean_tax_number(tax_number) != $1)", [cleanSenderVkn, companyId]);
+              }
             } else {
               // Create company
               const newComp = await pool.query(
                 "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
-                [storeId, resolvedTitle, invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
+                [storeId, resolvedTitle, cleanSenderVkn || invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
               );
               companyId = newComp.rows[0].id;
             }
@@ -2185,6 +2202,58 @@ export function cleanInvoiceHtmlVatRows(html: string): string {
   }
 
   return resultHtml;
+}
+
+export function injectSalesExchangeRateBlockIfNeeded(html: string, inv: any): string {
+  if (!html || typeof html !== 'string') return html;
+  const curr = (inv.currency || 'TRY').toUpperCase();
+  if (curr === 'TRY' || curr === 'TL') return html;
+
+  let exRate = Number(inv.exchange_rate) || 1.0;
+  if (exRate <= 0) exRate = 1.0;
+
+  const finalSubtotal = Number(inv.total_amount) || 0;
+  const finalTotalVat = Number(inv.tax_amount) || 0;
+  const finalGrandTotal = Number(inv.grand_total) || (finalSubtotal + finalTotalVat);
+
+  const trySubtotalNum = finalSubtotal * exRate;
+  const tryVatNum = finalTotalVat * exRate;
+  const tryGrandTotalNum = finalGrandTotal * exRate;
+
+  const trySubtotal = trySubtotalNum.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const tryVat = tryVatNum.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const tryGrandTotal = tryGrandTotalNum.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const exchangeRateBlock = `
+    <div style="margin-top: 16px; border: 1.5px solid #0f172a; border-radius: 6px; overflow: hidden; background: #ffffff; page-break-inside: avoid;">
+      <div style="background: #0f172a; color: #ffffff; padding: 6px 12px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;">
+        <span>DÖVİZ KARŞILIKLARI (TRY)</span>
+        <span style="font-size: 10.5px; font-weight: 700; background: #22c55e; color: #000000; padding: 2px 6px; border-radius: 4px;">1 ${curr} = ${exRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} TRY</span>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+        <tbody>
+          <tr>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; color: #334155;">Mal Hizmet Toplam Tutarı (TL)</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-family: monospace;">${trySubtotal} TL</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 600; color: #334155;">Hesaplanan KDV (TL)</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; font-weight: 700; font-family: monospace;">${tryVat} TL</td>
+          </tr>
+          <tr style="background-color: #f8fafc;">
+            <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-weight: 800; color: #0f172a; font-size: 11.5px;">Vergiler Dahil Toplam Tutar (TL)</td>
+            <td style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; font-weight: 900; font-size: 12px; font-family: monospace; color: #0f172a;">${tryGrandTotal} TL</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  if (html.includes("</body>")) {
+    return html.replace("</body>", `${exchangeRateBlock}</body>`);
+  } else {
+    return html + exchangeRateBlock;
+  }
 }
 
 // 6. Get Invoice HTML
@@ -2661,6 +2730,7 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
             let html = await (service as any).getInvoiceHtml(invData.ettn, invData.document_number, docTypeToUse, false);
             if (html && typeof html === 'string' && html.trim().length > 0) {
               html = cleanInvoiceHtmlVatRows(html);
+              html = injectSalesExchangeRateBlockIfNeeded(html, invData);
               return res.json({ html });
             }
           }
@@ -2780,18 +2850,35 @@ export const runGlobalEInvoiceSync = async () => {
 
            let companyId = null;
            if (invoiceDetails.senderVkn) {
-             const compRes = await pool.query("SELECT id, title FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
+             const cleanSenderVkn = String(invoiceDetails.senderVkn).replace(/\D/g, '').trim();
+             let compRes = { rows: [] as any[] };
+             if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
+               compRes = await pool.query(
+                 "SELECT id, title FROM companies WHERE store_id = $1 AND clean_tax_number(tax_number) = $2 LIMIT 1",
+                 [storeId, cleanSenderVkn]
+               );
+             }
+             const newTitle = (invoiceDetails.senderTitle || '').trim();
+             if (compRes.rows.length === 0 && newTitle && newTitle !== 'Bilinmeyen Tedarikçi') {
+               compRes = await pool.query(
+                 "SELECT id, title FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1",
+                 [storeId, newTitle]
+               );
+             }
+
              if (compRes.rows.length > 0) {
                companyId = compRes.rows[0].id;
                const existingTitle = (compRes.rows[0].title || '').trim();
-               const newTitle = (invoiceDetails.senderTitle || '').trim();
                if (newTitle && newTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < newTitle.split(' ').length || (existingTitle.toLowerCase() !== newTitle.toLowerCase() && existingTitle.length < newTitle.length))) {
                  await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [newTitle, companyId]);
+               }
+               if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
+                 await pool.query("UPDATE companies SET tax_number = $1 WHERE id = $2 AND (tax_number IS NULL OR clean_tax_number(tax_number) != $1)", [cleanSenderVkn, companyId]);
                }
              } else {
                const newComp = await pool.query(
                  "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
-                 [storeId, invoiceDetails.senderTitle || 'Bilinmeyen Tedarikçi', invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
+                 [storeId, invoiceDetails.senderTitle || 'Bilinmeyen Tedarikçi', cleanSenderVkn || invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
                );
                companyId = newComp.rows[0].id;
              }

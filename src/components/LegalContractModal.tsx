@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { contractTemplates, ContractTemplate, ContractPlaceholderValues } from "../utils/contractTemplates";
 import { RealEstateProperty } from "../types";
-import { formatPhoneForWhatsApp } from "../utils/formatUtils";
+import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
 
 
 interface LegalContractModalProps {
@@ -91,11 +91,7 @@ function numberToTrWords(num: number, currencyCode: string): string {
 
 const formatTrDate = (isoDateStr: string) => {
   if (!isoDateStr) return "";
-  const parts = isoDateStr.split("-");
-  if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`; // GG/AA/YYYY
-  }
-  return isoDateStr;
+  return formatDateTR(isoDateStr);
 };
 
 export const LegalContractModal: React.FC<LegalContractModalProps> = ({ 

@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "motion/react";
 import { X, Download } from "lucide-react";
+import { formatDateTR } from "../../../utils/formatUtils";
 
 interface QuotationDetailsModalProps {
   showQuotationDetailsModal: boolean;
@@ -64,12 +65,12 @@ export const QuotationDetailsModal: React.FC<QuotationDetailsModalProps> = ({
             <div className="space-y-2 text-right">
               <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Teklif Bilgileri' : 'Quotation Info'}</p>
               <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Teklif No:' : 'Quote No:'}</span> #{selectedQuotationDetails.id}</p>
-              <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Tarih:' : 'Date:'}</span> {new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
+              <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Tarih:' : 'Date:'}</span> {formatDateTR(selectedQuotationDetails.created_at)}</p>
               <p className="text-sm text-slate-600">
                 <span className="font-bold">{t.validUntil || "Geçerlilik"}:</span> {
                   selectedQuotationDetails.expiry_date 
-                    ? new Date(selectedQuotationDetails.expiry_date).toLocaleDateString('tr-TR')
-                    : new Date(new Date(selectedQuotationDetails.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')
+                    ? formatDateTR(selectedQuotationDetails.expiry_date)
+                    : formatDateTR(new Date(new Date(selectedQuotationDetails.created_at).getTime() + 7 * 24 * 60 * 60 * 1000))
                 }
               </p>
               <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {selectedQuotationDetails.currency}</p>

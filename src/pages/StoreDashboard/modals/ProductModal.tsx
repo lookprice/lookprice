@@ -39,6 +39,8 @@ export const ProductModal = ({
   products = [],
 }: ProductModalProps) => {
   const [productImageUrl, setProductImageUrl] = useState("");
+  const [productExtraImages, setProductExtraImages] = useState<string[]>([]);
+  const [newExtraImageUrl, setNewExtraImageUrl] = useState("");
   const [productType, setProductType] = useState<string>("product");
   const [activeTab, setActiveTab] = useState<'general' | 'variants' | 'marketplaces'>('general');
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -358,7 +360,22 @@ export const ProductModal = ({
       } else {
         setRecipeItems([]);
       }
-      setProductImageUrl(editingProduct?.image_url || "");
+      const mainImg = (editingProduct?.image_url || "").trim();
+      setProductImageUrl(mainImg);
+      let rawImgs: string[] = [];
+      if (Array.isArray(editingProduct?.images)) {
+        rawImgs = editingProduct.images;
+      } else if (typeof editingProduct?.images === "string" && editingProduct.images.trim()) {
+        try {
+          const parsed = JSON.parse(editingProduct.images);
+          if (Array.isArray(parsed)) rawImgs = parsed;
+        } catch {}
+      }
+      const extras = rawImgs
+        .map((u: any) => String(u || "").trim())
+        .filter((u: string) => Boolean(u) && u !== mainImg);
+      setProductExtraImages(Array.from(new Set(extras)));
+      setNewExtraImageUrl("");
       setProductType(editingProduct?.product_type || "product");
       const cat = editingProduct?.category || "";
       const sub = editingProduct?.sub_category || "";
@@ -408,6 +425,8 @@ export const ProductModal = ({
       setIsNewSubCategoryMode(warrantsNewSub);
     } else {
       setProductImageUrl("");
+      setProductExtraImages([]);
+      setNewExtraImageUrl("");
       setProductType("product");
       setSelectedCategory("");
       setSelectedSubCategory("");
@@ -443,62 +462,88 @@ export const ProductModal = ({
 
     const availableSubs = val ? Array.from(subCategoriesMap.get(val) || []) : [];
     setIsNewSubCategoryMode(availableSubs.length === 0);
+
+    if (editingProduct) {
+      setEditingProduct((prev: any) => ({
+        ...prev,
+        category: val,
+        sub_category: ""
+      }));
+    }
   };
 
   const handleCategoryTextChange = (val: string) => {
     setSelectedCategory(val);
     setIsNewSubCategoryMode(true);
     setSelectedSubCategory("");
+
+    if (editingProduct) {
+      setEditingProduct((prev: any) => ({
+        ...prev,
+        category: val,
+        sub_category: ""
+      }));
+    }
+  };
+
+  const handleSubCategoryChange = (val: string) => {
+    setSelectedSubCategory(val);
+    if (editingProduct) {
+      setEditingProduct((prev: any) => ({
+        ...prev,
+        sub_category: val
+      }));
+    }
   };
 
   if (!showProductModal) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-3 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 sm:p-2.5 sm:p-3 bg-black/70 backdrop-blur-sm">
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        initial={{ opacity: 0, scale: 0.98, y: 4 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl max-h-[95vh] flex flex-col overflow-hidden animate-fade-in border border-slate-200"
+        exit={{ opacity: 0, scale: 0.98, y: 4 }}
+        className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl h-full sm:h-auto sm:max-h-[95vh] max-h-none flex flex-col overflow-hidden animate-fade-in border-0 sm:border border-slate-200"
       >
         {/* COMPACT MODAL HEADER */}
-        <div className="px-4 py-2 border-b border-slate-800 flex items-center justify-between bg-slate-900 text-white shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="px-3 sm:px-4 py-2 border-b border-slate-800 flex items-center justify-between bg-slate-900 text-white shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
             {isBookstore && <BookOpen className="w-4 h-4 text-amber-400 shrink-0" />}
-            <div>
-              <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white flex items-center gap-1.5">
-                <span>
+            <div className="min-w-0">
+              <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white flex items-center gap-1.5 truncate">
+                <span className="truncate">
                   {editingProduct
                     ? isTr
-                      ? isBookstore ? "Eseri / Kitabı Düzenle" : "Ürünü Düzenle"
+                      ? isBookstore ? "Eseri Düzenle" : "Ürünü Düzenle"
                       : isBookstore ? "Edit Book" : "Edit Product"
                     : isTr
-                    ? isBookstore ? "Yeni Eser / Kitap Ekle" : "Yeni Ürün Kaydet"
-                    : isBookstore ? "Add New Book" : "Create New Product"}
+                    ? isBookstore ? "Yeni Eser Ekle" : "Yeni Ürün Ekle"
+                    : isBookstore ? "Add Book" : "New Product"}
                 </span>
                 {hasVariants && (
-                  <span className="px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 text-[9px] font-bold rounded border border-indigo-500/30">
+                  <span className="px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 text-[9px] font-bold rounded border border-indigo-500/30 shrink-0">
                     Varyantlı
                   </span>
                 )}
               </h3>
-              <p className="text-[10px] text-slate-300 leading-none mt-0.5">
+              <p className="text-[10px] text-slate-300 leading-none mt-0.5 hidden sm:block truncate">
                 {isTr
-                  ? isBookstore ? "Eser künyesi, yayıncılık nitelikleri, manşet vitrini ve fiyatlandırma." : "Stok listenize yeni ürün veya hizmet tanımlayın."
-                  : isBookstore ? "Define book bibliographic data and pricing." : "Define new product or service in inventory."}
+                  ? isBookstore ? "Eser künyesi, vitrin ve fiyatlandırma." : "Stok, fiyat ve vitrin tanımları."
+                  : isBookstore ? "Book details and pricing." : "Product details and pricing."}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {editingProduct?.id && (
               <button
                 type="button"
                 onClick={() => setShowMovementModal(true)}
-                className="px-2.5 py-1 bg-indigo-600/40 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-400/30 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all shadow-xs cursor-pointer"
+                className="px-2 sm:px-2.5 py-1 bg-indigo-600/40 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-400/30 rounded-lg text-[10px] sm:text-[11px] font-bold flex items-center gap-1 transition-all shadow-xs cursor-pointer"
                 title={isTr ? "Ürün Hareketleri & Ekstresi" : "Product Movement & Statement"}
               >
                 <History className="h-3.5 w-3.5" />
-                <span>{isTr ? "Stok Ekstresi" : "Statement"}</span>
+                <span>{isTr ? "Ekstre" : "Statement"}</span>
               </button>
             )}
             <button
@@ -521,24 +566,24 @@ export const ProductModal = ({
         </div>
 
         {/* MODERN TAB BAR */}
-        <div className="px-3 py-1.5 bg-slate-100 border-b border-slate-200 flex items-center gap-1.5 shrink-0">
+        <div className="px-2.5 sm:px-3 py-1.5 bg-slate-100 border-b border-slate-200 flex items-center gap-1.5 shrink-0 overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab('general')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
               activeTab === 'general' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
             }`}
           >
-            {isTr ? "1. Temel Bilgiler & Pazaryeri" : "1. General & Marketplace"}
+            {isTr ? "1. Temel Bilgiler" : "1. General"}
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('variants')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
               activeTab === 'variants' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
             }`}
           >
-            {isTr ? "2. Varyantlar & Detaylar" : "2. Variants & Details"}
+            {isTr ? "2. Varyantlar" : "2. Variants"}
           </button>
         </div>
 
@@ -561,17 +606,17 @@ export const ProductModal = ({
                   <div className="flex items-center justify-between border-b border-slate-200 pb-1">
                     <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
-                      <span>{isTr ? (isBookstore ? "Eser Kimliği & ISBN" : "Temel Kimlik & Barkod") : "Core Identity & Barcode"}</span>
+                      <span>{isTr ? (isBookstore ? "Eser Kimliği & ISBN" : "Temel Kimlik & Barkod") : "Identity & Barcode"}</span>
                     </span>
                     <span className="text-[9px] font-bold text-slate-500">
-                      {isBookstore ? "ISBN / EAN Standart" : "EAN-13 Standart"}
+                      {isBookstore ? "ISBN Standart" : "EAN-13 Standart"}
                     </span>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2 items-start">
                     <div className="space-y-0.5 flex-1 w-full min-w-0">
                       <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                        {isTr ? (isBookstore ? "Eser / Kitap Adı *" : "Ürün / Hizmet Adı *") : "Product / Book Name *"}
+                        {isTr ? (isBookstore ? "Eser Adı *" : "Ürün Adı *") : "Product Name *"}
                       </label>
                       <input
                         type="text"
@@ -636,7 +681,7 @@ export const ProductModal = ({
                     {isBookstore ? (
                       <div className="space-y-0.5">
                         <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                          {isTr ? "Eser Sahibi / Yazar *" : "Author *"}
+                          {isTr ? "Yazar *" : "Author *"}
                         </label>
                         <input
                           type="text"
@@ -649,7 +694,7 @@ export const ProductModal = ({
                     ) : (
                       <div className="space-y-0.5">
                         <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                          {isTr ? "Marka / Üretici" : "Brand"}
+                          {isTr ? "Marka" : "Brand"}
                         </label>
                         <input
                           type="text"
@@ -665,7 +710,7 @@ export const ProductModal = ({
                     {isBookstore ? (
                       <div className="space-y-0.5">
                         <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                          {isTr ? "Yayınevi / Yayıncı *" : "Publisher *"}
+                          {isTr ? "Yayınevi *" : "Publisher *"}
                         </label>
                         <input
                           type="text"
@@ -687,7 +732,7 @@ export const ProductModal = ({
                           onChange={(e) => setProductType(e.target.value)}
                         >
                           <option value="product">{isTr ? "Fiziksel Ürün" : "Physical"}</option>
-                          <option value="service">{isTr ? "Hizmet / Servis" : "Service"}</option>
+                          <option value="service">{isTr ? "Hizmet" : "Service"}</option>
                         </select>
                       </div>
                     )}
@@ -768,13 +813,13 @@ export const ProductModal = ({
                           placeholder={isTr ? (isBookstore ? "örn: Dünya Klasikleri" : "Alt Kategori") : "Sub Category"}
                           className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
                           value={selectedSubCategory}
-                          onChange={(e) => setSelectedSubCategory(e.target.value)}
+                          onChange={(e) => handleSubCategoryChange(e.target.value)}
                         />
                       ) : (
                         <select
                           name="sub_category"
                           value={selectedSubCategory}
-                          onChange={(e) => setSelectedSubCategory(e.target.value)}
+                          onChange={(e) => handleSubCategoryChange(e.target.value)}
                           className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
                         >
                           <option value="">{isTr ? "-- Alt Kategori --" : "-- Select --"}</option>
@@ -804,15 +849,15 @@ export const ProductModal = ({
                 <div className="order-7 lg:order-none p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-0.5">
                     <label className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
-                      {isBookstore ? (isTr ? "Arka Kapak Tanıtım Yazısı / Eser Özeti" : "Book Synopsis") : (isTr ? "Açıklama & Detaylar" : "Description")}
+                      {isBookstore ? (isTr ? "Arka Kapak Tanıtım Yazısı" : "Book Synopsis") : (isTr ? "Açıklama" : "Description")}
                     </label>
                   </div>
                   <textarea
                     name="description"
                     rows={2}
                     placeholder={isBookstore 
-                      ? (isTr ? "Arka kapak tanıtım yazısı veya detaylı eser bilgisi..." : "Book synopsis or bibliographic review...") 
-                      : (isTr ? "Ürün teknik özellikleri ve detayları" : "Detailed specs")}
+                      ? (isTr ? "Arka kapak tanıtım yazısı veya eser özeti..." : "Book synopsis...") 
+                      : (isTr ? "Ürün özellikleri ve detayları" : "Detailed specs")}
                     className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900 text-xs shadow-2xs resize-none outline-none leading-relaxed"
                     defaultValue={editingProduct?.description || ""}
                   />
@@ -824,7 +869,7 @@ export const ProductModal = ({
                     <div className="flex items-center gap-1.5 border-b border-slate-200 pb-1">
                       <Sparkles className="h-3.5 w-3.5 text-amber-500" />
                       <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
-                        {isTr ? "PAZARYERİ ENTEGRASYONU & DİNAMİK NİTELİKLER" : "MARKETPLACE INTEGRATION & DYNAMIC ATTRIBUTES"}
+                        {isTr ? "PAZARYERİ & NİTELİKLER" : "MARKETPLACE & ATTRIBUTES"}
                       </span>
                     </div>
                     <MarketplaceProductFields
@@ -1265,7 +1310,7 @@ export const ProductModal = ({
                   <div className="flex items-center justify-between border-b border-emerald-100 pb-0.5">
                     <span className="text-[10px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                      <span>{isTr ? "Fiyat & Vergi Yönetimi" : "Pricing & VAT"}</span>
+                      <span>{isTr ? "Fiyat & Vergi" : "Pricing & VAT"}</span>
                     </span>
                   </div>
 
@@ -1300,7 +1345,7 @@ export const ProductModal = ({
                     {/* Eski Fiyat & 2. Fiyat */}
                     <div className="space-y-0.5">
                       <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                        {isTr ? "Eski Fiyat (Çizili)" : "Old Price"}
+                        {isTr ? "Eski Fiyat" : "Old Price"}
                       </label>
                       <input
                         type="text"
@@ -1313,7 +1358,7 @@ export const ProductModal = ({
 
                     <div className="space-y-0.5">
                       <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                        {isTr ? "2. Fiyat (Toptan)" : "2nd Price"}
+                        {isTr ? "2. Fiyat" : "2nd Price"}
                       </label>
                       <input
                         type="text"
@@ -1327,7 +1372,7 @@ export const ProductModal = ({
                     {/* Maliyet & KDV */}
                     <div className="space-y-0.5">
                       <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                        {isTr ? "Maliyet Fiyatı" : "Cost"}
+                        {isTr ? "Maliyet" : "Cost"}
                       </label>
                       <div className="flex items-center">
                         <input
@@ -1589,46 +1634,169 @@ export const ProductModal = ({
                   <div className="flex items-center justify-between border-b border-slate-200 pb-0.5">
                     <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
-                      <span>{isTr ? (isBookstore ? "Kapak Görseli & Etiketler" : "Görsel & Etiketler") : "Image & Media"}</span>
+                      <span>{isTr ? (isBookstore ? "Kapak Görseli" : "Görsel & Galeri") : "Image & Gallery"}</span>
                     </span>
                   </div>
 
-                  {/* Görsel Satırı */}
-                  <div className="flex items-center gap-2 p-1 bg-white rounded-lg border border-slate-200 shadow-2xs">
-                    <div className="w-7 h-7 rounded border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
-                      {productImageUrl ? (
-                        <img 
-                          src={normalizeImageUrl(productImageUrl)} 
-                          alt="Cover" 
-                          className="w-full h-full object-cover" 
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            if (!target.dataset.fallback && productImageUrl.startsWith('http') && !productImageUrl.includes('/api/proxy-image')) {
-                              target.dataset.fallback = '1';
-                              target.src = `/api/proxy-image?url=${encodeURIComponent(productImageUrl)}`;
+                  {/* Ana Görsel & Çoklu Ürün Galerisi */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 p-1 bg-white rounded-lg border border-slate-200 shadow-2xs">
+                      <div className="w-7 h-7 rounded border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0" title={isTr ? "Ana Görsel" : "Main Image"}>
+                        {productImageUrl ? (
+                          <img 
+                            src={normalizeImageUrl(productImageUrl)} 
+                            alt="Cover" 
+                            className="w-full h-full object-cover" 
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              if (!target.dataset.fallback && productImageUrl.startsWith('http') && !productImageUrl.includes('/api/proxy-image')) {
+                                target.dataset.fallback = '1';
+                                target.src = `/api/proxy-image?url=${encodeURIComponent(productImageUrl)}`;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="text-[8px] text-slate-400 font-bold">{isTr ? "Yok" : "None"}</span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        name="image_url"
+                        placeholder={isTr ? "1. Ana görsel linki (https://...)" : "1. Main image URL (https://...)"}
+                        className="flex-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[11px] font-semibold text-slate-900 h-6.5 outline-none focus:border-indigo-600"
+                        value={productImageUrl}
+                        onChange={(e) => setProductImageUrl(e.target.value)}
+                      />
+                      <div className="shrink-0 scale-90 origin-right">
+                        <MultiImageUploader 
+                          compact={true}
+                          onImagesUploaded={(urls) => {
+                            if (urls && urls.length > 0) {
+                              if (!productImageUrl) {
+                                setProductImageUrl(urls[0]);
+                                if (urls.length > 1) {
+                                  setProductExtraImages(prev => Array.from(new Set([...prev, ...urls.slice(1)])));
+                                }
+                              } else {
+                                setProductExtraImages(prev => Array.from(new Set([...prev, ...urls])));
+                              }
+                            }
+                          }} 
+                          lang={lang} 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Ekstra Ürün Görselleri (Çoklu Resim Linki veya Yükleme) */}
+                    <div className="p-1.5 bg-white rounded-lg border border-slate-200 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1">
+                          <Camera className="w-3 h-3 text-indigo-600" />
+                          <span>{isTr ? `Ekstra Görseller (${productExtraImages.length})` : `Extra Images (${productExtraImages.length})`}</span>
+                        </span>
+                        <span className="text-[9px] text-slate-500 font-semibold">
+                          {isTr ? "Web vitrininde gösterilir" : "Displayed in web gallery"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={newExtraImageUrl}
+                          onChange={(e) => setNewExtraImageUrl(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const val = newExtraImageUrl.trim();
+                              if (val) {
+                                const urls = val.split(/[\n\r;|]+|,(?=\s*https?:\/\/)/i).map(s => s.trim()).filter(Boolean);
+                                setProductExtraImages(prev => Array.from(new Set([...prev, ...urls.filter(u => u !== productImageUrl)])));
+                                setNewExtraImageUrl("");
+                              }
                             }
                           }}
+                          placeholder={isTr ? "Ekstra resim linki yapıştırın (https://...) ve + Ekle'ye basın" : "Paste extra image URL (https://...) and click + Add"}
+                          className="flex-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[11px] font-semibold text-slate-900 h-6.5 outline-none focus:border-indigo-600"
                         />
-                      ) : (
-                        <span className="text-[8px] text-slate-400 font-bold">{isTr ? "Yok" : "None"}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = newExtraImageUrl.trim();
+                            if (!val) return;
+                            const urls = val.split(/[\n\r;|]+|,(?=\s*https?:\/\/)/i).map(s => s.trim()).filter(Boolean);
+                            if (!productImageUrl && urls.length > 0) {
+                              setProductImageUrl(urls[0]);
+                              if (urls.length > 1) {
+                                setProductExtraImages(prev => Array.from(new Set([...prev, ...urls.slice(1)])));
+                              }
+                            } else {
+                              setProductExtraImages(prev => Array.from(new Set([...prev, ...urls.filter(u => u !== productImageUrl)])));
+                            }
+                            setNewExtraImageUrl("");
+                          }}
+                          className="px-2.5 h-6.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-black flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>{isTr ? "Link Ekle" : "Add URL"}</span>
+                        </button>
+                      </div>
+
+                      {/* Galeri Önizleme Küçük Resimleri */}
+                      {(productImageUrl || productExtraImages.length > 0) && (
+                        <div className="flex items-center gap-1.5 overflow-x-auto py-1 pr-1 custom-scrollbar">
+                          {productImageUrl && (
+                            <div className="relative group w-12 h-12 rounded-lg border-2 border-indigo-600 bg-slate-50 overflow-hidden shrink-0 shadow-2xs" title={isTr ? "1. Ana Kapak Resmi" : "1. Main Cover Image"}>
+                              <img
+                                src={normalizeImageUrl(productImageUrl)}
+                                alt="Main"
+                                className="w-full h-full object-contain bg-white"
+                                referrerPolicy="no-referrer"
+                              />
+                              <span className="absolute bottom-0 inset-x-0 bg-indigo-600 text-white text-[8px] font-black text-center leading-tight py-0.2">
+                                {isTr ? "KAPAK" : "MAIN"}
+                              </span>
+                            </div>
+                          )}
+                          {productExtraImages.map((imgUrl, idx) => (
+                            <div key={`${imgUrl}-${idx}`} className="relative group w-12 h-12 rounded-lg border border-slate-200 hover:border-indigo-400 bg-white overflow-hidden shrink-0 shadow-2xs">
+                              <img
+                                src={normalizeImageUrl(imgUrl)}
+                                alt={`Extra ${idx + 2}`}
+                                className="w-full h-full object-contain bg-white cursor-pointer"
+                                referrerPolicy="no-referrer"
+                                title={isTr ? "Tıklayarak ana kapak resmi yap" : "Click to set as main cover"}
+                                onClick={() => {
+                                  const oldMain = productImageUrl;
+                                  setProductImageUrl(imgUrl);
+                                  setProductExtraImages(prev => {
+                                    const filtered = prev.filter((_, i) => i !== idx);
+                                    return oldMain ? [oldMain, ...filtered] : filtered;
+                                  });
+                                }}
+                              />
+                              <span className="absolute bottom-0 left-0 bg-slate-900/75 text-white text-[8px] font-bold px-1 rounded-tr">
+                                #{idx + 2}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setProductExtraImages(prev => prev.filter((_, i) => i !== idx))}
+                                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center opacity-90 hover:opacity-100 shadow-xs cursor-pointer"
+                                title={isTr ? "Resmi Kaldır" : "Remove Image"}
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       )}
-                    </div>
-                    <input
-                      type="text"
-                      name="image_url"
-                      placeholder="https://... görsel adresi"
-                      className="flex-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[11px] font-semibold text-slate-900 h-6.5 outline-none"
-                      value={productImageUrl}
-                      onChange={(e) => setProductImageUrl(e.target.value)}
-                    />
-                    <div className="shrink-0 scale-90 origin-right">
-                      <MultiImageUploader 
-                        compact={true}
-                        onImagesUploaded={(urls) => {
-                          if (urls && urls.length > 0) setProductImageUrl(urls[0]);
-                        }} 
-                        lang={lang} 
+
+                      <input
+                        type="hidden"
+                        name="images_data"
+                        value={JSON.stringify(
+                          Array.from(new Set([productImageUrl, ...productExtraImages].map(s => String(s || "").trim()).filter(Boolean)))
+                        )}
                       />
                     </div>
                   </div>
@@ -1643,10 +1811,10 @@ export const ProductModal = ({
                         <div className="flex items-center justify-between">
                           <label className="text-[10px] font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-1">
                             <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-                            <span>{isTr ? "Vitrin Rozetleri & Izgara Seçimi" : "Showcase Badges & Curated Grids"}</span>
+                            <span>{isTr ? "Vitrin Rozetleri" : "Showcase Badges"}</span>
                           </label>
                           <span className="text-[9px] text-slate-500 font-medium">
-                            {isTr ? "Seçilen vitrin ızgaralarında öne çıkarılır" : "Featured in selected showcase rows"}
+                            {isTr ? "Vitrinde öne çıkarılır" : "Featured in showcase"}
                           </span>
                         </div>
 
@@ -1771,7 +1939,7 @@ export const ProductModal = ({
                       className="h-4 w-4 text-indigo-600 rounded cursor-pointer"
                     />
                     <label htmlFor="prod_has_variants" className="text-[11px] font-black text-indigo-950 uppercase tracking-wider cursor-pointer select-none">
-                      {isTr ? (isBookstore ? "Varyantlı Eser (Cilt, Boyut, Set)" : "Varyantlı Ürün (Beden, Renk vb.)") : "Has Variants"}
+                      {isTr ? (isBookstore ? "Varyantlı Eser" : "Varyantlı Ürün") : "Has Variants"}
                     </label>
                   </div>
                   {hasVariants && (
@@ -1793,7 +1961,7 @@ export const ProductModal = ({
             <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
               <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <Layers className="h-4 w-4 text-indigo-600" />
-                <span>{isTr ? "Varyant Matrisi & Seçenekler" : "Variant Matrix & Options"}</span>
+                <span>{isTr ? "Varyant Matrisi" : "Variant Matrix"}</span>
               </h3>
               <VariantMatrixManager
                 variants={variants}
@@ -1818,7 +1986,7 @@ export const ProductModal = ({
           </div>
 
           {/* FIXED STICKY FOOTER - ALWAYS IN VIEWPORT */}
-          <div className="px-4 py-2 bg-slate-100 border-t border-slate-200 flex items-center justify-end gap-2.5 shrink-0">
+          <div className="px-3 sm:px-4 py-2 bg-slate-100 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -1831,15 +1999,15 @@ export const ProductModal = ({
                   }, 50);
                 }
               }}
-              className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer border-0"
+              className="px-3 sm:px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer border-0"
             >
               {t.cancel}
             </button>
             <button
               type="submit"
-              className="px-6 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer border-0 flex items-center gap-1.5"
+              className="px-4 sm:px-6 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer border-0 flex items-center gap-1.5"
             >
-              <span>{isTr ? (isBookstore ? "Eseri / Kitabı Kaydet" : "Ürünü Kaydet") : (isBookstore ? "Save Book Record" : "Save Product")}</span>
+              <span>{isTr ? (isBookstore ? "Eseri Kaydet" : "Ürünü Kaydet") : (isBookstore ? "Save Book" : "Save Product")}</span>
             </button>
           </div>
         </form>

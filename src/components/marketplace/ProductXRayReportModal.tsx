@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { getMarketplaceListingUrl } from "@/utils/marketplaceUrls";
+import { formatFileDateTR } from "@/utils/formatUtils";
 
 interface ProductXRayReportModalProps {
   isOpen: boolean;
@@ -436,7 +437,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Ürün Röntgeni ve Strateji");
-      XLSX.writeFile(wb, `Urun_Rontgeni_Strateji_Raporu_${storeName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(wb, `Urun_Rontgeni_Strateji_Raporu_${storeName.replace(/\s+/g, '_')}_${formatFileDateTR()}.xlsx`);
       toast.success(isTr ? "Ürün Röntgeni & Dövizli Formül Strateji Raporu Excel olarak indirildi!" : "Product X-Ray & Multi-Currency Strategy report downloaded successfully!");
     } catch (e: any) {
       toast.error(isTr ? "Excel dışa aktarma hatası: " + e.message : "Export error: " + e.message);

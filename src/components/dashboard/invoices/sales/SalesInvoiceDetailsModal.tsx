@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Printer, Eye } from 'lucide-react';
 import { numberToTurkishWords } from '../../../../lib/invoiceUtils';
+import { formatDateTR } from '../../../../utils/formatUtils';
 
 interface SalesInvoiceDetailsModalProps {
   isOpen: boolean;
@@ -64,6 +65,18 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
           </div>
           
           <div className="p-6 max-h-[75vh] overflow-y-auto">
+            {(['cancelled', 'iptal', 'iptal edildi'].includes((invoice.status || '').toLowerCase().trim()) || invoice.sale_status === 'cancelled' || ['CANCELLED', 'İPTAL', 'İPTAL EDİLDİ'].includes((invoice.integration_status || '').toUpperCase())) && (
+              <div className="mb-6 p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 text-rose-700">
+                  <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-xs font-black uppercase tracking-wider">
+                    {isTr ? 'İPTAL EDİLDİ' : 'CANCELLED'}
+                  </span>
+                  <span className="text-xs font-bold">
+                    {invoice.sale_cancellation_reason || invoice.integration_message || (isTr ? 'Bu faturaya bağlı sipariş iptal edilmiştir.' : 'The order linked to this invoice has been cancelled.')}
+                  </span>
+                </div>
+              </div>
+            )}
             <div id="print-invoice-wrapper" ref={invoiceRef} className="print-section bg-white">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               <div className="space-y-1.5">
@@ -97,7 +110,7 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
               <div className="space-y-2 text-right">
                 <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Fatura Bilgileri' : 'Invoice Info'}</p>
                 <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Fatura No:' : 'Inv No:'}</span> {invoice.invoice_number}</p>
-                <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Tarih:' : 'Date:'}</span> {new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}</p>
+                <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Tarih:' : 'Date:'}</span> {formatDateTR(invoice.invoice_date)}</p>
                 <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency} {invoice.exchange_rate !== 1 && `(Kur: ${invoice.exchange_rate})`}</p>
                 <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Ödeme:' : 'Payment:'}</span> {invoice.payment_method}</p>
               </div>
@@ -118,17 +131,18 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
                   <tbody className="divide-y divide-slate-100">
                     {(invoice.items || []).map((item: any, idx: number) => (
                       <tr key={idx}>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 max-w-[260px] sm:max-w-[360px] lg:max-w-[460px]">
                           <button 
                             type="button"
                             onClick={() => {
                               if (onEditProduct) onEditProduct(item);
                             }}
-                            className={`text-left text-sm font-medium text-slate-900 hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                            title={item.product_name}
+                            className={`text-left text-sm font-medium text-slate-900 hover:text-indigo-600 transition-colors line-clamp-2 break-words leading-snug ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
                           >
                             {item.product_name}
                           </button>
-                          <div className="text-xs text-slate-400">{item.barcode}</div>
+                          <div className="text-xs text-slate-400 font-mono mt-0.5">{item.barcode}</div>
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-600 text-center">{Math.floor(Number(item.quantity))}</td>
                         <td className="px-4 py-3 text-sm text-slate-600 text-right">

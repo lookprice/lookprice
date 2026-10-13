@@ -610,7 +610,7 @@ export const MarketplaceProductFields = ({
             </div>
             <div>
               <span className="text-xs font-black text-orange-950 dark:text-orange-200 uppercase tracking-wider block">
-                {isTr ? "Hepsiburada Entegrasyonu & Kart Kilitleme" : "Hepsiburada Integration & Card Lock"}
+                {isTr ? "Hepsiburada Entegrasyonu" : "Hepsiburada Integration"}
               </span>
             </div>
           </div>
@@ -637,7 +637,7 @@ export const MarketplaceProductFields = ({
           <div className="flex items-center justify-between">
             <label className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight flex items-center gap-1.5">
               <Lock className="w-3 h-3 text-orange-600" />
-              <span>{isTr ? "Hepsiburada SKU veya İlan Linki (Spesifik Karta Kilitle)" : "HB SKU or Direct Listing URL"}</span>
+              <span>{isTr ? "Hepsiburada SKU / İlan Linki" : "HB SKU / URL"}</span>
             </label>
             {hbLiveUrl && (
               <a
@@ -970,7 +970,7 @@ export const MarketplaceProductFields = ({
               </div>
               <div>
                 <span className="text-xs font-black text-amber-950 dark:text-amber-200 uppercase tracking-wider block">
-                  {isTr ? "Amazon TR Entegrasyonu & ASIN Kilitleme" : "Amazon TR Integration & ASIN Lock"}
+                  {isTr ? "Amazon TR Entegrasyonu" : "Amazon TR Integration"}
                 </span>
               </div>
             </div>
@@ -991,7 +991,7 @@ export const MarketplaceProductFields = ({
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight flex items-center gap-1.5">
                 <Lock className="w-3 h-3 text-amber-600" />
-                <span>{isTr ? "Amazon ASIN veya İlan Linki" : "Amazon ASIN or Direct URL"}</span>
+                <span>{isTr ? "Amazon ASIN / Linki" : "Amazon ASIN / URL"}</span>
               </label>
               {amzLiveUrl && (
                 <a
@@ -1027,8 +1027,8 @@ export const MarketplaceProductFields = ({
             </div>
             <p className="text-[9px] text-slate-500 dark:text-slate-400">
               {isTr 
-                ? "Amazon TR'de aktif olan ürünün ASIN kodunu veya linkini buraya yapıştırarak ürünü doğrudan canlı Amazon ilanına bağlayabilirsiniz."
-                : "Paste the Amazon ASIN or direct URL to connect this product directly to the Amazon listing."}
+                ? "Aktif ürünün ASIN kodunu veya linkini buraya yapıştırarak ürünü canlı Amazon ilanına bağlayabilirsiniz."
+                : "Paste the Amazon ASIN or URL to connect this product directly to the Amazon listing."}
             </p>
           </div>
         </div>

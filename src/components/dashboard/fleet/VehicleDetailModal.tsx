@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { formatDateTR } from '../../../utils/formatUtils';
 import { 
   X, 
   Car, 
@@ -482,7 +483,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                           <div>
                             <p className="font-bold text-slate-900 text-xs">{m.type}</p>
                             <p className="text-[10px] text-slate-400">
-                              {m.provider_name || 'Servis'} • {new Date(m.date).toLocaleDateString()} • {(m.mileage || 0).toLocaleString()} KM
+                              {m.provider_name || 'Servis'} • {formatDateTR(m.date)} • {(m.mileage || 0).toLocaleString()} KM
                             </p>
                           </div>
                         </div>
@@ -510,7 +511,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                           <div>
                             <p className="font-bold text-slate-900 text-xs">{a.user_email}</p>
                             <p className="text-[10px] text-slate-400">
-                              {new Date(a.start_date).toLocaleDateString()} • {a.start_mileage?.toLocaleString()} KM
+                              {formatDateTR(a.start_date)} • {a.start_mileage?.toLocaleString()} KM
                             </p>
                           </div>
                         </div>
@@ -539,7 +540,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                           </div>
                           <div>
                             <p className="text-xs font-bold text-slate-900">{log.mileage.toLocaleString()} KM</p>
-                            <p className="text-[10px] text-slate-400">{new Date(log.date).toLocaleDateString()}</p>
+                            <p className="text-[10px] text-slate-400">{formatDateTR(log.date)}</p>
                           </div>
                         </div>
                       </div>
@@ -556,7 +557,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                           </div>
                           <div>
                             <p className="text-xs font-bold text-slate-900">{inc.type}: {inc.description}</p>
-                            <p className="text-[10px] text-slate-400">{new Date(inc.date).toLocaleDateString()}</p>
+                            <p className="text-[10px] text-slate-400">{formatDateTR(inc.date)}</p>
                           </div>
                         </div>
                         <span className="text-xs font-black text-red-600">{inc.cost?.toLocaleString()} TL</span>

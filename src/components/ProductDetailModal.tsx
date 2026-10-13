@@ -56,7 +56,7 @@ interface ProductDetailModalProps {
 }
 
 const formatPrice = (price: number, currency: string, sector: string, storeType?: string) => {
-  const isPortfolio = storeType === "portfolio" || storeType === "real_estate" || storeType === "motor_vehicle" || sector === "real_estate" || sector === "automotive";
+  const isPortfolio = storeType === "real_estate" || storeType === "motor_vehicle" || storeType === "portfolio" || sector === "real_estate" || sector === "automotive";
   const decimals = isPortfolio ? 0 : 2;
   return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency || "TRY"}`;
 };
@@ -81,6 +81,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   onNavigateProduct,
 }) => {
   const { lang } = useLanguage();
+  const isStoreBookstore = isBookstoreStore(store);
   const [branchStocks, setBranchStocks] = useState<any[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [selectedBranchIdx, setSelectedBranchIdx] = useState(0);
@@ -690,13 +691,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         </button>
 
         {/* Product Image Column */}
-        <div className="w-full md:w-[46%] lg:w-[48%] shrink-0 h-[280px] sm:h-[350px] md:h-auto md:min-h-[460px] bg-slate-50/70 flex flex-col relative border-b md:border-b-0 md:border-r border-slate-200 transition-all duration-500 overflow-hidden justify-center items-center">
+        <div className="w-full md:w-[46%] lg:w-[48%] shrink-0 h-[270px] sm:h-[340px] md:h-auto md:min-h-[460px] bg-slate-50/70 flex flex-col relative border-b md:border-b-0 md:border-r border-slate-200 transition-all duration-500 overflow-hidden justify-between items-center">
           {/* Share Buttons Floating Pill */}
           <div className="absolute top-3 left-3 flex items-center gap-1 z-20 bg-white/90 backdrop-blur-md px-2 py-1 rounded-xl border border-slate-200/80 shadow-xs">
             <button
               onClick={shareProduct}
               type="button"
-              className="p-1 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-colors"
+              className="p-1 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
               title={lang === "tr" ? "Paylaş" : "Share"}
             >
               <Share2 className="w-4 h-4" />
@@ -704,7 +705,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <button
               onClick={shareOnWhatsApp}
               type="button"
-              className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors"
+              className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors cursor-pointer"
               title="WhatsApp"
             >
               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -714,7 +715,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <button
               onClick={copyLink}
               type="button"
-              className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex items-center gap-1"
+              className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
               title={lang === "tr" ? "Linki Kopyala" : "Copy Link"}
             >
               {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Link2 className="w-4 h-4" />}
@@ -757,19 +758,34 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               lang={lang} 
             />
           ) : productImages.length > 0 ? (
-            <div className="w-full flex-1 flex flex-col justify-between bg-slate-50/70 relative p-3 md:p-4">
-              {/* Main Viewport Box */}
+            <div className="w-full h-full flex-1 min-h-0 flex flex-col justify-between bg-slate-50/70 relative p-2.5 sm:p-3.5 overflow-hidden">
+              {/* Main Viewport Box - Strictly bounded so images never overflow their frame */}
               <div
-                className="flex-1 relative min-h-0 flex items-center justify-center group/gallery cursor-zoom-in py-2"
+                className="flex-1 w-full min-h-0 relative flex items-center justify-center group/gallery cursor-zoom-in overflow-hidden rounded-xl bg-white border border-slate-200/70 p-2 shadow-2xs"
                 onClick={() => setIsLightboxOpen(true)}
                 title={
                   lang === "tr" ? "Büyütmek için tıklayın" : "Click to enlarge"
                 }
               >
-                <img
+                <motion.img
+                  key={productImages[activeImageIdx] || activeImageIdx}
                   src={getAnnotatedImageUrl(productImages[activeImageIdx])}
                   alt={product.name}
-                  className="max-w-full max-h-[260px] sm:max-h-[330px] md:max-h-[400px] object-contain rounded-lg shadow-xs transition-all duration-300 group-hover/gallery:scale-105"
+                  initial={{ opacity: 0.75 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                  drag={productImages.length > 1 ? "x" : false}
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.25}
+                  onDragEnd={(_, { offset }) => {
+                    if (productImages.length <= 1) return;
+                    if (offset.x < -40) {
+                      setActiveImageIdx((prev) => (prev + 1) % productImages.length);
+                    } else if (offset.x > 40) {
+                      setActiveImageIdx((prev) => (prev - 1 + productImages.length) % productImages.length);
+                    }
+                  }}
+                  className="w-full h-full max-w-full max-h-full object-contain rounded-lg select-none touch-pan-y transition-transform duration-300 md:group-hover/gallery:scale-[1.03]"
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     const target = e.currentTarget;
@@ -792,12 +808,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   }}
                 />
 
-                {/* Action Icon overlay */}
-                <div className="absolute top-2 right-2 bg-slate-900/60 backdrop-blur-xs text-white p-1.5 rounded-lg opacity-0 group-hover/gallery:opacity-100 transition-opacity">
+                {/* Image Counter Badge */}
+                {productImages.length > 1 && (
+                  <div className="absolute bottom-2 right-2 bg-slate-900/80 backdrop-blur-xs text-white px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider shadow-xs pointer-events-none">
+                    {activeImageIdx + 1} / {productImages.length}
+                  </div>
+                )}
+
+                {/* Zoom Action Icon overlay */}
+                <div className="absolute bottom-2 left-2 bg-slate-900/65 backdrop-blur-xs text-white p-1.5 rounded-lg opacity-80 sm:opacity-0 sm:group-hover/gallery:opacity-100 transition-opacity pointer-events-none">
                   <Eye className="w-3.5 h-3.5" />
                 </div>
 
-                {/* Previous / Next chevrons inside the product frame */}
+                {/* Previous / Next chevrons inside the product frame (Always accessible on mobile & desktop) */}
                 {productImages.length > 1 && (
                   <>
                     <button
@@ -810,9 +833,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                             productImages.length,
                         );
                       }}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-md cursor-pointer"
+                      aria-label={lang === "tr" ? "Önceki Görsel" : "Previous Image"}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-900/75 hover:bg-slate-950 text-white flex items-center justify-center opacity-95 sm:opacity-0 sm:group-hover/gallery:opacity-100 transition-all shadow-md active:scale-90 cursor-pointer z-10"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                     <button
                       type="button"
@@ -822,9 +846,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           (prev) => (prev + 1) % productImages.length,
                         );
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-md cursor-pointer"
+                      aria-label={lang === "tr" ? "Sonraki Görsel" : "Next Image"}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-900/75 hover:bg-slate-950 text-white flex items-center justify-center opacity-95 sm:opacity-0 sm:group-hover/gallery:opacity-100 transition-all shadow-md active:scale-90 cursor-pointer z-10"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </>
                 )}
@@ -832,17 +857,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Thumbnails list below inside normal frame */}
               {productImages.length > 1 && (
-                <div className="flex gap-1.5 justify-center py-1.5 px-2 overflow-x-auto no-scrollbar scrollbar-none scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-full z-10 shrink-0">
+                <div className="flex gap-1.5 justify-start sm:justify-center items-center pt-2 px-1 overflow-x-auto no-scrollbar scrollbar-none scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-full z-10 shrink-0">
                   {productImages.map((img, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setActiveImageIdx(idx)}
-                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-md overflow-hidden border transition-all flex-shrink-0 cursor-pointer ${activeImageIdx === idx ? "border-indigo-600 scale-105 shadow-xs" : "border-slate-200 hover:border-slate-400"}`}
+                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg overflow-hidden border-2 bg-white transition-all flex-shrink-0 cursor-pointer p-0.5 ${activeImageIdx === idx ? "border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs" : "border-slate-200 hover:border-slate-400 opacity-75 hover:opacity-100"}`}
                     >
                       <img
                         src={getAnnotatedImageUrl(img)}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain rounded-sm"
                         referrerPolicy="no-referrer"
                         onError={(e) => {
                           const target = e.currentTarget;
@@ -881,7 +906,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <div className="flex-1 min-h-0 p-3.5 sm:p-4 md:p-5 overflow-y-auto no-scrollbar space-y-2.5">
             {/* Metadata Badges (Category, Author, Publisher, Brand, Stock) */}
             {(() => {
-              const isStoreBookstore = isBookstoreStore(store);
               // Strict sectoral isolation: Books / Authors / Publishers ONLY exist if the store itself is a bookstore
               const authorName = isStoreBookstore ? (product.author || (product.sector_data as any)?.author || "").trim() : "";
               const publisherName = isStoreBookstore ? ((product.sector_data as any)?.publisher || (authorName ? product.brand : "") || "").trim() : "";
@@ -1109,7 +1133,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     ? "automotive"
                     : product?.type === "real_estate" || store?.store_type === "real_estate"
                       ? "real_estate"
-                      : sector
+                      : isStoreBookstore
+                        ? "bookstore"
+                        : (sector || "product")
               }
               data={{
                 ...(product.sector_data || {}),

@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { numberToTurkishWords } from "./formatUtils";
+import { numberToTurkishWords, formatDateTR } from "./formatUtils";
 
 export const handleDownloadQuotationPDF = async (quotation: any, branding: any, lang: string) => {
   if (!quotation) return;
@@ -68,7 +68,7 @@ export const handleDownloadQuotationPDF = async (quotation: any, branding: any, 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
     doc.text(fixTr(`${isTr ? "Teklif" : "Quote"} No: #${quotation.id}`), 196, 10, { align: 'right' });
-    doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString('tr-TR')}`), 196, 14, { align: 'right' });
+    doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${formatDateTR(quotation.created_at)}`), 196, 14, { align: 'right' });
 
     doc.setFontSize(6);
     const contactInfo = [

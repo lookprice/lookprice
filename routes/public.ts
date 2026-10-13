@@ -2200,9 +2200,16 @@ router.post("/sales", async (req, res) => {
 
     // Auto-create / link Company (Cari Hesap) for web sale customer
     let finalCompanyId: number | null = null;
+    const cleanTc = effectiveTcId ? String(effectiveTcId).replace(/\D/g, '').trim() : '';
     const compCheck = await client.query(
-      "SELECT id FROM companies WHERE store_id = $1 AND (tax_number = $2 OR (LOWER(TRIM(title)) = LOWER(TRIM($3)) AND $3 != 'Bireysel Web Müşterisi')) LIMIT 1",
-      [storeId, effectiveTcId, fullNameVal]
+      `SELECT id FROM companies 
+       WHERE store_id = $1 
+         AND (
+           ($2 != '' AND $2 != '11111111111' AND clean_tax_number(tax_number) = $2)
+           OR (LOWER(TRIM(title)) = LOWER(TRIM($3)) AND $3 != 'Bireysel Web Müşterisi')
+         ) 
+       LIMIT 1`,
+      [storeId, cleanTc, fullNameVal]
     );
     if (compCheck.rows.length > 0) {
       finalCompanyId = compCheck.rows[0].id;
@@ -2578,19 +2585,21 @@ router.post("/real-estate/:id/sign", async (req, res) => {
     const property = propRes.rows[0];
     const existingDocs = property.documents ? (typeof property.documents === 'string' ? JSON.parse(property.documents) : property.documents) : [];
 
+    const nowD = new Date();
+    const trDateStr = `${String(nowD.getDate()).padStart(2, '0')}/${String(nowD.getMonth() + 1).padStart(2, '0')}/${String(nowD.getFullYear()).slice(-2)}`;
     const newDoc = {
       id: `virtual-contract-${Date.now()}`,
-      name: `Dijital İmzalı Sözleşme - ${clientName} (${new Date().toLocaleDateString("tr-TR")})`,
+      name: `Dijital İmzalı Sözleşme - ${clientName} (${trDateStr})`,
       category: "contract",
       file_url: "is_virtual_contract",
-      upload_date: new Date().toLocaleDateString("tr-TR"),
+      upload_date: trDateStr,
       details: {
         templateId: templateId || "showing_agreement",
         clientName,
         clientIdentity,
         clientPhone,
         commissionRate: commissionRate || "3",
-        contractDate: new Date().toLocaleDateString("tr-TR"),
+        contractDate: trDateStr,
         signed: true,
         signingName: clientName,
         ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
@@ -2628,12 +2637,14 @@ router.post("/vehicles/:id/sign", async (req, res) => {
       return res.status(404).json({ error: "Araç bulunamadı." });
     }
 
+    const nowVehD = new Date();
+    const trVehDateStr = `${String(nowVehD.getDate()).padStart(2, '0')}/${String(nowVehD.getMonth() + 1).padStart(2, '0')}/${String(nowVehD.getFullYear()).slice(-2)}`;
     const details = {
       clientName,
       clientIdentity,
       clientPhone,
       commissionAmount: commissionAmount || "2.5",
-      contractDate: new Date().toLocaleDateString("tr-TR"),
+      contractDate: trVehDateStr,
       contractType: contractType || "consignment",
       signed: true,
       signingName: clientName,
@@ -3364,5 +3375,112 @@ router.get("/hotel-rooms", async (req: any, res) => {
 
 router.post("/stores/:id/hotel-reservations", handlePublicHotelReservation);
 router.post("/hotel-reservations", handlePublicHotelReservation);
+
+// Public Digital Reconciliation Lookup (Official Document Portal)
+router.get("/reconciliations/:reconId", async (req: any, res) => {
+  try {
+    const { reconId } = req.params;
+    const result = await pool.query(
+      "SELECT * FROM company_reconciliations WHERE id = $1 LIMIT 1",
+      [reconId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Mutabakat belgesi bulunamadı." });
+    }
+    const row = result.rows[0];
+    const payload = typeof row.payload === 'object' && row.payload !== null ? row.payload : {};
+    const formatted = {
+      ...payload,
+      id: Number(row.id) || row.id,
+      storeId: Number(row.store_id),
+      companyId: row.company_id ? Number(row.company_id) : (payload.companyId || null),
+      companyTitle: row.company_title || payload.companyTitle || '',
+      companyAddress: row.company_address || payload.companyAddress || '',
+      taxOffice: row.tax_office || payload.taxOffice || '',
+      taxNumber: row.tax_number || payload.taxNumber || '',
+      storeName: row.store_name || payload.storeName || '',
+      storeAddress: row.store_address || payload.storeAddress || '',
+      storeTaxOffice: row.store_tax_office || payload.storeTaxOffice || '',
+      storeTaxNumber: row.store_tax_number || payload.storeTaxNumber || '',
+      currency: row.currency || payload.currency || 'TRY',
+      balance: Number(row.balance ?? payload.balance ?? 0),
+      carryOverBalance: Number(row.carry_over_balance ?? payload.carryOverBalance ?? 0),
+      startDate: row.start_date || payload.startDate || '',
+      periodMonthName: row.period_month_name || payload.periodMonthName || '',
+      transactions: Array.isArray(row.transactions) ? row.transactions : (Array.isArray(payload.transactions) ? payload.transactions : []),
+      babsInvoiceCount: Number(row.babs_invoice_count ?? payload.babsInvoiceCount ?? 0),
+      babsTotalSum: Number(row.babs_total_sum ?? payload.babsTotalSum ?? 0),
+      date: row.date_str || payload.date || '',
+      status: row.status || payload.status || 'pending',
+      disputeNote: row.dispute_note ?? payload.disputeNote ?? '',
+      responderName: row.responder_name ?? payload.responderName ?? '',
+      responderIp: row.responder_ip ?? payload.responderIp ?? '',
+      respondedAt: row.responded_at || payload.respondedAt || null,
+      isArchived: Boolean(row.is_archived ?? payload.isArchived ?? false),
+      archivedAt: row.archived_at || payload.archivedAt || null,
+      archiveNote: row.archive_note ?? payload.archiveNote ?? '',
+      notes: row.notes ?? payload.notes ?? '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+    return res.json({ success: true, reconciliation: formatted });
+  } catch (err: any) {
+    console.error("Error in public GET /reconciliations/:reconId:", err);
+    return res.status(500).json({ error: err.message || "Failed to load reconciliation" });
+  }
+});
+
+// Public Digital Reconciliation Response (Confirm / Dispute by Counterparty)
+router.post("/reconciliations/:reconId/respond", async (req: any, res) => {
+  try {
+    const { reconId } = req.params;
+    const { status, disputeNote, responderName } = req.body;
+    if (!['confirmed', 'disputed'].includes(status)) {
+      return res.status(400).json({ error: "Geçersiz mutabakat yanıt durumu." });
+    }
+
+    const ip = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+
+    const existingRes = await pool.query(
+      "SELECT * FROM company_reconciliations WHERE id = $1 LIMIT 1",
+      [reconId]
+    );
+    if (existingRes.rows.length === 0) {
+      return res.status(404).json({ error: "Mutabakat belgesi bulunamadı." });
+    }
+
+    const row = existingRes.rows[0];
+    const updatedPayload = {
+      ...(typeof row.payload === 'object' && row.payload ? row.payload : {}),
+      status,
+      disputeNote: disputeNote || '',
+      responderName: responderName || '',
+      responderIp: ip,
+      respondedAt: new Date().toISOString()
+    };
+
+    const updateRes = await pool.query(
+      `UPDATE company_reconciliations
+       SET status = $1,
+           dispute_note = $2,
+           responder_name = COALESCE($3, responder_name),
+           responder_ip = $4,
+           responded_at = NOW(),
+           payload = $5,
+           updated_at = NOW()
+       WHERE id = $6
+       RETURNING *`,
+      [status, disputeNote || null, responderName || null, ip || null, JSON.stringify(updatedPayload), reconId]
+    );
+
+    return res.json({
+      success: true,
+      reconciliation: updateRes.rows[0]
+    });
+  } catch (err: any) {
+    console.error("Error in public POST /reconciliations/:reconId/respond:", err);
+    return res.status(500).json({ error: err.message || "Failed to update reconciliation response" });
+  }
+});
 
 export default router;

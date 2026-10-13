@@ -1,5 +1,6 @@
 import { useState } from "react";
 import * as XLSX from 'xlsx';
+import { toast } from "sonner";
 import { api } from "../services/api";
 import { translations } from "../translations";
 import { Product } from "../types";
@@ -19,9 +20,81 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
     price: "",
     description: "",
     stock_quantity: "",
-    unit: ""
+    unit: "",
+    image_url: "",
+    image_url_2: "",
+    image_url_3: "",
+    image_url_4: "",
+    image_url_5: ""
   });
   const [convertCurrency, setConvertCurrency] = useState(false);
+
+  const autoDetectMapping = (cols: string[]) => {
+    const next: any = {
+      barcode: "",
+      name: "",
+      category: "",
+      sub_category: "",
+      brand: "",
+      author: "",
+      price: "",
+      description: "",
+      stock_quantity: "",
+      unit: "",
+      image_url: "",
+      image_url_2: "",
+      image_url_3: "",
+      image_url_4: "",
+      image_url_5: ""
+    };
+
+    const usedCols = new Set<string>();
+    const findMatch = (patterns: RegExp[]) => {
+      for (const pat of patterns) {
+        const found = cols.find(c => c && !usedCols.has(c) && pat.test(String(c).trim().toLocaleLowerCase('tr-TR')));
+        if (found) {
+          usedCols.add(found);
+          return found;
+        }
+      }
+      return "";
+    };
+
+    next.barcode = findMatch([/^(barkod|barcode|ean|isbn|ürün kodu|urun kodu|stok kodu|sku)$/i, /barkod|barcode|isbn|ean/i]);
+    next.name = findMatch([/^(ürün adı|urun adi|ürün|name|product name|title|başlık|baslik|eser adı|kitap adı)$/i, /ürün adı|urun adi|product name|isim|ad/i]);
+    next.price = findMatch([/^(fiyat|satış fiyatı|satis fiyati|price|birim fiyat|liste fiyatı|tutar)$/i, /fiyat|price/i]);
+    next.stock_quantity = findMatch([/^(stok|stok miktarı|stok adedi|miktar|adet|quantity|stock)$/i, /stok|stock|miktar/i]);
+    next.category = findMatch([/^(kategori|ana kategori|category)$/i, /^kategori|category/i]);
+    next.sub_category = findMatch([/^(alt kategori|sub_category|subcategory|alt_kategori)$/i, /alt kategori|sub.?cat/i]);
+    next.brand = findMatch([/^(marka|brand|üretici|uretici|yayınevi|yayinevi)$/i, /marka|brand|yayın/i]);
+    next.author = findMatch([/^(yazar|author|eser sahibi)$/i, /yazar|author/i]);
+    next.description = findMatch([/^(açıklama|aciklama|description|detay|ürün açıklaması)$/i, /açıklama|aciklama|desc/i]);
+    next.unit = findMatch([/^(birim|unit|ölçü birimi)$/i, /birim|unit/i]);
+
+    // Image columns auto-detection
+    next.image_url = findMatch([
+      /^(görsel|gorsel|resim|ana görsel|ana resim|kapak görseli|image|image_url|photo|fotoğraf|resim 1|görsel 1|image 1|img1|resim linki|görsel linki)$/i,
+      /^(resim|görsel|gorsel|image|img|foto)/i
+    ]);
+    next.image_url_2 = findMatch([
+      /(resim|görsel|gorsel|image|img|foto|ek resim|ekstra resim).*2/i,
+      /^(ek resim|ekstra resim|extra image|image_url_2|resim2|gorsel2)$/i
+    ]);
+    next.image_url_3 = findMatch([
+      /(resim|görsel|gorsel|image|img|foto|ek resim|ekstra resim).*3/i,
+      /^(image_url_3|resim3|gorsel3)$/i
+    ]);
+    next.image_url_4 = findMatch([
+      /(resim|görsel|gorsel|image|img|foto|ek resim|ekstra resim).*4/i,
+      /^(image_url_4|resim4|gorsel4)$/i
+    ]);
+    next.image_url_5 = findMatch([
+      /(resim|görsel|gorsel|image|img|foto|ek resim|ekstra resim).*5/i,
+      /^(image_url_5|resim5|gorsel5)$/i
+    ]);
+
+    setMapping(next);
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -36,7 +109,9 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
       const ws = wb.Sheets[wsname];
       const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
       if (data.length > 0) {
-        setImportColumns(data[0] as string[]);
+        const cols = (data[0] as any[]).map(c => String(c || "").trim()).filter(Boolean);
+        setImportColumns(cols);
+        autoDetectMapping(cols);
       }
     };
     reader.readAsBinaryString(file);
@@ -49,7 +124,7 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
     const currentPlan = branding.plan || 'free';
     const limit = planLimits[currentPlan];
     if (productsCount >= limit) {
-      alert(lang === 'tr' 
+      toast.error(lang === 'tr' 
         ? `Hesap planı limitine ulaştınız (${limit} ürün). Lütfen planınızı yükseltin.` 
         : `You have reached your plan limit (${limit} products). Please upgrade your plan.`);
       return;
@@ -64,14 +139,16 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
     
     try {
       setIsImporting(true);
-      await api.importProducts(formData, targetStoreId);
+      const res = await api.importProducts(formData, targetStoreId);
       setShowImportModal(false);
       setImportFile(null);
       setImportColumns([]);
       fetchData(true);
-      alert(lang === 'tr' ? "İçe aktarma tamamlandı" : "Import completed");
-    } catch (error) {
-      alert(lang === 'tr' ? "Hata oluştu" : "An error occurred");
+      toast.success(lang === 'tr' 
+        ? `İçe aktarma tamamlandı (${res?.count || ''} ürün işlendi)` 
+        : "Import completed successfully");
+    } catch (error: any) {
+      toast.error(error?.message || (lang === 'tr' ? "İçe aktarma sırasında hata oluştu" : "An error occurred during import"));
     } finally {
       setIsImporting(false);
     }
@@ -79,3 +156,4 @@ export const useProductImport = (user: any, currentStoreId: number | undefined, 
 
   return { showImportModal, setShowImportModal, isImporting, setIsImporting, importFile, setImportFile, importColumns, setImportColumns, mapping, setMapping, convertCurrency, setConvertCurrency, handleFileSelect, handleImport };
 };
+

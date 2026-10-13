@@ -76,26 +76,40 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
     return Array.from(map.values());
   }, [variants, product.image_url]);
 
-  // Extract secondary image for hover preview
-  const secondaryImage = React.useMemo(() => {
-    let images: string[] = [];
+  // Extract full gallery images list (main image + extra images + variant images)
+  const galleryImages = React.useMemo(() => {
+    const list: string[] = [];
+    const pushImg = (raw?: string) => {
+      if (!raw || typeof raw !== "string") return;
+      const trimmed = raw.trim();
+      if (trimmed && !list.includes(trimmed)) list.push(trimmed);
+    };
+    pushImg(product.image_url);
     if (product.images) {
-      if (typeof product.images === "string") {
-        try { images = JSON.parse(product.images); } catch (e) { images = []; }
-      } else if (Array.isArray(product.images)) {
-        images = product.images;
+      let parsed: any = product.images;
+      if (typeof parsed === "string") {
+        try { parsed = JSON.parse(parsed); } catch { parsed = []; }
+      }
+      if (Array.isArray(parsed)) {
+        parsed.forEach(img => pushImg(img));
       }
     }
-    const filtered = images.filter(img => img && img !== product.image_url);
-    if (filtered.length > 0) return filtered[0];
-    if (variants.length > 1 && variants[1]?.image_url && variants[1].image_url !== product.image_url) {
-      return variants[1].image_url;
-    }
-    return null;
-  }, [product.images, product.image_url, variants]);
+    variants.forEach((v: any) => pushImg(v?.image_url));
+    return list;
+  }, [product.image_url, product.images, variants]);
+
+  const [cardImgIdx, setCardImgIdx] = useState(0);
+
+  useEffect(() => {
+    setCardImgIdx(0);
+  }, [product.id]);
 
   // Active displayed image
-  const rawDisplayImage = selectedVariant?.image_url || (isHovered && secondaryImage && themeConfig?.card_hover_effect === 'secondary_image' ? secondaryImage : product.image_url);
+  const rawDisplayImage = selectedVariant?.image_url || (
+    galleryImages.length > 1
+      ? (cardImgIdx > 0 ? galleryImages[cardImgIdx] : (isHovered && themeConfig?.card_hover_effect === 'secondary_image' ? galleryImages[1] : galleryImages[0]))
+      : product.image_url
+  );
   const displayImage = normalizeImageUrl(rawDisplayImage);
 
   // Active price (takes variant price if available)
@@ -196,8 +210,8 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
       className={`group relative flex flex-col ${cardStyleClass} ${radiusClass} ${glowHoverClass} overflow-hidden transition-all duration-500 cursor-pointer`}
       onClick={() => onView(product)}
     >
-      {/* 1. Image Canvas & Overlay Actions */}
-      <div className={`relative w-full ${aspectRatioClass} bg-white dark:bg-slate-900/50 overflow-hidden flex items-center justify-center p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800/80`}>
+      {/* 1. Image Canvas & Overlay Actions - Strictly bounded frame */}
+      <div className={`relative w-full ${aspectRatioClass} bg-white dark:bg-slate-900/50 overflow-hidden flex items-center justify-center p-2.5 sm:p-4 border-b border-slate-100 dark:border-slate-800/80`}>
         {displayImage ? (
           <motion.img
             key={displayImage}
@@ -205,10 +219,22 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
             alt={product.name}
             initial={{ opacity: 0.85 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.35 }}
-            className={`w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal ${
-              themeConfig?.card_hover_effect === "zoom" ? "group-hover:scale-105" : "group-hover:scale-102"
-            } transition-transform duration-500 ease-out`}
+            transition={{ duration: 0.25 }}
+            drag={galleryImages.length > 1 ? "x" : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(e, { offset }) => {
+              if (galleryImages.length <= 1) return;
+              e.stopPropagation();
+              if (offset.x < -35) {
+                setSelectedVariant(null);
+                setCardImgIdx((prev) => (prev + 1) % galleryImages.length);
+              } else if (offset.x > 35) {
+                setSelectedVariant(null);
+                setCardImgIdx((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+              }
+            }}
+            className="w-full h-full max-w-full max-h-full object-contain mix-blend-multiply dark:mix-blend-normal select-none touch-pan-y transition-transform duration-500 ease-out"
             referrerPolicy="no-referrer"
             loading="lazy"
             onError={(e) => {
@@ -225,6 +251,55 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
           <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
             <Package className="w-12 h-12 stroke-[1.5]" />
           </div>
+        )}
+
+        {/* Multi-Image Navigation Dots & Subtle Prev/Next Controls */}
+        {galleryImages.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedVariant(null);
+                setCardImgIdx((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+              }}
+              aria-label="Önceki görsel"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 z-20 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-900/65 hover:bg-slate-900 text-white flex items-center justify-center opacity-85 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-xs cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedVariant(null);
+                setCardImgIdx((prev) => (prev + 1) % galleryImages.length);
+              }}
+              aria-label="Sonraki görsel"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 z-20 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-900/65 hover:bg-slate-900 text-white flex items-center justify-center opacity-85 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-xs cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <div
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-slate-900/55 backdrop-blur-xs px-2 py-0.5 rounded-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {galleryImages.slice(0, 6).map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedVariant(null);
+                    setCardImgIdx(idx);
+                  }}
+                  className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                    cardImgIdx === idx ? "w-3.5 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
         )}
 
         {/* Badges Overlay */}
@@ -281,14 +356,14 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
 
         {/* Hover Action Bar */}
         {themeConfig?.show_quick_view !== false && (
-          <div className="absolute inset-x-3 bottom-3 z-10 hidden sm:flex items-center gap-2 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+          <div className="absolute inset-x-3 bottom-7 z-10 hidden sm:flex items-center gap-2 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onView(product);
               }}
-              className="w-full py-2.5 px-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white rounded-xl text-xs font-bold shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer"
+              className="w-full py-2 px-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white rounded-xl text-xs font-bold shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5" />
               <span>{lang === "tr" ? "Hızlı İncele" : "Quick View"}</span>

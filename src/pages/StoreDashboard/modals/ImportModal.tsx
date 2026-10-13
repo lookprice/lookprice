@@ -1,6 +1,7 @@
 import React from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { X, Upload, FileUp, Check } from "lucide-react";
+import { motion } from "motion/react";
+import { X, Upload, FileUp, Image as ImageIcon, Download, Sparkles } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface ImportModalProps {
   showImportModal: boolean;
@@ -35,76 +36,210 @@ export const ImportModal = ({
 }: ImportModalProps) => {
   if (!showImportModal) return null;
 
+  const isTr = lang === "tr";
+
+  const fieldLabels: Record<string, { label: string; required?: boolean; isImage?: boolean }> = {
+    barcode: { label: isTr ? "Barkod / Ürün Kodu *" : "Barcode / SKU *", required: true },
+    name: { label: isTr ? "Ürün Adı *" : "Product Name *", required: true },
+    price: { label: isTr ? "Satış Fiyatı *" : "Sale Price *", required: true },
+    stock_quantity: { label: isTr ? "Stok Miktarı" : "Stock Quantity" },
+    category: { label: isTr ? "Ana Kategori" : "Category" },
+    sub_category: { label: isTr ? "Alt Kategori" : "Sub Category" },
+    brand: { label: isTr ? "Marka / Yayınevi" : "Brand / Publisher" },
+    author: { label: isTr ? "Yazar / Model" : "Author / Model" },
+    unit: { label: isTr ? "Birim (Adet, Kg vb.)" : "Unit" },
+    description: { label: isTr ? "Ürün Açıklaması" : "Description" },
+    image_url: { label: isTr ? "1. Ana Ürün Resmi (Link)" : "1. Main Image URL", isImage: true },
+    image_url_2: { label: isTr ? "2. Ekstra Resim Linki" : "2. Extra Image URL", isImage: true },
+    image_url_3: { label: isTr ? "3. Ekstra Resim Linki" : "3. Extra Image URL", isImage: true },
+    image_url_4: { label: isTr ? "4. Ekstra Resim Linki" : "4. Extra Image URL", isImage: true },
+    image_url_5: { label: isTr ? "5. Ekstra Resim Linki" : "5. Extra Image URL", isImage: true },
+  };
+
+  const handleDownloadSampleExcel = () => {
+    const sampleRows = [
+      {
+        "Barkod": "8690000000001",
+        "Ürün Adı": "Örnek Kablosuz Kulaklık Pro",
+        "Kategori": "Elektronik",
+        "Alt Kategori": "Ses Sistemleri",
+        "Marka": "LookTech",
+        "Satış Fiyatı": 1499.90,
+        "Stok Miktarı": 25,
+        "Birim": "Adet",
+        "Açıklama": "Yüksek ses kalitesi ve aktif gürültü engelleme özellikli bluetooth kulaklık.",
+        "Ana Resim Linki": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800",
+        "Ek Resim 2": "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=800",
+        "Ek Resim 3": "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800",
+        "Ek Resim 4": "",
+        "Ek Resim 5": ""
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(sampleRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, isTr ? "Urun_Sablonu" : "Products_Template");
+    XLSX.writeFile(wb, isTr ? "Ornek_Toplu_Urun_Sablonu.xlsx" : "Sample_Product_Import_Template.xlsx");
+  };
+
+  const standardKeys = ["barcode", "name", "price", "stock_quantity", "category", "sub_category", "brand", "author", "unit", "description"];
+  const imageKeys = ["image_url", "image_url_2", "image_url_3", "image_url_4", "image_url_5"];
+
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] border border-slate-200"
       >
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <h3 className="text-xl font-bold text-gray-900">{t.importProducts || "Ürün İçe Aktar"}</h3>
-          <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-            <X className="h-5 w-5 text-gray-400" />
+        <div className="px-5 py-3.5 border-b border-slate-800 flex justify-between items-center bg-slate-900 text-white shrink-0">
+          <div>
+            <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-white">
+              {t.importProducts || (isTr ? "Excel İle Toplu Ürün & Çoklu Görsel Aktar" : "Bulk Product & Multi-Image Import")}
+            </h3>
+            <p className="text-[11px] text-slate-300 mt-0.5">
+              {isTr ? "Ana görsel ve 4 adede kadar ekstra ürün görsel linkini sütunlardan eşleştirebilirsiniz." : "Map main product image and up to 4 additional image link columns."}
+            </p>
+          </div>
+          <button type="button" onClick={() => setShowImportModal(false)} className="p-1.5 hover:bg-white/10 rounded-full transition-colors text-slate-300 hover:text-white cursor-pointer">
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form onSubmit={handleImport} className="p-6 overflow-y-auto space-y-6">
+        <form onSubmit={handleImport} className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
+          <div className="flex items-center justify-between gap-2 bg-indigo-50/70 border border-indigo-100 rounded-xl p-2.5">
+            <div className="flex items-center gap-2 text-xs text-indigo-950 font-semibold">
+              <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>
+                {isTr 
+                  ? "Çoklu resim destekli örnek Excel şablonunu indirip doldurabilirsiniz." 
+                  : "Download the sample Excel template with multiple image columns."}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleDownloadSampleExcel}
+              className="px-3 py-1.5 bg-white hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 rounded-lg text-[11px] font-black flex items-center gap-1.5 shrink-0 transition-all shadow-2xs cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{isTr ? "Örnek Şablon İndir" : "Sample Excel"}</span>
+            </button>
+          </div>
+
           {!importFile ? (
-            <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all">
-              <Upload className="h-10 w-10 text-gray-400 mb-2" />
-              <span className="text-sm font-bold text-gray-600">{t.selectFile || "Dosya Seç"}</span>
-              <input type="file" onChange={handleFileSelect} className="hidden" accept=".xlsx,.xls" />
+            <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-slate-300 rounded-2xl cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/40 transition-all">
+              <Upload className="h-8 w-8 text-indigo-500 mb-1.5" />
+              <span className="text-xs sm:text-sm font-black text-slate-700">{t.selectFile || (isTr ? "Excel Dosyası Seçin (.xlsx, .xls)" : "Select Excel File (.xlsx, .xls)")}</span>
+              <span className="text-[11px] text-slate-400 mt-0.5">{isTr ? "Sütunlar otomatik olarak algılanır" : "Columns are automatically detected"}</span>
+              <input type="file" onChange={handleFileSelect} className="hidden" accept=".xlsx,.xls,.csv" />
             </label>
           ) : (
-            <div className="p-4 bg-emerald-50 rounded-2xl flex items-center justify-between border border-emerald-100">
-              <div className="flex items-center gap-3">
-                <FileUp className="h-6 w-6 text-emerald-600" />
-                <span className="text-sm font-bold text-emerald-900 truncate max-w-[200px]">{importFile.name}</span>
+            <div className="p-3 bg-emerald-50 rounded-xl flex items-center justify-between border border-emerald-200">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <FileUp className="h-5 w-5 text-emerald-600 shrink-0" />
+                <span className="text-xs sm:text-sm font-black text-emerald-950 truncate">{importFile.name}</span>
               </div>
-              <button type="button" onClick={() => setMapping({})} className="text-xs font-bold text-red-600 hover:underline">{t.change || "Değiştir"}</button>
+              <label className="text-xs font-black text-indigo-600 hover:underline cursor-pointer shrink-0 ml-2">
+                {t.change || (isTr ? "Dosya Değiştir" : "Change File")}
+                <input type="file" onChange={handleFileSelect} className="hidden" accept=".xlsx,.xls,.csv" />
+              </label>
             </div>
           )}
 
           {importColumns.length > 0 && (
             <div className="space-y-4">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t.columnMapping || "Sütun Eşleme"}</p>
-              {Object.keys(mapping).map((key) => (
-                <div key={key} className="grid grid-cols-2 gap-4 items-center">
-                  <span className="text-sm font-bold text-gray-700 capitalize">{key}</span>
-                  <select 
-                    value={mapping[key]}
-                    onChange={(e) => setMapping({...mapping, [key]: e.target.value})}
-                    className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold"
-                  >
-                    <option value="">{t.selectColumn || "Sütun Seç"}</option>
-                    {importColumns.map(col => <option key={col} value={col}>{col}</option>)}
-                  </select>
+              {/* 1. Standart Ürün Sütunları */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
+                <p className="text-[11px] font-black text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-1.5">
+                  {t.columnMapping || (isTr ? "1. Ürün Bilgisi Sütun Eşleştirme" : "1. Product Information Columns")}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {standardKeys.map((key) => {
+                    const meta = fieldLabels[key] || { label: key };
+                    return (
+                      <div key={key} className="flex flex-col gap-1">
+                        <span className={`text-[11px] font-bold ${meta.required ? "text-slate-900" : "text-slate-600"}`}>
+                          {meta.label}
+                        </span>
+                        <select 
+                          value={mapping[key] || ""}
+                          onChange={(e) => setMapping({ ...mapping, [key]: e.target.value })}
+                          className="p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 outline-none"
+                        >
+                          <option value="">{t.selectColumn || (isTr ? "-- Sütun Seç --" : "-- Select Column --")}</option>
+                          {importColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                        </select>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
+
+              {/* 2. Çoklu Ürün Resim Linki Sütunları */}
+              <div className="p-3.5 bg-indigo-50/50 rounded-2xl border border-indigo-200/80 space-y-2.5">
+                <div className="flex items-center justify-between border-b border-indigo-200/70 pb-1.5">
+                  <p className="text-[11px] font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{isTr ? "2. Ürün Görselleri & Ekstra Resim Link Sütunları" : "2. Product Images & Extra Image Link Columns"}</span>
+                  </p>
+                  <span className="text-[10px] font-bold text-indigo-600 bg-white px-2 py-0.5 rounded-full border border-indigo-200">
+                    {isTr ? "Çoklu Galeri Desteği" : "Multi-Gallery"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  {isTr 
+                    ? "Excel dosyanızdaki ana görsel ve ekstra resim linki sütunlarını seçin. Ayrıca tek bir hücre içinde virgül (,) veya noktalı virgül (;) ile ayrılmış birden fazla resim linki varsa otomatik olarak ayrıştırılır." 
+                    : "Select main image and extra image URL columns. Multiple URLs separated by comma or semicolon within a single cell are also supported."}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {imageKeys.map((key) => {
+                    const meta = fieldLabels[key] || { label: key };
+                    return (
+                      <div key={key} className="flex flex-col gap-1">
+                        <span className="text-[11px] font-bold text-indigo-950">
+                          {meta.label}
+                        </span>
+                        <select 
+                          value={mapping[key] || ""}
+                          onChange={(e) => setMapping({ ...mapping, [key]: e.target.value })}
+                          className="p-2 bg-white border border-indigo-200 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 outline-none"
+                        >
+                          <option value="">{t.selectColumn || (isTr ? "-- Sütun Seç (İsteğe Bağlı) --" : "-- Optional Column --")}</option>
+                          {importColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
               
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <input 
                   type="checkbox" 
+                  id="import_convert_currency"
                   checked={convertCurrency} 
                   onChange={(e) => setConvertCurrency(e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 rounded"
+                  className="w-4 h-4 text-indigo-600 rounded cursor-pointer"
                 />
-                <span className="text-sm font-bold text-gray-700">{t.convertCurrency || "Para Birimini Çevir"}</span>
+                <label htmlFor="import_convert_currency" className="text-xs font-bold text-slate-700 cursor-pointer">
+                  {t.convertCurrency || (isTr ? "Dövizli Fiyatları Mağaza Ana Para Birimine Otomatik Çevir" : "Convert Currency Automatically")}
+                </label>
               </div>
             </div>
           )}
 
-          <button 
-            type="submit" 
-            disabled={isImporting || !importFile}
-            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
-          >
-            {isImporting ? t.importing || "Aktarılıyor..." : t.startImport || "İçe Aktarmayı Başlat"}
-          </button>
+          <div className="pt-2 sticky bottom-0 bg-white">
+            <button 
+              type="submit" 
+              disabled={isImporting || !importFile}
+              className="w-full py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 cursor-pointer"
+            >
+              {isImporting ? (t.importing || (isTr ? "Ürünler ve Görseller Aktarılıyor..." : "Importing...")) : (t.startImport || (isTr ? "İçe Aktarmayı Başlat" : "Start Import"))}
+            </button>
+          </div>
         </form>
       </motion.div>
     </div>
   );
 };
+

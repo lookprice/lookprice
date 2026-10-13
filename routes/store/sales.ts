@@ -13,6 +13,7 @@ router.get("/", async (req: any, res) => {
   const status = req.query.status;
   const startDate = req.query.startDate;
   const endDate = req.query.endDate;
+  const search = req.query.search;
 
   let query = `
     SELECT s.*, si.id as sales_invoice_id, si.invoice_number as sales_invoice_number 
@@ -26,11 +27,32 @@ router.get("/", async (req: any, res) => {
     params.push(status);
     query += ` AND s.status = $${params.length}`;
   }
-  if (startDate) {
+  if (search) {
+    const searchTerms = search.split(/\s+/).filter(Boolean);
+    searchTerms.forEach((term: string) => {
+      const pLen = params.length + 1;
+      query += ` AND (
+        ${getTurkishSearchSnippet('s.customer_name', pLen)} OR
+        ${getTurkishSearchSnippet('s.notes', pLen)} OR
+        ${getTurkishSearchSnippet('si.invoice_number', pLen)} OR
+        EXISTS (
+          SELECT 1 FROM sale_items sub_si
+          WHERE sub_si.sale_id = s.id
+          AND (
+            ${getTurkishSearchSnippet('sub_si.product_name', pLen)} OR
+            ${getTurkishSearchSnippet('sub_si.barcode', pLen)}
+          )
+        )
+      )`;
+      params.push(normalizeTurkishParam(term));
+    });
+  }
+
+  if (startDate && (!search || search.trim() === '')) {
     params.push(startDate);
     query += ` AND s.created_at >= $${params.length}`;
   }
-  if (endDate) {
+  if (endDate && (!search || search.trim() === '')) {
     params.push(endDate + ' 23:59:59');
     query += ` AND s.created_at <= $${params.length}`;
   }
@@ -119,8 +141,9 @@ router.get("/export", async (req: any, res) => {
     }
 
     const isTr = lang === 'tr';
+    const { formatDateTimeTR, formatFileDateTR } = await import("../../src/utils/formatUtils");
     const data = sales.rows.map(s => ({
-      [isTr ? 'Tarih' : 'Date']: new Date(s.created_at).toLocaleString(isTr ? 'tr-TR' : 'en-US'),
+      [isTr ? 'Tarih' : 'Date']: formatDateTimeTR(s.created_at),
       [isTr ? 'Müşteri' : 'Customer']: s.customer_name || '-',
       [isTr ? 'Tutar' : 'Amount']: s.total_amount,
       [isTr ? 'Para Birimi' : 'Currency']: s.currency,
@@ -134,7 +157,7 @@ router.get("/export", async (req: any, res) => {
     const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
     
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=Satis_Raporu_${startDate || 'tum'}_${endDate || 'tum'}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename=Satis_Raporu_${startDate ? formatFileDateTR(startDate) : 'tum'}_${endDate ? formatFileDateTR(endDate) : 'tum'}.xlsx`);
     res.send(buffer);
   } catch (e: any) {
     res.status(400).json({ error: e.message });
@@ -793,6 +816,9 @@ router.post("/:id/status", async (req: any, res) => {
   }
 
   try {
+    const prevSaleRes = await pool.query("SELECT status FROM sales WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const prevSaleStatus = String(prevSaleRes.rows[0]?.status || '').toLowerCase().trim();
+
     let query = "UPDATE sales SET status = $1";
     const params: any[] = [status];
     let pIdx = 2;
@@ -817,6 +843,34 @@ router.post("/:id/status", async (req: any, res) => {
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: "Sale not found" });
+    }
+
+    if (status === 'cancelled') {
+      await pool.query(
+        "UPDATE sales_invoices SET status = 'cancelled' WHERE sale_id = $1 AND store_id = $2 AND (ettn IS NULL OR ettn = '')",
+        [id, storeId]
+      );
+      if (!['cancelled', 'iptal', 'canceled'].includes(prevSaleStatus)) {
+        const itemsRes = await pool.query("SELECT product_id, quantity FROM sale_items WHERE sale_id = $1", [id]);
+        for (const item of itemsRes.rows) {
+          if (item.product_id && item.quantity > 0) {
+            await pool.query(
+              "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
+              [item.quantity, item.product_id, storeId]
+            );
+          }
+        }
+        await pool.query(
+          `DELETE FROM stock_movements
+           WHERE store_id = $1
+             AND (
+               sale_id = $2
+               OR invoice_id IN (SELECT id FROM sales_invoices WHERE sale_id = $2 AND store_id = $1)
+               OR invoice_number IN (SELECT invoice_number FROM sales_invoices WHERE sale_id = $2 AND store_id = $1 AND invoice_number IS NOT NULL)
+             )`,
+          [storeId, id]
+        );
+      }
     }
 
     await logAction(storeId, req.user.id, "sale_status_update", "sales", parseInt(id), `Sipariş durumu güncellendi: ${status}`);
@@ -935,6 +989,18 @@ router.post("/:id/cancel", async (req: any, res) => {
     await client.query("DELETE FROM sale_payments WHERE sale_id = $1", [sale.id]);
 
     await client.query("UPDATE sales SET status = 'cancelled', cancellation_reason = $1 WHERE id = $2", [reason, req.params.id]);
+
+    // Sync cancellation status to linked sales_invoices and clean up any auto-created sales_invoice stock movements that lack a reversal
+    const linkedInvRes = await client.query(
+      "UPDATE sales_invoices SET status = 'cancelled' WHERE sale_id = $1 AND store_id = $2 RETURNING id, invoice_number",
+      [sale.id, storeId]
+    );
+    for (const inv of linkedInvRes.rows) {
+      await client.query(
+        "DELETE FROM stock_movements WHERE store_id = $1 AND source = 'sales_invoice' AND (invoice_id = $2 OR invoice_number = $3) AND sale_id IS NULL",
+        [storeId, inv.id, inv.invoice_number || '']
+      );
+    }
 
     if (sale.quotation_id) {
       await client.query("UPDATE quotations SET status = 'cancelled', is_sale = FALSE WHERE id = $1", [sale.quotation_id]);

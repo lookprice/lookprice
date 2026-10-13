@@ -363,6 +363,22 @@ This file outlines strict engineering, performance, and naming directives that m
   - Web sitesindeki hiçbir menü veya koleksiyon linki (Fırsatlar, Öne Çıkanlar, Kampanyalı Ürünler vb.) kesinlikle BOŞ içerik döndüremez.
   - Eğer mağaza verisinde ilgili etiketle eşleşen özel ürün bulunmuyorsa, sistem akıllı fallback algoritmalarıyla (en çok incelenen, indirimli, fiyatı en uygun veya en yeni ürünlerle) sayfayı ve listeyi her zaman dolu, zengin ve çekici şekilde sunmalıdır.
 
+---
+
+## 27. Pazaryeri Sipariş Entegrasyonu (N11 SOAP Mimarisi) ve TR Tarih Formatı (`dd/mm/yy`) Anayasa Kuralı
+
+- **N11 SOAP Sipariş Entegrasyonu Kalıcı Mimari Kuralları (Zero-Miss Order Sync Protocol)**:
+  - **1. `OrderList` Sayfalama (Pagination) ve Tarih Filtresi Kuralı**: N11 SOAP `OrderService.OrderList` metodu, tarih filtresi (`searchData.period`) verilmediğinde mağazanın en eski siparişlerinden (Sayfa 0) başlayarak listeleme yapar. Çok sayfalı mağazalarda sadece ilk sayfa çekilirse yeni siparişler son sayfalarda kaldığı için sisteme ASLA ulaşmaz. Bu nedenle `OrderList` çağrılarında hem son 14 günlük `period` (`startDate` / `endDate` `dd/MM/yyyy` formatında) gönderilmeli hem de `pagingData.pageCount > 1` olduğunda **son sayfadan (`pageCount - 1`) geriye doğru** tarama yapılarak en güncel siparişlerin %100 yakalanması garanti altına alınmalıdır.
+  - **2. `OrderDetail` Zorunluluğu**: N11 `OrderList` yanıtı yalnızca sipariş özet başlığını döndürür; sipariş içindeki ürün kalemleri (`itemList`), barkod/stok kodu (`productSellerCode`), alıcı TC Kimlik No (`tcId`) ve teslimat/fatura adres detayları `OrderList` içinde yer almaz. Her yeni sipariş için mutlaka `OrderService.OrderDetail` çağrısı yapılarak kalemler ve müşteri bilgileri eksiksiz çekilmelidir.
+  - **3. N11 Tarih Formatı (`DD/MM/YYYY HH:mm`) ve PostgreSQL Koruması**: N11 API'si tarihleri Türkiye formatında (`DD/MM/YYYY HH:mm`, örn. `09/03/2026 22:09` = 9 Mart 2026) döndürür. Bu dize doğrudan `new Date()` veya PostgreSQL `TIMESTAMP` alanına ham olarak gönderilirse Amerikan formatı (`MM/DD/YYYY` = 3 Eylül) olarak yanlış yorumlanır veya gün > 12 olduğunda (`15/03/2026`) `DateTimeParseError` fırlatarak sipariş kaydını düşürür. Tüm N11 tarihleri `parseN11Date` / `parseSafeDateTR` ile gün, ay, yıl bileşenlerine ayrılarak güvenli ISO `Date` nesnesine dönüştürülmelidir.
+  - **4. Tam Entegre Satış, Stok ve Fatura Akışı (`n11_orders` -> `sales` -> `sales_invoices`)**: Pazaryerinden çekilen her sipariş; `customers` (müşteri), `sales` & `sale_items` (satış ve kalemleri), `products` & `stock_movements` (yerel stok düşümü ve diğer pazaryerlerine anında stok yayını) ve `sales_invoices` (`N11-...` önekli, `invoice_type: 'marketplace'`, `payment_method: 'N11 Satış'`) tablolarına tek bir atomik akışla işlenmelidir.
+  - **5. Otomatik Arka Plan Senkronizasyonu (`syncN11OrdersCron`)**: Tüm aktif N11 mağazalarının siparişleri, Hepsiburada ve Amazon TR ile eşgüdümlü olarak sunucu başlangıcında ve her **5 dakikada bir (`*/5 * * * *`)** arka planda otomatik olarak senkronize edilmelidir.
+
+- **TR Tarih Sistemi ve Tüm Excel / PDF / Rapor Çıktılarında `dd/mm/yy` Format Kuralı**:
+  - Sistem genelinde, tüm **Excel (`.xlsx`)** dışa aktarımlarında, **PDF (`jsPDF` / `autoTable` / `window.print`)** belgelerinde, termal/A4 rapor çıktılarında ve arayüzdeki tüm tarih gösterim alanlarında Türkiye tarih standardı olan **`dd/mm/yy`** (gün/ay/2-haneli-yıl, örn. `08/10/26`; saat içeren alanlarda `dd/mm/yy HH:mm`, örn. `08/10/26 14:30`) formatı ZORUNLUDUR.
+  - `YYYY-MM-DD` (ISO), `MM/DD/YYYY` (Amerikan) veya noktalı 4 haneli `dd.mm.yyyy` formatları çıktı ve gösterim alanlarında KULLANILAMAZ (yalnızca HTML `<input type="date">` elemanlarının `value` niteliği HTML5 standardı gereği `YYYY-MM-DD` alır).
+  - Tüm tarih biçimlendirmelerinde merkezi `formatDateTR` ve `formatDateTimeTR` (`/src/utils/formatUtils.ts`) yardımcı fonksiyonları kullanılmalıdır.
+
 
 
 

@@ -23,6 +23,7 @@ import {
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { api } from '../../../../services/api';
+import { formatDateTR } from '../../../../utils/formatUtils';
 
 interface PurchaseInvoiceDetailsModalProps {
   isOpen: boolean;
@@ -191,7 +192,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">{isTr ? "FATURA TARİHİ" : "INVOICE DATE"}</label>
                     <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
                        <Calendar className="h-4 w-4 text-indigo-400" />
-                       {new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}
+                       {formatDateTR(invoice.invoice_date)}
                     </p>
                  </div>
                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">

@@ -15,6 +15,7 @@ import {
   ExternalLink,
   ClipboardCheck
 } from "lucide-react";
+import { formatDateTimeTR } from "../utils/formatUtils";
 
 interface TapuTakipModalProps {
   isOpen: boolean;
@@ -107,18 +108,8 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
   // Format Appointment Date to Readable String
   const formatDateTime = (dtStr: string) => {
     if (!dtStr) return "Belirlenmedi";
-    try {
-      const d = new Date(dtStr);
-      return d.toLocaleString("tr-TR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      });
-    } catch {
-      return dtStr;
-    }
+    const formatted = formatDateTimeTR(dtStr);
+    return formatted !== '-' ? formatted : dtStr;
   };
 
   const getStatusColor = (currentStage: string) => {

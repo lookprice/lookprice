@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { normalizeSearch } from "../lib/searchUtils";
+import { formatDateTR, formatFileDateTR } from "../utils/formatUtils";
 // import * as XLSX from 'xlsx';
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
@@ -26,7 +27,7 @@ import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal"
 import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
-export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, onEditProduct }: any) {
+export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, onEditProduct, companies: propCompanies, onViewTransactions }: any) {
   const storeId = initialStoreId || currentStoreId;
   const isTr = lang === 'tr';
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
@@ -540,7 +541,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     }
 
     const data = targetInvoices.map((inv: any) => ({
-      [isTr ? 'Tarih' : 'Date']: new Date(inv.invoice_date).toLocaleDateString('tr-TR'),
+      [isTr ? 'Tarih' : 'Date']: formatDateTR(inv.invoice_date),
       [isTr ? 'Fatura No' : 'Invoice No']: inv.invoice_number,
       [isTr ? 'Satıcı' : 'Supplier']: inv.company_name,
       [isTr ? 'Matrah' : 'Subtotal']: Number(inv.total_amount),
@@ -551,7 +552,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Purchase Invoices");
-    XLSX.writeFile(wb, `alis_faturalari_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `alis_faturalari_${formatFileDateTR()}.xlsx`);
   };
 
   const handleBulkPrint = () => {
@@ -761,6 +762,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         onEditProduct={onEditProduct}
         storeId={role === 'superadmin' ? storeId : undefined}
         products={products}
+        companies={propCompanies || companies}
+        onViewTransactions={onViewTransactions}
         onRefresh={() => fetchInvoicesData(activeSearch, startDate, endDate, true)}
       />
 
@@ -968,7 +971,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-slate-900">{invoice.invoice_number}</p>
-                  <p className="text-xs text-slate-500">{new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}</p>
+                  <p className="text-xs text-slate-500">{formatDateTR(invoice.invoice_date)}</p>
                 </div>
               </div>
 

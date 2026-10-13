@@ -203,71 +203,6 @@ export async function initPurchaseInvoiceSchema() {
     // 2.6 Clean up bad or orphaned stock movements with product_id 0 or NULL
     await pool.query("DELETE FROM stock_movements WHERE product_id IS NULL OR product_id = 0");
 
-    // 3. Auto-repair missing sales_invoice stock_movements
-    await pool.query(`
-      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
-      SELECT 
-        si.store_id,
-        sii.product_id,
-        'out',
-        sii.quantity,
-        'sales_invoice',
-        'Satış Faturası: ' || COALESCE(NULLIF(si.document_number, ''), si.invoice_number),
-        sii.unit_price,
-        COALESCE(c.title, cust.full_name, si.customer_name, 'Müşteri'),
-        COALESCE(si.currency, 'TRY'),
-        COALESCE(si.invoice_date::timestamp, si.created_at),
-        si.id,
-        'sales',
-        COALESCE(NULLIF(si.document_number, ''), si.invoice_number)
-      FROM sales_invoice_items sii
-      JOIN sales_invoices si ON sii.sales_invoice_id = si.id
-      LEFT JOIN companies c ON si.company_id = c.id
-      LEFT JOIN customers cust ON si.customer_id = cust.id
-      WHERE sii.product_id IS NOT NULL AND sii.product_id > 0
-        AND NOT EXISTS (
-          SELECT 1 FROM stock_movements sm
-          WHERE sm.product_id = sii.product_id
-            AND (
-              sm.invoice_id = si.id
-              OR (si.sale_id IS NOT NULL AND sm.sale_id = si.sale_id)
-              OR (sm.invoice_number IS NOT NULL AND (sm.invoice_number = si.invoice_number OR sm.invoice_number = si.document_number))
-              OR sm.description LIKE '%' || si.invoice_number || '%'
-              OR (si.invoice_number LIKE 'HB-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
-              OR (si.invoice_number LIKE 'TY-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
-            )
-        )
-    `);
-
-    // 4. Auto-repair missing purchase_invoice stock_movements (strictly non-expense invoices)
-    await pool.query(`
-      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
-      SELECT 
-        pi.store_id,
-        pii.product_id,
-        'in',
-        pii.quantity,
-        'purchase_invoice',
-        'Alış Faturası: ' || COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number),
-        pii.unit_price,
-        COALESCE(pi.supplier_name, c.title, 'Tedarikçi'),
-        COALESCE(pi.currency, 'TRY'),
-        COALESCE(pi.invoice_date::timestamp, pi.created_at),
-        pi.id,
-        'purchase',
-        COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number)
-      FROM purchase_invoice_items pii
-      JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
-      LEFT JOIN companies c ON pi.company_id = c.id
-      WHERE pii.product_id IS NOT NULL AND pii.product_id > 0
-        AND COALESCE(pi.is_expense, FALSE) = FALSE
-        AND NOT EXISTS (
-          SELECT 1 FROM stock_movements sm
-          WHERE sm.product_id = pii.product_id
-            AND sm.source = 'purchase_invoice'
-            AND sm.invoice_id = pi.id
-        )
-    `);
 
     // 4. Auto-repair existing products & purchase_invoice_items where non-standard barcode strings (e.g., TRU16977, letters, AUTO-) were placed in barcode
     const invalidProds = await pool.query(
@@ -580,7 +515,7 @@ export async function initPurchaseInvoiceSchema() {
         WHERE cat.company_id = c.id AND (cat.store_id IS NULL OR cat.store_id = 0)
       `);
 
-      // h) Auto-repair products with stock_quantity that lack initial stock_movements records
+      // h) Auto-repair products with stock_quantity that lack initial stock_movements records (only if no initial_stock exists yet)
       await pool.query(`
         INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
         SELECT 
@@ -602,6 +537,10 @@ export async function initPurchaseInvoiceSchema() {
           GROUP BY product_id
         ) sm_sum ON p.id = sm_sum.product_id
         WHERE (p.stock_quantity - COALESCE(sm_sum.net_qty, 0)) > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM stock_movements sm_init
+            WHERE sm_init.product_id = p.id AND sm_init.source = 'initial_stock'
+          )
       `);
   } catch (e) {
     console.error("Failed to alter purchase_invoice_items schema / stock sync:", e);
@@ -694,6 +633,8 @@ router.get("/sales", async (req: any, res) => {
                'Müşteri'
              ) as customer_name,
              s.customer_name as sale_customer_name,
+             s.status as sale_status,
+             s.cancellation_reason as sale_cancellation_reason,
              COALESCE(NULLIF(si.tax_number, ''), c.tax_number, cust.tc_id, cust.tax_number, '11111111111') as resolved_tax_number,
              cust.address as customer_address,
              cust.city as customer_city,
@@ -724,11 +665,11 @@ router.get("/sales", async (req: any, res) => {
     `;
     const params: any[] = [storeId];
 
-    if (startDate) {
+    if (startDate && (!search || search.trim() === '')) {
       params.push(startDate);
       query += ` AND si.invoice_date >= $${params.length}`;
     }
-    if (endDate) {
+    if (endDate && (!search || search.trim() === '')) {
       params.push(endDate + ' 23:59:59');
       query += ` AND si.invoice_date <= $${params.length}`;
     }
@@ -796,7 +737,9 @@ router.get("/sales/:id", async (req: any, res) => {
               cust.address as customer_address,
               cust.city as customer_city,
               cust.email as customer_email_fallback,
-              s.customer_name as sale_customer_name
+              s.customer_name as sale_customer_name,
+              s.status as sale_status,
+              s.cancellation_reason as sale_cancellation_reason
        FROM sales_invoices si 
        LEFT JOIN companies c ON si.company_id = c.id 
        LEFT JOIN customers cust ON si.customer_id = cust.id
@@ -1245,7 +1188,10 @@ router.put("/sales/:id", async (req: any, res) => {
       }
     }
     
-    await client.query("DELETE FROM stock_movements WHERE source = 'sales_invoice' AND (description LIKE $1 OR description LIKE $2 OR description LIKE $3)", [`%${oldInvoice.invoice_number}%`, `%${oldInvoice.document_number || oldInvoice.invoice_number}%`, `%${oldInvoice.invoice_number}%`]);
+    await client.query(
+      "DELETE FROM stock_movements WHERE store_id = $1 AND (invoice_id = $2 OR (sale_id IS NOT NULL AND sale_id = $3) OR (source IN ('sales_invoice', 'AMAZON', 'hepsiburada', 'trendyol', 'n11', 'pazarama') AND (description LIKE $4 OR description LIKE $5 OR invoice_number = $6)))",
+      [storeId, req.params.id, oldInvoice.sale_id || -1, `%${oldInvoice.invoice_number}%`, `%${oldInvoice.document_number || oldInvoice.invoice_number}%`, oldInvoice.invoice_number]
+    );
 
     await client.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [req.params.id]);
     await client.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [req.params.id]);
@@ -1703,12 +1649,12 @@ router.get("/purchase", async (req: any, res) => {
       });
     }
 
-    if (startDate) {
+    if (startDate && (!search || search.trim() === '')) {
       params.push(startDate);
       query += ` AND pi.invoice_date >= $${params.length}`;
     }
 
-    if (endDate) {
+    if (endDate && (!search || search.trim() === '')) {
       params.push(endDate + ' 23:59:59');
       query += ` AND pi.invoice_date <= $${params.length}`;
     }
@@ -2663,9 +2609,10 @@ router.delete("/sales/:id", async (req: any, res) => {
       }
     }
 
-    if (invoice.invoice_number) {
-      await pool.query("DELETE FROM stock_movements WHERE source = 'sales_invoice' AND description LIKE $1", [`%${invoice.invoice_number}%`]);
-    }
+    await pool.query(
+      "DELETE FROM stock_movements WHERE store_id = $1 AND (invoice_id = $2 OR (sale_id IS NOT NULL AND sale_id = $3) OR (invoice_number IS NOT NULL AND invoice_number = $4) OR (source = 'sales_invoice' AND description LIKE $5))",
+      [storeId, id, invoice.sale_id || -1, invoice.invoice_number || '', `%${invoice.invoice_number || id}%`]
+    );
     await pool.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [id]);
     await pool.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [id]);
     if (invoice.quotation_id || invoice.sale_id) {

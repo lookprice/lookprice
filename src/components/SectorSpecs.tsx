@@ -132,6 +132,19 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
       return false;
     }
 
+    // Sector Isolation Rule: Book concept terms (Yayınevi, Yazar, Çevirmen, ISBN, Baskı, vb.)
+    // MUST NEVER leak into general retail / shopLP stores unless the sector is explicitly bookstore!
+    const cleanKey = key.toLowerCase().replace(/^sector_spec_/, '').replace(/_/g, '_').trim();
+    const isBookSector = sector === "bookstore" || sector === "book";
+    const BOOK_EXCLUSIVE_KEYS = new Set([
+      'publisher', 'author', 'translator', 'cover_type', 'paper_type', 
+      'publication_year', 'publish_year', 'edition', 'edition_number', 
+      'isbn', 'featured_quote', 'spot_quote', 'quote', 'spot', 'award', 'awards', 'rating'
+    ]);
+    if (!isBookSector && BOOK_EXCLUSIVE_KEYS.has(cleanKey)) {
+      return false;
+    }
+
     return true;
   });
 

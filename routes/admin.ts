@@ -339,8 +339,11 @@ router.post("/stores", async (req: any, res) => {
       sub_sector: sub_sector || null,
       hotel_module_enabled: !!hotel_module_enabled,
       hotel_license_enabled: !!hotel_module_enabled,
+      bookstore_module_enabled: !!(req.body.store_concept === 'bookstore' || (Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.includes('bookstore'))),
+      store_concept: (req.body.store_concept === 'bookstore' || (Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.includes('bookstore'))) ? 'bookstore' : 'product',
       page_layout_settings: {
-        sector: store_type || 'product'
+        sector: store_type || 'product',
+        is_book_store: !!(req.body.store_concept === 'bookstore' || (Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.includes('bookstore')))
       }
     };
 
@@ -368,14 +371,18 @@ router.post("/stores", async (req: any, res) => {
     await pool.query("INSERT INTO users (store_id, email, password, role) VALUES ($1, $2, $3, $4)", [storeId, admin_email, hashedPassword, "storeadmin"]);
     await pool.query("COMMIT");
 
+    // Sector Taxonomy Packages: Only seed if the operator EXPLICITLY selected packages.
+    // If the operator selects NO packages, store starts with ZERO categories (clean slate).
     if (!store_type || store_type === "product") {
-      const selectedPkgs = Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.length > 0
+      const selectedPkgs = Array.isArray(req.body.sector_taxonomy_packages)
         ? req.body.sector_taxonomy_packages
-        : ["tech_computer", "photography_camera", "small_appliances", "consumer_electronics"];
-      try {
-        await seedStoreSectorTaxonomy(storeId, selectedPkgs, req.user?.id);
-      } catch (taxErr) {
-        console.warn("Could not seed initial sector taxonomy for new store:", taxErr);
+        : [];
+      if (selectedPkgs.length > 0) {
+        try {
+          await seedStoreSectorTaxonomy(storeId, selectedPkgs, req.user?.id);
+        } catch (taxErr) {
+          console.warn("Could not seed initial sector taxonomy for new store:", taxErr);
+        }
       }
     }
 

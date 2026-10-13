@@ -48,6 +48,7 @@ import { matchesSearch, normalizeSearch } from "../lib/searchUtils";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { printThermalReceipt, printThermalZReport } from "../utils/thermalPrinter";
+import { formatDateTR, formatDateTimeTR } from "../utils/formatUtils";
 import { RoomTransferModal } from "./horeca/RoomTransferModal";
 import { HotelRoom } from "./horeca/HotelRoomManagement";
 import { PosServiceCallsBanner } from "./fastpos/PosServiceCallsBanner";
@@ -623,7 +624,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       ? paymentsToUse.reduce((s: number, p: any) => s + (Number(p.total_amount) || 0), 0)
       : (reportData.grand_total || paymentsToUse.reduce((s: number, p: any) => s + (Number(p.total_amount) || 0), 0) || 0);
     const isRange = reportStartDate !== reportEndDate;
-    const dateLabel = isRange ? `${reportStartDate} - ${reportEndDate}` : reportStartDate;
+    const dateLabel = isRange ? `${formatDateTR(reportStartDate)} - ${formatDateTR(reportEndDate)}` : formatDateTR(reportStartDate);
     const totalItems = reportData.products?.reduce((sum: number, p: any) => sum + (Number(p.total_quantity) || 0), 0) || 0;
 
     printThermalZReport({
@@ -644,7 +645,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const handlePrintA4Report = () => {
     if (!reportData) return;
     const isRange = reportStartDate !== reportEndDate;
-    const dateLabel = isRange ? `${reportStartDate} — ${reportEndDate}` : reportStartDate;
+    const dateLabel = isRange ? `${formatDateTR(reportStartDate)} — ${formatDateTR(reportEndDate)}` : formatDateTR(reportStartDate);
     const storeTitle = branding?.store_name || branding?.name || 'LOOKPRICE RESTORAN & POS';
 
     const paymentsToUse = (!isHotelActive && reportData.restaurant_payments && reportData.restaurant_payments.length > 0)
@@ -711,7 +712,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             </div>
             <div style="text-align: right; font-size: 12px; color: #64748b;">
               <p style="margin: 0; font-weight: 800; color: #0f172a; font-size: 13px;">Tarih: ${dateLabel}</p>
-              <p style="margin: 3px 0 0 0;">Yazdırma: ${new Date().toLocaleString('tr-TR')}</p>
+              <p style="margin: 3px 0 0 0;">Yazdırma: ${formatDateTimeTR(new Date())}</p>
             </div>
           </div>
 

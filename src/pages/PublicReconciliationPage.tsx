@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { CheckCircle2, AlertCircle, FileCheck, Building, ShieldCheck, ArrowRight, Printer, Receipt, Calendar } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { api } from "../services/api";
+import { formatDateTR } from "../utils/formatUtils";
 
 export default function PublicReconciliationPage() {
   const { reconId } = useParams();
@@ -15,18 +16,37 @@ export default function PublicReconciliationPage() {
   const [disputeNote, setDisputeNote] = useState("");
   const [showDisputeModal, setShowDisputeModal] = useState(false);
 
+  const [responderName, setResponderName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
   useEffect(() => {
     async function loadReconciliation() {
       try {
-        let found = null;
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith('storeReconciliations_')) {
-            const list = JSON.parse(localStorage.getItem(key) || '[]');
-            const match = list.find((r: any) => String(r.id) === String(reconId));
-            if (match) {
-              found = match;
-              break;
+        let found: any = null;
+
+        // 1. Primary Source: Official Backend Database Lookup (works across all devices/clients)
+        if (reconId) {
+          try {
+            const apiRes = await api.getPublicReconciliation(reconId);
+            if (apiRes && apiRes.reconciliation && !apiRes.error) {
+              found = apiRes.reconciliation;
+            }
+          } catch (apiErr) {
+            console.warn("Public API reconciliation fetch fallback:", apiErr);
+          }
+        }
+
+        // 2. Secondary Fallback: LocalStorage (for offline or un-synced legacy links)
+        if (!found) {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('storeReconciliations_')) {
+              const list = JSON.parse(localStorage.getItem(key) || '[]');
+              const match = list.find((r: any) => String(r.id) === String(reconId));
+              if (match) {
+                found = match;
+                break;
+              }
             }
           }
         }
@@ -80,6 +100,7 @@ export default function PublicReconciliationPage() {
 
           setReconData(sanitized);
           setActionStatus(sanitized.status || 'pending');
+          if (sanitized.responderName) setResponderName(sanitized.responderName);
         }
       } catch (e) {
         console.error("Error loading reconciliation:", e);
@@ -91,18 +112,34 @@ export default function PublicReconciliationPage() {
     loadReconciliation();
   }, [reconId]);
 
-  const handleUpdateStatus = (newStatus: 'confirmed' | 'disputed', note = '') => {
-    if (!reconData) return;
+  const handleUpdateStatus = async (newStatus: 'confirmed' | 'disputed', note = '') => {
+    if (!reconData || !reconId) return;
+    setSubmitting(true);
+    const nowIso = new Date().toISOString();
     const updated = {
       ...reconData,
       status: newStatus,
       disputeNote: note,
-      updatedAt: new Date().toISOString()
+      responderName: responderName.trim() || reconData.responderName || '',
+      respondedAt: nowIso,
+      updatedAt: nowIso
     };
     setReconData(updated);
     setActionStatus(newStatus);
     setShowDisputeModal(false);
 
+    // 1. Save response to PostgreSQL Database
+    try {
+      await api.respondPublicReconciliation(reconId, {
+        status: newStatus,
+        disputeNote: note,
+        responderName: responderName.trim() || undefined
+      });
+    } catch (apiErr) {
+      console.error("Error saving public reconciliation status to server:", apiErr);
+    }
+
+    // 2. Also update localStorage cache if same browser
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -118,7 +155,9 @@ export default function PublicReconciliationPage() {
       }
       localStorage.setItem(`recon_${reconId}`, JSON.stringify(updated));
     } catch (e) {
-      console.error("Error saving reconciliation status:", e);
+      console.error("Error saving reconciliation status locally:", e);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -329,7 +368,7 @@ export default function PublicReconciliationPage() {
                   <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-medium print:text-[10px]">
                     {/* Carry Over Row */}
                     <tr className="bg-slate-50/80 font-bold print:bg-slate-50">
-                      <td className="py-3 px-4 print:py-1.5 print:px-3">{reconData.startDate || '01.01.2026'}</td>
+                      <td className="py-3 px-4 print:py-1.5 print:px-3">{formatDateTR(reconData.startDate || '01/01/26')}</td>
                       <td className="py-3 px-4 text-indigo-900 print:text-indigo-900 print:py-1.5 print:px-3">
                         {isTr ? '📌 Önceki Dönemden Devreden Bakiye (Devir)' : 'Carry-Over Balance from Previous Month'}
                       </td>
@@ -343,7 +382,7 @@ export default function PublicReconciliationPage() {
                     {reconData.transactions && reconData.transactions.length > 0 ? (
                       reconData.transactions.map((tx: any, idx: number) => (
                         <tr key={idx} className="hover:bg-slate-50/50 print:bg-white">
-                          <td className="py-3 px-4 print:py-1.5 print:px-3">{tx.date || '-'}</td>
+                          <td className="py-3 px-4 print:py-1.5 print:px-3">{tx.date ? formatDateTR(tx.date) : '-'}</td>
                           <td className="py-3 px-4 print:py-1.5 print:px-3">{tx.description || tx.source}</td>
                           <td className="py-3 px-4 text-right font-mono text-rose-600 print:py-1.5 print:px-3">
                             {Number(tx.debt || 0) > 0 ? Number(tx.debt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 }) : '-'}
@@ -418,8 +457,14 @@ export default function PublicReconciliationPage() {
                     {isTr ? 'Mutabakat Başarıyla Onaylandı!' : 'Reconciliation Confirmed Successfully!'}
                   </h3>
                   <p className="text-xs text-emerald-700">
-                    {isTr ? 'Bu bakiye için mutabık olduğunuz sisteme işlenmiş ve işletmeye iletilmiştir. Teşekkür ederiz.' : 'Your confirmation has been recorded and sent to the store.'}
+                    {isTr ? 'Bu bakiye için mutabık olduğunuz resmi kayıtlara işlenmiş ve işletmeye iletilmiştir. Teşekkür ederiz.' : 'Your confirmation has been recorded and sent to the store.'}
                   </p>
+                  {(reconData.responderName || reconData.respondedAt) && (
+                    <div className="pt-2 text-[11px] font-bold text-emerald-800">
+                      {reconData.responderName ? `${isTr ? 'Onaylayan Yetkili:' : 'Confirmed By:'} ${reconData.responderName} • ` : ''}
+                      {reconData.respondedAt ? formatDateTR(reconData.respondedAt) : ''}
+                    </div>
+                  )}
                 </div>
               ) : actionStatus === 'disputed' ? (
                 <div className="p-6 bg-rose-50 border-2 border-rose-300 rounded-2xl text-center space-y-2">
@@ -430,25 +475,46 @@ export default function PublicReconciliationPage() {
                   <p className="text-xs text-rose-700">
                     {isTr ? `İtiraz notunuz işletmeye iletildi: "${reconData.disputeNote || ''}". En kısa sürede sizinle iletişime geçilecektir.` : 'Your dispute note has been forwarded to the store.'}
                   </p>
+                  {(reconData.responderName || reconData.respondedAt) && (
+                    <div className="pt-2 text-[11px] font-bold text-rose-800">
+                      {reconData.responderName ? `${isTr ? 'Bildiren Yetkili:' : 'Reported By:'} ${reconData.responderName} • ` : ''}
+                      {reconData.respondedAt ? formatDateTR(reconData.respondedAt) : ''}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
+                  <div className="max-w-md mx-auto">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1 text-center">
+                      {isTr ? 'Onaylayan / Yanıtlayan Yetkili Ad Soyad & Unvan (İsteğe Bağlı)' : 'Responder Name & Title (Optional)'}
+                    </label>
+                    <input
+                      type="text"
+                      value={responderName}
+                      onChange={(e) => setResponderName(e.target.value)}
+                      placeholder={isTr ? 'Örn: Ahmet Yılmaz - Muhasebe Müdürü' : 'e.g. John Doe - Finance Manager'}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 text-center focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
+                  </div>
+
                   <h3 className="text-sm font-bold text-slate-900 text-center">
                     {isTr ? 'Lütfen yukarıdaki bakiye ve ekstre mutabakat durumunu onaylayınız:' : 'Please confirm the reconciliation status above:'}
                   </h3>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button
+                      disabled={submitting}
                       onClick={() => handleUpdateStatus('confirmed')}
-                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
                     >
                       <CheckCircle2 className="w-5 h-5" />
                       {isTr ? 'Mutabıkız (Onayla)' : 'Confirm Balance'}
                     </button>
 
                     <button
+                      disabled={submitting}
                       onClick={() => setShowDisputeModal(true)}
-                      className="w-full py-4 bg-white hover:bg-rose-50 text-rose-700 border-2 border-rose-200 font-black text-sm uppercase tracking-wider rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
+                      className="w-full py-4 bg-white hover:bg-rose-50 disabled:opacity-50 text-rose-700 border-2 border-rose-200 font-black text-sm uppercase tracking-wider rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
                     >
                       <AlertCircle className="w-5 h-5" />
                       {isTr ? 'Mutabık Değilim (İtiraz Et)' : 'Dispute Balance'}
@@ -472,13 +538,14 @@ export default function PublicReconciliationPage() {
                   <div className="flex gap-3 justify-end">
                     <button
                       onClick={() => setShowDisputeModal(false)}
-                      className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl"
+                      className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl cursor-pointer"
                     >
                       {isTr ? 'İptal' : 'Cancel'}
                     </button>
                     <button
+                      disabled={submitting}
                       onClick={() => handleUpdateStatus('disputed', disputeNote)}
-                      className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase rounded-xl shadow-md"
+                      className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold uppercase rounded-xl shadow-md cursor-pointer"
                     >
                       {isTr ? 'İtirazı Gönder' : 'Send Dispute'}
                     </button>

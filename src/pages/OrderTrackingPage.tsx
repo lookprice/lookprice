@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "@/translations";
 import { Sale } from "../types";
+import { formatDateTR } from "../utils/formatUtils";
 
 export default function OrderTrackingPage() {
   const [orders, setOrders] = useState<Sale[]>([]);
@@ -31,7 +32,7 @@ export default function OrderTrackingPage() {
             <div key={order.id} className="p-4 bg-black border border-white/10 rounded-xl flex justify-between items-center">
               <div>
                 <p className="font-medium">#{order.id}</p>
-                <p className="text-sm text-white/50">{new Date(order.created_at).toLocaleDateString()}</p>
+                <p className="text-sm text-white/50">{formatDateTR(order.created_at)}</p>
               </div>
               <div className="text-right">
                 <p className="font-medium">{t[order.status] || order.status}</p>

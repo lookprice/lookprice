@@ -18,7 +18,7 @@ import {
   FileCheck,
   PenTool
 } from "lucide-react";
-import { formatPhoneForWhatsApp } from "../utils/formatUtils";
+import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
 import { renderSignatureOrStamp } from "../utils/contractTemplates";
 
 
@@ -299,7 +299,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">SÖZLEŞME TARİHİ / DATE</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${contractDate}</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${formatDateTR(contractDate)}</td>
     </tr>
   </table>
 

@@ -14,7 +14,7 @@ export const useProductData = (user: any, slug: string | undefined, includeBranc
     try {
       if (!background && !hasLoadedOnce) setLoading(true);
       
-      let targetStoreId = user?.store_id;
+      let targetStoreId = currentStoreId || user?.store_id;
       
       if (slug) {
         // Resolve target store from slug if present (e.g. /dashboard/GAP)
@@ -26,7 +26,7 @@ export const useProductData = (user: any, slug: string | undefined, includeBranc
           if (!background) setLoading(false);
           return;
         }
-      } else if (user?.role === 'superadmin' && !user?.store_id) {
+      } else if (user?.role === 'superadmin' && !targetStoreId) {
         if (!background) setLoading(false);
         return;
       }

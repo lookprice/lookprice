@@ -20,7 +20,7 @@ interface ProductCardProps {
 }
 
 const formatPrice = (price: number, currency: string, sector: string, storeType?: string) => {
-  const isPortfolio = storeType === "portfolio" || storeType === "real_estate" || storeType === "motor_vehicle" || sector === "real_estate" || sector === "automotive";
+  const isPortfolio = storeType === "real_estate" || storeType === "motor_vehicle" || storeType === "portfolio" || sector === "real_estate" || sector === "automotive";
   const decimals = isPortfolio ? 0 : 2;
   return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency || "TRY"}`;
 };

@@ -614,7 +614,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
   // Convert/format prices correctly
   const formatPrice = (value: number, curr?: string) => {
     const symbol = curr === "EUR" ? "€" : curr === "USD" ? "$" : curr === "TRY" ? "₺" : "£";
-    return `${symbol}${Math.round(value).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    return `${symbol}${Number(value).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
   return (

@@ -136,6 +136,38 @@ router.post("/", upload.single("file"), async (req: any, res) => {
         const hasTaxRateUpdate = taxRateRaw !== undefined && taxRateRaw !== null && String(taxRateRaw).trim() !== "";
         const taxRate = hasTaxRateUpdate ? parseFloat(String(taxRateRaw)) : null;
 
+        // Extract main image and extra images from mapped columns and any extra image headers
+        const extractedImages: string[] = [];
+        const pushRawUrlString = (rawVal: any) => {
+          if (rawVal === undefined || rawVal === null) return;
+          const str = String(rawVal).trim();
+          if (!str) return;
+          // Support multiple URLs separated by comma, semicolon, pipe or newline in a single cell
+          const parts = str.split(/[\n\r;|]+|,(?=\s*https?:\/\/)/i).map(p => p.trim()).filter(Boolean);
+          for (const part of parts) {
+            if ((part.startsWith("http://") || part.startsWith("https://") || part.startsWith("/")) && !extractedImages.includes(part)) {
+              extractedImages.push(part);
+            }
+          }
+        };
+
+        const imageMappingKeys = ["image_url", "image_url_2", "image_url_3", "image_url_4", "image_url_5", "image_url_6", "image_url_7", "image_url_8"];
+        for (const mKey of imageMappingKeys) {
+          if (mapping[mKey] && item[mapping[mKey]] !== undefined) {
+            pushRawUrlString(item[mapping[mKey]]);
+          }
+        }
+
+        // Also scan any unmapped columns in the Excel row that clearly represent extra image columns (e.g., "Ek Resim 2", "Görsel 3", "Image 2")
+        for (const colKey of Object.keys(item)) {
+          if (/^(ek\s*resim|ekstra\s*resim|ek\s*görsel|ek\s*gorsel|resim\s*\d+|görsel\s*\d+|gorsel\s*\d+|image\s*\d+|image_url_\d+|img\s*\d+|foto\s*\d+)$/i.test(colKey.trim())) {
+            pushRawUrlString(item[colKey]);
+          }
+        }
+
+        const hasImagesUpdate = extractedImages.length > 0;
+        const primaryImageUrl = hasImagesUpdate ? extractedImages[0] : "";
+
         if (existing.rows.length > 0) {
           const existingId = existing.rows[0].id;
           
@@ -219,6 +251,12 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             paramIdx++;
           }
 
+          if (hasImagesUpdate) {
+            updateQuery += `, image_url = $${paramIdx}, images = $${paramIdx + 1}::jsonb`;
+            updateParams.push(primaryImageUrl, JSON.stringify(extractedImages));
+            paramIdx += 2;
+          }
+
           updateQuery += ` WHERE id = $1`;
           await client.query(updateQuery, updateParams);
           successCount++;
@@ -229,8 +267,8 @@ router.post("/", upload.single("file"), async (req: any, res) => {
           const price_2 = price / (1 + effectiveTaxRate / 100.0);
 
           await client.query(`
-            INSERT INTO products (store_id, barcode, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, tax_rate, price_2, price_2_currency, updated_at) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, CURRENT_TIMESTAMP)
+            INSERT INTO products (store_id, barcode, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, tax_rate, price_2, price_2_currency, image_url, images, updated_at) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, CURRENT_TIMESTAMP)
           `, [
             storeId,
             barcode,
@@ -247,7 +285,9 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             item[mapping.author] || '',
             hasTaxRateUpdate ? taxRate : null,
             price_2,
-            currency
+            currency,
+            primaryImageUrl,
+            JSON.stringify(extractedImages)
           ]);
           successCount++;
         }
@@ -255,6 +295,11 @@ router.post("/", upload.single("file"), async (req: any, res) => {
     }
     await client.query("COMMIT");
     
+    try {
+      const { publicApiCache } = await import("../public.js");
+      publicApiCache.clear();
+    } catch {}
+
     try {
       const logPath = path.join(process.cwd(), 'import_log.json');
       fs.writeFileSync(logPath, JSON.stringify(importLogs, null, 2));

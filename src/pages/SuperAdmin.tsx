@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { translations } from "@/translations";
+import { formatDateTR, formatFileDateTR } from "../utils/formatUtils";
 import { useLanguage } from "../contexts/LanguageContext";
 import { api } from "../services/api";
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -361,14 +362,14 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
       'Adres': s.address || 'N/A',
       'Ülke': s.country,
       'Plan': s.plan,
-      'Bitiş Tarihi': new Date(s.subscription_end).toLocaleDateString(),
+      'Bitiş Tarihi': formatDateTR(s.subscription_end),
       'Durum': new Date(s.subscription_end) > new Date() ? 'Aktif' : 'Süresi Dolmuş'
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Mağazalar");
-    XLSX.writeFile(wb, "magazalar_listesi.xlsx");
+    XLSX.writeFile(wb, `magazalar_listesi_${formatFileDateTR()}.xlsx`);
   };
 
   const [newStore, setNewStore] = useState<any>({

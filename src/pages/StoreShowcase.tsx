@@ -828,6 +828,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     }
   };
 
+  const storeType = getStoreType(store);
+  const isPortfolio = storeType === "real_estate" || storeType === "automotive";
+  const isCafeRestaurant = storeType === "cafe_restaurant" || sector === "cafe_restaurant";
+
   const categories = React.useMemo(() => {
     const cats = new Map<string, Set<string>>();
     products.forEach((p) => {
@@ -846,8 +850,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   const sortedAndFilteredProducts = React.useMemo(() => {
     let result = products.filter((p) => {
-      const isPortfolio = p.type === "real_estate" || p.type === "vehicle";
-      if (isPortfolio && p.status && p.status !== 'active') return false;
+      if (p.status && (p.status === 'inactive' || p.status === 'draft' || p.status === 'passive')) return false;
+      if (p.is_active === false) return false;
+      if (p.barcode === '5704174182528') return false;
 
       const searchTerms = searchQuery.toLowerCase().split(" ").filter(Boolean);
       const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => 
@@ -913,10 +918,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       </div>
     </div>
   );
-
-  const storeType = getStoreType(store);
-  const isPortfolio = storeType === "real_estate" || storeType === "automotive";
-  const isCafeRestaurant = storeType === "cafe_restaurant" || sector === "cafe_restaurant";
 
   const originUrl = typeof window !== "undefined" ? window.location.origin : "https://lookprice.net";
   const baseStoreHref = customSlug ? originUrl : `${originUrl}/s/${store.slug || slug}`;

@@ -78,7 +78,7 @@ export const getColorHex = (colorName: string): string | undefined => {
 export const SECTOR_VARIANT_PRESETS: AttributePreset[] = [
   {
     id: 'fashion_clothing',
-    name: 'Tekstil & Giyim (Renk + Beden)',
+    name: 'Tekstil & Giyim',
     sectorLabel: 'Tekstil / Moda',
     attributes: [
       {
@@ -95,7 +95,7 @@ export const SECTOR_VARIANT_PRESETS: AttributePreset[] = [
   },
   {
     id: 'footwear_shoes',
-    name: 'Ayakkabı & Terlik (Renk + Numara)',
+    name: 'Ayakkabı & Terlik',
     sectorLabel: 'Ayakkabı / Terlik',
     attributes: [
       {
@@ -112,7 +112,7 @@ export const SECTOR_VARIANT_PRESETS: AttributePreset[] = [
   },
   {
     id: 'electronics_tech',
-    name: 'Elektronik & Telefon (Hafıza + RAM + Renk)',
+    name: 'Elektronik & Telefon',
     sectorLabel: 'Bilişim / Elektronik',
     attributes: [
       {
@@ -134,7 +134,7 @@ export const SECTOR_VARIANT_PRESETS: AttributePreset[] = [
   },
   {
     id: 'furniture_decor',
-    name: 'Mobilya & Dekorasyon (Kumaş + Renk + Ayak)',
+    name: 'Mobilya & Dekor',
     sectorLabel: 'Mobilya / Ev Dekor',
     attributes: [
       {
@@ -156,7 +156,7 @@ export const SECTOR_VARIANT_PRESETS: AttributePreset[] = [
   },
   {
     id: 'horeca_food',
-    name: 'HoReCa & Restoran (Porsiyon + Hamur / Pişme + Sos)',
+    name: 'HoReCa & Restoran',
     sectorLabel: 'Yiyecek & İçecek',
     attributes: [
       {
@@ -178,7 +178,7 @@ export const SECTOR_VARIANT_PRESETS: AttributePreset[] = [
   },
   {
     id: 'fmcg_cosmetics',
-    name: 'Gıda & Kozmetik (Gramaj / Hacim + Paket Tipi)',
+    name: 'Gıda & Kozmetik',
     sectorLabel: 'Market & Kozmetik',
     attributes: [
       {
@@ -195,7 +195,7 @@ export const SECTOR_VARIANT_PRESETS: AttributePreset[] = [
   },
   {
     id: 'auto_spare_parts',
-    name: 'Oto Yedek Parça & Aksesuar (Parça Yönü + Uyum + Ölçü)',
+    name: 'Oto Yedek Parça',
     sectorLabel: 'Otomotiv / Yedek Parça',
     attributes: [
       {

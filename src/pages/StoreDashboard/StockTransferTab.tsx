@@ -28,6 +28,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../services/api';
 import { Product } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { formatDateTR } from '../../utils/formatUtils';
 import { translations } from '../../translations';
 
 interface StockTransferTabProps {
@@ -688,7 +689,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                           <td className="px-3 py-2 font-mono text-[11px] font-bold text-slate-600">
                             #{tItem.id}
                             <div className="text-[9px] text-slate-400 font-normal">
-                              {new Date(tItem.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                              {formatDateTR(tItem.created_at)}
                             </div>
                           </td>
 
@@ -1152,7 +1153,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                 </div>
                 <div className="text-right">
                   <div className="text-xs font-bold text-slate-800">
-                    {new Date(showDispatchNote.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                    {formatDateTR(showDispatchNote.created_at)}
                   </div>
                   <div className="text-[10px] text-slate-500 font-mono">
                     {new Date(showDispatchNote.created_at).toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US')}

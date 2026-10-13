@@ -599,6 +599,9 @@ export class HepsiburadaService {
             customerId = newCust.rows[0]?.id;
           }
 
+          const hbRawSt = String(order.status || '').toLowerCase();
+          const isHbCancelled = hbRawSt.includes('cancel') || hbRawSt.includes('iptal') || hbRawSt === 'unpacked_cancelled';
+
           // Create Sale
           const saleRes = await client.query(
             `INSERT INTO sales 
@@ -608,7 +611,7 @@ export class HepsiburadaService {
               this.storeId,
               grandTotal,
               order.currency || "TRY",
-              "completed",
+              isHbCancelled ? "cancelled" : "completed",
               customerName,
               customerId,
               customerPhone,
@@ -637,7 +640,7 @@ export class HepsiburadaService {
               "Hepsiburada Satış",
               `Hepsiburada Siparişi: #${orderNumber || orderId}`,
               "marketplace",
-              "completed",
+              isHbCancelled ? "cancelled" : "approved",
               customerName,
               companyTitle || customerName,
               resolvedTaxNumber,
@@ -713,6 +716,31 @@ export class HepsiburadaService {
         const existingHbOrderId = existingRow.id;
         const existingInvoiceId = existingRow.sales_invoice_id;
         const existingSaleId = existingRow.sale_id;
+
+        const hbRawSt = String(order.status || '').toLowerCase();
+        const isHbCancelled = hbRawSt.includes('cancel') || hbRawSt.includes('iptal') || hbRawSt === 'unpacked_cancelled';
+        if (isHbCancelled) {
+          if (existingInvoiceId) {
+            await pool.query("UPDATE sales_invoices SET status = 'cancelled' WHERE id = $1 AND store_id = $2", [existingInvoiceId, this.storeId]);
+          }
+          if (existingSaleId) {
+            const saleCheck = await pool.query("SELECT status FROM sales WHERE id = $1 AND store_id = $2", [existingSaleId, this.storeId]);
+            const wasSaleCancelled = ['cancelled', 'iptal', 'canceled'].includes(String(saleCheck.rows[0]?.status || '').toLowerCase().trim());
+            await pool.query("UPDATE sales SET status = 'cancelled', cancellation_reason = 'Hepsiburada Sipariş İptali' WHERE id = $1 AND store_id = $2", [existingSaleId, this.storeId]);
+            if (!wasSaleCancelled) {
+              const items = await pool.query("SELECT product_id, quantity FROM sale_items WHERE sale_id = $1", [existingSaleId]);
+              for (const it of items.rows) {
+                if (it.product_id && it.quantity > 0) {
+                  await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3", [it.quantity, it.product_id, this.storeId]);
+                }
+              }
+            }
+          }
+          await pool.query(
+            "DELETE FROM stock_movements WHERE store_id = $1 AND (sale_id = $2 OR (invoice_id IS NOT NULL AND invoice_id = $3) OR invoice_number = $4)",
+            [this.storeId, existingSaleId || -1, existingInvoiceId || -1, invoiceNumber]
+          );
+        }
 
         if (existingInvoiceId && mappedLines.length > 0) {
           const client = await pool.connect();

@@ -4,7 +4,14 @@ import { api } from "../services/api";
 import { Product } from "../types";
 import { resolveDomainId } from "../utils/sectorCapability";
 
-export const useProductActions = (user: any, currentStoreId: number | undefined, products: Product[], lang: string, fetchData: (background?: boolean) => Promise<void>) => {
+export const useProductActions = (
+  user: any, 
+  currentStoreId: number | undefined, 
+  products: Product[], 
+  lang: string, 
+  fetchData: (background?: boolean) => Promise<void>,
+  setProducts?: React.Dispatch<React.SetStateAction<Product[]>>
+) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const handleAddProduct = async (e: React.FormEvent, editingProduct: Product | null, branding: any, planLimits: Record<string, number>, setShowProductModal: (val: boolean) => void, setEditingProduct: (val: Product | null) => void, setShowDescription: (val: boolean) => void) => {
@@ -99,28 +106,57 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     }
     existingMp = (typeof existingMp === 'object' && existingMp !== null) ? existingMp : {};
 
-    // If incoming data has direct categoryId / attributes without hepsiburada wrapper, wrap it
-    if (marketplaceData && (marketplaceData.categoryId !== undefined || marketplaceData.attributes !== undefined) && !marketplaceData.hepsiburada) {
-      marketplaceData = {
-        ...existingMp,
-        hepsiburada: {
-          ...(existingMp.hepsiburada || {}),
-          ...marketplaceData
+    // Combine marketplace data with editingProduct's data
+    marketplaceData = {
+      ...existingMp,
+      ...marketplaceData,
+      attributes: {
+        ...(existingMp.attributes || {}),
+        ...(marketplaceData.attributes || {})
+      },
+      hepsiburada: {
+        ...(existingMp.hepsiburada || {}),
+        ...(marketplaceData?.hepsiburada || {}),
+        attributes: {
+          ...(existingMp.hepsiburada?.attributes || {}),
+          ...(marketplaceData?.hepsiburada?.attributes || {})
         }
-      };
-    } else {
-      marketplaceData = {
-        ...existingMp,
-        ...marketplaceData,
-        hepsiburada: {
-          ...(existingMp.hepsiburada || {}),
-          ...(marketplaceData?.hepsiburada || {})
-        }
-      };
+      }
+    };
+
+    // Parse product images list (main + extra gallery images)
+    let parsedImages: string[] = [];
+    if (rawData.images_data) {
+      try {
+        parsedImages = typeof rawData.images_data === 'string'
+          ? JSON.parse(rawData.images_data)
+          : rawData.images_data;
+      } catch (e) {
+        parsedImages = [];
+      }
+      delete rawData.images_data;
+    } else if (Array.isArray(rawData.images)) {
+      parsedImages = rawData.images as string[];
     }
+    parsedImages = (Array.isArray(parsedImages) ? parsedImages : [])
+      .map(img => String(img || '').trim())
+      .filter(Boolean);
+    const mainImgVal = String(rawData.image_url || '').trim();
+    if (mainImgVal && !parsedImages.includes(mainImgVal)) {
+      parsedImages.unshift(mainImgVal);
+    } else if (!mainImgVal && parsedImages.length > 0) {
+      rawData.image_url = parsedImages[0];
+    }
+
+    // Strictly ensure category and subcategory are preserved
+    const finalCategory = String(rawData.category !== undefined ? rawData.category : (editingProduct?.category || '')).trim();
+    const finalSubCategory = String(rawData.sub_category !== undefined ? rawData.sub_category : (editingProduct?.sub_category || '')).trim();
 
     const data: any = { 
       ...rawData,
+      category: finalCategory,
+      sub_category: finalSubCategory,
+      images: parsedImages,
       sector_data,
       category_2: rawData.category_2 || '',
       sub_category_2: rawData.sub_category_2 || '',
@@ -156,8 +192,10 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
         : Boolean(editingProduct?.is_amazon_active)
     };
 
-    // Defensive synchronization between top-level fields and book sector_data
-    if (sector_data && typeof sector_data === 'object') {
+    // Sector Isolation Rule: Book metadata MUST ONLY be synchronized if store is a BOOKSTORE
+    const isBookstore = resolveDomainId(branding) === "BOOKSTORE";
+
+    if (isBookstore && sector_data && typeof sector_data === 'object') {
       if (data.author) sector_data.author = data.author;
       else if (sector_data.author) data.author = sector_data.author;
 
@@ -166,16 +204,30 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
 
       if (data.barcode) sector_data.isbn = data.barcode;
       else if (sector_data.isbn) data.barcode = sector_data.isbn;
-    }
 
-    // Ensure bookstore badges and sector_data curated_badges are synchronized perfectly
-    const isBookstore = resolveDomainId(branding) === "BOOKSTORE";
-
-    if (isBookstore && sector_data && typeof sector_data === 'object') {
       sector_data.curated_badges = data.labels;
       sector_data.is_weekly_pick = data.labels.some((l: string) => l.toLowerCase() === "featured_week");
       sector_data.is_featured_weekly = sector_data.is_weekly_pick;
       data.is_bestseller = data.labels.some((l: string) => l.toLowerCase() === "bestseller");
+    } else if (!isBookstore && sector_data && typeof sector_data === 'object') {
+      // PURGE ALL BOOKSTORE-SPECIFIC FIELDS FROM NON-BOOKSTORE STORES
+      delete sector_data.publisher;
+      delete sector_data.author;
+      delete sector_data.isbn;
+      delete sector_data.translator;
+      delete sector_data.edition;
+      delete sector_data.edition_number;
+      delete sector_data.cover_type;
+      delete sector_data.paper_type;
+      delete sector_data.publication_year;
+      delete sector_data.publish_year;
+      delete sector_data.featured_quote;
+      delete sector_data.spot_quote;
+      delete sector_data.quote;
+      delete sector_data.spot;
+      delete sector_data.awards;
+      delete sector_data.award;
+      delete sector_data.rating;
     }
 
     if (data.has_variants && data.variants.length > 0) {
@@ -257,7 +309,30 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
         res = await api.addProduct(data, targetStoreId);
       }
 
-      const productId = editingProductId || res?.id || res?.data?.id;
+      const returnedProduct = res?.product || res?.data?.product || (res?.id ? res : null);
+      const productId = editingProductId || returnedProduct?.id || res?.id || res?.data?.id;
+
+      // Immediately update local state without waiting for full refetch
+      if (setProducts && productId) {
+        setProducts((prev: Product[]) => {
+          if (editingProductId) {
+            return prev.map(p => Number(p.id) === Number(editingProductId) ? { ...p, ...data, ...(returnedProduct || {}) } : p);
+          } else if (returnedProduct) {
+            return [returnedProduct, ...prev];
+          }
+          return prev;
+        });
+      }
+
+      // Dispatch global product update event for other components (e.g. Sales Invoices, Fast POS, details modal)
+      if (typeof window !== 'undefined' && productId) {
+        window.dispatchEvent(new CustomEvent('lp_product_updated', {
+          detail: {
+            productId,
+            product: { ...data, id: productId, ...(returnedProduct || {}) }
+          }
+        }));
+      }
 
       // Sync purchase invoice item if requested from purchase invoice product edit
       if (editingProduct?._purchaseInvoiceItemId && productId) {

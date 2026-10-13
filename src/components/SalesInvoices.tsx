@@ -38,6 +38,7 @@ import {
   ShoppingBag
 } from "lucide-react";
 import { normalizeSearch } from "../lib/searchUtils";
+import { formatDateTR, formatFileDateTR } from "../utils/formatUtils";
 import { getConnectedMarketplaces } from "../utils/marketplaceEStores";
 import { motion, AnimatePresence } from "motion/react";
 // import * as XLSX from 'xlsx';
@@ -387,6 +388,60 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     const timer = setTimeout(() => setActiveSearch(search), 600);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Synchronize product updates immediately when edited from anywhere (including details modal)
+  useEffect(() => {
+    const handleProductUpdated = (e: any) => {
+      const updatedProduct = e.detail?.product;
+      const prodId = e.detail?.productId;
+      if (!updatedProduct && !prodId) return;
+
+      const normName = updatedProduct?.name;
+      const normBarcode = updatedProduct?.barcode;
+      const normPrice = updatedProduct?.price;
+      const normTax = updatedProduct?.tax_rate;
+
+      // Update internal products
+      setProducts((prev: any[]) =>
+        prev.map((p: any) =>
+          (prodId && Number(p.id) === Number(prodId)) || (normBarcode && p.barcode === normBarcode)
+            ? { ...p, ...updatedProduct }
+            : p
+        )
+      );
+
+      // Update currently open details modal
+      setSelectedInvoice((prevInv: any) => {
+        if (!prevInv || !Array.isArray(prevInv.items)) return prevInv;
+        let changed = false;
+        const newItems = prevInv.items.map((item: any) => {
+          const isMatch =
+            (prodId && Number(item.product_id) === Number(prodId)) ||
+            (normBarcode && item.barcode && item.barcode.trim() === normBarcode.trim());
+          if (isMatch) {
+            changed = true;
+            return {
+              ...item,
+              product_name: normName || item.product_name,
+              barcode: normBarcode || item.barcode,
+              unit_price: normPrice !== undefined ? normPrice : item.unit_price,
+              tax_rate: normTax !== undefined ? normTax : item.tax_rate
+            };
+          }
+          return item;
+        });
+        return changed ? { ...prevInv, items: newItems } : prevInv;
+      });
+
+      // Silently refresh invoices list in background
+      fetchInvoicesData(activeSearch, startDate, endDate, true);
+    };
+
+    window.addEventListener('lp_product_updated', handleProductUpdated);
+    return () => {
+      window.removeEventListener('lp_product_updated', handleProductUpdated);
+    };
+  }, [activeSearch, startDate, endDate]);
 
   // Initial Data Handling
   useEffect(() => {
@@ -750,7 +805,13 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setPaymentMethod(data.payment_method);
       setCurrency(data.currency);
       setExchangeRate(String(data.exchange_rate || 1));
-      setStatus(data.status);
+      const rawSt = (data.status || '').toLowerCase().trim();
+      const normStatus = ['cancelled', 'iptal', 'iptal edildi'].includes(rawSt) || data.sale_status === 'cancelled'
+        ? 'cancelled'
+        : ['approved', 'completed', 'onaylandi', 'onaylandı'].includes(rawSt)
+          ? 'approved'
+          : 'draft';
+      setStatus(normStatus);
       setEDocumentType(data.e_document_type);
       setGiInvoiceType(data.gi_invoice_type);
       setIsReturn(data.gi_invoice_type === 'IADE');
@@ -953,7 +1014,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     }
 
     const data = targetInvoices.map((inv: any) => ({
-      [isTr ? 'Tarih' : 'Date']: new Date(inv.invoice_date).toLocaleDateString('tr-TR'),
+      [isTr ? 'Tarih' : 'Date']: formatDateTR(inv.invoice_date),
       [isTr ? 'Fatura No' : 'Invoice No']: inv.invoice_number,
       [isTr ? 'Müşteri / Cari' : 'Customer / Company']: inv.customer_name || inv.company_title || '-',
       [isTr ? 'Matrah' : 'Subtotal']: Number(inv.total_amount),
@@ -964,7 +1025,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Invoices");
-    XLSX.writeFile(wb, `satis_faturalari_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `satis_faturalari_${formatFileDateTR()}.xlsx`);
   };
 
   const handleBulkPrint = () => {
@@ -983,9 +1044,16 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     setItems(prevItems => prevItems.filter((_, i) => i !== index));
   };
   
-  const totalCalculatedTax = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
-  const totalSalesAmount = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
-  const totalGrandTotal = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const isInvoiceCancelled = (inv: any) => {
+    const rawSt = (inv?.status || '').toLowerCase().trim();
+    const intSt = (inv?.integration_status || '').toUpperCase().trim();
+    return ['cancelled', 'iptal', 'iptal edildi'].includes(rawSt) || ['CANCELLED', 'İPTAL', 'İPTAL EDİLDİ'].includes(intSt) || inv?.sale_status === 'cancelled';
+  };
+
+  const activeValidInvoices = invoices.filter((inv: any) => !isInvoiceCancelled(inv));
+  const totalCalculatedTax = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalSalesAmount = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalGrandTotal = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
 
   const filteredProducts = products.filter((p: any) => {
     const searchTerms = normalizeSearch(deferredProductSearch).split(/\s+/).filter(Boolean);
@@ -1270,10 +1338,10 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         invoices={(() => {
           let filtered = invoices;
           if (statusFilter === 'draft') {
-            filtered = filtered.filter((inv: any) => inv.status === 'draft');
+            filtered = filtered.filter((inv: any) => ['draft', 'taslak'].includes((inv.status || '').toLowerCase().trim()) && !isInvoiceCancelled(inv));
           } else if (statusFilter === 'rejected') {
             filtered = filtered.filter((inv: any) => 
-               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || inv.status === 'cancelled'
+               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || isInvoiceCancelled(inv)
             );
           }
           if (showMarketplaceFilter && marketplaceFilter !== 'all') {
@@ -1300,10 +1368,10 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         totalPages={Math.ceil((() => {
           let filtered = invoices;
           if (statusFilter === 'draft') {
-            filtered = filtered.filter((inv: any) => inv.status === 'draft');
+            filtered = filtered.filter((inv: any) => ['draft', 'taslak'].includes((inv.status || '').toLowerCase().trim()) && !isInvoiceCancelled(inv));
           } else if (statusFilter === 'rejected') {
             filtered = filtered.filter((inv: any) => 
-               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || inv.status === 'cancelled'
+               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || isInvoiceCancelled(inv)
             );
           }
           if (showMarketplaceFilter && marketplaceFilter !== 'all') {
@@ -1497,7 +1565,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-slate-900">{invoice.invoice_number}</p>
-                  <p className="text-xs text-slate-500">{new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}</p>
+                  <p className="text-xs text-slate-500">{formatDateTR(invoice.invoice_date)}</p>
                 </div>
               </div>
 

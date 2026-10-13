@@ -847,11 +847,11 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                   <div className="flex items-center gap-2 sm:gap-3 pt-1 flex-wrap">
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-base sm:text-2xl font-black text-blue-600 dark:text-blue-400 tabular-nums">
-                        ₺{(currentHero.price || 0).toLocaleString('tr-TR')}
+                        ₺{(currentHero.price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                       {currentHero.old_price && currentHero.old_price > currentHero.price && (
                         <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 line-through tabular-nums">
-                          ₺{currentHero.old_price.toLocaleString('tr-TR')}
+                          ₺{currentHero.old_price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       )}
                     </div>
@@ -1863,11 +1863,11 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
           <div className="flex items-center justify-between gap-1.5">
             <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-1.5 min-w-0">
               <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white tabular-nums truncate">
-                ₺{(product.price || 0).toLocaleString('tr-TR')}
+                ₺{(product.price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               {showOldPrice && product.old_price && product.old_price > product.price && (
                 <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 line-through tabular-nums">
-                  ₺{product.old_price.toLocaleString('tr-TR')}
+                  ₺{product.old_price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               )}
             </div>

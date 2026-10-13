@@ -49,6 +49,7 @@ export async function processMarketplaceOrderLines(
       line.productCode,
       line.product_code,
       line.hepsiburadaSku,
+      line.n11ProductId,
       line.id,
       line.merchantSku && line.merchantSku.includes('_') ? line.merchantSku.split('_')[0] : null,
       line.sku && line.sku.includes('_') ? line.sku.split('_')[0] : null,
@@ -74,18 +75,21 @@ export async function processMarketplaceOrderLines(
              OR sku = ANY($2) 
              OR product_code = ANY($2) 
              OR hepsiburada_sku = ANY($2)
+             OR n11_id = ANY($2)
              OR marketplace_data->'hepsiburada'->>'merchantSku' = ANY($2)
              OR marketplace_data->'hepsiburada'->>'hepsiburadaSku' = ANY($2)
              OR marketplace_data->'trendyol'->>'barcode' = ANY($2)
              OR marketplace_data->'trendyol'->>'stockCode' = ANY($2)
              OR marketplace_data->'n11'->>'sellerCode' = ANY($2)
+             OR marketplace_data->'n11'->>'n11Id' = ANY($2)
+             OR marketplace_data->'n11'->>'productId' = ANY($2)
            ) LIMIT 1`, 
           [storeId, searchCandidates]
         );
         if (prodRes.rows.length > 0) {
           productId = prodRes.rows[0].id;
           currentStock = prodRes.rows[0].stock_quantity;
-          if (prodRes.rows[0].barcode && (!matchedBarcode || matchedBarcode.startsWith('HB'))) {
+          if (prodRes.rows[0].barcode && (!matchedBarcode || matchedBarcode.startsWith('HB') || !/^\d{8,14}$/.test(matchedBarcode))) {
             matchedBarcode = prodRes.rows[0].barcode;
           }
         }
@@ -93,13 +97,13 @@ export async function processMarketplaceOrderLines(
         // Fallback to simpler query if JSONB or some column is missing
         try {
           const prodRes2 = await client.query(
-            "SELECT id, name, barcode, stock_quantity FROM products WHERE store_id = $1 AND (barcode = ANY($2) OR sku = ANY($2) OR hepsiburada_sku = ANY($2)) LIMIT 1", 
+            "SELECT id, name, barcode, stock_quantity FROM products WHERE store_id = $1 AND (barcode = ANY($2) OR sku = ANY($2) OR hepsiburada_sku = ANY($2) OR n11_id = ANY($2)) LIMIT 1", 
             [storeId, searchCandidates]
           );
           if (prodRes2.rows.length > 0) {
             productId = prodRes2.rows[0].id;
             currentStock = prodRes2.rows[0].stock_quantity;
-            if (prodRes2.rows[0].barcode && (!matchedBarcode || matchedBarcode.startsWith('HB'))) {
+            if (prodRes2.rows[0].barcode && (!matchedBarcode || matchedBarcode.startsWith('HB') || !/^\d{8,14}$/.test(matchedBarcode))) {
               matchedBarcode = prodRes2.rows[0].barcode;
             }
           }
@@ -120,8 +124,31 @@ export async function processMarketplaceOrderLines(
         if (nameMatchRes.rows.length > 0) {
           productId = nameMatchRes.rows[0].id;
           currentStock = nameMatchRes.rows[0].stock_quantity;
-          if (nameMatchRes.rows[0].barcode && !matchedBarcode) {
+          if (nameMatchRes.rows[0].barcode) {
             matchedBarcode = nameMatchRes.rows[0].barcode;
+          }
+        } else {
+          // Multi-token AND match (handles reordered words like "Dexim Venio Dxbp12" vs "Dexim Dxbp12 Venio")
+          const tokens = String(line.name)
+            .replace(/[,.'"()/-]/g, ' ')
+            .trim()
+            .split(/\s+/)
+            .filter(t => t.length >= 3)
+            .slice(0, 3);
+          if (tokens.length >= 2) {
+            const conds = tokens.map((_, idx) => `name ILIKE $${idx + 2}`).join(' AND ');
+            const params = [storeId, ...tokens.map(t => `%${t}%`)];
+            const tokenMatchRes = await client.query(
+              `SELECT id, name, barcode, stock_quantity FROM products WHERE store_id = $1 AND ${conds} LIMIT 1`,
+              params
+            );
+            if (tokenMatchRes.rows.length > 0) {
+              productId = tokenMatchRes.rows[0].id;
+              currentStock = tokenMatchRes.rows[0].stock_quantity;
+              if (tokenMatchRes.rows[0].barcode) {
+                matchedBarcode = tokenMatchRes.rows[0].barcode;
+              }
+            }
           }
         }
       } catch (e) {
@@ -167,18 +194,7 @@ export async function processMarketplaceOrderLines(
       );
 
       if (existingMovRes.rows.length === 0) {
-        // Robust stock update (only once per order/invoice)
-        const updateRes = await client.query(
-          "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) - $1 WHERE id = $2 RETURNING stock_quantity",
-          [quantity, productId]
-        );
-        
-        const newStock = updateRes.rows[0]?.stock_quantity;
-        if (newStock !== undefined && Number(newStock) <= 0) {
-          await autoUnpublishIfZeroStock(productId, storeId, client);
-        }
-
-        // Always try to log movement with full transactional integrity (1 movement per sale/invoice)
+        // Log movement with full transactional integrity (1 movement per sale/invoice)
         try {
           await addStockMovement(
             client, 
@@ -198,6 +214,19 @@ export async function processMarketplaceOrderLines(
           );
         } catch (moveErr) {
           console.error(`Stock movement logging failed for ${marketplaceName} order ${orderId}:`, moveErr);
+        }
+
+        // Deduct real inventory stock incrementally to preserve operator stock baseline
+        const updateRes = await client.query(
+          `UPDATE products 
+           SET stock_quantity = GREATEST(0, COALESCE(stock_quantity, 0) - $1)
+           WHERE id = $2 AND store_id = $3 RETURNING stock_quantity`,
+          [quantity, productId, storeId]
+        );
+        
+        const newStock = updateRes.rows[0]?.stock_quantity;
+        if (newStock !== undefined && Number(newStock) <= 0) {
+          await autoUnpublishIfZeroStock(productId, storeId, client);
         }
       }
     }
@@ -238,49 +267,110 @@ export async function syncN11OrdersREST(client: any, storeId: number, settings: 
 export async function syncN11Orders(client: any, storeId: number, settings: any, days?: number) {
     try {
         const { N11Service } = await import("./backend/n11Service");
-        let allOrders: any[] = [];
-        const statuses = ["New", "Approved"];
+        const lookbackDays = days && days > 0 ? days : 30;
+        const today = new Date();
+        // Add +1 day buffer for endDate to handle timezone differences safely
+        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        const startDate = new Date(today.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
 
-        if (days && days > 0) {
-            const today = new Date();
-            const startDate = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
+        const formatDateN11 = (d: Date) => {
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        };
 
-            const formatDateN11 = (d: Date) => {
-                const day = String(d.getDate()).padStart(2, '0');
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const year = d.getFullYear();
-                return `${day}/${month}/${year}`;
-            };
+        const summaryOrders: any[] = [];
+        let currentPage = 0;
+        let totalPages = 1;
 
-            const filter = {
+        while (currentPage < totalPages && currentPage < 20) {
+            const listRes = await N11Service.getOrderList(settings, {
                 startDate: formatDateN11(startDate),
-                endDate: formatDateN11(today)
-            };
-            const orders = await N11Service.getDetailedOrders(settings, filter);
-            if (Array.isArray(orders)) allOrders.push(...orders);
-        } else {
-            for (const st of statuses) {
-                try {
-                    const orders = await N11Service.getDetailedOrders(settings, { status: st });
-                    if (Array.isArray(orders)) {
-                        allOrders.push(...orders);
+                endDate: formatDateN11(tomorrow),
+                currentPage,
+                pageSize: 100
+            });
+            if (Array.isArray(listRes?.orders)) {
+                summaryOrders.push(...listRes.orders);
+            }
+            const pageCount = parseInt(String(listRes?.pagingData?.pageCount || 1), 10);
+            totalPages = !isNaN(pageCount) && pageCount > 0 ? pageCount : 1;
+            currentPage++;
+        }
+
+        // Fallback: if date filter returned empty, check the last page of unfiltered OrderList
+        if (summaryOrders.length === 0) {
+            try {
+                const firstPage = await N11Service.getOrderList(settings, { currentPage: 0, pageSize: 100 });
+                const pageCount = parseInt(String(firstPage?.pagingData?.pageCount || 1), 10);
+                if (pageCount > 1) {
+                    const lastPage = await N11Service.getOrderList(settings, { currentPage: pageCount - 1, pageSize: 100 });
+                    if (Array.isArray(lastPage?.orders)) {
+                        summaryOrders.push(...lastPage.orders.slice(-25));
                     }
-                } catch (stErr) {
-                    // ignore individual status error
+                } else if (Array.isArray(firstPage?.orders)) {
+                    summaryOrders.push(...firstPage.orders.slice(-25));
                 }
+            } catch (fbErr) {
+                // ignore fallback error
             }
         }
 
-        // Deduplicate by order id
-        const uniqueMap = new Map();
-        for (const o of allOrders) {
-            const oId = o.id || o.orderNumber;
-            if (oId && !uniqueMap.has(oId)) {
-                uniqueMap.set(oId, o);
+        // Deduplicate summary orders by id
+        const uniqueSummaries = new Map<string, any>();
+        for (const s of summaryOrders) {
+            const oId = String(s.id || s.orderNumber || "").trim();
+            // Skip OrderStatus 3 (Rejected) or 4 (Cancelled) at order level
+            if (!oId || String(s.status) === "3" || String(s.status) === "4") continue;
+            if (!uniqueSummaries.has(oId)) {
+                uniqueSummaries.set(oId, s);
             }
         }
 
-        return Array.from(uniqueMap.values());
+        const detailedOrders: any[] = [];
+        for (const [oId, summary] of uniqueSummaries.entries()) {
+            try {
+                const detail = await N11Service.getOrderDetail(settings, oId);
+                if (!detail) continue;
+
+                // Extract order items and filter out cancelled/rejected items (status 7=?, wait: in N11 OrderItem status:
+                // 1: Process, 2: New, 3: Rejected, 4: Cancelled, 5: Approved, 6: Shipped, 7: Delivered, 8: Cancelled/Rejected, 9: Returned, 10: Completed)
+                let rawItems: any[] = [];
+                if (detail.itemList?.item) {
+                    rawItems = Array.isArray(detail.itemList.item) ? detail.itemList.item : [detail.itemList.item];
+                } else if (detail.orderItemList?.orderItem) {
+                    rawItems = Array.isArray(detail.orderItemList.orderItem) ? detail.orderItemList.orderItem : [detail.orderItemList.orderItem];
+                }
+
+                // Filter out items where quantity is 0 or status is 3 (Reddedildi), 4 (İptal Edildi), 8 (İptal), 9 (İade)
+                const validItems = rawItems.filter((it: any) => {
+                    const qty = parseInt(String(it.quantity || 0), 10);
+                    const st = String(it.status || "");
+                    const invoiceAmt = parseFloat(String(it.sellerInvoiceAmount ?? it.price ?? 0));
+                    if (qty <= 0 || invoiceAmt <= 0) return false;
+                    if (st === "3" || st === "4" || st === "8" || st === "9") return false;
+                    return true;
+                });
+
+                if (validItems.length === 0) {
+                    continue;
+                }
+
+                // Normalize itemList with only valid items
+                detail.itemList = { item: validItems };
+                if (!detail.id) detail.id = oId;
+                if (!detail.createDate && summary.createDate) detail.createDate = summary.createDate;
+                if (!detail.orderNumber && summary.orderNumber) detail.orderNumber = summary.orderNumber;
+                if (!detail.status && summary.status) detail.status = summary.status;
+
+                detailedOrders.push(detail);
+            } catch (detailErr: any) {
+                console.warn(`[N11 OrderDetail Fetch Warning] Order ${oId}:`, detailErr?.message || detailErr);
+            }
+        }
+
+        return detailedOrders;
     } catch (e: any) {
         console.warn("[N11 Sync Error / Fallback]:", e?.message || e);
         if (e?.response?.status === 404 || e?.message?.includes('404')) {
@@ -288,6 +378,392 @@ export async function syncN11Orders(client: any, storeId: number, settings: any,
         }
         throw new Error(e?.message || "N11 sipariş servisine erişilemedi.");
     }
+}
+
+function parseN11OrderDate(rawDateStr: any): Date {
+    if (!rawDateStr) return new Date();
+    if (rawDateStr instanceof Date) return rawDateStr;
+    const str = String(rawDateStr).trim();
+    if (!str) return new Date();
+    const trMatch = str.match(/^(\d{2})[\/\.](\d{2})[\/\.](\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (trMatch) {
+        const day = parseInt(trMatch[1], 10);
+        const month = parseInt(trMatch[2], 10) - 1;
+        const year = parseInt(trMatch[3], 10);
+        const hour = trMatch[4] ? parseInt(trMatch[4], 10) : 0;
+        const min = trMatch[5] ? parseInt(trMatch[5], 10) : 0;
+        const sec = trMatch[6] ? parseInt(trMatch[6], 10) : 0;
+        const parsed = new Date(year, month, day, hour, min, sec);
+        if (!isNaN(parsed.getTime())) return parsed;
+    }
+    const parsedIso = new Date(str);
+    if (!isNaN(parsedIso.getTime())) return parsedIso;
+    return new Date();
+}
+
+export async function syncStoreN11OrdersToDatabase(storeId: number, settings: any, days?: number): Promise<{ syncedCount: number; newOrdersCount: number }> {
+    const n11Orders = await syncN11Orders(pool, storeId, settings, days);
+    let syncedCount = 0;
+    let newOrdersCount = 0;
+
+    for (const order of n11Orders) {
+        const orderId = String(order.id || order.orderNumber || "").trim();
+        if (!orderId) continue;
+
+        const existing = await pool.query(
+            "SELECT id, sale_id, sales_invoice_id FROM n11_orders WHERE store_id = $1 AND n11_order_id = $2",
+            [storeId, orderId]
+        );
+
+        const buyer = order.buyer || {};
+        const billing = order.billingAddress || order.billing || {};
+        const shipping = order.shippingAddress || order.shipping || {};
+
+        const isCorporateOrder =
+            (buyer.taxId && String(buyer.taxId).trim().length === 10) ||
+            (billing.taxId && String(billing.taxId).trim().length === 10) ||
+            order.invoiceType === "2" ||
+            order.invoiceType === 2 ||
+            /(a\.?ş|ltd|şti|tic|san|aş)/i.test(buyer.fullName || "") ||
+            /(a\.?ş|ltd|şti|tic|san|aş)/i.test(billing.companyTitle || "");
+
+        const companyTitle = (
+            billing.companyTitle ||
+            buyer.companyTitle ||
+            (isCorporateOrder ? (buyer.fullName || billing.fullName) : "")
+        ).trim();
+
+        const fullCustomerName = (
+            companyTitle ||
+            buyer.fullName ||
+            billing.fullName ||
+            shipping.fullName ||
+            "N11 Müşterisi"
+        ).trim();
+        const customerEmail = buyer.email || `${orderId}@n11.com`;
+
+        const taxNumber = String(billing.taxId || buyer.taxId || billing.tcId || buyer.tcId || order.citizenshipId || "").trim();
+        const taxOffice = String(billing.taxHouse || billing.taxOffice || buyer.taxOffice || buyer.taxHouse || "").trim();
+        const tcId = String(billing.tcId || buyer.tcId || order.citizenshipId || "").trim();
+
+        const billingParts = [
+            billing.address || "",
+            billing.neighborhood || "",
+            billing.district || "",
+            billing.city || "",
+            billing.postalCode || ""
+        ].map(s => String(s).trim()).filter(Boolean);
+        const fullBillingAddressStr = billingParts.join(" / ") || "Fatura Adresi";
+
+        const shippingParts = [
+            shipping.address || billing.address || "",
+            shipping.neighborhood || billing.neighborhood || "",
+            shipping.district || billing.district || "",
+            shipping.city || billing.city || "",
+            shipping.postalCode || billing.postalCode || ""
+        ].map(s => String(s).trim()).filter(Boolean);
+        const fullShippingAddressStr = shippingParts.join(" / ") || fullBillingAddressStr;
+
+        const shippingName = (shipping.fullName || shipping.recipient || fullCustomerName).trim();
+        const customerPhone = String(shipping.gsm || billing.gsm || shipping.phone || billing.phone || buyer.mobilePhone || buyer.phone || "").trim();
+
+        const nameParts = fullCustomerName.split(' ');
+        const surname = nameParts.length > 1 ? nameParts.pop()! : '';
+        const firstName = nameParts.join(' ') || fullCustomerName;
+        const isCorporate = taxNumber.length === 10 || !!companyTitle;
+
+        const rawN11Date = order.createDate || order.orderDate || order.orderDetail?.createDate || order.createDateString;
+        const n11OrderDate = parseN11OrderDate(rawN11Date);
+
+        let rawItems: any[] = [];
+        if (order.orderItemList?.orderItem) {
+            rawItems = Array.isArray(order.orderItemList.orderItem) ? order.orderItemList.orderItem : [order.orderItemList.orderItem];
+        } else if (order.itemList?.item) {
+            rawItems = Array.isArray(order.itemList.item) ? order.itemList.item : [order.itemList.item];
+        } else if (order.itemList?.orderItem) {
+            rawItems = Array.isArray(order.itemList.orderItem) ? order.itemList.orderItem : [order.itemList.orderItem];
+        } else if (order.orderDetail?.orderItemList?.orderItem) {
+            const detailItems = order.orderDetail.orderItemList.orderItem;
+            rawItems = Array.isArray(detailItems) ? detailItems : [detailItems];
+        } else if (Array.isArray(order.items)) {
+            rawItems = order.items;
+        } else if (order.orderItemList && typeof order.orderItemList === 'object') {
+            rawItems = Array.isArray(order.orderItemList) ? order.orderItemList : [order.orderItemList];
+        }
+
+        const shipmentInfo = (rawItems[0] && rawItems[0].shipmentInfo) || order.shipmentInfo || {};
+        const shippingCarrier = shipmentInfo.shipmentCompany?.name || shipmentInfo.shipmentCompany?.shortName || "Aras Kargo";
+        const shippingTrackingNumber = shipmentInfo.trackingNumber || "";
+        const campaignNumber = shipmentInfo.campaignNumber || shipmentInfo.shipmenCompanyCampaignNumber || "";
+
+        const mappedLines = rawItems.map((l: any) => {
+            const qty = parseInt(l.quantity || l.itemCount || 1, 10) || 1;
+            const sellerInvoiceAmount = parseFloat(l.sellerInvoiceAmount || 0);
+            let unitPrice = 0;
+            if (sellerInvoiceAmount > 0) {
+                unitPrice = sellerInvoiceAmount / qty;
+            } else {
+                const rawPrice = parseFloat(l.price || l.dueAmount || l.unitPrice || 0) || 0;
+                const sellerDiscount = parseFloat(l.sellerDiscount || 0) || 0;
+                unitPrice = Math.max(0, (rawPrice - (sellerDiscount / qty)) || rawPrice);
+            }
+            const taxRate = parseFloat(l.vatRate || l.kdv || l.taxRate || 20) || 20;
+            const prodName = (l.productName || l.productTitle || l.title || l.productSellerCode || l.sellerStockCode || `N11 Sipariş Kalemi (${orderId})`).trim();
+            const code = String(l.sellerStockCode || l.productSellerCode || l.productId || '').trim();
+
+            return {
+                name: prodName,
+                quantity: qty,
+                price: Math.round(unitPrice * 100) / 100,
+                barcode: code,
+                sku: code,
+                n11ProductId: String(l.productId || '').trim(),
+                taxRate: taxRate
+            };
+        });
+
+        let grandTotal = parseFloat(order.totalAmount || order.dueAmount || order.sellerInvoiceAmount || 0);
+        if (mappedLines.length > 0) {
+            const linesSum = mappedLines.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+            if (linesSum > 0) {
+                grandTotal = linesSum;
+            }
+        }
+        grandTotal = Math.round(grandTotal * 100) / 100;
+
+        let subtotal = 0;
+        let taxAmount = 0;
+        if (mappedLines.length > 0) {
+            for (const item of mappedLines) {
+                const lineTotal = item.price * item.quantity;
+                const lineSubtotal = lineTotal / (1 + item.taxRate / 100);
+                const lineTax = lineTotal - lineSubtotal;
+                subtotal += lineSubtotal;
+                taxAmount += lineTax;
+            }
+            subtotal = Math.round(subtotal * 100) / 100;
+            taxAmount = Math.round(taxAmount * 100) / 100;
+        } else {
+            subtotal = Math.round((grandTotal / 1.20) * 100) / 100;
+            taxAmount = Math.round((grandTotal - subtotal) * 100) / 100;
+        }
+
+        const invoiceNumber = `N11-${orderId}`;
+        const orderNotes = [
+            `N11 Sipariş No: ${order.orderNumber || orderId} (Paket No: ${orderId})`,
+            `Fatura Ünvanı: ${fullCustomerName} ${taxNumber ? `(VKN/TCKN: ${taxNumber}${taxOffice ? ` - VD: ${taxOffice}` : ''})` : ''}`,
+            `Fatura Adresi: ${fullBillingAddressStr}`,
+            `Teslimat Alıcısı: ${shippingName} ${customerPhone ? `(Tel: ${customerPhone})` : ''}`,
+            `Teslimat / Sevkiyat Adresi: ${fullShippingAddressStr}`,
+            shippingTrackingNumber ? `Kargo / Sevkiyat: ${shippingCarrier} - Takip No: ${shippingTrackingNumber} ${campaignNumber ? `(Kampanya No: ${campaignNumber})` : ''}` : ''
+        ].filter(Boolean).join('\n');
+
+        if (existing.rows.length > 0) {
+            const existingRow = existing.rows[0];
+            const client = await pool.connect();
+            try {
+                await client.query("BEGIN");
+
+                const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, customerEmail]);
+                let customerId = custRes.rows[0]?.id || null;
+
+                if (customerId) {
+                    await client.query(
+                        `UPDATE customers SET 
+                           full_name = COALESCE(NULLIF($1, ''), full_name),
+                           company_title = COALESCE(NULLIF($1, ''), company_title),
+                           name = COALESCE(NULLIF($2, ''), name),
+                           surname = COALESCE(NULLIF($3, ''), surname),
+                           address = COALESCE(NULLIF($4, ''), address),
+                           city = COALESCE(NULLIF($5, ''), city),
+                           tax_number = COALESCE(NULLIF($6, ''), tax_number),
+                           tax_office = COALESCE(NULLIF($7, ''), tax_office),
+                           tc_id = COALESCE(NULLIF($8, ''), tc_id),
+                           phone = COALESCE(NULLIF($9, ''), phone),
+                           is_corporate = $10
+                         WHERE id = $11`,
+                        [fullCustomerName, firstName, surname, fullBillingAddressStr, billing.city || shipping.city || "", taxNumber, taxOffice, tcId, customerPhone, isCorporate, customerId]
+                    );
+                } else {
+                    const newCust = await client.query(
+                        `INSERT INTO customers (store_id, email, password, full_name, company_title, name, surname, phone, address, city, tax_number, tax_office, tc_id, is_corporate) 
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
+                         ON CONFLICT (store_id, email) DO UPDATE SET 
+                           full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+                           company_title = COALESCE(NULLIF(EXCLUDED.company_title, ''), customers.company_title),
+                           name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+                           surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
+                           phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+                           address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+                           city = COALESCE(NULLIF(EXCLUDED.city, ''), customers.city),
+                           tax_number = COALESCE(NULLIF(EXCLUDED.tax_number, ''), customers.tax_number),
+                           tax_office = COALESCE(NULLIF(EXCLUDED.tax_office, ''), customers.tax_office),
+                           tc_id = COALESCE(NULLIF(EXCLUDED.tc_id, ''), customers.tc_id),
+                           is_corporate = EXCLUDED.is_corporate
+                         RETURNING id`,
+                        [storeId, customerEmail, 'marketplace_user', fullCustomerName, fullCustomerName, firstName, surname, customerPhone, fullBillingAddressStr, billing.city || shipping.city || "", taxNumber, taxOffice, tcId, isCorporate]
+                    );
+                    customerId = newCust.rows[0]?.id;
+                }
+
+                const saleId = existingRow.sale_id;
+                const salesInvoiceId = existingRow.sales_invoice_id;
+
+                if (saleId) {
+                    await client.query(
+                        `UPDATE sales SET 
+                           total_amount = $1, 
+                           customer_name = $2, 
+                           customer_id = COALESCE($3, customer_id), 
+                           customer_phone = $4,
+                           customer_address = $5,
+                           shipping_carrier = $6,
+                           tracking_number = $7,
+                           notes = $8, 
+                           created_at = $9 
+                         WHERE id = $10`,
+                        [grandTotal, fullCustomerName, customerId, customerPhone, fullShippingAddressStr, shippingCarrier, shippingTrackingNumber, orderNotes, n11OrderDate, saleId]
+                    );
+                }
+
+                if (salesInvoiceId) {
+                    await client.query(
+                        `UPDATE sales_invoices SET 
+                           customer_id = COALESCE($1, customer_id), 
+                           customer_name = $2,
+                           company_title = $2,
+                           tax_number = $3,
+                           tax_office = $4,
+                           address = $5,
+                           customer_email = $6,
+                           invoice_date = $7, 
+                           total_amount = $8, 
+                           tax_amount = $9, 
+                           grand_total = $10, 
+                           notes = $11, 
+                           waybill_carrier_name = $12,
+                           waybill_tracking_number = $13,
+                           created_at = $7 
+                         WHERE id = $14`,
+                        [customerId, fullCustomerName, taxNumber, taxOffice, fullBillingAddressStr, customerEmail, n11OrderDate, subtotal, taxAmount, grandTotal, orderNotes, shippingCarrier, shippingTrackingNumber, salesInvoiceId]
+                    );
+
+                    const existingItemsCheck = await client.query(
+                        "SELECT COUNT(*) as total, COUNT(product_id) as linked FROM sales_invoice_items WHERE sales_invoice_id = $1",
+                        [salesInvoiceId]
+                    );
+                    const totalItems = parseInt(String(existingItemsCheck.rows[0]?.total || 0), 10);
+                    const linkedItems = parseInt(String(existingItemsCheck.rows[0]?.linked || 0), 10);
+
+                    if (totalItems === 0 || linkedItems < totalItems) {
+                        await client.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [salesInvoiceId]);
+                        if (saleId) {
+                            await client.query("DELETE FROM sale_items WHERE sale_id = $1", [saleId]);
+                        }
+                        if (mappedLines.length > 0 && saleId) {
+                            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', orderId, fullCustomerName, invoiceNumber);
+                        }
+                    }
+                }
+
+                await client.query(
+                    "UPDATE n11_orders SET created_at = $1, order_data = $2 WHERE id = $3",
+                    [n11OrderDate, order, existingRow.id]
+                );
+
+                await client.query("COMMIT");
+                syncedCount++;
+            } catch (e) {
+                await client.query("ROLLBACK");
+                console.error("N11 Order Backfill Error:", e);
+            } finally {
+                client.release();
+            }
+        } else {
+            const client = await pool.connect();
+            try {
+                await client.query("BEGIN");
+
+                let customerId = null;
+                const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, customerEmail]);
+                if (custRes.rows.length > 0) {
+                    customerId = custRes.rows[0].id;
+                    await client.query(
+                        `UPDATE customers SET 
+                           full_name = COALESCE(NULLIF($1, ''), full_name),
+                           company_title = COALESCE(NULLIF($1, ''), company_title),
+                           name = COALESCE(NULLIF($2, ''), name),
+                           surname = COALESCE(NULLIF($3, ''), surname),
+                           address = COALESCE(NULLIF($4, ''), address),
+                           city = COALESCE(NULLIF($5, ''), city),
+                           tax_number = COALESCE(NULLIF($6, ''), tax_number),
+                           tax_office = COALESCE(NULLIF($7, ''), tax_office),
+                           tc_id = COALESCE(NULLIF($8, ''), tc_id),
+                           phone = COALESCE(NULLIF($9, ''), phone),
+                           is_corporate = $10
+                         WHERE id = $11`,
+                        [fullCustomerName, firstName, surname, fullBillingAddressStr, billing.city || shipping.city || "", taxNumber, taxOffice, tcId, customerPhone, isCorporate, customerId]
+                    );
+                } else {
+                    const newCust = await client.query(
+                        `INSERT INTO customers (store_id, email, password, full_name, company_title, name, surname, phone, address, city, tax_number, tax_office, tc_id, is_corporate) 
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
+                         ON CONFLICT (store_id, email) DO UPDATE SET 
+                           full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+                           company_title = COALESCE(NULLIF(EXCLUDED.company_title, ''), customers.company_title),
+                           name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+                           surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
+                           phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+                           address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+                           city = COALESCE(NULLIF(EXCLUDED.city, ''), customers.city),
+                           tax_number = COALESCE(NULLIF(EXCLUDED.tax_number, ''), customers.tax_number),
+                           tax_office = COALESCE(NULLIF(EXCLUDED.tax_office, ''), customers.tax_office),
+                           tc_id = COALESCE(NULLIF(EXCLUDED.tc_id, ''), customers.tc_id),
+                           is_corporate = EXCLUDED.is_corporate
+                         RETURNING id`,
+                        [storeId, customerEmail, 'marketplace_user', fullCustomerName, fullCustomerName, firstName, surname, customerPhone, fullBillingAddressStr, billing.city || shipping.city || "", taxNumber, taxOffice, tcId, isCorporate]
+                    );
+                    customerId = newCust.rows[0]?.id;
+                }
+
+                const saleRes = await client.query(
+                    "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, customer_phone, customer_address, shipping_carrier, tracking_number, payment_method, notes, created_at, source) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+                    [storeId, grandTotal, 'TRY', 'completed', fullCustomerName, customerId, customerPhone, fullShippingAddressStr, shippingCarrier, shippingTrackingNumber, 'N11 Satış', orderNotes, n11OrderDate, 'n11']
+                );
+                const saleId = saleRes.rows[0].id;
+
+                const invoiceRes = await client.query(
+                    "INSERT INTO sales_invoices (store_id, sale_id, customer_id, customer_name, company_title, tax_number, tax_office, address, customer_email, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status, waybill_carrier_name, waybill_tracking_number, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id",
+                    [storeId, saleId, customerId, fullCustomerName, fullCustomerName, taxNumber, taxOffice, fullBillingAddressStr, customerEmail, invoiceNumber, n11OrderDate, subtotal, taxAmount, grandTotal, 'TRY', 'N11 Satış', orderNotes, 'marketplace', 'completed', shippingCarrier, shippingTrackingNumber, n11OrderDate]
+                );
+                const salesInvoiceId = invoiceRes.rows[0].id;
+
+                if (mappedLines.length > 0) {
+                    await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', orderId, fullCustomerName, invoiceNumber);
+                }
+
+                const orderStatus = String(order.status || order.statusName || 'New');
+                await client.query(
+                    "INSERT INTO n11_orders (store_id, n11_order_id, sale_id, sales_invoice_id, status, order_data, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                    [storeId, orderId, saleId, salesInvoiceId, orderStatus, order, n11OrderDate]
+                );
+
+                await client.query("COMMIT");
+                syncedCount++;
+                newOrdersCount++;
+            } catch (e) {
+                await client.query("ROLLBACK");
+                console.error("N11 Order Sync Error:", e);
+            } finally {
+                client.release();
+            }
+        }
+    }
+
+    const newSettings = { ...settings, last_sync: new Date().toISOString() };
+    await pool.query("UPDATE stores SET n11_settings = $1 WHERE id = $2", [newSettings, storeId]);
+
+    return { syncedCount, newOrdersCount };
 }
 
 export async function syncHepsiburadaOrders(client: any, storeId: number, settings: any) {

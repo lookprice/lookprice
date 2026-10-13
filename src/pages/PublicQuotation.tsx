@@ -21,6 +21,7 @@ import {
 import { api } from "../services/api";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatDateTR } from "../utils/formatUtils";
 
 const PublicQuotation = () => {
   const { id, slug } = useParams<{ id: string, slug?: string }>();
@@ -227,7 +228,7 @@ const PublicQuotation = () => {
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100);
       doc.text(fixTr(`${isTr ? "Teklif" : "Quote"} No: #${quotation.id}`), 196, 10, { align: 'right' });
-      doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString('tr-TR')}`), 196, 14, { align: 'right' });
+      doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${formatDateTR(quotation.created_at)}`), 196, 14, { align: 'right' });
 
       // Contact Info - Small below store name
       doc.setFontSize(6);
@@ -577,8 +578,8 @@ const PublicQuotation = () => {
                 </div>
 
                 <div className="hidden print:block text-right text-slate-500 text-xs space-y-1">
-                  <p className="font-bold text-slate-900">{isTr ? 'Tarih' : 'Date'}: {new Date(quotation.created_at).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}</p>
-                  {quotation.expiry_date && <p>{t.validUntil}: {new Date(quotation.expiry_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}</p>}
+                  <p className="font-bold text-slate-900">{isTr ? 'Tarih' : 'Date'}: {formatDateTR(quotation.created_at)}</p>
+                  {quotation.expiry_date && <p>{t.validUntil}: {formatDateTR(quotation.expiry_date)}</p>}
                 </div>
               </div>
             </div>
@@ -648,13 +649,13 @@ const PublicQuotation = () => {
                     <div className="mt-6 pt-6 border-t border-slate-200/60 space-y-3">
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-400 font-bold uppercase tracking-wider">{isTr ? 'Teklif Tarihi' : 'Quotation Date'}</span>
-                        <span className="text-slate-900 font-black">{new Date(quotation.created_at).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}</span>
+                        <span className="text-slate-900 font-black">{formatDateTR(quotation.created_at)}</span>
                       </div>
                       {quotation.expiry_date && (
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-slate-400 font-bold uppercase tracking-wider">{t.validUntil}</span>
                           <span className={`font-black ${isExpired ? 'text-red-600' : 'text-amber-600'}`}>
-                            {new Date(quotation.expiry_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}
+                            {formatDateTR(quotation.expiry_date)}
                           </span>
                         </div>
                       )}

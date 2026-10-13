@@ -252,3 +252,88 @@ export function getVehicleCategoryDisplayName(catKey: string, lang: string = 'tr
   return catKey;
 }
 
+/**
+ * Safely parses any date input (ISO string, Date object, timestamp, or Turkish DD/MM/YYYY / DD.MM.YYYY string)
+ * without falling into the US MM/DD/YYYY trap.
+ */
+export function parseSafeDateTR(input?: string | number | Date | null): Date | null {
+  if (input === null || input === undefined || input === '') return null;
+  if (input instanceof Date) {
+    return isNaN(input.getTime()) ? null : input;
+  }
+  if (typeof input === 'number') {
+    const d = new Date(input);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const str = String(input).trim();
+  if (!str) return null;
+
+  // Match DD/MM/YYYY or DD.MM.YYYY or DD/MM/YY or DD.MM.YY with optional HH:mm(:ss)
+  const trMatch = str.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/);
+  if (trMatch) {
+    let p1 = parseInt(trMatch[1], 10);
+    let p2 = parseInt(trMatch[2], 10);
+    let year = parseInt(trMatch[3], 10);
+    if (year < 100) year += 2000;
+    // In TR format, p1 is day and p2 is month; only swap if p2 > 12 and p1 <= 12
+    const day = (p2 > 12 && p1 <= 12) ? p2 : p1;
+    const month = (p2 > 12 && p1 <= 12) ? p1 - 1 : p2 - 1;
+    const hours = trMatch[4] ? parseInt(trMatch[4], 10) : 0;
+    const minutes = trMatch[5] ? parseInt(trMatch[5], 10) : 0;
+    const seconds = trMatch[6] ? parseInt(trMatch[6], 10) : 0;
+    const d = new Date(year, month, day, hours, minutes, seconds);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Match YYYY-MM-DD (date-only ISO) in local time to prevent UTC timezone day-shift
+  const isoDateOnly = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDateOnly) {
+    const d = new Date(
+      parseInt(isoDateOnly[1], 10),
+      parseInt(isoDateOnly[2], 10) - 1,
+      parseInt(isoDateOnly[3], 10)
+    );
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  const parsed = new Date(str);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
+ * Formats any date strictly into Turkish dd/mm/yy format (e.g. "08/10/26"),
+ * or "dd/mm/yy HH:mm" when includeTime is true.
+ */
+export function formatDateTR(input?: string | number | Date | null, includeTime: boolean = false, fallback: string = '-'): string {
+  const d = parseSafeDateTR(input);
+  if (!d) return fallback;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(-2);
+  if (!includeTime) {
+    return `${dd}/${mm}/${yy}`;
+  }
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yy} ${hh}:${min}`;
+}
+
+/**
+ * Formats any date strictly into Turkish dd/mm/yy HH:mm format (e.g. "08/10/26 14:30").
+ */
+export function formatDateTimeTR(input?: string | number | Date | null, fallback: string = '-'): string {
+  return formatDateTR(input, true, fallback);
+}
+
+/**
+ * Formats a date for file names in dd-mm-yy format (since '/' is not allowed in file names).
+ */
+export function formatFileDateTR(input: string | number | Date = new Date()): string {
+  const d = parseSafeDateTR(input) || new Date();
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}-${mm}-${yy}`;
+}
+
+

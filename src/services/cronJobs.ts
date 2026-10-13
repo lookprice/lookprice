@@ -6,6 +6,7 @@ import { HepsiburadaService } from './backend/hepsiburadaService';
 import { AmazonService } from './backend/amazonService';
 import { IntegrationService } from './IntegrationService';
 import { fetchTCMBRatesWithRetry } from '../utils/tcmbFetcher';
+import { syncStoreN11OrdersToDatabase } from './marketplaceSync';
 
 export function startCronJobs() {
   console.log("Starting cron jobs...");
@@ -20,6 +21,9 @@ export function startCronJobs() {
     syncHepsiburadaOrdersCron().catch(err => {
       console.warn("[CRON] Initial Hepsiburada order sync failed:", err.message);
     });
+    syncN11OrdersCron().catch(err => {
+      console.warn("[CRON] Initial N11 order sync failed:", err.message);
+    });
     syncAmazonOrdersCron().catch(err => {
       console.warn("[CRON] Initial Amazon order sync failed:", err.message);
     });
@@ -28,10 +32,11 @@ export function startCronJobs() {
     });
   }, 5000);
 
-  // High-frequency Hepsiburada Order Sync (Every 5 minutes)
+  // High-frequency Hepsiburada & N11 Order Sync (Every 5 minutes)
   cron.schedule('*/5 * * * *', async () => {
-    console.log("[CRON] Running Hepsiburada order sync (5-minute interval)...");
+    console.log("[CRON] Running Hepsiburada & N11 order sync (5-minute interval)...");
     await syncHepsiburadaOrdersCron();
+    await syncN11OrdersCron();
   });
 
   // Hepsiburada Pending Approval & Listings Reconciliation (Every 15 minutes)
@@ -126,6 +131,51 @@ export async function syncHepsiburadaOrdersCron() {
     }
   } catch (err: any) {
     console.error("[CRON-HB] Genel Hepsiburada sipariş senkronizasyonu hatası:", err.message || err);
+  }
+}
+
+/**
+ * Periodically syncs N11 orders for all configured stores
+ */
+export async function syncN11OrdersCron() {
+  try {
+    const storesRes = await pool.query("SELECT id, name, n11_settings, branding FROM stores");
+    for (const store of storesRes.rows) {
+      try {
+        let settings = store.n11_settings;
+        if (typeof settings === 'string') {
+          try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+        }
+        let branding = store.branding;
+        if (typeof branding === 'string') {
+          try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+        }
+
+        if (!settings || !settings.appKey || !settings.appSecret) {
+          settings = branding?.n11_settings || settings || {};
+        }
+
+        const appKey = String(settings?.appKey || "").trim();
+        const appSecret = String(settings?.appSecret || "").trim();
+
+        if (appKey && appSecret) {
+          const cleanSettings = {
+            ...settings,
+            appKey,
+            appSecret
+          };
+
+          const { syncedCount, newOrdersCount } = await syncStoreN11OrdersToDatabase(store.id, cleanSettings, 30);
+          if (newOrdersCount > 0) {
+            console.log(`[CRON-N11] Store #${store.id} (${store.name}): ${newOrdersCount} yeni N11 siparişi (toplam ${syncedCount}) başarıyla çekildi ve sisteme işlendi.`);
+          }
+        }
+      } catch (storeErr: any) {
+        console.error(`[CRON-N11] Store #${store.id} senkronizasyon hatası:`, storeErr.message || storeErr);
+      }
+    }
+  } catch (err: any) {
+    console.error("[CRON-N11] Genel N11 sipariş senkronizasyonu hatası:", err.message || err);
   }
 }
 

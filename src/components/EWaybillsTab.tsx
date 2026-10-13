@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
+import { formatDateTR, formatFileDateTR } from "../utils/formatUtils";
 import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
 import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
 
@@ -352,8 +353,8 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
             </button>
           )}
           <button onClick={() => {
-            const clean = waybills.map(w => ({ ID: w.id, [isTr ? "No" : "No"]: w.waybill_number, [isTr ? "Tarih" : "Date"]: new Date(w.waybill_date).toLocaleDateString(), [isTr ? "Alıcı" : "Receiver"]: w.company_title || w.company_name || `${w.customer_name || ''} ${w.customer_surname || ''}`, [isTr ? "Plaka" : "Plate"]: w.plate_number, [isTr ? "Durum" : "Status"]: w.status }));
-            const ws = XLSX.utils.json_to_sheet(clean); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "e-İrsaliyeler"); XLSX.writeFile(wb, "E_Irsaliyeler.xlsx");
+            const clean = waybills.map(w => ({ ID: w.id, [isTr ? "No" : "No"]: w.waybill_number, [isTr ? "Tarih" : "Date"]: formatDateTR(w.waybill_date), [isTr ? "Alıcı" : "Receiver"]: w.company_title || w.company_name || `${w.customer_name || ''} ${w.customer_surname || ''}`, [isTr ? "Plaka" : "Plate"]: w.plate_number, [isTr ? "Durum" : "Status"]: w.status }));
+            const ws = XLSX.utils.json_to_sheet(clean); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "e-İrsaliyeler"); XLSX.writeFile(wb, `E_Irsaliyeler_${formatFileDateTR()}.xlsx`);
           }} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold transition flex items-center justify-center gap-2 text-sm">
             <FileDown className="h-4 w-4 text-emerald-600" /> {isTr ? "Excel Çıktısı" : "Export Excel"}
           </button>

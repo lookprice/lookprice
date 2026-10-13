@@ -3,6 +3,7 @@ import { ShieldCheck, ShieldAlert, FileText, Search, Clock, Download, ArrowRight
 import { api } from "../../services/api";
 import { IrpModal } from "../IrpModal";
 import * as XLSX from "xlsx";
+import { formatDateTimeTR, formatFileDateTR } from "../../utils/formatUtils";
 
 export function SuperAdminAuditLogs({ lang }: { lang: string }) {
   const [logs, setLogs] = useState<any[]>([]);
@@ -38,7 +39,7 @@ export function SuperAdminAuditLogs({ lang }: { lang: string }) {
   const exportToExcel = () => {
     if (filteredLogs.length === 0) return;
     const ws = XLSX.utils.json_to_sheet(filteredLogs.map(log => ({
-      'Tarih': new Date(log.created_at).toLocaleString('tr-TR'),
+      'Tarih': formatDateTimeTR(log.created_at),
       'Mağaza': log.store_name || log.store_slug || '-',
       'Kullanıcı': log.user_email || 'Sistem',
       'İşlem': log.action,
@@ -48,7 +49,7 @@ export function SuperAdminAuditLogs({ lang }: { lang: string }) {
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Denetim Kayıtları");
-    XLSX.writeFile(wb, `Denetim_Kayitlari_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `Denetim_Kayitlari_${formatFileDateTR()}.xlsx`);
   };
 
   return (
@@ -123,7 +124,7 @@ export function SuperAdminAuditLogs({ lang }: { lang: string }) {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2 text-slate-500 whitespace-nowrap">
                         <Clock className="w-3.5 h-3.5" />
-                        {new Date(log.created_at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {formatDateTimeTR(log.created_at)}
                       </div>
                     </td>
                     <td className="py-3 px-4 font-medium text-slate-700">

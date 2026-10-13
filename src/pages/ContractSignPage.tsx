@@ -18,7 +18,7 @@ import {
   CreditCard
 } from "lucide-react";
 import { contractTemplates } from "../utils/contractTemplates";
-import { formatPhoneForWhatsApp } from "../utils/formatUtils";
+import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
 
 export default function ContractSignPage() {
   const { id } = useParams();
@@ -30,7 +30,7 @@ export default function ContractSignPage() {
   const templateIdParam = searchParams.get("templateId") || "";
   const contractTypeParam = searchParams.get("contractType") || "";
   const commissionRateParam = searchParams.get("commissionRate") || "3";
-  const contractDateParam = searchParams.get("contractDate") || new Date().toLocaleDateString("tr-TR");
+  const contractDateParam = formatDateTR(searchParams.get("contractDate") || new Date());
   const splitRatioParam = searchParams.get("splitRatio") || "";
   const contractDurationParam = searchParams.get("contractDuration") || "";
   const evictionDateParam = searchParams.get("evictionDate") || "";
@@ -280,7 +280,7 @@ export default function ContractSignPage() {
     const targetTitle = isVehicle ? `${itemData.brand} ${itemData.model}` : itemData.title;
     const sName = itemData.store_name?.replace(/lookprice/gi, "Seçkin") || "Seçkin VIP Portföy";
     
-    const message = `SAYIN ${sName.toUpperCase()},\n\nTarafıma iletmiş olduğunuz dijital sözleşmeyi inceledim ve mobil cihazım üzerinden onaylayarak imzaladım.\n\n*Sözleşme Bilgileri:*\n• *İşlem:* ${dynamicContractTitle}\n• *İlgili Portföy:* ${targetTitle}\n• *İmzalayan:* ${clientName}\n• *T.C. Kimlik / Pasaport No:* ${clientIdentity || "Belirtilmedi"}\n• *İletişim Tel:* ${clientPhone || "Belirtilmedi"}\n• *Sözleşme ID:* LP-${id}\n• *Tarih:* ${new Date().toLocaleDateString("tr-TR")}\n\nİşbu bildirim ile onaylı sözleşme nüshasının tarafınızca arşivlenmek üzere sisteme kaydedildiğini beyan ederim. Bilgilerinize sunarım.`;
+    const message = `SAYIN ${sName.toUpperCase()},\n\nTarafıma iletmiş olduğunuz dijital sözleşmeyi inceledim ve mobil cihazım üzerinden onaylayarak imzaladım.\n\n*Sözleşme Bilgileri:*\n• *İşlem:* ${dynamicContractTitle}\n• *İlgili Portföy:* ${targetTitle}\n• *İmzalayan:* ${clientName}\n• *T.C. Kimlik / Pasaport No:* ${clientIdentity || "Belirtilmedi"}\n• *İletişim Tel:* ${clientPhone || "Belirtilmedi"}\n• *Sözleşme ID:* LP-${id}\n• *Tarih:* ${formatDateTR(new Date())}\n\nİşbu bildirim ile onaylı sözleşme nüshasının tarafınızca arşivlenmek üzere sisteme kaydedildiğini beyan ederim. Bilgilerinize sunarım.`;
     
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, "_blank");
   };

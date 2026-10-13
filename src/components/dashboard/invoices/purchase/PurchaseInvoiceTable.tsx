@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../../../services/api';
+import { formatDateTR } from '../../../../utils/formatUtils';
 
 interface PurchaseInvoiceTableProps {
   invoices: any[];
@@ -43,6 +44,8 @@ interface PurchaseInvoiceTableProps {
   onEditProduct?: (item: any) => void;
   storeId?: number;
   products?: any[];
+  companies?: any[];
+  onViewTransactions?: (company: any) => void;
   onRefresh?: () => void;
 }
 
@@ -67,6 +70,8 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
   onEditProduct,
   storeId,
   products = [],
+  companies = [],
+  onViewTransactions,
   onRefresh
 }) => {
   const [expandedRowIds, setExpandedRowIds] = useState<number[]>([]);
@@ -234,7 +239,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                       <td className="px-3 py-2.5 text-xs text-slate-600 whitespace-nowrap">
                         <div className="flex flex-col gap-0.5">
                           <span className="font-semibold text-slate-800">
-                            {new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}
+                            {formatDateTR(invoice.invoice_date)}
                           </span>
                           {invoice.is_out_of_sequence && (
                             <span 
@@ -251,7 +256,18 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                            {invoice.is_read === false && (
                              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" title={isTr ? "Yeni (Okunmadı)" : "New (Unread)"}></span>
                            )}
-                           <span>{invoice.invoice_number}</span>
+                           {handleViewHtml ? (
+                             <button
+                               type="button"
+                               onClick={() => handleViewHtml(invoice.id, invoice)}
+                               className="text-indigo-600 hover:text-indigo-800 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                               title={isTr ? "Fatura HTML görselini görüntüle" : "View invoice HTML"}
+                             >
+                               {invoice.invoice_number}
+                             </button>
+                           ) : (
+                             <span>{invoice.invoice_number}</span>
+                           )}
                         </div>
                         {invoice.e_document_type && (
                            <div className="flex items-center gap-1.5 mt-0.5">
@@ -273,9 +289,27 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-xs font-medium text-slate-700">
-                        <div className="max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate font-semibold" title={invoice.company_name || invoice.supplier_name || '-'}>
-                          {invoice.company_name || invoice.supplier_name || '-'}
-                        </div>
+                        {invoice.company_id && onViewTransactions ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const foundComp = (companies || []).find((c: any) => String(c.id) === String(invoice.company_id));
+                              const compObj = foundComp || {
+                                id: invoice.company_id,
+                                title: invoice.company_name || invoice.supplier_name || 'Cari Hesap'
+                              };
+                              onViewTransactions(compObj);
+                            }}
+                            className="max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate font-semibold text-left text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer block"
+                            title={isTr ? "Cari hesap hareketlerini görüntüle" : "View company transactions"}
+                          >
+                            {invoice.company_name || invoice.supplier_name || '-'}
+                          </button>
+                        ) : (
+                          <div className="max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate font-semibold text-slate-700" title={invoice.company_name || invoice.supplier_name || '-'}>
+                            {invoice.company_name || invoice.supplier_name || '-'}
+                          </div>
+                        )}
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           {invoice.is_expense ? (
                             <>

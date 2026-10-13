@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { translations } from '../translations';
 import { useLanguage } from '../contexts/LanguageContext';
 import { api } from '../services/api';
+import { formatDateTR, formatDateTimeTR } from '../utils/formatUtils';
 
 import { PurchaseInvoiceDetailsModal } from './dashboard/invoices/purchase/PurchaseInvoiceDetailsModal';
 import { SalesInvoiceDetailsModal } from './dashboard/invoices/sales/SalesInvoiceDetailsModal';
@@ -620,7 +621,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                           <span className="flex items-center gap-1 font-mono text-[11px]">
                             <Calendar className="h-3 w-3 text-slate-400" />
-                            {new Date(m.created_at).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')} {new Date(m.created_at).toLocaleTimeString(isTr ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                            {formatDateTimeTR(m.created_at)}
                           </span>
 
                           {m.customer_info && (
@@ -727,7 +728,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             <div>
               <h1 className="text-xl font-black uppercase tracking-wider">{branding?.store_name || branding?.name || 'LOOKPRICE'}</h1>
               <h2 className="text-base font-bold text-slate-700 mt-1">{isTr ? 'ÜRÜN HAREKET EKSTRESİ' : 'PRODUCT MOVEMENT STATEMENT'}</h2>
-              <p className="text-xs text-slate-500">{new Date().toLocaleString(isTr ? 'tr-TR' : 'en-US')}</p>
+              <p className="text-xs text-slate-500">{formatDateTimeTR(new Date())}</p>
             </div>
             <div className="text-right">
               <div className="text-sm font-black text-slate-900">{product.name}</div>
@@ -750,7 +751,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             <tbody>
               {movements.map((m, idx) => (
                 <tr key={idx} className="border-b border-slate-200">
-                  <td className="py-1.5 px-2 font-mono">{new Date(m.created_at).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}</td>
+                  <td className="py-1.5 px-2 font-mono">{formatDateTR(m.created_at)}</td>
                   <td className="py-1.5 px-2 font-bold">{m.source}</td>
                   <td className="py-1.5 px-2">{m.description} {m.customer_info ? `(${m.customer_info})` : ''}</td>
                   <td className="py-1.5 px-2 text-right font-mono">{m.unit_price ? formatCurrency(m.unit_price, m.currency) : '-'}</td>

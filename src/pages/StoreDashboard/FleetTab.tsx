@@ -43,7 +43,7 @@ import { IncidentFormModal } from '../../components/dashboard/fleet/IncidentForm
 import { DocumentFormModal } from '../../components/dashboard/fleet/DocumentFormModal';
 import { AutoContractModal } from '../../components/AutoContractModal';
 import { AutomotiveSocialMediaShareModal } from '../../components/AutomotiveSocialMediaShareModal';
-import { formatFuelType, formatTransmission } from '../../utils/formatUtils';
+import { formatFuelType, formatTransmission, formatDateTR, formatDateTimeTR, formatFileDateTR } from '../../utils/formatUtils';
 
 interface FleetTabProps {
   storeId: number;
@@ -125,15 +125,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
   const [editingIncident, setEditingIncident] = useState<VehicleIncident | null>(null);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
 
-  const safeFormatDate = (dateString: string | Date | null | undefined, formatStr = 'dd.MM.yyyy', options?: any) => {
+  const safeFormatDate = (dateString: string | Date | null | undefined, formatStr = 'dd/MM/yy', _options?: any) => {
     if (!dateString) return '-';
-    try {
-      const d = new Date(dateString);
-      if (isNaN(d.getTime())) return '-';
-      return format(d, formatStr, options);
-    } catch (e) {
-      return '-';
-    }
+    const includeTime = formatStr.includes('HH:mm');
+    return formatDateTR(dateString, includeTime);
   };
 
   const getAlerts = () => {
@@ -650,14 +645,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t.fleet);
-    XLSX.writeFile(wb, `${t.fleetReport}_${format(new Date(), 'dd_MM_yyyy')}.xlsx`);
+    XLSX.writeFile(wb, `${t.fleetReport}_${formatFileDateTR()}.xlsx`);
   };
 
   const exportToPDF = async () => {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF();
-    doc.text(t.fleet, 14, 15);
+    doc.text(`${t.fleet} (${formatDateTR(new Date())})`, 14, 15);
     autoTable(doc, {
       startY: 20,
       head: [[t.plate, t.brand, t.model, t.year, t.vehicleType, t.currentMileage, t.status, t.driver]],
@@ -667,7 +662,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         v.current_mileage, getStatusText(v.status), getCurrentDriverName(v.id)
       ]),
     });
-    doc.save(`${t.fleetReport}_${format(new Date(), 'dd_MM_yyyy')}.pdf`);
+    doc.save(`${t.fleetReport}_${formatFileDateTR()}.pdf`);
   };
 
   const filteredVehicles = (vehicles || []).filter(v => {

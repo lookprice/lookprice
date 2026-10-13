@@ -20,6 +20,7 @@ import {
 import { motion } from "motion/react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { formatDateTR } from "../../utils/formatUtils";
 
 interface QuotationsTabProps {
   quotations: any[];
@@ -160,7 +161,7 @@ const QuotationsTab = ({
                       )}
                     </td>
                     <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                      {new Date(q.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {formatDateTR(q.created_at)}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-slate-900 font-mono tabular-nums">
@@ -170,7 +171,7 @@ const QuotationsTab = ({
                         <CreditCard className="h-2.5 w-2.5 mr-1" /> {t[q.payment_method] || q.payment_method || t.notSpecified}
                         {q.due_date && (
                           <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">
-                            {t.dueDate} {new Date(q.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            {t.dueDate} {formatDateTR(q.due_date)}
                           </span>
                         )}
                       </div>

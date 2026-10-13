@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useReactToPrint } from 'react-to-print';
+import { formatDateTR, formatFileDateTR } from '../../utils/formatUtils';
 import { 
   Wrench, 
   Plus, 
@@ -124,13 +125,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       [t.service_tab.customerName]: r.customer_name,
       [t.service_tab.deviceModel]: r.device_model,
       [t.service_tab.status]: t.service_tab.statuses[r.status],
-      [t.service_tab.date]: r.created_at,
+      [t.service_tab.date]: formatDateTR(r.created_at),
       [t.service_tab.totalAmount]: r.total_amount
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t.service_tab.serviceRecords);
-    XLSX.writeFile(wb, "servis_kayitlari.xlsx");
+    XLSX.writeFile(wb, `servis_kayitlari_${formatFileDateTR()}.xlsx`);
   };
 
   useEffect(() => {
@@ -300,7 +301,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
         doc.setFont("helvetica", "normal");
         doc.setTextColor(100);
         doc.text(fixTr(`${isTr ? "Kayıt No" : "Record No"}: #${fullRecord.id}`), 196, 12, { align: 'right' });
-        doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(fullRecord.created_at).toLocaleDateString('tr-TR')}`), 196, 17, { align: 'right' });
+        doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${formatDateTR(fullRecord.created_at)}`), 196, 17, { align: 'right' });
 
         // Contact Info - Small below store name
         doc.setFontSize(7);
@@ -757,7 +758,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(record.created_at).toLocaleDateString('tr-TR')}
+                      {formatDateTR(record.created_at)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -1265,7 +1266,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                         </tr>
                         <tr>
                           <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Tarih:' : 'Date:'}</td>
-                          <td className="border border-slate-900 p-0.5">{new Date(selectedRecord.created_at).toLocaleDateString('tr-TR')}</td>
+                          <td className="border border-slate-900 p-0.5">{formatDateTR(selectedRecord.created_at)}</td>
                         </tr>
                         <tr>
                           <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Durum:' : 'Status:'}</td>

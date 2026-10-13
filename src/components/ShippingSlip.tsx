@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDateTimeTR } from '../utils/formatUtils';
 
 interface ShippingSlipProps {
   sale: any;
@@ -56,7 +57,7 @@ const ShippingSlip = React.forwardRef<HTMLDivElement, ShippingSlipProps>(({ sale
         <div className="space-y-4 text-right">
           <div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tarih</p>
-            <p className="text-xs font-bold text-gray-900">{new Date(sale.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+            <p className="text-xs font-bold text-gray-900">{formatDateTimeTR(sale.created_at)}</p>
           </div>
           <div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ödeme</p>

@@ -93,10 +93,24 @@ export function parseMarketplaceData(p: any): any {
  * Resolves the public customer listing URL for a product on a specific marketplace
  */
 export function getMarketplaceListingUrl(
-  marketplaceKey: 'hepsiburada' | 'trendyol' | 'amazon' | 'n11' | 'pazarama' | 'ciceksepeti' | string,
-  product: any,
+  arg1: any,
+  arg2: any,
   options: MarketplaceUrlOptions = {}
 ): string | null {
+  let marketplaceKey: string = '';
+  let product: any = null;
+
+  if (arg1 && typeof arg1 === 'object' && (arg2 === undefined || typeof arg2 === 'string')) {
+    product = arg1;
+    marketplaceKey = arg2 || 'hepsiburada';
+  } else if (arg2 && typeof arg2 === 'object' && (typeof arg1 === 'string' || !arg1)) {
+    marketplaceKey = arg1 || 'hepsiburada';
+    product = arg2;
+  } else {
+    marketplaceKey = arg1;
+    product = arg2;
+  }
+
   if (!product) return null;
   const { fallbackToSearch = true } = options;
   const mpData = parseMarketplaceData(product);
@@ -105,7 +119,8 @@ export function getMarketplaceListingUrl(
   const barcode = isValidBarcode(product.barcode) ? String(product.barcode).trim() : null;
   const name = product.name && String(product.name).trim().length > 1 ? String(product.name).trim() : null;
 
-  switch (marketplaceKey.toLowerCase()) {
+  const keyStr = String(marketplaceKey || '').toLowerCase();
+  switch (keyStr) {
     case 'hepsiburada': {
       const hb = mpData.hepsiburada || {};
       const manualUrl = product.hepsiburada_url;
@@ -299,14 +314,15 @@ export function getMarketplaceListingUrl(
  * Resolves the seller panel (Merchant Portal) URL for managing a product on a specific marketplace
  */
 export function getMarketplaceMerchantPortalUrl(
-  marketplaceKey: string,
+  marketplaceKey: any,
   product: any
 ): string {
+  const keyStr = String(marketplaceKey || '').toLowerCase();
   const barcode = isValidBarcode(product?.barcode) ? String(product.barcode).trim() : '';
   const sku = product?.sku || product?.product_code ? String(product.sku || product.product_code).trim() : '';
   const searchVal = barcode || sku;
 
-  switch (marketplaceKey.toLowerCase()) {
+  switch (keyStr) {
     case 'hepsiburada':
       return `https://merchant.hepsiburada.com/listing-management?merchantSku=${encodeURIComponent(searchVal)}`;
     case 'trendyol':

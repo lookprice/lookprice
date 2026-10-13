@@ -19,6 +19,7 @@ import {
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
+import { formatDateTR } from "../../utils/formatUtils";
 
 const getStoreWebsiteDomain = (branding?: any) => {
   if (branding?.custom_domain) {
@@ -309,7 +310,7 @@ const PosTab = ({
                       <span className="font-mono text-xs font-semibold text-indigo-700 bg-indigo-50/70 px-2 py-0.5 rounded-md border border-indigo-200/70">#{s.id}</span>
                     </td>
                     <td className="px-3.5 py-4">
-                      <div className="text-xs font-semibold text-slate-800">{new Date(s.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+                      <div className="text-xs font-semibold text-slate-800">{formatDateTR(s.created_at)}</div>
                       <div className="text-[10px] text-slate-500 font-medium mt-0.5 tabular-nums flex items-center gap-1">
                         <Clock className="h-2.5 w-2.5 text-slate-400" />
                         {new Date(s.created_at).toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}

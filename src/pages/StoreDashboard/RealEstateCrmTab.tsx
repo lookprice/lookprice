@@ -3,6 +3,7 @@ import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, Che
 import { RealEstateContact } from "../../types";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { formatDateTimeTR } from "../../utils/formatUtils";
 
 export type LeadStage = 'new' | 'contacted' | 'converted' | 'reviewed' | 'cancelled' | 'none';
 
@@ -369,7 +370,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                       </td>
 
                       <td className="py-2.5 px-3 text-[10px] text-slate-500 whitespace-nowrap font-medium">
-                        {contact.created_at ? new Date(contact.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '---'}
+                        {contact.created_at ? formatDateTimeTR(contact.created_at) : '---'}
                       </td>
 
                       <td className="py-2.5 px-3 text-right whitespace-nowrap">
@@ -461,7 +462,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                     </div>
                     {contact.created_at && (
                       <span className="text-[10px] text-slate-400 font-medium shrink-0">
-                        {new Date(contact.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {formatDateTimeTR(contact.created_at)}
                       </span>
                     )}
                   </div>

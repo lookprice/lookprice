@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { formatDateTR } from "../../../utils/formatUtils";
 
 export const formatNumberVal = (val: any) => {
   if (val === undefined || val === null || val === '') return '0';
@@ -29,7 +30,7 @@ export const handlePrintProperty = (property: any, branding: any) => {
   const accentColor = branding?.page_layout_settings?.accent_color || "#4f46e5";
   const storeName = branding?.store_name || branding?.name || 'SEÇKİN EMLAK';
   const referenceNo = property.reference_no || property.id;
-  const dateStr = new Date(property.created_at || Date.now()).toLocaleDateString('tr-TR');
+  const dateStr = formatDateTR(property.created_at || new Date());
   
   const isRent = property.listing_intent === 'rent';
   const titleText = property.type === 'residence' ? 'KONUT PORTFÖYÜ' : property.type === 'commercial' ? 'TİCARİ PORTFÖY' : 'ARSA PORTFÖYÜ';

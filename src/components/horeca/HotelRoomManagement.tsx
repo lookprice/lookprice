@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "../../services/api";
 import { playHotelReservationChime } from "../../utils/hotelSound";
+import { formatDateTR, formatDateTimeTR } from "../../utils/formatUtils";
 import { HotelCheckInModal } from "./hotel/HotelCheckInModal";
 import { HotelRoomEditModal } from "./hotel/HotelRoomEditModal";
 import { HotelFolioModal } from "./hotel/HotelFolioModal";
@@ -869,7 +870,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     }
 
     const now = new Date();
-    const dateStr = now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = formatDateTimeTR(now);
 
     let guestIndex = 1;
     const guestRowsHtml = (roomsToExport || []).flatMap(room => {
@@ -1638,13 +1639,13 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     } catch (e) {}
   };
 
-  // Store Custom Date Format Setting (Default: DD/MM/YYYY - GG/AA/YYYY)
+  // Store Custom Date Format Setting (Default: DD/MM/YY - gg/aa/yy)
   const [storeDateFormat, setStoreDateFormat] = useState<string>(() => {
     try {
       const saved = localStorage.getItem(`hotelDateFormat_${storeId}`);
       if (saved) return saved;
     } catch (e) {}
-    return "DD/MM/YYYY"; // DEFAULT: GG/AA/YYYY
+    return "DD/MM/YY"; // DEFAULT: GG/AA/YY
   });
 
   const saveStoreDateFormat = (fmt: string) => {
@@ -1654,31 +1655,33 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     } catch (e) {}
   };
 
-  // Helper to format date according to store preference
+  // Helper to format date according to store preference (defaulting to strict TR dd/mm/yy)
   const formatDisplayDate = (dateStr?: string, customFormat?: string) => {
     if (!dateStr) return "-";
-    const fmt = customFormat || storeDateFormat || "DD/MM/YYYY";
+    const fmt = customFormat || storeDateFormat || "DD/MM/YY";
+    if (fmt === "DD/MM/YY" || fmt === "DD/MM/YYYY") {
+      return formatDateTR(dateStr);
+    }
     try {
       const cleanStr = dateStr.split('T')[0];
       const parts = cleanStr.split('-');
       if (parts.length === 3) {
-        const y = parts[0];
+        const y = parts[0].slice(-2);
         const m = parts[1];
         const d = parts[2];
-        if (fmt === "DD.MM.YYYY") return `${d}.${m}.${y}`;
-        if (fmt === "YYYY-MM-DD") return `${y}-${m}-${d}`;
+        if (fmt === "DD.MM.YYYY") return `${d}/${m}/${y}`;
+        if (fmt === "YYYY-MM-DD") return `${d}/${m}/${y}`;
         if (fmt === "DD MMM YYYY") {
           const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
           const idx = parseInt(m, 10) - 1;
           const monthName = monthNames[idx] || m;
           return `${d} ${monthName} ${y}`;
         }
-        // Default: DD/MM/YYYY (gg/aa/yyyy)
         return `${d}/${m}/${y}`;
       }
-      return dateStr;
+      return formatDateTR(dateStr);
     } catch (e) {
-      return dateStr;
+      return formatDateTR(dateStr);
     }
   };
 

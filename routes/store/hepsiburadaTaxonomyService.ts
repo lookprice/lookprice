@@ -130,6 +130,39 @@ export const SECTOR_TAXONOMY_PACKAGES: SectorTaxonomyPackage[] = [
         hb_category_id: 2000103
       }
     ]
+  },
+  {
+    id: "bookstore",
+    name: "Kitap, Edebiyat & Yayınevi (BookLP)",
+    description: "Edebiyat, Tarih, Felsefe, Roman, Bilim, Kişisel Gelişim ve Çocuk Kitapları",
+    icon: "BookOpen",
+    categories: [
+      {
+        category: "Edebiyat & Kurgu",
+        sub_categories: ["Dünya Klasikleri", "Türk Edebiyatı", "Çağdaş Roman", "Şiir & Aforizma", "Polisiye & Gerilim", "Bilim Kurgu & Fantastik"],
+        hb_category_id: 2147483648
+      },
+      {
+        category: "Tarih & Araştırma",
+        sub_categories: ["Osmanlı Tarihi", "Dünya Tarihi", "Cumhuriyet Tarihi", "Siyaset & Politika", "Biyografi & Otobiyografi"],
+        hb_category_id: 2147483649
+      },
+      {
+        category: "Felsefe & Düşünce",
+        sub_categories: ["Felsefe Klasikleri", "Sosyoloji", "Psikoloji & Psikanaliz", "Mantık & Epistemoloji"],
+        hb_category_id: 2147483650
+      },
+      {
+        category: "Kişisel Gelişim & Psikoloji",
+        sub_categories: ["Motivasyon & Başarı", "İletişim & Beden Dili", "Liderlik & Yönetim", "Farkındalık & Meditasyon"],
+        hb_category_id: 2147483651
+      },
+      {
+        category: "Çocuk & Gençlik",
+        sub_categories: ["Masal & Hikaye", "İlk Okuma", "Çizgi Roman & Manga", "Gençlik Edebiyatı"],
+        hb_category_id: 2147483652
+      }
+    ]
   }
 ];
 

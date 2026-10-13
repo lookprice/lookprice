@@ -8,6 +8,7 @@ import { BOOKSTORE_BADGES, extractProductLabels, hasBookstoreBadge, toggleBookst
 import { resolveDomainId } from "@/utils/sectorCapability";
 import { getMarketplaceListingUrl } from "@/utils/marketplaceUrls";
 import { getConnectedMarketplaces } from "@/utils/marketplaceEStores";
+import { matchProductSearch } from "@/lib/searchUtils";
 
 // Vertical Slices
 import { ProductsTabProps, MarketplaceFilterType, MarketplaceModalTab, MarketplaceModalStatus } from "./products/types";
@@ -407,31 +408,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         return false;
       }
       
-      const q = search.trim().toLowerCase();
-      const qDigits = q.replace(/\D/g, "");
-
-      const altBarcodes = (() => {
-        let sec = p.sector_data;
-        if (typeof sec === "string") {
-          try { sec = JSON.parse(sec); } catch { sec = {}; }
-        }
-        return Array.isArray(sec?.alternate_barcodes) ? sec.alternate_barcodes : [];
-      })();
-
-      const matchesSearch = !q || 
-        p.name?.toLowerCase().includes(q) || 
-        p.barcode?.toLowerCase().includes(q) ||
-        (qDigits && p.barcode && p.barcode.replace(/\D/g, "").includes(qDigits)) ||
-        altBarcodes.some((b: any) => String(b).toLowerCase().includes(q) || (qDigits && String(b).replace(/\D/g, "").includes(qDigits))) ||
-        p.sku?.toLowerCase().includes(q) ||
-        p.product_code?.toLowerCase().includes(q) ||
-        p.brand?.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q) ||
-        p.hepsiburada_sku?.toLowerCase().includes(q) ||
-        p.amazon_asin?.toLowerCase().includes(q) ||
-        p.n11_id?.toLowerCase().includes(q) ||
-        p.trendyol_id?.toLowerCase().includes(q) ||
-        p.store_name?.toLowerCase().includes(q);
+      const matchesSearch = matchProductSearch(p, search);
 
       let matchesCategory = true;
       if (selectedCategory === "all") {

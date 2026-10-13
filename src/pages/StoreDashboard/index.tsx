@@ -49,6 +49,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
 import { playHotelReservationChime } from "../../utils/hotelSound";
+import { formatDateTR, formatDateTimeTR, formatFileDateTR } from "../../utils/formatUtils";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useDashboardController } from "../../hooks/useDashboardController";
 import { useProducts } from "../../hooks/useProducts";
@@ -597,7 +598,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
 
     const data = dailyReportData.details.map(d => ({
-      [t.statements.date]: new Date(d.created_at).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US'),
+      [t.statements.date]: formatDateTimeTR(d.created_at),
       [t.customer]: d.customer_name || '-',
       [t.amount]: d.amount,
       [t.paymentMethod || 'Payment Method']: t[d.payment_method] || d.payment_method,
@@ -608,7 +609,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t.cashReport || "Kasa Raporu");
-    XLSX.writeFile(wb, `${t.cashReport || 'Kasa_Raporu'}_${reportStartDate}_${reportEndDate}.xlsx`);
+    XLSX.writeFile(wb, `${t.cashReport || 'Kasa_Raporu'}_${formatFileDateTR(reportStartDate)}_${formatFileDateTR(reportEndDate)}.xlsx`);
   };
 
   const [notifications, setNotifications] = useState<any>({
@@ -768,7 +769,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     const XLSX = await import('xlsx');
     const data = quotationList.map(q => ({
       [t.quotationNo || 'Quotation No']: q.id,
-      [t.statements.date]: new Date(q.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US'),
+      [t.statements.date]: formatDateTR(q.created_at),
       [t.customer]: q.customer_name,
       [t.amount]: `${Number(q.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${q.currency?.slice(0, 3)}`,
       [t.status]: q.status === 'approved' || q.status === 'sold' ? t.completed : q.status === 'cancelled' ? t.cancelled : t.pending
@@ -777,7 +778,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t.quotations);
-    XLSX.writeFile(wb, `${t.quotations}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `${t.quotations}_${formatFileDateTR()}.xlsx`);
   };
 
   const handleFetchPurchaseInvoiceDetails = async (id: number) => {
@@ -955,6 +956,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ids.add('settings_yedekleme');
     return ids;
   }, [navItems]);
+
+  useEffect(() => {
+    const handleOpenReconFromAnywhere = () => {
+      if (permittedTabIds.has("companies")) {
+        setActiveTab("companies");
+      }
+    };
+    window.addEventListener('open-recon-center', handleOpenReconFromAnywhere);
+    return () => window.removeEventListener('open-recon-center', handleOpenReconFromAnywhere);
+  }, [permittedTabIds]);
 
   // Bulletproof fallback redirection for unauthorized/unrelated tabs (Zero-Stale Tab Protocol)
   useEffect(() => {
@@ -1376,6 +1387,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onIncludeZeroChange={setIncludeZeroBalance}
                   defaultCurrency={branding.default_currency}
                   onNewCompany={() => { setEditingCompany(null); setShowCompanyModal(true); }}
+                  onRefresh={fetchCompanies}
                 />
               )}
               {activeTab === "procurements" && permittedTabIds.has("procurements") && (
@@ -1388,6 +1400,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   lang={lang} 
                   api={api} 
                   branding={branding} 
+                  companies={companyList}
+                  onViewTransactions={(c: any) => { setSelectedCompany(c); setShowTransactionModal(true); }}
                   onFetchDetails={handleFetchPurchaseInvoiceDetails}
                   products={products}
                   onEditProduct={(item: any) => {

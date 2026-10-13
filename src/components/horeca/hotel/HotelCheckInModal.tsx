@@ -16,6 +16,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { HotelRoom } from '../HotelRoomManagement';
+import { formatDateTR } from '../../../utils/formatUtils';
 
 export const normalizeBoardCode = (code?: string): string => {
   if (!code) return 'BB';
@@ -186,13 +187,7 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
 
   const formatDisplayDate = (dStr: string) => {
     if (!dStr) return '';
-    try {
-      const p = dStr.split('-');
-      if (p.length === 3) return `${p[2]}.${p[1]}.${p[0]}`;
-      return dStr;
-    } catch {
-      return dStr;
-    }
+    return formatDateTR(dStr);
   };
 
   return (

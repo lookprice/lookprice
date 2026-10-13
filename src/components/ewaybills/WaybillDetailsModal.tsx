@@ -1,6 +1,7 @@
 import React from "react";
 import { X, Truck, FileText } from "lucide-react";
 import { motion } from "motion/react";
+import { formatDateTR } from "../../utils/formatUtils";
 
 interface WaybillDetailsModalProps {
   isOpen: boolean;
@@ -43,7 +44,7 @@ export const WaybillDetailsModal: React.FC<WaybillDetailsModalProps> = ({
 
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
               <span className="text-xs font-semibold text-slate-400 block">{isTr ? "PLANLANAN SEVK TARİHİ" : "SHIPMENT LOGISTICS"}</span>
-              <strong className="text-sm text-slate-800 block">{new Date(selectedWaybill.waybill_date).toLocaleDateString()} {selectedWaybill.waybill_time}</strong>
+              <strong className="text-sm text-slate-800 block">{formatDateTR(selectedWaybill.waybill_date)} {selectedWaybill.waybill_time}</strong>
               <span className="text-xs text-emerald-600 block flex items-center gap-1 font-semibold">{isTr ? "Yol İzin Vesikası Aktif" : "Waybill Transport Active"}</span>
             </div>
 

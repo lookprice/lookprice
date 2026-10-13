@@ -223,6 +223,7 @@ export const api = {
   addCompany: (data: any, storeId?: number) => api.post(`/api/store/companies${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateCompany: (id: number | string, data: any, storeId?: number) => api.put(`/api/store/companies/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteCompany: (id: number | string, storeId?: number) => api.delete(`/api/store/companies/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  mergeDuplicateCompanies: (storeId?: number) => api.post(`/api/store/companies/merge-duplicates${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   addCompanyTransaction: (id: number | string, data: any, storeId?: number) => api.post(`/api/store/companies/${id}/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteCompanyTransaction: (companyId: number | string, id: number | string, storeId?: number) => api.delete(`/api/store/companies/${companyId}/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getCompanyTransactions: (id: number | string, start = "", end = "", storeId?: number) => api.get(`/api/store/companies/${id}/transactions?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
@@ -710,4 +711,27 @@ export const api = {
     api.delete(`/api/store/hotel-reservations/${id}${storeId ? `?storeId=${storeId}` : ''}`),
   createPublicHotelReservation: (storeId: number | string, data: any) => 
     api.post(`/api/public/stores/${storeId}/hotel-reservations`, data),
+
+  // Digital Reconciliations (Official Ledger Documents & Archive)
+  getReconciliations: (storeId?: number, companyId?: number) => {
+    const params = new URLSearchParams();
+    if (storeId !== undefined && storeId !== null) params.append("storeId", String(storeId));
+    if (companyId !== undefined && companyId !== null) params.append("companyId", String(companyId));
+    const qs = params.toString();
+    return api.get(`/api/store/companies/reconciliations/list${qs ? `?${qs}` : ''}`);
+  },
+  createReconciliation: (data: any, storeId?: number) =>
+    api.post(`/api/store/companies/reconciliations${storeId ? `?storeId=${storeId}` : ''}`, data),
+  syncReconciliations: (items: any[], storeId?: number) =>
+    api.post(`/api/store/companies/reconciliations/sync${storeId ? `?storeId=${storeId}` : ''}`, { items, storeId }),
+  updateReconciliation: (reconId: number | string, data: any, storeId?: number) =>
+    api.patch(`/api/store/companies/reconciliations/${reconId}${storeId ? `?storeId=${storeId}` : ''}`, data),
+  bulkArchiveReconciliations: (data: { ids?: (number | string)[]; onlyConfirmed?: boolean }, storeId?: number) =>
+    api.post(`/api/store/companies/reconciliations/bulk-archive${storeId ? `?storeId=${storeId}` : ''}`, { ...data, storeId }),
+  deleteReconciliation: (reconId: number | string, storeId?: number) =>
+    api.delete(`/api/store/companies/reconciliations/${reconId}${storeId ? `?storeId=${storeId}` : ''}`),
+  getPublicReconciliation: (reconId: number | string) =>
+    api.get(`/api/public/reconciliations/${reconId}`),
+  respondPublicReconciliation: (reconId: number | string, data: { status: 'confirmed' | 'disputed'; disputeNote?: string; responderName?: string }) =>
+    api.post(`/api/public/reconciliations/${reconId}/respond`, data),
 };

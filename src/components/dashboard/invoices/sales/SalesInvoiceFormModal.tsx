@@ -938,11 +938,12 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                                   e.preventDefault();
                                   if (onEditProduct) onEditProduct(item);
                                 }}
-                                className={`text-left font-bold text-slate-800 hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                                title={item.product_name || item.name || '-'}
+                                className={`text-left font-bold text-slate-800 hover:text-indigo-600 transition-colors line-clamp-2 break-words leading-tight max-w-[240px] sm:max-w-[320px] ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
                               >
                                 {item.product_name || item.name || '-'}
                               </button>
-                              <div className="text-[10px] text-slate-400 font-normal">{item.barcode || item.sku || ''}</div>
+                              <div className="text-[10px] text-slate-400 font-mono">{item.barcode || item.sku || ''}</div>
                             </td>
                             <td className="py-2 px-2">
                               <input 

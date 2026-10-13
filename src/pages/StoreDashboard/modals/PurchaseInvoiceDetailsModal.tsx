@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "motion/react";
 import { X } from "lucide-react";
+import { formatDateTR } from "../../../utils/formatUtils";
 
 interface PurchaseInvoiceDetailsModalProps {
   showPurchaseInvoiceDetailsModal: boolean;
@@ -31,7 +32,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
           <div>
             <h3 className="text-xl font-bold text-gray-900">{t.purchaseDetails || "Alış Faturası Detayları"}</h3>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
-              #{selectedPurchaseInvoice.invoice_number || selectedPurchaseInvoice.id} • {new Date(selectedPurchaseInvoice.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+              #{selectedPurchaseInvoice.invoice_number || selectedPurchaseInvoice.id} • {formatDateTR(selectedPurchaseInvoice.created_at)}
             </p>
           </div>
           <button 
