@@ -32,7 +32,7 @@ export class AmazonService {
     this.storeId = storeId;
   }
 
-  private getApiEndpoint(): string {
+  public getApiEndpoint(): string {
     return this.settings.isSandbox ? AMAZON_SANDBOX_API_ENDPOINT : AMAZON_API_ENDPOINT;
   }
 
@@ -809,6 +809,33 @@ export class AmazonService {
       }
     }
     return { success: false, sku, message: "Amazon SP-API istek kotası aşıldı." };
+  }
+
+  /**
+   * Delete / Unpublish a listing item completely from Amazon TR catalog
+   */
+  async deleteListingsItem(sku: string): Promise<{ success: boolean; sku: string; message?: string }> {
+    const accessToken = await this.getAccessToken();
+    const sellerId = this.settings.sellerId;
+    if (!sellerId) {
+      throw new Error("Amazon Seller ID girilmelidir.");
+    }
+    const cleanSku = encodeURIComponent(sku.trim());
+    const url = `${this.getApiEndpoint()}/listings/2021-08-01/items/${sellerId}/${cleanSku}?marketplaceIds=${AMAZON_TR_MARKETPLACE_ID}`;
+
+    try {
+      const response = await axios.delete(url, {
+        headers: {
+          "x-amz-access-token": accessToken,
+          "Content-Type": "application/json",
+        },
+        timeout: 15000,
+      });
+      return { success: true, sku, message: response.data?.status || "Deleted" };
+    } catch (err: any) {
+      const errMsg = err.response?.data?.errors?.[0]?.message || err.response?.data?.message || err.message;
+      return { success: false, sku, message: errMsg };
+    }
   }
 
   /**

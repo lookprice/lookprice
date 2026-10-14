@@ -22,6 +22,7 @@ import {
   Building2, 
   Printer, 
   CloudUpload, 
+  CloudOff,
   RefreshCw, 
   Loader2, 
   XCircle,
@@ -87,7 +88,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [showHtmlModal, setShowHtmlModal] = useState(false);
   const [htmlContent, setHtmlContent] = useState("");
   const [htmlLoading, setHtmlLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'rejected'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'not_sent' | 'draft' | 'rejected'>('all');
   const [marketplaceFilter, setMarketplaceFilter] = useState<'all' | 'web' | 'trendyol' | 'hepsiburada' | 'amazon' | 'n11' | 'pazarama'>('all');
   const [showStats, setShowStats] = useState(false);
   const [page, setPage] = useState(1);
@@ -1171,6 +1172,36 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     return ['cancelled', 'iptal', 'iptal edildi'].includes(rawSt) || ['CANCELLED', 'İPTAL', 'İPTAL EDİLDİ'].includes(intSt) || inv?.sale_status === 'cancelled';
   };
 
+  const isInvoiceNotSentToGIB = useCallback((inv: any) => {
+    if (isInvoiceCancelled(inv)) return false;
+    const intSt = (inv?.integration_status || '').toUpperCase().trim();
+    const hasEttn = Boolean(inv?.ettn && String(inv.ettn).trim().length > 5);
+    const isApproved = ['APPROVED', 'ONAYLANDI', 'BAŞARILI', '1300', 'SUCCESS'].includes(intSt);
+    const isQueued = ['QUEUED', 'KUYRUKTA', 'İŞLENİYOR', 'İLETİLİYOR'].includes(intSt);
+    return !hasEttn && !isApproved && !isQueued;
+  }, []);
+
+  const notSentCount = React.useMemo(() => invoices.filter(isInvoiceNotSentToGIB).length, [invoices, isInvoiceNotSentToGIB]);
+  const draftCount = React.useMemo(() => invoices.filter((inv: any) => ['draft', 'taslak'].includes((inv.status || '').toLowerCase().trim()) && !isInvoiceCancelled(inv)).length, [invoices]);
+  const rejectedCount = React.useMemo(() => invoices.filter((inv: any) => ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || isInvoiceCancelled(inv)).length, [invoices]);
+
+  const filteredInvoices = React.useMemo(() => {
+    let list = invoices;
+    if (statusFilter === 'not_sent') {
+      list = list.filter(isInvoiceNotSentToGIB);
+    } else if (statusFilter === 'draft') {
+      list = list.filter((inv: any) => ['draft', 'taslak'].includes((inv.status || '').toLowerCase().trim()) && !isInvoiceCancelled(inv));
+    } else if (statusFilter === 'rejected') {
+      list = list.filter((inv: any) => 
+        ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || isInvoiceCancelled(inv)
+      );
+    }
+    if (showMarketplaceFilter && marketplaceFilter !== 'all') {
+      list = list.filter(matchesMarketplaceFilter);
+    }
+    return list;
+  }, [invoices, statusFilter, isInvoiceNotSentToGIB, showMarketplaceFilter, marketplaceFilter]);
+
   const activeValidInvoices = invoices.filter((inv: any) => !isInvoiceCancelled(inv));
   const totalCalculatedTax = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
   const totalSalesAmount = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
@@ -1275,6 +1306,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between mb-4">
         <div className="flex flex-wrap items-center gap-1.5">
           <button
+            type="button"
             onClick={() => { setStatusFilter('all'); setPage(1); }}
             className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
               statusFilter === 'all' 
@@ -1287,28 +1319,76 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           </button>
           <button
             type="button"
-            onClick={() => { setStatusFilter(statusFilter === 'draft' ? 'all' : 'draft'); setPage(1); }}
-            className={`p-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer border ${
-              statusFilter === 'draft' 
-                ? 'bg-amber-600 text-white border-amber-600 shadow-xs' 
-                : 'bg-white text-amber-600 border-amber-200 hover:bg-amber-50'
+            onClick={() => { setStatusFilter(statusFilter === 'not_sent' ? 'all' : 'not_sent'); setPage(1); }}
+            className={`px-2.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+              statusFilter === 'not_sent' 
+                ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-500' 
+                : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
             }`}
-            title={isTr ? "Taslaklar" : "Drafts"}
+            title={isTr ? "GİB'e Gönderilmemiş Faturalar" : "Invoices Not Sent to GİB"}
           >
-            <Clock className="h-4 w-4" />
+            <CloudOff className="h-4 w-4 shrink-0" />
+            <span className="font-semibold">{isTr ? "Gönderilmedi" : "Not Sent"}</span>
+            {notSentCount > 0 && (
+              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-bold ${
+                statusFilter === 'not_sent' ? 'bg-white/25 text-white' : 'bg-blue-100 text-blue-800'
+              }`}>
+                {notSentCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStatusFilter(statusFilter === 'draft' ? 'all' : 'draft'); setPage(1); }}
+            className={`px-2.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+              statusFilter === 'draft' 
+                ? 'bg-amber-600 text-white border-amber-600 shadow-xs ring-1 ring-amber-500' 
+                : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50 hover:border-amber-300'
+            }`}
+            title={isTr ? "Taslak Faturalar" : "Drafts"}
+          >
+            <Clock className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline font-semibold">{isTr ? "Taslak" : "Draft"}</span>
+            {draftCount > 0 && (
+              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-bold ${
+                statusFilter === 'draft' ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-800'
+              }`}>
+                {draftCount}
+              </span>
+            )}
           </button>
           <button
             type="button"
             onClick={() => { setStatusFilter(statusFilter === 'rejected' ? 'all' : 'rejected'); setPage(1); }}
-            className={`p-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer border ${
+            className={`px-2.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
               statusFilter === 'rejected' 
-                ? 'bg-rose-600 text-white border-rose-600 shadow-xs' 
-                : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'
+                ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-1 ring-rose-500' 
+                : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 hover:border-rose-300'
             }`}
-            title={isTr ? "Reddedilenler / Hatalı" : "Rejected / Error"}
+            title={isTr ? "Reddedilenler / İptal / Hatalı" : "Rejected / Cancelled / Error"}
           >
-            <XCircle className="h-4 w-4" />
+            <XCircle className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline font-semibold">{isTr ? "İptal / Hata" : "Cancelled"}</span>
+            {rejectedCount > 0 && (
+              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-bold ${
+                statusFilter === 'rejected' ? 'bg-white/25 text-white' : 'bg-rose-100 text-rose-800'
+              }`}>
+                {rejectedCount}
+              </span>
+            )}
           </button>
+
+          {(statusFilter !== 'all' || (showMarketplaceFilter && marketplaceFilter !== 'all')) && (
+            <button
+              type="button"
+              onClick={() => { setStatusFilter('all'); setMarketplaceFilter('all'); setPage(1); }}
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded-xl transition-all cursor-pointer ml-1"
+              title={isTr ? "Tüm Filtreleri Temizle" : "Clear All Filters"}
+            >
+              <X className="w-3 h-3 text-slate-400" />
+              <span>{isTr ? "Temizle" : "Clear"}</span>
+            </button>
+          )}
 
           {/* CONTEMPORARY E-MARKETPLACE FILTER POPOVER (NO PRIMITIVE EMOJIS) */}
           {showMarketplaceFilter && (
@@ -1456,20 +1536,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       </div>
 
       <SalesInvoiceTable 
-        invoices={(() => {
-          let filtered = invoices;
-          if (statusFilter === 'draft') {
-            filtered = filtered.filter((inv: any) => ['draft', 'taslak'].includes((inv.status || '').toLowerCase().trim()) && !isInvoiceCancelled(inv));
-          } else if (statusFilter === 'rejected') {
-            filtered = filtered.filter((inv: any) => 
-               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || isInvoiceCancelled(inv)
-            );
-          }
-          if (showMarketplaceFilter && marketplaceFilter !== 'all') {
-            filtered = filtered.filter(matchesMarketplaceFilter);
-          }
-          return filtered;
-        })().slice((page - 1) * itemsPerPage, page * itemsPerPage)}
+        invoices={filteredInvoices.slice((page - 1) * itemsPerPage, page * itemsPerPage)}
         loading={loading}
         isTr={isTr}
         selectedIds={selectedIds}
@@ -1486,20 +1553,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         handleOpenWaybillModal={handleOpenWaybillModal}
         handleMarketplaceShip={handleMarketplaceShip}
         page={page}
-        totalPages={Math.ceil((() => {
-          let filtered = invoices;
-          if (statusFilter === 'draft') {
-            filtered = filtered.filter((inv: any) => ['draft', 'taslak'].includes((inv.status || '').toLowerCase().trim()) && !isInvoiceCancelled(inv));
-          } else if (statusFilter === 'rejected') {
-            filtered = filtered.filter((inv: any) => 
-               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || isInvoiceCancelled(inv)
-            );
-          }
-          if (showMarketplaceFilter && marketplaceFilter !== 'all') {
-            filtered = filtered.filter(matchesMarketplaceFilter);
-          }
-          return filtered.length;
-        })() / itemsPerPage)}
+        totalPages={Math.ceil(filteredInvoices.length / itemsPerPage)}
         setPage={setPage}
         products={propProducts || products}
         onEditProduct={onEditProduct}

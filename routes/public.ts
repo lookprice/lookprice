@@ -2692,7 +2692,7 @@ router.post("/quotations/:id/action", async (req, res) => {
     if (action !== 'approve') {
       console.log(`[PublicQuotationAction] Rejecting quotation ${quotationId}`);
       const result = await pool.query(
-        "UPDATE quotations SET status = 'cancelled', notes = COALESCE(notes, '') || '\nCustomer Note (Reject): ' || $1 WHERE id = $2 AND status = 'pending' RETURNING id",
+        "UPDATE quotations SET status = 'cancelled', customer_response_status = 'rejected', customer_response_at = CURRENT_TIMESTAMP, customer_response_note = $1, is_response_read = FALSE, notes = COALESCE(notes, '') || '\nCustomer Note (Reject): ' || $1 WHERE id = $2 AND status = 'pending' RETURNING id",
         [customerNotes || '', quotationId]
       );
       
@@ -2798,8 +2798,8 @@ router.post("/quotations/:id/action", async (req, res) => {
     // Update Quotation Status
     console.log(`[PublicQuotationAction] Updating quotation ${quotationId} status to approved`);
     await client.query(
-      "UPDATE quotations SET status = 'approved', is_sale = TRUE, payment_method = $1, due_date = $2, notes = COALESCE(notes, '') || $3 WHERE id = $4",
-      [paymentMethod, dueDate, customerNotes ? `\nCustomer Note: ${customerNotes}` : '', quotation.id]
+      "UPDATE quotations SET status = 'approved', customer_response_status = 'approved', customer_response_at = CURRENT_TIMESTAMP, customer_response_note = $1, is_response_read = FALSE, is_sale = TRUE, payment_method = $2, due_date = $3, notes = COALESCE(notes, '') || $4 WHERE id = $5",
+      [customerNotes || '', paymentMethod, dueDate, customerNotes ? `\nCustomer Note: ${customerNotes}` : '', quotation.id]
     );
 
     await client.query("COMMIT");

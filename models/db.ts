@@ -367,6 +367,10 @@ export async function initDb() {
       );
 
       ALTER TABLE quotations ADD COLUMN IF NOT EXISTS service_id INTEGER;
+      ALTER TABLE quotations ADD COLUMN IF NOT EXISTS customer_response_status VARCHAR(30);
+      ALTER TABLE quotations ADD COLUMN IF NOT EXISTS customer_response_at TIMESTAMP;
+      ALTER TABLE quotations ADD COLUMN IF NOT EXISTS customer_response_note TEXT;
+      ALTER TABLE quotations ADD COLUMN IF NOT EXISTS is_response_read BOOLEAN DEFAULT FALSE;
 
       CREATE TABLE IF NOT EXISTS quotation_items (
         id SERIAL PRIMARY KEY,

@@ -422,6 +422,7 @@ export const api = {
   updateStockTransferStatus: (id: number, status: string, storeId?: number, lang = 'tr') => api.put(`/api/store/stock-transfers/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}&lang=${lang}` : `?lang=${lang}`}`, { status }),
   deleteStockTransfer: (id: number, storeId?: number) => api.delete(`/api/store/stock-transfers/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getNotifications: (storeId?: number) => api.get(`/api/store/notifications${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getNotificationFeed: (storeId?: number) => api.get(`/api/store/notifications/feed${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   
   // Consultants CRM
   getConsultants: (storeId?: number) => api.get(`/api/store/consultants${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),

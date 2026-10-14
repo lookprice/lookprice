@@ -177,7 +177,7 @@ const QuotationsTab = ({
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                           q.status === 'approved' || q.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
                           q.status === 'cancelled' ? 'bg-rose-50 text-rose-600 border-rose-100' :
@@ -186,6 +186,16 @@ const QuotationsTab = ({
                           {q.status === 'approved' || q.status === 'completed' ? t.completed : 
                            q.status === 'cancelled' ? t.cancelled : t.pending}
                         </span>
+                        {(q.customer_response_status === 'approved' || (q.status === 'approved' && q.notes && (q.notes.includes('Customer Note') || q.notes.includes('Müşteri')))) && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-2xs">
+                            ✓ {lang === 'tr' ? 'Müşteri Onayladı' : 'Customer Approved'}
+                          </span>
+                        )}
+                        {(q.customer_response_status === 'rejected' || (q.status === 'cancelled' && q.notes && q.notes.includes('Customer Note (Reject)'))) && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-2xs">
+                            ✕ {lang === 'tr' ? 'Müşteri Reddetti' : 'Customer Rejected'}
+                          </span>
+                        )}
                         {q.is_sale && (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white">
                             {t.sale}

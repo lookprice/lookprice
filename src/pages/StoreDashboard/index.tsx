@@ -128,6 +128,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [shipTrackingNumber, setShipTrackingNumber] = useState('');
   const [dismissedWebSales, setDismissedWebSales] = useState(false);
   const [dismissedHotelReservations, setDismissedHotelReservations] = useState(false);
+  const [dismissedReconDispute, setDismissedReconDispute] = useState(false);
+  const [dismissedQuotationAlert, setDismissedQuotationAlert] = useState(false);
+  const [companiesInitialOpenRecon, setCompaniesInitialOpenRecon] = useState(false);
+  const [companiesInitialReconFilter, setCompaniesInitialReconFilter] = useState<'all' | 'confirmed' | 'disputed' | 'pending'>('all');
+  const [salesInvoicesInitialFilter, setSalesInvoicesInitialFilter] = useState<string>('all');
 
   const t = translations[lang].dashboard;
   const {
@@ -829,6 +834,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   // Redirection effects have been unified below permittedTabIds definition for dynamic/lazy execution.
 
+  const totalUrgentNotifications = 
+    Number(notifications?.sales_invoices || 0) + 
+    Number(notifications?.web_sales || 0) + 
+    (Number(notifications?.sales_invoices_not_sent || 0) > 0 ? 1 : 0) +
+    (Number(notifications?.critical_stock || 0) > 0 ? 1 : 0) +
+    Number(notifications?.reconciliations_disputed || 0) +
+    Number(notifications?.quotations_action || 0);
+  const hasCriticalNotifications = 
+    Number(notifications?.sales_invoices || 0) > 0 || 
+    Number(notifications?.web_sales || 0) > 0 ||
+    Number(notifications?.reconciliations_disputed || 0) > 0;
+
   const rawNavItems = isPortfolio ? [
     { type: 'category', key: "real_estate", title: txt('Portföy & İlan', 'Portfolios & Listings', 'Χαρτοφυλάκιο & Αγγελίες'), items: [
       ...(isRealEstate ? [{ id: "real_estate", label: txt('Gayrimenkul Portföyü', 'Real Estate Portfolio', 'Χαρτοφυλάκιο Ακινήτων'), icon: Home }] : []),
@@ -838,7 +855,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       ...(!isPortfolio ? [{ id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices }] : []),
       ...(!isPortfolio ? [{ id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' }] : []),
       ...(!isPortfolio ? [{ id: "e_waybills", label: txt('e-İrsaliyeler', 'e-Waybills', 'Ηλεκτρονικά Δελτία Αποστολής'), icon: Truck }] : []),
-      { id: "companies", label: t.companies, icon: Store },
+      { 
+        id: "companies", 
+        label: t.companies, 
+        icon: Store,
+        badge: Number(notifications?.reconciliations_total || 0) > 0 ? Number(notifications?.reconciliations_total) : undefined,
+        badgeType: Number(notifications?.reconciliations_disputed || 0) > 0 ? 'error' : 'normal'
+      },
       { id: "portfolio_finances", label: txt('Gelir & Gider / Kasa', 'Finances & Cash Flow', 'Έσοδα & Έξοδα / Ταμείο'), icon: Wallet },
     ]},
     { type: 'category', key: "team", title: txt('Personel & Şube', 'Staff & Branches', 'Προσωπικό & Υποκαταστήματα'), items: [
@@ -853,7 +876,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'category', key: "dashboard", title: txt('İstatistik & Rapor', 'Analytics & Logs', 'Στατιστικά & Αναφορές'), items: [
       { id: "analytics", label: t.analytics, icon: BarChart3 },
       { id: "radar_alerts", label: txt(isAutomotive ? 'Motorlu Taşıtlar & Haber Radarı' : 'İmar & Haber Radarı', 'Radar & Alerts', 'Ραντάρ & Ειδοποιήσεις'), icon: Radar },
-      { id: "notifications", label: txt('Bildirimler', 'Notifications', 'Ειδοποιήσεις'), icon: Bell },
+      { 
+        id: "notifications", 
+        label: txt('Bildirimler', 'Notifications', 'Ειδοποιήσεις'), 
+        icon: Bell,
+        badge: totalUrgentNotifications > 0 ? totalUrgentNotifications : undefined,
+        badgeType: hasCriticalNotifications ? 'error' : 'normal'
+      },
       { id: "blog", label: txt('Blog', 'Blog', 'Blog'), icon: BookOpen },
       { id: "seo", label: txt('SEO Sayfaları', 'SEO Pages', 'Σελίδες SEO'), icon: Globe },
       { id: "website-generator", label: txt('Web Sitesi & Footer Yönetimi', 'Website & Footer Management', 'Διαχείριση Ιστοσελίδας & Footer'), icon: Globe },
@@ -877,10 +906,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
     ]},
     { type: 'category', key: "sales", title: txt('Finans', 'Finance', 'Οικονομικά'), items: [
-      ...(!isCafeRestaurant ? [{ id: "quotations", label: t.quotations, icon: FileCheck }] : []),
+      ...(!isCafeRestaurant ? [{ 
+        id: "quotations", 
+        label: t.quotations, 
+        icon: FileCheck,
+        badge: Number(notifications?.quotations_action || 0) > 0 ? Number(notifications?.quotations_action) : undefined,
+        badgeType: Number(notifications?.quotations_rejected || 0) > 0 ? 'warning' : 'normal'
+      }] : []),
       { id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' },
       ...(!isCafeRestaurant ? [{ id: "e_waybills", label: txt('e-İrsaliyeler', 'e-Waybills', 'Ηλεκτρονικά Δελτία Αποστολής'), icon: Truck }] : []),
-      { id: "companies", label: t.companies, icon: Store },
+      { 
+        id: "companies", 
+        label: t.companies, 
+        icon: Store,
+        badge: Number(notifications?.reconciliations_total || 0) > 0 ? Number(notifications?.reconciliations_total) : undefined,
+        badgeType: Number(notifications?.reconciliations_disputed || 0) > 0 ? 'error' : 'normal'
+      },
       { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
       { id: "fast-pos", label: t.fastPos, icon: Scan },
     ]},
@@ -891,7 +932,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "dashboard", title: txt('İstatistik & Blog', 'Analytics & Blog', 'Στατιστικά & Blog'), items: [
       { id: "analytics", label: t.analytics, icon: BarChart3 },
-      { id: "notifications", label: txt('Bildirimler', 'Notifications', 'Ειδοποιήσεις'), icon: Bell },
+      { 
+        id: "notifications", 
+        label: txt('Bildirimler', 'Notifications', 'Ειδοποιήσεις'), 
+        icon: Bell,
+        badge: totalUrgentNotifications > 0 ? totalUrgentNotifications : undefined,
+        badgeType: hasCriticalNotifications ? 'error' : 'normal'
+      },
       { id: "blog", label: txt('Blog', 'Blog', 'Blog'), icon: BookOpen },
       ...(!isCafeRestaurant ? [{ id: "faq", label: txt('S.S.S', 'FAQ', 'Συχνές Ερωτήσεις'), icon: HelpCircle }] : []),
       { id: "audit-logs", label: t.auditLogs, icon: History },
@@ -1151,6 +1198,85 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           </div>
         )}
 
+        {!dismissedReconDispute && Number(notifications?.reconciliations_disputed || 0) > 0 && (
+          <div className="mb-6 bg-rose-500/10 border-2 border-rose-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center text-xl font-black shrink-0 shadow">
+                ⚖️
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                    {isTr ? `CARİ MUTABAKAT UYUŞMAZLIĞI (${notifications.reconciliations_disputed} İtiraz)` : `RECONCILIATION DISPUTE (${notifications.reconciliations_disputed} Disputed)`}
+                  </span>
+                  <span className="animate-pulse px-2 py-0.5 bg-rose-600 text-white font-black text-[10px] rounded-full uppercase">
+                    {isTr ? 'İtirazı İncele' : 'Review Dispute'}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                  {isTr 
+                    ? 'Müşteriniz resmi dijital mutabakat mektubunuza itiraz bildirdi. Uyuşmazlık gerekçesini ve bakiye farkını inceleyebilirsiniz.' 
+                    : 'A company has reported a dispute on their reconciliation statement. Please review the dispute note.'}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => {
+                  setCompaniesInitialOpenRecon(true);
+                  setCompaniesInitialReconFilter('disputed');
+                  setActiveTab("companies");
+                  setDismissedReconDispute(true);
+                }}
+                className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-rose-300 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center justify-center gap-1.5 border border-rose-500/30 cursor-pointer"
+              >
+                <span>{isTr ? 'Uyuşmazlıkları Aç' : 'Open Disputes'}</span>
+                <span>→</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!dismissedQuotationAlert && Number(notifications?.quotations_action || 0) > 0 && (
+          <div className="mb-6 bg-emerald-500/10 border-2 border-emerald-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xl font-black shrink-0 shadow">
+                📑
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                    {isTr 
+                      ? `YENİ TEKLİF YANITI (${notifications.quotations_approved || 0} Onay / ${notifications.quotations_rejected || 0} Ret)`
+                      : `NEW QUOTE RESPONSES (${notifications.quotations_approved || 0} Approved / ${notifications.quotations_rejected || 0} Rejected)`}
+                  </span>
+                  <span className="px-2 py-0.5 bg-emerald-600 text-white font-black text-[10px] rounded-full uppercase">
+                    {isTr ? 'Müşteri Yanıtladı' : 'Customer Replied'}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                  {isTr 
+                    ? 'Gönderdiğiniz tekliflere online müşteri yanıtı geldi. Onaylanan siparişleri ve ret gerekçelerini inceleyebilirsiniz.' 
+                    : 'Customers have responded to your sent proposals online. Check approved orders and rejection feedback.'}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => {
+                  setQuotationStatusFilter(Number(notifications?.quotations_approved || 0) > 0 ? 'approved' : 'cancelled');
+                  setActiveTab("quotations");
+                  setDismissedQuotationAlert(true);
+                }}
+                className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center justify-center gap-1.5 border border-emerald-500/30 cursor-pointer"
+              >
+                <span>{isTr ? 'Teklifleri İncele' : 'View Quotes'}</span>
+                <span>→</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {webOwnerLeadsCount > 0 && (
           <div className="mb-6 bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
             <div className="flex items-start gap-3">
@@ -1388,6 +1514,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   defaultCurrency={branding.default_currency}
                   onNewCompany={() => { setEditingCompany(null); setShowCompanyModal(true); }}
                   onRefresh={fetchCompanies}
+                  initialOpenRecon={companiesInitialOpenRecon}
+                  initialReconFilter={companiesInitialReconFilter}
                 />
               )}
               {activeTab === "procurements" && permittedTabIds.has("procurements") && (
@@ -1510,7 +1638,31 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 />
               )}
               {activeTab === "notifications" && permittedTabIds.has("notifications") && (
-                <PortfolioNotificationsTab analytics={analytics} />
+                <PortfolioNotificationsTab 
+                  analytics={analytics} 
+                  notifications={notifications}
+                  onRefreshNotifications={fetchNotifications}
+                  onNavigateTab={(tab: string, filter?: string) => {
+                    if (tab === "companies") {
+                      if (filter === "disputed" || filter === "confirmed" || filter === "pending" || filter === "all") {
+                        setCompaniesInitialOpenRecon(true);
+                        setCompaniesInitialReconFilter(filter as any);
+                      }
+                    } else if (tab === "quotations") {
+                      if (filter) {
+                        setQuotationStatusFilter(filter);
+                      }
+                    } else if (tab === "sales_invoices") {
+                      if (filter) {
+                        setSalesInvoicesInitialFilter(filter);
+                      }
+                    }
+                    setActiveTab(tab);
+                  }}
+                  storeId={currentStoreId!}
+                  isTr={isTr}
+                  branding={branding}
+                />
               )}
               {activeTab === "website-generator" && permittedTabIds.has("website-generator") && (
                 <PortfolioWebsiteGeneratorTab storeId={currentStoreId!} />

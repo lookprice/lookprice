@@ -933,8 +933,10 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
   
   try {
     const res = await queryRunner(
-      `SELECT id, name, barcode, stock_quantity, hepsiburada_sku, 
-              is_hepsiburada_active, is_amazon_active, is_trendyol_active, is_n11_active, is_pazarama_active 
+      `SELECT id, name, barcode, sku, price, stock_quantity, hepsiburada_sku, 
+              amazon_asin, amazon_sku, n11_id,
+              is_hepsiburada_active, is_amazon_active, is_trendyol_active, is_n11_active, is_pazarama_active,
+              marketplace_data
        FROM products WHERE id = $1 AND store_id = $2`,
       [productId, storeId]
     );
@@ -946,64 +948,125 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
     if (currentStock <= 0) {
       const isAnyActive = p.is_hepsiburada_active || p.is_amazon_active || p.is_trendyol_active || p.is_n11_active || p.is_pazarama_active;
       
-      if (isAnyActive) {
-        console.log(`[Auto-Unpublish Zero Stock] Product ID ${productId} ("${p.name}") stock is ${currentStock} <= 0. Auto closing active marketplace listings.`);
-        
-        await queryRunner(
-          `UPDATE products 
-           SET is_hepsiburada_active = false,
-               is_amazon_active = false,
-               is_trendyol_active = false,
-               is_n11_active = false,
-               is_pazarama_active = false,
-               hepsiburada_last_sync = NOW()
-           WHERE id = $1 AND store_id = $2`,
-          [productId, storeId]
-        );
+      let mpData = p.marketplace_data || {};
+      if (typeof mpData === "string") {
+        try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+      }
+      mpData = mpData || {};
 
-        // Async trigger to marketplaces to set stock=0
-        (async () => {
-          try {
-            const storeRes = await pool.query("SELECT hepsiburada_settings, amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
-            const st = storeRes.rows[0];
-            
-            // Hepsiburada Stock 0
-            if (p.is_hepsiburada_active) {
-              const hbSettings = st?.hepsiburada_settings || st?.branding?.hepsiburada_settings;
-              if (hbSettings?.merchantId && hbSettings?.apiKey && hbSettings?.apiSecret) {
-                const { HepsiburadaService } = await import("./backend/hepsiburadaService.js");
-                const hbService = new HepsiburadaService(hbSettings, storeId);
+      const nowIso = new Date().toISOString();
+      if (p.is_hepsiburada_active || mpData.hepsiburada?.status === 'ACTIVE') {
+        if (!mpData.hepsiburada) mpData.hepsiburada = {};
+        mpData.hepsiburada.status = 'INACTIVE';
+        mpData.hepsiburada.manuallyUnpublished = true;
+        mpData.hepsiburada.unpublishedAt = nowIso;
+      }
+      if (p.is_amazon_active || mpData.amazon?.status === 'ACTIVE') {
+        if (!mpData.amazon) mpData.amazon = {};
+        mpData.amazon.status = 'INACTIVE';
+        mpData.amazon.manuallyUnpublished = true;
+        mpData.amazon.unpublishedAt = nowIso;
+      }
+      if (p.is_trendyol_active || mpData.trendyol?.status === 'ACTIVE') {
+        if (!mpData.trendyol) mpData.trendyol = {};
+        mpData.trendyol.status = 'INACTIVE';
+        mpData.trendyol.manuallyUnpublished = true;
+      }
+      if (p.is_n11_active || mpData.n11?.status === 'ACTIVE') {
+        if (!mpData.n11) mpData.n11 = {};
+        mpData.n11.status = 'INACTIVE';
+        mpData.n11.manuallyUnpublished = true;
+      }
+      if (p.is_pazarama_active || mpData.pazarama?.status === 'ACTIVE') {
+        if (!mpData.pazarama) mpData.pazarama = {};
+        mpData.pazarama.status = 'INACTIVE';
+        mpData.pazarama.manuallyUnpublished = true;
+      }
+
+      console.log(`[Auto-Unpublish Zero Stock] Product ID ${productId} ("${p.name}") stock is ${currentStock} <= 0. Auto closing active marketplace listings.`);
+      
+      await queryRunner(
+        `UPDATE products 
+         SET is_hepsiburada_active = false,
+             is_amazon_active = false,
+             is_trendyol_active = false,
+             is_n11_active = false,
+             is_pazarama_active = false,
+             hepsiburada_last_sync = NOW(),
+             amazon_last_sync = NOW(),
+             marketplace_data = $3
+         WHERE id = $1 AND store_id = $2`,
+        [productId, storeId, JSON.stringify(mpData)]
+      );
+
+      // Async trigger to marketplaces to set stock=0 and close offers
+      (async () => {
+        try {
+          const storeRes = await pool.query(
+            "SELECT hepsiburada_settings, amazon_settings, n11_settings, branding FROM stores WHERE id = $1", 
+            [storeId]
+          );
+          const st = storeRes.rows[0];
+          
+          // 1. Hepsiburada Stock 0
+          if (p.is_hepsiburada_active || p.hepsiburada_sku) {
+            const hbSettings = st?.hepsiburada_settings || st?.branding?.hepsiburada_settings;
+            if (hbSettings?.merchantId && hbSettings?.apiKey && hbSettings?.apiSecret) {
+              const { HepsiburadaService } = await import("./backend/hepsiburadaService.js");
+              const hbService = new HepsiburadaService(hbSettings, storeId);
+              const mSku = p.barcode || p.hepsiburada_sku || p.sku;
+              if (mSku) {
                 await hbService.updatePriceAndStock([{
-                  MerchantSku: p.barcode || p.hepsiburada_sku,
+                  MerchantSku: String(mSku).trim(),
                   HepsiburadaSku: p.hepsiburada_sku || "",
                   Price: 0,
                   AvailableStock: 0,
                   DispatchTime: 1
-                }]);
+                }]).catch(e => console.warn(`[Auto-Unpublish HB Warning]: ${e.message}`));
               }
             }
-
-            // Amazon Stock 0
-            if (p.is_amazon_active) {
-              const amzSettings = st?.amazon_settings || st?.branding?.amazon_settings;
-              if (amzSettings?.sellerId && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
-                const { AmazonService } = await import("./backend/amazonService.js");
-                const amzService = new AmazonService(amzSettings, storeId);
-                let mpData: any = p.marketplace_data;
-                if (typeof mpData === "string") {
-                  try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
-                }
-                const sku = p.amazon_sku || mpData?.amazon?.sku || p.sku || p.barcode;
-                if (sku) {
-                  await amzService.updateListingsItem(String(sku).trim(), 0, 0);
-                }
-              }
-            }
-          } catch (e: any) {
-            console.warn(`[Auto-Unpublish Marketplace Sync Error]: ${e.message}`);
           }
-        })();
-      }
+
+          // 2. Amazon Stock 0 & Offer Closure
+          if (p.is_amazon_active || p.amazon_asin || p.amazon_sku) {
+            const amzSettings = st?.amazon_settings || st?.branding?.amazon_settings;
+            if (amzSettings?.sellerId && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
+              const { AmazonService, AMAZON_TR_MARKETPLACE_ID } = await import("./backend/amazonService.js");
+              const amzService = new AmazonService(amzSettings, storeId);
+              const sku = p.amazon_sku || mpData?.amazon?.sku || p.sku || p.barcode;
+              if (sku) {
+                const safePrice = Math.max(1, parseFloat(String(p.price || 0)) || 100);
+                await amzService.updateListingsItem(String(sku).trim(), safePrice, 0)
+                  .catch(e => console.warn(`[Auto-Unpublish Amazon Update Warning]: ${e.message}`));
+
+                // Also delete listing offer via SP-API to completely close the offer
+                await amzService.deleteListingsItem(String(sku).trim())
+                  .catch(delErr => console.warn(`[Auto-Unpublish Amazon Delete Warning]: ${delErr?.message || delErr}`));
+              }
+            }
+          }
+
+          // 3. N11 Stock 0
+          if (p.is_n11_active && (p.n11_id || p.barcode || p.sku)) {
+            const n11Settings = st?.n11_settings || st?.branding?.n11_settings;
+            if (n11Settings?.apiKey && n11Settings?.apiSecret) {
+              const { N11Service } = await import("./backend/n11Service.js");
+              const auth = { appKey: n11Settings.apiKey, appSecret: n11Settings.apiSecret };
+              const stockCode = p.barcode || p.sku;
+              if (stockCode) {
+                await N11Service.updatePriceAndStock(
+                  auth,
+                  stockCode,
+                  Math.max(1, parseFloat(String(p.price || 0)) || 100),
+                  0
+                ).catch(e => console.warn(`[Auto-Unpublish N11 Warning]: ${e.message}`));
+              }
+            }
+          }
+        } catch (e: any) {
+          console.warn(`[Auto-Unpublish Marketplace Sync Error]: ${e.message}`);
+        }
+      })();
     }
   } catch (err: any) {
     console.error(`[Auto-Unpublish Zero Stock Error]:`, err?.message || err);

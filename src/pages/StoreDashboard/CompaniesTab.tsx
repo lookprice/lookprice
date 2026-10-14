@@ -51,6 +51,8 @@ interface CompaniesTabProps {
   branding?: any;
   onNewCompany?: () => void;
   onRefresh?: () => void;
+  initialOpenRecon?: boolean;
+  initialReconFilter?: 'all' | 'confirmed' | 'disputed' | 'pending';
 }
 
 const CompaniesTab = ({ 
@@ -65,7 +67,9 @@ const CompaniesTab = ({
   defaultCurrency = 'TRY',
   branding,
   onNewCompany,
-  onRefresh
+  onRefresh,
+  initialOpenRecon,
+  initialReconFilter
 }: CompaniesTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -76,6 +80,15 @@ const CompaniesTab = ({
   const itemsPerPage = 15;
 
   const [showReconHistory, setShowReconHistory] = useState(false);
+
+  useEffect(() => {
+    if (initialOpenRecon) {
+      setShowReconHistory(true);
+      if (initialReconFilter) {
+        setReconStatusFilter(initialReconFilter);
+      }
+    }
+  }, [initialOpenRecon, initialReconFilter]);
   const storeId = companies[0]?.store_id || branding?.id || 1;
 
   // Reconciliation Control Center States
