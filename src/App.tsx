@@ -9,6 +9,7 @@ import { useLanguage } from "./contexts/LanguageContext";
 import { translations } from "./translations";
 import { useParams } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
+import { AlertProvider } from "./contexts/AlertContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 
 // Lazy load pages for optimum initial bundle size and near-instant load speed

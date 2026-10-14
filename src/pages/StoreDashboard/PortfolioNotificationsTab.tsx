@@ -102,6 +102,24 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
     }
   };
 
+  // Audio/Visual alert for new orders
+  useEffect(() => {
+    const newOrderItems = feed.filter(f => f.category === "order" && f.count > 0);
+    if (newOrderItems.length > 0) {
+      // Trigger audio alert
+      const audio = new Audio('/sounds/cash-register.mp3'); // Assuming standard path
+      audio.play().catch(e => console.warn("Audio play blocked", e));
+      
+      // Trigger browser visual notification (simple implementation)
+      if (Notification.permission === 'granted') {
+        new Notification("Yeni Sipariş!", {
+          body: "Yeni bir e-market siparişiniz var!",
+          icon: '/favicon.ico'
+        });
+      }
+    }
+  }, [feed]);
+
   // Grouped Counts
   const criticalCount = feed.filter(f => f.severity === "critical").reduce((acc, curr) => acc + (curr.count || 1), 0);
   const reconQuoteCount = feed.filter(f => f.category === "reconciliation" || f.category === "quotation").reduce((acc, curr) => acc + (curr.count || 1), 0);

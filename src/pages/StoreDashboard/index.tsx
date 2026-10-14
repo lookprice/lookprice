@@ -840,7 +840,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     (Number(notifications?.sales_invoices_not_sent || 0) > 0 ? 1 : 0) +
     (Number(notifications?.critical_stock || 0) > 0 ? 1 : 0) +
     Number(notifications?.reconciliations_disputed || 0) +
-    Number(notifications?.quotations_action || 0);
+    Number(notifications?.reconciliations_confirmed || 0) +
+    Number(notifications?.quotations_action || 0) +
+    Number(notifications?.quotations_rejected || 0);
   const hasCriticalNotifications = 
     Number(notifications?.sales_invoices || 0) > 0 || 
     Number(notifications?.web_sales || 0) > 0 ||

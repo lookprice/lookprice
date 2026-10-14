@@ -10,6 +10,17 @@ router.get("/", async (req: any, res) => {
   if (!storeId) return res.status(400).json({ error: "Store ID required" });
 
   try {
+    const feed: any[] = [];
+    const nowIso = new Date().toISOString();
+
+    // Fetch store info first
+    const storeRes = await pool.query("SELECT sector, branding FROM stores WHERE id = $1", [storeId]);
+    const { sector, branding } = storeRes.rows[0] || { sector: 'RETAIL', branding: {} };
+    const isHotelModuleActive = branding?.hotel_module_enabled === true;
+    const isPortfolio = sector === 'REAL_ESTATE' || sector === 'AUTOMOTIVE';
+    const isAutomotive = sector === 'AUTOMOTIVE';
+    const isCafeRestaurant = sector === 'HORECA';
+
     const transfersCount = await pool.query(
       `SELECT COUNT(*) FROM stock_transfers 
        WHERE (to_store_id = $1 AND status = 'shipped')
@@ -17,10 +28,10 @@ router.get("/", async (req: any, res) => {
       [storeId]
     );
 
-    const serviceCount = await pool.query(
+    const serviceCount = !isCafeRestaurant ? await pool.query(
       "SELECT COUNT(*) FROM service_records WHERE store_id = $1 AND status = 'received'",
       [storeId]
-    );
+    ) : { rows: [{ count: 0 }] };
 
     const quotationsCount = await pool.query(
       "SELECT COUNT(*) FROM quotations WHERE store_id = $1 AND status = 'pending'",
@@ -34,6 +45,22 @@ router.get("/", async (req: any, res) => {
       [storeId]
     );
 
+    const marketplacePendingCount = await pool.query(
+      `SELECT COUNT(*) FROM sales 
+       WHERE store_id = $1 
+         AND status IN ('pending', 'processing', 'preparing')
+         AND source IN ('trendyol', 'hepsiburada', 'n11', 'amazon', 'pazarama', 'ciceksepeti')`,
+      [storeId]
+    );
+
+    const cancelledOrdersCount = await pool.query(
+      `SELECT COUNT(*) FROM sales 
+       WHERE store_id = $1 
+         AND status = 'cancelled'
+         AND (source IN ('trendyol', 'hepsiburada', 'n11', 'amazon', 'pazarama', 'ciceksepeti') OR notes LIKE '%Web Siparişi%')`,
+      [storeId]
+    );
+
     const webSalesCount = await pool.query(
       `SELECT COUNT(*) FROM sales 
        WHERE store_id = $1 
@@ -42,21 +69,21 @@ router.get("/", async (req: any, res) => {
       [storeId]
     );
 
-    const expiringDocsCount = await pool.query(
+    const expiringDocsCount = isAutomotive ? await pool.query(
       `SELECT COUNT(*) FROM vehicle_documents vd
        JOIN vehicles v ON vd.vehicle_id = v.id
        WHERE v.store_id = $1 AND vd.expiry_date <= CURRENT_DATE + INTERVAL '30 days' AND vd.expiry_date >= CURRENT_DATE`,
       [storeId]
-    );
+    ) : { rows: [{ count: 0 }] };
 
-    const maintenanceDueCount = await pool.query(
+    const maintenanceDueCount = isAutomotive ? await pool.query(
       `SELECT COUNT(*) FROM vehicle_maintenance vm
        JOIN vehicles v ON vm.vehicle_id = v.id
        WHERE v.store_id = $1 
        AND vm.status = 'scheduled'
        AND (vm.next_maintenance_date <= CURRENT_DATE + INTERVAL '30 days' OR (v.current_mileage >= vm.next_maintenance_mileage - 1000 AND vm.next_maintenance_mileage > 0))`,
       [storeId]
-    );
+    ) : { rows: [{ count: 0 }] };
 
     const salesInvoicesCount = await pool.query(
       `SELECT COUNT(*) FROM sales_invoices 
@@ -64,11 +91,11 @@ router.get("/", async (req: any, res) => {
       [storeId]
     );
 
-    const purchaseInvoicesCount = await pool.query(
+    const purchaseInvoicesCount = !isPortfolio ? await pool.query(
       `SELECT COUNT(*) FROM purchase_invoices 
        WHERE store_id = $1 AND is_read = false`,
       [storeId]
-    );
+    ) : { rows: [{ count: 0 }] };
 
     const salesInvoicesNotSentCount = await pool.query(
       `SELECT COUNT(*) FROM sales_invoices 
@@ -88,20 +115,24 @@ router.get("/", async (req: any, res) => {
 
     let crmLeadsCount = 0;
     try {
-      const crmRes = await pool.query(
-        "SELECT COUNT(*) FROM real_estate_contacts WHERE store_id = $1 AND created_at >= NOW() - INTERVAL '30 days'",
-        [storeId]
-      );
-      crmLeadsCount = parseInt(crmRes.rows[0]?.count || '0');
+      if (isPortfolio) {
+        const crmRes = await pool.query(
+          "SELECT COUNT(*) FROM real_estate_contacts WHERE store_id = $1 AND created_at >= NOW() - INTERVAL '30 days'",
+          [storeId]
+        );
+        crmLeadsCount = parseInt(crmRes.rows[0]?.count || '0');
+      }
     } catch (e) {}
 
     let hotelReservationsCount = 0;
     try {
-      const hotelRes = await pool.query(
-        "SELECT COUNT(*) FROM hotel_reservations WHERE store_id = $1 AND status = 'pending_action'",
-        [storeId]
-      );
-      hotelReservationsCount = parseInt(hotelRes.rows[0]?.count || '0');
+      if (isHotelModuleActive) {
+        const hotelRes = await pool.query(
+          "SELECT COUNT(*) FROM hotel_reservations WHERE store_id = $1 AND status = 'pending_action'",
+          [storeId]
+        );
+        hotelReservationsCount = parseInt(hotelRes.rows[0]?.count || '0');
+      }
     } catch (err) {}
 
     // 11. Cari Mutabakat Yanıtları (Disputed & Confirmed)
@@ -141,6 +172,8 @@ router.get("/", async (req: any, res) => {
       service: parseInt(serviceCount.rows[0].count),
       quotations: parseInt(quotationsCount.rows[0].count),
       sales: parseInt(salesCount.rows[0].count),
+      marketplace_pending: parseInt(marketplacePendingCount.rows[0].count),
+      cancelled_orders: parseInt(cancelledOrdersCount.rows[0].count),
       web_sales: parseInt(webSalesCount.rows[0].count),
       hotel_reservations: hotelReservationsCount,
       fleet: parseInt(expiringDocsCount.rows[0].count) + parseInt(maintenanceDueCount.rows[0].count),
@@ -197,7 +230,39 @@ router.get("/feed", async (req: any, res) => {
       });
     }
 
-    // 2. Cari Mutabakat Uyuşmazlığı (Critical - Action Required)
+    // 2. İptal Edilen Web & E-Market Siparişleri (Warning)
+    try {
+      const cancelledOrders = await pool.query(
+        `SELECT id, total_amount, currency, customer_name, source, created_at 
+         FROM sales 
+         WHERE store_id = $1 
+           AND status = 'cancelled'
+           AND (source IN ('trendyol', 'hepsiburada', 'n11', 'amazon', 'pazarama', 'ciceksepeti') OR notes LIKE '%Web Siparişi%')
+         ORDER BY created_at DESC LIMIT 5`,
+        [storeId]
+      );
+      if (cancelledOrders.rows.length > 0) {
+        feed.push({
+          id: "cancelled-orders",
+          category: "order",
+          severity: "warning",
+          title: "İptal Edilen Web & Pazaryeri Siparişleri",
+          description: `${cancelledOrders.rows.length} adet web veya pazaryeri siparişi müşteri veya platform tarafından iptal edildi.`,
+          count: cancelledOrders.rows.length,
+          timestamp: cancelledOrders.rows[0].created_at || nowIso,
+          targetTab: "pos",
+          targetFilter: "cancelled",
+          actionText: "İptalleri İncele",
+          items: cancelledOrders.rows.map(r => ({
+            id: r.id,
+            label: `#${r.id} - ${r.customer_name || 'Müşteri'} (${r.source || 'Web'})`,
+            detail: `${Number(r.total_amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${r.currency || 'TRY'}`
+          }))
+        });
+      }
+    } catch (e) {}
+
+    // 3. Cari Mutabakat Uyuşmazlığı (Critical - Action Required)
     try {
       const disputedRecons = await pool.query(
         `SELECT id, company_id, company_title, balance, currency, dispute_note, responder_name, responded_at, created_at
