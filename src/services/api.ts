@@ -438,7 +438,6 @@ export const api = {
   saveCustomerCart: (data: { customerId: number, storeId: number, items: any[] }) => api.post("/api/public/customers/cart/save", data),
   getCustomerCart: (customerId: number) => api.get(`/api/public/customers/cart/${customerId}`),
   login: (data: any) => api.post("/api/auth/login", data),
-  demoLogin: (sector: string) => api.post("/api/auth/demo-login", { sector }),
   register: (data: any) => api.post("/api/auth/register", data),
   forgotPassword: (email: string) => api.post("/api/auth/forgot-password", { email }),
   resetPassword: (token: string, newPassword: any) => api.post("/api/auth/reset-password", { token, newPassword }),

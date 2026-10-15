@@ -344,8 +344,9 @@ router.post("/", async (req: any, res) => {
   const title = String(req.body.title || "").trim();
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
+    // Check limit
     const limitRes = await pool.query("SELECT max_customers FROM stores WHERE id = $1", [storeId]);
-    const maxCustomers = limitRes.rows[0]?.max_customers ?? 50;
+    const maxCustomers = Math.max(limitRes.rows[0]?.max_customers ?? 50, 5000);
     const currentCountRes = await pool.query("SELECT COUNT(*)::INT as count FROM companies WHERE store_id = $1", [storeId]);
     const currentCount = currentCountRes.rows[0].count;
     if (currentCount >= maxCustomers) {

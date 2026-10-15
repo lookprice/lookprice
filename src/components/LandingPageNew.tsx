@@ -32,15 +32,13 @@ import {
   Youtube,
   MessageCircle,
   BookOpen,
-  Hotel,
-  Store
+  Hotel
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
 import { api } from "../services/api";
 import SEO from "./SEO";
-import { DemoAccountsModal } from "./DemoAccountsModal";
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -55,7 +53,6 @@ export const LandingPage = () => {
   };
 
   const [showDemoModal, setShowDemoModal] = useState(false);
-  const [showLiveDemoModal, setShowLiveDemoModal] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [demoForm, setDemoForm] = useState({ 
@@ -669,14 +666,6 @@ export const LandingPage = () => {
                   <Sparkles className="w-4 h-4 text-amber-300" />
                   <span>{txt("Lansmana Özel Demo İste", "Request Cyprus Launch Demo", "Αίτημα Επίδειξης")}</span>
                 </button>
-                <button 
-                  type="button"
-                  onClick={() => setShowLiveDemoModal(true)} 
-                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Store className="w-4 h-4 text-white" />
-                  <span>{txt("Canlı Demo Hesaplarını Test Et", "Test Live Demo Accounts", "Δοκιμή Live Demo Accounts")}</span>
-                </button>
               </div>
             </div>
           </div>
@@ -1123,7 +1112,7 @@ export const LandingPage = () => {
       {/* Demo Modal */}
       <AnimatePresence>
         {showDemoModal && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1291,16 +1280,6 @@ export const LandingPage = () => {
           {txt('© 2026 LookPrice. Tüm Hakları Saklıdır.', '© 2026 LookPrice. All Rights Reserved.', '© 2026 LookPrice. Με επιφύλαξη παντός δικαιώματος.')}
         </p>
       </footer>
-
-      <DemoAccountsModal 
-        isOpen={showLiveDemoModal} 
-        onClose={() => setShowLiveDemoModal(false)} 
-        onLoginSuccess={(token, user) => {
-          localStorage.setItem('token', token);
-          localStorage.setItem('user', JSON.stringify(user));
-          navigate(user.store_slug ? `/dashboard/${user.store_slug}` : '/dashboard');
-        }}
-      />
     </div>
   );
 };

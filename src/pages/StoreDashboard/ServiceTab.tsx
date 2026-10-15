@@ -27,8 +27,7 @@ import {
   Printer,
   Check,
   Save,
-  Download,
-  X
+  Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations } from '../../translations';
@@ -835,33 +834,24 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       {/* Service Modal */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
             >
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-900 text-white shadow-md">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-indigo-500/20 rounded-xl border border-indigo-500/30">
-                    <Wrench className="h-5 w-5 text-indigo-400" />
+                  <div className="p-2 bg-indigo-50 rounded-lg">
+                    <Wrench className="h-5 w-5 text-indigo-600" />
                   </div>
-                  <div>
-                    <h2 className="text-base font-black uppercase tracking-tight text-white">
-                      {editingRecord?.id ? (isTr ? "Servis Kaydını Düzenle" : "Edit Service Record") : (isTr ? "Yeni Servis Kaydı" : "New Service Record")}
-                    </h2>
-                    <p className="text-[11px] text-slate-400">
-                      {isTr ? "Futuristik Teknik Servis & Onarım Takip Modülü" : "Futuristic Technical Service & Repair Hub"}
-                    </p>
-                  </div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    {editingRecord?.id ? t.service_tab.editServiceRecord : t.service_tab.newRecord}
+                  </h2>
                 </div>
-                <button 
-                  type="button"
-                  onClick={() => setShowModal(false)} 
-                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
-                >
-                  <X className="h-5 w-5" />
+                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                  <XCircle className="h-6 w-6 text-slate-400" />
                 </button>
               </div>
 
