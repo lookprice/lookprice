@@ -109,21 +109,26 @@ export const QuotationModal = ({
   if (!showQuotationModal) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800"
       >
-        <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white shadow-md">
-          <div>
-            <h3 className="text-xl font-black uppercase tracking-tight">
-              {editingQuotation ? (isTr ? "Teklifi Düzenle" : "Edit Quotation") : (isTr ? "Yeni Teklif Oluştur" : "Create New Quotation")}
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              {isTr ? "Tüm cari teklif proforma işlemlerinizi yönetin." : "Manage all quotation and proforma actions."}
-            </p>
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-900 text-white shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-500/20 rounded-xl border border-indigo-500/30">
+              <FileText className="h-5 w-5 text-indigo-400" />
+            </div>
+            <div>
+              <h3 className="text-base font-black uppercase tracking-tight text-white">
+                {editingQuotation ? (isTr ? "Teklifi Düzenle" : "Edit Quotation") : (isTr ? "Yeni Teklif Oluştur" : "Create New Quotation")}
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                {isTr ? "Futuristik Lookprice Teklif & Proforma Yönetimi" : "Futuristic Lookprice Quote & Proforma Hub"}
+              </p>
+            </div>
           </div>
           <button
             type="button"
@@ -142,7 +147,7 @@ export const QuotationModal = ({
           onSubmit={(e) => {
             if (handleAddQuotation) handleAddQuotation(e);
           }}
-          className="flex-1 flex flex-col md:grid md:grid-cols-12 overflow-hidden bg-slate-50/25"
+          className="flex-1 flex flex-col md:grid md:grid-cols-12 overflow-hidden bg-slate-50/50 dark:bg-slate-950/50"
         >
           {/* Form Settings Panels */}
           <div className="flex-1 overflow-y-auto p-8 space-y-6 md:col-span-7 border-r border-slate-100">

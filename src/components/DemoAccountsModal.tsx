@@ -18,6 +18,7 @@ export const DemoAccountsModal: React.FC<DemoAccountsModalProps> = ({ isOpen, on
     {
       id: 'shoplp',
       name: 'ShopLP - Perakende & E-Mağaza',
+      email: 'shoplp@demo.com',
       badge: 'Genel Ticaret & POS',
       icon: Store,
       color: 'from-blue-600 to-indigo-600',
@@ -28,6 +29,7 @@ export const DemoAccountsModal: React.FC<DemoAccountsModalProps> = ({ isOpen, on
     {
       id: 'horecalp',
       name: 'HoReCaLP - Kafe & Restoran',
+      email: 'horecalp@demo.com',
       badge: 'Hızlı POS & Adisyon',
       icon: Utensils,
       color: 'from-amber-500 to-orange-600',
@@ -38,6 +40,7 @@ export const DemoAccountsModal: React.FC<DemoAccountsModalProps> = ({ isOpen, on
     {
       id: 'autolp',
       name: 'AutoLP - Otomotiv & Galeri',
+      email: 'autolp@demo.com',
       badge: 'Motorlu Araçlar',
       icon: Car,
       color: 'from-rose-600 to-red-700',
@@ -48,6 +51,7 @@ export const DemoAccountsModal: React.FC<DemoAccountsModalProps> = ({ isOpen, on
     {
       id: 'restatelp',
       name: 'REstateLP - Gayrimenkul Emlak',
+      email: 'restatelp@demo.com',
       badge: 'İlan & Portföy',
       icon: Building2,
       color: 'from-emerald-600 to-teal-700',
@@ -58,6 +62,7 @@ export const DemoAccountsModal: React.FC<DemoAccountsModalProps> = ({ isOpen, on
     {
       id: 'booklp',
       name: 'BookLP - Kitabevi & Kırtasiye',
+      email: 'booklp@demo.com',
       badge: 'Yayıncılık & Stok',
       icon: BookOpen,
       color: 'from-purple-600 to-indigo-700',
@@ -68,6 +73,7 @@ export const DemoAccountsModal: React.FC<DemoAccountsModalProps> = ({ isOpen, on
     {
       id: 'hotellp',
       name: 'HotelLP - Otel & Rezervasyon',
+      email: 'hotellp@demo.com',
       badge: 'Konaklama Yönetimi',
       icon: Hotel,
       color: 'from-sky-600 to-blue-700',
@@ -97,8 +103,8 @@ export const DemoAccountsModal: React.FC<DemoAccountsModalProps> = ({ isOpen, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-5xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
+      <div className="relative w-full max-w-5xl bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh]">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
@@ -156,11 +162,24 @@ export const DemoAccountsModal: React.FC<DemoAccountsModalProps> = ({ isOpen, on
                       {sector.description}
                     </p>
 
-                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60">
-                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 block mb-1">Yüklü Örnek Veriler:</span>
-                      <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 line-clamp-1">
-                        ✨ {sector.itemsSample}
-                      </p>
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 space-y-2">
+                      <div>
+                        <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 block mb-0.5">Yüklü Örnek Veriler:</span>
+                        <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 line-clamp-1">
+                          ✨ {sector.itemsSample}
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-50 dark:bg-slate-900/80 rounded-xl p-2.5 border border-slate-200/80 dark:border-slate-700 space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 dark:text-slate-400 font-bold">Kullanıcı E-posta:</span>
+                          <span className="font-mono font-bold text-slate-900 dark:text-slate-100 select-all">{sector.email}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 dark:text-slate-400 font-bold">Giriş Şifresi:</span>
+                          <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 select-all">pass1234</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 

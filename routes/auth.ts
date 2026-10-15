@@ -186,7 +186,7 @@ router.post("/demo-login", async (req, res) => {
     const targetSector = validSectors.includes(sector) ? sector : 'shoplp';
 
     const slug = `demo-${targetSector}`;
-    const email = `demo_${targetSector}@lookprice.me`;
+    const email = `${targetSector}@demo.com`;
 
     // 1. Check if demo store exists
     let storeRes = await pool.query("SELECT * FROM stores WHERE slug = $1", [slug]);
@@ -205,8 +205,8 @@ router.post("/demo-login", async (req, res) => {
 
     if (!store) {
       const newStoreRes = await pool.query(`
-        INSERT INTO stores (name, slug, email, phone, plan, hotel_module_enabled, branding)
-        VALUES ($1, $2, $3, $4, 'enterprise', $5, $6)
+        INSERT INTO stores (name, slug, email, phone, plan, hotel_module_enabled, max_products, max_customers, max_properties, max_vehicles, branding)
+        VALUES ($1, $2, $3, $4, 'enterprise', $5, 10, 10, 5, 5, $6)
         RETURNING *
       `, [
         meta.name,
@@ -221,21 +221,136 @@ router.post("/demo-login", async (req, res) => {
 
       // Seed mock data based on sector with rich descriptions and Unsplash images
       if (targetSector === 'shoplp') {
+        // 1. 10 Rich Products
         await pool.query(`
-          INSERT INTO products (store_id, barcode, name, price, cost_price, stock_quantity, tax_rate, description, image_url)
+          INSERT INTO products (store_id, barcode, name, price, cost_price, stock_quantity, tax_rate, description, image_url, is_bestseller, is_web_sale)
           VALUES 
-          ($1, '8690001001', 'Akıllı Telefon Pro Max 256GB', 34999, 28000, 45, 20, 'Son teknoloji OLED ekran, 8GB RAM, 256GB depolama, 108MP kamera sistemi.', 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80'),
-          ($1, '8690001002', 'Kablosuz Gürültü Engelleyici Kulaklık', 4500, 3200, 80, 20, 'Aktif gürültü önleme, Hi-Fi ses kalitesi, 40 saat kesintisiz pil ömrü.', 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80'),
-          ($1, '8690001003', 'Ultra Akıllı Spor Saati', 7999, 5500, 30, 20, 'AMOLED ekran, dahili GPS, nabız, SpO2 ve kapsamlı uyku takibi.', 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'),
-          ($1, '8690001004', '15.6 inç Oyuncu Dizüstü Bilgisayarı', 28999, 22000, 15, 20, 'Intel i7 13. Nesil, 16GB RAM, RTX 4060, 512GB NVMe SSD.', 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=800&q=80'),
-          ($1, '8690001005', 'Profesyonel Espresso Makinesi', 12500, 9000, 20, 20, '20 bar basınç, entegre çelik konik öğütücü ve buhar çubuğu.', 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=800&q=80')
+          ($1, '8690001001', 'Akıllı Telefon Pro Max 256GB', 34999, 28000, 45, 20, 'Son teknoloji OLED ekran, 8GB RAM, 256GB depolama, 108MP kamera sistemi.', 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80', true, true),
+          ($1, '8690001002', 'Kablosuz Gürültü Engelleyici Kulaklık', 4500, 3200, 80, 20, 'Aktif gürültü önleme, Hi-Fi ses kalitesi, 40 saat kesintisiz pil ömrü.', 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80', true, true),
+          ($1, '8690001003', 'Ultra Akıllı Spor Saati', 7999, 5500, 30, 20, 'AMOLED ekran, dahili GPS, nabız, SpO2 ve kapsamlı uyku takibi.', 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80', false, true),
+          ($1, '8690001004', '15.6 inç Oyuncu Dizüstü Bilgisayarı', 28999, 22000, 15, 20, 'Intel i7 13. Nesil, 16GB RAM, RTX 4060, 512GB NVMe SSD.', 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=800&q=80', true, true),
+          ($1, '8690001005', 'Profesyonel Espresso Makinesi', 12500, 9000, 20, 20, '20 bar basınç, entegre çelik konik öğütücü ve buhar çubuğu.', 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=800&q=80', false, true),
+          ($1, '8690001006', 'Ergonomik Oyuncu Koltuğu', 6499, 4500, 25, 20, 'Ayarlanabilir 4D kolçaklar, bel ve boyun destekli ortopedik tasarım.', 'https://images.unsplash.com/photo-1598550476439-6847785fcea6?auto=format&fit=crop&w=800&q=80', false, true),
+          ($1, '8690001007', '4K Ultra HD Akıllı TV 55 inç', 19999, 15000, 12, 20, 'Crystal 4K işlemci, HDR10+, dahili uydu alıcı ve akıllı kumanda.', 'https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=800&q=80', true, true),
+          ($1, '8690001008', 'Mekanik RGB Oyuncu Klavyesi', 2199, 1400, 65, 20, 'Blue switch mekanik tuşlar, özelleştirilebilir RGB aydınlatma.', 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800&q=80', false, true),
+          ($1, '8690001009', 'Taşınabilir Hızlı Şarj Powerbank 20000mAh', 1299, 800, 120, 20, 'Çift USB çıkışı, Type-C PD 22.5W hızlı şarj desteği.', 'https://images.unsplash.com/photo-1609592424154-d2e411264c78?auto=format&fit=crop&w=800&q=80', true, true),
+          ($1, '8690001010', 'Akıllı Robot Süpürge ve Paspas', 11499, 8500, 18, 20, 'Lazer LiDAR navigasyon, 4000Pa güçlü emiş ve otomatik şarj.', 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80', true, true)
         `, [storeId]);
 
+        // 2. 10 Current Accounts (Cariler) with mixed currencies and details
         await pool.query(`
-          INSERT INTO technical_services (store_id, device_name, serial_number, customer_name, customer_phone, issue_description, status, price)
-          VALUES ($1, 'Akıllı Telefon Pro Max', 'IMEI998877', 'Ahmet Yılmaz', '+90 533 800 1122', 'Ekran değişimi ve batarya kontrolü', 'in_progress', 2500)
+          INSERT INTO companies (store_id, title, tax_office, tax_number, address, phone, email, contact_person)
+          VALUES 
+          ($1, 'Ahmet Yılmaz (Bireysel Müşteri)', 'Lefkoşa', '1112223334', 'Dereboyu Cad. No:12 Lefkoşa', '+90 533 800 1122', 'ahmet@demo.com', 'Ahmet Yılmaz'),
+          ($1, 'Teknolojik Tedarik A.Ş.', 'Mecidiyeköy', '1234567890', 'Büyükdere Cad. No:45 İstanbul', '+90 212 555 0101', 'info@teknolojiktedarik.com', 'Canan Tan'),
+          ($1, 'Global Elektronik İthalat Ltd.', 'Girne', '9876543210', 'Atatürk Caddesi No:8 Girne', '+90 392 815 2233', 'import@globalelektronik.com', 'John Smith'),
+          ($1, 'Mehmet Demir', 'Mağusa', '4445556667', 'İstiklal Sok. No:5 Mağusa', '+90 548 888 3344', 'mehmet@demo.com', 'Mehmet Demir'),
+          ($1, 'Eurotrade GmbH', 'Frankfurt', 'DE8839201', 'Industriestrasse 14 Frankfurt', '+49 69 123456', 'contact@eurotrade.de', 'Hans Gruber'),
+          ($1, 'Ayşe Kaya', 'Gönyeli', '7778889990', 'Şht. Mehmet Ali Sok. Gönyeli', '+90 542 855 9900', 'ayse@demo.com', 'Ayşe Kaya'),
+          ($1, 'British Import & Export Co.', 'London', 'UK9928102', 'Oxford Street 104 London', '+44 20 7946 0912', 'sales@britishimport.co.uk', 'Elizabeth Taylor'),
+          ($1, 'Can Özkan', 'Lefkoşa', '2223334445', 'Metehan Bölgesi No:7 Lefkoşa', '+90 533 999 4455', 'can@demo.com', 'Can Özkan'),
+          ($1, 'Yıldız Bilişim Hizmetleri Ltd.', 'Lefkoşa', '5556667778', 'Sanayi Bölgesi 3. Cadde Lefkoşa', '+90 392 225 1100', 'destek@yildizbilisim.net', 'Hakan Yıldız'),
+          ($1, 'Delta Dağıtım Lojistik', 'Gazi Mağusa', '3334445556', 'Liman Yolu Cad. No:88 Mağusa', '+90 392 366 4400', 'operasyon@deltalogistik.com', 'Selim Delta')
         `, [storeId]);
+
+        // 3. Technical Service Records with varied statuses
+        await pool.query(`
+          INSERT INTO service_records (store_id, customer_name, customer_phone, device_model, device_serial, issue_description, status, price, currency)
+          VALUES 
+          ($1, 'Ahmet Yılmaz', '+90 533 800 1122', 'Akıllı Telefon Pro Max', 'IMEI998877', 'Ekran değişimi ve batarya kontrolü', 'in_progress', 2500.00, 'TRY'),
+          ($1, 'Mehmet Demir', '+90 548 888 3344', '15.6 inç Oyuncu Laptop', 'SN-55443322', 'Açılmıyor, anakart besleme arızası şüphesi', 'diagnosing', 1800.00, 'TRY'),
+          ($1, 'Ayşe Kaya', '+90 542 855 9900', 'Kablosuz Kulaklık', 'SN-998811', 'Sol kulaklıktan ses gelmiyor', 'waiting_approval', 650.00, 'TRY'),
+          ($1, 'Can Özkan', '+90 533 999 4455', 'Ultra Akıllı Spor Saati', 'W-443322', 'Sensör arızası ve kayış değişimi', 'ready', 950.00, 'TRY'),
+          ($1, 'Yıldız Bilişim', '+90 392 225 1100', 'Profesyonel Espresso Makinesi', 'EXP-101', 'Pompa basınç düşüklüğü ve kireç temizliği', 'delivered', 1500.00, 'TRY')
+        `, [storeId]);
+
+        // 4. Quotations (Teklifler) with varied statuses
+        await pool.query(`
+          INSERT INTO quotations (store_id, customer_name, total_amount, currency, status, notes)
+          VALUES 
+          ($1, 'Yıldız Bilişim Hizmetleri Ltd.', 45000.00, 'TRY', 'sent', 'Kurumsal toplu bilgisayar ve aksesuar tedarik teklifi'),
+          ($1, 'Global Elektronik İthalat Ltd.', 12500.00, 'USD', 'accepted', 'Özel seri akıllı saat tedariği ön teklifi'),
+          ($1, 'Ahmet Yılmaz', 34999.00, 'TRY', 'draft', 'Akıllı telefon bireysel özel iskonto teklifi'),
+          ($1, 'Eurotrade GmbH', 8200.00, 'EUR', 'rejected', 'Uluslararası aksesuar sevkiyatı teklifi')
+        `, [storeId]);
+
+        // 5. Seed Marketplace Connections in Store Branding
+        await pool.query(`
+          UPDATE stores 
+          SET branding = jsonb_set(
+            jsonb_set(
+              jsonb_set(
+                jsonb_set(COALESCE(branding, '{}'::jsonb), '{marketplaces}', '{"trendyol": {"connected": true, "storeName": "Seçkin Perakende Trendyol", "sellerId": "TY_994821", "status": "active"}, "hepsiburada": {"connected": true, "storeName": "Seçkin Perakende Hepsiburada", "storeId": "HB_773821", "status": "active"}, "n11": {"connected": true, "storeName": "Seçkin Perakende N11", "status": "active"}, "amazon": {"connected": true, "storeName": "Seçkin Perakende Amazon TR", "status": "active"}}'::jsonb),
+                '{google_merchant_active}', 'true'::jsonb
+              ),
+              '{e_invoice_active}', 'true'::jsonb
+            ),
+            '{mysoft_username}', '"seckin_demo"'::jsonb
+          )
+          WHERE id = $1
+        `, [storeId]);
+
+        // 6. Seed Purchase Invoices (Alış Faturaları)
+        const piRes = await pool.query(`
+          INSERT INTO purchase_invoices (store_id, supplier_name, supplier_vkn, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, status, notes)
+          VALUES 
+          ($1, 'Teknolojik Tedarik A.Ş.', '1234567890', 'ALIS-2026-001', CURRENT_DATE - INTERVAL '5 days', 150000.00, 30000.00, 180000.00, 'TRY', 'completed', 'Trendyol & Mağaza stok yenileme alım faturası'),
+          ($1, 'Global Elektronik İthalat Ltd.', '9876543210', 'ALIS-2026-002', CURRENT_DATE - INTERVAL '2 days', 85000.00, 17000.00, 102000.00, 'TRY', 'completed', 'Yeni sezon akıllı saat ve kulaklık sevkiyatı'),
+          ($1, 'Eurotrade GmbH', 'DE8839201', 'ALIS-2026-003', CURRENT_DATE, 45000.00, 9000.00, 54000.00, 'EUR', 'pending', 'Avrupa menşeli profesyonel espresso makineleri ithalat faturası')
+          RETURNING id
+        `, [storeId]);
+
+        const piId = piRes.rows[0]?.id;
+        if (piId) {
+          await pool.query(`
+            INSERT INTO purchase_invoice_items (purchase_invoice_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price)
+            VALUES 
+            ($1, 'Akıllı Telefon Pro Max 256GB', '8690001001', 3, 28000.00, 20, 16800.00, 100800.00),
+            ($1, 'Kablosuz Gürültü Engelleyici Kulaklık', '8690001002', 5, 3200.00, 20, 3200.00, 19200.00)
+          `, [piId]);
+        }
+
+        // 7. Seed Sales Invoices & E-Marketplace Orders (Satış Faturaları)
+        const siRes = await pool.query(`
+          INSERT INTO sales_invoices (store_id, customer_name, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status)
+          VALUES 
+          ($1, 'Mehmet Demir (Trendyol Sipariş #TY-9882710)', 'SATIS-2026-001', CURRENT_DATE - INTERVAL '1 day', 34999.00, 5833.17, 34999.00, 'TRY', 'Trendyol Online Ödeme', 'Trendyol pazar yeri otomatik entegrasyon siparişi ve e-arşiv faturası', 'marketplace', 'completed'),
+          ($1, 'Ayşe Kaya (Hepsiburada Sipariş #HB-4492019)', 'SATIS-2026-002', CURRENT_DATE, 9000.00, 1500.00, 9000.00, 'TRY', 'Hepsiburada Kart', 'Hepsiburada pazar yeri siparişi e-faturası', 'marketplace', 'completed'),
+          ($1, 'Can Özkan (N11 Sipariş #N11-883921)', 'SATIS-2026-003', CURRENT_DATE, 7999.00, 1333.17, 7999.00, 'TRY', 'N11 Güvenli Ödeme', 'N11 entegrasyonu akıllı saat satış faturası', 'marketplace', 'completed'),
+          ($1, 'Yıldız Bilişim (Amazon TR Sipariş #AMZ-332910)', 'SATIS-2026-004', CURRENT_DATE, 28999.00, 4833.17, 28999.00, 'TRY', 'Amazon Kredi Kartı', 'Amazon TR kurumsal oyuncu dizüstü bilgisayar faturası', 'marketplace', 'completed')
+          RETURNING id
+        `, [storeId]);
+
+        const siId1 = siRes.rows[0]?.id;
+        const siId2 = siRes.rows[1]?.id;
+        const siId3 = siRes.rows[2]?.id;
+        const siId4 = siRes.rows[3]?.id;
+        if (siId1) {
+          await pool.query(`
+            INSERT INTO sales_invoice_items (sales_invoice_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price)
+            VALUES ($1, 'Akıllı Telefon Pro Max 256GB', '8690001001', 1, 34999.00, 20, 5833.17, 34999.00)
+          `, [siId1]);
+        }
+        if (siId2) {
+          await pool.query(`
+            INSERT INTO sales_invoice_items (sales_invoice_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price)
+            VALUES ($1, 'Kablosuz Gürültü Engelleyici Kulaklık', '8690001002', 2, 4500.00, 20, 1500.00, 9000.00)
+          `, [siId2]);
+        }
+        if (siId3) {
+          await pool.query(`
+            INSERT INTO sales_invoice_items (sales_invoice_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price)
+            VALUES ($1, 'Ultra Akıllı Spor Saati', '8690001003', 1, 7999.00, 20, 1333.17, 7999.00)
+          `, [siId3]);
+        }
+        if (siId4) {
+          await pool.query(`
+            INSERT INTO sales_invoice_items (sales_invoice_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price)
+            VALUES ($1, '15.6 inç Oyuncu Dizüstü Bilgisayarı', '8690001004', 1, 28999.00, 20, 4833.17, 28999.00)
+          `, [siId4]);
+        }
       } else if (targetSector === 'horecalp') {
+
         await pool.query(`
           INSERT INTO products (store_id, barcode, name, price, cost_price, stock_quantity, tax_rate, description, image_url)
           VALUES 
@@ -309,7 +424,7 @@ router.post("/demo-login", async (req, res) => {
     let user = userRes.rows[0];
 
     if (!user) {
-      const hashedPassword = bcrypt.hashSync("Demo2026!+", 10);
+      const hashedPassword = bcrypt.hashSync("pass1234", 10);
       const newUserRes = await pool.query(`
         INSERT INTO users (name, email, password, phone, role, store_id)
         VALUES ($1, $2, $3, $4, 'admin', $5)
@@ -317,7 +432,8 @@ router.post("/demo-login", async (req, res) => {
       `, [`Demo Yönetici (${targetSector.toUpperCase()})`, email, hashedPassword, "+90 392 444 0000", store.id]);
       user = newUserRes.rows[0];
     } else {
-      await pool.query("UPDATE users SET store_id = $1, role = 'admin' WHERE id = $2", [store.id, user.id]);
+      const hashedPassword = bcrypt.hashSync("pass1234", 10);
+      await pool.query("UPDATE users SET store_id = $1, role = 'admin', password = $3 WHERE id = $2", [store.id, user.id, hashedPassword]);
     }
 
     const token = jwt.sign({
