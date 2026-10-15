@@ -1,42 +1,34 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Alert } from '../services/AlertService';
 
 interface AlertContextType {
-  alerts: Alert[];
-  addAlert: (alert: Omit<Alert, 'id' | 'timestamp'>) => void;
-  removeAlert: (id: string) => void;
-  clearAlerts: () => void;
+  showAlert: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
-export const AlertProvider = ({ children }: { children: ReactNode }) => {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [alert, setAlert] = useState<{ message: string; type: string } | null>(null);
 
-  const addAlert = (newAlert: Omit<Alert, 'id' | 'timestamp'>) => {
-    const alert: Alert = {
-      ...newAlert,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date(),
-    };
-    setAlerts((prev) => [alert, ...prev]);
+  const showAlert = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setAlert({ message, type });
+    setTimeout(() => setAlert(null), 3000);
   };
-
-  const removeAlert = (id: string) => {
-    setAlerts((prev) => prev.filter((a) => a.id !== id));
-  };
-
-  const clearAlerts = () => setAlerts([]);
 
   return (
-    <AlertContext.Provider value={{ alerts, addAlert, removeAlert, clearAlerts }}>
+    <AlertContext.Provider value={{ showAlert }}>
       {children}
+      {alert && (
+        <div className="fixed bottom-5 right-5 z-[9999] bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5">
+          <span className={`w-2.5 h-2.5 rounded-full ${alert.type === 'success' ? 'bg-emerald-400' : alert.type === 'error' ? 'bg-rose-400' : 'bg-blue-400'}`} />
+          <span className="text-xs font-bold">{alert.message}</span>
+        </div>
+      )}
     </AlertContext.Provider>
   );
 };
 
-export const useAlerts = () => {
+export const useAlert = () => {
   const context = useContext(AlertContext);
-  if (!context) throw new Error('useAlerts must be used within AlertProvider');
+  if (!context) throw new Error('useAlert must be used within an AlertProvider');
   return context;
 };

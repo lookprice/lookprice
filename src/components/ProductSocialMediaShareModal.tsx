@@ -255,18 +255,200 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
   const themeConfig = getThemeClasses();
 
-  // Dynamic Captions generator (100% Client-side robust copywriting for products)
+  // Dynamic Captions generator with Sector-Specific Terminology & Templates (Retail, Horeca, Electronics, Fashion, Bookstore)
   const getCaptionText = () => {
     const rawName = storeName || branding?.store_name || branding?.name || "";
     const displayName = (!rawName || rawName.toLowerCase().includes("lookprice")) ? "Seçkin Mağaza" : rawName;
+    const storeSector = branding?.store_type || branding?.page_layout_settings?.sector || 'product';
     
     const contactPhone = branding?.whatsapp_number || branding?.phone || '';
     const contactPhoneText = contactPhone 
-      ? `iletişim Hattı: ${contactPhone}` 
-      : 'DM yoluyla iletişim kurabilirsiniz.';
+      ? `İletişim & Sipariş Hattı: ${contactPhone}` 
+      : 'DM veya WhatsApp üzerinden anında sipariş verebilirsiniz.';
     const storeHashtag = `#${displayName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')}`;
-    const activeHashtags = `#alisveris #kampanya #kampanyaliurunler #kalite #indirim #firsat #hediyelik #${productCategory.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} #${(productBrand || 'urun').toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} ${storeHashtag}`;
+    const activeHashtags = `#alisveris #kampanya #kalite #indirim #${productCategory.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} #${(productBrand || 'urun').toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} ${storeHashtag}`;
 
+    // 1. HORECA / CAFE / RESTAURANT TERMINOLOGY
+    if (storeSector === 'cafe_restaurant' || storeSector === 'horeca') {
+      switch (selectedTone) {
+        case 'luxury':
+        case 'promo':
+          return `🍽️ GASTRONOMİ DÜNYASININ ÖZEL LEZZETİ: ${productTitle.toUpperCase()} 🍽️\n\n` +
+                 `Usta şeflerimizin özenle seçilmiş taze malzemelerle hazırladığı eşsiz lezzetimiz ${displayName} mutfağında sizleri bekliyor. Damak tadına düşkün misafirlerimiz için benzersiz bir aroma şöleni!\n\n` +
+                 `🌟 Lezzet & Sunum Detayları:\n` +
+                 `• Ürün / Menü Adı: ${productTitle}\n` +
+                 `• Kategori: ${productCategory}\n` +
+                 `• Hazırlanış: Taze ve Günlük Üretim Garantisiyle\n` +
+                 (discountPercentage > 0 ? `• Özel İndirim Fırsatı: Menüde %${discountPercentage} İndirim!\n` : '') +
+                 `\n💰 Fiyat / Porsiyon: ${priceText}\n` +
+                 (oldPriceText ? `❌ Liste Fiyatı: ${oldPriceText}\n` : '') +
+                 `\nSıcak servis, hızlı paket veya restoranda keyifli bir akşam yemeği için yerinizi ayırtın veya hemen sipariş verin!\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🏛️ Mekan / Restoran: ${displayName}\n\n` +
+                 `#lezzetduragi #gurmelezzetler #restoran #yemekteyiz #cafe #gununmenusu ${storeHashtag}`;
+        case 'friendly':
+        default:
+          return `☕️ Enfes Bir Mola İçin ${productTitle} Sizi Bekliyor! 🍰\n\n` +
+                 `Selam lezzet severler! 😍 Günün yorgunluğunu atmak ya da sevdiklerinizle tatlı bir sohbet eşliğinde ${displayName} atmosferini yaşamak istemez misiniz?\n\n` +
+                 `✨ Neden Denemelisiniz?\n` +
+                 `👉 Taptaze malzemeler ve nefis reçeteyle hazırlandı!\n` +
+                 `👉 ${productCategory} kategorimizin en favori ikramı\n` +
+                 (discountPercentage > 0 ? `👉 Şahane İndirim: Bu lezzete %${discountPercentage} avantajla ulaşın! 🥳\n` : '') +
+                 `\n💰 Fiyat: ${priceText}\n` +
+                 `\nMasalarda yeriniz hazır ya da paket servis ile kapınızda! Hemen sipariş vermek için bize yazın.\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🏡 ${displayName}\n\n` +
+                 `#kahvekeyfi #tatlikrizi #lezzet #yemek #kafe #gununtatlisi ${storeHashtag}`;
+      }
+    }
+
+    // 2. ELECTRONICS & TECHNOLOGY TERMINOLOGY
+    if (storeSector === 'electronics' || productCategory.toLowerCase().includes('elektronik') || productCategory.toLowerCase().includes('telefon') || productCategory.toLowerCase().includes('bilgisayar')) {
+      switch (selectedTone) {
+        case 'luxury':
+          return `⚡️ YENİ NESİL TEKNOLOJİ & ÜSTÜN PERFORMANS: ${productTitle.toUpperCase()} ⚡️\n\n` +
+                 `Dijital yaşamınızı hızlandıracak, yüksek işlemci gücü ve kusursuz tasarımıyla ${displayName} güvencesiyle stoklarımızda yerini aldı.\n\n` +
+                 `💻 Teknik Donanım Özet Raporu:\n` +
+                 `• Cihaz / Model: ${productTitle}\n` +
+                 `• Kategori: ${productCategory} ${productBrand ? `• ${productBrand}` : ''}\n` +
+                 `• Garanti & Servis: %100 Orijinal Ürün & Resmi Distribütör Garantili\n` +
+                 (discountPercentage > 0 ? `• Lansman Kampanyası: Net %${discountPercentage} Teknoloji İndirimi\n` : '') +
+                 `• Stok Kodu (SKU): ${product.barcode || 'LP-TECH'}\n\n` +
+                 `💰 Avantajlı Satış Fiyatı: ${priceText}\n` +
+                 (oldPriceText ? `❌ Piyasaya Göre Eski Fiyat: ${oldPriceText}\n` : '') +
+                 `\nTeknolojide en iyisini arayan profesyoneller ve oyun tutkunları için kaçırılmayacak fırsat. Kargo ile hızlı gönderim veya mağazadan teslimat seçenekleri mevcuttur.\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🏢 Yetkili Teknoloji Mağazası: ${displayName}\n\n` +
+                 `#teknoloji #elektronik #akillicihaz #bilgisayar #telefon #indirimliteknoloji ${storeHashtag}`;
+        case 'promo':
+          return `🔥 TEKNOLOJİDE DEV KAMPANYA: ${productTitle} 🔥\n\n` +
+                 `Piyasa fiyatlarını altüst eden şok indirim! En son teknoloji ${productTitle} şimdi inanılmaz avantajlarla ${displayName} vitrininde!\n\n` +
+                 `🚀 Fırsat Özellikleri:\n` +
+                 `• Orijinal Kutulu ve Kapalı Ambalaj\n` +
+                 `• Resmiyete Uygun Garanti Belgesi\n` +
+                 (discountPercentage > 0 ? `• İndirim Oranı: %${discountPercentage} Kaçırılmayacak İndirim!\n` : '') +
+                 `• Barkod / SKU: ${product.barcode || 'LP-TECH'}\n\n` +
+                 `💰 Kampanyalı Fiyat: ${priceText}\n` +
+                 (oldPriceText ? `❌ Normal Fiyat: ${oldPriceText} (Fiyat Düştü!)\n` : '') +
+                 `\nStoklarla sınırlı bu özel teknoloji fırsatını kaçırmamak için hemen DM atın veya telefonla sipariş oluşturun!\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🏪 ${displayName}\n\n` +
+                 `#teknolojimarket #telefon #firsat #indirim #elektronikalisveris ${storeHashtag}`;
+        case 'friendly':
+        default:
+          return `✨ Teknoloji Tutkunlarının Gözdesi: ${productTitle}! ✨\n\n` +
+                 `Herkese harika bir günden merhaba! 😍 Hayatınızı kolaylaştıracak, hızınıza hız katacak ${productTitle} artık ${displayName}'da! İster iş için ister eğlence için aradığınız güç burada. 🚀\n\n` +
+                 `🎁 Neden Bu Cihazı Almalısınız?\n` +
+                 `👉 Üstün performans ve şık tasarım\n` +
+                 `👉 Orijinal ürün ve güvenilir ${displayName} desteği\n` +
+                 (discountPercentage > 0 ? `👉 Cebinizi düşünen %${discountPercentage} indirim fırsatı! 🥳\n` : '') +
+                 `\n💰 Sahip Olma Fiyatı: ${priceText}\n` +
+                 (oldPriceText ? `👉 Kaçırılmayacak fiyat avantajı (${oldPriceText} yerine!)\n` : '') +
+                 `\nSorularınız için bize her zaman yazabilirsiniz. Ürününüzü özenle paketleyip hemen kargoya veriyoruz!\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🛍️ ${displayName}\n\n` +
+                 `#teknolojidunyasi #gadgets #akillitelefon #alisveris #yenisezon ${storeHashtag}`;
+      }
+    }
+
+    // 3. FASHION & APPAREL TERMINOLOGY
+    if (storeSector === 'fashion' || productCategory.toLowerCase().includes('giyim') || productCategory.toLowerCase().includes('moda') || productCategory.toLowerCase().includes('tekstil')) {
+      switch (selectedTone) {
+        case 'luxury':
+          return `✨ TARZINIZI İMZALAYAN PARÇA: ${productTitle.toUpperCase()} ✨\n\n` +
+                 `Modanın kalbinden gelen zarif kesimler, kaliteli kumaş dokusu ve göz alıcı duruşuyla ${displayName} yeni sezon koleksiyonu beğeninize sunulmuştur.\n\n` +
+                 `👗 Tasarım & Kumaş Özellikleri:\n` +
+                 `• Ürün Adı: ${productTitle}\n` +
+                 `• Kategori / Koleksiyon: ${productCategory} ${productBrand ? `• ${productBrand}` : ''}\n` +
+                 `• Kumaş Kalitesi: Birinci Sınıf Premium Tekstil\n` +
+                 (discountPercentage > 0 ? `• Sezon İndirimi: Net %${discountPercentage} Avantajlı Oran\n` : '') +
+                 `• Ürün Kodu: ${product.barcode || 'LP-FASHION'}\n\n` +
+                 `💰 Özel Satış Bedeli: ${priceText}\n` +
+                 (oldPriceText ? `❌ Sezon Başı Fiyatı: ${oldPriceText}\n` : '') +
+                 `\nŞıklığınızdan ödün vermeden her ortamda dikkat çekmek istiyorsanız mağazamıza davetlisiniz. Beden ve renk alternatifleri için bize ulaşın.\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🏢 ${displayName}\n\n` +
+                 `#moda #giyim #trend #kombin #stil #alisveris #fashionstyle ${storeHashtag}`;
+        case 'promo':
+          return `🔥 SEZONUN EN BÜYÜK MODA İNDİRİMİ: ${productTitle} 🔥\n\n` +
+                 `Dolabınızı yenilemenin tam zamanı! Trendlerin öncüsü ${productTitle} şimdi şok indirimli fiyatıyla ${displayName}'da!\n\n` +
+                 `⚡️ Fırsat Detayları:\n` +
+                 `• Son Trend Tasarım\n` +
+                 `• Yüksek Kalite Kumaş\n` +
+                 (discountPercentage > 0 ? `• Dev İndirim: %${discountPercentage} İndirim Fırsatı!\n` : '') +
+                 `• Stok Kodu: ${product.barcode || 'LP-FASHION'}\n\n` +
+                 `💰 Şok Fiyat: ${priceText}\n` +
+                 (oldPriceText ? `❌ Eski Fiyat: ${oldPriceText} (Fiyatlar Düştü!)\n` : '') +
+                 `\nStoklar tükenmeden bedeninizi ayırtın! Sipariş ve kombin önerileri için hemen mesaj atın.\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🏪 ${displayName}\n\n` +
+                 `#indirimlimoda #butik #elbise #kombinönerileri #alisveriszamani ${storeHashtag}`;
+        case 'friendly':
+        default:
+          return `🌸 Yeni Sezon Favoriniz Olmaya Geldi: ${productTitle}! 🌸\n\n` +
+                 `Moda severler selamlar! 😍 Gardırobunuza bayılacağınız, üzerinizden çıkarmak istemeyeceğiniz ${productTitle} artık ${displayName} stoklarında! ✨\n\n` +
+                 `💖 Neden Çok Seveceksiniz?\n` +
+                 `👉 Yumuşacık kumaş ve kusursuz kalıp\n` +
+                 `👉 Günlük şıklığın ve özel davetlerin kurtarıcısı\n` +
+                 (discountPercentage > 0 ? `👉 Sınırlı süreye özel %${discountPercentage} indirim! 🥳\n` : '') +
+                 `\n💰 Fiyat: ${priceText}\n` +
+                 (oldPriceText ? `👉 Avantajlı fiyat (${oldPriceText} yerine!)\n` : '') +
+                 `\nBeden tablosu ve sipariş için DM üzerinden bize hemen yazabilirsiniz. Sevgiler!\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🛍️ ${displayName}\n\n` +
+                 `#butikgiyim #tarzgiyim #kombinler #modatrend #alisveriscikiyoruz ${storeHashtag}`;
+      }
+    }
+
+    // 4. BOOKSTORE & STATIONERY TERMINOLOGY
+    if (storeSector === 'bookstore' || productCategory.toLowerCase().includes('kitap') || productCategory.toLowerCase().includes('kirtasiye')) {
+      switch (selectedTone) {
+        case 'luxury':
+          return `📚 KÜTÜPHANENİZİN DEĞERLİ PARÇASI: ${productTitle.toUpperCase()} 📚\n\n` +
+                 `Okuma tutkunları ve bilgiye değer verenler için seçkin yayın dünyasından ${displayName} güvencesiyle ${productTitle} sizlerle.\n\n` +
+                 `📖 Eser ve Baskı Detayları:\n` +
+                 `• Eser / Ürün: ${productTitle}\n` +
+                 `• Kategori: ${productCategory} ${productBrand ? `• Yazar/Yayın: ${productBrand}` : ''}\n` +
+                 `• Baskı Kalitesi: Birinci Sınıf Ciltli / Orijinal Yayın\n` +
+                 (discountPercentage > 0 ? `• Özel İndirim: %${discountPercentage} Kitap Kulübü Avantajı\n` : '') +
+                 `• Barkod (ISBN): ${product.barcode || '978-LP-BOOK'}\n\n` +
+                 `💰 Satış Bedeli: ${priceText}\n` +
+                 (oldPriceText ? `❌ Liste Fiyatı: ${oldPriceText}\n` : '') +
+                 `\nKitap kokusunu seven, yeni dünyalar keşfetmek isteyen tüm kitapseverleri mağazamıza ve kütüphanemize bekliyoruz.\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🏢 ${displayName}\n\n` +
+                 `#kitap #kitapkurdu #kütüphane #okumakeyfi #kitaptavsiyesi #edebiyat ${storeHashtag}`;
+        case 'promo':
+          return `🔥 KİTAPSEVERLERE ÖZEL İNDİRİM: ${productTitle} 🔥\n\n` +
+                 `Okuma aşkınızı katlayacak dev kampanya! En çok satanlar listesinden ${productTitle} şimdi ${displayName} ayrıcalığıyla sizlerle!\n\n` +
+                 `⚡️ Fırsat Detayları:\n` +
+                 `• Orijinal Yayın & Temiz Baskı\n` +
+                 (discountPercentage > 0 ? `• İndirim Oranı: %${discountPercentage} Fırsat İndirimi!\n` : '') +
+                 `• ISBN / Barkod: ${product.barcode || '978-LP-BOOK'}\n\n` +
+                 `💰 Kampanyalı Fiyat: ${priceText}\n` +
+                 (oldPriceText ? `❌ Normal Fiyat: ${oldPriceText}\n` : '') +
+                 `\nStok tükenmeden sipariş verin, yeni kitabınız kapınıza gelsin!\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🏪 ${displayName}\n\n` +
+                 `#kitapönerisi #coksatanlar #kitapsatisi #okur #kirtasiye ${storeHashtag}`;
+        case 'friendly':
+        default:
+          return `☕️ Kahve ve Kitap Keyfinizin Yeni Eşlikçisi: ${productTitle}! 📖\n\n` +
+                 `Kitap kurtları merhaba! 😍 Sizi sayfalarını çevirirken zamandan koparacak harika bir eserle tanıştırıyoruz: ${productTitle}. Kitaplığınızda mutlaka yer almalı! ✨\n\n` +
+                 `📚 Neden Okumalısınız?\n` +
+                 `👉 Sürükleyici anlatım ve derinlikli içerik\n` +
+                 `👉 ${displayName} seçkisiyle en taze baskı\n` +
+                 (discountPercentage > 0 ? `👉 Kitapseverlere özel %${discountPercentage} indirimli fiyat! 🥳\n` : '') +
+                 `\n💰 Fiyat: ${priceText}\n` +
+                 (oldPriceText ? `👉 Kaçırılmayacak fırsat (${oldPriceText} yerine!)\n` : '') +
+                 `\nSipariş vermek ve diğer kitap tavsiyelerimiz için hemen mesaj atın!\n\n` +
+                 `📞 ${contactPhoneText}\n` +
+                 `🛍️ ${displayName}\n\n` +
+                 `#kitapsever #neokusam #kitapvatani #kitapaski #kirtasiyealisverisi ${storeHashtag}`;
+      }
+    }
+
+    // 5. GENERAL RETAIL / SHOPLP DEFAULT TERMINOLOGY
     switch (selectedTone) {
       case 'luxury':
         return `⚜️ YAŞAMINIZA ZERAFET KATIN: ${productTitle.toUpperCase()} ⚜️\n\n` +
@@ -301,6 +483,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                `#indirimvar #sezonindirimi #alisveriszamani #firsatfiyat #alisverisonline ${activeHashtags}`;
 
       case 'friendly':
+      default:
         return `🌟 Günün Harika Ürünü İle Karşınızdayız! 🌟\n\n` +
                `Selamlar sevgili ${displayName} takipçileri! 😍 Bugün mağazamızın en beğenilen, her köşede tarzınızı ve günlük kullanım konforunuzu tazeleyecek pırıl pırıl bir parçayı sizinle paylaşmak için çok heyecanlıyız: ${productTitle}! ✨\n\n` +
                `🌸 Neden Bu Ürüne Bayılacaksınız?\n` +
