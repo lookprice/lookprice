@@ -346,7 +346,8 @@ router.post("/", async (req: any, res) => {
   try {
     // Check limit
     const limitRes = await pool.query("SELECT max_customers FROM stores WHERE id = $1", [storeId]);
-    const maxCustomers = Math.max(limitRes.rows[0]?.max_customers ?? 50, 5000);
+    const maxVal = limitRes.rows[0]?.max_customers;
+    const maxCustomers = (maxVal !== null && maxVal !== undefined) ? Number(maxVal) : 5000;
     const currentCountRes = await pool.query("SELECT COUNT(*)::INT as count FROM companies WHERE store_id = $1", [storeId]);
     const currentCount = currentCountRes.rows[0].count;
     if (currentCount >= maxCustomers) {

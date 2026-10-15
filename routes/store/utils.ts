@@ -64,12 +64,16 @@ export const PLAN_LIMITS: Record<string, number> = {
 };
 
 export async function checkProductLimit(storeId: number, additionalCount: number = 1) {
-  const storeRes = await pool.query("SELECT plan FROM stores WHERE id = $1", [storeId]);
-  const plan = storeRes.rows[0]?.plan || 'free';
-  const limit = PLAN_LIMITS[plan] || 50;
+  const storeRes = await pool.query("SELECT plan, max_products FROM stores WHERE id = $1", [storeId]);
+  const store = storeRes.rows[0];
+  const plan = store?.plan || 'free';
+  const limit = (store?.max_products !== null && store?.max_products !== undefined) 
+    ? Number(store.max_products) 
+    : (PLAN_LIMITS[plan] || 50);
   
   const currentCountRes = await pool.query("SELECT COUNT(*)::INT as count FROM products WHERE store_id = $1", [storeId]);
-  const currentCount = currentCountRes.rows[0].count;
+  const currentCount = currentCountRes.rows[0]?.count || 0;
   
   return currentCount + additionalCount <= limit;
 }
+

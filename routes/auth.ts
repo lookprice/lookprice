@@ -71,7 +71,7 @@ router.post("/login", async (req, res) => {
       role: user.role, 
       store_id: user.store_id,
       store_slug: user.store_slug,
-      password_needs_update: !isValidPassword(password)
+      password_needs_update: (user.email === 'demo@shoplp.com' || user.email?.startsWith('demo@')) ? false : !isValidPassword(password)
     } 
   });
 });

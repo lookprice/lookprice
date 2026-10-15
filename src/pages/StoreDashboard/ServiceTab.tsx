@@ -834,126 +834,154 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       {/* Service Modal */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/80 backdrop-blur-md">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-6xl h-[88vh] max-h-[820px] min-h-[580px] flex flex-col overflow-hidden font-sans"
             >
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-indigo-50 rounded-lg">
-                    <Wrench className="h-5 w-5 text-indigo-600" />
+              {/* Futuristic Minimalist Header */}
+              <div className="h-14 px-5 bg-slate-950 text-white border-b border-slate-800 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                    <Wrench className="h-4 w-4" />
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900">
-                    {editingRecord?.id ? t.service_tab.editServiceRecord : t.service_tab.newRecord}
-                  </h2>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-extrabold tracking-tight text-white uppercase">
+                        {editingRecord?.id ? t.service_tab.editServiceRecord : t.service_tab.newRecord}
+                      </h3>
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold tracking-wider">
+                        Lookprice Service Core
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      {isTr ? "Hızlı teknik servis kabul, arıza teşhis ve parça/işçilik kaydı" : "Fast technical service intake, diagnosis & parts tracking"}
+                    </p>
+                  </div>
                 </div>
-                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                  <XCircle className="h-6 w-6 text-slate-400" />
-                </button>
+
+                <div className="flex items-center gap-3">
+                  <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+                    <span className="text-slate-400">{isTr ? "Kalem:" : "Items:"}</span>
+                    <span className="font-mono font-bold text-indigo-400">{serviceItems.length}</span>
+                    <span className="text-slate-700">|</span>
+                    <span className="text-slate-400">{isTr ? "Toplam:" : "Total:"}</span>
+                    <span className="font-mono font-bold text-emerald-400">
+                      {totalServiceAmount.toLocaleString('tr-TR', { style: 'currency', currency: (editingRecord?.currency || storeInfo?.default_currency || 'TRY').toUpperCase() })}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+                  >
+                    <XCircle className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                {/* Customer & Device Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <User className="w-4 h-4" /> {t.service_tab.customerInfo}
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="md:col-span-2">
-                        <AutocompleteSelect
-                          label={t.service_tab.customerName + " *"}
-                          items={[
-                            ...customers.map(c => ({ ...c, display: c.name || c.customer_name, type: 'customer' })),
-                            ...companies.map(c => ({ ...c, display: c.title || c.company_title, type: 'company' }))
-                          ]}
-                          displayField="display"
-                          secondaryField="phone"
-                          type="all-accounts"
-                          lang={lang as 'tr' | 'en'}
-                          value={editingRecord?.customer_name || ''}
-                          placeholder={t.service_tab.fullName}
-                          onSelect={(item) => {
-                            if (item) {
-                              setEditingRecord(prev => ({ 
-                                ...prev!, 
-                                customer_name: item.display,
-                                customer_phone: item.phone || item.company_phone || prev?.customer_phone || ''
-                              }));
-                            } else {
-                              setEditingRecord(prev => ({ ...prev!, customer_name: '' }));
-                            }
-                          }}
-                          onQuickAdd={(search) => {
-                            setQuickCustomerForm(prev => ({ ...prev, name: search }));
-                            setShowQuickCustomerModal(true);
-                          }}
-                        />
-                      </div>
+              {/* Body - Single-Screen Viewport Architecture */}
+              <div className="flex-1 grid grid-cols-12 overflow-hidden bg-slate-50/50 dark:bg-slate-950/40">
+                {/* Left Column (5 Cols) - Customer, Device & Diagnosis */}
+                <div className="col-span-12 lg:col-span-5 flex flex-col justify-between p-3.5 border-r border-slate-200/80 dark:border-slate-800/80 overflow-hidden space-y-2.5">
+                  {/* Box 1: Customer Info */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-indigo-500" />
+                      {t.service_tab.customerInfo}
+                    </span>
+
+                    <div className="space-y-2">
+                      <AutocompleteSelect
+                        label={t.service_tab.customerName + " *"}
+                        items={[
+                          ...customers.map(c => ({ ...c, display: c.name || c.customer_name, type: 'customer' })),
+                          ...companies.map(c => ({ ...c, display: c.title || c.company_title, type: 'company' }))
+                        ]}
+                        displayField="display"
+                        secondaryField="phone"
+                        type="all-accounts"
+                        lang={lang as 'tr' | 'en'}
+                        value={editingRecord?.customer_name || ''}
+                        placeholder={t.service_tab.fullName}
+                        onSelect={(item) => {
+                          if (item) {
+                            setEditingRecord(prev => ({ 
+                              ...prev!, 
+                              customer_name: item.display,
+                              customer_phone: item.phone || item.company_phone || prev?.customer_phone || ''
+                            }));
+                          } else {
+                            setEditingRecord(prev => ({ ...prev!, customer_name: '' }));
+                          }
+                        }}
+                        onQuickAdd={(search) => {
+                          setQuickCustomerForm(prev => ({ ...prev, name: search }));
+                          setShowQuickCustomerModal(true);
+                        }}
+                      />
+
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.phone}</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                          {t.service_tab.phone}
+                        </label>
                         <input
                           type="text"
                           value={editingRecord?.customer_phone || ''}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, customer_phone: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 outline-none"
                           placeholder={t.service_tab.phonePlaceholder}
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <Smartphone className="w-4 h-4" /> {t.service_tab.deviceInfo}
-                    </h3>
-                    <div className="space-y-3">
+                  {/* Box 2: Device & Status */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Smartphone className="w-3.5 h-3.5 text-cyan-500" />
+                      {t.service_tab.deviceInfo}
+                    </span>
+
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.deviceModel} *</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                          {t.service_tab.deviceModel} *
+                        </label>
                         <input
                           type="text"
                           value={editingRecord?.device_model || ''}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, device_model: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 outline-none"
                           placeholder={t.service_tab.example_device}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.serialImei}</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                          {t.service_tab.serialImei}
+                        </label>
                         <input
                           type="text"
                           value={editingRecord?.device_serial || ''}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, device_serial: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 outline-none font-mono"
                           placeholder={t.service_tab.serialPlaceholder}
                         />
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Issue & Status */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.issueDescription}</label>
-                    <textarea
-                      value={editingRecord?.issue_description || ''}
-                      onChange={(e) => setEditingRecord(prev => ({ ...prev!, issue_description: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all h-24 resize-none"
-                      placeholder={t.service_tab.issuePlaceholder}
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.status}</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                          {t.service_tab.status}
+                        </label>
                         <select
                           value={editingRecord?.status || 'received'}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, status: e.target.value as any }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 outline-none"
                         >
                           <option value="received">{t.service_tab.statuses.received}</option>
                           <option value="diagnosing">{t.service_tab.statuses.diagnosing}</option>
@@ -964,12 +992,15 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                           <option value="cancelled">{t.service_tab.statuses.cancelled}</option>
                         </select>
                       </div>
+
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{isTr ? "Para Birimi" : "Currency"}</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                          {isTr ? "Para Birimi" : "Currency"}
+                        </label>
                         <select
                           value={editingRecord?.currency || storeInfo?.default_currency || 'TRY'}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, currency: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-indigo-700"
+                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold text-emerald-600 dark:text-emerald-400 outline-none"
                         >
                           <option value="TRY">TRY (₺)</option>
                           <option value="USD">USD ($)</option>
@@ -978,197 +1009,249 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                         </select>
                       </div>
                     </div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mt-4 mb-1">{t.service_tab.notesInternal}</label>
-                    <textarea
-                      value={editingRecord?.notes || ''}
-                      onChange={(e) => setEditingRecord(prev => ({ ...prev!, notes: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all h-20 resize-none"
-                      placeholder={t.service_tab.notesPlaceholder}
-                    />
+                  </div>
+
+                  {/* Box 3: Issue Description & Internal Notes */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-2.5 shadow-xs space-y-1.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                          {t.service_tab.issueDescription}
+                        </label>
+                        <textarea
+                          value={editingRecord?.issue_description || ''}
+                          onChange={(e) => setEditingRecord(prev => ({ ...prev!, issue_description: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 outline-none resize-none h-14"
+                          placeholder={t.service_tab.issuePlaceholder}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                          {t.service_tab.notesInternal}
+                        </label>
+                        <textarea
+                          value={editingRecord?.notes || ''}
+                          onChange={(e) => setEditingRecord(prev => ({ ...prev!, notes: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 outline-none resize-none h-14"
+                          placeholder={t.service_tab.notesPlaceholder}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Parts & Labor */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <Package className="w-4 h-4" /> {t.service_tab.partsAndLabor}
-                    </h3>
-                    <div className="flex gap-2">
+                {/* Right Column (7 Cols) - Parts & Labor Grid */}
+                <div className="col-span-12 lg:col-span-7 flex flex-col justify-between p-3.5 overflow-hidden">
+                  {/* Top Bar Actions */}
+                  <div className="flex items-center justify-between pb-1">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-indigo-500" />
+                      <h4 className="text-xs font-black uppercase text-slate-700 dark:text-slate-300 tracking-wider">
+                        {t.service_tab.partsAndLabor}
+                      </h4>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold">
+                        {serviceItems.length} {isTr ? "kalem" : "items"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => addItem('part')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-cyan-50 dark:bg-cyan-950/50 hover:bg-cyan-100 text-cyan-700 dark:text-cyan-300 border border-cyan-200/60 dark:border-cyan-800/50 rounded-lg text-xs font-bold transition-all shadow-xs"
                       >
-                        <Plus className="w-3 h-3" /> {t.service_tab.addPart}
+                        <Plus className="w-3 h-3" />
+                        <span>{t.service_tab.addPart}</span>
                       </button>
                       <button
+                        type="button"
                         onClick={() => addItem('labor')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50 rounded-lg text-xs font-bold transition-all shadow-xs"
                       >
-                        <Plus className="w-3 h-3" /> {t.service_tab.addLabor}
+                        <Plus className="w-3 h-3" />
+                        <span>{t.service_tab.addLabor}</span>
                       </button>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    {serviceItems.map((item, index) => (
-                      <div key={index} className="flex flex-wrap md:flex-nowrap items-end gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                        <div className="flex-1 min-w-[200px]">
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase">
-                              {item.type === 'part' ? t.service_tab.sparePart : t.service_tab.laborService}
-                            </label>
+                  {/* High-Density Service Items Table */}
+                  <div className="flex-1 my-2 overflow-y-auto rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col">
+                    <div className="sticky top-0 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-xs border-b border-slate-200 dark:border-slate-700/80 px-3 py-1.5 grid grid-cols-12 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 z-10">
+                      <span className="col-span-2">{isTr ? "Tür" : "Type"}</span>
+                      <span className="col-span-4">{isTr ? "Kalem / İşlem Adı" : "Item / Service"}</span>
+                      <span className="col-span-1 text-center">{isTr ? "Miktar" : "Qty"}</span>
+                      <span className="col-span-2 text-right">{isTr ? "B.Fiyat" : "Price"}</span>
+                      <span className="col-span-1 text-center">{isTr ? "KDV" : "VAT"}</span>
+                      <span className="col-span-2 text-right pr-6">{isTr ? "Tutar" : "Total"}</span>
+                    </div>
+
+                    <div className="flex-1 divide-y divide-slate-100 dark:divide-slate-800/60 overflow-y-auto">
+                      {serviceItems.map((item, index) => (
+                        <div key={index} className="px-3 py-2 grid grid-cols-12 items-center text-xs hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors gap-2">
+                          {/* Type Pill */}
+                          <div className="col-span-2">
+                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md inline-block ${
+                              item.type === 'part'
+                                ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20'
+                                : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
+                            }`}>
+                              {item.type === 'part' ? (isTr ? 'PARÇA' : 'PART') : (isTr ? 'İŞÇİLİK' : 'LABOR')}
+                            </span>
+                          </div>
+
+                          {/* Autocomplete Selector */}
+                          <div className="col-span-4 min-w-0">
+                            {item.type === 'part' ? (
+                              <AutocompleteSelect
+                                items={products.filter(p => !p.product_type || p.product_type !== 'service')}
+                                displayField="name"
+                                secondaryField="barcode"
+                                type="product"
+                                lang={lang as 'tr' | 'en'}
+                                value={item.item_name}
+                                placeholder={t.service_tab.selectPart}
+                                onSelect={(p) => {
+                                  if (p) {
+                                    updateItem(index, { 
+                                      item_name: p.name, 
+                                      product_id: p.id,
+                                      unit_price: p.price 
+                                    });
+                                  } else {
+                                    updateItem(index, { item_name: '', product_id: null });
+                                  }
+                                }}
+                                onQuickAdd={(search) => {
+                                  setQuickProductForm({ name: search, price: '', tax_rate: '20', category: '', sub_category: '', type: 'part', index });
+                                  setShowQuickProductModal(true);
+                                }}
+                              />
+                            ) : (
+                              <AutocompleteSelect
+                                items={products.filter(p => p.product_type === 'service')}
+                                displayField="name"
+                                type="product"
+                                lang={lang as 'tr' | 'en'}
+                                value={item.item_name}
+                                placeholder={t.service_tab.laborDescriptionPlaceholder}
+                                onSelect={(p) => {
+                                  if (p) {
+                                    updateItem(index, { 
+                                      item_name: p.name, 
+                                      product_id: p.id,
+                                      unit_price: p.price 
+                                    });
+                                  } else {
+                                    updateItem(index, { item_name: '', product_id: null });
+                                  }
+                                }}
+                                onQuickAdd={(search) => {
+                                  setQuickProductForm({ name: search, price: '', tax_rate: '20', category: '', sub_category: '', type: 'labor', index });
+                                  setShowQuickProductModal(true);
+                                }}
+                              />
+                            )}
+                          </div>
+
+                          {/* Quantity */}
+                          <div className="col-span-1 text-center">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={item.quantity}
+                              onKeyDown={(e) => {
+                                if (e.key === '.' || e.key === ',') e.preventDefault();
+                              }}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                updateItem(index, { quantity: val });
+                              }}
+                              className="w-12 px-1.5 py-1 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-center text-slate-800 dark:text-slate-200 outline-none"
+                            />
+                          </div>
+
+                          {/* Unit Price */}
+                          <div className="col-span-2 text-right">
+                            <input
+                              type="text"
+                              value={item.unit_price}
+                              onChange={(e) => updateItem(index, { unit_price: e.target.value })}
+                              className="w-20 px-1.5 py-1 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-right text-slate-800 dark:text-slate-200 outline-none"
+                            />
+                          </div>
+
+                          {/* VAT */}
+                          <div className="col-span-1 text-center">
+                            <input
+                              type="text"
+                              value={Math.floor(Number(item.tax_rate) || 0)}
+                              onChange={(e) => updateItem(index, { tax_rate: e.target.value })}
+                              className="w-10 px-1 py-1 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-mono text-center text-slate-700 dark:text-slate-300 outline-none"
+                            />
+                          </div>
+
+                          {/* Total & Delete */}
+                          <div className="col-span-2 flex items-center justify-end gap-1.5">
+                            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs">
+                              {item.total_price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
                             <button
                               type="button"
-                              onClick={() => {
-                                setQuickProductForm({ name: item.item_name || '', price: '', tax_rate: '20', category: '', sub_category: '', type: item.type, index });
-                                setShowQuickProductModal(true);
-                              }}
-                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded"
+                              onClick={() => removeItem(index)}
+                              className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors"
                             >
-                              + {isTr ? 'Hızlı Ekle' : 'Add'}
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                          {item.type === 'part' ? (
-                            <AutocompleteSelect
-                              items={products.filter(p => !p.product_type || p.product_type !== 'service')}
-                              displayField="name"
-                              secondaryField="barcode"
-                              type="product"
-                              lang={lang as 'tr' | 'en'}
-                              value={item.item_name}
-                              placeholder={t.service_tab.selectPart}
-                              onSelect={(p) => {
-                                if (p) {
-                                  updateItem(index, { 
-                                    item_name: p.name, 
-                                    product_id: p.id,
-                                    unit_price: p.price // Auto-fill price if available
-                                  });
-                                } else {
-                                  updateItem(index, { item_name: '', product_id: null });
-                                }
-                              }}
-                              onQuickAdd={(search) => {
-                                setQuickProductForm({ name: search, price: '', tax_rate: '20', category: '', sub_category: '', type: 'part', index });
-                                setShowQuickProductModal(true);
-                              }}
-                            />
-                          ) : (
-                            <AutocompleteSelect
-                              items={products.filter(p => p.product_type === 'service')}
-                              displayField="name"
-                              type="product"
-                              lang={lang as 'tr' | 'en'}
-                              value={item.item_name}
-                              placeholder={t.service_tab.laborDescriptionPlaceholder}
-                              onSelect={(p) => {
-                                if (p) {
-                                  updateItem(index, { 
-                                    item_name: p.name, 
-                                    product_id: p.id,
-                                    unit_price: p.price 
-                                  });
-                                } else {
-                                  updateItem(index, { item_name: '', product_id: null });
-                                }
-                              }}
-                              onQuickAdd={(search) => {
-                                setQuickProductForm({ name: search, price: '', tax_rate: '20', category: '', sub_category: '', type: 'labor', index });
-                                setShowQuickProductModal(true);
-                              }}
-                            />
-                          )}
                         </div>
-                        <div className="w-24">
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.quantity}</label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={item.quantity}
-                            onKeyDown={(e) => {
-                              if (e.key === '.' || e.key === ',') e.preventDefault();
-                            }}
-                            onChange={(e) => {
-                              const val = e.target.value.replace(/[^0-9]/g, '');
-                              updateItem(index, { quantity: val });
-                            }}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
-                          />
-                        </div>
-                        <div className="w-32">
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.unitPrice}</label>
-                          <input
-                            type="text"
-                            value={item.unit_price}
-                            onChange={(e) => updateItem(index, { unit_price: e.target.value })}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
-                          />
-                        </div>
-                        <div className="w-20">
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.taxRate}</label>
-                          <input
-                            type="text"
-                            value={Math.floor(Number(item.tax_rate) || 0)}
-                            onChange={(e) => updateItem(index, { tax_rate: e.target.value })}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
-                          />
-                        </div>
-                        <div className="w-32">
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.total}</label>
-                          <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-700">
-                            {item.total_price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => removeItem(index)}
-                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                    {serviceItems.length === 0 && (
-                      <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-sm">
-                        {t.service_tab.noRecordsFound}
-                      </div>
-                    )}
-                    
-                    <datalist id="service-parts-list">
-                      {products.filter(p => !p.product_type || p.product_type !== 'service').map(p => (
-                        <option key={`p-list-${p.id}`} value={p.name}>{p.barcode ? `(${p.barcode})` : ''}</option>
                       ))}
-                    </datalist>
-                    <datalist id="service-labors-list">
-                      {products.filter(p => p.product_type === 'service').map(p => (
-                        <option key={`s-list-${p.id}`} value={p.name} />
-                      ))}
-                    </datalist>
-                  </div>
-                </div>
-              </div>
 
-              <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-                <div className="text-right">
-                  <p className="text-xs font-bold text-slate-400 uppercase">{t.service_tab.totalAmount}</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {totalServiceAmount.toLocaleString('tr-TR', { style: 'currency', currency: (editingRecord?.currency || storeInfo?.default_currency || 'TRY').toUpperCase() })}
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all"
-                  >
-                    {t.cancel}
-                  </button>
-                  <button
-                    onClick={handleSaveRecord}
-                    className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    {t.save}
-                  </button>
+                      {serviceItems.length === 0 && (
+                        <div className="h-full min-h-[160px] flex flex-col items-center justify-center p-6 text-center">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-2">
+                            <Package className="h-5 w-5" />
+                          </div>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            {t.service_tab.noRecordsFound}
+                          </p>
+                          <p className="text-[11px] text-slate-400 max-w-xs mt-0.5">
+                            {isTr ? "Yukarıdaki butonları kullanarak servis parçası veya işçilik kalemi ekleyin." : "Add parts or labor items using the buttons above."}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom Action Cockpit */}
+                  <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        {t.service_tab.totalAmount}:
+                      </span>
+                      <span className="text-xl font-mono font-extrabold text-slate-900 dark:text-white leading-none">
+                        {totalServiceAmount.toLocaleString('tr-TR', { style: 'currency', currency: (editingRecord?.currency || storeInfo?.default_currency || 'TRY').toUpperCase() })}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowModal(false)}
+                        className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition-all cursor-pointer"
+                      >
+                        {t.cancel}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveRecord}
+                        className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-xs transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20 cursor-pointer group"
+                      >
+                        <Save className="w-4 h-4" />
+                        <span>{t.save}</span>
+                        <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
