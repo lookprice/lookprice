@@ -274,6 +274,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [formDocumentNo, setFormDocumentNo] = React.useState<string>('');
   const [formDescription, setFormDescription] = React.useState<string>('');
   const [formDate, setFormDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
+  // Cross-Currency (Çapraz Kur & Döviz Mahsup) state for TL transactions
+  const [formTargetCurrency, setFormTargetCurrency] = React.useState<string>('');
+  const [formCrossRate, setFormCrossRate] = React.useState<string>('');
 
   // Clean Number Parser (supports Turkish 1.250,50 and 1,250.50 formats)
   const parseAmount = (val: string | number): number => {
@@ -303,6 +306,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const handleCloseAddOrEditModal = () => {
     setShowAddTransactionModal(false);
     setEditingTransaction(null);
+    setFormTargetCurrency('');
+    setFormCrossRate('');
   };
 
   const handleOpenNewTransaction = () => {
@@ -313,6 +318,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     const defCurr = (selectedCurrency && selectedCurrency !== 'ALL') ? selectedCurrency : (branding?.default_currency || 'TRY');
     setFormCurrency(defCurr);
     setFormExchangeRate(String(getSuggestedRate(defCurr) || 1));
+    setFormTargetCurrency('');
+    setFormCrossRate(String(getSuggestedRate('USD') || 1));
     setFormPaymentMethod('cash');
     setFormDocumentNo('');
     setFormDescription('');
@@ -333,13 +340,47 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       docNo = match[1].trim();
       desc = match[2].trim();
     }
+
+    const rawCrossCurr = (tx.cross_currency || '').toUpperCase();
+    const rawCrossAmt = Number(tx.cross_amount || 0);
+    const rawCrossRate = Number(tx.cross_rate || 0);
+
+    // Also check regex match for [TL Tahsilat: 34.500,00 ₺ | Kur: 34.5000 USD/TRY]
+    const matchCrossDesc = desc.match(/^\[(?:TL\s*(?:Tahsilat|Ödeme|Karşılığı)|Cross\s*TRY):\s*([0-9.,]+)\s*₺?\s*(?:\||\/)\s*(?:Kur|Rate):\s*([0-9.,]+)[^\]]*\]\s*(.*)$/i);
+
+    if (rawCrossCurr === 'TRY' && rawCrossAmt > 0) {
+      // It is a TL payment/collection recorded against a foreign currency (tx.currency)
+      setFormCurrency('TRY');
+      setFormAmount(String(rawCrossAmt));
+      setFormTargetCurrency(tx.currency || 'USD');
+      setFormCrossRate(String(rawCrossRate || tx.exchange_rate || getSuggestedRate(tx.currency) || 1));
+      if (matchCrossDesc) {
+        desc = matchCrossDesc[3].trim();
+      }
+    } else if (matchCrossDesc && tx.currency !== 'TRY') {
+      const parsedMatchedAmt = parseAmount(matchCrossDesc[1]);
+      const parsedMatchedRate = parseAmount(matchCrossDesc[2]);
+      setFormCurrency('TRY');
+      setFormAmount(parsedMatchedAmt > 0 ? String(parsedMatchedAmt) : String(tx.amount));
+      setFormTargetCurrency(tx.currency || 'USD');
+      setFormCrossRate(parsedMatchedRate > 0 ? String(parsedMatchedRate) : String(tx.exchange_rate || 1));
+      desc = matchCrossDesc[3].trim();
+    } else if (tx.currency === 'TRY' || !tx.currency) {
+      setFormCurrency('TRY');
+      setFormAmount(tx.amount !== undefined && tx.amount !== null ? String(tx.amount) : '');
+      setFormExchangeRate('1');
+      setFormTargetCurrency(tx.cross_currency || '');
+      setFormCrossRate(tx.cross_rate ? String(tx.cross_rate) : String(getSuggestedRate('USD') || 1));
+    } else {
+      setFormCurrency(tx.currency);
+      setFormAmount(tx.amount !== undefined && tx.amount !== null ? String(tx.amount) : '');
+      setFormExchangeRate(String(tx.exchange_rate || getSuggestedRate(tx.currency) || 1));
+      setFormTargetCurrency('');
+      setFormCrossRate('');
+    }
+
     setFormDocumentNo(docNo);
     setFormDescription(desc);
-    
-    setFormAmount(tx.amount !== undefined && tx.amount !== null ? String(tx.amount) : '');
-    const txCurr = tx.currency || selectedCurrency || branding?.default_currency || 'TRY';
-    setFormCurrency(txCurr);
-    setFormExchangeRate(String(tx.exchange_rate || getSuggestedRate(txCurr) || '1'));
     setFormPaymentMethod(tx.payment_method || 'cash');
     
     let dStr = new Date().toISOString().split('T')[0];
@@ -365,38 +406,66 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       alert(isTr ? "Lütfen geçerli bir işlem tutarı giriniz." : "Please enter a valid amount.");
       return;
     }
-    const parsedRate = parseAmount(formExchangeRate) || 1;
-    const fullDesc = formDocumentNo.trim() 
-      ? `[Belge: ${formDocumentNo.trim()}] ${formDescription.trim()}`.trim() 
-      : formDescription.trim();
 
-    if (formCurrency && formCurrency !== selectedCurrency) {
-      setSelectedCurrency(formCurrency);
+    let finalCurrency = formCurrency;
+    let finalAmount = parsedAmt;
+    let finalExchangeRate = parseAmount(formExchangeRate) || 1;
+    let crossCurrency: string | null = null;
+    let crossRate: number | null = null;
+    let crossAmount: number | null = null;
+    let notePrefix = '';
+
+    // Check if TL record is being offset against a foreign currency
+    if (formCurrency === 'TRY' && formTargetCurrency && formTargetCurrency !== 'NONE' && formTargetCurrency !== 'TRY') {
+      const parsedCR = parseAmount(formCrossRate);
+      if (parsedCR > 0) {
+        finalCurrency = formTargetCurrency.toUpperCase();
+        finalAmount = Number((parsedAmt / parsedCR).toFixed(2));
+        finalExchangeRate = parsedCR;
+        crossCurrency = 'TRY';
+        crossRate = parsedCR;
+        crossAmount = parsedAmt;
+
+        const actionText = formType === 'credit' 
+          ? (isTr ? 'TL Tahsilat' : 'TL Collection') 
+          : (isTr ? 'TL Ödeme' : 'TL Payment');
+        notePrefix = `[${actionText}: ${parsedAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ | Kur: ${parsedCR.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ${finalCurrency}/TRY]`;
+      }
     }
 
+    // Strip any older cross-currency prefix if present to avoid duplication
+    let cleanDesc = formDescription.replace(/^\[(?:TL\s*(?:Tahsilat|Ödeme|Karşılığı)|Cross\s*TRY):\s*[^\]]+\]\s*/i, '').trim();
+    if (notePrefix) {
+      cleanDesc = `${notePrefix} ${cleanDesc}`.trim();
+    }
+
+    const fullDesc = formDocumentNo.trim() 
+      ? `[Belge: ${formDocumentNo.trim()}] ${cleanDesc}`.trim() 
+      : cleanDesc;
+
+    if (finalCurrency && finalCurrency !== selectedCurrency && selectedCurrency !== 'ALL') {
+      setSelectedCurrency(finalCurrency);
+    }
+
+    const txPayload = {
+      company_id: formCompanyId,
+      type: formType,
+      amount: finalAmount,
+      currency: finalCurrency,
+      exchange_rate: finalExchangeRate,
+      payment_method: formPaymentMethod,
+      description: fullDesc,
+      transaction_date: formDate,
+      cross_currency: crossCurrency,
+      cross_rate: crossRate,
+      cross_amount: crossAmount
+    };
+
     if (editingTransaction) {
-      handleEditTransaction(editingTransaction.id, {
-        company_id: formCompanyId,
-        type: formType,
-        amount: parsedAmt,
-        currency: formCurrency,
-        exchange_rate: parsedRate,
-        payment_method: formPaymentMethod,
-        description: fullDesc,
-        transaction_date: formDate
-      });
+      handleEditTransaction(editingTransaction.id, txPayload);
       handleCloseAddOrEditModal();
     } else {
-      handleAddTransaction({
-        company_id: formCompanyId,
-        type: formType,
-        amount: parsedAmt,
-        currency: formCurrency,
-        exchange_rate: parsedRate,
-        payment_method: formPaymentMethod,
-        description: fullDesc,
-        transaction_date: formDate
-      } as any);
+      handleAddTransaction(txPayload as any);
       handleCloseAddOrEditModal();
     }
   };
@@ -1150,13 +1219,23 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
 
                                           <td className="py-2 px-3 text-slate-900 font-medium max-w-[150px] truncate" title={tx.description || ''}>
-                                            <span className="truncate block">
-                                              {(tx.description || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit')))
-                                                .replace(/(Satış Faturası:?|Alış Faturası Ödemesi:?|Sales Invoice:?|Purchase Invoice Payment:?)/gi, '')
-                                                .replace(/\s*\(.*?\)\s*/g, '')
-                                                .trim()
-                                                .substring(0, 20) + ((tx.description || '').length > 20 ? '...' : '')}
-                                            </span>
+                                            <div className="flex flex-col min-w-0">
+                                              <span className="truncate block">
+                                                {(tx.description || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit')))
+                                                  .replace(/(Satış Faturası:?|Alış Faturası Ödemesi:?|Sales Invoice:?|Purchase Invoice Payment:?)/gi, '')
+                                                  .replace(/\[(?:TL\s*(?:Tahsilat|Ödeme|Karşılığı)|Cross\s*TRY):\s*[^\]]+\]/gi, '')
+                                                  .replace(/\s*\(.*?\)\s*/g, '')
+                                                  .trim()
+                                                  .substring(0, 25) || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit'))}
+                                              </span>
+                                              {(tx.cross_amount || (tx.description && (tx.description.includes('TL Tahsilat') || tx.description.includes('TL Ödeme')))) && (
+                                                <span className="text-[9px] font-mono font-bold text-amber-700 truncate">
+                                                  {tx.cross_amount 
+                                                    ? `TL: ${Number(tx.cross_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ (Kur: ${Number(tx.cross_rate || tx.exchange_rate).toFixed(2)})`
+                                                    : (isTr ? 'TL Çapraz Kur' : 'Cross TRY')}
+                                                </span>
+                                              )}
+                                            </div>
                                           </td>
                                           <td className="py-2 px-3 whitespace-nowrap">
                                             <div className="flex items-center gap-1.5 font-mono text-[11px]">
@@ -1395,7 +1474,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     onChange={(e) => {
                       const newCurr = e.target.value;
                       setFormCurrency(newCurr);
-                      setFormExchangeRate(String(getSuggestedRate(newCurr) || 1));
+                      if (newCurr !== 'TRY') {
+                        setFormExchangeRate(String(getSuggestedRate(newCurr) || 1));
+                        setFormTargetCurrency('');
+                        setFormCrossRate('');
+                      } else {
+                        setFormExchangeRate('1');
+                      }
                     }}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-black text-slate-800 cursor-pointer"
                   >
@@ -1406,6 +1491,109 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   </select>
                 </div>
               </div>
+
+              {/* SADECE TL İŞLEMLERİ İÇİN: Çapraz Döviz Kuru & Mahsup Bölümü */}
+              {formCurrency === 'TRY' && (
+                <div className="p-3 bg-gradient-to-br from-amber-50/70 via-indigo-50/30 to-slate-50 border border-amber-200/90 rounded-2xl space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-amber-950">
+                      <Calculator className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span>{isTr ? 'Çapraz Döviz Kuru & Mahsup' : 'Cross Currency & Offset'}</span>
+                    </div>
+                    {formTargetCurrency ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        {formTargetCurrency} {isTr ? 'Hesabına Bağlı' : 'Linked'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-medium text-slate-500">
+                        {isTr ? '(İsteğe Bağlı)' : '(Optional)'}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-slate-600 leading-snug">
+                    {isTr 
+                      ? 'Dövizli (USD/EUR/GBP) cari borç veya alacağı TL ödeme ile kapatıyorsanız, mahsup edilecek döviz cinsini ve güncel kuru seçiniz. Boş bırakırsanız işlem sadece TL olarak kaydedilir.'
+                      : 'If offsetting a foreign currency balance with this TL record, select the target currency and rate. If left empty, it remains a pure TL record.'}
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">
+                        {isTr ? 'Mahsup Edilecek Döviz Cinsi' : 'Target Foreign Currency'}
+                      </label>
+                      <select
+                        value={formTargetCurrency}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormTargetCurrency(val);
+                          if (val) {
+                            setFormCrossRate(String(getSuggestedRate(val) || 1));
+                          } else {
+                            setFormCrossRate('');
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-white border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 text-xs font-bold text-slate-900 cursor-pointer"
+                      >
+                        <option value="">{isTr ? '— Yok (Sadece TL Kaydı) —' : '— None (Pure TL Record) —'}</option>
+                        <option value="USD">USD ($) - Amerikan Doları</option>
+                        <option value="EUR">EUR (€) - Euro</option>
+                        <option value="GBP">GBP (£) - İngiliz Sterlini</option>
+                      </select>
+                    </div>
+
+                    {formTargetCurrency ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-amber-900 uppercase tracking-tight">
+                            {isTr ? `Çapraz Kur (1 ${formTargetCurrency} = ... ₺)` : `Cross Rate (1 ${formTargetCurrency} = ... TRY)`}
+                          </label>
+                          {branding?.currency_rates?.[formTargetCurrency] && (
+                            <button
+                              type="button"
+                              onClick={() => setFormCrossRate(String(branding.currency_rates[formTargetCurrency]))}
+                              className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
+                              title={isTr ? "TCMB Kurunu Getir" : "Get CBRT Rate"}
+                            >
+                              TCMB: {Number(branding.currency_rates[formTargetCurrency]).toFixed(2)} ₺
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          required={Boolean(formTargetCurrency)}
+                          value={formCrossRate}
+                          onChange={(e) => setFormCrossRate(e.target.value.replace(',', '.'))}
+                          placeholder="Örn: 34.5000"
+                          className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-xs font-black text-amber-950 font-mono"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {formTargetCurrency && parseAmount(formCrossRate) > 0 && parseAmount(formAmount) > 0 && (
+                    <div className="p-2.5 bg-white border border-emerald-200 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <div className="text-[11px] text-slate-800">
+                          <span className="font-bold text-slate-900">{parseAmount(formAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
+                          <span className="text-slate-400 mx-1">/</span>
+                          <span className="font-mono font-bold text-amber-800">{parseAmount(formCrossRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
+                          <span className="text-slate-400 mx-1">=</span>
+                          <span className="font-black font-mono text-emerald-700 text-xs">
+                            {(parseAmount(formAmount) / parseAmount(formCrossRate)).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {formTargetCurrency}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 shrink-0">
+                        {formType === 'credit' 
+                          ? (isTr ? `Cari ${formTargetCurrency} Borcundan Düşülecek` : `Deducts from ${formTargetCurrency} debt`) 
+                          : (isTr ? `Cari ${formTargetCurrency} Alacağından Düşülecek` : `Deducts from ${formTargetCurrency} credit`)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Exchange Rate & Live TRY Preview if not TRY */}
               {formCurrency !== 'TRY' && (
@@ -1422,7 +1610,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       required 
                       value={formExchangeRate}
                       onChange={(e) => setFormExchangeRate(e.target.value.replace(',', '.'))}
-                      className="w-32 px-3 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500" 
+                      className="w-32 px-3 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono" 
                       placeholder="1.0000"
                     />
                     <div className="flex-1 text-right font-mono text-[11px] font-black text-indigo-950">

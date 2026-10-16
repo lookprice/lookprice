@@ -910,7 +910,10 @@ router.get("/:id/transactions", async (req: any, res) => {
 
 // Create Company Transaction
 router.post("/:id/transactions", async (req: any, res) => {
-  const { type, amount, description, transaction_date, payment_method, currency, exchange_rate } = req.body;
+  const { 
+    type, amount, description, transaction_date, payment_method, currency, exchange_rate,
+    cross_currency, cross_rate, cross_amount 
+  } = req.body;
   let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
   
@@ -945,6 +948,22 @@ router.post("/:id/transactions", async (req: any, res) => {
       if (!isNaN(pr) && pr > 0) cleanExchangeRate = pr;
     }
 
+    let cleanCrossRate: number | null = null;
+    if (cross_rate !== undefined && cross_rate !== null && cross_rate !== '') {
+      const s = String(cross_rate).trim().replace(/\s/g, '').replace(',', '.');
+      const pr = parseFloat(s);
+      if (!isNaN(pr) && pr > 0) cleanCrossRate = pr;
+    }
+
+    let cleanCrossAmount: number | null = null;
+    if (cross_amount !== undefined && cross_amount !== null && cross_amount !== '') {
+      const s = String(cross_amount).trim().replace(/\s/g, '').replace(',', '.');
+      const pa = parseFloat(s);
+      if (!isNaN(pa) && pa > 0) cleanCrossAmount = pa;
+    }
+
+    const cleanCrossCurrency = cross_currency ? String(cross_currency).toUpperCase() : null;
+
     let finalDate = new Date();
     if (transaction_date) {
       const providedDate = new Date(transaction_date);
@@ -964,8 +983,14 @@ router.post("/:id/transactions", async (req: any, res) => {
     const finalPaymentMethod = payment_method || 'cash';
 
     const result = await pool.query(
-      "INSERT INTO current_account_transactions (store_id, company_id, type, amount, description, transaction_date, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
-      [storeId, req.params.id, finalType, cleanAmount, description || '', finalDate, finalPaymentMethod, finalCurrency, cleanExchangeRate]
+      `INSERT INTO current_account_transactions (
+        store_id, company_id, type, amount, description, transaction_date, 
+        payment_method, currency, exchange_rate, cross_currency, cross_rate, cross_amount
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [
+        storeId, req.params.id, finalType, cleanAmount, description || '', finalDate, 
+        finalPaymentMethod, finalCurrency, cleanExchangeRate, cleanCrossCurrency, cleanCrossRate, cleanCrossAmount
+      ]
     );
     res.json(result.rows[0]);
   } catch (err: any) {
@@ -979,7 +1004,10 @@ router.put("/:companyId/transactions/:id", async (req: any, res) => {
   let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
   const { companyId, id } = req.params;
-  const { type, amount, description, transaction_date, payment_method, currency, exchange_rate, new_company_id } = req.body;
+  const { 
+    type, amount, description, transaction_date, payment_method, currency, exchange_rate, new_company_id,
+    cross_currency, cross_rate, cross_amount 
+  } = req.body;
 
   try {
     let checkQuery = "SELECT * FROM current_account_transactions WHERE id = $1 AND company_id = $2";
@@ -1021,6 +1049,30 @@ router.put("/:companyId/transactions/:id", async (req: any, res) => {
       if (!isNaN(parsedRate)) newExchangeRate = parsedRate;
     }
 
+    let newCrossRate = currentTx.cross_rate;
+    if (cross_rate !== undefined) {
+      if (cross_rate === null || cross_rate === '') {
+        newCrossRate = null;
+      } else {
+        const s = String(cross_rate).trim().replace(/\s/g, '').replace(',', '.');
+        const pr = parseFloat(s);
+        if (!isNaN(pr)) newCrossRate = pr;
+      }
+    }
+
+    let newCrossAmount = currentTx.cross_amount;
+    if (cross_amount !== undefined) {
+      if (cross_amount === null || cross_amount === '') {
+        newCrossAmount = null;
+      } else {
+        const s = String(cross_amount).trim().replace(/\s/g, '').replace(',', '.');
+        const pa = parseFloat(s);
+        if (!isNaN(pa)) newCrossAmount = pa;
+      }
+    }
+
+    const newCrossCurrency = cross_currency !== undefined ? (cross_currency ? String(cross_currency).toUpperCase() : null) : currentTx.cross_currency;
+
     const targetCompanyId = (new_company_id !== undefined && new_company_id !== null && new_company_id !== '') ? Number(new_company_id) : companyId;
 
     let newDate = currentTx.transaction_date;
@@ -1031,10 +1083,12 @@ router.put("/:companyId/transactions/:id", async (req: any, res) => {
 
     const updateRes = await pool.query(
       `UPDATE current_account_transactions 
-       SET type = $1, amount = $2, description = $3, transaction_date = $4, payment_method = $5, currency = $6, exchange_rate = $7, company_id = $8
-       WHERE id = $9
+       SET type = $1, amount = $2, description = $3, transaction_date = $4, payment_method = $5, 
+           currency = $6, exchange_rate = $7, company_id = $8,
+           cross_currency = $9, cross_rate = $10, cross_amount = $11
+       WHERE id = $12
        RETURNING *`,
-      [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, targetCompanyId, id]
+      [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, targetCompanyId, newCrossCurrency, newCrossRate, newCrossAmount, id]
     );
 
     res.json({ success: true, transaction: updateRes.rows[0] });

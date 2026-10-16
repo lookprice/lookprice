@@ -175,7 +175,10 @@ export const useCompanyActions = (
         transaction_date: rawDate,
         payment_method: rawPaymentMethod,
         currency: rawCurrency,
-        exchange_rate: parsedRate
+        exchange_rate: parsedRate,
+        cross_currency: payload?.cross_currency !== undefined ? payload.cross_currency : null,
+        cross_rate: payload?.cross_rate !== undefined ? payload.cross_rate : null,
+        cross_amount: payload?.cross_amount !== undefined ? payload.cross_amount : null
       }, targetStoreId);
       
       handleFetchTransactions(effectiveCompanyId, targetStoreId);

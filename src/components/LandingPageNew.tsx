@@ -32,7 +32,8 @@ import {
   Youtube,
   MessageCircle,
   BookOpen,
-  Hotel
+  Hotel,
+  Store
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -666,6 +667,14 @@ export const LandingPage = () => {
                   <Sparkles className="w-4 h-4 text-amber-300" />
                   <span>{txt("Lansmana Özel Demo İste", "Request Cyprus Launch Demo", "Αίτημα Επίδειξης")}</span>
                 </button>
+                <button 
+                  type="button"
+                  onClick={() => setShowDemoModal(true)} 
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Store className="w-4 h-4 text-white" />
+                  <span>{txt("Canlı Demo Hesaplarını Test Et", "Test Live Demo Accounts", "Δοκιμή Live Demo Accounts")}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1112,7 +1121,7 @@ export const LandingPage = () => {
       {/* Demo Modal */}
       <AnimatePresence>
         {showDemoModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -47,7 +47,10 @@ function cleanNumber(val: any): number | null {
 router.put("/:id", async (req: any, res) => {
   const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const { id } = req.params;
-  const { type, amount, description, transaction_date, payment_method, currency, exchange_rate, company_id } = req.body;
+  const { 
+    type, amount, description, transaction_date, payment_method, currency, exchange_rate, company_id,
+    cross_currency, cross_rate, cross_amount 
+  } = req.body;
 
   try {
     let checkQuery = "SELECT * FROM current_account_transactions WHERE id = $1";
@@ -72,6 +75,12 @@ router.put("/:id", async (req: any, res) => {
     const newExchangeRate = parsedExchangeRate !== null ? parsedExchangeRate : currentTx.exchange_rate;
     const newCompanyId = (company_id !== undefined && company_id !== null && company_id !== '') ? Number(company_id) : currentTx.company_id;
     
+    const parsedCrossRate = cleanNumber(cross_rate);
+    const newCrossRate = parsedCrossRate !== null ? parsedCrossRate : (cross_rate === null || cross_rate === '' ? null : currentTx.cross_rate);
+    const parsedCrossAmount = cleanNumber(cross_amount);
+    const newCrossAmount = parsedCrossAmount !== null ? parsedCrossAmount : (cross_amount === null || cross_amount === '' ? null : currentTx.cross_amount);
+    const newCrossCurrency = cross_currency !== undefined ? (cross_currency ? String(cross_currency).toUpperCase() : null) : currentTx.cross_currency;
+
     let newDate = currentTx.transaction_date;
     if (transaction_date) {
       const d = new Date(transaction_date);
@@ -82,10 +91,11 @@ router.put("/:id", async (req: any, res) => {
 
     const updateRes = await pool.query(
       `UPDATE current_account_transactions 
-       SET type = $1, amount = $2, description = $3, transaction_date = $4, payment_method = $5, currency = $6, exchange_rate = $7, company_id = $8
-       WHERE id = $9
+       SET type = $1, amount = $2, description = $3, transaction_date = $4, payment_method = $5, currency = $6, exchange_rate = $7, company_id = $8,
+           cross_currency = $9, cross_rate = $10, cross_amount = $11
+       WHERE id = $12
        RETURNING *`,
-      [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, newCompanyId, id]
+      [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, newCompanyId, newCrossCurrency, newCrossRate, newCrossAmount, id]
     );
 
     res.json({ success: true, transaction: updateRes.rows[0], message: "İşlem başarıyla güncellendi" });
@@ -99,7 +109,10 @@ router.put("/:id", async (req: any, res) => {
 router.patch("/:id", async (req: any, res) => {
   const storeId = getAuthorizedStoreId(req, req.query.storeId || req.body.storeId);
   const { id } = req.params;
-  const { type, amount, description, transaction_date, payment_method, currency, exchange_rate, company_id } = req.body;
+  const { 
+    type, amount, description, transaction_date, payment_method, currency, exchange_rate, company_id,
+    cross_currency, cross_rate, cross_amount 
+  } = req.body;
 
   try {
     let checkQuery = "SELECT * FROM current_account_transactions WHERE id = $1";
@@ -124,6 +137,12 @@ router.patch("/:id", async (req: any, res) => {
     const newExchangeRate = parsedExchangeRate !== null ? parsedExchangeRate : currentTx.exchange_rate;
     const newCompanyId = (company_id !== undefined && company_id !== null && company_id !== '') ? Number(company_id) : currentTx.company_id;
 
+    const parsedCrossRate = cleanNumber(cross_rate);
+    const newCrossRate = parsedCrossRate !== null ? parsedCrossRate : (cross_rate === null || cross_rate === '' ? null : currentTx.cross_rate);
+    const parsedCrossAmount = cleanNumber(cross_amount);
+    const newCrossAmount = parsedCrossAmount !== null ? parsedCrossAmount : (cross_amount === null || cross_amount === '' ? null : currentTx.cross_amount);
+    const newCrossCurrency = cross_currency !== undefined ? (cross_currency ? String(cross_currency).toUpperCase() : null) : currentTx.cross_currency;
+
     let newDate = currentTx.transaction_date;
     if (transaction_date) {
       const d = new Date(transaction_date);
@@ -134,10 +153,11 @@ router.patch("/:id", async (req: any, res) => {
 
     const updateRes = await pool.query(
       `UPDATE current_account_transactions 
-       SET type = $1, amount = $2, description = $3, transaction_date = $4, payment_method = $5, currency = $6, exchange_rate = $7, company_id = $8
-       WHERE id = $9
+       SET type = $1, amount = $2, description = $3, transaction_date = $4, payment_method = $5, currency = $6, exchange_rate = $7, company_id = $8,
+           cross_currency = $9, cross_rate = $10, cross_amount = $11
+       WHERE id = $12
        RETURNING *`,
-      [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, newCompanyId, id]
+      [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, newCompanyId, newCrossCurrency, newCrossRate, newCrossAmount, id]
     );
 
     res.json({ success: true, transaction: updateRes.rows[0], message: "İşlem başarıyla güncellendi" });
