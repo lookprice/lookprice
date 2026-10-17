@@ -68,6 +68,9 @@ export const PortfolioWebsiteGenerator = ({
   const [primaryColor, setPrimaryColor] = useState<string>("#0F172A");
   const [accentColor, setAccentColor] = useState<string>("#4f46e5");
   const [bgColor, setBgColor] = useState<string>("#ffffff");
+  const [footerColor, setFooterColor] = useState<string>("#1e293b");
+  const [textColor, setTextColor] = useState<string>("#0f172a");
+  const [secondaryAccentColor, setSecondaryAccentColor] = useState<string>("#6366f1");
 
   const isAutomotive = originalBranding?.store_type === 'motor_vehicle' || originalBranding?.page_layout_settings?.sector === 'automotive';
 
@@ -87,6 +90,9 @@ export const PortfolioWebsiteGenerator = ({
             if (savedSettings.primary_color) setPrimaryColor(savedSettings.primary_color);
             if (savedSettings.accent_color) setAccentColor(savedSettings.accent_color);
             if (savedSettings.bg_color) setBgColor(savedSettings.bg_color);
+            if (savedSettings.footer_color) setFooterColor(savedSettings.footer_color);
+            if (savedSettings.text_color) setTextColor(savedSettings.text_color);
+            if (savedSettings.secondary_accent_color) setSecondaryAccentColor(savedSettings.secondary_accent_color);
 
             if (res.page_layout) {
               let layout = res.page_layout;
@@ -288,7 +294,10 @@ export const PortfolioWebsiteGenerator = ({
           color_preset: colorPreset,
           primary_color: primaryColor,
           accent_color: accentColor,
-          bg_color: bgColor
+          bg_color: bgColor,
+          footer_color: footerColor,
+          text_color: textColor,
+          secondary_accent_color: secondaryAccentColor
         },
         team: team,
         slogan: content.trustSlogan,
@@ -719,19 +728,16 @@ export const PortfolioWebsiteGenerator = ({
                         {lang === "tr" ? "Hazır Şablon" : "Preset Active"}
                       </span>
                     )}
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-1">
                       <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">
-                        {lang === "tr" ? "ZEMİN" : "BG"}
+                        {lang === "tr" ? "FOOTER" : "FOOTER"}
                       </label>
                       <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl p-1.5 justify-center">
                         <input
                           type="color"
-                          value={bgColor}
+                          value={footerColor}
                           onChange={(e) => {
-                            setBgColor(e.target.value);
+                            setFooterColor(e.target.value);
                             setColorPreset("custom");
                           }}
                           className="h-5 w-5 rounded border border-slate-200 cursor-pointer overflow-hidden p-0 bg-transparent"
@@ -740,14 +746,14 @@ export const PortfolioWebsiteGenerator = ({
                     </div>
                     <div className="space-y-1">
                       <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">
-                        {lang === "tr" ? "BİRİNCİL" : "PRIMARY"}
+                        {lang === "tr" ? "METİN" : "TEXT"}
                       </label>
                       <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl p-1.5 justify-center">
                         <input
                           type="color"
-                          value={primaryColor}
+                          value={textColor}
                           onChange={(e) => {
-                            setPrimaryColor(e.target.value);
+                            setTextColor(e.target.value);
                             setColorPreset("custom");
                           }}
                           className="h-5 w-5 rounded border border-slate-200 cursor-pointer overflow-hidden p-0 bg-transparent"
@@ -756,14 +762,14 @@ export const PortfolioWebsiteGenerator = ({
                     </div>
                     <div className="space-y-1">
                       <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">
-                        {lang === "tr" ? "VURGU" : "ACCENT"}
+                        {lang === "tr" ? "YARDIMCI VURGU" : "SEC. ACCENT"}
                       </label>
                       <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl p-1.5 justify-center">
                         <input
                           type="color"
-                          value={accentColor}
+                          value={secondaryAccentColor}
                           onChange={(e) => {
-                            setAccentColor(e.target.value);
+                            setSecondaryAccentColor(e.target.value);
                             setColorPreset("custom");
                           }}
                           className="h-5 w-5 rounded border border-slate-200 cursor-pointer overflow-hidden p-0 bg-transparent"
@@ -775,6 +781,7 @@ export const PortfolioWebsiteGenerator = ({
               </div>
 
               {/* Logo & Favicon Settings */}
+
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                   <ImageIcon className="h-4 w-4 text-indigo-500" />

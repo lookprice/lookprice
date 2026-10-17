@@ -417,6 +417,9 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
   const primaryColor = pageLayoutSettings.primary_color || "#0F172A";
   const accentColor = pageLayoutSettings.accent_color || "#4f46e5";
   const bgColor = pageLayoutSettings.bg_color || "#ffffff";
+  const footerColor = pageLayoutSettings.footer_color || "#1e293b";
+  const textColor = pageLayoutSettings.text_color || "#0f172a";
+  const secondaryAccentColor = pageLayoutSettings.secondary_accent_color || "#6366f1";
 
   const webContent = pageLayoutSettings.web_content;
   const content = {
@@ -624,33 +627,44 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
           --store-primary: ${primaryColor};
           --store-accent: ${accentColor};
           --store-bg: ${bgColor};
+          --store-footer: ${footerColor};
+          --store-text: ${textColor};
+          --store-secondary-accent: ${secondaryAccentColor};
           --store-text-on-accent: ${getContrastColor(accentColor)};
           --store-text-on-primary: ${getContrastColor(primaryColor)};
+          --store-text-on-footer: ${getContrastColor(footerColor)};
         }
         
         .store-theme-scoped {
           background-color: var(--store-bg) !important;
+          color: var(--store-text) !important;
+        }
+        
+        .store-theme-scoped footer {
+          background-color: var(--store-footer) !important;
+          color: var(--store-text-on-footer) !important;
+        }
+        
+        .store-theme-scoped .bg-amber-500,
+        .store-theme-scoped .bg-amber-400 {
+           background-color: var(--store-secondary-accent) !important;
+           color: var(--store-text-on-accent) !important;
         }
         
         .store-theme-scoped .bg-indigo-600, 
         .store-theme-scoped .bg-indigo-700, 
-        .store-theme-scoped .bg-amber-500, 
-        .store-theme-scoped .bg-amber-600,
-        .store-theme-scoped .bg-indigo-600\\/90,
-        .store-theme-scoped .bg-amber-500\\/90 {
+        .store-theme-scoped .bg-indigo-600\\/90 {
           background-color: var(--store-accent) !important;
           color: var(--store-text-on-accent) !important;
         }
         
         .store-theme-scoped .text-indigo-600, 
-        .store-theme-scoped .text-indigo-500, 
-        .store-theme-scoped .text-amber-500 {
+        .store-theme-scoped .text-indigo-500 {
           color: var(--store-accent) !important;
         }
         
         .store-theme-scoped .border-indigo-600, 
-        .store-theme-scoped .border-indigo-500,
-        .store-theme-scoped .border-amber-500 {
+        .store-theme-scoped .border-indigo-500 {
           border-color: var(--store-accent) !important;
         }
         
