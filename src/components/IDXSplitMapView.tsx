@@ -938,7 +938,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
               {/* Map POI Category Toolbar */}
               <div className="bg-amber-50/90 dark:bg-slate-950/90 backdrop-blur-md p-2.5 border-b border-amber-200/80 dark:border-slate-800 z-10 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[9px] font-black text-amber-900 dark:text-amber-400 uppercase tracking-widest mr-1">📍 ÇEVRE HARİTASI & İMKÂNLAR:</span>
+                  <span className="text-[9px] font-black text-amber-900 dark:text-amber-400 uppercase tracking-widest mr-1">📍 İMKÂNLAR:</span>
                   {[
                     { key: 'all', label: 'Tümü', icon: Compass },
                     { key: 'hospital', label: 'Hastaneler', icon: Stethoscope },
@@ -951,15 +951,15 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                     return (
                       <button
                         key={poi.key}
+                        title={poi.label}
                         onClick={() => setSelectedPOICategory(poi.key)}
-                        className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
+                        className={`p-1.5 rounded-xl cursor-pointer transition-all ${
                           selectedPOICategory === poi.key
-                            ? "bg-amber-500 text-slate-950 shadow-xs font-black"
+                            ? "bg-amber-500 text-slate-950 shadow-xs scale-110"
                             : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-amber-200/80 dark:border-slate-700 hover:bg-amber-100/60 dark:hover:bg-amber-950/20"
                         }`}
                       >
-                        <IconComponent className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                        <span>{poi.label}</span>
+                        <IconComponent className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                       </button>
                     );
                   })}
