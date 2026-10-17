@@ -662,6 +662,10 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
       return res.status(404).json({ error: 'Property not found' });
     }
     const updatedProperty = result.rows[0];
+    try {
+      const { publicApiCache } = await import('./public.js');
+      publicApiCache.clear();
+    } catch(e) {}
     let secData = updatedProperty.sector_data;
     if (typeof secData === 'string') {
       try { secData = JSON.parse(secData); } catch(e) { secData = {}; }
