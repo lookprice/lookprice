@@ -246,7 +246,7 @@ export const LandingPage = () => {
   const handleQuickDemoLogin = async (email: string, pass: string) => {
     try {
       setDemoLoginLoading(email);
-      const res = await api.login(email, pass);
+      const res = await api.login({ email, password: pass });
       if (res && res.token) {
         localStorage.setItem('token', res.token);
         localStorage.setItem('user', JSON.stringify(res.user));

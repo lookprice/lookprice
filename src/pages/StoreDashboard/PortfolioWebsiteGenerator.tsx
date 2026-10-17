@@ -655,33 +655,89 @@ export const PortfolioWebsiteGenerator = ({
                       id: "saray-platin",
                       name: lang === "tr" ? "Saray Platin" : "Palace Platinum",
                       desc: lang === "tr" ? "Ultra Lüks ve Elite Konutlar" : "Ultra Luxury & Elite",
+                      bg: "#F8FAFC",
                       primary: "#0F172A",
                       accent: "#D4AF37",
-                      bg: "#F8FAFC"
+                      footer: "#0F172A",
+                      textColor: "#0F172A",
+                      secondaryAccent: "#334155"
                     },
                     {
                       id: "derin-toprak",
                       name: lang === "tr" ? "Derin Toprak & Arazi" : "Deep Earth & Land",
                       desc: lang === "tr" ? "Yatırımlık Arsa ve Doğal Yaşam" : "Investment & Nature",
+                      bg: "#FAF9F6",
                       primary: "#1E3A1E",
                       accent: "#E5D3B3",
-                      bg: "#FAF9F6"
+                      footer: "#162E16",
+                      textColor: "#1E291B",
+                      secondaryAccent: "#3D5A3D"
                     },
                     {
                       id: "modern-safir",
                       name: lang === "tr" ? "Modern Monokrom & Safir" : "Monochrome & Sapphire",
                       desc: lang === "tr" ? "Yatırım ve Finans Odaklı" : "Investment & Finance",
+                      bg: "#F4F4F5",
                       primary: "#27272A",
                       accent: "#0284C7",
-                      bg: "#F4F4F5"
+                      footer: "#18181B",
+                      textColor: "#27272A",
+                      secondaryAccent: "#52525B"
+                    },
+                    {
+                      id: "royal-burgundy",
+                      name: lang === "tr" ? "Royal Burgundy & Altın" : "Royal Burgundy & Gold",
+                      desc: lang === "tr" ? "Prestijli Villalar ve Malikâneler" : "Prestige Mansions",
+                      bg: "#FFFDF9",
+                      primary: "#4A0E17",
+                      accent: "#C5A059",
+                      footer: "#2C080E",
+                      textColor: "#3A0B12",
+                      secondaryAccent: "#7A1C2B"
+                    },
+                    {
+                      id: "akdeniz-turkuaz",
+                      name: lang === "tr" ? "Akdeniz Turkuaz & Kum" : "Mediterranean Turquoise",
+                      desc: lang === "tr" ? "Sahil Konutları ve Yazlıklar" : "Coastal & Holiday Homes",
+                      bg: "#F0FDFA",
+                      primary: "#134E4A",
+                      accent: "#0D9488",
+                      footer: "#042F2E",
+                      textColor: "#115E59",
+                      secondaryAccent: "#2DD4BF"
+                    },
+                    {
+                      id: "zumrut-bronz",
+                      name: lang === "tr" ? "Zümrüt & Bronz" : "Emerald & Bronze",
+                      desc: lang === "tr" ? "Doğa İçinde Lüks Yaşam" : "Luxury Nature Living",
+                      bg: "#F0FDF4",
+                      primary: "#064E3B",
+                      accent: "#D97706",
+                      footer: "#022C22",
+                      textColor: "#064E3B",
+                      secondaryAccent: "#059669"
+                    },
+                    {
+                      id: "karbon-neon",
+                      name: lang === "tr" ? "Karbon & Neon Mavi" : "Carbon & Neon Blue",
+                      desc: lang === "tr" ? "High-Tech & Modern Mimari" : "High-Tech Architecture",
+                      bg: "#090D16",
+                      primary: "#1E293B",
+                      accent: "#3B82F6",
+                      footer: "#020617",
+                      textColor: "#F8FAFC",
+                      secondaryAccent: "#334155"
                     },
                     {
                       id: "default",
                       name: lang === "tr" ? "Orijinal LookPrice" : "Original LookPrice",
                       desc: lang === "tr" ? "Klasik Güven Veren Lacivert" : "Classic Trustful Navy",
+                      bg: "#ffffff",
                       primary: "#0F172A",
                       accent: "#4f46e5",
-                      bg: "#ffffff"
+                      footer: "#1e293b",
+                      textColor: "#0f172a",
+                      secondaryAccent: "#6366f1"
                     }
                   ].map((preset) => {
                     const isSelected = colorPreset === preset.id;
@@ -691,9 +747,12 @@ export const PortfolioWebsiteGenerator = ({
                         type="button"
                         onClick={() => {
                           setColorPreset(preset.id);
+                          setBgColor(preset.bg);
                           setPrimaryColor(preset.primary);
                           setAccentColor(preset.accent);
-                          setBgColor(preset.bg);
+                          setFooterColor(preset.footer);
+                          setTextColor(preset.textColor);
+                          setSecondaryAccentColor(preset.secondaryAccent);
                         }}
                         className={`w-full p-2.5 rounded-xl border text-left transition-all ${
                           isSelected 
@@ -707,9 +766,11 @@ export const PortfolioWebsiteGenerator = ({
                             <p className="text-[9px] text-slate-400 font-bold">{preset.desc}</p>
                           </div>
                           <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-100 shrink-0">
-                            <span className="h-3 w-3 rounded-full border border-slate-200" style={{ backgroundColor: preset.bg }} title="60% Zemin" />
-                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.primary }} title="30% Birincil" />
-                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.accent }} title="10% Vurgu" />
+                            <span className="h-3 w-3 rounded-full border border-slate-200" style={{ backgroundColor: preset.bg }} title="Zemin" />
+                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.primary }} title="Birincil" />
+                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.accent }} title="Vurgu" />
+                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.footer }} title="Footer" />
+                            <span className="h-3 w-3 rounded-full border border-slate-200" style={{ backgroundColor: preset.textColor }} title="Metin" />
                           </div>
                         </div>
                       </button>
@@ -717,64 +778,102 @@ export const PortfolioWebsiteGenerator = ({
                   })}
                 </div>
 
-                {/* Custom Fine-tuning */}
+                {/* Custom Fine-tuning - 6 Colors Palette */}
                 <div className="border-t border-slate-100 pt-3.5 space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-2">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                      {lang === "tr" ? "ÖZEL RENK AYARLARI" : "CUSTOM COLORS"}
+                      {lang === "tr" ? "6 RENK PALETİ & ÖZEL AYARLAR" : "6-COLOR CUSTOM PALETTE"}
                     </span>
                     {colorPreset !== "custom" && (
                       <span className="text-[8px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded">
                         {lang === "tr" ? "Hazır Şablon" : "Preset Active"}
                       </span>
                     )}
-                    <div className="space-y-1">
-                      <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1 bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                      <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest truncate">
+                        {lang === "tr" ? "ZEMİN (%60)" : "BG (%60)"}
+                      </label>
+                      <input
+                        type="color"
+                        value={bgColor}
+                        onChange={(e) => {
+                          setBgColor(e.target.value);
+                          setColorPreset("custom");
+                        }}
+                        className="h-7 w-full rounded border border-slate-200 cursor-pointer p-0 bg-transparent"
+                      />
+                    </div>
+                    <div className="space-y-1 bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                      <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest truncate">
+                        {lang === "tr" ? "BİRİNCİL (%30)" : "PRIMARY (%30)"}
+                      </label>
+                      <input
+                        type="color"
+                        value={primaryColor}
+                        onChange={(e) => {
+                          setPrimaryColor(e.target.value);
+                          setColorPreset("custom");
+                        }}
+                        className="h-7 w-full rounded border border-slate-200 cursor-pointer p-0 bg-transparent"
+                      />
+                    </div>
+                    <div className="space-y-1 bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                      <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest truncate">
+                        {lang === "tr" ? "VURGU (%10)" : "ACCENT (%10)"}
+                      </label>
+                      <input
+                        type="color"
+                        value={accentColor}
+                        onChange={(e) => {
+                          setAccentColor(e.target.value);
+                          setColorPreset("custom");
+                        }}
+                        className="h-7 w-full rounded border border-slate-200 cursor-pointer p-0 bg-transparent"
+                      />
+                    </div>
+                    <div className="space-y-1 bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                      <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest truncate">
                         {lang === "tr" ? "FOOTER" : "FOOTER"}
                       </label>
-                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl p-1.5 justify-center">
-                        <input
-                          type="color"
-                          value={footerColor}
-                          onChange={(e) => {
-                            setFooterColor(e.target.value);
-                            setColorPreset("custom");
-                          }}
-                          className="h-5 w-5 rounded border border-slate-200 cursor-pointer overflow-hidden p-0 bg-transparent"
-                        />
-                      </div>
+                      <input
+                        type="color"
+                        value={footerColor}
+                        onChange={(e) => {
+                          setFooterColor(e.target.value);
+                          setColorPreset("custom");
+                        }}
+                        className="h-7 w-full rounded border border-slate-200 cursor-pointer p-0 bg-transparent"
+                      />
                     </div>
-                    <div className="space-y-1">
-                      <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">
+                    <div className="space-y-1 bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                      <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest truncate">
                         {lang === "tr" ? "METİN" : "TEXT"}
                       </label>
-                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl p-1.5 justify-center">
-                        <input
-                          type="color"
-                          value={textColor}
-                          onChange={(e) => {
-                            setTextColor(e.target.value);
-                            setColorPreset("custom");
-                          }}
-                          className="h-5 w-5 rounded border border-slate-200 cursor-pointer overflow-hidden p-0 bg-transparent"
-                        />
-                      </div>
+                      <input
+                        type="color"
+                        value={textColor}
+                        onChange={(e) => {
+                          setTextColor(e.target.value);
+                          setColorPreset("custom");
+                        }}
+                        className="h-7 w-full rounded border border-slate-200 cursor-pointer p-0 bg-transparent"
+                      />
                     </div>
-                    <div className="space-y-1">
-                      <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">
-                        {lang === "tr" ? "YARDIMCI VURGU" : "SEC. ACCENT"}
+                    <div className="space-y-1 bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                      <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest truncate">
+                        {lang === "tr" ? "YARDIMCI" : "SECONDARY"}
                       </label>
-                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl p-1.5 justify-center">
-                        <input
-                          type="color"
-                          value={secondaryAccentColor}
-                          onChange={(e) => {
-                            setSecondaryAccentColor(e.target.value);
-                            setColorPreset("custom");
-                          }}
-                          className="h-5 w-5 rounded border border-slate-200 cursor-pointer overflow-hidden p-0 bg-transparent"
-                        />
-                      </div>
+                      <input
+                        type="color"
+                        value={secondaryAccentColor}
+                        onChange={(e) => {
+                          setSecondaryAccentColor(e.target.value);
+                          setColorPreset("custom");
+                        }}
+                        className="h-7 w-full rounded border border-slate-200 cursor-pointer p-0 bg-transparent"
+                      />
                     </div>
                   </div>
                 </div>

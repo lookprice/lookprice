@@ -171,7 +171,12 @@ export async function syncN11OrdersCron() {
           }
         }
       } catch (storeErr: any) {
-        console.error(`[CRON-N11] Store #${store.id} senkronizasyon hatası:`, storeErr.message || storeErr);
+        const errMsg = storeErr.message || String(storeErr);
+        if (errMsg.includes("403") || errMsg.includes("401") || errMsg.includes("Forbidden") || errMsg.includes("Unauthorized")) {
+          console.warn(`[CRON-N11] Store #${store.id} yetkilendirme uyarısı (403/401): API anahtarları geçersiz veya yetkisiz (${errMsg}).`);
+        } else {
+          console.error(`[CRON-N11] Store #${store.id} senkronizasyon hatası:`, errMsg);
+        }
       }
     }
   } catch (err: any) {

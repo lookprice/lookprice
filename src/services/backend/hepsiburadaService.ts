@@ -1335,7 +1335,8 @@ export class HepsiburadaService {
   async fetchMerchantListings(options?: { limit?: number; offset?: number }): Promise<any[]> {
     const merchantId = (this.config.merchantId || "").trim();
     if (!merchantId) {
-      throw new Error("Merchant ID bulunamadı.");
+      console.warn("[HB-Listings] Merchant ID is not specified. Skipping listing fetch.");
+      return [];
     }
 
     const listingDirectUrl = this.config.isTestMode
