@@ -11,6 +11,7 @@ import {
   ExternalLink 
 } from "lucide-react";
 import { getListingIntent } from "../../utils/marketplace";
+import { DemoWhatsAppInterceptModal } from "../common/DemoWhatsAppInterceptModal";
 
 interface ListingDetailModalProps {
   selectedListing: any;
@@ -50,6 +51,7 @@ export const ListingDetailModal = ({
   const currentImg = modalImages[activeDetailImageIndex] || selectedListing.image_url;
   const intent = getListingIntent(selectedListing);
   const sec = selectedListing.sector_data || {};
+  const [showDemoModal, setShowDemoModal] = React.useState(false);
 
   const formatDescriptionText = (rawStr?: string) => {
     if (!rawStr) return "";
@@ -64,6 +66,7 @@ export const ListingDetailModal = ({
   };
 
   const cleanedDesc = formatDescriptionText(selectedListing.description);
+  const isDemo = selectedListing.store_branding?.is_demo || selectedListing.store_slug?.includes('demo');
 
   return (
     <div 
@@ -419,8 +422,12 @@ export const ListingDetailModal = ({
         <div className="pt-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={() => {
-              const rawPhone = selectedListing.store_phone || sec.phone || "905330000000";
-              window.open(`https://wa.me/${rawPhone.replace(/\D/g, "")}`, "_blank");
+              if (isDemo) {
+                setShowDemoModal(true);
+              } else {
+                const rawPhone = selectedListing.store_phone || sec.phone || "905330000000";
+                window.open(`https://wa.me/${rawPhone.replace(/\D/g, "")}`, "_blank");
+              }
             }}
             className="py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition cursor-pointer"
           >
@@ -445,6 +452,17 @@ export const ListingDetailModal = ({
             <ExternalLink className="w-4 h-4" />
           </Link>
         </div>
+
+        {/* Demo Intercept Modal */}
+        {isDemo && (
+           <DemoWhatsAppInterceptModal 
+             isOpen={showDemoModal} 
+             onClose={() => setShowDemoModal(false)}
+             recipientName="Demo Portföy Danışmanı"
+             recipientPhone="+90 (500) 000 00 00"
+             listingTitle={selectedListing.title}
+           />
+        )}
 
       </div>
     </div>

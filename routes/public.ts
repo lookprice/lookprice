@@ -288,11 +288,13 @@ router.get("/enrakipsiz/portal", async (req, res) => {
     const slides = await pool.query("SELECT * FROM enrakipsiz_slides WHERE is_active = TRUE ORDER BY id ASC");
     const ads = await pool.query("SELECT * FROM enrakipsiz_ads WHERE is_active = TRUE ORDER BY id ASC");
     
-    // Fetch featured sponsor stores
+    // Fetch featured sponsor stores (strictly excluding demo stores)
     const featuredStores = await pool.query(`
       SELECT id, name, slug, logo_url, sub_sector, description, is_enrakipsiz_featured, enrakipsiz_featured_order, enrakipsiz_featured_title, branding
       FROM stores
       WHERE is_enrakipsiz_featured = true
+        AND slug NOT ILIKE '%demo%'
+        AND COALESCE(branding->>'is_demo', 'false') != 'true'
       ORDER BY enrakipsiz_featured_order ASC, name ASC
     `);
     
@@ -326,7 +328,9 @@ router.get("/marketplace/listings", async (req, res) => {
         SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, v.market_story, v.technical_description, v.category, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
         FROM vehicles v
         JOIN stores s ON v.store_id = s.id
-        WHERE v.status <> 'sold' AND (v.is_on_enrakipsiz = true)
+        WHERE v.status <> 'sold' 
+          AND (v.is_on_enrakipsiz = true)
+          AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
         ORDER BY v.id DESC
         LIMIT 100
       `);
@@ -338,6 +342,9 @@ router.get("/marketplace/listings", async (req, res) => {
           SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, v.market_story, v.technical_description, v.category, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
           FROM vehicles v
           JOIN stores s ON v.store_id = s.id
+          WHERE v.status <> 'sold' 
+            AND (v.is_on_enrakipsiz = true)
+            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
           LIMIT 100
         `);
         vehiclesList = fallbackRes.rows || [];
@@ -354,7 +361,9 @@ router.get("/marketplace/listings", async (req, res) => {
         FROM real_estate_properties r
         JOIN stores s ON r.store_id = s.id
         LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
-        WHERE r.status <> 'sold' AND (r.is_on_enrakipsiz = true)
+        WHERE r.status <> 'sold' 
+          AND (r.is_on_enrakipsiz = true)
+          AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
         ORDER BY r.created_at DESC
         LIMIT 100
       `);
@@ -371,7 +380,9 @@ router.get("/marketplace/listings", async (req, res) => {
           SELECT r.*, s.name as store_name, s.slug as store_slug, s.phone as store_phone, s.whatsapp_number as store_whatsapp
           FROM real_estate r
           JOIN stores s ON r.store_id = s.id
-          WHERE r.status <> 'sold' AND (r.is_on_enrakipsiz = true)
+          WHERE r.status <> 'sold' 
+            AND (r.is_on_enrakipsiz = true)
+            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
           ORDER BY r.created_at DESC
           LIMIT 100
         `);

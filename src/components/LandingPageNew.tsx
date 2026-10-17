@@ -241,6 +241,25 @@ export const LandingPage = () => {
     }
   };
 
+  const [demoLoginLoading, setDemoLoginLoading] = useState<string | null>(null);
+
+  const handleQuickDemoLogin = async (email: string, pass: string) => {
+    try {
+      setDemoLoginLoading(email);
+      const res = await api.login(email, pass);
+      if (res && res.token) {
+        localStorage.setItem('token', res.token);
+        localStorage.setItem('user', JSON.stringify(res.user));
+        navigate('/store');
+      }
+    } catch (err: any) {
+      console.error("Demo login error:", err);
+      alert(err.response?.data?.error || err.message || "Giriş yapılamadı.");
+    } finally {
+      setDemoLoginLoading(null);
+    }
+  };
+
   const products = [
     {
       name: "AutoLP",
@@ -1142,20 +1161,92 @@ export const LandingPage = () => {
                 <X className="h-5 w-5" />
               </button>
 
-              <div className="mb-6">
+              <div className="mb-5">
                 <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
                   LOOKPRICE DEMO
                 </span>
                 <h3 className="text-2xl font-black mt-3">
-                  {txt('Demo Talebi Oluşturun', 'Request a Live Demo', 'Δημιουργήστε ένα Αίτημα για Demo')}
+                  {txt('Canlı Demo & İnceleme', 'Live Demo & Showcase', 'Ζωντανό Demo & Εξερεύνηση')}
                 </h3>
                 <p className="text-white/50 text-xs mt-1 font-semibold">
                   {txt(
-                    'Sektörünüze özel akıllı yönetim yazılımını birlikte inceleyelim.', 
-                    'Let us show you how our tailored suite can optimize your business.',
-                    'Ας εξερευνήσουμε μαζί το έξυπνο λογισμικό διαχείρισης που είναι ειδικά προσαρμοσμένο για τον τομέα σας.'
+                    'Hazır demo hesaplarımızla sektörel ERP sistemimizi anında canlı test edin.', 
+                    'Instantly explore our sectoral ERP suite with pre-loaded demo accounts.',
+                    'Εξερευνήστε άμεσα το τομεακό ERP μας με έτοιμους λογαριασμούς demo.'
                   )}
                 </p>
+              </div>
+
+              {/* Quick Demo Access Cards */}
+              <div className="mb-6 space-y-2.5">
+                <span className="block text-[10px] font-black uppercase tracking-wider text-white/40">
+                  {txt('CANLI DEMO HESAPLARI (TEK TIKLA GİRİŞ)', 'LIVE DEMO ACCOUNTS (1-CLICK ACCESS)', 'ΛΟΓΑΡΙΑΣΜΟΙ DEMO')}
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* restateLP Demo Card */}
+                  <div className="p-3 bg-gradient-to-br from-sky-950/40 to-slate-900/80 border border-sky-500/30 rounded-xl flex flex-col justify-between gap-2.5 shadow-sm">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-xs font-black text-sky-400">
+                        <Building2 className="w-3.5 h-3.5" />
+                        <span>restateLP (Emlak & Portföy)</span>
+                      </div>
+                      <p className="text-[10px] text-white/60 font-mono mt-1">
+                        demo@restatelp.com
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={Boolean(demoLoginLoading)}
+                      onClick={() => handleQuickDemoLogin('demo@restatelp.com', 'restatelp1234')}
+                      className="w-full py-2 px-3 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
+                    >
+                      {demoLoginLoading === 'demo@restatelp.com' ? (
+                        <span>{txt('Giriş Yapılıyor...', 'Logging In...', 'Σύνδεση...')}</span>
+                      ) : (
+                        <>
+                          <span>{txt('Emlak Demoya Gir', 'Open Real Estate Demo', 'Είσοδος στο Demo')}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* shopLP Demo Card */}
+                  <div className="p-3 bg-gradient-to-br from-indigo-950/40 to-slate-900/80 border border-indigo-500/30 rounded-xl flex flex-col justify-between gap-2.5 shadow-sm">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-xs font-black text-indigo-400">
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        <span>shopLP (Perakende & POS)</span>
+                      </div>
+                      <p className="text-[10px] text-white/60 font-mono mt-1">
+                        demo@shoplp.com
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={Boolean(demoLoginLoading)}
+                      onClick={() => handleQuickDemoLogin('demo@shoplp.com', 'shoplp1234')}
+                      className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
+                    >
+                      {demoLoginLoading === 'demo@shoplp.com' ? (
+                        <span>{txt('Giriş Yapılıyor...', 'Logging In...', 'Σύνδεση...')}</span>
+                      ) : (
+                        <>
+                          <span>{txt('Perakende Demoya Gir', 'Open Retail Demo', 'Είσοδος στο Demo')}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative flex py-2 items-center mb-2">
+                <div className="flex-grow border-t border-white/10"></div>
+                <span className="flex-shrink mx-3 text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                  {txt('Veya Özel Demo Randevusu Alın', 'Or Request Custom Meeting', 'Ή Κλείστε Ραντεβού')}
+                </span>
+                <div className="flex-grow border-t border-white/10"></div>
               </div>
 
               {demoStatus.type === 'success' ? (

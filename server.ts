@@ -1219,10 +1219,14 @@ function sanitizeFilename(originalName: string): string {
   </url>\n`;
         });
 
-        // Vehicles
-        const vehiclesRes = await pool.query(
-          "SELECT id, updated_at FROM vehicles WHERE is_on_enrakipsiz = true AND status <> 'sold'"
-        );
+        // Vehicles (Strictly exclude demo stores from enrakipsiz portal sitemap)
+        const vehiclesRes = await pool.query(`
+          SELECT v.id, v.updated_at 
+          FROM vehicles v
+          JOIN stores s ON v.store_id = s.id
+          WHERE v.is_on_enrakipsiz = true AND v.status <> 'sold'
+            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
+        `);
         vehiclesRes.rows.forEach((v: any) => {
           xml += `  <url>
     <loc>${escapeXml(`${storeBaseUrl}/p/v_${v.id}`)}</loc>
@@ -1232,10 +1236,14 @@ function sanitizeFilename(originalName: string): string {
   </url>\n`;
         });
 
-        // Real estates
-        const realEstateRes = await pool.query(
-          "SELECT id, updated_at FROM real_estate_properties WHERE is_on_enrakipsiz = true AND status <> 'sold'"
-        );
+        // Real estates (Strictly exclude demo stores from enrakipsiz portal sitemap)
+        const realEstateRes = await pool.query(`
+          SELECT r.id, r.updated_at 
+          FROM real_estate_properties r
+          JOIN stores s ON r.store_id = s.id
+          WHERE r.is_on_enrakipsiz = true AND r.status <> 'sold'
+            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
+        `);
         realEstateRes.rows.forEach((r: any) => {
           xml += `  <url>
     <loc>${escapeXml(`${storeBaseUrl}/p/re_${r.id}`)}</loc>

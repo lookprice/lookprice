@@ -91,21 +91,51 @@ const getSectorDefaultDeals = (isAuto: boolean, sid?: number) => {
   return [
     {
       id: 'd_re_1',
-      title: 'Müstakil Villa Arayışı',
-      description: 'Minimum 3+1 müstakil veya ikiz villa, havuzlu ve bahçeli tercih ediliyor.',
-      agent_name: 'Danışman',
-      budget: '£350,000 Bütçe',
+      title: 'Bellapais Deniz Manzaralı Villa Talebi (Michael Harrison)',
+      description: '4+1 müstakil havuzlu villa arayışı. İngiltere merkezli yatırımcı, peşin ödeme yapacak.',
+      agent_name: 'Emre Can Polat',
+      budget: '£485,000 Bütçe',
       stage: 'Yeni Talep / Aday',
       sector: 'real_estate',
       store_id: sid
     },
     {
       id: 'd_re_2',
-      title: 'Yatırımlık 2+1 Daire Arayışı',
-      description: 'Merkezi lokasyonda, yüksek kira getirili ve koçanlı konut talebi.',
-      agent_name: 'Danışman',
-      budget: '£95,000 Bütçe',
+      title: 'Alsancak 2+1 Daire Keşif & Kredi Görüşmesi (Ahmet Demir)',
+      description: 'Escape plajı bölgesindeki ortak havuzlu daire için banka ekspertiz aşamasında.',
+      agent_name: 'Selin Karahan',
+      budget: '£135,000 Bütçe',
       stage: 'Görüşme / Analiz',
+      sector: 'real_estate',
+      store_id: sid
+    },
+    {
+      id: 'd_re_3',
+      title: 'Dereboyu Cadde Mağazası Ticari Yatırım (Dr. Hakan Öztürk)',
+      description: '5 yıllık kurumsal kiracılı mağaza için £280,000 nakit teklif sunuldu. Pazarlık sürüyor.',
+      agent_name: 'Barış Yılmaz',
+      budget: '£290,000 Bütçe',
+      stage: 'Teklif & Pazarlık',
+      sector: 'real_estate',
+      store_id: sid
+    },
+    {
+      id: 'd_re_4',
+      title: 'Long Beach Penthouse Kapora & Sözleşme (Elena Rostova)',
+      description: '£10,000 kapora tahsil edildi, satış sözleşmesi ve vekaletname hazırlandı.',
+      agent_name: 'Selin Karahan',
+      budget: '£245,000 Bütçe',
+      stage: 'Kapora & Sözleşme',
+      sector: 'real_estate',
+      store_id: sid
+    },
+    {
+      id: 'd_re_5',
+      title: 'Çatalköy Arsa Tek Yetki Satış Başarısı (Turgut Ceylan)',
+      description: '850 m² villa parseli için tek yetkili aracılık sözleşmesi imzalandı ve portföye alındı.',
+      agent_name: 'Barış Yılmaz',
+      budget: '£165,000 Bütçe',
+      stage: 'Tapu Devri / Başarılı',
       sector: 'real_estate',
       store_id: sid
     }

@@ -36,6 +36,7 @@ import { Product, Store as StoreInfo } from "../types";
 import { getColorHex } from "../utils/variantPresets";
 import { getLabels } from "../utils/showcase";
 import { isBookstoreStore } from "../utils/storeType";
+import { DemoWhatsAppInterceptModal } from "./common/DemoWhatsAppInterceptModal";
 
 const MAP_KEY = import.meta.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || "";
 

@@ -139,6 +139,11 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `Sektörel vasıta ilan limitine (${maxVehicles}) ulaşıldı. Lütfen limitlerinizi yükseltin.` });
     }
 
+    // Check if demo store, strictly force is_on_enrakipsiz to FALSE for demo stores
+    const storeDemoCheck = await pool.query("SELECT slug, branding FROM stores WHERE id = $1", [storeId]);
+    const isDemoStore = storeDemoCheck.rows[0]?.slug?.includes('demo') || storeDemoCheck.rows[0]?.branding?.is_demo === true || storeDemoCheck.rows[0]?.branding?.is_demo === 'true';
+    const effectiveIsOnEnrakipsiz = isDemoStore ? false : (is_on_enrakipsiz !== undefined ? !!is_on_enrakipsiz : true);
+
     const result = await pool.query(
       `INSERT INTO vehicles (
         store_id, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,
@@ -163,7 +168,7 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
         seller_type || 'professional',
         !!is_verified,
         verification_status || 'none',
-        is_on_enrakipsiz !== undefined ? !!is_on_enrakipsiz : true,
+        effectiveIsOnEnrakipsiz,
         is_on_website !== undefined ? !!is_on_website : true,
         buying_currency || 'TRY',
         !!req.body.auto_post_instagram,
@@ -264,6 +269,11 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
   } = req.body;
 
   try {
+    const storeId = req.body.store_id || req.user.store_id;
+    const storeDemoCheck = await pool.query("SELECT slug, branding FROM stores WHERE id = $1", [storeId]);
+    const isDemoStore = storeDemoCheck.rows[0]?.slug?.includes('demo') || storeDemoCheck.rows[0]?.branding?.is_demo === true || storeDemoCheck.rows[0]?.branding?.is_demo === 'true';
+    const effectiveIsOnEnrakipsiz = isDemoStore ? false : (is_on_enrakipsiz !== undefined ? !!is_on_enrakipsiz : true);
+
     const result = await pool.query(
       `UPDATE vehicles 
        SET plate = $1, brand = $2, model = $3, year = $4, type = $5, chassis_number = $6, engine_number = $7, current_mileage = $8, status = $9, selling_price = $10, currency = $11,
@@ -291,7 +301,7 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
         seller_type || 'professional',
         !!is_verified,
         verification_status || 'none',
-        is_on_enrakipsiz !== undefined ? !!is_on_enrakipsiz : true,
+        effectiveIsOnEnrakipsiz,
         is_on_website !== undefined ? !!is_on_website : true,
         buying_currency || 'TRY',
         !!req.body.auto_post_instagram,
@@ -306,12 +316,12 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
     res.json(updatedVehicle);
 
     // Background Instagram Posting on Update
-    const storeId = updatedVehicle.store_id || req.user.store_id;
+    const effectiveStoreId = updatedVehicle.store_id || req.user.store_id;
     if (updatedVehicle.images?.length > 0) {
       (async () => {
         try {
           const { InstagramService } = await import('../src/services/instagramService');
-          const storeRes = await pool.query("SELECT name, phone, whatsapp_number, instagram_settings FROM stores WHERE id = $1", [storeId]);
+          const storeRes = await pool.query("SELECT name, phone, whatsapp_number, instagram_settings FROM stores WHERE id = $1", [effectiveStoreId]);
           const storeName = storeRes.rows[0]?.name || "Seçkin Galeri";
           const rawSp = storeRes.rows[0]?.whatsapp_number || storeRes.rows[0]?.phone;
           const storePhone = (!rawSp || rawSp === "905428655000" || rawSp === "+905428655000") ? "+90 548 890 23 09" : rawSp;

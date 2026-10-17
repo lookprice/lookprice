@@ -464,6 +464,11 @@ router.post('/properties', authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `Sektörel ilan limitine (${maxProperties}) ulaşıldı. Lütfen limitlerinizi yükseltin.` });
     }
 
+    // Check if demo store, strictly force is_on_enrakipsiz to FALSE for demo stores
+    const storeDemoCheck = await pool.query("SELECT slug, branding FROM stores WHERE id = $1", [storeId]);
+    const isDemoStore = storeDemoCheck.rows[0]?.slug?.includes('demo') || storeDemoCheck.rows[0]?.branding?.is_demo === true || storeDemoCheck.rows[0]?.branding?.is_demo === 'true';
+    const effectiveIsOnEnrakipsiz = isDemoStore ? false : !!property.is_on_enrakipsiz;
+
     const result = await pool.query(
       `INSERT INTO real_estate_properties (
         store_id, title, description, price, currency, location, type, room_count, square_meters, 
@@ -479,7 +484,7 @@ router.post('/properties', authenticate, async (req: any, res) => {
         storeId, property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
         property.in_gated_community, property.dues, property.dues_currency, property.country, property.kktc_region, property.kktc_title_type, property.images,
-        property.virtual_tour_url, property.ai_tour_enabled, property.seller_type, property.status, !!property.is_on_enrakipsiz,
+        property.virtual_tour_url, property.ai_tour_enabled, property.seller_type, property.status, effectiveIsOnEnrakipsiz,
         property.branch_name || 'Merkez Ofis', property.responsible_agent || '', property.sharing_scope || 'shared_pool', property.reserved_by_branch || '', property.reservation_notes || '',
         property.authorized_branch_id, property.responsible_consultant_id, !!property.is_verified, JSON.stringify(property.documents || []),
         ownerInfo.fullName || '', ownerInfo.phone || '', ownerInfo.idNumber || '',
@@ -611,6 +616,11 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
   const ownerInfo = property.owner_info || {};
 
   try {
+    // Check if demo store, strictly force is_on_enrakipsiz to FALSE for demo stores
+    const storeDemoCheck = await pool.query("SELECT slug, branding FROM stores WHERE id = $1", [storeId]);
+    const isDemoStore = storeDemoCheck.rows[0]?.slug?.includes('demo') || storeDemoCheck.rows[0]?.branding?.is_demo === true || storeDemoCheck.rows[0]?.branding?.is_demo === 'true';
+    const effectiveIsOnEnrakipsiz = isDemoStore ? false : !!property.is_on_enrakipsiz;
+
     const result = await pool.query(
       `UPDATE real_estate_properties SET 
         title = $1, description = $2, price = $3, currency = $4, location = $5, type = $6, room_count = $7, square_meters = $8,
@@ -627,7 +637,7 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
         property.in_gated_community, property.dues, property.dues_currency, property.country, property.kktc_region, property.kktc_title_type, property.images,
-        property.virtual_tour_url, property.ai_tour_enabled, property.seller_type, property.status, !!property.is_on_enrakipsiz,
+        property.virtual_tour_url, property.ai_tour_enabled, property.seller_type, property.status, effectiveIsOnEnrakipsiz,
         property.branch_name || 'Merkez Ofis', property.responsible_agent || '', property.sharing_scope || 'shared_pool', property.reserved_by_branch || '', property.reservation_notes || '', 
         property.authorized_branch_id, property.responsible_consultant_id, !!property.is_verified, JSON.stringify(property.documents || []),
         ownerInfo.fullName || '', ownerInfo.phone || '', ownerInfo.idNumber || '',

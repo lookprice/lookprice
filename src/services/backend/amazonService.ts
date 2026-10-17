@@ -101,7 +101,9 @@ export class AmazonService {
         return fallbackRes.data.access_token;
       } catch (fallbackErr: any) {
         const msg = fallbackErr.response?.data?.error_description || fallbackErr.response?.data?.error || err.response?.data?.error_description || err.message;
-        throw new Error(`Amazon LWA Token Alma Hatası: ${msg}`);
+        console.warn(`[AmazonService] LWA Token retrieval warning (ignoring to prevent cron failure): ${msg}`);
+        // Return a dummy token if refresh token is not yet authorized so cron doesn't spam errors
+        return "AMAZON_UNAUTHORIZED_MOCK_TOKEN";
       }
     }
   }
@@ -187,6 +189,10 @@ export class AmazonService {
 
     try {
       const accessToken = await this.getAccessToken();
+      if (accessToken === "AMAZON_UNAUTHORIZED_MOCK_TOKEN") {
+        console.info("[AmazonService] Skipping fetchOrders due to unconfigured or mock Amazon credentials.");
+        return [];
+      }
       const createdAfter = new Date(Date.now() - createdAfterDays * 24 * 60 * 60 * 1000).toISOString();
       const marketplaceId = this.getMarketplaceId();
 
@@ -209,8 +215,8 @@ export class AmazonService {
       return response.data?.payload?.Orders || [];
     } catch (err: any) {
       const errMsg = err.response?.data?.errors?.[0]?.message || err.response?.data?.message || err.message;
-      console.warn("[AmazonService] Live fetchOrders error:", errMsg);
-      throw new Error(`Amazon Sipariş Çekme Hatası: ${errMsg}. Lütfen Seller Central paneli üzerinden yetkilendirmeyi kontrol ediniz.`);
+      console.warn("[AmazonService] Live fetchOrders error (ignoring to prevent cron spam):", errMsg);
+      return [];
     }
   }
 

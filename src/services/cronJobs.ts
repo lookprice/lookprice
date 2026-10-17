@@ -290,6 +290,11 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
     );
     if (storeRes.rows.length === 0) return;
     const store = storeRes.rows[0];
+    let branding = store.branding;
+    if (typeof branding === 'string') {
+      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+    }
+    if (branding?.is_demo === true || branding?.is_demo === 'true') return;
 
     let effectiveRates = rates;
     if (!effectiveRates) {
@@ -315,65 +320,74 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
 
     // 1. Hepsiburada Price & Stock Push
     if (hbSettings?.merchantId && hbSettings?.apiSecret) {
-      const hbService = new HepsiburadaService(hbSettings, storeId);
-      
-      const hbProductsRes = await pool.query(
-        `SELECT id, name, category, sub_category, barcode, price, currency, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data 
-         FROM products 
-         WHERE store_id = $1 AND (is_hepsiburada_active = true OR hepsiburada_sku IS NOT NULL) AND barcode IS NOT NULL AND barcode != ''`,
-        [storeId]
-      );
-
-      if (hbProductsRes.rows.length > 0) {
-        const inventoryItems = hbProductsRes.rows.map((p) => {
-          let rawPrice = parseFloat(p.price || "0");
-          const curr = (p.currency || "TRY").toUpperCase();
-          if (curr === "USD" && effectiveRates!.USD) {
-            rawPrice = rawPrice * Number(effectiveRates!.USD);
-          } else if (curr === "EUR" && effectiveRates!.EUR) {
-            rawPrice = rawPrice * Number(effectiveRates!.EUR);
-          } else if (curr === "GBP" && effectiveRates!.GBP) {
-            rawPrice = rawPrice * Number(effectiveRates!.GBP);
-          }
-
-          const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
-          let mpData: any = p.marketplace_data;
-          if (typeof mpData === "string") {
-            try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
-          }
-          mpData = mpData || {};
-          if (!mpData.hepsiburada) mpData.hepsiburada = {};
-          if (!mpData.hepsiburada.attributes) mpData.hepsiburada.attributes = {};
-          mpData.hepsiburada.attributes.price = String(effectivePrice);
-          mpData.hepsiburada.lastSync = new Date().toISOString();
-          p.marketplace_data = mpData;
-
-          const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode;
-
-          return {
-            productId: p.id,
-            marketplaceData: mpData,
-            MerchantSku: hbMerchantSku,
-            HepsiburadaSku: p.hepsiburada_sku || "",
-            Price: effectivePrice,
-            AvailableStock: parseInt(p.stock_quantity || "0", 10),
-            DispatchTime: hbSettings.defaultDispatchTime || 1,
-          };
-        });
-
-        const updateRes = await hbService.updatePriceAndStock(inventoryItems.map(({ MerchantSku, HepsiburadaSku, Price, AvailableStock, DispatchTime }) => ({
-          MerchantSku, HepsiburadaSku, Price, AvailableStock, DispatchTime
-        })));
-        console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): Hepsiburada ${inventoryItems.length} ürünün döviz bazlı fiyatı güncellendi. Sonuç:`, updateRes?.success ? 'BAŞARILI' : 'TAMAMLANDI');
+      try {
+        const hbService = new HepsiburadaService(hbSettings, storeId);
         
-        for (const it of inventoryItems) {
-          await pool.query(
-            `UPDATE products 
-             SET hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL, marketplace_data = $1 
-             WHERE id = $2`,
-            [JSON.stringify(it.marketplaceData), it.productId]
-          );
+        const hbProductsRes = await pool.query(
+          `SELECT id, name, category, sub_category, barcode, price, currency, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data 
+           FROM products 
+           WHERE store_id = $1 AND (is_hepsiburada_active = true OR hepsiburada_sku IS NOT NULL) AND barcode IS NOT NULL AND barcode != ''`,
+          [storeId]
+        );
+
+        if (hbProductsRes.rows.length > 0) {
+          const inventoryItems = hbProductsRes.rows.map((p) => {
+            let rawPrice = parseFloat(p.price || "0");
+            const curr = (p.currency || "TRY").toUpperCase();
+            if (curr === "USD" && effectiveRates!.USD) {
+              rawPrice = rawPrice * Number(effectiveRates!.USD);
+            } else if (curr === "EUR" && effectiveRates!.EUR) {
+              rawPrice = rawPrice * Number(effectiveRates!.EUR);
+            } else if (curr === "GBP" && effectiveRates!.GBP) {
+              rawPrice = rawPrice * Number(effectiveRates!.GBP);
+            }
+
+            const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+            let mpData: any = p.marketplace_data;
+            if (typeof mpData === "string") {
+              try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+            }
+            mpData = mpData || {};
+            if (!mpData.hepsiburada) mpData.hepsiburada = {};
+            if (!mpData.hepsiburada.attributes) mpData.hepsiburada.attributes = {};
+            mpData.hepsiburada.attributes.price = String(effectivePrice);
+            mpData.hepsiburada.lastSync = new Date().toISOString();
+            p.marketplace_data = mpData;
+
+            const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode;
+
+            return {
+              productId: p.id,
+              marketplaceData: mpData,
+              MerchantSku: hbMerchantSku,
+              HepsiburadaSku: p.hepsiburada_sku || "",
+              Price: effectivePrice,
+              AvailableStock: parseInt(p.stock_quantity || "0", 10),
+              DispatchTime: hbSettings.defaultDispatchTime || 1,
+            };
+          });
+
+          const updateRes = await hbService.updatePriceAndStock(inventoryItems.map(({ MerchantSku, HepsiburadaSku, Price, AvailableStock, DispatchTime }) => ({
+            MerchantSku, HepsiburadaSku, Price, AvailableStock, DispatchTime
+          }))).catch(err => ({ success: false, message: err.message }));
+          
+          if (updateRes?.success) {
+            console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): Hepsiburada ${inventoryItems.length} ürünün döviz bazlı fiyatı güncellendi.`);
+          } else {
+            console.info(`[CRON-CURRENCY] Store #${storeId} (${store.name}): Hepsiburada price sync note: ${updateRes?.message || 'Skipped'}`);
+          }
+          
+          for (const it of inventoryItems) {
+            await pool.query(
+              `UPDATE products 
+               SET hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL, marketplace_data = $1 
+               WHERE id = $2`,
+              [JSON.stringify(it.marketplaceData), it.productId]
+            );
+          }
         }
+      } catch (hbErr: any) {
+        console.info(`[CRON-CURRENCY] Store #${storeId} Hepsiburada sync note (demo store ignored):`, hbErr.message);
       }
     }
 

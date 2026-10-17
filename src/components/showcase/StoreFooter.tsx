@@ -115,11 +115,12 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
   const hoursInfo = formatWorkingHours();
 
   // Contact info (no fake dummy numbers if empty)
+  const isDemo = store?.branding?.is_demo || store?.slug?.includes('demo');
   const storePhone = (store?.phone || store?.branding?.phone || "").trim();
   const storeEmail = (store?.email || store?.branding?.email || "").trim();
   const rawWhatsapp = (store?.whatsapp_number || store?.branding?.whatsapp_number || storePhone || "").trim();
   const whatsappSanitized = rawWhatsapp.replace(/\D/g, '');
-  const whatsappUrl = whatsappSanitized ? `https://wa.me/${whatsappSanitized.startsWith('90') ? whatsappSanitized : `90${whatsappSanitized}`}` : "";
+  const whatsappUrl = !isDemo && whatsappSanitized ? `https://wa.me/${whatsappSanitized.startsWith('90') ? whatsappSanitized : `90${whatsappSanitized}`}` : "";
 
   // Social media links
   const social = store?.branding?.social_media || {};

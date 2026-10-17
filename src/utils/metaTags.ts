@@ -920,10 +920,24 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       const portalBase = normalizedHost.includes("enrakipsiz") ? "https://enrakipsiz.com" : `${baseUrl}${pathOnly}`;
       const canonicalUrl = `${portalBase}${canonicalQuery}`;
 
-      // Fetch top active listings for ItemList Schema (Direct Product Links in Google Search & AI)
+      // Fetch top active listings for ItemList Schema (Direct Product Links in Google Search & AI - Strictly exclude demo stores)
       const [reTopRes, vehTopRes] = await Promise.all([
-        pool.query("SELECT id, title, price, currency, images, kktc_region, location FROM real_estate_properties WHERE is_on_enrakipsiz = true AND status <> 'sold' ORDER BY created_at DESC NULLS LAST LIMIT 15").catch(() => ({ rows: [] })),
-        pool.query("SELECT id, brand, model, year, selling_price, currency, images FROM vehicles WHERE is_on_enrakipsiz = true AND status <> 'sold' ORDER BY id DESC LIMIT 15").catch(() => ({ rows: [] }))
+        pool.query(`
+          SELECT r.id, r.title, r.price, r.currency, r.images, r.kktc_region, r.location 
+          FROM real_estate_properties r
+          JOIN stores s ON r.store_id = s.id
+          WHERE r.is_on_enrakipsiz = true AND r.status <> 'sold'
+            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
+          ORDER BY r.created_at DESC NULLS LAST LIMIT 15
+        `).catch(() => ({ rows: [] })),
+        pool.query(`
+          SELECT v.id, v.brand, v.model, v.year, v.selling_price, v.currency, v.images 
+          FROM vehicles v
+          JOIN stores s ON v.store_id = s.id
+          WHERE v.is_on_enrakipsiz = true AND v.status <> 'sold'
+            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
+          ORDER BY v.id DESC LIMIT 15
+        `).catch(() => ({ rows: [] }))
       ]);
 
       const itemListElements: any[] = [];
@@ -1493,9 +1507,28 @@ export async function generateSeoBodySnapshot(url: string, req: any): Promise<st
     // 2. EnRakipsiz.com Portal Snapshot with Direct Links to Listings & Stores
     if (normalizedHost === "enrakipsiz.com" || normalizedHost.includes("enrakipsiz") || pathOnly === "/portal") {
       const [reRes, vehRes, storesRes] = await Promise.all([
-        pool.query("SELECT id, title, price, currency, kktc_region, location, room_count, square_meters FROM real_estate_properties WHERE is_on_enrakipsiz = true AND status <> 'sold' ORDER BY created_at DESC NULLS LAST LIMIT 40").catch(() => ({ rows: [] })),
-        pool.query("SELECT id, brand, model, year, selling_price, currency, current_mileage FROM vehicles WHERE is_on_enrakipsiz = true AND status <> 'sold' ORDER BY id DESC LIMIT 40").catch(() => ({ rows: [] })),
-        pool.query("SELECT name, slug, custom_domain FROM stores WHERE status = 'active' OR status IS NULL LIMIT 30").catch(() => ({ rows: [] }))
+        pool.query(`
+          SELECT r.id, r.title, r.price, r.currency, r.kktc_region, r.location, r.room_count, r.square_meters 
+          FROM real_estate_properties r
+          JOIN stores s ON r.store_id = s.id
+          WHERE r.is_on_enrakipsiz = true AND r.status <> 'sold'
+            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
+          ORDER BY r.created_at DESC NULLS LAST LIMIT 40
+        `).catch(() => ({ rows: [] })),
+        pool.query(`
+          SELECT v.id, v.brand, v.model, v.year, v.selling_price, v.currency, v.current_mileage 
+          FROM vehicles v
+          JOIN stores s ON v.store_id = s.id
+          WHERE v.is_on_enrakipsiz = true AND v.status <> 'sold'
+            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
+          ORDER BY v.id DESC LIMIT 40
+        `).catch(() => ({ rows: [] })),
+        pool.query(`
+          SELECT name, slug, custom_domain FROM stores 
+          WHERE (status = 'active' OR status IS NULL)
+            AND (slug NOT ILIKE '%demo%' AND COALESCE(branding->>'is_demo', 'false') != 'true')
+          LIMIT 30
+        `).catch(() => ({ rows: [] }))
       ]);
 
       const reLinks = reRes.rows.map((r: any) =>
@@ -1683,8 +1716,22 @@ export async function generateDynamicLlmsTxt(req: any, storeSlugParam?: string):
       md += `- [Gazimağusa Satılık & Kiralık Emlak İlanları](https://enrakipsiz.com/?region=Gazima%C4%9Fusa)\n\n`;
 
       const [reRes, vehRes] = await Promise.all([
-        pool.query("SELECT id, title, price, currency, kktc_region, location, room_count, square_meters FROM real_estate_properties WHERE is_on_enrakipsiz = true AND status <> 'sold' ORDER BY created_at DESC NULLS LAST LIMIT 80").catch(() => ({ rows: [] })),
-        pool.query("SELECT id, brand, model, year, selling_price, currency, current_mileage FROM vehicles WHERE is_on_enrakipsiz = true AND status <> 'sold' ORDER BY id DESC LIMIT 80").catch(() => ({ rows: [] }))
+        pool.query(`
+          SELECT r.id, r.title, r.price, r.currency, r.kktc_region, r.location, r.room_count, r.square_meters 
+          FROM real_estate_properties r
+          JOIN stores s ON r.store_id = s.id
+          WHERE r.is_on_enrakipsiz = true AND r.status <> 'sold'
+            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
+          ORDER BY r.created_at DESC NULLS LAST LIMIT 80
+        `).catch(() => ({ rows: [] })),
+        pool.query(`
+          SELECT v.id, v.brand, v.model, v.year, v.selling_price, v.currency, v.current_mileage 
+          FROM vehicles v
+          JOIN stores s ON v.store_id = s.id
+          WHERE v.is_on_enrakipsiz = true AND v.status <> 'sold'
+            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
+          ORDER BY v.id DESC LIMIT 80
+        `).catch(() => ({ rows: [] }))
       ]);
 
       md += `## Güncel Gayrimenkul İlanları (Doğrudan Linkler)\n`;
@@ -1710,7 +1757,12 @@ export async function generateDynamicLlmsTxt(req: any, storeSlugParam?: string):
     md += `- [horecaLP & hotelLP - Restoran POS, QR Menü ve Otel Konaklama](${baseUrl}/horeca-landing)\n`;
     md += `- [EnRakipsiz - Emlak & Otomotiv Pazaryeri Portalı](https://enrakipsiz.com)\n\n`;
 
-    const storesRes = await pool.query("SELECT id, name, slug, custom_domain FROM stores WHERE status = 'active' OR status IS NULL LIMIT 50").catch(() => ({ rows: [] }));
+    const storesRes = await pool.query(`
+      SELECT id, name, slug, custom_domain FROM stores 
+      WHERE (status = 'active' OR status IS NULL)
+        AND (slug NOT ILIKE '%demo%' AND COALESCE(branding->>'is_demo', 'false') != 'true')
+      LIMIT 50
+    `).catch(() => ({ rows: [] }));
     md += `## Aktif Mağaza Vitrinleri ve Katalogları\n`;
     for (const s of storesRes.rows) {
       const sUrl = s.custom_domain ? `https://${s.custom_domain}` : `${baseUrl}/s/${s.slug}`;
