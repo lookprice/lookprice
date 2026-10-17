@@ -136,7 +136,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
             <p className="text-slate-400 text-[10px] font-bold flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
               <span className="flex items-center gap-0.5">
                 <MapPin className="w-3 h-3 inline text-slate-400" />
-                {property.address || property.location} {property.kktc_region ? `• Bölge: ${property.kktc_region}` : ""}
+                {property.address || property.location || property.sector_data?.address || property.sector_data?.location} {property.kktc_region ? `• Bölge: ${property.kktc_region}` : ""}
               </span>
               {property.responsible_agent && (
                 <span className="text-indigo-600 font-extrabold text-[9px] uppercase flex items-center gap-0.5">
