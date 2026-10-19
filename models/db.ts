@@ -30,10 +30,10 @@ class ResilientPool {
         this.pgPool = new Pool({
           connectionString: dbUrl,
           ssl: isSsl ? { rejectUnauthorized: false } : false,
-          max: 20,
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 8000,
-          statement_timeout: 30000,
+          max: 5,
+          idleTimeoutMillis: 10000,
+          connectionTimeoutMillis: 5000,
+          statement_timeout: 15000,
         });
         this.pgPool.on('error', (err: any) => {
           console.warn('[ResilientPool] PG Pool background error, switching to embedded:', err?.message || err);
@@ -156,8 +156,11 @@ export async function initDb() {
     const client = await pool.connect();
     console.log("Database connected successfully.");
     try {
-      console.log("Running schema queries...");
-      await client.query(`
+      const tablesCheck = await client.query("SELECT to_regclass('public.stores') as tbl");
+      const isAlreadyInitialized = Boolean(tablesCheck?.rows?.[0]?.tbl);
+      if (!isAlreadyInitialized) {
+        console.log("Running initial schema queries...");
+        await client.query(`
       -- Update existing columns to REAL if they are INTEGER
       DO $$ 
       BEGIN 
@@ -1555,7 +1558,10 @@ export async function initDb() {
       ALTER TABLE stock_transfers DROP CONSTRAINT IF EXISTS stock_transfers_status_check;
       ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_status_check CHECK (status IN ('pending', 'accepted', 'preparing', 'shipped', 'completed', 'cancelled'));
     `);
-    console.log("Schema queries completed.");
+        console.log("Schema queries completed.");
+      } else {
+        console.log("Database schema already initialized. Skipping redundant DDL table recreation.");
+      }
 
     // Ensure columns exist
     console.log("Ensuring columns exist...");

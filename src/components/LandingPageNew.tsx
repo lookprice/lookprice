@@ -1152,7 +1152,7 @@ export const LandingPage = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-[#0A0A0E] rounded-[2rem] border border-white/10 p-8 shadow-2xl z-10"
+              className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-[#0A0A0E] rounded-[2rem] border border-white/10 p-6 md:p-8 shadow-2xl z-10 scrollbar-thin scrollbar-thumb-white/10"
             >
               <button 
                 onClick={() => setShowDemoModal(false)}

@@ -821,28 +821,30 @@ router.post("/stores/:id/delete", async (req: any, res) => {
   try {
     // Verify admin password
     const admin = await pool.query("SELECT password FROM users WHERE id = $1", [req.user.id]);
-    if (!bcrypt.compareSync(password, admin.rows[0].password)) {
+    if (!admin.rows[0] || !bcrypt.compareSync(password, admin.rows[0].password)) {
       return res.status(401).json({ error: "Invalid admin password" });
     }
 
     await pool.query("BEGIN");
-    // Delete related records that don't have ON DELETE CASCADE
-    await pool.query("DELETE FROM scan_logs WHERE store_id = $1", [id]);
-    await pool.query("DELETE FROM tickets WHERE store_id = $1", [id]);
-    await pool.query("DELETE FROM users WHERE store_id = $1", [id]);
-    await pool.query("DELETE FROM products WHERE store_id = $1", [id]);
-    await pool.query("DELETE FROM real_estate_properties WHERE store_id = $1", [id]).catch(() => {});
-    await pool.query("DELETE FROM real_estate WHERE store_id = $1", [id]).catch(() => {});
-    await pool.query("DELETE FROM vehicles WHERE store_id = $1", [id]).catch(() => {});
-    await pool.query("DELETE FROM radar_news WHERE store_id = $1", [id]).catch(() => {});
-    await pool.query("DELETE FROM consultants WHERE store_id = $1", [id]).catch(() => {});
-    await pool.query("DELETE FROM blog_posts WHERE store_id = $1", [id]).catch(() => {});
+    
+    // Dynamically delete from all tables referencing store_id
+    const tablesRes = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.columns 
+      WHERE column_name = 'store_id' AND table_schema = 'public'
+    `);
+    for (const row of tablesRes.rows) {
+      if (row.table_name === "stores") continue;
+      await pool.query(`DELETE FROM ${row.table_name} WHERE store_id = $1`, [id]).catch(() => {});
+    }
+
     await pool.query("DELETE FROM stores WHERE id = $1", [id]);
     await pool.query("COMMIT");
     
     res.json({ success: true });
   } catch (e: any) {
     await pool.query("ROLLBACK");
+    console.error("Error deleting store:", e);
     res.status(400).json({ error: e.message });
   }
 });
