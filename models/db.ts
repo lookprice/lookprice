@@ -21,24 +21,27 @@ class ResilientPool {
     this.pglite = new PGlite(dataDir);
 
     const dbUrl = process.env.DATABASE_URL || "";
-    if (!dbUrl || dbUrl.includes("xeykvbxtakledlwvhlbd")) {
+    if (!dbUrl) {
       this.isEmbedded = true;
       console.log("[ResilientPool] Embedded PostgreSQL (PGlite) active with persistent disk storage.");
     } else {
       try {
+        const isSsl = dbUrl.includes("supabase.com") || dbUrl.includes("sslmode=require") || process.env.NODE_ENV === "production";
         this.pgPool = new Pool({
           connectionString: dbUrl,
-          ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
-          max: 25,
+          ssl: isSsl ? { rejectUnauthorized: false } : false,
+          max: 20,
           idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 5000,
+          connectionTimeoutMillis: 8000,
           statement_timeout: 30000,
         });
         this.pgPool.on('error', (err: any) => {
           console.warn('[ResilientPool] PG Pool background error, switching to embedded:', err?.message || err);
           this.isEmbedded = true;
         });
+        console.log("[ResilientPool] PostgreSQL pool initialized for remote database (Supabase).");
       } catch (e) {
+        console.warn("[ResilientPool] Failed to initialize PG pool, using embedded:", e);
         this.isEmbedded = true;
       }
     }
@@ -2066,6 +2069,19 @@ export async function initDb() {
         media_url TEXT,
         position TEXT DEFAULT 'middle',
         is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS enrakipsiz_videos (
+        id SERIAL PRIMARY KEY,
+        product_key TEXT NOT NULL,
+        page_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        youtube_id TEXT,
+        duration TEXT,
+        cover_img TEXT,
+        is_live BOOLEAN DEFAULT TRUE,
+        order_index INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 

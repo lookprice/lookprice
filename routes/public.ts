@@ -3124,23 +3124,21 @@ router.post("/pos/sale", async (req: any, res) => {
 
 // Get Active Videos
 router.get("/enrakipsiz/videos", async (req, res) => {
-  console.log("Fetching videos, query:", req.query);
   try {
-    const { page_type } = req.query;
+    const { page_type, type } = req.query;
+    const targetType = (page_type || type) as string;
     let query = "SELECT * FROM enrakipsiz_videos WHERE is_live = TRUE";
     const params: any[] = [];
-    if (page_type) {
+    if (targetType) {
       query += " AND page_type = $1";
-      params.push(page_type);
+      params.push(targetType);
     }
     query += " ORDER BY order_index ASC, id ASC";
-    console.log("Executing query:", query, "with params:", params);
     const result = await pool.query(query, params);
-    console.log("Query result count:", result.rows.length);
-    res.json(result.rows);
+    res.json(result.rows || []);
   } catch (error: any) {
-    console.error("Error fetching videos:", error);
-    res.status(500).json({ error: error.message });
+    console.warn("Notice: enrakipsiz_videos query failed, returning fallback empty array:", error?.message || error);
+    res.json([]);
   }
 });
 

@@ -1079,7 +1079,7 @@ router.delete("/registration-requests/:id", async (req: any, res) => {
   }
 });
 
-async function ensureEnrakipsizTables() {
+export async function ensureEnrakipsizTables() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS enrakipsiz_settings (
       id INT PRIMARY KEY,

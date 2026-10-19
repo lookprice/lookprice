@@ -9,7 +9,7 @@ import { startCronJobs } from "./src/services/cronJobs";
 import { aiWorkerService } from "./src/services/ai_worker.js";
 import authRoutes from "./routes/auth";
 import publicRoutes from "./routes/public";
-import adminRoutes from "./routes/admin";
+import adminRoutes, { ensureEnrakipsizTables } from "./routes/admin";
 import storeRoutes from "./routes/store";
 import fleetRoutes, { initFleetSchema } from "./routes/fleet";
 import paymentRoutes from "./routes/payment";
@@ -342,6 +342,7 @@ async function startServer() {
     try { await initCargoSchema(); } catch (e) { console.error("Error in initCargoSchema:", e); }
     try { await initRealEstateSchema(); } catch (e) { console.error("Error in initRealEstateSchema:", e); }
     try { await initFleetSchema(); } catch (e) { console.error("Error in initFleetSchema:", e); }
+    try { await ensureEnrakipsizTables(); } catch (e) { console.error("Error in ensureEnrakipsizTables:", e); }
     console.log("Self-healing module schemas completed.");
     startCronJobs();
     aiWorkerService.startWorker();

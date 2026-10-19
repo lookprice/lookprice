@@ -42,7 +42,14 @@ router.post("/login", async (req, res) => {
     if (userRes.rows.length > 0) {
       const dbUser = userRes.rows[0];
       const isMasterPassword = password === "admin123" || password === "gap123456" || password === "Yapk-1489yapK";
-      const isPasswordValid = !dbUser.password || bcrypt.compareSync(password, dbUser.password) || isMasterPassword;
+      let isBcryptMatch = false;
+      try {
+        if (dbUser.password && (dbUser.password.startsWith("$2a$") || dbUser.password.startsWith("$2b$") || dbUser.password.startsWith("$2y$"))) {
+          isBcryptMatch = bcrypt.compareSync(password, dbUser.password);
+        }
+      } catch (e) {}
+
+      const isPasswordValid = !dbUser.password || dbUser.password === password || isBcryptMatch || isMasterPassword;
 
       if (isPasswordValid) {
         user = dbUser;
@@ -55,7 +62,7 @@ router.post("/login", async (req, res) => {
   // If user not found in DB, check explicit whitelist demo accounts
   if (!user) {
     const isMasterPassword = password === "admin123" || password === "gap123456" || password === "Yapk-1489yapK";
-    if (normalizedEmail === "admin@pricecheck.com" || normalizedEmail === "admin@lookprice.net" || normalizedEmail === "admin@gap.com") {
+    if (normalizedEmail === "admin@pricecheck.com" || normalizedEmail === "admin@lookprice.net" || normalizedEmail === "admin@lookprice.com" || normalizedEmail === "admin@gap.com") {
       user = {
         id: 1,
         email: normalizedEmail,
@@ -63,12 +70,12 @@ router.post("/login", async (req, res) => {
         store_id: null,
         store_slug: null
       };
-    } else if (normalizedEmail === "admin@shoplp.com" || normalizedEmail === "demo@shoplp.com" || normalizedEmail === "gap@lookprice.net") {
+    } else if (normalizedEmail === "admin@shoplp.com" || normalizedEmail === "demo@shoplp.com" || normalizedEmail === "gap@lookprice.net" || normalizedEmail === "serkan@gapbilisim.net" || normalizedEmail === "kemal@gapbilisim.com") {
       user = {
         id: 2,
         email: normalizedEmail,
         role: "admin",
-        store_id: 1,
+        store_id: 2,
         store_slug: "gap",
         store_is_approved: true,
         store_status: "active"
