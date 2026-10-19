@@ -26,7 +26,12 @@ import {
   Phone,
   MessageCircle,
   User,
-  Clock
+  Clock,
+  Stethoscope,
+  GraduationCap,
+  Trees,
+  ShoppingCart,
+  Landmark
 } from "lucide-react";
 import { Product, Store } from "../types";
 import { APIProvider, Map, AdvancedMarker, InfoWindow, useMap } from "@vis.gl/react-google-maps";
@@ -140,6 +145,17 @@ interface POI {
   region: string;
   address: string;
 }
+
+const getPoiLucideIcon = (type: string) => {
+  switch (type) {
+    case 'hospital': return Stethoscope;
+    case 'school': return GraduationCap;
+    case 'park': return Trees;
+    case 'mall': return ShoppingCart;
+    case 'gov': return Landmark;
+    default: return Compass;
+  }
+};
 
 const NEIGHBORHOOD_POIS: POI[] = [
   // Girne POIs
@@ -917,33 +933,36 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[calc(100vh-180px)]">
             
             {/* LEFT COLUMN: INTERACTIVE GOOGLE MAP + POI OVERLAY (7 COLS ON DESKTOP) */}
-            <div className="lg:col-span-7 h-[500px] lg:h-[calc(100vh-230px)] lg:sticky lg:top-[210px] rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-850 shadow-xl relative bg-white dark:bg-slate-900 flex flex-col z-10">
+            <div className="lg:col-span-7 h-[580px] lg:h-[calc(100vh-120px)] lg:sticky lg:top-[150px] rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-850 shadow-xl relative bg-white dark:bg-slate-900 flex flex-col z-10">
               
               {/* Map POI Category Toolbar */}
               <div className="bg-amber-50/90 dark:bg-slate-950/90 backdrop-blur-md p-2.5 border-b border-amber-200/80 dark:border-slate-800 z-10 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[9px] font-black text-amber-900 dark:text-amber-400 uppercase tracking-widest mr-1">📍 ÇEVRE HARİTASI & İMKÂNLAR:</span>
+                  <span className="text-[9px] font-black text-amber-900 dark:text-amber-400 uppercase tracking-widest mr-1">📍 İMKÂNLAR:</span>
                   {[
-                    { key: 'all', label: 'Tümü', icon: '🗺️' },
-                    { key: 'hospital', label: 'Hastaneler', icon: '🏥' },
-                    { key: 'school', label: 'Okullar', icon: '🏫' },
-                    { key: 'park', label: 'Park & Sahil', icon: '🌳' },
-                    { key: 'mall', label: 'AVM & Market', icon: '🛒' },
-                    { key: 'gov', label: 'Tapu & Kamu', icon: '🏛️' },
-                  ].map((poi) => (
-                    <button
-                      key={poi.key}
-                      onClick={() => setSelectedPOICategory(poi.key)}
-                      className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all ${
-                        selectedPOICategory === poi.key
-                          ? "bg-amber-500 text-slate-950 shadow-xs font-black"
-                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-amber-200/80 dark:border-slate-700 hover:bg-amber-100/60 dark:hover:bg-amber-950/20"
-                      }`}
-                    >
-                      <span>{poi.icon}</span>
-                      <span>{poi.label}</span>
-                    </button>
-                  ))}
+                    { key: 'all', label: 'Tümü', icon: Compass },
+                    { key: 'hospital', label: 'Hastaneler', icon: Stethoscope },
+                    { key: 'school', label: 'Okullar', icon: GraduationCap },
+                    { key: 'park', label: 'Park & Sahil', icon: Trees },
+                    { key: 'mall', label: 'AVM & Market', icon: ShoppingCart },
+                    { key: 'gov', label: 'Tapu & Kamu', icon: Landmark },
+                  ].map((poi) => {
+                    const IconComponent = poi.icon;
+                    return (
+                      <button
+                        key={poi.key}
+                        title={poi.label}
+                        onClick={() => setSelectedPOICategory(poi.key)}
+                        className={`p-1.5 rounded-xl cursor-pointer transition-all ${
+                          selectedPOICategory === poi.key
+                            ? "bg-amber-500 text-slate-950 shadow-xs scale-110"
+                            : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-amber-200/80 dark:border-slate-700 hover:bg-amber-100/60 dark:hover:bg-amber-950/20"
+                        }`}
+                      >
+                        <IconComponent className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      </button>
+                    );
+                  })}
                 </div>
                 
                 <button
@@ -1000,16 +1019,19 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                       })}
 
                       {/* Render POIs on Map */}
-                      {showPOIs && NEIGHBORHOOD_POIS.filter(poi => selectedPOICategory === 'all' || poi.type === selectedPOICategory).map((poi) => (
-                        <AdvancedMarker
-                          key={poi.id}
-                          position={{ lat: poi.lat, lng: poi.lng }}
-                        >
-                          <div className="w-7 h-7 bg-white border border-amber-400 rounded-full flex items-center justify-center text-xs shadow-md transform hover:scale-125 transition-transform" title={`${poi.name} (${poi.address})`}>
-                            {poi.icon}
-                          </div>
-                        </AdvancedMarker>
-                      ))}
+                      {showPOIs && NEIGHBORHOOD_POIS.filter(poi => selectedPOICategory === 'all' || poi.type === selectedPOICategory).map((poi) => {
+                        const IconComp = getPoiLucideIcon(poi.type);
+                        return (
+                          <AdvancedMarker
+                            key={poi.id}
+                            position={{ lat: poi.lat, lng: poi.lng }}
+                          >
+                            <div className="w-7 h-7 bg-white dark:bg-slate-900 border border-amber-400 dark:border-amber-500 rounded-full flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-md transform hover:scale-125 transition-transform" title={`${poi.name} (${poi.address})`}>
+                              <IconComp className="w-3.5 h-3.5" />
+                            </div>
+                          </AdvancedMarker>
+                        );
+                      })}
 
                       {/* Selected Property Popup InfoWindow */}
                       {selectedProperty && (
@@ -1054,25 +1076,26 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
               {/* Neighborhood Amenities Analysis Panel for Selected Property */}
               {selectedProperty && (
-                <div className="bg-white dark:bg-slate-900 border-t border-amber-200/80 dark:border-slate-800 p-3.5 shadow-md animate-fadeIn">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-black text-amber-900 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1">
-                      <Compass className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> YAKIN ÇEVRE VE MAHALLE İMKÂNLARI ANALİZİ
+                <div className="bg-white dark:bg-slate-900 border-t border-amber-200/80 dark:border-slate-800 p-2 shadow-sm animate-fadeIn">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[9px] font-black text-amber-900 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                      <Compass className="w-3 h-3 text-amber-600 dark:text-amber-400" /> YAKIN ÇEVRE ANALİZİ
                     </span>
                     <button onClick={() => setSelectedProperty(null)} className="text-slate-400 hover:text-slate-200 text-xs cursor-pointer">
-                      <X className="w-4 h-4" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[10px]">
-                    {nearbyPoisForSelected.map((poi) => (
-                      <div key={poi.id} className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 p-2 rounded-xl flex items-center gap-2">
-                        <span className="text-sm shrink-0">{poi.icon}</span>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-800 dark:text-slate-200 truncate">{poi.name}</p>
-                          <p className="text-amber-600 dark:text-amber-400 font-extrabold text-[9px]">{poi.distanceMeters < 1000 ? `${poi.distanceMeters}m` : `${(poi.distanceMeters/1000).toFixed(1)}km`} mesafede</p>
+                  <div className="grid grid-cols-6 sm:grid-cols-8 gap-1 text-[9px]">
+                    {nearbyPoisForSelected.map((poi) => {
+                      const IconComp = getPoiLucideIcon(poi.type);
+                      return (
+                        <div key={poi.id} className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 p-2 rounded-lg flex items-center justify-center">
+                          <span className="text-amber-600 dark:text-amber-400">
+                            <IconComp className="w-4 h-4" />
+                          </span>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1080,7 +1103,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
             </div>
 
             {/* RIGHT COLUMN: LISTING CARDS GRID (5 COLS ON DESKTOP) */}
-            <div className="lg:col-span-5 lg:h-[calc(100vh-230px)] lg:overflow-y-auto lg:sticky lg:top-[210px] space-y-4 pr-1.5 no-scrollbar z-10">
+            <div className="lg:col-span-5 lg:h-[calc(100vh-120px)] lg:overflow-y-auto lg:sticky lg:top-[150px] space-y-4 pr-1.5 no-scrollbar z-10">
               
               {/* If activeTab is 'offices', render Office & Consultant Directory Card */}
               {activeTab === 'offices' ? (

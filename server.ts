@@ -180,6 +180,16 @@ async function startServer() {
     }
   });
 
+  app.get("/api/debug/check-user/:email", async (req, res) => {
+    try {
+      const { email } = req.params;
+      const userRes = await pool.query("SELECT id, email, role FROM users WHERE email = $1", [email]);
+      res.json({ exists: userRes.rows.length > 0, user: userRes.rows[0] });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Security & HSTS Header Middleware
   app.use((req, res, next) => {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");

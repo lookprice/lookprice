@@ -131,8 +131,8 @@ export const RealEstateOwnerLocationTab: React.FC<RealEstateOwnerLocationTabProp
             type="text"
             className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
             placeholder="Örn: Girne Merkez, Atatürk Caddesi No: 42 Daire: 5..."
-            value={formData.address || ""}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            value={formData.address || formData.location || ""}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value, location: e.target.value })}
           />
         </div>
       ) : (

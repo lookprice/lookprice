@@ -6,20 +6,20 @@ import {
   ChevronDown, 
   ChevronUp, 
   Sparkles,
-  CheckCircle,
+  CheckCircle2,
   Clock,
   Wrench,
   X,
   ArrowRight,
-  Building,
+  Building2,
   TrendingUp,
   MapPin,
   ClipboardList,
-  Globe,
+  Globe2,
   FileText,
   Layers,
-  Calendar,
-  GitBranch,
+  CalendarDays,
+  Workflow,
   Printer,
   EyeOff,
   PenTool,
@@ -28,14 +28,22 @@ import {
   Send,
   Smartphone,
   BookOpen,
-  Users,
+  Users2,
   Cloud,
   BarChart3,
   Radio,
   Calculator,
   Play,
   Tv,
-  Youtube
+  Youtube,
+  ShieldCheck,
+  Zap,
+  Cpu,
+  Compass,
+  Activity,
+  Key,
+  FileCheck,
+  BadgePercent
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { restateFaq } from '../data/restateFaq';
@@ -396,7 +404,7 @@ export default function REstateLanding() {
                 txt(txt("Müşterilerle biyometrik dijital imzalı yetki ve kapora sözleşmeleri", "Authorization and deposit agreements with biometric digital signatures with customers", "Συμφωνίες εξουσιοδότησης και προκαταβολής με βιομετρικές ψηφιακές υπογραφές με πελάτες"), "Authorization and deposit agreements with biometric digital signatures with customers", "Συμφωνίες εξουσιοδότησης και προκαταβολής με βιομετρικές ψηφιακές υπογραφές με πελάτες")
               ].map((text, i) => (
                 <div key={i} className="flex items-center gap-3 text-slate-700 text-sm font-bold">
-                  <CheckCircle className="h-5 w-5 text-rose-500 shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 text-rose-500 shrink-0" />
                   <span>{text}</span>
                 </div>
               ))}
@@ -624,19 +632,19 @@ export default function REstateLanding() {
             { 
               title: txt("Mülk, Müşteri & Evrak CRM'i", "Property, Customer & Document CRM", "CRM Ακινήτων, Πελατών & Εγγράφων"), 
               desc: txt("Konut, Ticari ve Tarla/Arsa gibi her statüde mülkün Satılık/Kiralık kaydı, mülk sahibi detayları ve resmi tapu evrak arşivi.", "For Sale/Rent registration of properties in all statuses such as Residential, Commercial, and Field/Land, property owner details, and official title deed document archive.", "Εγγραφή Προς Πώληση/Ενοικίαση ακινήτων σε όλες τις καταστάσεις, όπως Κατοικίες, Εμπορικά και Αγροτεμάχια/Οικόπεδα, στοιχεία ιδιοκτήτη ακινήτου και επίσημο αρχείο εγγράφων τίτλου ιδιοκτησίας."),
-              icon: Building,
+              icon: Building2,
               color: 'text-rose-600 bg-rose-50 border-rose-100/50'
             },
             { 
               title: txt("Gezi & Randevu Takvimi", "Tour & Appointment Calendar", "Ημερολόγιο Περιήγησης & Ραντεβού"), 
               desc: txt("Tüm broker ve danışmanlarınız ile ortak kullanabileceğiniz yer gösterme planlayıcısı ve müşteri saha randevu takvimi.", "Property viewing planner and customer field appointment calendar that you can use jointly with all your brokers and consultants.", "Σχεδιαστής προβολής ακινήτων και ημερολόγιο ραντεβού πελατών στο πεδίο που μπορείτε να χρησιμοποιήσετε από κοινού με όλους τους μεσίτες και τους συμβούλους σας."),
-              icon: Calendar,
+              icon: CalendarDays,
               color: 'text-indigo-600 bg-indigo-50 border-indigo-100/50'
             },
             { 
               title: txt("CRM Pipeline Süreç Takibi", "CRM Pipeline Process Tracking", "Παρακολούθηση Διαδικασίας Pipeline CRM"), 
               desc: txt("İlk temastan pazarlık, kapora ve tapu devrine kadar tüm portföy işlem adımlarını görsel pipeline paneli üzerinden izleyin.", "Monitor all portfolio transaction steps from the first contact to negotiation, deposit, and title deed transfer via the visual pipeline panel.", "Παρακολουθήστε όλα τα βήματα συναλλαγής χαρτοφυλακίου από την πρώτη επαφή έως τη διαπραγμάτευση, την προκαταβολή και τη μεταβίβαση τίτλου ιδιοκτησίας μέσω του οπτικού πίνακα pipeline."),
-              icon: GitBranch,
+              icon: Workflow,
               color: 'text-emerald-600 bg-emerald-50 border-emerald-100/50'
             },
             { 
@@ -672,7 +680,7 @@ export default function REstateLanding() {
             { 
               title: txt("Sürükle-Bırak Web Site Sihirbazı", "Drag-and-Drop Website Wizard", "Οδηγός ιστότοπου μεταφοράς και απόθεσης"), 
               desc: txt("Emlak ofisinize özel hazır kurumsal web siteniz saniyeler içinde otomatik kurulur, dilediğiniz gibi sürükle-bırak özelleştirebilirsiniz.", "Your custom ready-made corporate website is automatically installed in seconds, you can customize it with drag-and-drop as you wish.", "Ο προσαρμοσμένος έτοιμος εταιρικός ιστότοπός σας εγκαθίσταται αυτόματα σε δευτερόλεπτα, μπορείτε να τον προσαρμόσετε με μεταφορά και απόθεση όπως επιθυμείτε."),
-              icon: Globe,
+              icon: Globe2,
               color: 'text-emerald-600 bg-emerald-50 border-emerald-100/50'
             },
             { 
@@ -696,7 +704,7 @@ export default function REstateLanding() {
             { 
               title: txt("Tek Bakışta Envanter Listesi", "Inventory List at a Glance", "Λίστα αποθέματος με μια ματιά"), 
               desc: 'Kiralık, Kiralandı, Satılık, Satıldı, Opsiyonlu mülklerinizi fiyatı ve özet teknik verileriyle tek bakışta izleyin, detayları inceleyin.',
-              icon: CheckCircle,
+              icon: CheckCircle2,
               color: 'text-teal-600 bg-teal-50 border-teal-100/50'
             },
             { 
@@ -708,7 +716,7 @@ export default function REstateLanding() {
             { 
               title: txt("Çok Şubeli CRM & Personel", "Multi-Branch CRM & Personnel", "Πολυκαταστηματικό CRM & Προσωπικό"), 
               desc: 'Dilediğiniz kadar şube ve danışman ekleyin. Şubeler arası portföy transferlerini tek panelden yetki kısıtlamalı kontrol edin.',
-              icon: Users,
+              icon: Users2,
               color: 'text-blue-600 bg-blue-50 border-blue-100/50'
             },
             { 

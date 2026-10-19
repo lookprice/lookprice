@@ -243,14 +243,14 @@ export const LandingPage = () => {
 
   const [demoLoginLoading, setDemoLoginLoading] = useState<string | null>(null);
 
-  const handleQuickDemoLogin = async (email: string, pass: string) => {
+  const handleQuickDemoLogin = async (email: string, pass: string, targetPath: string = '/store') => {
     try {
       setDemoLoginLoading(email);
       const res = await api.login({ email, password: pass });
       if (res && res.token) {
         localStorage.setItem('token', res.token);
         localStorage.setItem('user', JSON.stringify(res.user));
-        navigate('/store');
+        navigate(targetPath);
       }
     } catch (err: any) {
       console.error("Demo login error:", err);
@@ -1197,7 +1197,7 @@ export const LandingPage = () => {
                     <button
                       type="button"
                       disabled={Boolean(demoLoginLoading)}
-                      onClick={() => handleQuickDemoLogin('demo@restatelp.com', 'restatelp1234')}
+                      onClick={() => handleQuickDemoLogin('demo@restatelp.com', 'restatelp1234', '/dashboard/restatelp-demo?tab=real_estate')}
                       className="w-full py-2 px-3 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
                     >
                       {demoLoginLoading === 'demo@restatelp.com' ? (
@@ -1225,7 +1225,7 @@ export const LandingPage = () => {
                     <button
                       type="button"
                       disabled={Boolean(demoLoginLoading)}
-                      onClick={() => handleQuickDemoLogin('demo@shoplp.com', 'shoplp1234')}
+                      onClick={() => handleQuickDemoLogin('demo@shoplp.com', 'shoplp1234', '/dashboard/shoplp-demo?tab=products')}
                       className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
                     >
                       {demoLoginLoading === 'demo@shoplp.com' ? (
