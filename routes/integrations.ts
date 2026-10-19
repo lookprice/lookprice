@@ -22,6 +22,24 @@ import {
 
 const router = express.Router();
 
+async function checkIsDemoStore(storeId: number): Promise<boolean> {
+  try {
+    const res = await pool.query("SELECT slug, name, branding FROM stores WHERE id = $1", [storeId]);
+    const row = res.rows[0];
+    if (!row) return false;
+    const slug = (row.slug || "").toLowerCase();
+    const name = (row.name || "").toLowerCase();
+    let branding = row.branding || {};
+    if (typeof branding === 'string') {
+      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+    }
+    return slug.includes("demo") || name.includes("demo") || branding.is_demo === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+
 
 // Amazon SP-API Constants for Turkey
 const AMAZON_TR_MARKETPLACE_ID = "A33AVAJ2PDY3EV";
@@ -126,6 +144,10 @@ router.post("/amazon/test-connection", authenticate, async (req: any, res) => {
   const { clientId, clientSecret, refreshToken, sellerId, isSandbox } = req.body || {};
 
   try {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Amazon bağlantısı başarılı." });
+    }
+
     const storeRes = await pool.query("SELECT amazon_settings FROM stores WHERE id = $1", [storeId]);
     const prev = storeRes.rows[0]?.amazon_settings || {};
     const central = await getCentralAmazonCredentials();
@@ -148,6 +170,9 @@ router.post("/amazon/test-connection", authenticate, async (req: any, res) => {
       marketplaceName: testResult.marketplaceName,
     });
   } catch (error: any) {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Amazon bağlantısı başarılı." });
+    }
     console.error("[Amazon Test Connection Error]:", error.message);
     res.status(400).json({
       success: false,
@@ -366,6 +391,10 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
   try {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, count: 0, message: "Demo mağaza simülasyonu: Amazon siparişleri senkronize edildi." });
+    }
+
     const storeRes = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
     if (storeRes.rows.length === 0) {
       return res.status(404).json({ error: "Mağaza bulunamadı" });
@@ -401,6 +430,9 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
 
     res.json({ success: true, count: syncedCount, errors });
   } catch (error: any) {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, count: 0, message: "Demo mağaza simülasyonu: Amazon siparişleri senkronize edildi." });
+    }
     const detailedError = error.response?.data?.errors?.[0]?.message || error.response?.data?.message || error.message || "Amazon siparişleri senkronize edilemedi";
     await IntegrationService.logIntegrationError(storeId, 'Amazon', 'Sync All Orders', error);
     res.status(500).json({ error: detailedError });
@@ -696,6 +728,10 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
   const days = req.body.days !== undefined && req.body.days !== "routine" ? Number(req.body.days) : undefined;
 
   try {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, count: 0, newOrdersCount: 0, message: "Demo mağaza simülasyonu: N11 senkronizasyonu başarılı." });
+    }
+
     const storeRes = await pool.query("SELECT n11_settings, branding FROM stores WHERE id = $1", [storeId]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
 
@@ -715,6 +751,9 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
     const { syncedCount, newOrdersCount } = await syncStoreN11OrdersToDatabase(storeId, settings, days);
     res.json({ success: true, count: syncedCount, newOrdersCount });
   } catch (error: any) {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, count: 0, newOrdersCount: 0, message: "Demo mağaza simülasyonu: N11 işlem başarılı." });
+    }
     await IntegrationService.logIntegrationError(storeId, 'N11', 'Sync All Orders', error);
     res.status(400).json({ error: error?.message || "N11 siparişleri senkronize edilemedi." });
   }
@@ -723,6 +762,10 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
 router.post("/n11/test", authenticate, async (req: any, res) => {
   const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
   try {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: N11 bağlantısı başarılı." });
+    }
+
     const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
     const dbSettings = storeRes.rows[0]?.n11_settings || {};
     const appKey = (req.body.appKey || dbSettings.appKey || "").trim();
@@ -741,6 +784,9 @@ router.post("/n11/test", authenticate, async (req: any, res) => {
 
     res.json({ success: true, message: result.message });
   } catch (error: any) { 
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: N11 bağlantısı başarılı." });
+    }
     res.status(500).json({ success: false, error: error.message || "N11 API Bağlantı testi başarısız." }); 
   }
 });
@@ -1694,6 +1740,10 @@ router.get("/hepsiburada/settings", authenticate, async (req: any, res) => {
 router.post("/hepsiburada/test", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Hepsiburada bağlantısı başarılı." });
+    }
+
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     let settings = storeRes.rows[0]?.hepsiburada_settings || {};
 
@@ -1721,6 +1771,9 @@ router.post("/hepsiburada/test", authenticate, async (req: any, res) => {
       error: testResult.success ? undefined : (testResult.error || testResult.details?.error || testResult.message)
     });
   } catch (error: any) {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Hepsiburada bağlantısı başarılı." });
+    }
     res.status(500).json({ success: false, error: error.message || "Hepsiburada test sunucu hatası" });
   }
 });
@@ -1733,6 +1786,10 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
     : Number(req.user.store_id || rawStoreId);
 
   try {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, count: 0, message: "Demo mağaza simülasyonu: Hepsiburada siparişleri senkronize edildi." });
+    }
+
     const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
     if (storeRes.rows.length === 0) {
       return res.status(404).json({ error: "Mağaza bulunamadı" });
@@ -1772,6 +1829,9 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
 
     res.json({ success: true, count: syncedCount, errors });
   } catch (error: any) {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, count: 0, message: "Demo mağaza simülasyonu: Hepsiburada siparişleri senkronize edildi." });
+    }
     console.error("[Hepsiburada Sync Error]:", error?.message || error);
     await IntegrationService.logIntegrationError(storeId, 'Hepsiburada', 'Sync All Orders', error);
     
@@ -3468,6 +3528,10 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
   try {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, count: 0, message: "Demo mağaza simülasyonu: Trendyol siparişleri senkronize edildi." });
+    }
+
     const storeRes = await pool.query("SELECT trendyol_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.trendyol_settings;
 
@@ -3535,13 +3599,12 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
             price: l.price,
             barcode: l.barcode,
             sku: l.merchantSku,
-            taxRate: 20 // Default or extract from line if available
+            taxRate: 20
           }));
 
           if (mappedLines.length > 0) {
             await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Trendyol', order.id, rawCustName3, invoiceNumber);
           } else {
-             // Fallback if no lines
              await client.query(
               "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
               [salesInvoiceId, `Trendyol Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
@@ -3568,6 +3631,9 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
     await pool.query("UPDATE stores SET trendyol_settings = $1 WHERE id = $2", [newSettings, storeId]);
     res.json({ success: true, count: syncedCount });
   } catch (error: any) {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, count: 0, message: "Demo mağaza simülasyonu: Trendyol siparişleri senkronize edildi." });
+    }
     await IntegrationService.logIntegrationError(storeId, 'Trendyol', 'Sync All Orders', error);
     res.status(500).json({ error: "Trendyol siparişleri senkronize edilemedi." });
   }
@@ -3576,12 +3642,20 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
 router.post("/trendyol/test", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Trendyol bağlantısı başarılı." });
+    }
     const storeRes = await pool.query("SELECT trendyol_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.trendyol_settings;
     if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) return res.status(400).json({ error: "Trendyol API bilgileri eksik" });
     const success = await testTrendyolConnection(settings);
     res.json({ success });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { 
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Trendyol bağlantısı başarılı." });
+    }
+    res.status(500).json({ error: error.message }); 
+  }
 });
 router.post("/trendyol/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
@@ -4092,6 +4166,10 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
   try {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, count: 0, message: "Demo mağaza simülasyonu: Pazarama siparişleri senkronize edildi." });
+    }
+
     const storeRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.pazarama_settings;
 
@@ -4110,7 +4188,6 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
         try {
           await client.query("BEGIN");
 
-          // Find or create customer
           let customerId = null;
           const customerEmail = order.customerEmail || `${orderId}@pazarama.com`;
           const customerName = order.customerName || order.recipientName || "Pazarama Müşterisi";
@@ -4147,7 +4224,6 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
           );
           const saleId = saleRes.rows[0].id;
 
-          // Create Sales Invoice
           const invoiceNumber = `PZ-${orderId}`;
           const grandTotal = totalAmount;
           const subtotal = grandTotal / 1.20;
@@ -4159,7 +4235,6 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
-          // Process order lines
           const orderItems = order.orderItems || order.items || [];
           const mappedLines = orderItems.map((l: any) => ({
             name: l.productName,
@@ -4204,6 +4279,9 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
 
     res.json({ success: true, count: 0, message: "Gerçek API bağlantısı için geçerli anahtarlar gereklidir." });
   } catch (error: any) {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, count: 0, message: "Demo mağaza simülasyonu: Pazarama siparişleri senkronize edildi." });
+    }
     await IntegrationService.logIntegrationError(storeId, 'Pazarama', 'Sync All Orders', error);
     res.status(500).json({ error: "Pazarama siparişleri senkronize edilemedi." });
   }
@@ -4212,12 +4290,20 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
 router.post("/pazarama/test", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Pazarama bağlantısı başarılı." });
+    }
     const storeRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.pazarama_settings;
     if (!settings || !settings.apiKey || !settings.apiSecret) return res.status(400).json({ error: "Pazarama API bilgileri eksik" });
     const success = await testPazaramaConnection(settings);
     res.json({ success });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { 
+    if (await checkIsDemoStore(storeId)) {
+      return res.json({ success: true, simulated: true, message: "Demo mağaza simülasyonu: Pazarama bağlantısı başarılı." });
+    }
+    res.status(500).json({ error: error.message }); 
+  }
 });
 router.post("/pazarama/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;

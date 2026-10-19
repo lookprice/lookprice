@@ -15,6 +15,7 @@
     "postinstall": "node scripts/patch-html2canvas.cjs"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.2.16",
     "@ericblade/quagga2": "^1.12.1",
     "@google/genai": "^1.29.0",
     "@supabase/supabase-js": "^2.101.1",

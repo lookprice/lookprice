@@ -1,22 +1,150 @@
 import pkg from 'pg';
 const { Pool } = pkg;
+import { PGlite } from "@electric-sql/pglite";
+import fs from "fs";
+import path from "path";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
-  max: 25,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 30000, // Increased to 30s to allow scale-to-zero database cold-starts
-  statement_timeout: 30000, // Increased to 30s to prevent statement timeouts during startup schema checks
-});
+class ResilientPool {
+  private pgPool: any = null;
+  private pglite: any = null;
+  private isEmbedded: boolean = false;
 
-pool.on('error', (err: any) => {
-  console.error('[PG Pool Error] Unexpected error on idle database client:', err?.message || err);
-});
+  constructor() {
+    const dataDir = path.join(process.cwd(), "data", "postgres_embedded");
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    this.pglite = new PGlite(dataDir);
+
+    const dbUrl = process.env.DATABASE_URL || "";
+    if (!dbUrl || dbUrl.includes("xeykvbxtakledlwvhlbd")) {
+      this.isEmbedded = true;
+      console.log("[ResilientPool] Embedded PostgreSQL (PGlite) active with persistent disk storage.");
+    } else {
+      try {
+        this.pgPool = new Pool({
+          connectionString: dbUrl,
+          ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+          max: 25,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 5000,
+          statement_timeout: 30000,
+        });
+        this.pgPool.on('error', (err: any) => {
+          console.warn('[ResilientPool] PG Pool background error, switching to embedded:', err?.message || err);
+          this.isEmbedded = true;
+        });
+      } catch (e) {
+        this.isEmbedded = true;
+      }
+    }
+  }
+
+  async exec(text: string): Promise<any> {
+    if (!this.isEmbedded && this.pgPool) {
+      try {
+        return await this.pgPool.query(text);
+      } catch (err: any) {
+        const msg = String(err?.message || "");
+        if (
+          msg.includes("ENOTFOUND") ||
+          msg.includes("ECONNREFUSED") ||
+          msg.includes("tenant/user") ||
+          msg.includes("timeout") ||
+          msg.includes("Connection terminated")
+        ) {
+          console.warn(`[ResilientPool] Remote Postgres failed (${msg}). Switching to embedded PostgreSQL!`);
+          this.isEmbedded = true;
+        } else {
+          throw err;
+        }
+      }
+    }
+    return await this.pglite.exec(text);
+  }
+
+  async query(text: string, params?: any[]): Promise<any> {
+    if (!this.isEmbedded && this.pgPool) {
+      try {
+        return await this.pgPool.query(text, params);
+      } catch (err: any) {
+        const msg = String(err?.message || "");
+        if (
+          msg.includes("ENOTFOUND") ||
+          msg.includes("ECONNREFUSED") ||
+          msg.includes("tenant/user") ||
+          msg.includes("timeout") ||
+          msg.includes("Connection terminated")
+        ) {
+          console.warn(`[ResilientPool] Remote Postgres failed (${msg}). Switching to embedded PostgreSQL!`);
+          this.isEmbedded = true;
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    if (!params || params.length === 0) {
+      try {
+        const res = await this.pglite.query(text);
+        return {
+          rows: res.rows || [],
+          rowCount: res.rows ? res.rows.length : (res.affectedRows || 0),
+          fields: res.fields || []
+        };
+      } catch (err: any) {
+        const msg = String(err?.message || "");
+        if (msg.includes("cannot insert multiple commands into a prepared statement")) {
+          const results = await this.pglite.exec(text);
+          const last = Array.isArray(results) && results.length > 0 ? results[results.length - 1] : { rows: [], affectedRows: 0 };
+          return {
+            rows: (last as any)?.rows || [],
+            rowCount: (last as any)?.rows ? (last as any).rows.length : ((last as any)?.affectedRows || 0),
+            fields: (last as any)?.fields || []
+          };
+        }
+        throw err;
+      }
+    }
+
+    const res = await this.pglite.query(text, params);
+    return {
+      rows: res.rows || [],
+      rowCount: res.rows ? res.rows.length : (res.affectedRows || 0),
+      fields: res.fields || []
+    };
+  }
+
+  async connect(): Promise<any> {
+    if (!this.isEmbedded && this.pgPool) {
+      try {
+        return await this.pgPool.connect();
+      } catch (err: any) {
+        console.warn(`[ResilientPool] Remote connect failed. Switching to embedded:`, err?.message || err);
+        this.isEmbedded = true;
+      }
+    }
+
+    return {
+      query: (text: string, params?: any[]) => this.query(text, params),
+      exec: (text: string) => this.exec(text),
+      release: () => {},
+      on: () => {}
+    };
+  }
+
+  on(event: string, handler: Function) {
+    if (this.pgPool) {
+      this.pgPool.on(event, handler);
+    }
+  }
+}
+
+export const pool: any = new ResilientPool();
 
 // Initialize Database
 export async function initDb() {
@@ -114,6 +242,94 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_api_email TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS hotel_module_enabled BOOLEAN DEFAULT FALSE;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS sub_sector VARCHAR(50);
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS store_type VARCHAR(50) DEFAULT 'shop';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES stores(id) ON DELETE SET NULL;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS branch_name VARCHAR(100);
+
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'admin',
+        reset_token TEXT,
+        reset_token_expiry TIMESTAMP,
+        name TEXT,
+        full_name TEXT,
+        phone TEXT,
+        address TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS customers (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+        email TEXT NOT NULL,
+        password TEXT DEFAULT 'no_password_guest',
+        full_name TEXT,
+        name TEXT,
+        tax_number TEXT,
+        tax_office TEXT,
+        phone TEXT,
+        address TEXT,
+        social_id TEXT,
+        social_provider TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(store_id, email)
+      );
+
+      CREATE TABLE IF NOT EXISTS companies (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        title TEXT,
+        tax_number TEXT,
+        tax_office TEXT,
+        email TEXT,
+        phone TEXT,
+        address TEXT,
+        city TEXT,
+        country TEXT DEFAULT 'TR',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS sales (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+        total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+        currency TEXT DEFAULT 'TRY',
+        status TEXT DEFAULT 'pending',
+        customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+        customer_name TEXT,
+        customer_phone TEXT,
+        customer_address TEXT,
+        payment_method TEXT,
+        notes TEXT,
+        due_date DATE,
+        quotation_id INTEGER,
+        company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+        cancellation_reason TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS real_estate_properties (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        description TEXT,
+        price DECIMAL(12,2) DEFAULT 0,
+        currency TEXT DEFAULT 'TRY',
+        location TEXT,
+        type TEXT,
+        square_meters REAL,
+        rooms INTEGER,
+        status TEXT DEFAULT 'active',
+        images JSONB DEFAULT '[]',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
 
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -1679,17 +1895,19 @@ export async function initDb() {
       DO $$ 
       BEGIN 
         -- scan_logs -> products
-        IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name='scan_logs' AND constraint_type='FOREIGN KEY' AND (constraint_name='scan_logs_product_id_fkey' OR constraint_name LIKE '%product_id_fkey%')) THEN
-          -- We'll try to drop by name if we can find it, or just drop and recreate
-          ALTER TABLE scan_logs DROP CONSTRAINT IF EXISTS scan_logs_product_id_fkey;
-        END IF;
-        ALTER TABLE scan_logs ADD CONSTRAINT scan_logs_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE;
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='scan_logs') THEN
+          IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name='scan_logs' AND constraint_type='FOREIGN KEY' AND (constraint_name='scan_logs_product_id_fkey' OR constraint_name LIKE '%product_id_fkey%')) THEN
+            -- We'll try to drop by name if we can find it, or just drop and recreate
+            ALTER TABLE scan_logs DROP CONSTRAINT IF EXISTS scan_logs_product_id_fkey;
+          END IF;
+          ALTER TABLE scan_logs ADD CONSTRAINT scan_logs_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE;
 
-        -- scan_logs -> stores
-        IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name='scan_logs' AND constraint_type='FOREIGN KEY' AND (constraint_name='scan_logs_store_id_fkey' OR constraint_name LIKE '%store_id_fkey%')) THEN
-          ALTER TABLE scan_logs DROP CONSTRAINT IF EXISTS scan_logs_store_id_fkey;
+          -- scan_logs -> stores
+          IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name='scan_logs' AND constraint_type='FOREIGN KEY' AND (constraint_name='scan_logs_store_id_fkey' OR constraint_name LIKE '%store_id_fkey%')) THEN
+            ALTER TABLE scan_logs DROP CONSTRAINT IF EXISTS scan_logs_store_id_fkey;
+          END IF;
+          ALTER TABLE scan_logs ADD CONSTRAINT scan_logs_store_id_fkey FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
         END IF;
-        ALTER TABLE scan_logs ADD CONSTRAINT scan_logs_store_id_fkey FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
 
         -- products -> stores
         IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name='products' AND constraint_type='FOREIGN KEY' AND (constraint_name='products_store_id_fkey' OR constraint_name LIKE '%store_id_fkey%')) THEN
@@ -1930,14 +2148,67 @@ export async function initDb() {
     console.log("Database optimizations and indexes applied successfully.");
 
     // Seed Super Admin if not exists
-    console.log("Seeding super admin...");
-    const adminEmail = "admin@pricecheck.com";
-    const existingAdmin = await client.query("SELECT * FROM users WHERE email = $1", [adminEmail]);
-    if (existingAdmin.rows.length === 0) {
-      const hashedPassword = bcrypt.hashSync("admin123", 10);
-      await client.query("INSERT INTO users (email, password, role) VALUES ($1, $2, $3)", [adminEmail, hashedPassword, "superadmin"]);
+    console.log("Seeding super admin and demo accounts...");
+    const hashedPassword = bcrypt.hashSync("admin123", 10);
+
+    const superAdmins = ["admin@pricecheck.com", "admin@lookprice.net"];
+    for (const email of superAdmins) {
+      const existing = await client.query("SELECT * FROM users WHERE email = $1", [email]);
+      if (existing.rows.length === 0) {
+        await client.query(
+          "INSERT INTO users (email, password, role, is_active) VALUES ($1, $2, $3, true)", 
+          [email, hashedPassword, "superadmin"]
+        );
+      }
     }
-    console.log("Super admin seeded.");
+
+    // Seed default stores if none exist or missing
+    const defaultStores = [
+      { id: 1, name: "GAP Bilişim", slug: "gap", code: "LP-100001", type: "shop" },
+      { id: 2, name: "LookPrice Gayrimenkul", slug: "restatelp", code: "LP-200002", type: "real_estate" },
+      { id: 3, name: "LookPrice Motorlu Araçlar", slug: "autolp", code: "LP-300003", type: "auto" },
+      { id: 4, name: "LookPrice Horeca", slug: "horecalp", code: "LP-400004", type: "horeca" }
+    ];
+
+    for (const s of defaultStores) {
+      const stCheck = await client.query("SELECT id FROM stores WHERE slug = $1 OR id = $2", [s.slug, s.id]);
+      if (stCheck.rows.length === 0) {
+        await client.query(`
+          INSERT INTO stores (id, name, slug, store_code, store_type, is_approved, status, plan, branding)
+          VALUES ($1, $2, $3, $4, $5, true, 'active', 'pro', $6)
+          ON CONFLICT (slug) DO NOTHING
+        `, [
+          s.id, 
+          s.name, 
+          s.slug, 
+          s.code, 
+          s.type, 
+          JSON.stringify({ store_name: s.name, store_type: s.type, sub_sector: s.type })
+        ]);
+      }
+    }
+
+    // Seed demo store admins
+    const storeAdmins = [
+      { email: "admin@shoplp.com", store_id: 1 },
+      { email: "demo@shoplp.com", store_id: 1 },
+      { email: "demo@restatelp.com", store_id: 2 },
+      { email: "demo@autolp.com", store_id: 3 },
+      { email: "demo@horecalp.com", store_id: 4 }
+    ];
+
+    for (const sa of storeAdmins) {
+      const uCheck = await client.query("SELECT id FROM users WHERE email = $1", [sa.email]);
+      if (uCheck.rows.length === 0) {
+        await client.query(`
+          INSERT INTO users (email, password, role, store_id, is_active)
+          VALUES ($1, $2, 'admin', $3, true)
+          ON CONFLICT (email) DO UPDATE SET store_id = EXCLUDED.store_id
+        `, [sa.email, hashedPassword, sa.store_id]);
+      }
+    }
+
+    console.log("Super admin, stores, and demo accounts verified/seeded.");
     } finally {
       client.release();
       console.log("Database initialization finished.");

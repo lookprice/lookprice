@@ -2133,6 +2133,101 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
   }
 });
 
+// Diagnostic Backfill Endpoint for Missing Invoices
+router.post("/einvoice/backfill-invoices", authenticate, async (req: any, res) => {
+  let storeIdRaw = req.user.role === 'superadmin' ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  const storeId = storeIdRaw ? parseInt(String(storeIdRaw)) : null;
+  const targetInvoiceNumbers = req.body.invoiceNumbers || [
+    "BTS2026000017536", "HD42026000742811", "HD42026000741650", "HD42026000676130", "HD42026000618053"
+  ];
+
+  try {
+    if (!storeId || isNaN(storeId)) return res.status(400).json({ error: "Geçerli bir Mağaza ID bulunamadı." });
+    const service = await getEInvoiceService(storeId);
+    if (!service) return res.status(400).json({ error: "E-Fatura servisi başlatılamadı." });
+
+    const endDateStr = new Date().toISOString().split('T')[0];
+    const startDateObj = new Date();
+    startDateObj.setDate(startDateObj.getDate() - 180);
+    const startDateStr = startDateObj.toISOString().split('T')[0];
+
+    console.log(`[BACKFILL] Scanning incoming invoices for store ${storeId} from ${startDateStr} to ${endDateStr}`);
+    const incoming = await service.getIncomingInvoices(startDateStr, endDateStr);
+    
+    let foundCount = 0;
+    let importedCount = 0;
+    const results: any[] = [];
+
+    if (Array.isArray(incoming)) {
+      for (const inv of incoming) {
+        const docNum = inv.documentNumber || inv.raw?.Id || '';
+        const ettn = inv.ettn || inv.raw?.Uuid || '';
+        
+        const isTargetMatch = targetInvoiceNumbers.some((t: string) => 
+          (docNum && docNum.toLowerCase().includes(t.toLowerCase())) ||
+          (ettn && ettn.toLowerCase().includes(t.toLowerCase()))
+        );
+
+        if (isTargetMatch || targetInvoiceNumbers.length === 0) {
+          foundCount++;
+          const existing = await pool.query(
+            "SELECT id FROM purchase_invoices WHERE store_id = $1 AND (ettn = $2 OR document_number = $3)",
+            [storeId, ettn, docNum]
+          );
+
+          if (existing.rows.length === 0) {
+            const grandAmt = Math.round((Number(inv.payableAmount) || 0) * 100) / 100;
+            const taxAmt = Math.round((Number(inv.taxAmount) || 0) * 100) / 100;
+            const baseAmt = Math.round(((Number(inv.baseAmount) || (grandAmt - taxAmt))) * 100) / 100;
+
+            const ins = await pool.query(
+              `INSERT INTO purchase_invoices 
+              (store_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_expense)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
+              [
+                storeId,
+                docNum,
+                docNum,
+                ettn,
+                inv.documentType || 'EFATURA',
+                inv.senderTitle || 'Bilinmeyen Tedarikçi',
+                inv.senderVkn || '',
+                inv.issueDate ? (inv.issueDate.includes('.') ? inv.issueDate.split('.').reverse().join('-') : inv.issueDate) : new Date().toISOString().split('T')[0],
+                baseAmt,
+                taxAmt,
+                grandAmt,
+                inv.currency || 'TRY',
+                inv.exchangeRate || 1,
+                'approved',
+                'RECEIVED',
+                'term',
+                'unpaid',
+                false,
+                true
+              ]
+            );
+            importedCount++;
+            results.push({ documentNumber: docNum, ettn, status: 'IMPORTED', id: ins.rows[0].id });
+          } else {
+            results.push({ documentNumber: docNum, ettn, status: 'ALREADY_EXISTS' });
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Backfill taraması tamamlandı. Bulunan: ${foundCount}, Yeni İçe Aktarılan: ${importedCount}`,
+      foundCount,
+      importedCount,
+      results
+    });
+  } catch (error: any) {
+    console.error("Backfill error:", error);
+    res.status(500).json({ error: error.message || "Backfill işlemi başarısız oldu" });
+  }
+});
+
 // 5. Test Connection
 router.post("/einvoice/test-connection", authenticate, async (req: any, res) => {
   try {
