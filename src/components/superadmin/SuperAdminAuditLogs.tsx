@@ -29,7 +29,8 @@ export function SuperAdminAuditLogs({ lang }: { lang: string }) {
     }
   };
 
-  const filteredLogs = logs.filter(log => 
+  const safeLogs = Array.isArray(logs) ? logs : [];
+  const filteredLogs = safeLogs.filter(log => 
     (log.store_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
     (log.action?.toLowerCase() || '').includes(search.toLowerCase()) ||
     (log.details?.toLowerCase() || '').includes(search.toLowerCase()) ||

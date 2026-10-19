@@ -380,9 +380,9 @@ router.get("/marketplace/listings", async (req, res) => {
           SELECT r.*, s.name as store_name, s.slug as store_slug, s.phone as store_phone, s.whatsapp_number as store_whatsapp
           FROM real_estate r
           JOIN stores s ON r.store_id = s.id
-          WHERE r.status <> 'sold' 
-            AND (r.is_on_enrakipsiz = true)
-            AND (s.slug NOT ILIKE '%demo%' AND COALESCE(s.branding->>'is_demo', 'false') != 'true')
+          WHERE r.status = 'active'
+            AND r.is_on_enrakipsiz = true
+            AND s.slug NOT ILIKE '%demo%'
           ORDER BY r.created_at DESC
           LIMIT 100
         `);

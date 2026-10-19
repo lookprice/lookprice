@@ -14,12 +14,14 @@ router.get("/", async (req: any, res) => {
     const nowIso = new Date().toISOString();
 
     // Fetch store info first
-    const storeRes = await pool.query("SELECT sector, branding FROM stores WHERE id = $1", [storeId]);
-    const { sector, branding } = storeRes.rows[0] || { sector: 'RETAIL', branding: {} };
+    const storeRes = await pool.query("SELECT store_type, branding FROM stores WHERE id = $1", [storeId]);
+    const storeRow = storeRes.rows[0] || { store_type: 'product', branding: {} };
+    const sector = (storeRow.store_type || 'product').toUpperCase();
+    const branding = storeRow.branding || {};
     const isHotelModuleActive = branding?.hotel_module_enabled === true;
-    const isPortfolio = sector === 'REAL_ESTATE' || sector === 'AUTOMOTIVE';
-    const isAutomotive = sector === 'AUTOMOTIVE';
-    const isCafeRestaurant = sector === 'HORECA';
+    const isPortfolio = sector === 'REAL_ESTATE' || sector === 'AUTOMOTIVE' || sector === 'PORTFOLIO';
+    const isAutomotive = sector === 'AUTOMOTIVE' || sector === 'MOTOR_VEHICLE';
+    const isCafeRestaurant = sector === 'HORECA' || sector === 'CAFE_RESTAURANT';
 
     const transfersCount = await pool.query(
       `SELECT COUNT(*) FROM stock_transfers 

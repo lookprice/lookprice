@@ -659,14 +659,14 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   };
 
   return (
-    <div className="w-full px-4 sm:px-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="w-full max-w-full px-2 sm:px-4 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <FileDown className="h-6 w-6 text-indigo-600" />
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <FileDown className="h-5 w-5 text-indigo-600" />
             {isTr ? "Alış Faturaları" : "Purchase Invoices"}
           </h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             {isTr ? "Tedarikçilerden gelen faturaları girin ve stoklarınızı güncelleyin." : "Enter invoices from suppliers and update your stock."}
           </p>
         </div>

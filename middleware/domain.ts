@@ -12,6 +12,7 @@ export const domainMiddleware = async (req: Request, res: Response, next: NextFu
   if (
     isStaticFile ||
     path.startsWith("/api/") ||
+    path.startsWith("/admin") ||
     path.startsWith("/assets/") ||
     path.startsWith("/uploads/") ||
     path === "/favicon.ico" ||
@@ -39,7 +40,7 @@ export const domainMiddleware = async (req: Request, res: Response, next: NextFu
   const domainToLookup = customDomain || host;
 
   // If it's a main domain, just continue
-  if (mainDomains.some(d => domainToLookup.toLowerCase().includes(d))) {
+  if (mainDomains.includes(domainToLookup.toLowerCase())) {
     return next();
   }
 
