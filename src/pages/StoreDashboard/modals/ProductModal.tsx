@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink, Layers } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink, Layers, Maximize2, Minimize2 } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 import { compressImageToWebP, normalizeImageUrl } from "../../../utils/imageUtils";
@@ -81,6 +81,7 @@ export const ProductModal = ({
   const [matrixColors, setMatrixColors] = useState("");
   const [matrixSizes, setMatrixSizes] = useState("");
   const [showMovementModal, setShowMovementModal] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   const domainId = resolveDomainId(branding);
   const isCafeRestaurant = domainId === 'HORECA' || domainId === 'HOTEL';
@@ -647,7 +648,7 @@ export const ProductModal = ({
                         }`}
                         defaultValue={editingProduct?.barcode || (editingProduct as any)?.sector_data?.isbn || ""}
                       />
-                      {(isBookstore || isShopLp) && (
+                      {isBookstore && (
                         <button
                           type="button"
                           onClick={handleAutoLookup}
@@ -846,19 +847,40 @@ export const ProductModal = ({
                 )}
 
                 {/* 3. AÇIKLAMA / ARKA KAPAK YAZISI */}
-                <div className="order-7 lg:order-none p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-0.5">
-                    <label className="text-[10px] font-medium text-slate-800 uppercase tracking-wider">
-                      {isBookstore ? (isTr ? "Arka Kapak Tanıtım Yazısı" : "Book Synopsis") : (isTr ? "Açıklama" : "Description")}
+                <div className="order-7 lg:order-none p-2.5 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-1">
+                    <label className="text-[10px] font-medium text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                      <span>{isBookstore ? (isTr ? "Arka Kapak Tanıtım Yazısı" : "Book Synopsis") : (isTr ? "Ürün Açıklaması" : "Product Description")}</span>
                     </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                      className="text-[10px] font-normal text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-indigo-50 transition-colors cursor-pointer"
+                      title={isDescriptionExpanded ? (isTr ? "Alanı Küçült" : "Collapse") : (isTr ? "Alanı Genişlet" : "Expand")}
+                    >
+                      {isDescriptionExpanded ? (
+                        <>
+                          <Minimize2 className="w-3 h-3" />
+                          <span>{isTr ? "Daralt" : "Collapse"}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Maximize2 className="w-3 h-3" />
+                          <span>{isTr ? "Genişlet" : "Expand"}</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                   <textarea
                     name="description"
-                    rows={2}
+                    rows={isDescriptionExpanded ? 10 : 5}
                     placeholder={isBookstore 
                       ? (isTr ? "Arka kapak tanıtım yazısı veya eser özeti..." : "Book synopsis...") 
-                      : (isTr ? "Ürün özellikleri ve detayları" : "Detailed specs")}
-                    className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900 text-xs shadow-2xs resize-none outline-none leading-relaxed"
+                      : (isTr ? "Ürün özellikleri, teknik detaylar ve vitrin açıklaması... (Sağ alt köşeden tutarak da genişletebilirsiniz)" : "Detailed product specifications and description...")}
+                    className={`w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/10 transition-all font-normal text-slate-900 text-xs sm:text-sm shadow-2xs resize-y outline-none leading-relaxed ${
+                      isDescriptionExpanded ? "min-h-[220px]" : "min-h-[110px]"
+                    } max-h-[520px]`}
                     defaultValue={editingProduct?.description || ""}
                   />
                 </div>
@@ -1664,7 +1686,7 @@ export const ProductModal = ({
                         type="text"
                         name="image_url"
                         placeholder={isTr ? "1. Ana görsel linki (https://...)" : "1. Main image URL (https://...)"}
-                        className="flex-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[11px] font-semibold text-slate-900 h-6.5 outline-none focus:border-indigo-600"
+                        className="flex-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[11px] font-normal text-slate-900 h-6.5 outline-none focus:border-indigo-600"
                         value={productImageUrl}
                         onChange={(e) => setProductImageUrl(e.target.value)}
                       />
@@ -1695,7 +1717,7 @@ export const ProductModal = ({
                           <Camera className="w-3 h-3 text-indigo-600" />
                           <span>{isTr ? `Ekstra Görseller (${productExtraImages.length})` : `Extra Images (${productExtraImages.length})`}</span>
                         </span>
-                        <span className="text-[9px] text-slate-500 font-semibold">
+                        <span className="text-[9px] text-slate-500 font-normal">
                           {isTr ? "Web vitrininde gösterilir" : "Displayed in web gallery"}
                         </span>
                       </div>
@@ -1717,7 +1739,7 @@ export const ProductModal = ({
                             }
                           }}
                           placeholder={isTr ? "Ekstra resim linki yapıştırın (https://...) ve + Ekle'ye basın" : "Paste extra image URL (https://...) and click + Add"}
-                          className="flex-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[11px] font-semibold text-slate-900 h-6.5 outline-none focus:border-indigo-600"
+                          className="flex-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[11px] font-normal text-slate-900 h-6.5 outline-none focus:border-indigo-600"
                         />
                         <button
                           type="button"

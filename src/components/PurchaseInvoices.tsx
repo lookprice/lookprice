@@ -728,7 +728,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     <div className="w-full max-w-full px-2 sm:px-4 space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-medium text-slate-900 tracking-tight flex items-center gap-2">
             <FileDown className="h-5 w-5 text-indigo-600" />
             {isTr ? "Alış Faturaları" : "Purchase Invoices"}
           </h2>
@@ -780,7 +780,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
             <button 
               onClick={handleSyncInbox}
               disabled={syncing}
-              className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold transition-all hover:bg-indigo-100 disabled:opacity-50"
+              className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-medium transition-all hover:bg-indigo-100 disabled:opacity-50"
             >
               <CloudDownload className={`h-4 w-4 inline mr-2 ${syncing ? 'animate-bounce' : ''}`} />
               {isTr ? "Senkronize Et" : "Sync"}
@@ -788,7 +788,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           )}
           <button
             onClick={exportToExcel}
-            className="p-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-all text-xs font-black flex items-center gap-2 shadow-sm"
+            className="p-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-all text-xs font-medium flex items-center gap-2 shadow-sm"
             title={isTr ? "Excel'e Aktar" : "Export to Excel"}
           >
             <FileSpreadsheet className="h-4 w-4" />
@@ -799,7 +799,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
               resetForm();
               setShowModal(true);
             }}
-            className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg flex items-center gap-2"
+            className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-medium text-sm hover:bg-slate-800 transition-all shadow-lg flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             {isTr ? "Fatura Ekle" : "Add Invoice"}
@@ -918,7 +918,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
             className="bg-white w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
           >
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-black text-slate-900">{isTr ? "Fatura Önizleme" : "Invoice Preview"}</h3>
+              <h3 className="font-medium text-slate-900">{isTr ? "Fatura Önizleme" : "Invoice Preview"}</h3>
               <div className="flex gap-2">
                 <button 
                   onClick={() => {
@@ -928,7 +928,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                       iframe.contentWindow.print();
                     }
                   }}
-                  className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-all flex items-center gap-2 shadow-sm"
+                  className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-medium hover:bg-indigo-100 transition-all flex items-center gap-2 shadow-sm"
                 >
                   <Printer className="h-4 w-4" />
                   {isTr ? "Yazdır" : "Print"}
@@ -942,7 +942,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
               {(purchaseHtmlLoading || !purchaseIframeReady) && (
                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100/90 backdrop-blur-xs gap-4 z-10 transition-opacity duration-300">
                    <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
-                   <p className="text-sm font-bold text-slate-500 animate-pulse uppercase tracking-widest">{isTr ? 'Görsel Hazırlanıyor...' : 'Preparing Preview...'}</p>
+                   <p className="text-sm font-medium text-slate-500 animate-pulse uppercase tracking-widest">{isTr ? 'Görsel Hazırlanıyor...' : 'Preparing Preview...'}</p>
                  </div>
               )}
               <iframe 
@@ -995,21 +995,21 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[130] bg-slate-900 border border-slate-800 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-6"
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-black">{selectedIds.length}</span>
-              <span className="text-sm font-bold text-slate-300">{isTr ? "Seçili Fatura" : "Selected Invoices"}</span>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-medium">{selectedIds.length}</span>
+              <span className="text-sm font-medium text-slate-300">{isTr ? "Seçili Fatura" : "Selected Invoices"}</span>
             </div>
             <div className="h-5 w-px bg-slate-800" />
             <div className="flex items-center gap-2">
               <button
                 onClick={handleBulkPrint}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-medium transition-all flex items-center gap-2"
               >
                 <Printer className="h-4 w-4" />
                 {isTr ? "SEÇİLENLERİ YAZDIR" : "PRINT SELECTED"}
               </button>
               <button
                 onClick={exportToExcel}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-medium transition-all flex items-center gap-2"
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 {isTr ? "EXCEL AKTAR" : "EXPORT EXCEL"}
@@ -1032,31 +1032,31 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
             <div key={invoice.id} className="mb-12 border-b-2 border-dashed border-slate-300 pb-12" style={{ pageBreakAfter: 'always' }}>
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-900">{branding?.store_name || "Seçkin Mağaza"}</h1>
+                  <h1 className="text-2xl font-medium tracking-tight text-slate-900">{branding?.store_name || "Seçkin Mağaza"}</h1>
                   <p className="text-xs text-slate-500 mt-1">{isTr ? 'Alış Faturası' : 'Purchase Invoice'}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-slate-900">{invoice.invoice_number}</p>
+                  <p className="text-sm font-medium text-slate-900">{invoice.invoice_number}</p>
                   <p className="text-xs text-slate-500">{formatDateTR(invoice.invoice_date)}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-8 mb-8 text-xs">
                 <div>
-                  <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'SATICI (TEDARİKÇİ)' : 'SUPPLIER'}</p>
-                  <p className="font-bold text-slate-800 text-sm">{invoice.company_name}</p>
+                  <p className="font-medium text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'SATICI (TEDARİKÇİ)' : 'SUPPLIER'}</p>
+                  <p className="font-medium text-slate-800 text-sm">{invoice.company_name}</p>
                   {invoice.tax_number && <p className="text-slate-500 mt-1">{isTr ? "VKN/TCKN:" : "Tax ID:"} {invoice.tax_number}</p>}
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'FATURA DETAYI' : 'DETAILS'}</p>
-                  <p className="text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency}</p>
-                  <p className="text-slate-600"><span className="font-bold">{isTr ? 'Ödeme Yöntemi:' : 'Payment:'}</span> {invoice.payment_method === 'cash' ? (isTr ? 'Nakit' : 'Cash') : (isTr ? 'Vadeli' : 'Term')}</p>
+                  <p className="font-medium text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'FATURA DETAYI' : 'DETAILS'}</p>
+                  <p className="text-slate-600"><span className="font-medium">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency}</p>
+                  <p className="text-slate-600"><span className="font-medium">{isTr ? 'Ödeme Yöntemi:' : 'Payment:'}</span> {invoice.payment_method === 'cash' ? (isTr ? 'Nakit' : 'Cash') : (isTr ? 'Vadeli' : 'Term')}</p>
                 </div>
               </div>
 
               <table className="w-full text-left text-xs border-collapse border border-slate-200 mb-8">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+                  <tr className="bg-slate-50 text-slate-500 uppercase font-medium border-b border-slate-200">
                     <th className="p-2 border border-slate-200">{isTr ? 'Ürün/Hizmet' : 'Product/Service'}</th>
                     <th className="p-2 border border-slate-200 text-center">{isTr ? 'Miktar' : 'Qty'}</th>
                     <th className="p-2 border border-slate-200 text-right">{isTr ? 'Birim Fiyat' : 'Price'}</th>
@@ -1084,7 +1084,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                       </td>
                       <td className="p-2 border border-slate-200 text-right">{Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>
                       <td className="p-2 border border-slate-200 text-center">%{item.tax_rate}</td>
-                      <td className="p-2 border border-slate-200 text-right font-bold">{(Number(item.quantity) * Number(item.unit_price) * (1 + Number(item.tax_rate) / 100)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>
+                      <td className="p-2 border border-slate-200 text-right font-medium">{(Number(item.quantity) * Number(item.unit_price) * (1 + Number(item.tax_rate) / 100)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1092,7 +1092,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
 
               <div className="flex justify-between items-start text-xs">
                 <div className="max-w-md italic text-slate-500">
-                  {invoice.notes && <p className="mb-2"><span className="font-bold">{isTr ? 'Not:' : 'Note:'}</span> {invoice.notes}</p>}
+                  {invoice.notes && <p className="mb-2"><span className="font-medium">{isTr ? 'Not:' : 'Note:'}</span> {invoice.notes}</p>}
                 </div>
                 <div className="w-64 space-y-1.5 text-right font-semibold">
                   <div className="flex justify-between text-slate-500">
@@ -1103,7 +1103,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                     <span>{isTr ? 'KDV Toplam' : 'VAT Total'}</span>
                     <span>{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
                   </div>
-                  <div className="flex justify-between text-sm font-bold border-t border-slate-200 pt-2 text-indigo-600">
+                  <div className="flex justify-between text-sm font-medium border-t border-slate-200 pt-2 text-indigo-600">
                     <span>{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
                     <span>{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
                   </div>

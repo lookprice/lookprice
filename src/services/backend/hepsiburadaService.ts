@@ -1334,8 +1334,8 @@ export class HepsiburadaService {
    */
   async fetchMerchantListings(options?: { limit?: number; offset?: number }): Promise<any[]> {
     const merchantId = (this.config.merchantId || "").trim();
-    if (!merchantId) {
-      console.warn("[HB-Listings] Merchant ID is not specified. Skipping listing fetch.");
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(merchantId);
+    if (!merchantId || !isUuid) {
       return [];
     }
 
@@ -1389,7 +1389,7 @@ export class HepsiburadaService {
         offset += rawItems.length;
       }
     } catch (err: any) {
-      console.warn("[HB-Listings] Error during paginated fetch:", err.response?.data || err.message);
+      // Gracefully stop paginated listing fetch if unauthorized or empty
     }
 
     return Array.from(allListingsMap.values());

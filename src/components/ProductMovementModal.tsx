@@ -368,15 +368,15 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xs sm:text-base font-black uppercase tracking-wide text-white truncate">
+                  <h2 className="text-xs sm:text-base font-medium uppercase tracking-wide text-white truncate">
                     {isTr ? 'Ürün Ekstresi' : 'Product Statement'}
                   </h2>
-                  <span className="text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                  <span className="text-[10px] sm:text-[11px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
                     #{product.id}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-300 mt-0.5 truncate">
-                  <span className="font-bold text-white truncate max-w-[160px] sm:max-w-md">{product.name}</span>
+                  <span className="font-medium text-white truncate max-w-[160px] sm:max-w-md">{product.name}</span>
                   {product.barcode && (
                     <span className="font-mono bg-slate-800 px-1 py-0.5 rounded text-slate-300 text-[10px] hidden sm:inline">
                       {product.barcode}
@@ -391,7 +391,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                 type="button"
                 onClick={handlePrintStatement}
                 disabled={movements.length === 0}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl transition-all text-xs font-bold border border-slate-700 disabled:opacity-40 cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl transition-all text-xs font-medium border border-slate-700 disabled:opacity-40 cursor-pointer"
                 title={isTr ? 'Yazdır / PDF Ekstre' : 'Print Statement'}
               >
                 <Printer className="h-4 w-4" />
@@ -402,7 +402,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                 type="button"
                 onClick={handleExport}
                 disabled={exporting || movements.length === 0}
-                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all text-xs font-bold shadow-xs disabled:opacity-40 cursor-pointer"
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all text-xs font-medium shadow-xs disabled:opacity-40 cursor-pointer"
                 title={isTr ? 'Excel Olarak İndir' : 'Export Excel'}
               >
                 <FileDown className="h-4 w-4" />
@@ -425,18 +425,18 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             {/* INCOMING / PURCHASES */}
             <div className="p-3 bg-white rounded-2xl border border-emerald-100 shadow-2xs flex items-center justify-between">
               <div className="space-y-0.5">
-                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1">
                   <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
                   {isTr ? 'Toplam Giriş / Alış' : 'Total In / Purchases'}
                 </div>
-                <div className="text-lg font-black text-emerald-700">
-                  +{stats.totalInQty} <span className="text-xs font-bold text-slate-600">{product.unit || 'Adet'}</span>
+                <div className="text-lg font-medium text-emerald-700">
+                  +{stats.totalInQty} <span className="text-xs font-medium text-slate-600">{product.unit || 'Adet'}</span>
                 </div>
-                <div className="text-[11px] font-bold text-slate-500">
+                <div className="text-[11px] font-medium text-slate-500">
                   {formatCurrency(stats.totalInAmount)}
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-black text-xs">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-medium text-xs">
                 {stats.purchaseCount} {isTr ? 'fat' : 'inv'}
               </div>
             </div>
@@ -444,18 +444,18 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             {/* OUTGOING / SALES */}
             <div className="p-3 bg-white rounded-2xl border border-rose-100 shadow-2xs flex items-center justify-between">
               <div className="space-y-0.5">
-                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1">
                   <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
                   {isTr ? 'Toplam Çıkış / Satış' : 'Total Out / Sales'}
                 </div>
-                <div className="text-lg font-black text-rose-700">
-                  -{stats.totalOutQty} <span className="text-xs font-bold text-slate-600">{product.unit || 'Adet'}</span>
+                <div className="text-lg font-medium text-rose-700">
+                  -{stats.totalOutQty} <span className="text-xs font-medium text-slate-600">{product.unit || 'Adet'}</span>
                 </div>
-                <div className="text-[11px] font-bold text-slate-500">
+                <div className="text-[11px] font-medium text-slate-500">
                   {formatCurrency(stats.totalOutAmount)}
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 font-black text-xs">
+              <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 font-medium text-xs">
                 {stats.salesCount + stats.posCount} {isTr ? 'işl' : 'tx'}
               </div>
             </div>
@@ -463,18 +463,18 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             {/* NET STOCK & BALANCE */}
             <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100 shadow-2xs flex items-center justify-between">
               <div className="space-y-0.5">
-                <div className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1">
+                <div className="text-[11px] font-medium text-indigo-900 uppercase tracking-wider flex items-center gap-1">
                   <Package className="h-3.5 w-3.5 text-indigo-600" />
                   {isTr ? 'Mevcut Stok Durumu' : 'Current Stock Balance'}
                 </div>
-                <div className="text-lg font-black text-indigo-950">
-                  {stats.totalCount > 0 ? stats.netStock : (product.stock_quantity ?? 0)} <span className="text-xs font-bold text-indigo-700">{product.unit || 'Adet'}</span>
+                <div className="text-lg font-medium text-indigo-950">
+                  {stats.totalCount > 0 ? stats.netStock : (product.stock_quantity ?? 0)} <span className="text-xs font-medium text-indigo-700">{product.unit || 'Adet'}</span>
                 </div>
-                <div className="text-[11px] font-bold text-indigo-700">
+                <div className="text-[11px] font-medium text-indigo-700">
                   {isTr ? 'Satış Fiyatı:' : 'Price:'} {formatCurrency(product.price)}
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-medium text-xs shadow-xs">
                 OK
               </div>
             </div>
@@ -487,7 +487,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
               <button
                 type="button"
                 onClick={() => setSelectedFilter('all')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
                   selectedFilter === 'all'
                     ? 'bg-slate-900 text-white shadow-2xs'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -498,7 +498,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
               <button
                 type="button"
                 onClick={() => setSelectedFilter('purchase')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
                   selectedFilter === 'purchase'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
@@ -509,7 +509,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
               <button
                 type="button"
                 onClick={() => setSelectedFilter('sales')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
                   selectedFilter === 'sales'
                     ? 'bg-blue-600 text-white shadow-2xs'
                     : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
@@ -520,7 +520,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
               <button
                 type="button"
                 onClick={() => setSelectedFilter('pos')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
                   selectedFilter === 'pos'
                     ? 'bg-violet-600 text-white shadow-2xs'
                     : 'bg-violet-50 text-violet-800 hover:bg-violet-100'
@@ -532,7 +532,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                 <button
                   type="button"
                   onClick={() => setSelectedFilter('other')}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                  className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
                     selectedFilter === 'other'
                       ? 'bg-amber-600 text-white shadow-2xs'
                       : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
@@ -570,14 +570,14 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             {loading ? (
               <div className="text-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-2" />
-                <div className="text-xs font-bold text-slate-500">
+                <div className="text-xs font-medium text-slate-500">
                   {isTr ? 'Ürün hareketleri ve fatura eşleşmeleri kontrol ediliyor...' : 'Checking product movements and invoice links...'}
                 </div>
               </div>
             ) : filteredMovements.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200">
                 <Package className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                <div className="text-sm font-bold text-slate-700">
+                <div className="text-sm font-medium text-slate-700">
                   {isTr ? 'Kayıtlı Hareket Bulunamadı' : 'No Movements Found'}
                 </div>
                 <div className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
@@ -610,10 +610,10 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
 
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wide ${badge.color}`}>
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md border uppercase tracking-wide ${badge.color}`}>
                             {badge.label}
                           </span>
-                          <span className="text-xs font-black text-slate-900">
+                          <span className="text-xs font-medium text-slate-900">
                             {m.description}
                           </span>
                         </div>
@@ -625,7 +625,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                           </span>
 
                           {m.customer_info && (
-                            <span className="flex items-center gap-1 text-slate-700 font-bold">
+                            <span className="flex items-center gap-1 text-slate-700 font-medium">
                               <User className="h-3 w-3 text-slate-400" />
                               {m.customer_info}
                             </span>
@@ -638,7 +638,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                           )}
 
                           {rowTotal > 0 && (
-                            <span className="text-indigo-700 font-bold bg-indigo-50 px-1.5 py-0.2 rounded">
+                            <span className="text-indigo-700 font-medium bg-indigo-50 px-1.5 py-0.2 rounded">
                               {isTr ? 'Tutar:' : 'Total:'} {formatCurrency(rowTotal, m.currency)}
                             </span>
                           )}
@@ -651,7 +651,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                               type="button"
                               onClick={() => handleOpenInvoice(m)}
                               disabled={loadingInvoiceId === m.id}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all shadow-2xs border cursor-pointer ${
+                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium transition-all shadow-2xs border cursor-pointer ${
                                 invType === 'purchase'
                                   ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200 hover:border-indigo-300'
                                   : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 hover:border-blue-300'
@@ -677,7 +677,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                               <button
                                 type="button"
                                 onClick={() => handleViewPurchaseHtml(m.invoice_id!)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 transition-all cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 transition-all cursor-pointer"
                                 title={isTr ? 'Orijinal e-Fatura HTML görselini görüntüle' : 'View e-Invoice HTML'}
                               >
                                 <Receipt className="h-3.5 w-3.5 text-slate-600" />
@@ -690,13 +690,13 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                     </div>
 
                     <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 shrink-0">
-                      <span className="text-[11px] text-slate-400 font-bold uppercase sm:hidden">
+                      <span className="text-[11px] text-slate-400 font-medium uppercase sm:hidden">
                         {isTr ? 'Miktar' : 'Quantity'}
                       </span>
-                      <div className={`font-black text-base sm:text-lg tabular-nums ${
+                      <div className={`font-medium text-base sm:text-lg tabular-nums ${
                         m.type === 'in' ? 'text-emerald-600' : 'text-rose-600'
                       }`}>
-                        {m.type === 'in' ? '+' : '-'}{Math.abs(Number(m.quantity))} <span className="text-xs font-bold text-slate-500">{product.unit || 'Adet'}</span>
+                        {m.type === 'in' ? '+' : '-'}{Math.abs(Number(m.quantity))} <span className="text-xs font-medium text-slate-500">{product.unit || 'Adet'}</span>
                       </div>
                     </div>
                   </div>
@@ -713,7 +713,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold transition-all cursor-pointer"
+              className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-medium transition-all cursor-pointer"
             >
               {isTr ? 'Kapat' : 'Close'}
             </button>
@@ -726,45 +726,45 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
         <div ref={statementPrintRef} className="p-8 bg-white text-slate-900 max-w-[210mm] mx-auto font-sans">
           <div className="border-b-2 border-slate-800 pb-4 mb-4 flex justify-between items-start">
             <div>
-              <h1 className="text-xl font-black uppercase tracking-wider">{branding?.store_name || branding?.name || 'LOOKPRICE'}</h1>
-              <h2 className="text-base font-bold text-slate-700 mt-1">{isTr ? 'ÜRÜN HAREKET EKSTRESİ' : 'PRODUCT MOVEMENT STATEMENT'}</h2>
+              <h1 className="text-xl font-medium uppercase tracking-wider">{branding?.store_name || branding?.name || 'LOOKPRICE'}</h1>
+              <h2 className="text-base font-medium text-slate-700 mt-1">{isTr ? 'ÜRÜN HAREKET EKSTRESİ' : 'PRODUCT MOVEMENT STATEMENT'}</h2>
               <p className="text-xs text-slate-500">{formatDateTimeTR(new Date())}</p>
             </div>
             <div className="text-right">
-              <div className="text-sm font-black text-slate-900">{product.name}</div>
+              <div className="text-sm font-medium text-slate-900">{product.name}</div>
               <div className="text-xs font-mono text-slate-600">{product.barcode || ''} {product.product_code ? `| ${product.product_code}` : ''}</div>
-              <div className="text-xs font-bold text-indigo-700 mt-1">{isTr ? 'Güncel Stok:' : 'Current Stock:'} {stats.totalCount > 0 ? stats.netStock : (product.stock_quantity ?? 0)} {product.unit || 'Adet'}</div>
+              <div className="text-xs font-medium text-indigo-700 mt-1">{isTr ? 'Güncel Stok:' : 'Current Stock:'} {stats.totalCount > 0 ? stats.netStock : (product.stock_quantity ?? 0)} {product.unit || 'Adet'}</div>
             </div>
           </div>
 
           <table className="w-full text-xs text-left border-collapse">
             <thead>
               <tr className="border-b-2 border-slate-300 bg-slate-100 text-slate-800">
-                <th className="py-2 px-2 font-bold">{isTr ? 'Tarih' : 'Date'}</th>
-                <th className="py-2 px-2 font-bold">{isTr ? 'İşlem / Kaynak' : 'Type'}</th>
-                <th className="py-2 px-2 font-bold">{isTr ? 'Açıklama & Cari' : 'Description'}</th>
-                <th className="py-2 px-2 text-right font-bold">{isTr ? 'Birim Fiyat' : 'Price'}</th>
-                <th className="py-2 px-2 text-right font-bold">{isTr ? 'Giriş (+)' : 'In (+)'}</th>
-                <th className="py-2 px-2 text-right font-bold">{isTr ? 'Çıkış (-)' : 'Out (-)'}</th>
+                <th className="py-2 px-2 font-medium">{isTr ? 'Tarih' : 'Date'}</th>
+                <th className="py-2 px-2 font-medium">{isTr ? 'İşlem / Kaynak' : 'Type'}</th>
+                <th className="py-2 px-2 font-medium">{isTr ? 'Açıklama & Cari' : 'Description'}</th>
+                <th className="py-2 px-2 text-right font-medium">{isTr ? 'Birim Fiyat' : 'Price'}</th>
+                <th className="py-2 px-2 text-right font-medium">{isTr ? 'Giriş (+)' : 'In (+)'}</th>
+                <th className="py-2 px-2 text-right font-medium">{isTr ? 'Çıkış (-)' : 'Out (-)'}</th>
               </tr>
             </thead>
             <tbody>
               {movements.map((m, idx) => (
                 <tr key={idx} className="border-b border-slate-200">
                   <td className="py-1.5 px-2 font-mono">{formatDateTR(m.created_at)}</td>
-                  <td className="py-1.5 px-2 font-bold">{m.source}</td>
+                  <td className="py-1.5 px-2 font-medium">{m.source}</td>
                   <td className="py-1.5 px-2">{m.description} {m.customer_info ? `(${m.customer_info})` : ''}</td>
                   <td className="py-1.5 px-2 text-right font-mono">{m.unit_price ? formatCurrency(m.unit_price, m.currency) : '-'}</td>
-                  <td className="py-1.5 px-2 text-right font-bold text-emerald-700">{m.type === 'in' ? `+${m.quantity}` : '-'}</td>
-                  <td className="py-1.5 px-2 text-right font-bold text-rose-700">{m.type === 'out' ? `-${m.quantity}` : '-'}</td>
+                  <td className="py-1.5 px-2 text-right font-medium text-emerald-700">{m.type === 'in' ? `+${m.quantity}` : '-'}</td>
+                  <td className="py-1.5 px-2 text-right font-medium text-rose-700">{m.type === 'out' ? `-${m.quantity}` : '-'}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-slate-800 font-bold bg-slate-50">
+              <tr className="border-t-2 border-slate-800 font-medium bg-slate-50">
                 <td colSpan={4} className="py-2 px-2">{isTr ? 'TOPLAM' : 'TOTAL'}</td>
-                <td className="py-2 px-2 text-right text-emerald-700 font-bold">+{stats.totalInQty}</td>
-                <td className="py-2 px-2 text-right text-rose-700 font-bold">-{stats.totalOutQty}</td>
+                <td className="py-2 px-2 text-right text-emerald-700 font-medium">+{stats.totalInQty}</td>
+                <td className="py-2 px-2 text-right text-rose-700 font-medium">-{stats.totalOutQty}</td>
               </tr>
             </tfoot>
           </table>

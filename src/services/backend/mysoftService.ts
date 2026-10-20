@@ -30,18 +30,31 @@ export class MySoftService {
     this.credentials = credentials;
   }
 
+  private static authBackoffMap = new Map<string, number>();
+
   // 1. Token Handling - Phase 1 Implementation
   private async authenticate(): Promise<string> {
     if (this.token && this.tokenExpiry && this.tokenExpiry > new Date()) {
       return this.token;
     }
 
+    const userKey = (this.credentials.username || this.credentials.earchive_username || '').trim();
+    const passKey = (this.credentials.password || (this.credentials as any).api_token || '').trim();
+    if (!userKey || !passKey) {
+      throw new Error("MySoft API kullanıcı adı veya şifresi tanımlanmamış.");
+    }
+
+    const cacheKey = `${this.baseUrl}:${userKey}:${passKey.slice(0, 3)}`;
+    const backoffUntil = MySoftService.authBackoffMap.get(cacheKey);
+    if (backoffUntil && Date.now() < backoffUntil) {
+      throw new Error("MySoft API kimlik bilgileri geçersiz (Kullanıcı tanımsızdır).");
+    }
+
     try {
-      console.log(`[MySoft] Authenticating for user: ${this.credentials.username || this.credentials.earchive_username}`);
       // Use URLSearchParams for x-www-form-urlencoded format
       const params = new URLSearchParams();
-      params.append('username', this.credentials.username || this.credentials.earchive_username || '');
-      params.append('password', this.credentials.password || (this.credentials as any).api_token || '');
+      params.append('username', userKey);
+      params.append('password', passKey);
       params.append('grant_type', 'password');
       if (this.credentials.connector_guid) {
         params.append('connector_guid', this.credentials.connector_guid);
@@ -65,13 +78,16 @@ export class MySoftService {
       if (response.data.access_token) {
         this.token = response.data.access_token;
         this.tokenExpiry = new Date(Date.now() + (response.data.expires_in - 300) * 1000);
-        console.log(`[MySoft] Auth Successful. Token obtained.`);
+        MySoftService.authBackoffMap.delete(cacheKey);
         return this.token;
       }
       throw new Error("Authentication response failed: No access_token returned");
     } catch (error: any) {
-      console.error("MySoft OAuth Error:", error.response?.data || error.message);
       const details = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+      if (String(details).includes("Kullanıcı tanımsızdır") || String(details).includes("Authentication Error") || String(details).includes("invalid_grant")) {
+        // Back off for 60 minutes for invalid credentials to prevent background cron noise
+        MySoftService.authBackoffMap.set(cacheKey, Date.now() + 60 * 60 * 1000);
+      }
       throw new Error(`MySoft API kimlik doğrulaması başarısız: ${details}`);
     }
   }
@@ -528,7 +544,6 @@ export class MySoftService {
         };
       });
     } catch (error: any) {
-      console.error("MySoft Inbox Sync Error:", error.message);
       throw new Error(`Gelen faturalar senkronize edilemedi: ${error.message}`);
     }
   }

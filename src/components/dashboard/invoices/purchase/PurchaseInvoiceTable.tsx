@@ -325,28 +325,40 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                            </div>
                         )}
                       </td>
-                      <td className="px-3 py-2.5 text-xs font-medium text-slate-700">
-                        {invoice.company_id && onViewTransactions ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const foundComp = (companies || []).find((c: any) => String(c.id) === String(invoice.company_id));
-                              const compObj = foundComp || {
-                                id: invoice.company_id,
-                                title: invoice.company_name || invoice.supplier_name || 'Cari Hesap'
-                              };
-                              onViewTransactions(compObj);
-                            }}
-                            className="max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate font-semibold text-left text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer block"
-                            title={isTr ? "Cari hesap hareketlerini görüntüle" : "View company transactions"}
-                          >
-                            {invoice.company_name || invoice.supplier_name || '-'}
-                          </button>
-                        ) : (
-                          <div className="max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate font-semibold text-slate-700" title={invoice.company_name || invoice.supplier_name || '-'}>
-                            {invoice.company_name || invoice.supplier_name || '-'}
-                          </div>
-                        )}
+                      <td className="px-3 py-2.5 text-xs font-normal text-slate-700">
+                        {(() => {
+                          const displayName = invoice.company_name || invoice.supplier_name || '-';
+                          const invTax = (invoice.tax_number || invoice.supplier_tax_no || '').trim();
+                          const normDisplayName = displayName.trim().toLowerCase();
+                          const foundComp = (companies || []).find((c: any) => {
+                            if (invoice.company_id && String(c.id) === String(invoice.company_id)) return true;
+                            if (invTax && c.tax_number && String(c.tax_number).trim() === invTax) return true;
+                            if (normDisplayName && normDisplayName !== '-' && c.title && String(c.title).trim().toLowerCase() === normDisplayName) return true;
+                            return false;
+                          });
+                          const resolvedCompanyId = invoice.company_id || foundComp?.id;
+
+                          return resolvedCompanyId && onViewTransactions ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const compObj = foundComp || {
+                                  id: resolvedCompanyId,
+                                  title: displayName !== '-' ? displayName : 'Cari Hesap'
+                                };
+                                onViewTransactions(compObj);
+                              }}
+                              className="max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate font-normal text-left text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer block"
+                              title={isTr ? "Cari hesap hareketlerini görüntüle" : "View company transactions"}
+                            >
+                              {displayName}
+                            </button>
+                          ) : (
+                            <div className="max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate font-normal text-slate-700" title={displayName}>
+                              {displayName}
+                            </div>
+                          );
+                        })()}
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           {invoice.is_expense ? (
                             <>

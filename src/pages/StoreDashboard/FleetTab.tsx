@@ -857,7 +857,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
           <button
             key={tab.id}
             onClick={() => setActiveMainTab(tab.id as any)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-normal transition-all ${
               activeMainTab === tab.id
                 ? 'bg-white text-blue-600 shadow-2xs'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
@@ -1094,6 +1094,120 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         setFormData={setDriverFormData}
         handleSubmit={handleSubmitDriver}
       />
+
+      {showDriverDetailModal && selectedDriver && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 bg-slate-950/70 backdrop-blur-xs font-sans">
+          <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-slate-200 font-sans font-normal">
+            <div className="p-3.5 px-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center border border-blue-100">
+                  <UserCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-normal text-slate-900">{selectedDriver.name}</h3>
+                  <p className="text-xs font-normal text-slate-500">
+                    {lang === 'tr' ? 'Sürücü Detayları & Zimmet Geçmişi' : 'Driver Details & Assignment History'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDriverDetailModal(false)}
+                className="p-1.5 hover:bg-slate-200 rounded-lg transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-4 text-xs sm:text-sm font-normal">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200/70">
+                <div>
+                  <span className="text-xs text-slate-400 block">{lang === 'tr' ? 'Telefon' : 'Phone'}</span>
+                  <span className="text-slate-800">{selectedDriver.phone || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">{lang === 'tr' ? 'E-posta' : 'Email'}</span>
+                  <span className="text-slate-800 break-all">{selectedDriver.email || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">{lang === 'tr' ? 'T.C. / Kimlik No' : 'National ID'}</span>
+                  <span className="text-slate-800 font-mono">{selectedDriver.national_id || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">{lang === 'tr' ? 'Ehliyet Sınıfı & No' : 'License Class & No'}</span>
+                  <span className="text-slate-800">{[selectedDriver.license_class, selectedDriver.license_number].filter(Boolean).join(' • ') || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">{lang === 'tr' ? 'Kan Grubu' : 'Blood Type'}</span>
+                  <span className="text-slate-800">{selectedDriver.blood_type || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">{lang === 'tr' ? 'Durum' : 'Status'}</span>
+                  <span className="text-slate-800">{selectedDriver.status === 'active' ? (lang === 'tr' ? 'Aktif' : 'Active') : (lang === 'tr' ? 'Pasif' : 'Inactive')}</span>
+                </div>
+                {selectedDriver.address && (
+                  <div className="col-span-2 sm:col-span-3 pt-1 border-t border-slate-200/60">
+                    <span className="text-xs text-slate-400 block">{lang === 'tr' ? 'Adres' : 'Address'}</span>
+                    <span className="text-slate-800">{selectedDriver.address}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xs sm:text-sm font-normal text-slate-700">
+                  {lang === 'tr' ? 'Zimmetli Araçlar & Geçmiş' : 'Assigned Vehicles & History'}
+                </h4>
+                {driverAssignments.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    {lang === 'tr' ? 'Bu sürücüye ait zimmet kaydı bulunmuyor.' : 'No assignment records found for this driver.'}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                    {driverAssignments.map((a: any) => (
+                      <div key={a.id} className="p-3 bg-white flex items-center justify-between gap-3 text-xs">
+                        <div>
+                          <div className="text-slate-900">{a.plate || getVehiclePlate(a.vehicle_id)} {a.brand ? `• ${a.brand} ${a.model || ''}` : ''}</div>
+                          <div className="text-slate-500 mt-0.5">
+                            {safeFormatDate(a.start_date)} — {a.end_date ? safeFormatDate(a.end_date) : (lang === 'tr' ? 'Devam Ediyor' : 'Active')}
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-md text-xs border ${
+                          a.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}>
+                          {a.status === 'active' ? (lang === 'tr' ? 'Aktif Zimmet' : 'Active') : (lang === 'tr' ? 'İade Edildi' : 'Returned')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-3 px-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50/70">
+              {!isViewer && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDriverFormData(selectedDriver);
+                    setShowDriverDetailModal(false);
+                    setShowAddDriverModal(true);
+                  }}
+                  className="px-4 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-normal transition-colors cursor-pointer"
+                >
+                  {lang === 'tr' ? 'Sürücüyü Düzenle' : 'Edit Driver'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowDriverDetailModal(false)}
+                className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-normal text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                {lang === 'tr' ? 'Kapat' : 'Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <MaintenanceFormModal
         isOpen={showAddMaintenanceModal}

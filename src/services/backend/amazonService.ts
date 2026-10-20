@@ -42,6 +42,8 @@ export class AmazonService {
     return mp;
   }
 
+  private static lwaBackoffMap = new Map<string, number>();
+
   /**
    * Get LWA (Login with Amazon) Access Token using Refresh Token
    */
@@ -80,6 +82,12 @@ export class AmazonService {
       throw new Error("Amazon OAuth Refresh Token bulunamadı. Lütfen 'Tek Tıkla Amazon'dan Yetki Al (OAuth)' butonunu kullanarak mağazanızı yetkilendiriniz.");
     }
 
+    const cacheKey = `${this.storeId}:${clientId.trim().slice(0, 8)}:${refreshToken.trim().slice(0, 8)}`;
+    const backoffUntil = AmazonService.lwaBackoffMap.get(cacheKey);
+    if (backoffUntil && Date.now() < backoffUntil) {
+      return "AMAZON_UNAUTHORIZED_MOCK_TOKEN";
+    }
+
     const payload = {
       grant_type: "refresh_token",
       refresh_token: refreshToken.trim(),
@@ -91,6 +99,7 @@ export class AmazonService {
       const response = await axios.post(AMAZON_TOKEN_ENDPOINT, payload, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
+      AmazonService.lwaBackoffMap.delete(cacheKey);
       return response.data.access_token;
     } catch (err: any) {
       // Fallback to global endpoint if TR endpoint returns error
@@ -98,11 +107,11 @@ export class AmazonService {
         const fallbackRes = await axios.post(AMAZON_TOKEN_FALLBACK_ENDPOINT, payload, {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
         });
+        AmazonService.lwaBackoffMap.delete(cacheKey);
         return fallbackRes.data.access_token;
       } catch (fallbackErr: any) {
-        const msg = fallbackErr.response?.data?.error_description || fallbackErr.response?.data?.error || err.response?.data?.error_description || err.message;
-        console.warn(`[AmazonService] LWA Token retrieval warning (ignoring to prevent cron failure): ${msg}`);
-        // Return a dummy token if refresh token is not yet authorized so cron doesn't spam errors
+        // Back off for 60 minutes on client auth / token failure so background crons don't spam LWA
+        AmazonService.lwaBackoffMap.set(cacheKey, Date.now() + 60 * 60 * 1000);
         return "AMAZON_UNAUTHORIZED_MOCK_TOKEN";
       }
     }
@@ -748,6 +757,9 @@ export class AmazonService {
    */
   async updateListingsItem(sku: string, price: number, quantity: number, maxRetries = 3): Promise<{ success: boolean; sku: string; message?: string }> {
     const accessToken = await this.getAccessToken();
+    if (accessToken === "AMAZON_UNAUTHORIZED_MOCK_TOKEN") {
+      return { success: false, sku, message: "Amazon LWA yetkisi bekliyor." };
+    }
     const sellerId = this.settings.sellerId;
 
     if (!sellerId) {

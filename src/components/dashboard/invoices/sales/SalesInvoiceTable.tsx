@@ -49,6 +49,8 @@ interface SalesInvoiceTableProps {
   setPage: React.Dispatch<React.SetStateAction<number>>;
   products?: any[];
   onEditProduct?: (item: any) => void;
+  companies?: any[];
+  onViewTransactions?: (company: any) => void;
 }
 
 export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
@@ -72,7 +74,9 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   totalPages,
   setPage,
   products = [],
-  onEditProduct
+  onEditProduct,
+  companies = [],
+  onViewTransactions
 }) => {
   const [expandedRowIds, setExpandedRowIds] = useState<number[]>([]);
   const [itemsCache, setItemsCache] = useState<Record<number, any[]>>({});
@@ -273,7 +277,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           <button
                             type="button"
                             onClick={() => toggleRow(inv)}
-                            className="font-mono text-xs font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 px-1.5 py-0.5 rounded-md border border-indigo-200/70 truncate max-w-[145px] transition-colors cursor-pointer"
+                            className="font-mono text-xs font-normal text-indigo-700 hover:text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 px-1.5 py-0.5 rounded-md border border-indigo-200/70 truncate max-w-[145px] transition-colors cursor-pointer"
                             title={`#${inv.invoice_number}`}
                           >
                             #{inv.invoice_number}
@@ -327,12 +331,12 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               {isTr ? 'İPTAL EDİLDİ' : 'CANCELLED'}
                             </div>
                           ) : ['draft', 'taslak'].includes(rawStatus) ? (
-                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
+                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-normal bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
                               <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
                               {isTr ? 'TASLAK' : 'DRAFT'}
                             </div>
                           ) : ['approved', 'completed', 'onaylandi', 'onaylandı'].includes(rawStatus) ? (
-                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-normal bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                               <CheckCircle className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
                               {isTr ? 'ONAYLI' : 'APPROVED'}
                             </div>
@@ -401,32 +405,67 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                         })()}
                       </td>
                       <td className="px-2 py-2">
-                        <div className="flex items-start gap-1.5">
-                          {inv.company_id || (inv.tax_number && inv.tax_number.length === 10 && inv.tax_number !== '11111111111') ? (
-                            <Building2 className="h-3.5 w-3.5 text-indigo-500 shrink-0 mt-0.5" />
-                          ) : (
-                            <UserIcon className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
-                          )}
-                          <div className="min-w-0">
-                            <div 
-                              className="text-xs font-semibold text-slate-800 max-w-[150px] sm:max-w-[190px] lg:max-w-[240px] truncate"
-                              title={`${inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}${inv.tax_number ? ` (VKN/TC: ${inv.tax_number})` : ''}${inv.address ? ` - ${inv.address}` : ''}`}
-                            >
-                              {inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}
+                        {(() => {
+                          const displayName = inv.customer_name || inv.company_title || inv.sale_customer_name || '-';
+                          const invTax = (inv.tax_number || '').trim();
+                          const normDisplayName = displayName.trim().toLowerCase();
+                          const matchedCompany = (companies || []).find((c: any) => {
+                            if (inv.company_id && String(c.id) === String(inv.company_id)) return true;
+                            if (invTax && invTax !== '11111111111' && c.tax_number && String(c.tax_number).trim() === invTax) return true;
+                            if (normDisplayName && normDisplayName !== '-' && c.title && String(c.title).trim().toLowerCase() === normDisplayName) return true;
+                            return false;
+                          });
+                          const resolvedCompanyId = inv.company_id || matchedCompany?.id;
+
+                          return (
+                            <div className="flex items-start gap-1.5">
+                              {resolvedCompanyId || (inv.tax_number && inv.tax_number.length === 10 && inv.tax_number !== '11111111111') ? (
+                                <Building2 className="h-3.5 w-3.5 text-indigo-500 shrink-0 mt-0.5" />
+                              ) : (
+                                <UserIcon className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+                              )}
+                              <div className="min-w-0">
+                                {resolvedCompanyId && onViewTransactions ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const compObj = matchedCompany || {
+                                        id: resolvedCompanyId,
+                                        title: displayName !== '-' ? displayName : 'Cari Hesap',
+                                        tax_number: inv.tax_number,
+                                        tax_office: inv.tax_office
+                                      };
+                                      onViewTransactions(compObj);
+                                    }}
+                                    className="text-xs font-normal text-left text-indigo-600 hover:text-indigo-800 hover:underline max-w-[150px] sm:max-w-[190px] lg:max-w-[240px] truncate cursor-pointer block"
+                                    title={isTr ? `${displayName} — Cari hesap hareketlerini görüntüle` : `View company transactions: ${displayName}`}
+                                  >
+                                    {displayName}
+                                  </button>
+                                ) : (
+                                  <div 
+                                    className="text-xs font-normal text-slate-800 max-w-[150px] sm:max-w-[190px] lg:max-w-[240px] truncate"
+                                    title={`${displayName}${inv.tax_number ? ` (VKN/TC: ${inv.tax_number})` : ''}${inv.address ? ` - ${inv.address}` : ''}`}
+                                  >
+                                    {displayName}
+                                  </div>
+                                )}
+                                {inv.tax_number && inv.tax_number !== '11111111111' && (
+                                  <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1 mt-0.5">
+                                    <span className="font-normal text-slate-500">VKN/TC:</span> {inv.tax_number}
+                                    {inv.tax_office && <span className="truncate max-w-[90px]">({inv.tax_office})</span>}
+                                  </div>
+                                )}
+                                {(inv.address || inv.customer_address) && (inv.address || inv.customer_address) !== 'Amazon Türkiye Teslimat Adresi' && (
+                                  <div className="text-[10px] text-slate-500 truncate max-w-[160px] sm:max-w-[200px] lg:max-w-[240px] mt-0.5" title={inv.address || inv.customer_address}>
+                                    {inv.address || inv.customer_address}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            {inv.tax_number && inv.tax_number !== '11111111111' && (
-                              <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1 mt-0.5">
-                                <span className="font-medium text-slate-500">VKN/TC:</span> {inv.tax_number}
-                                {inv.tax_office && <span className="truncate max-w-[90px]">({inv.tax_office})</span>}
-                              </div>
-                            )}
-                            {(inv.address || inv.customer_address) && (inv.address || inv.customer_address) !== 'Amazon Türkiye Teslimat Adresi' && (
-                              <div className="text-[10px] text-slate-500 truncate max-w-[160px] sm:max-w-[200px] lg:max-w-[240px] mt-0.5" title={inv.address || inv.customer_address}>
-                                {inv.address || inv.customer_address}
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-2 py-2 text-right whitespace-nowrap">
                         <div className="text-xs font-medium text-slate-700 font-mono tabular-nums">

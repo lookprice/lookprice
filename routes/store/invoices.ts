@@ -611,8 +611,10 @@ router.get("/sales", async (req: any, res) => {
 
     let query = `
        SELECT si.*, 
+             COALESCE(si.company_id, comp_match.id) as company_id,
              COALESCE(
                NULLIF(c.title, 'Bireysel Web Müşterisi'),
+               NULLIF(comp_match.title, 'Bireysel Web Müşterisi'),
                NULLIF(NULLIF(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
                NULLIF(NULLIF(NULLIF(cust.full_name, ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
                NULLIF(NULLIF(s.customer_name, ''), 'Amazon Müşterisi'),
@@ -624,6 +626,7 @@ router.get("/sales", async (req: any, res) => {
              ) as company_title,
              COALESCE(
                NULLIF(c.title, 'Bireysel Web Müşterisi'),
+               NULLIF(comp_match.title, 'Bireysel Web Müşterisi'),
                NULLIF(NULLIF(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
                NULLIF(NULLIF(NULLIF(cust.full_name, ''), 'Amazon Müşterisi'), 'Bireysel Web Müşterisi'),
                NULLIF(NULLIF(s.customer_name, ''), 'Amazon Müşterisi'),
@@ -635,7 +638,7 @@ router.get("/sales", async (req: any, res) => {
              s.customer_name as sale_customer_name,
              s.status as sale_status,
              s.cancellation_reason as sale_cancellation_reason,
-             COALESCE(NULLIF(si.tax_number, ''), c.tax_number, cust.tc_id, cust.tax_number, '11111111111') as resolved_tax_number,
+             COALESCE(NULLIF(si.tax_number, ''), c.tax_number, comp_match.tax_number, cust.tc_id, cust.tax_number, '11111111111') as resolved_tax_number,
              cust.address as customer_address,
              cust.city as customer_city,
              cust.phone as customer_phone,
@@ -661,6 +664,23 @@ router.get("/sales", async (req: any, res) => {
       LEFT JOIN companies c ON si.company_id = c.id 
       LEFT JOIN customers cust ON si.customer_id = cust.id
       LEFT JOIN sales s ON si.sale_id = s.id
+      LEFT JOIN LATERAL (
+        SELECT cm.id, cm.title, cm.tax_number
+        FROM companies cm
+        WHERE cm.store_id = si.store_id
+          AND si.company_id IS NULL
+          AND (
+            (COALESCE(NULLIF(TRIM(si.tax_number), ''), NULLIF(TRIM(cust.tax_number), ''), NULLIF(TRIM(cust.tc_id), '')) IS NOT NULL
+             AND COALESCE(NULLIF(TRIM(si.tax_number), ''), NULLIF(TRIM(cust.tax_number), ''), NULLIF(TRIM(cust.tc_id), '')) NOT IN ('11111111111', '2222222222')
+             AND TRIM(cm.tax_number) = COALESCE(NULLIF(TRIM(si.tax_number), ''), NULLIF(TRIM(cust.tax_number), ''), NULLIF(TRIM(cust.tc_id), '')))
+            OR (
+              COALESCE(NULLIF(TRIM(si.company_title), ''), NULLIF(TRIM(si.customer_name), ''), NULLIF(TRIM(cust.full_name), '')) IS NOT NULL
+              AND LOWER(TRIM(cm.title)) = LOWER(COALESCE(NULLIF(TRIM(si.company_title), ''), NULLIF(TRIM(si.customer_name), ''), NULLIF(TRIM(cust.full_name), '')))
+            )
+          )
+        ORDER BY cm.id ASC
+        LIMIT 1
+      ) comp_match ON true
       WHERE si.store_id = $1
     `;
     const params: any[] = [storeId];

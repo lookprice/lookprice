@@ -372,7 +372,6 @@ export async function syncN11Orders(client: any, storeId: number, settings: any,
 
         return detailedOrders;
     } catch (e: any) {
-        console.warn("[N11 Sync Error / Fallback]:", e?.message || e);
         if (e?.response?.status === 404 || e?.message?.includes('404')) {
             return syncN11OrdersREST(client, storeId, settings);
         }

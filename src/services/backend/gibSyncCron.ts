@@ -20,12 +20,18 @@ export async function runGibSyncCron(): Promise<void> {
       "SELECT vkn FROM official_taxpayer_cache WHERE alias IS NULL OR TRIM(alias) = '' OR alias = 'urn:mail:defaultpk' LIMIT 20"
     );
     
+    const validActiveStoreQuery = `
+      SELECT id FROM stores 
+      WHERE einvoice_settings IS NOT NULL 
+        AND (einvoice_settings->>'is_active')::boolean = true
+        AND COALESCE(branding->>'is_demo', 'false') != 'true'
+        AND COALESCE(NULLIF(TRIM(einvoice_settings->>'username'), ''), NULLIF(TRIM(einvoice_settings->>'earchive_username'), '')) IS NOT NULL
+        AND COALESCE(NULLIF(TRIM(einvoice_settings->>'password'), ''), NULLIF(TRIM(einvoice_settings->>'api_token'), '')) IS NOT NULL
+      ORDER BY id ASC LIMIT 1
+    `;
+
     if (invalidCache.rows.length > 0) {
-      console.log(`[GİB-CRON] Found ${invalidCache.rows.length} invalid/empty taxpayer cache entries. Re-validating with MySoft...`);
-      
-      const activeStore = await pool.query(
-        "SELECT id FROM stores WHERE einvoice_settings IS NOT NULL AND (einvoice_settings->>'is_active')::boolean = true LIMIT 1"
-      );
+      const activeStore = await pool.query(validActiveStoreQuery);
       
       if (activeStore.rows.length > 0) {
         const storeId = activeStore.rows[0].id;
@@ -39,13 +45,11 @@ export async function runGibSyncCron(): Promise<void> {
                 "UPDATE official_taxpayer_cache SET taxpayer_title = $1, alias = $2, last_updated = NOW() WHERE vkn = $3",
                 [check.title || '', check.alias, row.vkn]
               );
-              console.log(`[GİB-CRON] Successfully refreshed taxpayer ${row.vkn} with alias: ${check.alias}`);
-            } else {
+            } else if (check && check.documentType !== 'UNKNOWN') {
               await pool.query("DELETE FROM official_taxpayer_cache WHERE vkn = $1", [row.vkn]);
-              console.log(`[GİB-CRON] Removed dead cache entry for VKN ${row.vkn}`);
             }
           } catch (err: any) {
-            console.warn(`[GİB-CRON] Failed to refresh VKN ${row.vkn}:`, err.message);
+            // ignore background cache refresh error
           }
         }
       }
@@ -56,9 +60,7 @@ export async function runGibSyncCron(): Promise<void> {
       "SELECT vkn FROM official_taxpayer_cache WHERE last_updated < NOW() - INTERVAL '15 days' LIMIT 10"
     );
     if (staleCache.rows.length > 0) {
-      const activeStore = await pool.query(
-        "SELECT id FROM stores WHERE einvoice_settings IS NOT NULL AND (einvoice_settings->>'is_active')::boolean = true LIMIT 1"
-      );
+      const activeStore = await pool.query(validActiveStoreQuery);
       if (activeStore.rows.length > 0) {
         const service = await getEInvoiceService(activeStore.rows[0].id);
         for (const row of staleCache.rows) {
@@ -89,7 +91,6 @@ export async function runGibSyncCron(): Promise<void> {
     );
 
     if (pendingInvoices.rows.length > 0) {
-      console.log(`[GİB-CRON] Checking status for ${pendingInvoices.rows.length} pending e-invoices...`);
       for (const inv of pendingInvoices.rows) {
         try {
           const service = await getEInvoiceService(inv.store_id);
@@ -101,10 +102,9 @@ export async function runGibSyncCron(): Promise<void> {
                WHERE id = $3`,
               [statusResult.status, statusResult.message || '', inv.id]
             );
-            console.log(`[GİB-CRON] Invoice #${inv.id} (${inv.document_number}) updated: ${statusResult.status}`);
           }
         } catch (err: any) {
-          console.warn(`[GİB-CRON] Invoice #${inv.id} status check error:`, err.message);
+          // ignore status check error during background cron
         }
       }
     }
@@ -112,7 +112,12 @@ export async function runGibSyncCron(): Promise<void> {
     // 4. ADIM: Otomatik Gelen Alış Faturaları Arka Plan Senkronizasyonu (Son 90 Gün - Kaçırılan Faturaları Önleme)
     try {
       const activeStoresForInbox = await pool.query(
-        "SELECT id FROM stores WHERE einvoice_settings IS NOT NULL AND (einvoice_settings->>'is_active')::boolean = true"
+        `SELECT id, einvoice_settings, branding FROM stores 
+         WHERE einvoice_settings IS NOT NULL 
+           AND (einvoice_settings->>'is_active')::boolean = true
+           AND COALESCE(branding->>'is_demo', 'false') != 'true'
+           AND COALESCE(NULLIF(TRIM(einvoice_settings->>'username'), ''), NULLIF(TRIM(einvoice_settings->>'earchive_username'), '')) IS NOT NULL
+           AND COALESCE(NULLIF(TRIM(einvoice_settings->>'password'), ''), NULLIF(TRIM(einvoice_settings->>'api_token'), '')) IS NOT NULL`
       );
       if (activeStoresForInbox.rows.length > 0) {
         const endDateStr = new Date().toISOString().split('T')[0];
@@ -138,18 +143,20 @@ export async function runGibSyncCron(): Promise<void> {
               }
             }
           } catch (storeSyncErr: any) {
-            console.warn(`[GİB-CRON] Auto-sync purchase invoices error for store ${st.id}:`, storeSyncErr.message);
+            const msg = String(storeSyncErr?.message || '');
+            if (!msg.includes('kimlik doğrulaması başarısız') && !msg.includes('Kullanıcı tanımsızdır') && !msg.includes('tanımlanmamış')) {
+              console.info(`[GİB-CRON] Store ${st.id} sync skipped:`, msg);
+            }
           }
         }
       }
     } catch (cronInboxErr: any) {
-      console.warn(`[GİB-CRON] Background purchase invoice sync cron warning:`, cronInboxErr.message);
+      // ignore background inbox check issues
     }
 
     console.log('[GİB-CRON] Synchronization cycle finished successfully.');
     await logAudit(storeId, null, 'GIB_SYNC_SUCCESS', 'SYSTEM', null, 'Cron job finished successfully');
   } catch (globalErr: any) {
-    console.error('[GİB-CRON] Global error in GİB sync cron:', globalErr);
     await logAudit(storeId, null, 'GIB_SYNC_ERROR', 'SYSTEM', null, `Cron error: ${globalErr.message}`);
   }
 }

@@ -1446,6 +1446,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   lang={lang} 
                   api={api} 
                   branding={branding} 
+                  companies={companyList}
+                  onViewTransactions={(c: any) => { setSelectedCompany(c); setShowTransactionModal(true); }}
                   onFetchDetails={handleFetchSalesInvoiceDetails}
                   products={products}
                   onEditProduct={(item: any) => {

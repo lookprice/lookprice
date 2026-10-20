@@ -81,6 +81,10 @@ export function startCronJobs() {
   console.log("Cron jobs started.");
 }
 
+const n11AuthBackoffStores = new Map<number, number>();
+const hbAuthBackoffStores = new Map<number, number>();
+const HB_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Periodically syncs Hepsiburada orders for all configured stores
  */
@@ -97,6 +101,10 @@ export async function syncHepsiburadaOrdersCron() {
         if (typeof branding === 'string') {
           try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
         }
+        if (branding?.is_demo === true || branding?.is_demo === 'true') continue;
+
+        const backoffUntil = hbAuthBackoffStores.get(store.id);
+        if (backoffUntil && Date.now() < backoffUntil) continue;
 
         if (!settings || !settings.merchantId) {
           settings = branding?.hepsiburada_settings || settings || {};
@@ -106,8 +114,8 @@ export async function syncHepsiburadaOrdersCron() {
         const apiSecret = String(settings?.apiSecret || "").trim();
         const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
 
-        // Only sync if credentials are configured
-        if (merchantId && apiSecret) {
+        // Only sync if credentials are configured and merchantId is a valid UUID
+        if (merchantId && HB_UUID_REGEX.test(merchantId) && apiSecret) {
           const cleanSettings = {
             ...settings,
             merchantId,
@@ -117,20 +125,20 @@ export async function syncHepsiburadaOrdersCron() {
           };
 
           const hbService = new HepsiburadaService(cleanSettings, store.id);
-          const { syncedCount, errors } = await hbService.syncOrdersToDatabase({ timespan: 30 });
+          const { syncedCount } = await hbService.syncOrdersToDatabase({ timespan: 30 });
           if (syncedCount > 0) {
             console.log(`[CRON-HB] Store #${store.id} (${store.name}): ${syncedCount} yeni Hepsiburada siparişi başarıyla çekildi ve sisteme işlendi.`);
           }
-          if (errors && errors.length > 0) {
-            console.warn(`[CRON-HB] Store #${store.id} sipariş senkronizasyonunda bazı uyarılar:`, errors.map((e: any) => e.message || e));
-          }
         }
       } catch (storeErr: any) {
-        console.error(`[CRON-HB] Store #${store.id} senkronizasyon hatası:`, storeErr.message || storeErr);
+        const msg = String(storeErr?.message || storeErr || '');
+        if (msg.includes('401') || msg.includes('403') || msg.includes('Merchant ID')) {
+          hbAuthBackoffStores.set(store.id, Date.now() + 60 * 60 * 1000);
+        }
       }
     }
   } catch (err: any) {
-    console.error("[CRON-HB] Genel Hepsiburada sipariş senkronizasyonu hatası:", err.message || err);
+    // ignore background cron query issues
   }
 }
 
@@ -150,6 +158,10 @@ export async function syncN11OrdersCron() {
         if (typeof branding === 'string') {
           try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
         }
+        if (branding?.is_demo === true || branding?.is_demo === 'true') continue;
+
+        const backoffUntil = n11AuthBackoffStores.get(store.id);
+        if (backoffUntil && Date.now() < backoffUntil) continue;
 
         if (!settings || !settings.appKey || !settings.appSecret) {
           settings = branding?.n11_settings || settings || {};
@@ -166,6 +178,7 @@ export async function syncN11OrdersCron() {
           };
 
           const { syncedCount, newOrdersCount } = await syncStoreN11OrdersToDatabase(store.id, cleanSettings, 30);
+          n11AuthBackoffStores.delete(store.id);
           if (newOrdersCount > 0) {
             console.log(`[CRON-N11] Store #${store.id} (${store.name}): ${newOrdersCount} yeni N11 siparişi (toplam ${syncedCount}) başarıyla çekildi ve sisteme işlendi.`);
           }
@@ -173,14 +186,13 @@ export async function syncN11OrdersCron() {
       } catch (storeErr: any) {
         const errMsg = storeErr.message || String(storeErr);
         if (errMsg.includes("403") || errMsg.includes("401") || errMsg.includes("Forbidden") || errMsg.includes("Unauthorized")) {
-          console.warn(`[CRON-N11] Store #${store.id} yetkilendirme uyarısı (403/401): API anahtarları geçersiz veya yetkisiz (${errMsg}).`);
-        } else {
-          console.error(`[CRON-N11] Store #${store.id} senkronizasyon hatası:`, errMsg);
+          // Back off for 60 minutes for stores with unauthorized/invalid N11 keys
+          n11AuthBackoffStores.set(store.id, Date.now() + 60 * 60 * 1000);
         }
       }
     }
   } catch (err: any) {
-    console.error("[CRON-N11] Genel N11 sipariş senkronizasyonu hatası:", err.message || err);
+    // ignore background cron query issues
   }
 }
 
@@ -200,6 +212,10 @@ export async function syncHepsiburadaPendingAndListingsCron() {
         if (typeof branding === 'string') {
           try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
         }
+        if (branding?.is_demo === true || branding?.is_demo === 'true') continue;
+
+        const backoffUntil = hbAuthBackoffStores.get(store.id);
+        if (backoffUntil && Date.now() < backoffUntil) continue;
 
         if (!settings || !settings.merchantId) {
           settings = branding?.hepsiburada_settings || settings || {};
@@ -209,7 +225,7 @@ export async function syncHepsiburadaPendingAndListingsCron() {
         const apiSecret = String(settings?.apiSecret || "").trim();
         const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
 
-        if (merchantId && apiSecret) {
+        if (merchantId && HB_UUID_REGEX.test(merchantId) && apiSecret) {
           const cleanSettings = {
             ...settings,
             merchantId,
@@ -226,11 +242,14 @@ export async function syncHepsiburadaPendingAndListingsCron() {
           }
         }
       } catch (storeErr: any) {
-        console.warn(`[CRON-HB] Store #${store.id} ilan/onay senkronizasyon uyarısı:`, storeErr.message || storeErr);
+        const msg = String(storeErr?.message || storeErr || '');
+        if (msg.includes('401') || msg.includes('403') || msg.includes('Merchant ID')) {
+          hbAuthBackoffStores.set(store.id, Date.now() + 60 * 60 * 1000);
+        }
       }
     }
   } catch (err: any) {
-    console.error("[CRON-HB] Genel Hepsiburada ilan senkronizasyon hatası:", err.message || err);
+    // ignore background cron query issues
   }
 }
 
@@ -324,7 +343,12 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
     }
 
     // 1. Hepsiburada Price & Stock Push
-    if (hbSettings?.merchantId && hbSettings?.apiSecret) {
+    if (
+      hbSettings?.merchantId &&
+      hbSettings?.apiSecret &&
+      HB_UUID_REGEX.test(String(hbSettings.merchantId).trim()) &&
+      (!hbAuthBackoffStores.get(storeId) || Date.now() >= hbAuthBackoffStores.get(storeId)!)
+    ) {
       try {
         const hbService = new HepsiburadaService(hbSettings, storeId);
         
@@ -466,7 +490,11 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
       n11Settings = store.branding?.n11_settings || n11Settings || {};
     }
 
-    if (n11Settings?.appKey && n11Settings?.appSecret) {
+    if (
+      n11Settings?.appKey &&
+      n11Settings?.appSecret &&
+      (!n11AuthBackoffStores.get(storeId) || Date.now() >= n11AuthBackoffStores.get(storeId)!)
+    ) {
       try {
         const { N11Service } = await import("./backend/n11Service.js");
         const auth = { appKey: n11Settings.appKey.trim(), appSecret: n11Settings.appSecret.trim() };
@@ -516,6 +544,10 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
                 mpData.n11.lastError = null;
               } else {
                 mpData.n11.lastError = n11Res.message;
+                if (n11Res.message?.includes('403') || n11Res.message?.includes('401') || n11Res.message?.includes('Unauthorized')) {
+                  n11AuthBackoffStores.set(storeId, Date.now() + 6 * 60 * 60 * 1000);
+                  break;
+                }
               }
               await pool.query(
                 "UPDATE products SET marketplace_data = $1 WHERE id = $2",
@@ -523,12 +555,15 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
               );
             }
           } catch (n11Err: any) {
-            console.warn(`[CRON-CURRENCY-N11] Product #${p.id} update error:`, n11Err.message);
+            if (n11Err.message?.includes('403') || n11Err.message?.includes('401')) {
+              n11AuthBackoffStores.set(storeId, Date.now() + 6 * 60 * 60 * 1000);
+              break;
+            }
           }
         }
         console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): N11 ${n11ProductsRes.rows.length} ürünün fiyat ve stoğu güncellendi.`);
       } catch (n11InitErr: any) {
-        console.warn(`[CRON-CURRENCY-N11] N11 sync init error:`, n11InitErr.message);
+        // Ignore N11 init warning in background cron
       }
     }
 
@@ -608,6 +643,8 @@ export async function syncAmazonOrdersCron() {
           try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
         }
 
+        if (branding?.is_demo === true || branding?.is_demo === 'true') continue;
+
         if (!settings || (!settings.refresh_token && !settings.refreshToken)) {
           settings = branding?.amazon_settings || settings || {};
         }
@@ -615,16 +652,13 @@ export async function syncAmazonOrdersCron() {
         const refreshToken = (settings?.refresh_token || settings?.refreshToken || "").trim();
         if (refreshToken) {
           const amzService = new AmazonService(settings, store.id);
-          const { syncedCount, errors } = await amzService.syncOrdersToDatabase({ days: 30 });
+          const { syncedCount } = await amzService.syncOrdersToDatabase({ days: 30 });
           if (syncedCount > 0) {
             console.log(`[CRON-AMZ] Store #${store.id} (${store.name}): ${syncedCount} yeni Amazon siparişi başarıyla çekildi ve sisteme işlendi.`);
           }
-          if (errors && errors.length > 0) {
-            console.warn(`[CRON-AMZ] Store #${store.id} Amazon sipariş senkronizasyonunda bazı uyarılar:`, errors.map((e: any) => e.error || e.message || e));
-          }
         }
       } catch (storeErr: any) {
-        console.error(`[CRON-AMZ] Store #${store.id} senkronizasyon hatası:`, storeErr.message || storeErr);
+        // Ignore individual store sync errors during background cron
       }
     }
   } catch (err: any) {

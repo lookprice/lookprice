@@ -55,7 +55,7 @@ import { SalesInvoiceFormModal } from "./dashboard/invoices/sales/SalesInvoiceFo
 import { SalesInvoiceWaybillModal } from "./dashboard/invoices/sales/SalesInvoiceWaybillModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
-export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, initialData, onCloseInitialData, products: propProducts, onEditProduct }: any) {
+export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, companies: propCompanies, onViewTransactions, onSave, initialData, onCloseInitialData, products: propProducts, onEditProduct }: any) {
   const storeId = initialStoreId || currentStoreId;
   const isTr = lang === 'tr';
   const isTrBoolean = isTr;
@@ -439,7 +439,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       const [invRes, custRes, compRes, prodRes] = await Promise.all([
         api.getSalesInvoices(role === 'superadmin' ? storeId : undefined, searchStr, sDate || startDate, eDate || endDate),
         api.getCustomers(role === 'superadmin' ? storeId : undefined),
-        api.getCompanies(false, role === 'superadmin' ? storeId : undefined),
+        api.getCompanies(true, role === 'superadmin' ? storeId : undefined),
         api.getProducts("", role === 'superadmin' ? storeId : undefined)
       ]);
       setInvoices(Array.isArray(invRes) ? invRes : []);
@@ -1226,7 +1226,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         <button
           type="button"
           onClick={() => setShowStats(!showStats)}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-300 shadow-2xs transition-all cursor-pointer select-none"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-300 shadow-2xs transition-all cursor-pointer select-none"
         >
           <Percent className="w-3.5 h-3.5 text-indigo-500" />
           <span>{isTr ? "Finansal Göstergeler & KDV Özeti" : "Financial Summary & VAT"}</span>
@@ -1295,7 +1295,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
               resetForm();
               setShowModal(true);
             }}
-            className="flex-1 md:flex-none px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 flex items-center justify-center gap-1.5 cursor-pointer"
+            className="flex-1 md:flex-none px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             {isTr ? "Fatura Ekle" : "Add Invoice"}
@@ -1308,7 +1308,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           <button
             type="button"
             onClick={() => { setStatusFilter('all'); setPage(1); }}
-            className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition-all cursor-pointer ${
               statusFilter === 'all' 
                 ? 'bg-slate-800 text-white shadow-xs' 
                 : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
@@ -1320,7 +1320,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           <button
             type="button"
             onClick={() => { setStatusFilter(statusFilter === 'not_sent' ? 'all' : 'not_sent'); setPage(1); }}
-            className={`px-2.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+            className={`px-2.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
               statusFilter === 'not_sent' 
                 ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-500' 
                 : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
@@ -1330,7 +1330,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             <CloudOff className="h-4 w-4 shrink-0" />
             <span className="font-semibold">{isTr ? "Gönderilmedi" : "Not Sent"}</span>
             {notSentCount > 0 && (
-              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-bold ${
+              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-medium ${
                 statusFilter === 'not_sent' ? 'bg-white/25 text-white' : 'bg-blue-100 text-blue-800'
               }`}>
                 {notSentCount}
@@ -1340,7 +1340,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           <button
             type="button"
             onClick={() => { setStatusFilter(statusFilter === 'draft' ? 'all' : 'draft'); setPage(1); }}
-            className={`px-2.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+            className={`px-2.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
               statusFilter === 'draft' 
                 ? 'bg-amber-600 text-white border-amber-600 shadow-xs ring-1 ring-amber-500' 
                 : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50 hover:border-amber-300'
@@ -1350,7 +1350,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             <Clock className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline font-semibold">{isTr ? "Taslak" : "Draft"}</span>
             {draftCount > 0 && (
-              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-bold ${
+              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-medium ${
                 statusFilter === 'draft' ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-800'
               }`}>
                 {draftCount}
@@ -1360,7 +1360,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           <button
             type="button"
             onClick={() => { setStatusFilter(statusFilter === 'rejected' ? 'all' : 'rejected'); setPage(1); }}
-            className={`px-2.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+            className={`px-2.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
               statusFilter === 'rejected' 
                 ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-1 ring-rose-500' 
                 : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 hover:border-rose-300'
@@ -1370,7 +1370,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             <XCircle className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline font-semibold">{isTr ? "İptal / Hata" : "Cancelled"}</span>
             {rejectedCount > 0 && (
-              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-bold ${
+              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-medium ${
                 statusFilter === 'rejected' ? 'bg-white/25 text-white' : 'bg-rose-100 text-rose-800'
               }`}>
                 {rejectedCount}
@@ -1382,7 +1382,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             <button
               type="button"
               onClick={() => { setStatusFilter('all'); setMarketplaceFilter('all'); setPage(1); }}
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded-xl transition-all cursor-pointer ml-1"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded-xl transition-all cursor-pointer ml-1"
               title={isTr ? "Tüm Filtreleri Temizle" : "Clear All Filters"}
             >
               <X className="w-3 h-3 text-slate-400" />
@@ -1396,7 +1396,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
               <button
                 type="button"
                 onClick={() => setMarketplaceDropdownOpen(!marketplaceDropdownOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-xl shadow-2xs transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 text-slate-800 dark:text-slate-100 font-medium text-xs rounded-xl shadow-2xs transition-all cursor-pointer"
               >
                 {marketplaceFilter === 'all' && <Store className="w-3.5 h-3.5 text-indigo-500" />}
                 {marketplaceFilter === 'web' && <Globe className="w-3.5 h-3.5 text-blue-500" />}
@@ -1424,7 +1424,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                   <button
                     type="button"
                     onClick={() => { setMarketplaceFilter('all'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'all' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'all' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
                   >
                     <div className="flex items-center gap-2.5">
                       <div className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
@@ -1438,7 +1438,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                   <button
                     type="button"
                     onClick={() => { setMarketplaceFilter('web'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'web' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'web' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
                   >
                     <div className="flex items-center gap-2.5">
                       <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
@@ -1453,7 +1453,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                     <button
                       type="button"
                       onClick={() => { setMarketplaceFilter('trendyol'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'trendyol' ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'trendyol' ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="w-6 h-6 rounded-lg bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center">
@@ -1469,7 +1469,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                     <button
                       type="button"
                       onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'hepsiburada' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'hepsiburada' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
@@ -1485,7 +1485,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                     <button
                       type="button"
                       onClick={() => { setMarketplaceFilter('amazon'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'amazon' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'amazon' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="w-6 h-6 rounded-lg bg-amber-200/60 dark:bg-amber-900/60 flex items-center justify-center">
@@ -1501,7 +1501,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                     <button
                       type="button"
                       onClick={() => { setMarketplaceFilter('n11'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'n11' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'n11' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="w-6 h-6 rounded-lg bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
@@ -1517,7 +1517,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                     <button
                       type="button"
                       onClick={() => { setMarketplaceFilter('pazarama'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'pazarama' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'pazarama' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
@@ -1557,6 +1557,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         setPage={setPage}
         products={propProducts || products}
         onEditProduct={onEditProduct}
+        companies={propCompanies && propCompanies.length > 0 ? propCompanies : companies}
+        onViewTransactions={onViewTransactions}
       />
 
       <SalesInvoiceFormModal 
@@ -1731,21 +1733,21 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[130] bg-slate-900 border border-slate-800 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-6"
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-black">{selectedIds.length}</span>
-              <span className="text-sm font-bold text-slate-300">{isTr ? "Seçili Fatura" : "Selected Invoices"}</span>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-medium">{selectedIds.length}</span>
+              <span className="text-sm font-medium text-slate-300">{isTr ? "Seçili Fatura" : "Selected Invoices"}</span>
             </div>
             <div className="h-5 w-px bg-slate-800" />
             <div className="flex items-center gap-2">
               <button
                 onClick={handleBulkPrint}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-medium transition-all flex items-center gap-2"
               >
                 <Printer className="h-4 w-4" />
                 {isTr ? "SEÇİLENLERİ YAZDIR" : "PRINT SELECTED"}
               </button>
               <button
                 onClick={handleExportExcel}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-medium transition-all flex items-center gap-2"
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 {isTr ? "EXCEL AKTAR" : "EXPORT EXCEL"}
@@ -1768,32 +1770,32 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             <div key={invoice.id} className="mb-12 border-b-2 border-dashed border-slate-300 pb-12" style={{ pageBreakAfter: 'always' }}>
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-900">{branding?.store_name || "Seçkin Mağaza"}</h1>
+                  <h1 className="text-2xl font-medium tracking-tight text-slate-900">{branding?.store_name || "Seçkin Mağaza"}</h1>
                   <p className="text-xs text-slate-500 mt-1">{isTr ? 'Satış Faturası' : 'Sales Invoice'}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-slate-900">{invoice.invoice_number}</p>
+                  <p className="text-sm font-medium text-slate-900">{invoice.invoice_number}</p>
                   <p className="text-xs text-slate-500">{formatDateTR(invoice.invoice_date)}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-8 mb-8 text-xs">
                 <div>
-                  <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'ALICI (MÜŞTERİ)' : 'CUSTOMER'}</p>
-                  <p className="font-bold text-slate-800 text-sm">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name}</p>
+                  <p className="font-medium text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'ALICI (MÜŞTERİ)' : 'CUSTOMER'}</p>
+                  <p className="font-medium text-slate-800 text-sm">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name}</p>
                   <p className="text-slate-500 mt-1">{invoice.customer_address || invoice.company_address || '-'}</p>
                   {invoice.tax_number && <p className="text-slate-500 mt-1">{isTr ? "VKN/TCKN:" : "Tax ID:"} {invoice.tax_number}</p>}
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'FATURA DETAYI' : 'DETAILS'}</p>
-                  <p className="text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency}</p>
-                  <p className="text-slate-600"><span className="font-bold">{isTr ? 'Ödeme Yöntemi:' : 'Payment:'}</span> {invoice.payment_method}</p>
+                  <p className="font-medium text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'FATURA DETAYI' : 'DETAILS'}</p>
+                  <p className="text-slate-600"><span className="font-medium">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency}</p>
+                  <p className="text-slate-600"><span className="font-medium">{isTr ? 'Ödeme Yöntemi:' : 'Payment:'}</span> {invoice.payment_method}</p>
                 </div>
               </div>
 
               <table className="w-full text-left text-xs border-collapse border border-slate-200 mb-8">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-500 uppercase font-black border-b border-slate-200">
+                  <tr className="bg-slate-50 text-slate-500 uppercase font-medium border-b border-slate-200">
                     <th className="p-2 border border-slate-200">{isTr ? 'Ürün/Hizmet' : 'Product/Service'}</th>
                     <th className="p-2 border border-slate-200 text-center">{isTr ? 'Miktar' : 'Qty'}</th>
                     <th className="p-2 border border-slate-200 text-right">{isTr ? 'Birim Fiyat' : 'Price'}</th>
@@ -1808,7 +1810,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                       <td className="p-2 border border-slate-200 text-center">{item.quantity}</td>
                       <td className="p-2 border border-slate-200 text-right">{Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>
                       <td className="p-2 border border-slate-200 text-center">%{item.tax_rate}</td>
-                      <td className="p-2 border border-slate-200 text-right font-bold">
+                      <td className="p-2 border border-slate-200 text-right font-medium">
                         {(() => {
                           const qty = Number(item.quantity) || 1;
                           const unitPrice = Number(item.unit_price) || 0;
@@ -1827,7 +1829,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
 
               <div className="flex justify-between items-start text-xs">
                 <div className="max-w-md italic text-slate-500">
-                  {invoice.notes && <p className="mb-2"><span className="font-bold">{isTr ? 'Not:' : 'Note:'}</span> {invoice.notes}</p>}
+                  {invoice.notes && <p className="mb-2"><span className="font-medium">{isTr ? 'Not:' : 'Note:'}</span> {invoice.notes}</p>}
                 </div>
                 <div className="w-64 space-y-1.5 text-right font-semibold">
                   <div className="flex justify-between text-slate-500">
@@ -1838,7 +1840,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                     <span>{isTr ? 'KDV Toplam' : 'VAT Total'}</span>
                     <span>{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
                   </div>
-                  <div className="flex justify-between text-sm font-bold border-t border-slate-200 pt-2 text-indigo-600">
+                  <div className="flex justify-between text-sm font-medium border-t border-slate-200 pt-2 text-indigo-600">
                     <span>{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
                     <span>{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
                   </div>
@@ -1865,7 +1867,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                     <Truck className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">
+                    <h3 className="text-lg font-medium text-slate-900">
                       {isTr ? "Kargo Bildirimi (Pazar Yeri)" : "Marketplace Shipment"}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium">{selectedMarketplaceInv.invoice_number}</p>
@@ -1881,7 +1883,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
 
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5 uppercase tracking-wide">
                     {isTr ? "Kargo Firması (Carrier Code)" : "Carrier Code"}
                   </label>
                   <input
@@ -1893,7 +1895,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5 uppercase tracking-wide">
                     {isTr ? "Takip Numarası" : "Tracking Number"}
                   </label>
                   <input
@@ -1920,14 +1922,14 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
               <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
                 <button
                   onClick={() => setShowMarketplaceShipModal(false)}
-                  className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-all"
+                  className="px-5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-xl transition-all"
                 >
                   {isTr ? "İptal" : "Cancel"}
                 </button>
                 <button
                   onClick={submitMarketplaceShipment}
                   disabled={shippingSubmitting || !carrierCode || !trackingNumber}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all flex items-center gap-2"
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white text-sm font-medium rounded-xl shadow-lg shadow-emerald-200 transition-all flex items-center gap-2"
                 >
                   {shippingSubmitting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

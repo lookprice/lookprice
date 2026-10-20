@@ -2769,10 +2769,13 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
 });
 
 export const runGlobalEInvoiceSync = async () => {
-  console.log("[runGlobalEInvoiceSync] Triggering background sync for all active stores");
   try {
     const storesRes = await pool.query(
-      "SELECT id FROM stores WHERE einvoice_settings->>'is_active' = 'true'"
+      `SELECT id FROM stores 
+       WHERE einvoice_settings->>'is_active' = 'true'
+         AND COALESCE(branding->>'is_demo', 'false') != 'true'
+         AND COALESCE(NULLIF(TRIM(einvoice_settings->>'username'), ''), NULLIF(TRIM(einvoice_settings->>'earchive_username'), '')) IS NOT NULL
+         AND COALESCE(NULLIF(TRIM(einvoice_settings->>'password'), ''), NULLIF(TRIM(einvoice_settings->>'api_token'), '')) IS NOT NULL`
     );
     for (const store of storesRes.rows) {
       try {
@@ -2789,13 +2792,18 @@ export const runGlobalEInvoiceSync = async () => {
         const incomingInvoices = await service.getIncomingInvoices(startDate, endDate);
         
         const { importedCount, updatedCount } = await importIncomingInvoicesForStore(storeId, startDate, endDate, undefined, incomingInvoices);
-        console.log(`[runGlobalEInvoiceSync] Store ${storeId} finished: imported ${importedCount}, updated ${updatedCount}.`);
-      } catch (err) {
-         console.error(`[runGlobalEInvoiceSync] Error in store ${store.id}:`, err);
+        if (importedCount > 0 || updatedCount > 0) {
+          console.log(`[runGlobalEInvoiceSync] Store ${storeId} finished: imported ${importedCount}, updated ${updatedCount}.`);
+        }
+      } catch (err: any) {
+        const msg = String(err?.message || '');
+        if (!msg.includes('kimlik doğrulaması başarısız') && !msg.includes('Kullanıcı tanımsızdır') && !msg.includes('tanımlanmamış')) {
+          console.info(`[runGlobalEInvoiceSync] Store ${store.id} skipped:`, msg);
+        }
       }
     }
   } catch (err) {
-    console.error(`[runGlobalEInvoiceSync] Failed to query active stores:`, err);
+    // ignore background sync query issue
   }
 };
 
