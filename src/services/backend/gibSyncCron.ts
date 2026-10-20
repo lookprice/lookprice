@@ -1,5 +1,5 @@
 import { pool } from '../../../models/db';
-import { getEInvoiceService, processAndImportIncomingInvoiceList } from '../../../routes/einvoice';
+import { getEInvoiceService, importIncomingInvoicesForStore } from '../../../routes/einvoice';
 import { logAudit } from './auditService';
 
 /**
@@ -126,10 +126,11 @@ export async function runGibSyncCron(): Promise<void> {
             const service = await getEInvoiceService(storeId);
             const incoming = await service.getIncomingInvoices(startDateStr, endDateStr);
             if (Array.isArray(incoming) && incoming.length > 0) {
-              const { importedCount, updatedCount } = await processAndImportIncomingInvoiceList(
-                pool,
+              const { importedCount, updatedCount } = await importIncomingInvoicesForStore(
                 storeId,
-                service,
+                startDateStr,
+                endDateStr,
+                undefined,
                 incoming
               );
               if (importedCount > 0 || updatedCount > 0) {
