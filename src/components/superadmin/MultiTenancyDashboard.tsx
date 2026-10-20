@@ -50,6 +50,7 @@ export const MultiTenancyDashboard: React.FC<MultiTenancyDashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [sectorFilter, setSectorFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [tenantTypeFilter, setTenantTypeFilter] = useState<"all" | "live" | "demo">("all");
   const [activeSubTab, setActiveSubTab] = useState<
     "design" | "integrations" | "licenses" | "domain" | "templates"
   >("design");
@@ -247,7 +248,13 @@ export const MultiTenancyDashboard: React.FC<MultiTenancyDashboardProps> = ({
       (sectorFilter === "bookstore" &&
         (s.bookstore_module_enabled || (s.branding as any)?.bookstore_module_enabled));
 
-    return matchesSearch && matchesStatus && matchesSector;
+    const isDemoStore = s.slug.toLowerCase().includes("demo") || s.name.toLowerCase().includes("(demo)");
+    const matchesTenantType =
+      tenantTypeFilter === "all" ||
+      (tenantTypeFilter === "live" && !isDemoStore) ||
+      (tenantTypeFilter === "demo" && isDemoStore);
+
+    return matchesSearch && matchesStatus && matchesSector && matchesTenantType;
   });
 
   const getSectorBadge = (storeType: string, isHotel?: boolean, isBook?: boolean) => {
@@ -404,6 +411,8 @@ export const MultiTenancyDashboard: React.FC<MultiTenancyDashboardProps> = ({
             setSearchTerm={setSearchTerm}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
+            tenantTypeFilter={tenantTypeFilter}
+            setTenantTypeFilter={setTenantTypeFilter}
             getSectorBadge={getSectorBadge}
           />
         </div>

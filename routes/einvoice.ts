@@ -1728,6 +1728,159 @@ router.post("/einvoice/cancel/:invoiceId", authenticate, async (req: any, res) =
   }
 });
 
+// Robust Incoming Purchase Invoice Importer Engine
+export async function importIncomingInvoicesForStore(
+  storeId: number, 
+  startDate: string, 
+  endDate: string,
+  targetInvoiceNumbers?: string[]
+): Promise<{ importedCount: number; foundCount: number; results: any[]; errors: string[] }> {
+  console.log(`[importIncomingInvoicesForStore] Store: ${storeId}, Dates: ${startDate} to ${endDate}`);
+  const errors: string[] = [];
+  const results: any[] = [];
+  let importedCount = 0;
+  let foundCount = 0;
+
+  const service = await getEInvoiceService(storeId);
+  if (!service) {
+    throw new Error(`Mağaza ${storeId} için E-Fatura servisi başlatılamadı.`);
+  }
+
+  // Helper to normalize Turkish date format (DD.MM.YYYY) to (YYYY-MM-DD)
+  const normalizeInvoiceDate = (dateStr: any) => {
+    if (!dateStr || typeof dateStr !== 'string') return dateStr;
+    const trimmed = dateStr.trim();
+    if (trimmed.includes('.')) {
+      const parts = trimmed.split('.');
+      if (parts.length === 3 && parts[2].length === 4) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+    }
+    return trimmed;
+  };
+
+  const incomingInvoices = await service.getIncomingInvoices(startDate, endDate);
+  if (!Array.isArray(incomingInvoices) || incomingInvoices.length === 0) {
+    return { importedCount: 0, foundCount: 0, results: [], errors: [] };
+  }
+
+  foundCount = incomingInvoices.length;
+
+  for (const inv of incomingInvoices) {
+    try {
+      const ettn = (inv.ettn || inv.raw?.Uuid || (typeof inv === 'string' ? inv : '')).toString().toLowerCase().trim();
+      const initialDocNum = (inv.documentNumber || inv.raw?.Id || '').toString().trim();
+
+      const existingRes = await pool.query(
+        "SELECT id, document_number, ettn FROM purchase_invoices WHERE store_id = $1 AND (LOWER(ettn) = $2 OR (NULLIF(document_number, '') IS NOT NULL AND document_number = $3))",
+        [storeId, ettn, initialDocNum]
+      );
+      
+      const existing = existingRes.rows[0];
+      
+      if (existing && existing.document_number && existing.document_number.trim() !== '') {
+        results.push({ documentNumber: existing.document_number, ettn, status: 'ALREADY_EXISTS', id: existing.id });
+        continue;
+      }
+
+      if (!ettn) continue;
+
+      let details: any = null;
+      try {
+        details = await service.getInvoiceDetailsByUuid(ettn);
+      } catch (err: any) {
+        console.warn(`[importIncomingInvoicesForStore] Could not fetch details for ${ettn}: ${err.message}`);
+      }
+      if (!details) continue;
+
+      const docNo = (details.docNo || details.Id || details.id || initialDocNum || '').toString().trim();
+      if (!docNo) continue;
+
+      if (targetInvoiceNumbers && targetInvoiceNumbers.length > 0) {
+        if (!targetInvoiceNumbers.some(t => docNo.toLowerCase().includes(t.toLowerCase()) || ettn.toLowerCase().includes(t.toLowerCase()))) continue;
+      }
+
+      // If existing but docNum was missing, update it
+      if (existing && (!existing.document_number || existing.document_number.trim() === '')) {
+        await pool.query("UPDATE purchase_invoices SET document_number = $1, invoice_number = COALESCE(NULLIF(invoice_number, ''), $1) WHERE id = $2", [docNo, existing.id]);
+        results.push({ documentNumber: docNo, ettn, status: 'UPDATED', id: existing.id });
+        continue;
+      }
+
+      // 1. Find or create company
+      let companyId = null;
+      if (details.supplierInfo?.identifierNumber) {
+        const cleanSenderVkn = String(details.supplierInfo.identifierNumber).replace(/\D/g, '').trim();
+        let compRes = { rows: [] as any[] };
+        if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
+          compRes = await pool.query(
+            "SELECT id, title FROM companies WHERE store_id = $1 AND clean_tax_number(tax_number) = $2 LIMIT 1",
+            [storeId, cleanSenderVkn]
+          );
+        }
+        const newTitle = (details.supplierInfo.partyName || details.supplierInfo.title || details.supplierInfo.customerName || 'Bilinmeyen Tedarikçi').trim();
+        if (compRes.rows.length === 0 && newTitle && newTitle !== 'Bilinmeyen Tedarikçi') {
+          compRes = await pool.query(
+            "SELECT id, title FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1",
+            [storeId, newTitle]
+          );
+        }
+
+        if (compRes.rows.length > 0) {
+          companyId = compRes.rows[0].id;
+        } else {
+          const newCompRes = await pool.query(
+            `INSERT INTO companies (store_id, title, tax_number, type) VALUES ($1, $2, $3, 'supplier') RETURNING id`,
+            [storeId, newTitle || 'Bilinmeyen Tedarikçi', cleanSenderVkn || null]
+          );
+          companyId = newCompRes.rows[0].id;
+        }
+      }
+
+      // 2. Intelligent Expense Classification
+      const rawLines = details.detailList || [];
+      const lineItemNames = (Array.isArray(rawLines) ? rawLines : [rawLines]).map((l: any) => 
+        l.detailItem?.itemName || l.itemName || l.Item?.Name?.['#text'] || l.Item?.Name || l.Name || l.name || ''
+      ).filter(Boolean);
+
+      const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+        companyId,
+        companyTitle: details.supplierInfo?.partyName,
+        taxNumber: details.supplierInfo?.identifierNumber,
+        lineItemNames,
+        pinToCompany: true
+      });
+
+      const baseAmt = Number(details.legalMonetaryTotal?.taxExclusiveAmount || details.TaxExclusiveAmount) || 0;
+      const taxAmt = Number(details.taxTotal?.reduce((sum: number, t: any) => sum + Number(t.taxAmount || t.TaxAmount || 0), 0) || 0);
+      const grandAmt = Number(details.legalMonetaryTotal?.payableAmount || details.PayableAmount) || (baseAmt + taxAmt);
+      const issueDate = normalizeInvoiceDate(details.docDate || details.IssueDate);
+
+      // 3. Insert purchase invoice
+      const invInsertRes = await pool.query(
+        `INSERT INTO purchase_invoices 
+        (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_expense, expense_category, expense_center)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`,
+        [
+          storeId, companyId, docNo, docNo, ettn, 'EFATURA',
+          details.supplierInfo?.partyName || 'Bilinmeyen Tedarikçi',
+          details.supplierInfo?.identifierNumber || '',
+          issueDate ? (issueDate.includes('.') ? issueDate.split('.').reverse().join('-') : issueDate) : new Date().toISOString().split('T')[0],
+          baseAmt, taxAmt, grandAmt,
+          details.documentCurrencyCode || 'TRY',
+          1, 'approved', 'RECEIVED', 'term', 'unpaid', false,
+          expenseCheck.isExpense, expenseCheck.expenseCategory, expenseCheck.expenseCenter
+        ]
+      );
+      const newInvoiceId = invInsertRes.rows[0].id;
+
+      results.push({ documentNumber: docNo, ettn, status: 'IMPORTED', id: newInvoiceId });
+      importedCount++;
+    } catch (invErr: any) { errors.push(invErr.message); }
+  }
+  return { importedCount, foundCount, results, errors };
+}
+
 // 5. Sync Incoming Invoices
 router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
     let storeIdRaw = req.user.role === 'superadmin' ? (req.query.storeId || req.body.storeId) : req.user.store_id;
@@ -1756,382 +1909,446 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
       return res.status(500).json({ error: `Entegratör hatası: ${apiErr.message}` });
     }
     
-    let importedCount = 0;
-    // Helper to normalize Turkish date format (DD.MM.YYYY) to (YYYY-MM-DD)
-    const normalizeDate = (dateStr: any) => {
-      if (typeof dateStr !== 'string') return dateStr;
-      if (dateStr.includes('.')) {
-        const parts = dateStr.split('.');
-        if (parts.length === 3 && parts[2].length === 4) {
-          return `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-      }
-      return dateStr;
-    };
-
-    // Process and insert them into purchase_invoices
-    for (const inv of incomingInvoices) {
-       let invoiceDetails = inv;
-       
-       // If basic info is missing but ETTN exists, fetch full details early
-       const rawForLines = inv.raw || (typeof inv === 'object' ? inv : {});
-       const linesAtRoot = rawForLines.detailList || rawForLines.InvoiceLines || rawForLines.lines || rawForLines.InvoiceLine || rawForLines.Lines || rawForLines.invoiceLines;
-       
-       if (!linesAtRoot && inv.ettn) {
-         console.log(`Fetching full details for invoice: ${inv.ettn} before processing...`);
-         const details = await service.getInvoiceDetailsByUuid(inv.ettn);
-         if (details) {
-           const detailsBase = details.legalMonetaryTotal?.taxExclusiveAmount || details.TaxExclusiveAmount || 0;
-           const detailsTaxArr = details.taxTotal || details.TaxTotal || [];
-           const detailsTax = Array.isArray(detailsTaxArr) 
-             ? detailsTaxArr.reduce((sum: number, tax: any) => sum + (Number(tax.taxAmount || tax.TaxAmount || 0)), 0)
-             : (Number(detailsTaxArr.taxAmount || detailsTaxArr.TaxAmount) || 0);
-
-           invoiceDetails = {
-             ...inv,
-             documentNumber: details.docNo || details.Id || details.id || inv.documentNumber,
-             issueDate: normalizeDate(details.docDate || details.IssueDate || details.issueDate || inv.issueDate),
-             senderTitle: extractSenderTitleFromUblOrDetails(details, inv.senderTitle || 'Bilinmeyen Tedarikçi'),
-             senderVkn: details.supplierInfo?.identifierNumber || details.SenderVkn || details.senderVkn || inv.senderVkn,
-             payableAmount: details.legalMonetaryTotal?.payableAmount || details.PayableAmount || details.payableAmount || inv.payableAmount,
-             baseAmount: Number(detailsBase) || inv.baseAmount || 0,
-             taxAmount: Number(detailsTax) || inv.taxAmount || 0,
-             currency: details.documentCurrencyCode || details.CurrencyCode || details.currencyCode || inv.currency,
-             exchangeRate: Number(details.pricingExchangeRate?.calculationRate || details.PricingExchangeRate?.CalculationRate || details.paymentExchangeRate?.calculationRate || details.exchangeRate || details.ExchangeRate || details.currencyRate || 1) || 1,
-             documentType: details.profileId || details.InvoiceTypeCode || details.invoiceTypeCode || inv.documentType,
-             raw: details
-           };
-         }
-       } else {
-         // Even if we have lines, normalize the date in inv
-         invoiceDetails = {
-           ...inv,
-           issueDate: normalizeDate(inv.issueDate)
-         };
-       }
-
-       // Check if invoice already exists
-       const existingRes = await pool.query(
-         "SELECT id, ettn FROM purchase_invoices WHERE store_id = $1 AND (ettn = $2 OR document_number = $3)", 
-         [storeId, invoiceDetails.ettn, invoiceDetails.documentNumber]
-       );
-
-       if (existingRes.rows.length > 0) {
-          // If it exists but has no ETTN, update it
-          const existing = existingRes.rows[0];
-          if (!existing.ettn && invoiceDetails.ettn) {
-             console.log(`Updating missing ETTN for existing invoice ${invoiceDetails.documentNumber}: ${invoiceDetails.ettn}`);
-             await pool.query(
-               "UPDATE purchase_invoices SET ettn = $1 WHERE id = $2",
-               [invoiceDetails.ettn, existing.id]
-             );
-          }
-          continue; // Already processed
-       }
-
-        if (true) {
-          // 1. Find or create company
-          let companyId = null;
-          if (invoiceDetails.senderVkn) {
-            let resolvedTitle = (invoiceDetails.senderTitle || '').trim();
-            if (!resolvedTitle || resolvedTitle === 'Bilinmeyen Tedarikçi' || resolvedTitle.split(/\s+/).length === 1) {
-              // Try to get full title from official_taxpayer_cache or customers table
-              const cachedTp = await pool.query("SELECT title FROM official_taxpayer_cache WHERE vkn = $1 LIMIT 1", [invoiceDetails.senderVkn]);
-              if (cachedTp.rows.length > 0 && cachedTp.rows[0].title && cachedTp.rows[0].title.trim().length > resolvedTitle.length) {
-                resolvedTitle = cachedTp.rows[0].title.trim();
-              } else {
-                const custCheck = await pool.query("SELECT full_name, name, surname FROM customers WHERE tc_id = $1 OR tax_number = $1 LIMIT 1", [invoiceDetails.senderVkn]);
-                if (custCheck.rows.length > 0) {
-                  const c = custCheck.rows[0];
-                  const first = (c.name || c.full_name || '').trim();
-                  const last = (c.surname || '').trim();
-                  if (last && first && !first.toLowerCase().includes(last.toLowerCase())) {
-                    resolvedTitle = `${first} ${last}`;
-                  } else if (first || last) {
-                    resolvedTitle = first || last;
-                  }
-                }
-              }
-            }
-            if (!resolvedTitle) resolvedTitle = 'Bilinmeyen Tedarikçi';
-
-            const cleanSenderVkn = invoiceDetails.senderVkn ? String(invoiceDetails.senderVkn).replace(/\D/g, '').trim() : '';
-            let compRes = { rows: [] as any[] };
-            if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
-              compRes = await pool.query(
-                "SELECT id, title FROM companies WHERE store_id = $1 AND clean_tax_number(tax_number) = $2 LIMIT 1",
-                [storeId, cleanSenderVkn]
-              );
-            }
-            if (compRes.rows.length === 0 && resolvedTitle && resolvedTitle !== 'Bilinmeyen Tedarikçi') {
-              compRes = await pool.query(
-                "SELECT id, title FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1",
-                [storeId, resolvedTitle]
-              );
-            }
-
-            if (compRes.rows.length > 0) {
-              companyId = compRes.rows[0].id;
-              const existingTitle = (compRes.rows[0].title || '').trim();
-              if (resolvedTitle && resolvedTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < resolvedTitle.split(' ').length || (existingTitle.toLowerCase() !== resolvedTitle.toLowerCase() && existingTitle.length < resolvedTitle.length))) {
-                await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [resolvedTitle, companyId]);
-              }
-              if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
-                await pool.query("UPDATE companies SET tax_number = $1 WHERE id = $2 AND (tax_number IS NULL OR clean_tax_number(tax_number) != $1)", [cleanSenderVkn, companyId]);
-              }
-            } else {
-              // Create company
-              const newComp = await pool.query(
-                "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
-                [storeId, resolvedTitle, cleanSenderVkn || invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
-              );
-              companyId = newComp.rows[0].id;
-            }
-          }
-
-          const grandAmt = Math.round((Number(invoiceDetails.payableAmount) || 0) * 100) / 100;
-          const taxAmt = Math.round((Number(invoiceDetails.taxAmount) || 0) * 100) / 100;
-          const baseAmt = Math.round(((Number(invoiceDetails.baseAmount) || (grandAmt - taxAmt))) * 100) / 100;
-
-          const expenseCheck = await resolveExpenseClassification(pool, storeId, {
-            supplierTitle: invoiceDetails.senderTitle,
-            supplierVkn: invoiceDetails.senderVkn,
-            companyId,
-            pinToCompany: true
-          });
-
-          const isExpense = expenseCheck.isExpense;
-          const expenseCategory = expenseCheck.expenseCategory;
-          const expenseCenter = expenseCheck.expenseCenter;
-
-          const invInsertRes = await pool.query(
-            `INSERT INTO purchase_invoices 
-            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_expense, expense_category, expense_center)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`,
-            [
-              storeId, 
-              companyId,
-              invoiceDetails.documentNumber, 
-              invoiceDetails.documentNumber, 
-              invoiceDetails.ettn, 
-              invoiceDetails.documentType, 
-              invoiceDetails.senderTitle,
-              invoiceDetails.senderVkn,
-              (() => {
-                const d = invoiceDetails.issueDate;
-                if (!d) return new Date().toISOString();
-                if (typeof d !== 'string') return d;
-                // If it's DD.MM.YYYY format
-                if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
-                  const [day, month, year] = d.split('.');
-                  return `${year}-${month}-${day}`;
-                }
-                // Try standard parsing
-                try {
-                  const parsed = new Date(d);
-                  if (!isNaN(parsed.getTime())) return parsed.toISOString();
-                } catch (e) {}
-                return new Date().toISOString();
-              })(),
-              baseAmt,
-              taxAmt,
-              grandAmt,
-              invoiceDetails.currency,
-              invoiceDetails.exchangeRate || 1,
-              'approved', 
-              'RECEIVED',
-              'term',
-              'unpaid',
-              false, // E-invoices are imported as Exclusive (KDV Hariç) by default
-              isExpense,
-              expenseCategory,
-              expenseCenter
-            ]
-          );
-          
-          const newInvoiceId = invInsertRes.rows[0].id;
-
-          // 3. Attempt to parse lines and match with existing products
-          const rawData = invoiceDetails.raw || (typeof inv === 'object' ? inv : {});
-          let rawLines = rawData.detailList || rawData.InvoiceLines || rawData.lines || rawData.InvoiceLine || rawData.Lines || rawData.invoiceLines || [];
-          if (rawLines && !Array.isArray(rawLines)) {
-            rawLines = [rawLines];
-          }
-          
-          if (Array.isArray(rawLines)) {
-            for (const line of rawLines) {
-              const productName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || line.Name || line.name || line.InvoicedQuantity?.['@_unitCode'] || 'Bilinmeyen Ürün';
-              
-              const sellerCodeRaw = line.detailItem?.sellersItemIdentificationId || line.detailItem?.sellersItemIdentification || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.sellersItemIdentification;
-              const sellerCode = typeof sellerCodeRaw === 'string' ? sellerCodeRaw.trim() : (typeof sellerCodeRaw === 'number' ? String(sellerCodeRaw) : null);
-
-              const buyerCodeRaw = line.detailItem?.buyersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.buyersItemIdentification;
-              const buyerCode = typeof buyerCodeRaw === 'string' ? buyerCodeRaw.trim() : (typeof buyerCodeRaw === 'number' ? String(buyerCodeRaw) : null);
-
-              const barcodeRaw = line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.ItemInstance?.ProductTraceID;
-              const barcode = typeof barcodeRaw === 'string' ? barcodeRaw.trim() : (typeof barcodeRaw === 'number' ? String(barcodeRaw) : null);
-
-              const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 0;
-              const unitCode = line.unitCode || line.UnitCode || line.InvoicedQuantity?.['@_unitCode'] || 'C62'; // C62 is Piece
-              
-              const qty = Number(String(qtyRaw).replace(',', '.')) || 0;
-              
-              const upRaw = line.unitPrice || line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
-              const up = Number(String(upRaw).replace(',', '.')) || 0;
-              
-              const trRaw = line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 0;
-              const tr = Number(String(trRaw).replace(',', '.')) || 0;
-              
-              const lineTotal = qty * up;
-              const taxAmount = (lineTotal * tr) / 100;
-
-              // If it's an expense invoice (e.g. TTNET, Telekom, Elektrik, Su, etc.):
-              // NEVER link to products or create stock or stock movements!
-              if (isExpense) {
-                await pool.query(
-                  `INSERT INTO purchase_invoice_items 
-                   (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-                  [newInvoiceId, null, productName, null, null, qty, up, tr, taxAmount, lineTotal, unitCode]
-                );
-                continue;
-              }
-
-              // 5-Tier Intelligent product matching
-              const match = await findMatchingProduct(pool, storeId, {
-                supplierVkn: invoiceDetails.senderVkn,
-                productName,
-                barcode,
-                productCode: sellerCode || buyerCode,
-                sellerCode,
-                buyerCode
-              });
-
-              let productId = match ? match.productId : null;
-              let finalBarcode: string;
-              let finalProductCode: string | null;
-
-              if (match) {
-                productId = match.productId;
-                finalProductCode = match.productCode || sellerCode || buyerCode || null;
-                // If incoming invoice line has its own valid standard barcode, ALWAYS preserve it
-                const incomingSanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, finalProductCode);
-                if (isValidStandardBarcode(incomingSanitized.barcode) && !incomingSanitized.isTempBarcode) {
-                  finalBarcode = incomingSanitized.barcode;
-                } else if (isValidStandardBarcode(match.barcode)) {
-                  finalBarcode = match.barcode;
-                } else {
-                  finalBarcode = incomingSanitized.barcode;
-                }
-                if (!finalProductCode) finalProductCode = incomingSanitized.productCode;
-              } else {
-                // Sanitize code values: non-standard strings like "TRU16977" become product_code, and a valid temp numeric barcode is generated
-                const sanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, null);
-                finalBarcode = sanitized.barcode;
-                finalProductCode = sanitized.productCode || sellerCode || buyerCode || null;
-
-                const existingProd = await pool.query(
-                  "SELECT id, barcode, product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR (product_code IS NOT NULL AND product_code = $3))",
-                  [storeId, finalBarcode, finalProductCode || '__NONE__']
-                );
-                if (existingProd.rows.length > 0) {
-                  productId = existingProd.rows[0].id;
-                  finalBarcode = existingProd.rows[0].barcode;
-                  finalProductCode = existingProd.rows[0].product_code || finalProductCode;
-                } else {
-                  productId = null;
-                }
-              }
-
-              // Save supplier mapping for recurring supplier items
-              if (invoiceDetails.senderVkn && productName && productId) {
-                await saveSupplierMapping(pool, storeId, invoiceDetails.senderVkn, productName, productId, finalProductCode);
-              }
-
-              await pool.query(
-                `INSERT INTO purchase_invoice_items 
-                 (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-                [newInvoiceId, productId, productName, finalBarcode, finalProductCode, qty, up, tr, taxAmount, lineTotal, unitCode]
-              );
-              
-              // If product exists, update its stock automatically
-              if (productId) {
-                const prodInfo = await pool.query("SELECT volume_ml, unit FROM products WHERE id = $1", [productId]);
-                const volMl = Number(prodInfo.rows[0]?.volume_ml) || 0;
-                const baseUnit = String(prodInfo.rows[0]?.unit || '').toLowerCase();
-                
-                let effectiveQty = qty;
-                let descExtra = "";
-                
-                // If product is tracked in ML/GR but bought in Bottle/Case/Pack
-                const isBulkUnit = ['bo', 'cs', 'pk', 'bg', 'bx', 'cl'].includes(String(unitCode).toLowerCase());
-                const isMlGrBase = ['ml', 'gr', 'g', 'cc'].includes(baseUnit);
-                
-                if (volMl > 0 && isBulkUnit && isMlGrBase) {
-                  effectiveQty = qty * volMl;
-                  descExtra = ` (${qty} ${unitCode} x ${volMl}ml)`;
-                }
-
-                await pool.query(
-                  "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
-                  [effectiveQty, up, invoiceDetails.currency || 'TRY', productId]
-                );
-                
-                // Log stock movement with direct invoice link
-                await addStockMovement(
-                  pool, 
-                  storeId, 
-                  productId, 
-                  'in', 
-                  effectiveQty, 
-                  'purchase_invoice', 
-                  `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}${descExtra}`, 
-                  up, 
-                  invoiceDetails.senderTitle, 
-                  invoiceDetails.currency,
-                  null,
-                  newInvoiceId,
-                  'purchase',
-                  invoiceDetails.documentNumber
-                );
-              }
-            }
-          }
-
-          // 4. Create Transaction
-          if (companyId) {
-            await pool.query(
-              `INSERT INTO current_account_transactions 
-                (store_id, company_id, purchase_invoice_id, type, amount, currency, description, transaction_date) 
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-              [storeId, companyId, newInvoiceId, 'credit', grandAmt, invoiceDetails.currency || 'TRY', `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}`, invoiceDetails.issueDate || new Date()]
-            );
-
-            if (invoiceDetails.paymentStatus === 'paid' || (invoiceDetails.paymentMethod && invoiceDetails.paymentMethod !== 'term')) {
-              await pool.query(
-                `INSERT INTO current_account_transactions 
-                  (store_id, company_id, purchase_invoice_id, type, amount, currency, description, payment_method, transaction_date) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                [
-                  storeId, companyId, newInvoiceId, 'debt', grandAmt,
-                  invoiceDetails.currency || 'TRY', `E-Fatura Ödemesi: ${invoiceDetails.documentNumber}`,
-                  invoiceDetails.paymentMethod || 'nakit', invoiceDetails.issueDate || new Date()
-                ]
-              );
-            }
-          }
-
-          importedCount++;
-       }
-    }
-
-    res.json({ message: `${importedCount} adet yeni fatura içeri aktarıldı.`, importedCount });
+    const result = await importIncomingInvoicesForStore(storeId, startDate, endDate);
+    res.json({ 
+      message: `${result.importedCount} adet yeni fatura içeri aktarıldı.`, 
+      importedCount: result.importedCount,
+      foundCount: result.foundCount,
+      results: result.results
+    });
   } catch (error: any) {
     await IntegrationService.logIntegrationError(storeId || 0, 'E-Fatura', `Sync Inbox`, error);
     res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
   }
 });
+export async function processAndImportIncomingInvoiceList(
+  pool: any,
+  storeId: number,
+  service: any,
+  incomingInvoices: any[]
+): Promise<{ importedCount: number; updatedCount: number; skippedCount: number; results: any[] }> {
+  let importedCount = 0;
+  let updatedCount = 0;
+  let skippedCount = 0;
+  const results: any[] = [];
+
+  // Pre-load all existing purchase invoices for this store into fast O(1) in-memory maps
+  const existingRows = await pool.query(
+    "SELECT id, ettn, invoice_number, document_number, supplier_name, total_amount, grand_total FROM purchase_invoices WHERE store_id = $1",
+    [storeId]
+  );
+  const ettnMap = new Map<string, any>();
+  const docNoMap = new Map<string, any>();
+  for (const row of existingRows.rows) {
+    if (row.ettn) ettnMap.set(String(row.ettn).toLowerCase().trim(), row);
+    if (row.invoice_number) docNoMap.set(String(row.invoice_number).toLowerCase().trim(), row);
+    if (row.document_number) docNoMap.set(String(row.document_number).toLowerCase().trim(), row);
+  }
+
+  console.log(`[IMPORT] Processing ${incomingInvoices.length} incoming invoices for store ${storeId}. Existing in DB: ${existingRows.rows.length}`);
+
+  for (const inv of incomingInvoices) {
+    try {
+      const rawEttn = (inv.ettn || inv.uuid || inv.Uuid || (typeof inv.raw === 'string' ? inv.raw : '') || '').toString().trim();
+      const rawDocNum = (inv.documentNumber || inv.id || inv.Id || '').toString().trim();
+
+      // Check if already in DB with complete data
+      let existingRecord = (rawEttn ? ettnMap.get(rawEttn.toLowerCase()) : null) || (rawDocNum ? docNoMap.get(rawDocNum.toLowerCase()) : null);
+
+      const isComplete = existingRecord && 
+        existingRecord.invoice_number && 
+        existingRecord.invoice_number.trim() !== '' && 
+        existingRecord.supplier_name && 
+        existingRecord.supplier_name !== 'Bilinmeyen Tedarikçi' &&
+        Number(existingRecord.grand_total || existingRecord.total_amount || 0) > 0;
+
+      if (isComplete) {
+        if (!existingRecord.ettn && rawEttn) {
+          await pool.query("UPDATE purchase_invoices SET ettn = $1 WHERE id = $2", [rawEttn, existingRecord.id]);
+          existingRecord.ettn = rawEttn;
+          ettnMap.set(rawEttn.toLowerCase(), existingRecord);
+        }
+        skippedCount++;
+        continue;
+      }
+
+      // If missing or incomplete, fetch full details from MySoft
+      let invoiceDetails = inv;
+      let details: any = null;
+      if (rawEttn) {
+        console.log(`[IMPORT] Fetching full details from MySoft for invoice ETTN: ${rawEttn}...`);
+        details = await service.getInvoiceDetailsByUuid(rawEttn);
+      }
+
+      if (details) {
+        const detailsBase = details.legalMonetaryTotal?.taxExclusiveAmount || details.TaxExclusiveAmount || 0;
+        const detailsTaxArr = details.taxTotal || details.TaxTotal || [];
+        const detailsTax = Array.isArray(detailsTaxArr) 
+          ? detailsTaxArr.reduce((sum: number, tax: any) => sum + (Number(tax.taxAmount || tax.TaxAmount || 0)), 0)
+          : (Number(detailsTaxArr.taxAmount || detailsTaxArr.TaxAmount) || 0);
+
+        invoiceDetails = {
+          ...inv,
+          ettn: rawEttn || details.invoiceETTN || details.uuid || inv.ettn,
+          documentNumber: details.docNo || details.Id || details.id || inv.documentNumber,
+          issueDate: normalizeInvoiceDate(details.docDate || details.IssueDate || details.issueDate || inv.issueDate),
+          senderTitle: extractSenderTitleFromUblOrDetails(details, inv.senderTitle || 'Bilinmeyen Tedarikçi'),
+          senderVkn: details.supplierInfo?.identifierNumber || details.SenderVkn || details.senderVkn || inv.senderVkn,
+          payableAmount: details.legalMonetaryTotal?.payableAmount || details.PayableAmount || details.payableAmount || inv.payableAmount,
+          baseAmount: Number(detailsBase) || inv.baseAmount || 0,
+          taxAmount: Number(detailsTax) || inv.taxAmount || 0,
+          currency: details.documentCurrencyCode || details.CurrencyCode || details.currencyCode || inv.currency || 'TRY',
+          exchangeRate: Number(details.pricingExchangeRate?.calculationRate || details.PricingExchangeRate?.CalculationRate || details.paymentExchangeRate?.calculationRate || details.exchangeRate || details.ExchangeRate || details.currencyRate || 1) || 1,
+          documentType: details.profileId || details.InvoiceTypeCode || details.invoiceTypeCode || inv.documentType || 'EFATURA',
+          raw: details
+        };
+      } else {
+        invoiceDetails = {
+          ...inv,
+          issueDate: normalizeInvoiceDate(inv.issueDate)
+        };
+      }
+
+      const finalDocNo = (invoiceDetails.documentNumber || rawDocNum || '').trim();
+      const finalEttn = (invoiceDetails.ettn || rawEttn || '').trim();
+
+      if (!finalDocNo && !finalEttn) {
+        console.warn(`[IMPORT] Skipping entry with neither docNo nor ETTN`);
+        continue;
+      }
+
+      if (!existingRecord && finalDocNo) {
+        existingRecord = docNoMap.get(finalDocNo.toLowerCase());
+      }
+
+      // 1. Find or create company
+      let companyId = null;
+      if (invoiceDetails.senderVkn) {
+        let resolvedTitle = (invoiceDetails.senderTitle || '').trim();
+        if (!resolvedTitle || resolvedTitle === 'Bilinmeyen Tedarikçi' || resolvedTitle.split(/\s+/).length === 1) {
+          const cachedTp = await pool.query("SELECT title FROM official_taxpayer_cache WHERE vkn = $1 LIMIT 1", [invoiceDetails.senderVkn]);
+          if (cachedTp.rows.length > 0 && cachedTp.rows[0].title && cachedTp.rows[0].title.trim().length > resolvedTitle.length) {
+            resolvedTitle = cachedTp.rows[0].title.trim();
+          } else {
+            const custCheck = await pool.query("SELECT full_name, name, surname FROM customers WHERE tc_id = $1 OR tax_number = $1 LIMIT 1", [invoiceDetails.senderVkn]);
+            if (custCheck.rows.length > 0) {
+              const c = custCheck.rows[0];
+              const first = (c.name || c.full_name || '').trim();
+              const last = (c.surname || '').trim();
+              if (last && first && !first.toLowerCase().includes(last.toLowerCase())) {
+                resolvedTitle = `${first} ${last}`;
+              } else if (first || last) {
+                resolvedTitle = first || last;
+              }
+            }
+          }
+        }
+        if (!resolvedTitle) resolvedTitle = 'Bilinmeyen Tedarikçi';
+
+        const cleanSenderVkn = invoiceDetails.senderVkn ? String(invoiceDetails.senderVkn).replace(/\D/g, '').trim() : '';
+        let compRes = { rows: [] as any[] };
+        if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
+          compRes = await pool.query(
+            "SELECT id, title FROM companies WHERE store_id = $1 AND clean_tax_number(tax_number) = $2 LIMIT 1",
+            [storeId, cleanSenderVkn]
+          );
+        }
+        if (compRes.rows.length === 0 && resolvedTitle && resolvedTitle !== 'Bilinmeyen Tedarikçi') {
+          compRes = await pool.query(
+            "SELECT id, title FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1",
+            [storeId, resolvedTitle]
+          );
+        }
+
+        if (compRes.rows.length > 0) {
+          companyId = compRes.rows[0].id;
+          const existingTitle = (compRes.rows[0].title || '').trim();
+          if (resolvedTitle && resolvedTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < resolvedTitle.split(' ').length || (existingTitle.toLowerCase() !== resolvedTitle.toLowerCase() && existingTitle.length < resolvedTitle.length))) {
+            await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [resolvedTitle, companyId]);
+          }
+          if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
+            await pool.query("UPDATE companies SET tax_number = $1 WHERE id = $2 AND (tax_number IS NULL OR clean_tax_number(tax_number) != $1)", [cleanSenderVkn, companyId]);
+          }
+        } else {
+          const newComp = await pool.query(
+            "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
+            [storeId, resolvedTitle, cleanSenderVkn || invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
+          );
+          companyId = newComp.rows[0].id;
+        }
+      }
+
+      const grandAmt = Math.round((Number(invoiceDetails.payableAmount) || 0) * 100) / 100;
+      const taxAmt = Math.round((Number(invoiceDetails.taxAmount) || 0) * 100) / 100;
+      const baseAmt = Math.round(((Number(invoiceDetails.baseAmount) || (grandAmt - taxAmt))) * 100) / 100;
+
+      const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+        supplierTitle: invoiceDetails.senderTitle,
+        supplierVkn: invoiceDetails.senderVkn,
+        companyId,
+        pinToCompany: true
+      });
+
+      const isExpense = expenseCheck.isExpense;
+      const expenseCategory = expenseCheck.expenseCategory;
+      const expenseCenter = expenseCheck.expenseCenter;
+
+      const issueDateParsed = (() => {
+        const d = invoiceDetails.issueDate;
+        if (!d) return new Date().toISOString();
+        if (typeof d !== 'string') return d;
+        if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
+          const [day, month, year] = d.split('.');
+          return `${year}-${month}-${day}`;
+        }
+        try {
+          const parsed = new Date(d);
+          if (!isNaN(parsed.getTime())) return parsed.toISOString();
+        } catch (e) {}
+        return new Date().toISOString();
+      })();
+
+      let invoiceId: number;
+
+      if (existingRecord) {
+        await pool.query(
+          `UPDATE purchase_invoices 
+           SET invoice_number = $1, document_number = $2, ettn = $3, e_document_type = $4, supplier_name = $5, 
+               tax_number = $6, invoice_date = $7, total_amount = $8, tax_amount = $9, grand_total = $10, 
+               currency = $11, exchange_rate = $12, company_id = COALESCE($13, company_id), 
+               is_expense = $14, expense_category = $15, expense_center = $16
+           WHERE id = $17`,
+          [
+            finalDocNo, finalDocNo, finalEttn, invoiceDetails.documentType || 'EFATURA', invoiceDetails.senderTitle,
+            invoiceDetails.senderVkn, issueDateParsed, baseAmt, taxAmt, grandAmt,
+            invoiceDetails.currency || 'TRY', invoiceDetails.exchangeRate || 1, companyId,
+            isExpense, expenseCategory, expenseCenter, existingRecord.id
+          ]
+        );
+        invoiceId = existingRecord.id;
+        updatedCount++;
+      } else {
+        const invInsertRes = await pool.query(
+          `INSERT INTO purchase_invoices 
+          (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_expense, expense_category, expense_center)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`,
+          [
+            storeId, companyId, finalDocNo, finalDocNo, finalEttn, invoiceDetails.documentType || 'EFATURA',
+            invoiceDetails.senderTitle, invoiceDetails.senderVkn, issueDateParsed,
+            baseAmt, taxAmt, grandAmt, invoiceDetails.currency || 'TRY', invoiceDetails.exchangeRate || 1,
+            'approved', 'RECEIVED', 'term', 'unpaid', false,
+            isExpense, expenseCategory, expenseCenter
+          ]
+        );
+        invoiceId = invInsertRes.rows[0].id;
+        importedCount++;
+      }
+
+      // Add to in-memory maps so subsequent items in the batch don't re-insert
+      if (finalEttn) ettnMap.set(finalEttn.toLowerCase(), { id: invoiceId, invoice_number: finalDocNo });
+      if (finalDocNo) docNoMap.set(finalDocNo.toLowerCase(), { id: invoiceId, invoice_number: finalDocNo });
+
+      // Line items processing
+      const rawData = invoiceDetails.raw || (typeof inv === 'object' ? inv : {});
+      let rawLines = rawData.detailList || rawData.InvoiceLines || rawData.lines || rawData.InvoiceLine || rawData.Lines || rawData.invoiceLines || [];
+      if (rawLines && !Array.isArray(rawLines)) {
+        rawLines = [rawLines];
+      }
+
+      const existingItemsCount = await pool.query("SELECT COUNT(*) FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [invoiceId]);
+      if (parseInt(existingItemsCount.rows[0].count) === 0 && Array.isArray(rawLines)) {
+        for (const line of rawLines) {
+          const productName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || line.Name || line.name || line.InvoicedQuantity?.['@_unitCode'] || 'Bilinmeyen Ürün';
+          const sellerCodeRaw = line.detailItem?.sellersItemIdentificationId || line.detailItem?.sellersItemIdentification || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.sellersItemIdentification;
+          const sellerCode = typeof sellerCodeRaw === 'string' ? sellerCodeRaw.trim() : (typeof sellerCodeRaw === 'number' ? String(sellerCodeRaw) : null);
+          const buyerCodeRaw = line.detailItem?.buyersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.buyersItemIdentification;
+          const buyerCode = typeof buyerCodeRaw === 'string' ? buyerCodeRaw.trim() : (typeof buyerCodeRaw === 'number' ? String(buyerCodeRaw) : null);
+          const barcodeRaw = line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.ItemInstance?.ProductTraceID;
+          const barcode = typeof barcodeRaw === 'string' ? barcodeRaw.trim() : (typeof barcodeRaw === 'number' ? String(barcodeRaw) : null);
+          const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 0;
+          const unitCode = line.unitCode || line.UnitCode || line.InvoicedQuantity?.['@_unitCode'] || 'C62';
+          const qty = Number(String(qtyRaw).replace(',', '.')) || 0;
+          const upRaw = line.unitPrice || line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
+          const up = Number(String(upRaw).replace(',', '.')) || 0;
+          const trRaw = line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 0;
+          const tr = Number(String(trRaw).replace(',', '.')) || 0;
+          const lineTotal = qty * up;
+          const lineTaxAmount = (lineTotal * tr) / 100;
+
+          if (isExpense) {
+            await pool.query(
+              `INSERT INTO purchase_invoice_items 
+               (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+              [invoiceId, null, productName, null, null, qty, up, tr, lineTaxAmount, lineTotal, unitCode]
+            );
+            continue;
+          }
+
+          const match = await findMatchingProduct(pool, storeId, {
+            supplierVkn: invoiceDetails.senderVkn,
+            productName,
+            barcode,
+            productCode: sellerCode || buyerCode,
+            sellerCode,
+            buyerCode
+          });
+
+          let productId = match ? match.productId : null;
+          let finalBarcode: string;
+          let finalProductCode: string | null;
+
+          if (match) {
+            productId = match.productId;
+            finalProductCode = match.productCode || sellerCode || buyerCode || null;
+            const incomingSanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, finalProductCode);
+            if (isValidStandardBarcode(incomingSanitized.barcode) && !incomingSanitized.isTempBarcode) {
+              finalBarcode = incomingSanitized.barcode;
+            } else if (isValidStandardBarcode(match.barcode)) {
+              finalBarcode = match.barcode;
+            } else {
+              finalBarcode = incomingSanitized.barcode;
+            }
+            if (!finalProductCode) finalProductCode = incomingSanitized.productCode;
+          } else {
+            const sanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, null);
+            finalBarcode = sanitized.barcode;
+            finalProductCode = sanitized.productCode || sellerCode || buyerCode || null;
+
+            const existingProd = await pool.query(
+              "SELECT id, barcode, product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR (product_code IS NOT NULL AND product_code = $3))",
+              [storeId, finalBarcode, finalProductCode || '__NONE__']
+            );
+            if (existingProd.rows.length > 0) {
+              productId = existingProd.rows[0].id;
+              finalBarcode = existingProd.rows[0].barcode;
+              finalProductCode = existingProd.rows[0].product_code || finalProductCode;
+            } else {
+              productId = null;
+            }
+          }
+
+          if (invoiceDetails.senderVkn && productName && productId) {
+            await saveSupplierMapping(pool, storeId, invoiceDetails.senderVkn, productName, productId, finalProductCode);
+          }
+
+          await pool.query(
+            `INSERT INTO purchase_invoice_items 
+             (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [invoiceId, productId, productName, finalBarcode, finalProductCode, qty, up, tr, lineTaxAmount, lineTotal, unitCode]
+          );
+
+          if (productId) {
+            const prodInfo = await pool.query("SELECT volume_ml, unit FROM products WHERE id = $1", [productId]);
+            const volMl = Number(prodInfo.rows[0]?.volume_ml) || 0;
+            const baseUnit = String(prodInfo.rows[0]?.unit || '').toLowerCase();
+            let effectiveQty = qty;
+            let descExtra = "";
+            const isBulkUnit = ['bo', 'cs', 'pk', 'bg', 'bx', 'cl'].includes(String(unitCode).toLowerCase());
+            const isMlGrBase = ['ml', 'gr', 'g', 'cc'].includes(baseUnit);
+            if (volMl > 0 && isBulkUnit && isMlGrBase) {
+              effectiveQty = qty * volMl;
+              descExtra = ` (${qty} ${unitCode} x ${volMl}ml)`;
+            }
+
+            await pool.query(
+              "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
+              [effectiveQty, up, invoiceDetails.currency || 'TRY', productId]
+            );
+
+            await addStockMovement(
+              pool, storeId, productId, 'in', effectiveQty, 'purchase_invoice',
+              `E-Fatura İçe Aktarma: ${finalDocNo}${descExtra}`,
+              up, invoiceDetails.senderTitle, invoiceDetails.currency, null, invoiceId, 'purchase', finalDocNo
+            );
+          }
+        }
+      }
+
+      // 4. Current Account Transaction
+      if (companyId) {
+        const existingTx = await pool.query("SELECT id FROM current_account_transactions WHERE purchase_invoice_id = $1 LIMIT 1", [invoiceId]);
+        if (existingTx.rows.length === 0) {
+          await pool.query(
+            `INSERT INTO current_account_transactions 
+              (store_id, company_id, purchase_invoice_id, type, amount, currency, description, transaction_date) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [storeId, companyId, invoiceId, 'credit', grandAmt, invoiceDetails.currency || 'TRY', `E-Fatura İçe Aktarma: ${finalDocNo}`, issueDateParsed]
+          );
+
+          if (invoiceDetails.paymentStatus === 'paid' || (invoiceDetails.paymentMethod && invoiceDetails.paymentMethod !== 'term')) {
+            await pool.query(
+              `INSERT INTO current_account_transactions 
+                (store_id, company_id, purchase_invoice_id, type, amount, currency, description, payment_method, transaction_date) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+              [
+                storeId, companyId, invoiceId, 'debt', grandAmt,
+                invoiceDetails.currency || 'TRY', `E-Fatura Ödemesi: ${finalDocNo}`,
+                invoiceDetails.paymentMethod || 'nakit', issueDateParsed
+              ]
+            );
+          }
+        }
+      }
+
+      results.push({ documentNumber: finalDocNo, ettn: finalEttn, status: 'IMPORTED', id: invoiceId });
+    } catch (itemErr: any) {
+      console.error(`[IMPORT] Error processing invoice:`, itemErr.message);
+      results.push({ ettn: inv.ettn, status: 'ERROR', message: itemErr.message });
+    }
+  }
+
+  console.log(`[IMPORT] Finished store ${storeId}: imported=${importedCount}, updated=${updatedCount}, skipped=${skippedCount}`);
+  return { importedCount, updatedCount, skippedCount, results };
+}
+
+// 5. Sync Incoming Invoices Endpoint
+router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
+  let storeIdRaw = req.user.role === 'superadmin' ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  const storeId = storeIdRaw ? parseInt(String(storeIdRaw)) : null;
+  const { startDate, endDate } = req.body;
+  try {
+    console.log(`[SYNC-INBOX] Store: ${storeId}, Dates: ${startDate} to ${endDate}`);
+    
+    if (!storeId || isNaN(storeId)) return res.status(400).json({ error: "Geçerli bir Mağaza ID bulunamadı." });
+    if (!startDate || !endDate) {
+       return res.status(400).json({ error: "Başlangıç ve bitiş tarihi gereklidir." });
+    }
+
+    const service = await getEInvoiceService(storeId);
+    if (!service) return res.status(400).json({ error: "E-Fatura servisi başlatılamadı." });
+    
+    let incomingInvoices = [];
+    try {
+      console.log(`[SYNC-INBOX] Calling integrator service...`);
+      incomingInvoices = await service.getIncomingInvoices(startDate, endDate);
+      console.log(`[SYNC-INBOX] Received ${incomingInvoices.length} invoices from integrator.`);
+    } catch (apiErr: any) {
+      console.error("[SYNC-INBOX] MySoft API call failed:", apiErr.message);
+      return res.status(500).json({ error: `Entegratör hatası: ${apiErr.message}` });
+    }
+
+    const { importedCount, updatedCount, skippedCount, results } = await processAndImportIncomingInvoiceList(
+      pool,
+      storeId,
+      service,
+      incomingInvoices
+    );
+
+    res.json({
+      message: `${importedCount} adet yeni fatura içeri aktarıldı, ${updatedCount} adet güncellendi.`,
+      importedCount,
+      updatedCount,
+      skippedCount,
+      results
+    });
+  } catch (error: any) {
+    await IntegrationService.logIntegrationError(storeId || 0, 'E-Fatura', `Sync Inbox`, error);
+    res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
+  }
+});
+
 
 // Diagnostic Backfill Endpoint for Missing Invoices
 router.post("/einvoice/backfill-invoices", authenticate, async (req: any, res) => {
@@ -2154,72 +2371,20 @@ router.post("/einvoice/backfill-invoices", authenticate, async (req: any, res) =
     console.log(`[BACKFILL] Scanning incoming invoices for store ${storeId} from ${startDateStr} to ${endDateStr}`);
     const incoming = await service.getIncomingInvoices(startDateStr, endDateStr);
     
-    let foundCount = 0;
-    let importedCount = 0;
-    const results: any[] = [];
-
-    if (Array.isArray(incoming)) {
-      for (const inv of incoming) {
-        const docNum = inv.documentNumber || inv.raw?.Id || '';
-        const ettn = inv.ettn || inv.raw?.Uuid || '';
-        
-        const isTargetMatch = targetInvoiceNumbers.some((t: string) => 
-          (docNum && docNum.toLowerCase().includes(t.toLowerCase())) ||
-          (ettn && ettn.toLowerCase().includes(t.toLowerCase()))
-        );
-
-        if (isTargetMatch || targetInvoiceNumbers.length === 0) {
-          foundCount++;
-          const existing = await pool.query(
-            "SELECT id FROM purchase_invoices WHERE store_id = $1 AND (ettn = $2 OR document_number = $3)",
-            [storeId, ettn, docNum]
-          );
-
-          if (existing.rows.length === 0) {
-            const grandAmt = Math.round((Number(inv.payableAmount) || 0) * 100) / 100;
-            const taxAmt = Math.round((Number(inv.taxAmount) || 0) * 100) / 100;
-            const baseAmt = Math.round(((Number(inv.baseAmount) || (grandAmt - taxAmt))) * 100) / 100;
-
-            const ins = await pool.query(
-              `INSERT INTO purchase_invoices 
-              (store_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_expense)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
-              [
-                storeId,
-                docNum,
-                docNum,
-                ettn,
-                inv.documentType || 'EFATURA',
-                inv.senderTitle || 'Bilinmeyen Tedarikçi',
-                inv.senderVkn || '',
-                inv.issueDate ? (inv.issueDate.includes('.') ? inv.issueDate.split('.').reverse().join('-') : inv.issueDate) : new Date().toISOString().split('T')[0],
-                baseAmt,
-                taxAmt,
-                grandAmt,
-                inv.currency || 'TRY',
-                inv.exchangeRate || 1,
-                'approved',
-                'RECEIVED',
-                'term',
-                'unpaid',
-                false,
-                true
-              ]
-            );
-            importedCount++;
-            results.push({ documentNumber: docNum, ettn, status: 'IMPORTED', id: ins.rows[0].id });
-          } else {
-            results.push({ documentNumber: docNum, ettn, status: 'ALREADY_EXISTS' });
-          }
-        }
-      }
-    }
+    const { importedCount, updatedCount, skippedCount, results } = await processAndImportIncomingInvoiceList(
+      pool,
+      storeId,
+      service,
+      incoming
+    );
 
     res.json({
       success: true,
-      message: `Backfill taraması tamamlandı. Bulunan: ${foundCount}, Yeni İçe Aktarılan: ${importedCount}`,
-      foundCount,
+      message: `Backfill tamamlandı. ${importedCount} adet yeni içe aktarıldı, ${updatedCount} adet güncellendi, ${skippedCount} adet zaten mevcuttu.`,
+      foundCount: incoming.length,
       importedCount,
+      updatedCount,
+      skippedCount,
       results
     });
   } catch (error: any) {
@@ -2929,175 +3094,22 @@ export const runGlobalEInvoiceSync = async () => {
         const storeId = store.id;
         const service = await getEInvoiceService(storeId);
         
-        // Let's pull the last 3 days
+        // Look back 60 days to catch any delayed or back-dated invoices
         const endDate = new Date().toISOString().split('T')[0];
-        const startDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const startDateObj = new Date();
+        startDateObj.setDate(startDateObj.getDate() - 60);
+        const startDate = startDateObj.toISOString().split('T')[0];
 
-        // Fetch raw incoming invoices
+        // Fetch raw incoming invoices with combined docDate and envelopeDate modes (limit 1000)
         const incomingInvoices = await service.getIncomingInvoices(startDate, endDate);
         
-        let importedCount = 0;
-        const normalizeDate = (dateStr: any) => {
-          if (typeof dateStr !== 'string') return dateStr;
-          if (dateStr.includes('.')) {
-            const parts = dateStr.split('.');
-            if (parts.length === 3 && parts[2].length === 4) {
-              return `${parts[2]}-${parts[1]}-${parts[0]}`;
-            }
-          }
-          return dateStr;
-        };
-
-        for (const inv of incomingInvoices) {
-           let invoiceDetails = inv;
-           
-           const rawForLines = inv.raw || (typeof inv === 'object' ? inv : {});
-           const linesAtRoot = rawForLines.detailList || rawForLines.InvoiceLines || rawForLines.lines || rawForLines.InvoiceLine || rawForLines.Lines || rawForLines.invoiceLines;
-           
-           if (!linesAtRoot && inv.ettn) {
-             const details = await service.getInvoiceDetailsByUuid(inv.ettn);
-             if (details) {
-               const detailsBase = details.legalMonetaryTotal?.taxExclusiveAmount || details.TaxExclusiveAmount || 0;
-               const detailsTaxArr = details.taxTotal || details.TaxTotal || [];
-               const detailsTax = Array.isArray(detailsTaxArr) 
-                 ? detailsTaxArr.reduce((sum: number, tax: any) => sum + (Number(tax.taxAmount || tax.TaxAmount || 0)), 0)
-                 : (Number(detailsTaxArr.taxAmount || detailsTaxArr.TaxAmount) || 0);
-
-               invoiceDetails = {
-                 ...inv,
-                 documentNumber: details.docNo || details.Id || details.id || inv.documentNumber,
-                 issueDate: normalizeDate(details.docDate || details.IssueDate || details.issueDate || inv.issueDate),
-                 senderTitle: extractSenderTitleFromUblOrDetails(details, inv.senderTitle || 'Bilinmeyen Tedarikçi'),
-                 senderVkn: details.supplierInfo?.identifierNumber || details.SenderVkn || details.senderVkn || inv.senderVkn,
-                 payableAmount: details.legalMonetaryTotal?.payableAmount || details.PayableAmount || details.payableAmount || inv.payableAmount,
-                 baseAmount: Number(detailsBase) || inv.baseAmount || 0,
-                 taxAmount: Number(detailsTax) || inv.taxAmount || 0,
-                 currency: details.documentCurrencyCode || details.CurrencyCode || details.currencyCode || inv.currency,
-                 exchangeRate: Number(details.pricingExchangeRate?.calculationRate || details.PricingExchangeRate?.CalculationRate || details.paymentExchangeRate?.calculationRate || details.exchangeRate || details.ExchangeRate || details.currencyRate || 1) || 1,
-                 documentType: details.profileId || details.InvoiceTypeCode || details.invoiceTypeCode || inv.documentType,
-                 raw: details
-               };
-             }
-           } else {
-             invoiceDetails = {
-               ...inv,
-               issueDate: normalizeDate(inv.issueDate)
-             };
-           }
-
-           const existingRes = await pool.query(
-             "SELECT id, ettn FROM purchase_invoices WHERE store_id = $1 AND (ettn = $2 OR document_number = $3)", 
-             [storeId, invoiceDetails.ettn, invoiceDetails.documentNumber]
-           );
-
-           if (existingRes.rows.length > 0) {
-              const existing = existingRes.rows[0];
-              if (!existing.ettn && invoiceDetails.ettn) {
-                 await pool.query(
-                   "UPDATE purchase_invoices SET ettn = $1 WHERE id = $2",
-                   [invoiceDetails.ettn, existing.id]
-                 );
-              }
-              continue;
-           }
-
-           let companyId = null;
-           if (invoiceDetails.senderVkn) {
-             const cleanSenderVkn = String(invoiceDetails.senderVkn).replace(/\D/g, '').trim();
-             let compRes = { rows: [] as any[] };
-             if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
-               compRes = await pool.query(
-                 "SELECT id, title FROM companies WHERE store_id = $1 AND clean_tax_number(tax_number) = $2 LIMIT 1",
-                 [storeId, cleanSenderVkn]
-               );
-             }
-             const newTitle = (invoiceDetails.senderTitle || '').trim();
-             if (compRes.rows.length === 0 && newTitle && newTitle !== 'Bilinmeyen Tedarikçi') {
-               compRes = await pool.query(
-                 "SELECT id, title FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1",
-                 [storeId, newTitle]
-               );
-             }
-
-             if (compRes.rows.length > 0) {
-               companyId = compRes.rows[0].id;
-               const existingTitle = (compRes.rows[0].title || '').trim();
-               if (newTitle && newTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < newTitle.split(' ').length || (existingTitle.toLowerCase() !== newTitle.toLowerCase() && existingTitle.length < newTitle.length))) {
-                 await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [newTitle, companyId]);
-               }
-               if (cleanSenderVkn && cleanSenderVkn.length >= 10 && cleanSenderVkn !== '11111111111') {
-                 await pool.query("UPDATE companies SET tax_number = $1 WHERE id = $2 AND (tax_number IS NULL OR clean_tax_number(tax_number) != $1)", [cleanSenderVkn, companyId]);
-               }
-             } else {
-               const newComp = await pool.query(
-                 "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
-                 [storeId, invoiceDetails.senderTitle || 'Bilinmeyen Tedarikçi', cleanSenderVkn || invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
-               );
-               companyId = newComp.rows[0].id;
-             }
-           }
-
-           const baseAmt = Number(invoiceDetails.baseAmount) || (Number(invoiceDetails.payableAmount) - Number(invoiceDetails.taxAmount || 0));
-           const taxAmt = Number(invoiceDetails.taxAmount) || 0;
-           const grandAmt = Number(invoiceDetails.payableAmount) || (baseAmt + taxAmt);
-
-           const expenseCheck = await resolveExpenseClassification(pool, storeId, {
-             supplierTitle: invoiceDetails.senderTitle,
-             supplierVkn: invoiceDetails.senderVkn,
-             companyId,
-             pinToCompany: true
-           });
-
-           const isExpense = expenseCheck.isExpense;
-           const expenseCategory = expenseCheck.expenseCategory;
-           const expenseCenter = expenseCheck.expenseCenter;
-
-            await pool.query(
-              `INSERT INTO purchase_invoices 
-              (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_read, is_expense, expense_category, expense_center)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, false, $20, $21, $22) RETURNING id`,
-              [
-                storeId, 
-                companyId,
-                invoiceDetails.documentNumber, 
-                invoiceDetails.documentNumber, 
-                invoiceDetails.ettn, 
-                invoiceDetails.documentType, 
-                invoiceDetails.senderTitle,
-                invoiceDetails.senderVkn,
-                (() => {
-                  const d = invoiceDetails.issueDate;
-                  if (!d) return new Date().toISOString();
-                  if (typeof d !== 'string') return d;
-                  if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
-                    const [day, month, year] = d.split('.');
-                    return `${year}-${month}-${day}`;
-                  }
-                  try {
-                    const parsed = new Date(d);
-                    if (!isNaN(parsed.getTime())) return parsed.toISOString();
-                  } catch (e) {}
-                  return new Date().toISOString();
-                })(),
-                baseAmt,
-                taxAmt,
-                grandAmt,
-                invoiceDetails.currency || 'TRY',
-                invoiceDetails.exchangeRate || 1,
-                'pending',
-                'RECEIVED',
-                'term',
-                'unpaid',
-                false,
-                isExpense,
-                expenseCategory,
-                expenseCenter
-              ]
-            );
-           
-           importedCount++;
-        }
-        console.log(`[runGlobalEInvoiceSync] Store ${storeId} imported ${importedCount} new invoices.`);
+        const { importedCount, updatedCount } = await processAndImportIncomingInvoiceList(
+          pool,
+          storeId,
+          service,
+          incomingInvoices
+        );
+        console.log(`[runGlobalEInvoiceSync] Store ${storeId} finished: imported ${importedCount}, updated ${updatedCount}.`);
       } catch (err) {
          console.error(`[runGlobalEInvoiceSync] Error in store ${store.id}:`, err);
       }

@@ -22,7 +22,7 @@ import { initPurchaseInvoiceSchema } from "./routes/store/invoices";
 import aiJobsRoutes from "./routes/ai_jobs.js";
 import googleDriveRoutes from "./routes/googleDrive.js";
 import { authenticate } from "./middleware/auth";
-import { domainMiddleware } from "./middleware/domain";
+import { domainMiddleware, extractDomainFromRequest, resolveStoreSlugForDomain, MAIN_DOMAINS } from "./middleware/domain";
 import { pool } from "./models/db";
 import multer from "multer";
 import fs from "fs";
@@ -1642,7 +1642,24 @@ function sanitizeFilename(originalName: string): string {
           template = template.replace(/<title>[\s\S]*?<\/title>/i, "");
         }
 
-        const injection = `${customMetaTags}`;
+        let storeSlugForClient = (req as any).storeSlug || null;
+        let isPortalForClient = (req as any).isPortal || false;
+        if (!storeSlugForClient && !isPortalForClient) {
+          const reqDomain = extractDomainFromRequest(req);
+          if (reqDomain === "enrakipsiz.com") {
+            isPortalForClient = true;
+          } else if (reqDomain && !MAIN_DOMAINS.has(reqDomain)) {
+            storeSlugForClient = await resolveStoreSlugForDomain(reqDomain);
+          }
+        }
+        let clientSlugScript = "";
+        if (isPortalForClient) {
+          clientSlugScript = `<script>window.__CUSTOM_STORE_SLUG__ = "__portal__";</script>`;
+        } else if (storeSlugForClient) {
+          clientSlugScript = `<script>window.__CUSTOM_STORE_SLUG__ = "${storeSlugForClient}";</script>`;
+        }
+
+        const injection = `${clientSlugScript}${customMetaTags}`;
         template = template.replace("</head>", `${injection}</head>`);
         if (seoBodySnapshot) {
           template = template.replace('<div id="root"></div>', `<div id="root">${seoBodySnapshot}</div>`);
@@ -1697,8 +1714,24 @@ function sanitizeFilename(originalName: string): string {
           template = template.replace(/<title>[\s\S]*?<\/title>/i, "");
         }
 
-        console.log(`Serving index.html for path: ${req.originalUrl}`);
-        const injection = `${customMetaTags}`;
+        let storeSlugForClient = (req as any).storeSlug || null;
+        let isPortalForClient = (req as any).isPortal || false;
+        if (!storeSlugForClient && !isPortalForClient) {
+          const reqDomain = extractDomainFromRequest(req);
+          if (reqDomain === "enrakipsiz.com") {
+            isPortalForClient = true;
+          } else if (reqDomain && !MAIN_DOMAINS.has(reqDomain)) {
+            storeSlugForClient = await resolveStoreSlugForDomain(reqDomain);
+          }
+        }
+        let clientSlugScript = "";
+        if (isPortalForClient) {
+          clientSlugScript = `<script>window.__CUSTOM_STORE_SLUG__ = "__portal__";</script>`;
+        } else if (storeSlugForClient) {
+          clientSlugScript = `<script>window.__CUSTOM_STORE_SLUG__ = "${storeSlugForClient}";</script>`;
+        }
+
+        const injection = `${clientSlugScript}${customMetaTags}`;
         template = template.replace("</head>", `${injection}</head>`);
         if (seoBodySnapshot) {
           template = template.replace('<div id="root"></div>', `<div id="root">${seoBodySnapshot}</div>`);

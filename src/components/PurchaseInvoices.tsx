@@ -570,10 +570,13 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     try {
       const end = new Date();
       const start = new Date();
-      start.setDate(end.getDate() - 30);
+      start.setDate(end.getDate() - 90);
       const res = await api.syncIncomingEInvoices(start.toISOString().split('T')[0], end.toISOString().split('T')[0], role === 'superadmin' ? storeId : undefined);
       if (res.error) throw new Error(res.error);
-      toast.success(isTr ? `${res.importedCount} yeni fatura sisteme alındı!` : `${res.importedCount} new invoices imported!`);
+      const msg = isTr 
+        ? `${res.importedCount || 0} yeni fatura sisteme alındı${res.updatedCount ? `, ${res.updatedCount} fatura güncellendi` : ''}!`
+        : `${res.importedCount || 0} new invoices imported${res.updatedCount ? `, ${res.updatedCount} updated` : ''}!`;
+      toast.success(msg);
       await fetchInvoicesData();
     } catch (error: any) {
        toast.error(error.message);

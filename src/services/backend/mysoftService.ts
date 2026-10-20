@@ -279,22 +279,80 @@ export class MySoftService {
 
       // Variations of MySoft Inbox endpoints based on provided documentation and trial/error
       const tId = this.credentials.tenant_id;
-      const syncOptions = [
-        // 1. getInvoiceInboxListForPeriod (POST with null tenant) - Often works for API users
-        { 
-          url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxListForPeriod`, 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          data: { 
-            startDate: startDate + " 00:00:00", 
-            endDate: endDate + " 23:59:59", 
-            afterValue: 0, 
-            limit: 0,
-            isUseDocDate: true,
+      // Primary: Chunk date ranges into max 30-day windows to prevent hitting MySoft's 1000-item ceiling,
+      // and query BOTH document date (isUseDocDate: true) and envelope arrival date (isUseDocDate: false).
+      try {
+        const fetchPeriod = async (wStart: string, wEnd: string, isDocDate: boolean) => {
+          const resp = await axios.post(`${this.baseUrl}/InvoiceInbox/getInvoiceInboxListForPeriod`, {
+            startDate: wStart + " 00:00:00",
+            endDate: wEnd + " 23:59:59",
+            afterValue: 0,
+            limit: 1000,
+            isUseDocDate: isDocDate,
             tenantIdentifierNumber: null
-          } 
-        },
-        // 2. getInvoiceInboxListForPeriod (POST) - Documented way using tenantId
+          }, {
+            headers: {
+              Authorization: token.toLowerCase().startsWith('bearer') ? token : `Bearer ${token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            timeout: 25000
+          });
+          const d = resp.data?.Data || resp.data?.data || resp.data?.Items || resp.data?.items;
+          return Array.isArray(d) ? d : null;
+        };
+
+        // Build 30-day windows if date span > 30 days
+        const sDate = new Date(startDate);
+        const eDate = new Date(endDate);
+        const windows: { start: string; end: string }[] = [];
+
+        if (isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || sDate >= eDate) {
+          windows.push({ start: startDate, end: endDate });
+        } else {
+          let curr = new Date(sDate);
+          while (curr <= eDate) {
+            let next = new Date(curr);
+            next.setDate(next.getDate() + 29);
+            if (next > eDate) next = new Date(eDate);
+
+            windows.push({
+              start: curr.toISOString().split('T')[0],
+              end: next.toISOString().split('T')[0]
+            });
+
+            curr = new Date(next);
+            curr.setDate(curr.getDate() + 1);
+          }
+        }
+
+        const periodPromises: Promise<any>[] = [];
+        for (const w of windows) {
+          periodPromises.push(fetchPeriod(w.start, w.end, true).catch(() => null));
+          periodPromises.push(fetchPeriod(w.start, w.end, false).catch(() => null));
+        }
+
+        const results = await Promise.all(periodPromises);
+        const uMap = new Map();
+        for (const resList of results) {
+          if (Array.isArray(resList)) {
+            for (const item of resList) {
+              const u = typeof item === 'string' ? item.toLowerCase().trim() : (item.uuid || item.Uuid || item.ettn || item.Ettn || item.invoiceETTN || '').toString().toLowerCase().trim();
+              if (u && !uMap.has(u)) uMap.set(u, item);
+            }
+          }
+        }
+
+        if (uMap.size > 0) {
+          rawData = Array.from(uMap.values());
+          success = true;
+          console.log(`[MySoft] Inbox synced with limit 1000 (${windows.length} window(s), DocDate & EnvelopeDate combined). Found ${rawData.length} items.`);
+        }
+      } catch (err: any) {
+        console.warn(`[MySoft] getInvoiceInboxListForPeriod primary call failed: ${err.message}`);
+      }
+
+      const syncOptions = success ? [] : [
         { 
           url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxListForPeriod`, 
           method: 'POST', 
@@ -303,33 +361,23 @@ export class MySoftService {
             startDate: startDate + " 00:00:00", 
             endDate: endDate + " 23:59:59", 
             afterValue: 0, 
-            limit: 0,
+            limit: 1000,
             isUseDocDate: true,
             tenantIdentifierNumber: tId
           } 
         },
-        // 3. getNewInvoiceInboxList (POST) 
         { 
           url: `${this.baseUrl}/InvoiceInbox/getNewInvoiceInboxList`, 
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
-          data: { afterValue: 0, limit: 0, tenantIdentifierNumber: tId } 
+          data: { afterValue: 0, limit: 1000, tenantIdentifierNumber: tId } 
         },
-        // 4. getNewInvoiceInboxList (POST with null tenant)
         { 
           url: `${this.baseUrl}/InvoiceInbox/getNewInvoiceInboxList`, 
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
-          data: { afterValue: 0, limit: 0, tenantIdentifierNumber: null } 
+          data: { afterValue: 0, limit: 1000, tenantIdentifierNumber: null } 
         },
-        // 4.1 getNewInvoiceInboxList (POST without tenant field)
-        { 
-          url: `${this.baseUrl}/InvoiceInbox/getNewInvoiceInboxList`, 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          data: { afterValue: 0, limit: 100 } 
-        },
-        // 5. Generic GET variations (Older APIs)
         { url: `${this.baseUrl}/InvoiceInbox/invoiceInbox`, method: 'GET', params: { startDate, endDate, tenantIdentifierNumber: tId } },
         { url: `${this.baseUrl}/Invoice/GetInboxInvoices`, method: 'GET', params: { StartDate: startDate, EndDate: endDate, tenantIdentifierNumber: tId } },
       ];
@@ -438,7 +486,8 @@ export class MySoftService {
         const firstName = (supplierObj.firstName || supplierObj.FirstName || supplierObj.first_name || personObj.firstName || personObj.FirstName || item.firstName || item.FirstName || "").toString().trim();
         const familyName = (supplierObj.familyName || supplierObj.FamilyName || supplierObj.family_name || supplierObj.lastName || supplierObj.LastName || supplierObj.last_name || supplierObj.surname || supplierObj.Surname || personObj.familyName || personObj.FamilyName || personObj.lastName || personObj.LastName || item.familyName || item.FamilyName || item.lastName || item.LastName || item.surname || item.Surname || "").toString().trim();
 
-        let rawSenderTitle = (item.SenderTitle || item.senderTitle || item.Title || item.title || item.senderName || item.SenderName || item.companyName || item.CompanyName || item.customerName || item.CustomerName || item.TaxpayerName || item.taxpayerName || "").toString().trim();
+        const partyName = (supplierObj.partyName || supplierObj.PartyName || item.partyName || item.PartyName || "").toString().trim();
+        let rawSenderTitle = (partyName || item.SenderTitle || item.senderTitle || item.Title || item.title || item.senderName || item.SenderName || item.companyName || item.CompanyName || item.customerName || item.CustomerName || item.TaxpayerName || item.taxpayerName || "").toString().trim();
 
         let senderTitle = rawSenderTitle;
         if (firstName && familyName) {

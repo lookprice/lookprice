@@ -415,21 +415,21 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [leadsRes, registrationRes, storesRes, statsRes] = await Promise.all([
+      const [leadsRes, registrationRes, storesRes, statsRes] = await Promise.allSettled([
         api.getLeads(),
         api.getRegistrationRequests(),
         api.getStores(),
         api.getAdminStats()
       ]);
-      setLeads(leadsRes);
-      setRegistrationRequests(registrationRes);
-      setStores(storesRes);
-      if (statsRes && !statsRes.error) {
-        setStats(statsRes);
+      if (leadsRes.status === 'fulfilled') setLeads(leadsRes.value || []);
+      if (registrationRes.status === 'fulfilled') setRegistrationRequests(registrationRes.value || []);
+      if (storesRes.status === 'fulfilled') setStores(storesRes.value || []);
+      if (statsRes.status === 'fulfilled' && statsRes.value && !statsRes.value.error) {
+        setStats(statsRes.value);
       }
       fetchSupabaseStatus();
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("Fetch error in SuperAdmin:", error);
     } finally {
       setLoading(false);
     }

@@ -201,7 +201,11 @@ export default function App() {
   }
 
   // If we are on a custom domain, we treat the root and other paths as store paths
-  if (detectedSlug && !location.pathname.startsWith('/api') && !location.pathname.startsWith('/admin')) {
+  if (detectedSlug && 
+      !location.pathname.startsWith('/api') && 
+      !location.pathname.startsWith('/admin') && 
+      !location.pathname.startsWith('/superadmin') && 
+      !location.pathname.startsWith('/dashboard')) {
     // Special case for Mega Portal (Enrakipsiz.com)
     if (detectedSlug === "__portal__") {
       return (
@@ -252,6 +256,16 @@ export default function App() {
             <Route path="/privacy" element={<LegalPage type="privacy" />} />
             <Route path="/terms" element={<LegalPage type="terms" />} />
             <Route path="/data-deletion" element={<LegalPage type="deletion" />} />
+            <Route path="/dashboard/:slug?" element={
+              token && user ? (
+                <StoreDashboard user={user} onLogout={handleLogout} />
+              ) : <Navigate to="/login" />
+            } />
+            <Route path="/admin" element={
+              token && user?.role === 'superadmin' ? (
+                <SuperAdminDashboard token={token} onLogout={handleLogout} />
+              ) : <Navigate to="/login" />
+            } />
             <Route path="/s/:slug/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
             <Route path="/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
             <Route path="/s/:slug" element={<StoreShowcase customSlug={detectedSlug} />} />
