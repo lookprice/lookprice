@@ -29,56 +29,56 @@ export const IncidentsTab: React.FC<IncidentsTabProps> = ({
   getVehiclePlate
 }) => {
   return (
-    <div className="grid grid-cols-1 gap-4">
+    <div className="space-y-1.5">
       {incidents.map(i => (
-        <div key={i.id} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:border-red-200 transition-all group">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition-all shadow-sm">
-                <AlertTriangle className="w-6 h-6 text-red-600 group-hover:text-white" />
+        <div key={i.id} className="bg-white px-3 py-2 rounded-lg border border-slate-200 hover:shadow-sm transition-all group">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div className="w-8 h-8 bg-slate-50 rounded flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition-all border border-slate-100 shrink-0">
+                <AlertTriangle className="w-3.5 h-3.5 text-red-600 group-hover:text-white" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <h4 className="font-black text-gray-900 text-lg">{i.type}</h4>
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase tracking-wider">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="font-black text-slate-900 text-[11px] uppercase tracking-tighter truncate">{i.type}</h4>
+                  <span className="shrink-0 px-1 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase border border-blue-100">
                     {getVehiclePlate(i.vehicle_id)}
                   </span>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                    i.is_owner_fault ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                  <span className={`shrink-0 px-1 rounded text-[7px] font-black uppercase border ${
+                    i.is_owner_fault ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-green-50 text-green-700 border-green-200'
                   }`}>
                     {i.is_owner_fault ? (lang === 'tr' ? 'Kusurlu' : 'At Fault') : (lang === 'tr' ? 'Kusursuz' : 'No Fault')}
                   </span>
                 </div>
                 
-                <p className="text-gray-600 text-sm font-medium mb-4 leading-relaxed bg-gray-50 p-3 rounded-xl border border-gray-100 italic">
-                  "{i.description}"
+                <p className="text-slate-500 text-[9px] font-medium mb-1 line-clamp-1 italic">
+                  {i.description}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-gray-400">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-100 rounded-lg">
-                    <Calendar className="w-3.5 h-3.5" />
-                    {safeFormatDate(i.date, 'dd MMMM yyyy, HH:mm')}
+                <div className="flex items-center gap-3 text-[8px] font-black text-slate-400 uppercase tracking-tighter">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-2.5 h-2.5" />
+                    {safeFormatDate(i.date, 'dd.MM.yyyy, HH:mm')}
                   </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-100 rounded-lg">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {i.location}
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-2.5 h-2.5" />
+                    <span className="truncate max-w-[200px]">{i.location}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex sm:flex-col items-center justify-between sm:items-end gap-4 mt-2 sm:mt-0 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-50">
-              <div className="text-left sm:text-right">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'HASAR KAYDI' : 'DAMAGE RECORD'}</p>
-                <p className="text-xl font-black text-red-600">{(i.cost || 0).toLocaleString()} {i.currency}</p>
+            <div className="flex items-center gap-4 shrink-0">
+              <div className="text-right">
+                <p className="text-[6px] font-black text-slate-400 uppercase tracking-widest leading-none">{lang === 'tr' ? 'HASAR' : 'DAMAGE'}</p>
+                <p className="text-[11px] font-black text-red-600 mt-0.5">{(i.cost || 0).toLocaleString()} <span className="text-[9px] opacity-50">{i.currency}</span></p>
               </div>
               {!isViewer && (
                 <button
                   onClick={() => onDelete(i.id)}
-                  className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                  className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded transition-all"
                   title={t.delete}
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -86,14 +86,12 @@ export const IncidentsTab: React.FC<IncidentsTabProps> = ({
         </div>
       ))}
       {incidents.length === 0 && (
-        <div className="py-20 bg-white rounded-3xl border border-dashed border-gray-200 text-center">
-          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AlertTriangle className="w-10 h-10 text-gray-200" />
-          </div>
-          <h3 className="text-lg font-bold text-gray-900 mb-1">{t.noIncidentsFound}</h3>
-          <p className="text-gray-500 text-sm">{lang === 'tr' ? 'Henüz kaydedilmiş kaza veya olay bulunmuyor.' : 'No incidents or accidents recorded yet.'}</p>
+        <div className="py-8 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
+          <AlertTriangle className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">{t.noIncidentsFound}</p>
         </div>
       )}
     </div>
+
   );
 };

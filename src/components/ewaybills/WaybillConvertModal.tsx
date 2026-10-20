@@ -24,88 +24,90 @@ export const WaybillConvertModal: React.FC<WaybillConvertModalProps> = ({
         animate={{ scale: 1, opacity: 1 }}
         className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100"
       >
-        <div className="p-4 px-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-          <h2 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-            <FileText className="h-5 w-5 text-indigo-600" />
-            {isTr ? "Toplu İrsaliye e-Fatura Dönüşümü" : "Consolidate waybills to e-Invoice"}
+        <div className="px-4 py-2 border-b border-slate-100 bg-slate-900 flex justify-between items-center">
+          <h2 className="text-[11px] font-black text-white flex items-center gap-2 uppercase tracking-widest">
+            <FileText className="h-4 w-4 text-indigo-400" />
+            {isTr ? "E-FATURA DÖNÜŞÜMÜ" : "CONVERT TO E-INVOICE"}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-200 text-slate-400 transition">
-            <X className="h-5 w-5" />
+          <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded transition-all">
+            <X className="h-4 w-4 text-slate-400" />
           </button>
         </div>
 
-        <form onSubmit={handleBulkConversionSubmit} className="p-6 space-y-4">
-          <p className="text-xs text-slate-500 leading-relaxed bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-indigo-800">
+        <form onSubmit={handleBulkConversionSubmit} className="p-4 space-y-4 bg-slate-50/50">
+          <div className="text-[10px] font-bold leading-relaxed bg-indigo-50 p-2.5 rounded-lg border border-indigo-100 text-indigo-800 uppercase tracking-tight">
             {isTr 
-              ? `Seçtiğiniz ${selectedIds.length} adet sevk irsaliyesi tek bir Satış Faturası altında birleştirilecektir. Mükerrer ürünler konsolide edilip miktarları toplanacaktır.`
-              : `Your ${selectedIds.length} selected waybills will be consolidated into a single draft invoice. Duplicate item quantities will be summed.`}
-          </p>
+              ? `${selectedIds.length} ADET İRSALİYE TEK BİR SATIŞ FATURASINDA BİRLEŞTİRİLECEKTİR.`
+              : `${selectedIds.length} WAYBILLS WILL BE CONSOLIDATED INTO ONE INVOICE.`}
+          </div>
 
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-600 block">{isTr ? "Fatura Senaryosu" : "Invoice Profile"}</label>
-              <select
-                value={convertForm.invoiceProfile}
-                onChange={(e) => setConvertForm((prev: any) => ({ ...prev, invoiceProfile: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:border-indigo-500 outline-none"
-              >
-                <option value="TICARIFATURA">{isTr ? "TİCARİ FATURA (Ortak)" : "TICARIFATURA"}</option>
-                <option value="TEMELFATURA">{isTr ? "TEMEL FATURA (Bireysel/E-Arşiv)" : "TEMELFATURA"}</option>
-              </select>
+          <div className="space-y-3 bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-400 block uppercase tracking-widest">{isTr ? "Fatura Senaryosu" : "Invoice Profile"}</label>
+                <select
+                  value={convertForm.invoiceProfile}
+                  onChange={(e) => setConvertForm((prev: any) => ({ ...prev, invoiceProfile: e.target.value }))}
+                  className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-[11px] font-black bg-white focus:border-indigo-500 outline-none text-slate-700"
+                >
+                  <option value="TICARIFATURA">{isTr ? "TİCARİ FATURA" : "TICARIFATURA"}</option>
+                  <option value="TEMELFATURA">{isTr ? "TEMEL FATURA" : "TEMELFATURA"}</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-400 block uppercase tracking-widest">{isTr ? "Fatura Tipi" : "Billing Category"}</label>
+                <select
+                  value={convertForm.giInvoiceType}
+                  onChange={(e) => setConvertForm((prev: any) => ({ ...prev, giInvoiceType: e.target.value }))}
+                  className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-[11px] font-black bg-white focus:border-indigo-500 outline-none text-slate-700"
+                >
+                  <option value="SATIS">{isTr ? "SATIŞ FATURASI" : "SATIS"}</option>
+                  <option value="ISTISNA">{isTr ? "İSTİSNA FATURASI" : "ISTISNA"}</option>
+                </select>
+              </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-600 block">{isTr ? "Fatura Tipi" : "Billing Category"}</label>
-              <select
-                value={convertForm.giInvoiceType}
-                onChange={(e) => setConvertForm((prev: any) => ({ ...prev, giInvoiceType: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:border-indigo-500 outline-none"
-              >
-                <option value="SATIS">{isTr ? "SATIŞ FATURASI" : "SATIS"}</option>
-                <option value="ISTISNA">{isTr ? "İSTİSNA FATURASI" : "ISTISNA"}</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-600 block">{isTr ? "Ödeme Şekli" : "Payment Method"}</label>
+              <label className="text-[9px] font-black text-slate-400 block uppercase tracking-widest">{isTr ? "Ödeme Şekli" : "Payment Method"}</label>
               <select
                 value={convertForm.paymentMethod}
                 onChange={(e) => setConvertForm((prev: any) => ({ ...prev, paymentMethod: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:border-indigo-500 outline-none"
+                className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-[11px] font-black bg-white focus:border-indigo-500 outline-none text-slate-700"
               >
-                <option value="cash">{isTr ? "Nakit" : "Cash"}</option>
-                <option value="credit_card">{isTr ? "Kredi Kartı" : "Credit Card"}</option>
-                <option value="bank">{isTr ? "Banka Havalesi / EFT" : "Bank Transfer"}</option>
-                <option value="term">{isTr ? "Açık Hesap / Vadeli" : "Açık Hesap"}</option>
+                <option value="cash">{isTr ? "NAKİT" : "CASH"}</option>
+                <option value="credit_card">{isTr ? "KREDİ KARTI" : "CREDIT CARD"}</option>
+                <option value="bank">{isTr ? "HAVALE / EFT" : "BANK TRANSFER"}</option>
+                <option value="term">{isTr ? "VADELİ / AÇIK HESAP" : "TERM"}</option>
               </select>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-600 block">{isTr ? "Özel Fatura Notu" : "Invoice Notes"}</label>
+              <label className="text-[9px] font-black text-slate-400 block uppercase tracking-widest">{isTr ? "Özel Fatura Notu" : "Invoice Notes"}</label>
               <textarea
                 value={convertForm.notes}
                 onChange={(e) => setConvertForm((prev: any) => ({ ...prev, notes: e.target.value }))}
-                rows={2}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:border-indigo-500 outline-none resize-none"
-                placeholder={isTr ? "Fatura açıklaması ekleyin..." : "Notes..."}
+                rows={1}
+                className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-[11px] font-medium bg-white focus:border-indigo-500 outline-none resize-none placeholder:text-slate-300"
+                placeholder={isTr ? "Opsiyonel açıklama..." : "Optional notes..."}
               />
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 -mx-6 -mb-6 p-4">
+          <div className="pt-3 flex justify-end gap-2 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-800 rounded-xl text-xs font-bold transition text-slate-600"
+              className="px-4 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition text-slate-500"
             >
               {isTr ? "İptal" : "Cancel"}
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm"
+              className="px-6 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-[10px] font-black transition flex items-center gap-1.5 shadow-md shadow-indigo-200 active:scale-95 uppercase tracking-widest"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              {isTr ? "Faturayı Oluştur (Taslak)" : "Create Bill Draft"}
+              {isTr ? "Dönüştür ve Taslak Oluştur" : "Convert & Create Draft"}
             </button>
           </div>
         </form>

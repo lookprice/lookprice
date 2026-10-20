@@ -1138,7 +1138,36 @@ export class MySoftService {
       throw new Error("Önizleme oluşturulamadı.");
     } catch (error: any) {
       console.error("MySoft Waybill Preview Error:", error.response?.data?.toString() || error.message);
-      throw new Error("İrsaliye önizlemesi alınamadı.");
+    }
+  }
+
+  // 8. Control Waybill (Şema/Şematron Kontrolü)
+  async controlWaybill(ublData: any): Promise<{ isSuccess: boolean; message: string; details?: any }> {
+    try {
+      const token = await this.authenticate();
+      const config: any = {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      };
+
+      console.log(`[MySoft] Controlling Waybill Schema/Schematron...`);
+      // Most integrators use /controlDespatchOutbox or /validateDespatchAdvice
+      const response = await axios.post(`${this.baseUrl}/DespatchOutbox/controlDespatchOutbox`, ublData, config);
+      
+      const data = response.data;
+      const isSucceed = data.Succeed ?? data.succeed ?? data.IsSuccess ?? data.isSuccess ?? true;
+
+      return {
+        isSuccess: isSucceed,
+        message: data.Message || data.message || (isSucceed ? "Şema/Şematron kontrolü başarılı." : "Kontrol başarısız."),
+        details: data.Data || data.data
+      };
+    } catch (error: any) {
+      console.error("MySoft Waybill Control Error:", error.response?.data || error.message);
+      const errMsg = error.response?.data?.Message || error.response?.data?.message || error.message;
+      return { isSuccess: false, message: `Kontrol sırasında hata oluştu: ${errMsg}` };
     }
   }
 }

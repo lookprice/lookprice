@@ -492,6 +492,7 @@ export interface Driver {
   id: number;
   store_id: number;
   name: string;
+  national_id?: string;
   license_number: string;
   license_class: string;
   blood_type: string;

@@ -29,84 +29,78 @@ export const MaintenanceTab: React.FC<MaintenanceTabProps> = ({
   getVehiclePlate
 }) => {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4">
+    <div className="space-y-2">
+      <div className="flex flex-col gap-1.5">
         {maintenance.map(m => (
-          <div key={m.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:border-blue-200 transition-all group">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
-                  <Wrench className="w-6 h-6 text-orange-600 group-hover:text-white" />
+          <div key={m.id} className="bg-white px-3 py-2 rounded-lg border border-slate-200 hover:shadow-sm hover:border-blue-300 transition-all group">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all border border-slate-100 shrink-0">
+                  <Wrench className="w-3.5 h-3.5 text-orange-600 group-hover:text-white" />
                 </div>
-                <div>
-                  <h4 className="font-black text-gray-900">{m.type}</h4>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 mt-1">
-                    <span className="font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{getVehiclePlate(m.vehicle_id)}</span>
-                    <span className="opacity-30">•</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h4 className="font-black text-slate-900 text-[11px] uppercase tracking-tighter truncate">{m.type}</h4>
+                    <span className="shrink-0 font-black text-blue-600 bg-blue-50 px-1 py-0.5 rounded text-[8px] border border-blue-100">{getVehiclePlate(m.vehicle_id)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[9px] text-slate-500">
                     <span className="font-bold">{safeFormatDate(m.date, 'dd.MM.yyyy')}</span>
                     <span className="opacity-30">•</span>
-                    <span className="font-medium">{m.provider_name}</span>
+                    <span className="font-medium truncate max-w-[150px]">{m.provider_name}</span>
+                    {m.next_maintenance_date && (
+                      <>
+                        <span className="opacity-30">•</span>
+                        <span className="text-amber-600 font-black">NEXT: {safeFormatDate(m.next_maintenance_date, 'dd.MM.yyyy')}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between sm:justify-end gap-6 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-50">
-                <div className="text-left sm:text-right">
-                  <p className="font-black text-gray-900 text-lg">{(m.cost || 0).toLocaleString()} {m.currency}</p>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${
-                    m.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+              
+              <div className="flex items-center gap-4 shrink-0">
+                <div className="text-right">
+                  <p className="font-black text-slate-900 text-[11px] leading-none">{(m.cost || 0).toLocaleString()} <span className="text-[9px] opacity-50">{m.currency}</span></p>
+                  <span className={`text-[7px] px-1 rounded-sm font-black uppercase tracking-widest border inline-block mt-1 ${
+                    m.status === 'completed' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-orange-50 text-orange-700 border-orange-200'
                   }`}>
                     {m.status === 'completed' ? t.completed : t.planned}
                   </span>
                 </div>
-                <div className="flex gap-2">
+                
+                <div className="flex gap-1">
                   {m.invoice_url && (
                     <a 
                       href={m.invoice_url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all"
+                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-all"
                       title={t.downloadInvoice}
                     >
-                      <Download className="w-5 h-5" />
+                      <Download className="w-3.5 h-3.5" />
                     </a>
                   )}
                   {!isViewer && (
                     <button 
                       onClick={() => onEdit(m)}
-                      className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-all"
+                      className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-all"
                       title={t.edit}
                     >
-                      <Edit2 className="w-5 h-5" />
+                      <Edit2 className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
               </div>
             </div>
-            {(m.next_maintenance_date || m.next_maintenance_mileage) && (
-              <div className="mt-4 p-3 bg-gray-50 rounded-xl flex flex-wrap gap-4">
-                {m.next_maintenance_date && (
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.nextDate}</span>
-                    <span className="text-xs font-black text-amber-600">{safeFormatDate(m.next_maintenance_date, 'dd.MM.yyyy')}</span>
-                  </div>
-                )}
-                {m.next_maintenance_mileage && (
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.nextKM}</span>
-                    <span className="text-xs font-black text-amber-600">{m.next_maintenance_mileage.toLocaleString()} KM</span>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         ))}
       </div>
       {maintenance.length === 0 && (
-        <div className="py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-center">
-          <Wrench className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-          <p className="text-gray-500 font-bold">{t.noMaintenanceFound}</p>
+        <div className="py-8 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
+          <Wrench className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">{t.noMaintenanceFound}</p>
         </div>
       )}
     </div>
+
   );
 };

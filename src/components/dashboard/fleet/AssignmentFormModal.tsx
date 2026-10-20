@@ -31,34 +31,34 @@ export const AssignmentFormModal: React.FC<AssignmentFormModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 bg-slate-950/70 backdrop-blur-xs">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-white w-full max-w-xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+          exit={{ opacity: 0, scale: 0.98, y: 10 }}
+          className="bg-white w-full max-w-lg rounded-xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-slate-200"
         >
-          <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-            <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-purple-600" />
-              {isTr ? 'Zimmet Bilgileri' : 'Assignment Information'}
+          <div className="p-3 px-4 border-b border-slate-100 flex justify-between items-center bg-slate-900">
+            <h3 className="text-xs font-black text-white tracking-widest flex items-center gap-2 uppercase">
+              <UserCheck className="h-3.5 w-3.5 text-purple-400" />
+              {isTr ? 'Zimmet Bilgileri' : 'Assignment Info'}
             </h3>
-            <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-xl transition-all">
-              <X className="h-6 w-6 text-gray-400" />
+            <button onClick={onClose} className="p-1 hover:bg-white/10 rounded transition-all">
+              <X className="h-4 w-4 text-white/60" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-6">
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-50/30">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                   {isTr ? 'Araç Seçin' : 'Select Vehicle'}
                 </label>
                 <select
                   required
                   value={formData.vehicle_id || ''}
                   onChange={(e) => setFormData({ ...formData, vehicle_id: Number(e.target.value) })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs"
                 >
                   <option value="">{isTr ? 'Araç Seçin' : 'Select Vehicle'}</option>
                   {vehicles.map(v => (
@@ -67,17 +67,16 @@ export const AssignmentFormModal: React.FC<AssignmentFormModalProps> = ({
                 </select>
               </div>
 
-              {/* Toggle Selection Mode */}
-              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
+              <div className="flex gap-2 p-1 bg-slate-100 rounded-lg">
                 <button
                   type="button"
                   onClick={() => {
                     setAssignType('driver');
                     setFormData({ ...formData, user_email: '', driver_id: '' });
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${assignType === 'driver' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`flex-1 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-all ${assignType === 'driver' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
                 >
-                  {isTr ? 'Kayıtlı Sürücü Seç' : 'Choose Registered Driver'}
+                  {isTr ? 'Kayıtlı Sürücü' : 'Driver'}
                 </button>
                 <button
                   type="button"
@@ -85,15 +84,15 @@ export const AssignmentFormModal: React.FC<AssignmentFormModalProps> = ({
                     setAssignType('email');
                     setFormData({ ...formData, driver_id: '', user_email: '' });
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${assignType === 'email' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`flex-1 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-all ${assignType === 'email' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
                 >
-                  {isTr ? 'E-posta ile Ata' : 'Assign via Email'}
+                  {isTr ? 'E-posta' : 'Email'}
                 </button>
               </div>
 
               {assignType === 'driver' ? (
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     {isTr ? 'Sürücü Seçin' : 'Select Driver'}
                   </label>
                   <select
@@ -107,17 +106,17 @@ export const AssignmentFormModal: React.FC<AssignmentFormModalProps> = ({
                         user_email: selectedDriver?.email || ''
                       });
                     }}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs"
                   >
                     <option value="">{isTr ? 'Sürücü Seçin' : 'Select Driver'}</option>
                     {drivers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name} {d.phone ? `(${d.phone})` : ''}</option>
+                      <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
                 </div>
               ) : (
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                      {isTr ? 'Sürücü E-posta' : 'Driver Email'}
                   </label>
                   <input
@@ -126,14 +125,14 @@ export const AssignmentFormModal: React.FC<AssignmentFormModalProps> = ({
                     placeholder="ornek@mail.com"
                     value={formData.user_email || ''}
                     onChange={(e) => setFormData({ ...formData, user_email: e.target.value, driver_id: '' })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs"
                   />
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     {isTr ? 'Teslim Tarihi' : 'Start Date'}
                   </label>
                   <input
@@ -141,50 +140,49 @@ export const AssignmentFormModal: React.FC<AssignmentFormModalProps> = ({
                     required
                     value={formData.start_date || ''}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
-                    {isTr ? 'Teslim Kilometresi' : 'Start Mileage'}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                    {isTr ? 'Kilometre' : 'Start Mileage'}
                   </label>
                   <input
                     type="number"
                     required
                     value={formData.start_mileage || ''}
                     onChange={(e) => setFormData({ ...formData, start_mileage: Number(e.target.value) })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                   {isTr ? 'Zimmet Notları' : 'Notes'}
                 </label>
                 <textarea
                   value={formData.notes || ''}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={3}
-                  placeholder={isTr ? 'Araç teslimatı sırasındaki notlar, hasar durumları vb.' : 'Notes during vehicle delivery, damage status etc.'}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold resize-none"
+                  rows={1}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs resize-none"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-600 hover:bg-gray-50 transition-all"
+                className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg font-black text-[10px] text-slate-500 hover:bg-slate-50 uppercase tracking-widest transition-all"
               >
                 {isTr ? 'İptal' : 'Cancel'}
               </button>
               <button
                 type="submit"
-                className="px-8 py-3 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center gap-2"
+                className="px-6 py-1.5 bg-blue-600 text-white rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-sm flex items-center gap-2"
               >
-                <CheckCircle2 className="w-5 h-5" />
+                <CheckCircle2 className="w-3.5 h-3.5" />
                 {isTr ? 'Zimmetle' : 'Assign'}
               </button>
             </div>

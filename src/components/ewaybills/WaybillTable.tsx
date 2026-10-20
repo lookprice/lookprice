@@ -8,7 +8,8 @@ import {
   Edit, 
   Trash2, 
   Eye,
-  FileText
+  FileText,
+  ShieldCheck
 } from "lucide-react";
 import { formatDateTR } from "../../utils/formatUtils";
 
@@ -28,6 +29,7 @@ interface WaybillTableProps {
   handlePrintView: (w: any) => void;
   handleOpenEdit: (w: any) => void;
   handleViewDetails: (w: any) => void;
+  handleCheckSchema: (id: number) => void;
   handleDelete: (id: number) => void;
 }
 
@@ -47,6 +49,7 @@ export const WaybillTable: React.FC<WaybillTableProps> = ({
   handlePrintView,
   handleOpenEdit,
   handleViewDetails,
+  handleCheckSchema,
   handleDelete
 }) => {
   const getStatusBadgeClass = (status: string) => {
@@ -60,177 +63,157 @@ export const WaybillTable: React.FC<WaybillTableProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+    <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+      <div className="p-3 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/30">
+        <div className="relative flex-1 max-w-md group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
           <input
             type="text"
-            placeholder={isTr ? "Seri No, İrsaliye Numarası veya Muhattap Cari ara..." : "Search waybill number, driver or firm..."}
+            placeholder={isTr ? "Seri, No veya Cari ara..." : "Search waybill, driver or firm..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 pr-4 py-2 w-full rounded-xl border border-slate-200 outline-none text-sm focus:border-indigo-500 transition"
+            className="pl-9 pr-4 py-1.5 w-full rounded-lg border border-slate-200 outline-none text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/10 transition bg-white"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500">{isTr ? "Durum Filtresi:" : "Status filter:"}</span>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? "DURUM:" : "STATUS:"}</span>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none"
+            className="px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] font-black text-slate-700 bg-white outline-none cursor-pointer"
           >
-            <option value="all">{isTr ? "Tüm İrsaliyeler" : "All Waybills"}</option>
-            <option value="draft">{isTr ? "Taslak" : "Draft"}</option>
-            <option value="queued">{isTr ? "Kuyrukta" : "Queued"}</option>
-            <option value="success">{isTr ? "Başarılı" : "Success"}</option>
-            <option value="error">{isTr ? "Hatalı" : "Error"}</option>
+            <option value="all">{isTr ? "TÜMÜ" : "ALL"}</option>
+            <option value="draft">{isTr ? "TASLAK" : "DRAFT"}</option>
+            <option value="queued">{isTr ? "KUYRUKTA" : "QUEUED"}</option>
+            <option value="success">{isTr ? "BAŞARILI" : "SUCCESS"}</option>
+            <option value="error">{isTr ? "HATALI" : "ERROR"}</option>
           </select>
         </div>
       </div>
 
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-2">
-          <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
-          <p className="text-sm font-semibold">{isTr ? "Yükleniyor..." : "Loading..."}</p>
+        <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
+          <Loader2 className="h-6 w-6 text-indigo-600 animate-spin" />
+          <p className="text-[10px] font-black uppercase tracking-widest">{isTr ? "Yükleniyor..." : "Loading..."}</p>
         </div>
       ) : waybills.length === 0 ? (
-        <div className="py-20 text-center text-slate-400">
-          <p className="text-sm font-medium">{isTr ? "Aranan kriterlere uygun irsaliye kaydı bulunamadı." : "No waybill records found."}</p>
+        <div className="py-12 text-center text-slate-400">
+          <p className="text-[10px] font-black uppercase tracking-widest">{isTr ? "Kayıt Bulunamadı" : "No records found"}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-700">
-            <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+          <table className="w-full text-left text-xs text-slate-700">
+            <thead className="bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
               <tr>
-                <th className="py-4 px-5 w-12">
+                <th className="py-2.5 px-4 w-10">
                   <input
                     type="checkbox"
                     checked={selectedIds.length > 0 && selectedIds.length === waybills.filter(w => !w.is_invoiced).length}
                     onChange={toggleSelectAll}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
                   />
                 </th>
-                <th className="py-4 px-4">{isTr ? "İrsaliye No / Seri" : "Waybill Number"}</th>
-                <th className="py-4 px-4">{isTr ? "Alıcı / Cari" : "Receiver Business"}</th>
-                <th className="py-4 px-4">{isTr ? "Tevzi Tarihi" : "Logistics Dates"}</th>
-                <th className="py-4 px-4">{isTr ? "Nakliye & Plaka" : "Logistics info"}</th>
-                <th className="py-4 px-4 text-center">{isTr ? "Durum" : "Status"}</th>
-                <th className="py-4 px-5 text-right">{isTr ? "İşlemler" : "Actions"}</th>
+                <th className="py-2.5 px-3">{isTr ? "İRSALİYE NO" : "WAYBILL NO"}</th>
+                <th className="py-2.5 px-3">{isTr ? "ALICI / CARİ" : "RECEIVER"}</th>
+                <th className="py-2.5 px-3">{isTr ? "TARİH" : "DATE"}</th>
+                <th className="py-2.5 px-3">{isTr ? "NAKLİYE" : "LOGISTICS"}</th>
+                <th className="py-2.5 px-3 text-center">{isTr ? "DURUM" : "STATUS"}</th>
+                <th className="py-2.5 px-4 text-right">{isTr ? "İŞLEMLER" : "ACTIONS"}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-50">
               {waybills.map((w) => {
                 const label = w.company_title || w.company_name || `${w.customer_name || ''} ${w.customer_surname || ''}` || (isTr ? "Genel Müşteri / Şube" : "Generic Branch / Customer");
                 const isChecked = selectedIds.includes(w.id);
 
                 return (
-                  <tr key={w.id} className={`hover:bg-slate-50/80 transition-colors ${isChecked ? 'bg-indigo-50/30' : ''}`}>
-                    <td className="py-3.5 px-5">
+                  <tr key={w.id} className={`hover:bg-slate-50/50 transition-colors ${isChecked ? 'bg-indigo-50/20' : ''}`}>
+                    <td className="py-2 px-4">
                       <input
                         type="checkbox"
                         disabled={w.is_invoiced}
                         checked={isChecked}
                         onChange={() => toggleSelectId(w.id)}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 disabled:opacity-20"
                       />
                     </td>
-                    <td className="py-3.5 px-4">
-                      <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                    <td className="py-2 px-3">
+                      <div className="font-black text-slate-900 flex items-center gap-1.5 uppercase tracking-tighter">
                         {w.waybill_number}
                         {w.is_invoiced && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                          <span className="px-1 py-0.5 rounded-[4px] text-[8px] font-black bg-indigo-50 text-indigo-600 border border-indigo-100">
                             {isTr ? "FATURALANDI" : "BILLED"}
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                        <span>{w.scenario}</span>
-                        <span>•</span>
+                      <div className="text-[9px] text-slate-400 font-bold flex items-center gap-1 uppercase">
                         <span>{w.prefix}</span>
+                        <span>•</span>
+                        <span>{w.scenario}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-800">
+                    <td className="py-2 px-3 font-black text-slate-700 truncate max-w-[180px] uppercase tracking-tighter">
                       {label}
                       {w.linked_invoice_number && (
-                        <div className="text-xs text-slate-500 mt-0.5 font-normal flex items-center gap-1">
-                          <FileText className="h-3 w-3 text-slate-400" />
-                          {isTr ? `Kapsayan Fatura: ${w.linked_invoice_number}` : `Parent Invoice: ${w.linked_invoice_number}`}
+                        <div className="text-[9px] text-indigo-400 font-bold flex items-center gap-1 mt-0.5">
+                          <FileText className="h-2.5 w-2.5" />
+                          {isTr ? `REF: ${w.linked_invoice_number}` : `REF: ${w.linked_invoice_number}`}
                         </div>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-600">
+                    <td className="py-2 px-3 font-black text-slate-500 text-[11px] tabular-nums">
                       <div>{formatDateTR(w.waybill_date)}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">{w.waybill_time || "12:00"}</div>
+                      <div className="text-[9px] opacity-60">{w.waybill_time || "12:00"}</div>
                     </td>
-                    <td className="py-3.5 px-4 text-xs text-slate-600">
-                      <div className="font-bold">{w.plate_number || (isTr ? "Kendi Sürücüsü/Yaya" : "Self Carrier")}</div>
-                      <div className="text-slate-400 mt-0.5">
-                        {w.driver_name ? `${w.driver_name} ${w.driver_surname}` : (isTr ? "Sürücü Belirtilmedi" : "Driver generic")}
+                    <td className="py-2 px-3 text-[10px] text-slate-600">
+                      <div className="font-black uppercase tracking-tighter">{w.plate_number || (isTr ? "ÖZEL" : "SELF")}</div>
+                      <div className="text-slate-400 font-bold truncate max-w-[120px] uppercase">
+                        {w.driver_name ? `${w.driver_name} ${w.driver_surname}` : "-"}
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className={getStatusBadgeClass(w.status)}>
-                        {w.status === 'draft' && (isTr ? "Taslak" : "Draft")}
-                        {w.status === 'queued' && (isTr ? "Kuyrukta" : "Queued")}
-                        {w.status === 'success' && (isTr ? "GİB Gönderildi" : "GİB Approved")}
-                        {w.status === 'error' && (isTr ? "Hata" : "Error")}
+                    <td className="py-2 px-3 text-center">
+                      <span className={getStatusBadgeClass(w.status).replace('text-xs', 'text-[9px] font-black uppercase tracking-widest py-0')}>
+                        {w.status === 'draft' && (isTr ? "TASLAK" : "DRAFT")}
+                        {w.status === 'queued' && (isTr ? "KUYRUK" : "QUEUED")}
+                        {w.status === 'success' && (isTr ? "GİB" : "APPROVED")}
+                        {w.status === 'error' && (isTr ? "HATA" : "ERROR")}
                       </span>
-                      {(w.message || w.waybill_message) && (
-                        <div className="text-[10px] text-slate-400 font-normal mt-1 max-w-[120px] truncate mx-auto" title={w.message || w.waybill_message}>
-                          {w.message || w.waybill_message}
-                        </div>
-                      )}
                     </td>
-                    <td className="py-3.5 px-5 text-right space-x-1.5 whitespace-nowrap">
+                    <td className="py-2 px-4 text-right space-x-1 whitespace-nowrap">
                       {w.status === 'queued' && (
-                        <button
-                          onClick={() => handleCheckStatus(w.id)}
-                          className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition"
-                        >
-                          <RefreshCw className="h-4 w-4" />
+                        <button onClick={() => handleCheckStatus(w.id)} className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition border border-transparent hover:border-amber-100">
+                          <RefreshCw className="h-3.5 w-3.5" />
                         </button>
                       )}
                       
-                      {w.status === 'draft' && (
+                      {(w.status === 'draft' || w.status === 'error') && (
                         <>
-                          <button
-                            onClick={() => handleSendToMysoft(w.id)}
-                            className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 transition"
-                          >
-                            <CloudUpload className="h-4 w-4" />
+                          <button onClick={() => handleCheckSchema(w.id)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition border border-transparent hover:border-emerald-100" title={isTr ? "Test" : "Test"}>
+                            <ShieldCheck className="h-3.5 w-3.5" />
                           </button>
-                          <button
-                            onClick={() => handleOpenEdit(w)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition"
-                          >
-                            <Edit className="h-4 w-4" />
+                          <button onClick={() => handleSendToMysoft(w.id)} className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 transition border border-transparent hover:border-indigo-100" title={isTr ? "Gönder" : "Send"}>
+                            <CloudUpload className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => handleOpenEdit(w)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition border border-transparent hover:border-slate-200">
+                            <Edit className="h-3.5 w-3.5" />
                           </button>
                         </>
                       )}
 
                       {w.status === 'success' && (
-                        <button
-                          onClick={() => handlePrintView(w)}
-                          className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition"
-                        >
-                          <Printer className="h-4 w-4" />
+                        <button onClick={() => handlePrintView(w)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition border border-transparent hover:border-emerald-100">
+                          <Printer className="h-3.5 w-3.5" />
                         </button>
                       )}
 
-                      <button
-                        onClick={() => handleViewDetails(w)}
-                        className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition"
-                      >
-                        <Eye className="h-4 w-4" />
+                      <button onClick={() => handleViewDetails(w)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition border border-transparent hover:border-slate-200">
+                        <Eye className="h-3.5 w-3.5" />
                       </button>
 
                       {!w.is_invoiced && (
-                        <button
-                          onClick={() => handleDelete(w.id)}
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition"
-                        >
-                          <Trash2 className="h-4 w-4" />
+                        <button onClick={() => handleDelete(w.id)} className="p-1.5 rounded-lg text-rose-300 hover:bg-rose-50 hover:text-rose-600 transition border border-transparent hover:border-rose-100">
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </td>

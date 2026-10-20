@@ -110,472 +110,189 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
   return (
     <div className="space-y-4">
       {/* Mobile Card View */}
-      <div className="grid grid-cols-1 gap-4 md:hidden">
+      <div className="grid grid-cols-1 gap-3 md:hidden">
         {paginatedVehicles.map((vehicle) => (
-          <div key={vehicle.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+          <div key={vehicle.id} className="bg-white p-3 rounded-xl border border-slate-200 hover:shadow-md transition-all space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 {(() => {
                   const thumb = getThumbnailUrl(vehicle);
                   if (thumb) {
                     return (
                       <div 
                         onClick={() => openPreview(vehicle)}
-                        className="w-12 h-12 rounded-xl overflow-hidden relative group cursor-pointer border border-gray-100 shadow-sm shrink-0 active:scale-95 transition-all"
-                        title={lang === 'tr' ? "Görseli Büyüt" : "Expand Image"}
+                        className="w-10 h-10 rounded-lg overflow-hidden relative group cursor-pointer border border-slate-200 shrink-0 active:scale-95 transition-all"
                       >
                         <img src={thumb} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt={vehicle.plate} />
-                        <div className="absolute inset-0 bg-black/25 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Maximize2 className="w-4 h-4 text-white" />
-                        </div>
                       </div>
                     );
                   }
                   return (
-                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
-                      <Car className="w-6 h-6" />
+                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 shrink-0 border border-blue-100">
+                      <Car className="w-5 h-5" />
                     </div>
                   );
                 })()}
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-black text-gray-900 text-lg">{vehicle.plate}</p>
-                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold">#{vehicle.id}</span>
-                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase tracking-wider">
-                      {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') : 
-                       vehicle.category === 'suv' ? (lang === 'tr' ? 'SUV / Arazi' : 'SUV / Off-Road') :
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-black text-slate-900 text-sm uppercase tracking-tight truncate">{vehicle.plate}</p>
+                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase tracking-widest border border-blue-100">
+                      {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Ticari' : 'Comm') : 
+                       vehicle.category === 'suv' ? (lang === 'tr' ? 'SUV' : 'SUV') :
                        vehicle.category === 'pickup' ? (lang === 'tr' ? 'Pick-up' : 'Pick-up') :
-                       (lang === 'tr' ? 'Otomobil' : 'Car')}
+                       (lang === 'tr' ? 'Oto' : 'Car')}
                     </span>
-                    <div className="flex items-center gap-1 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded">
-                      <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_website !== false ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]' : 'bg-gray-300'}`} />
-                      <span className={`text-[9px] font-black uppercase tracking-wider ${vehicle.is_on_website !== false ? 'text-emerald-600' : 'text-gray-400'}`}>
-                        {vehicle.is_on_website !== false ? 'Web Sitem: Aktif' : 'Web Sitem: Pasif'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded">
-                      <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_enrakipsiz ? 'bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.4)]' : 'bg-gray-300'}`} />
-                      <span className={`text-[9px] font-black uppercase tracking-wider ${vehicle.is_on_enrakipsiz ? 'text-indigo-600' : 'text-gray-400'}`}>
-                        {vehicle.is_on_enrakipsiz ? 'EnRakipsiz: Aktif' : 'EnRakipsiz: Pasif'}
-                      </span>
-                    </div>
-                    {vehicle.is_trade_in_available && (
-                      <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
-                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600">
-                          Takas İmkanı
-                        </span>
-                      </div>
-                    )}
                   </div>
-                  <p className="text-xs text-gray-500 font-medium">{generateVehicleTitle(vehicle)}</p>
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tight truncate">{generateVehicleTitle(vehicle)}</p>
                 </div>
               </div>
-              <div className="flex flex-col gap-1 items-end">
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(vehicle.status)}`}>
+              <div className="flex flex-col gap-1 items-end shrink-0">
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${getStatusColor(vehicle.status)}`}>
                   {getStatusText(vehicle.status)}
                 </span>
                 {vehicle.selling_price && (
-                  <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                     {vehicle.selling_price.toLocaleString()} {vehicle.currency || 'TRY'}
                   </span>
                 )}
               </div>
             </div>
             
-            <div className="py-2.5 border-y border-gray-50 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
-                <MapPin className="w-4 h-4 text-gray-400" />
-                {(vehicle.current_mileage || 0).toLocaleString()} <span className="text-[10px] text-gray-400 font-medium">KM</span>
+            <div className="py-2 border-y border-slate-50 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-700 shrink-0">
+                <MapPin className="w-3 h-3 text-slate-400" />
+                {(vehicle.current_mileage || 0).toLocaleString()} <span className="text-[8px] text-slate-400">KM</span>
               </div>
-              <div className="flex flex-wrap gap-1 justify-end">
+              <div className="flex gap-1 shrink-0">
                 {allDocuments
                   .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
                   .map((d, idx) => (
-                    <div key={idx} className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
-                      {d.type}
-                    </div>
+                    <div key={idx} className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[8px] font-black border border-amber-100 uppercase">{d.type}</div>
                   ))
                 }
                 {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
-                    {t.service}
-                  </div>
-                )}
-                {(() => {
-                  const activeAssignment = (allAssignments || []).find(a => a.vehicle_id === vehicle.id && a.status === 'active');
-                  if (activeAssignment && activeAssignment.driver_id) {
-                    const driver = (drivers || []).find(d => d.id === activeAssignment.driver_id);
-                    if (driver && (driver.expiring_docs || 0) > 0) {
-                      return (
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-600 rounded-md text-[10px] font-bold border border-orange-100">
-                          {t.driverDoc} ({driver.expiring_docs})
-                        </div>
-                      );
-                    }
-                  }
-                  return null;
-                })()}
-                {((vehicle.maintenance_due || 0) > 0 || (vehicle.current_mileage && (allMaintenance || []).find(m => m.vehicle_id === vehicle.id && m.next_maintenance_mileage && vehicle.current_mileage >= m.next_maintenance_mileage - 1000))) && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
-                    {t.maintenance}
-                  </div>
+                  <div className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[8px] font-black border border-red-100 uppercase">{t.service}</div>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center justify-end pt-1">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedVehicle(vehicle);
-                    fetchVehicleDetails(vehicle);
-                    setShowDetailModal(true);
-                  }}
-                  className="p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all flex items-center justify-center active:scale-95"
-                  title="İncele"
-                >
-                  <Eye className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    setShareVehicle(vehicle);
-                    setIsShareModalOpen(true);
-                  }}
-                  className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center active:scale-95"
-                  title="Paylaş"
-                >
-                  <Share2 className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    setAppointmentVehicleId(vehicle.id);
-                    setIsAppointmentModalOpen(true);
-                  }}
-                  className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center active:scale-95"
-                  title="Randevu / Test Sürüşü Planla"
-                >
-                  <Calendar className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    setAutoContractVehicle(vehicle);
-                    setIsAutoContractOpen(true);
-                  }}
-                  className="p-4 bg-violet-50 text-violet-600 rounded-2xl border border-violet-100 hover:bg-violet-100 transition-all flex items-center justify-center active:scale-95"
-                  title="Sözleşme Oluştur"
-                >
-                  <FileSignature className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedVehicle(vehicle);
-                    setFormData({
-                      plate: vehicle.plate,
-                      brand: vehicle.brand,
-                      model: vehicle.model,
-                      year: vehicle.year,
-                      type: vehicle.type,
-                      category: vehicle.category || 'otomobil',
-                      chassis_number: vehicle.chassis_number,
-                      engine_number: vehicle.engine_number,
-                      current_mileage: vehicle.current_mileage,
-                      status: vehicle.status,
-                      selling_price: vehicle.selling_price,
-                      currency: vehicle.currency || 'TRY',
-                      package_name: vehicle.package_name || '',
-                      transmission: vehicle.transmission || 'manual',
-                      fuel_type: vehicle.fuel_type || 'gasoline',
-                      color: vehicle.color || '',
-                      body_type: vehicle.body_type || '',
-                      paint_report: typeof vehicle.paint_report === 'string' ? vehicle.paint_report : JSON.stringify(vehicle.paint_report || {}),
-                      tramer_amount: vehicle.tramer_amount || 0,
-                      tramer_currency: vehicle.tramer_currency || 'TRY',
-                      buying_price: vehicle.buying_price || 0,
-                      buying_currency: vehicle.buying_currency || 'TRY',
-                      expenses: typeof vehicle.expenses === 'string' ? vehicle.expenses : JSON.stringify(vehicle.expenses || []),
-                      target_profit_margin: vehicle.target_profit_margin || 0,
-                      description: vehicle.description || '',
-                      images: vehicle.images || [],
-                      virtual_tour_url: vehicle.virtual_tour_url || '',
-                      ai_tour_enabled: !!vehicle.ai_tour_enabled,
-                      is_on_enrakipsiz: vehicle.is_on_enrakipsiz !== undefined ? !!vehicle.is_on_enrakipsiz : true,
-                      is_on_website: vehicle.is_on_website !== undefined ? !!vehicle.is_on_website : true,
-                      market_story: vehicle.market_story || '',
-                      technical_description: vehicle.technical_description || '',
-                      is_trade_in_available: !!vehicle.is_trade_in_available
-                    });
-                    setShowAddModal(true);
-                  }}
-                  className="p-4 bg-amber-50 text-amber-600 rounded-2xl border border-amber-100 hover:bg-amber-100 transition-all flex items-center justify-center active:scale-95"
-                  title="Düzenle"
-                >
-                  <Edit2 className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => handleDeleteVehicle(vehicle.id)}
-                  className="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 hover:bg-red-100 transition-all flex items-center justify-center active:scale-95"
-                  title="Sil"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
+            <div className="flex items-center justify-between gap-1">
+               <div className="flex items-center gap-1">
+                 <button onClick={() => { setSelectedVehicle(vehicle); fetchVehicleDetails(vehicle); setShowDetailModal(true); }} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg border border-blue-100" title="İncele"><Eye className="w-3.5 h-3.5" /></button>
+                 <button onClick={() => { setShareVehicle(vehicle); setIsShareModalOpen(true); }} className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100" title="Paylaş"><Share2 className="w-3.5 h-3.5" /></button>
+                 <button onClick={() => { setAppointmentVehicleId(vehicle.id); setIsAppointmentModalOpen(true); }} className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100" title="Randevu"><Calendar className="w-3.5 h-3.5" /></button>
+               </div>
+               <div className="flex items-center gap-1">
+                 <button onClick={() => { setAutoContractVehicle(vehicle); setIsAutoContractOpen(true); }} className="p-1.5 bg-violet-50 text-violet-600 rounded-lg border border-violet-100" title="Sözleşme"><FileSignature className="w-3.5 h-3.5" /></button>
+                 <button onClick={() => { setSelectedVehicle(vehicle); setFormData({...vehicle}); setShowAddModal(true); }} className="p-1.5 bg-amber-50 text-amber-600 rounded-lg border border-amber-100" title="Düzenle"><Edit2 className="w-3.5 h-3.5" /></button>
+                 <button onClick={() => handleDeleteVehicle(vehicle.id)} className="p-1.5 bg-red-50 text-red-600 rounded-lg border border-red-100" title="Sil"><Trash2 className="w-3.5 h-3.5" /></button>
+               </div>
             </div>
           </div>
         ))}
       </div>
 
+
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="hidden md:block bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-gray-50/80 border-b border-gray-100">
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Portföy No</th>
-                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.vehicleInfo}</th>
-                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[140px]">{t.status}</th>
-                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[125px]">Yayın Durumu</th>
-                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">KM</th>
-                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.alerts}</th>
-                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right min-w-[170px] whitespace-nowrap">{t.actions}</th>
+                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest">#</th>
+                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest">{t.vehicleInfo}</th>
+                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest min-w-[110px]">{t.status}</th>
+                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest min-w-[100px]">Yayın</th>
+                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">KM</th>
+                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest">{t.alerts}</th>
+                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right min-w-[140px] whitespace-nowrap">{t.actions}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+
+            <tbody className="divide-y divide-slate-100">
               {paginatedVehicles.map((vehicle) => (
-                <tr key={vehicle.id} className="hover:bg-gray-50/80 transition-colors group">
-                  <td className="p-3 text-xs font-semibold text-gray-800">
-                    #{vehicle.id}
+                <tr key={vehicle.id} className="hover:bg-slate-50/50 transition-colors group">
+                  <td className="p-2 text-[10px] font-black text-slate-400 font-mono">
+                    {vehicle.id}
                   </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2.5">
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
                       {(() => {
                         const thumb = getThumbnailUrl(vehicle);
                         if (thumb) {
                           return (
                             <div 
                               onClick={() => openPreview(vehicle)}
-                              className="w-10 h-10 rounded-lg overflow-hidden relative group cursor-pointer border border-gray-100 shadow-2xs shrink-0 active:scale-95 transition-all"
-                              title={lang === 'tr' ? "Görseli Büyüt" : "Expand Image"}
+                              className="w-8 h-8 rounded bg-slate-100 overflow-hidden relative group cursor-pointer border border-slate-200 shrink-0"
                             >
                               <img src={thumb} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt={vehicle.plate} />
-                              <div className="absolute inset-0 bg-black/25 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <Maximize2 className="w-3.5 h-3.5 text-white" />
-                              </div>
                             </div>
                           );
                         }
                         return (
-                          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all shrink-0">
-                            <Car className="w-5 h-5" />
+                          <div className="w-8 h-8 bg-slate-50 rounded flex items-center justify-center text-slate-400 border border-slate-100 shrink-0">
+                            <Car className="w-3.5 h-3.5" />
                           </div>
                         );
                       })()}
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <p className="font-bold text-gray-900 text-sm">{vehicle.plate}</p>
-                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-bold uppercase tracking-wider">
-                            {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') : 
-                             vehicle.category === 'suv' ? (lang === 'tr' ? 'SUV / Arazi' : 'SUV / Off-Road') :
-                             vehicle.category === 'pickup' ? (lang === 'tr' ? 'Pick-up' : 'Pick-up') :
-                             (lang === 'tr' ? 'Otomobil' : 'Car')}
+                          <p className="font-black text-slate-900 text-[11px] uppercase tracking-tighter truncate">{vehicle.plate}</p>
+                          <span className="px-1 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100">
+                            {vehicle.category?.substring(0, 3)}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-500 font-normal">{generateVehicleTitle(vehicle)}</p>
+                        <p className="text-[9px] text-slate-500 font-bold truncate uppercase tracking-tighter">{generateVehicleTitle(vehicle)}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="p-3 min-w-[140px]">
-                    <div className="flex flex-col gap-1 items-start">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${getStatusColor(vehicle.status)}`}>
+                  <td className="p-2 min-w-[110px]">
+                    <div className="flex flex-col gap-0.5 items-start">
+                      <span className={`px-1 rounded-sm text-[7px] font-black uppercase tracking-widest border ${getStatusColor(vehicle.status)}`}>
                         {getStatusText(vehicle.status)}
                       </span>
                       {vehicle.selling_price && (
-                        <span className="text-xs font-normal text-emerald-700 bg-emerald-50/90 px-2 py-0.5 rounded border border-emerald-200/60">
-                          {vehicle.selling_price.toLocaleString()} {vehicle.currency || 'TRY'}
+                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-1 rounded-sm border border-emerald-200/30 tabular-nums">
+                          {vehicle.selling_price.toLocaleString()} <span className="text-[8px] opacity-60">{vehicle.currency || 'TRY'}</span>
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="p-3 min-w-[125px]">
+                  <td className="p-2 min-w-[100px]">
                     <div className="flex flex-wrap items-center gap-1">
-                      <span 
-                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                          vehicle.is_on_website !== false 
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80' 
-                            : 'bg-gray-50 text-gray-400 border-gray-200/60'
-                        }`}
-                        title={vehicle.is_on_website !== false ? "Web Sitem: Aktif" : "Web Sitem: Pasif"}
-                      >
-                        <Globe className={`w-3 h-3 ${vehicle.is_on_website !== false ? 'text-emerald-600' : 'text-gray-400'}`} />
-                        Web
-                      </span>
-                      <span 
-                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                          vehicle.is_on_enrakipsiz 
-                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200/80' 
-                            : 'bg-gray-50 text-gray-400 border-gray-200/60'
-                        }`}
-                        title={vehicle.is_on_enrakipsiz ? "EnRakipsiz: Aktif" : "EnRakipsiz: Pasif"}
-                      >
-                        <Sparkles className={`w-3 h-3 ${vehicle.is_on_enrakipsiz ? 'text-indigo-600' : 'text-gray-400'}`} />
-                        EnR
-                      </span>
-                      {vehicle.is_trade_in_available && (
-                        <span 
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200/80"
-                          title="Takas İmkanı Var"
-                        >
-                          <RefreshCw className="w-3 h-3 text-amber-600" />
-                          Takas
-                        </span>
-                      )}
+                      <span className={`px-1 rounded-sm text-[7px] font-black border uppercase tracking-tighter ${vehicle.is_on_website !== false ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>Web</span>
+                      <span className={`px-1 rounded-sm text-[7px] font-black border uppercase tracking-tighter ${vehicle.is_on_enrakipsiz ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>EnR</span>
                     </div>
                   </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-1 text-xs font-medium text-gray-700">
-                      <MapPin className="w-3 h-3 text-gray-400" />
-                      {(vehicle.current_mileage || 0).toLocaleString()} <span className="text-[10px] text-gray-400">KM</span>
+                  <td className="p-2 text-center">
+                    <div className="inline-flex items-center gap-1 text-[10px] font-black text-slate-900 tabular-nums tracking-tighter">
+                      {(vehicle.current_mileage || 0).toLocaleString()} <span className="text-[8px] text-slate-400">KM</span>
                     </div>
                   </td>
-                  <td className="p-3">
-                    <div className="flex gap-1.5 flex-wrap">
+                  <td className="p-2">
+                    <div className="flex gap-1 flex-wrap max-w-[120px]">
                       {allDocuments
                         .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
                         .map((d, idx) => (
-                          <div key={idx} className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[10px] font-medium border border-amber-100">
-                            <AlertCircle className="w-3 h-3" />
-                            {d.type}
-                          </div>
+                          <div key={idx} className="px-1 bg-amber-50 text-amber-600 rounded text-[7px] font-black border border-amber-100 uppercase tracking-tighter">{d.type}</div>
                         ))
                       }
-                      {(() => {
-                        const activeAssignment = (allAssignments || []).find(a => a.vehicle_id === vehicle.id && a.status === 'active');
-                        if (activeAssignment && activeAssignment.driver_id) {
-                          const driver = (drivers || []).find(d => d.id === activeAssignment.driver_id);
-                          if (driver) {
-                            return allDriverDocuments
-                              .filter(d => d.driver_id === driver.id && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
-                              .map((d, idx) => (
-                                <div key={idx} className="flex items-center gap-1 px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded text-[10px] font-medium border border-orange-100">
-                                  <AlertCircle className="w-3 h-3" />
-                                  {driver.name} {d.type}
-                                </div>
-                              ));
-                          }
-                        }
-                        return null;
-                      })()}
                       {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-medium border border-red-100">
-                          <AlertCircle className="w-3 h-3" />
-                          {t.service}
-                        </div>
-                      )}
-                      {!(vehicle.expiring_docs || 0) && !(vehicle.maintenance_due || 0) && (
-                        <span className="text-[10px] text-green-600 font-medium">{t.noProblem}</span>
+                        <div className="px-1 bg-red-50 text-red-600 rounded text-[7px] font-black border border-red-100 uppercase tracking-tighter">SERVİS</div>
                       )}
                     </div>
                   </td>
-                  <td className="p-3 text-right min-w-[170px]">
-                    <div className="flex justify-end gap-1.5 items-center">
-                      <button
-                        onClick={() => {
-                          setAppointmentVehicleId(vehicle.id);
-                          setIsAppointmentModalOpen(true);
-                        }}
-                        className="p-1.5 text-indigo-600 hover:text-white bg-indigo-50 hover:bg-indigo-600 rounded-lg transition-all shadow-2xs border border-indigo-100 hover:border-indigo-600"
-                        title="Randevu / Test Sürüşü Planla"
-                      >
-                        <Calendar className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setAutoContractVehicle(vehicle);
-                          setIsAutoContractOpen(true);
-                        }}
-                        className="p-1.5 text-violet-600 hover:text-white bg-violet-50 hover:bg-violet-600 rounded-lg transition-all shadow-2xs border border-violet-100 hover:border-violet-600"
-                        title="Sözleşme Oluştur"
-                      >
-                        <FileSignature className="w-4 h-4" />
-                      </button>
-                      
-                      <button
-                        onClick={() => {
-                          setSelectedVehicle(vehicle);
-                          fetchVehicleDetails(vehicle);
-                          setShowDetailModal(true);
-                        }}
-                        className="p-1.5 text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 rounded-lg transition-all shadow-2xs border border-blue-100 hover:border-blue-600"
-                        title="İncele"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setShareVehicle(vehicle);
-                          setIsShareModalOpen(true);
-                        }}
-                        className="p-1.5 text-indigo-600 hover:text-white bg-indigo-50 hover:bg-indigo-600 rounded-lg transition-all shadow-2xs border border-indigo-100 hover:border-indigo-600"
-                        title="Sosyal Medya / Paylaş"
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setSelectedVehicle(vehicle);
-                          setFormData({
-                            plate: vehicle.plate,
-                            brand: vehicle.brand,
-                            model: vehicle.model,
-                            year: vehicle.year,
-                            type: vehicle.type,
-                            category: vehicle.category || 'otomobil',
-                            chassis_number: vehicle.chassis_number,
-                            engine_number: vehicle.engine_number,
-                            current_mileage: vehicle.current_mileage,
-                            status: vehicle.status,
-                            selling_price: vehicle.selling_price,
-                            currency: vehicle.currency || 'TRY',
-                            package_name: vehicle.package_name || '',
-                            transmission: vehicle.transmission || 'manual',
-                            fuel_type: vehicle.fuel_type || 'gasoline',
-                            color: vehicle.color || '',
-                            body_type: vehicle.body_type || '',
-                            paint_report: typeof vehicle.paint_report === 'string' ? vehicle.paint_report : JSON.stringify(vehicle.paint_report || {}),
-                            tramer_amount: vehicle.tramer_amount || 0,
-                            tramer_currency: vehicle.tramer_currency || 'TRY',
-                            buying_price: vehicle.buying_price || 0,
-                            buying_currency: vehicle.buying_currency || 'TRY',
-                            expenses: typeof vehicle.expenses === 'string' ? vehicle.expenses : JSON.stringify(vehicle.expenses || []),
-                            target_profit_margin: vehicle.target_profit_margin || 0,
-                            description: vehicle.description || '',
-                            images: vehicle.images || [],
-                            virtual_tour_url: vehicle.virtual_tour_url || '',
-                            ai_tour_enabled: !!vehicle.ai_tour_enabled,
-                            is_on_enrakipsiz: vehicle.is_on_enrakipsiz !== undefined ? !!vehicle.is_on_enrakipsiz : true,
-                            is_on_website: vehicle.is_on_website !== undefined ? !!vehicle.is_on_website : true,
-                            market_story: vehicle.market_story || '',
-                            technical_description: vehicle.technical_description || '',
-                            is_trade_in_available: !!vehicle.is_trade_in_available
-                          });
-                          setShowAddModal(true);
-                        }}
-                        className="p-1.5 text-amber-600 hover:text-white bg-amber-50 hover:bg-amber-600 rounded-lg transition-all shadow-2xs border border-amber-100 hover:border-amber-600"
-                        title="Düzenle"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteVehicle(vehicle.id)}
-                        className="p-1.5 text-red-600 hover:text-white bg-red-50 hover:bg-red-600 rounded-lg transition-all shadow-2xs border border-red-100 hover:border-red-600"
-                        title="Sil"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  <td className="p-2 text-right min-w-[140px]">
+                    <div className="flex justify-end gap-0.5 items-center">
+                      <button onClick={() => { setAppointmentVehicleId(vehicle.id); setIsAppointmentModalOpen(true); }} className="p-1.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="Randevu"><Calendar className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { setAutoContractVehicle(vehicle); setIsAutoContractOpen(true); }} className="p-1.5 text-violet-400 hover:text-violet-600 hover:bg-violet-50 rounded" title="Sözleşme"><FileSignature className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { setSelectedVehicle(vehicle); fetchVehicleDetails(vehicle); setShowDetailModal(true); }} className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="İncele"><Eye className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { setShareVehicle(vehicle); setIsShareModalOpen(true); }} className="p-1.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="Paylaş"><Share2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { setSelectedVehicle(vehicle); setFormData({...vehicle}); setShowAddModal(true); }} className="p-1.5 text-amber-400 hover:text-amber-600 hover:bg-amber-50 rounded" title="Düzenle"><Edit2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleDeleteVehicle(vehicle.id)} className="p-1.5 text-red-300 hover:text-red-600 hover:bg-red-50 rounded" title="Sil"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </td>
+
                 </tr>
               ))}
             </tbody>

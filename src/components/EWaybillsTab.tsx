@@ -105,7 +105,14 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   const [deliveryTerm, setDeliveryTerm] = useState("CFR");
   const [transportMode, setTransportMode] = useState("1");
   const [cargoCarrier, setCargoCarrier] = useState("Aras Kargo");
+  const [carrierVkn, setCarrierVkn] = useState("");
   const [cargoNo, setCargoNo] = useState("");
+
+  const [orderNumber, setOrderNumber] = useState("");
+  const [orderDate, setOrderDate] = useState("");
+  const [matbuNumber, setMatbuNumber] = useState("");
+  const [matbuDate, setMatbuDate] = useState("");
+  const [driverPhone, setDriverPhone] = useState("");
 
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
@@ -150,6 +157,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
     setDriverName(""); setDriverSurname(""); setDriverVkn(""); setPlateNumber(""); setTrailerPlate("");
     setNotes(""); setCurrency(branding?.default_currency || "TRY"); setExchangeRate("1"); setDeliveryAddress("");
     setIsCargoShipment(false); setDeliveryTerm("CFR"); setTransportMode("1"); setCargoCarrier("Aras Kargo"); setCargoNo("");
+    setOrderNumber(""); setOrderDate(""); setMatbuNumber(""); setMatbuDate(""); setCarrierVkn(""); setDriverPhone("");
     setItems([{ tempId: Date.now(), product_id: "", product_name: "", barcode: "", quantity: 1, unit_code: "Adet", unit_price: 0, tax_rate: 20 }]);
     setShowFormModal(true);
   };
@@ -184,6 +192,9 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       setCurrency(data.currency || "TRY"); setExchangeRate(String(data.exchange_rate || 1)); setDeliveryAddress(data.delivery_address || "");
       setIsCargoShipment(!!data.is_cargo_shipment); setDeliveryTerm(data.delivery_term || "CFR");
       setTransportMode(data.transport_mode || "1"); setCargoCarrier(data.carrier_name || "Aras Kargo"); setCargoNo(data.tracking_number || "");
+      setOrderNumber(data.order_number || ""); setOrderDate(data.order_date ? new Date(data.order_date).toISOString().split('T')[0] : "");
+      setMatbuNumber(data.matbu_number || ""); setMatbuDate(data.matbu_date ? new Date(data.matbu_date).toISOString().split('T')[0] : "");
+      setCarrierVkn(data.carrier_vkn || ""); setDriverPhone(data.driver_phone || "");
       const lItems = (data.items || []).map((i: any) => ({ ...i, tempId: i.id }));
       setItems(lItems.length > 0 ? lItems : [{ tempId: Date.now(), product_id: "", product_name: "", barcode: "", quantity: 1, unit_code: "Adet", unit_price: 0, tax_rate: 20 }]);
       setShowFormModal(true);
@@ -214,7 +225,9 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       driver_vkn: isCargoShipment ? "" : driverVkn, plate_number: isCargoShipment ? "" : plateNumber, trailer_plate: isCargoShipment ? "" : trailerPlate,
       notes, currency, exchange_rate: Number(exchangeRate) || 1, delivery_address: deliveryAddress, items: cleaned,
       delivery_term: isCargoShipment ? deliveryTerm : null, transport_mode: isCargoShipment ? transportMode : null,
-      carrier_name: isCargoShipment ? cargoCarrier : null, tracking_number: isCargoShipment ? cargoNo : null, is_cargo_shipment: isCargoShipment
+      carrier_name: isCargoShipment ? cargoCarrier : null, tracking_number: isCargoShipment ? cargoNo : null, is_cargo_shipment: isCargoShipment,
+      order_number: orderNumber, order_date: orderDate || null, matbu_number: matbuNumber, matbu_date: matbuDate || null,
+      carrier_vkn: isCargoShipment ? carrierVkn : null, driver_phone: isCargoShipment ? "" : driverPhone
     };
     try {
       const token = localStorage.getItem("token");
@@ -251,11 +264,31 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
     } catch (err: any) { toast.error(err.message); }
   };
 
+  const handleCheckSchema = async (id: number) => {
+    const lid = toast.loading(isTr ? "Şema/Şematron kontrolü yapılıyor..." : "Checking schema/schematron...");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/independent-waybills/${id}/control?storeId=${storeId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const d = await res.json();
+      if (res.ok && d.isSuccess) {
+        toast.success(d.message || (isTr ? "Kontrol başarılı!" : "Validation successful!"), { id: lid });
+      } else {
+        toast.error(d.message || (isTr ? "Kontrol başarısız." : "Validation failed."), { id: lid });
+      }
+    } catch (err: any) {
+      toast.error(err.message, { id: lid });
+    }
+  };
+
   const handlePrintView = async (waybill: any) => {
     setSelectedWaybill(waybill); setPreviewLoading(true); setPreviewContent(""); setShowHtmlModal(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`/api/independent-waybills/${waybill.id}/html?storeId=${storeId}`, {
+      const isDraft = waybill.status === 'draft' || waybill.status === 'error';
+      const endpoint = isDraft ? 'preview-html' : 'html';
+      const res = await fetch(`/api/independent-waybills/${waybill.id}/${endpoint}?storeId=${storeId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       if (res.ok) {
@@ -382,6 +415,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
         toggleSelectAll={() => { const un = waybills.filter(w => !w.is_invoiced); setSelectedIds(selectedIds.length === un.length ? [] : un.map(w => w.id)); }}
         toggleSelectId={(id) => setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])}
         handleCheckStatus={handleCheckStatus} handleSendToMysoft={handleSendToMysoft}
+        handleCheckSchema={handleCheckSchema}
         handlePrintView={handlePrintView} handleOpenEdit={handleOpenEdit}
         handleViewDetails={handleViewDetails} handleDelete={handleDelete}
       />
@@ -404,12 +438,16 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
             setDeliveryAddress={setDeliveryAddress} isCargoShipment={isCargoShipment} setIsCargoShipment={setIsCargoShipment}
             deliveryTerm={deliveryTerm} setDeliveryTerm={setDeliveryTerm} transportMode={transportMode}
             setTransportMode={setTransportMode} cargoCarrier={cargoCarrier} setCargoCarrier={setCargoCarrier}
+            carrierVkn={carrierVkn} setCarrierVkn={setCarrierVkn}
             cargoNo={cargoNo} setCargoNo={setCargoNo} items={items} handleUpdateItem={handleUpdateItem}
             handleAddItemRow={handleAddItemRow} handleRemoveItemRow={handleRemoveItemRow}
             selectProductForLine={selectProductForLine} showProductDropdown={showProductDropdown}
             setShowProductDropdown={setShowProductDropdown} handleSaveWaybill={handleSaveWaybill}
             setShowQuickProductModal={setShowQuickProductModal} setQuickProductRowIdx={setQuickProductRowIdx}
             setShowQuickCariModal={setShowQuickCariModal} setQuickCariSearchInitial={setQuickCariSearchInitial}
+            orderNumber={orderNumber} setOrderNumber={setOrderNumber} orderDate={orderDate} setOrderDate={setOrderDate}
+            matbuNumber={matbuNumber} setMatbuNumber={setMatbuNumber} matbuDate={matbuDate} setMatbuDate={setMatbuDate}
+            driverPhone={driverPhone} setDriverPhone={setDriverPhone}
             INCOTERMS_LIST={INCOTERMS_LIST}
           />
         )}

@@ -105,14 +105,23 @@ export async function initCargoSchema() {
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS delivery_term TEXT;`);
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS transport_mode TEXT;`);
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS carrier_name TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS carrier_vkn TEXT;`);
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS tracking_number TEXT;`);
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS is_cargo_shipment BOOLEAN DEFAULT FALSE;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS driver_phone TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS order_number TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS order_date DATE;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS matbu_number TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS matbu_date DATE;`);
 
     await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_is_cargo_shipment BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_carrier_name TEXT;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_carrier_vkn TEXT;`);
     await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_tracking_number TEXT;`);
     await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_delivery_term TEXT;`);
     await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_transport_mode TEXT;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_order_number TEXT;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_order_date DATE;`);
 
     console.log("Self-healing schema verification: e_waybills and sales_invoices cargo columns processed successfully.");
   } catch (error) {
@@ -2864,6 +2873,16 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
     notes: [{ note: (data.notes || "İrsaliye Yerine Geçer.").trim() }],
     pkAlias: pkAlias,
 
+    orderReference: (data.order_number || data.waybill_order_number) ? {
+      id: data.order_number || data.waybill_order_number,
+      issueDate: (data.order_date || data.waybill_order_date) ? new Date(data.order_date || data.waybill_order_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+    } : undefined,
+
+    despatchDocumentReference: (data.matbu_number) ? {
+      id: data.matbu_number,
+      issueDate: (data.matbu_date) ? new Date(data.matbu_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+    } : undefined,
+
     despatchSupplierParty: {
       vknTckn: storeTaxNumber,
       accountName: branding.store_name || "Seçkin Mağaza",
@@ -2897,7 +2916,9 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
         "yurtiçi kargo": "9830022295", "aras kargo": "0720039649", "mng kargo": "6220353119",
         "ptt kargo": "7330135756", "sürat kargo": "7820257003", "ups kargo": "9130018597"
       };
-      const cVkn = carrierVknMap[cName.toLowerCase().trim()] || "3900383509";
+      // Prefer carrier_vkn from database if available
+      const cVknFromDb = (isIndependent ? data.carrier_vkn : data.waybill_carrier_vkn);
+      const cVkn = cVknFromDb || carrierVknMap[cName.toLowerCase().trim()] || "3900383509";
 
       const shipmentStage = {
         transportModeCode: (isIndependent ? data.transport_mode : data.waybill_transport_mode) || "1",
@@ -2918,7 +2939,12 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
           accountName: isCargoShipment ? cName : (branding.store_name || "Seçkin Mağaza")
         },
         ...(!isCargoShipment ? {
-          driverPerson: [{ firstName: driverName, familyName: driverSurname, id: driverVkn.replace(/\D/g, '') || "11111111111" }]
+          driverPerson: [{ 
+            firstName: driverName, 
+            familyName: driverSurname, 
+            id: driverVkn.replace(/\D/g, '') || "11111111111",
+            contact: data.driver_phone ? { telephone: data.driver_phone } : undefined
+          }]
         } : {}),
         delivery: {
           actualDeliveryDate: actualDate,
@@ -3226,38 +3252,45 @@ router.post("/independent-waybills", authenticate, async (req: any, res) => {
         actual_date, actual_time, prefix, scenario, waybill_type,
         driver_name, driver_surname, driver_vkn, plate_number, trailer_plate,
         notes, status, total_amount, tax_amount, grand_total, currency, exchange_rate, delivery_address,
-        delivery_term, transport_mode, carrier_name, tracking_number, is_cargo_shipment
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'draft', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+        delivery_term, transport_mode, carrier_name, tracking_number, is_cargo_shipment,
+        carrier_vkn, driver_phone, order_number, order_date, matbu_number, matbu_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'draft', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
       RETURNING id`,
       [
         storeId,
-        company_id || null,
-        customer_id || null,
+        req.body.company_id || null,
+        req.body.customer_id || null,
         draftNum,
-        waybill_date || new Date().toISOString().split('T')[0],
-        waybill_time || "12:00:00",
-        actual_date || new Date().toISOString().split('T')[0],
-        actual_time || "12:00:00",
+        req.body.waybill_date || new Date().toISOString().split('T')[0],
+        req.body.waybill_time || "12:00:00",
+        req.body.actual_date || new Date().toISOString().split('T')[0],
+        req.body.actual_time || "12:00:00",
         draftPrefix,
-        scenario || 'TEMEL IRSALİYE',
-        waybill_type || 'SEVK',
-        driver_name || '',
-        driver_surname || '',
-        driver_vkn || '',
-        plate_number || '',
-        trailer_plate || '',
-        notes || '',
+        req.body.scenario || 'TEMEL IRSALİYE',
+        req.body.waybill_type || 'SEVK',
+        req.body.driver_name || '',
+        req.body.driver_surname || '',
+        req.body.driver_vkn || '',
+        req.body.plate_number || '',
+        req.body.trailer_plate || '',
+        req.body.notes || '',
         totalAmount,
         taxAmount,
         grandTotal,
-        currency || 'TRY',
-        exchange_rate || 1,
-        delivery_address || null,
-        delivery_term || null,
-        transport_mode || null,
-        carrier_name || null,
-        tracking_number || null,
-        !!is_cargo_shipment
+        req.body.currency || 'TRY',
+        req.body.exchange_rate || 1,
+        req.body.delivery_address || null,
+        req.body.delivery_term || null,
+        req.body.transport_mode || null,
+        req.body.carrier_name || null,
+        req.body.tracking_number || null,
+        !!req.body.is_cargo_shipment,
+        req.body.carrier_vkn || null,
+        req.body.driver_phone || null,
+        req.body.order_number || null,
+        req.body.order_date || null,
+        req.body.matbu_number || null,
+        req.body.matbu_date || null
       ]
     );
 
@@ -3388,36 +3421,43 @@ router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
         actual_date = $6, actual_time = $7, prefix = $8, scenario = $9, waybill_type = $10,
         driver_name = $11, driver_surname = $12, driver_vkn = $13, plate_number = $14, trailer_plate = $15,
         notes = $16, total_amount = $17, tax_amount = $18, grand_total = $19, currency = $20, exchange_rate = $21, delivery_address = $22,
-        delivery_term = $23, transport_mode = $24, carrier_name = $25, tracking_number = $26, is_cargo_shipment = $27
-      WHERE id = $28 AND store_id = $29`,
+        delivery_term = $23, transport_mode = $24, carrier_name = $25, tracking_number = $26, is_cargo_shipment = $27,
+        carrier_vkn = $28, driver_phone = $29, order_number = $30, order_date = $31, matbu_number = $32, matbu_date = $33
+      WHERE id = $34 AND store_id = $35`,
       [
-        company_id || null,
-        customer_id || null,
+        req.body.company_id || null,
+        req.body.customer_id || null,
         finalWaybillNumber,
-        waybill_date,
-        waybill_time,
-        actual_date,
-        actual_time,
-        prefix || 'IRS',
-        scenario || 'TEMEL IRSALİYE',
-        waybill_type || 'SEVK',
-        driver_name || '',
-        driver_surname || '',
-        driver_vkn || '',
-        plate_number || '',
-        trailer_plate || '',
-        notes || '',
+        req.body.waybill_date,
+        req.body.waybill_time,
+        req.body.actual_date,
+        req.body.actual_time,
+        req.body.prefix || 'IRS',
+        req.body.scenario || 'TEMEL IRSALİYE',
+        req.body.waybill_type || 'SEVK',
+        req.body.driver_name || '',
+        req.body.driver_surname || '',
+        req.body.driver_vkn || '',
+        req.body.plate_number || '',
+        req.body.trailer_plate || '',
+        req.body.notes || '',
         totalAmount,
         taxAmount,
         grandTotal,
-        currency || 'TRY',
-        exchange_rate || 1,
-        delivery_address || null,
-        delivery_term || null,
-        transport_mode || null,
-        carrier_name || null,
-        tracking_number || null,
-        !!is_cargo_shipment,
+        req.body.currency || 'TRY',
+        req.body.exchange_rate || 1,
+        req.body.delivery_address || null,
+        req.body.delivery_term || null,
+        req.body.transport_mode || null,
+        req.body.carrier_name || null,
+        req.body.tracking_number || null,
+        !!req.body.is_cargo_shipment,
+        req.body.carrier_vkn || null,
+        req.body.driver_phone || null,
+        req.body.order_number || null,
+        req.body.order_date || null,
+        req.body.matbu_number || null,
+        req.body.matbu_date || null,
         id,
         storeId
       ]
@@ -3663,7 +3703,69 @@ router.get("/independent-waybills/:id/preview-html", authenticate, async (req: a
   }
 });
 
-// 7. Fetch E-Waybill representation (Independent Sent HTML)
+// 8. E-Waybill Control (Independent)
+router.get("/independent-waybills/:id/control", authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = getAuthorizedStoreId(req, req.query.storeId);
+  try {
+    const waybillRes = await pool.query(
+      `SELECT ew.*, 
+              c.title as company_name, c.title as company_title, c.tax_number as company_tax_number, c.tax_office as company_tax_office, c.address as company_address, c.delivery_address as company_delivery_address, c.email as company_email,
+              cust.name as customer_name, cust.surname as customer_surname, cust.phone as customer_phone, cust.email as customer_email, cust.address as customer_address
+       FROM e_waybills ew
+       LEFT JOIN companies c ON ew.company_id = c.id
+       LEFT JOIN customers cust ON ew.customer_id = cust.id
+       WHERE ew.id = $1 AND ew.store_id = $2`,
+      [id, storeId]
+    );
+    if (waybillRes.rows.length === 0) return res.status(404).json({ error: "İrsaliye bulunamadı" });
+    const waybill = waybillRes.rows[0];
+
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0].einvoice_settings || {};
+    const branding = storeRes.rows[0].branding || {};
+
+    const service = await getEInvoiceService(storeId);
+    const taxNumber = (waybill.company_tax_number || "").replace(/\D/g, '');
+    const taxpayerCheck = await service.checkTaxpayer(taxNumber);
+    let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
+
+    const ublData = await buildMySoftWaybillPayload(pool, waybill, settings, branding, pkAlias, true);
+    const result = await service.controlWaybill(ublData);
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: "Kontrol gerçekleştirilemedi: " + err.message });
+  }
+});
+
+// 9. E-Waybill Control (Invoice-linked)
+router.get("/einvoice/waybill/control/:invoiceId", authenticate, async (req: any, res) => {
+  const { invoiceId } = req.params;
+  try {
+    const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+    const invoice = invRes.rows[0];
+    if (!invoice) return res.status(404).json({ error: "Fatura bulunamadı" });
+
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [invoice.store_id]);
+    const settings = storeRes.rows[0].einvoice_settings || {};
+    const branding = storeRes.rows[0].branding || {};
+
+    const service = await getEInvoiceService(invoice.store_id);
+    const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
+    const taxpayerCheck = await service.checkTaxpayer(taxNumber);
+    let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
+
+    const ublData = await buildMySoftWaybillPayload(pool, invoice, settings, branding, pkAlias, false);
+    const result = await service.controlWaybill(ublData);
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: "Kontrol gerçekleştirilemedi: " + err.message });
+  }
+});
+
+// 10. Fetch E-Waybill representation (Independent Sent HTML)
 router.get("/independent-waybills/:id/html", authenticate, async (req: any, res) => {
   const { id } = req.params;
   const storeId = getAuthorizedStoreId(req, req.query.storeId);

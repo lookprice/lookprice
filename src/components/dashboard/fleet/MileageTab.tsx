@@ -24,42 +24,41 @@ export const MileageTab: React.FC<MileageTabProps> = ({
   getVehiclePlate
 }) => {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
         {mileageLogs.map(m => (
-          <div key={m.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                <History className="w-5 h-5" />
+          <div key={m.id} className="bg-white p-2 rounded-lg border border-slate-200 hover:shadow-sm transition-all group">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 bg-slate-50 rounded flex items-center justify-center text-indigo-600 border border-slate-100 shrink-0">
+                <History className="w-3 h-3" />
               </div>
-              <div>
-                <p className="font-black text-gray-900 leading-tight">{(m.mileage || 0).toLocaleString()} KM</p>
-                <div className="flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black uppercase">
-                    {getVehiclePlate(m.vehicle_id)}
-                  </span>
-                </div>
+              <div className="min-w-0">
+                <p className="font-black text-slate-900 text-[10px] leading-none uppercase tracking-tighter">{(m.mileage || 0).toLocaleString()} <span className="text-[7px] text-slate-400">KM</span></p>
+                <span className="inline-flex px-1 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase border border-blue-100 mt-0.5 leading-none">
+                  {getVehiclePlate(m.vehicle_id)}
+                </span>
               </div>
             </div>
-            <div className="space-y-2 pt-4 border-t border-gray-50">
-              <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-                <Calendar className="w-3 h-3" />
-                {safeFormatDate(m.date, 'dd MMMM yyyy, HH:mm')}
+            <div className="space-y-1 pt-1.5 border-t border-slate-50">
+              <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-tighter">
+                <Calendar className="w-2.5 h-2.5" />
+                {safeFormatDate(m.date, 'dd.MM.yyyy')}
               </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-                <MapPin className="w-3 h-3" />
-                {m.location || (lang === 'tr' ? 'Belirtilmedi' : 'Not specified')}
+              <div className="flex items-center gap-1.5 text-[8px] font-bold text-slate-400">
+                <MapPin className="w-2.5 h-2.5" />
+                <span className="truncate">{m.location || (lang === 'tr' ? 'N/A' : 'N/A')}</span>
               </div>
             </div>
           </div>
         ))}
       </div>
       {mileageLogs.length === 0 && (
-        <div className="py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-center">
-          <History className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-          <p className="text-gray-500 font-bold">{t.noKMRecordsFound}</p>
+        <div className="py-8 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
+          <History className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">{t.noKMRecordsFound}</p>
         </div>
       )}
     </div>
+
   );
 };

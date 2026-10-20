@@ -158,14 +158,14 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
       );
     case 'maintenance':
       return (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {!isViewer && (
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddMaintenanceModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 {lang === 'tr' ? 'Bakım Ekle' : 'Add Maintenance'}
               </button>
             </div>
@@ -184,14 +184,14 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
       );
     case 'assignments':
       return (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {!isViewer && (
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddAssignmentModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 {lang === 'tr' ? 'Zimmet Ekle' : 'Add Assignment'}
               </button>
             </div>
@@ -210,14 +210,14 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
       );
     case 'mileage':
       return (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {!isViewer && (
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddMileageModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 {lang === 'tr' ? 'Kilometre Kaydı' : 'Add Mileage Log'}
               </button>
             </div>
@@ -234,14 +234,14 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
       );
     case 'incidents':
       return (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {!isViewer && (
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddIncidentModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 {lang === 'tr' ? 'Olay/Kaza Ekle' : 'Add Incident'}
               </button>
             </div>
@@ -260,14 +260,14 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
       );
     case 'obligations':
       return (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {!isViewer && (
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddDocumentModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 {lang === 'tr' ? 'Poliçe/Belge Ekle' : 'Add Policy/Document'}
               </button>
             </div>
