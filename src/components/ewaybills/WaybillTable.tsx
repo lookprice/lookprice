@@ -176,6 +176,11 @@ export const WaybillTable: React.FC<WaybillTableProps> = ({
                         {w.status === 'success' && (isTr ? "GİB Gönderildi" : "GİB Approved")}
                         {w.status === 'error' && (isTr ? "Hata" : "Error")}
                       </span>
+                      {(w.message || w.waybill_message) && (
+                        <div className="text-[10px] text-slate-400 font-normal mt-1 max-w-[120px] truncate mx-auto" title={w.message || w.waybill_message}>
+                          {w.message || w.waybill_message}
+                        </div>
+                      )}
                     </td>
                     <td className="py-3.5 px-5 text-right space-x-1.5 whitespace-nowrap">
                       {w.status === 'queued' && (

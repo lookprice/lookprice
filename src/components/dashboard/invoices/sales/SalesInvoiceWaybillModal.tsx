@@ -50,6 +50,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'err'; text: string } | null>(null);
   const [viewHtml, setViewHtml] = useState(false);
+  const [viewPreview, setViewPreview] = useState(false);
 
   useEffect(() => {
     if (invoice) {
@@ -76,6 +77,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
       setPrefix(invoice.waybill_prefix || 'IRS');
       setStatusMessage(null);
       setViewHtml(false);
+      setViewPreview(false);
     }
   }, [invoice]);
 
@@ -183,9 +185,9 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
               <h3 className="font-sans font-black text-lg tracking-tight">
                 {isTr ? 'MySoft e-İrsaliye Entegrasyonu' : 'MySoft e-Waybill Module'}
               </h3>
-              <p className="text-xs text-indigo-200/80 font-bold tracking-widest uppercase">
+              <h4 className="text-xs text-indigo-200/80 font-bold tracking-widest uppercase">
                 {isTr ? `Fatura No: #${invoice.invoice_number}` : `Invoice No: #${invoice.invoice_number}`}
-              </p>
+              </h4>
             </div>
           </div>
           <button 
@@ -211,12 +213,14 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
         )}
 
         {/* Main Body */}
-        {viewHtml ? (
+        {(viewHtml || viewPreview) ? (
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{isTr ? 'GİB e-İrsaliye Belge Önizlemesi' : 'Official Document Copy'}</span>
+              <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                {viewPreview ? (isTr ? 'GİB e-İrsaliye CANLI ÖNİZLEME' : 'Live e-Waybill Preview') : (isTr ? 'GİB e-İrsaliye RESMİ BELGE' : 'Official e-Waybill Document')}
+              </span>
               <button 
-                onClick={() => setViewHtml(false)}
+                onClick={() => { setViewHtml(false); setViewPreview(false); }}
                 className="text-xs font-bold text-indigo-600 hover:underline"
               >
                 {isTr ? 'Detaylara / Form Girişine Dön' : 'Return to Inputs Form'}
@@ -224,7 +228,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
             </div>
             <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 h-[450px]">
               <iframe 
-                src={`/api/einvoice/waybill/html/${invoice.id}`} 
+                src={viewPreview ? `/api/einvoice/waybill/preview-html/${invoice.id}` : `/api/einvoice/waybill/html/${invoice.id}`} 
                 className="w-full h-full border-0" 
                 title="Waybill HTML representation"
               />
@@ -505,19 +509,33 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
 
         {/* Modal Footer Controls */}
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-2.5 justify-between items-center">
-          <div>
-            {invoice.waybill_number && (
+          <div className="flex gap-2">
+            {!invoice.waybill_ettn && (
+              <button 
+                onClick={() => setViewPreview(!viewPreview)}
+                className={`inline-flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-all shadow-sm ${
+                  viewPreview ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Printer className="h-4 w-4" />
+                {viewPreview ? (isTr ? 'Önizlemeyi Kapat' : 'Hide Preview') : (isTr ? 'Canlı Önizleme (Taslak)' : 'Live Preview')}
+              </button>
+            )}
+
+            {invoice.waybill_ettn && (
               <button 
                 onClick={() => setViewHtml(!viewHtml)}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50/80 rounded-xl text-xs font-bold text-slate-700 transition-all shadow-sm"
+                className={`inline-flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-all shadow-sm ${
+                  viewHtml ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
               >
-                <Printer className="h-4 w-4 text-slate-500" />
-                {viewHtml ? (isTr ? 'İçeriği Gizle' : 'Hide Document') : (isTr ? 'İrsaliye Görseli / Yazdır' : 'View Waybill / Print')}
+                <Printer className="h-4 w-4" />
+                {viewHtml ? (isTr ? 'Belgeyi Gizle' : 'Hide Document') : (isTr ? 'Resmi İrsaliye Görseli' : 'View Official Document')}
               </button>
             )}
           </div>
           <div className="flex gap-2">
-            {!viewHtml && (
+            {(!viewHtml && !viewPreview) && (
               <button 
                 disabled={loading}
                 onClick={handleSaveDraft}

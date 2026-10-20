@@ -302,15 +302,25 @@ export const WaybillFormModal: React.FC<WaybillFormModalProps> = ({
               ) : (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div className="space-y-1 relative">
-                    <label className="text-[10px] font-bold text-slate-500 block uppercase">{isTr ? "Şoför Seçin / Yazın" : "Driver Name"}</label>
+                    <label className="text-[10px] font-bold text-slate-500 block uppercase">{isTr ? "Şoför Seçin / Yazın" : "Select / Type Driver"}</label>
                     <AutocompleteSelect
-                      items={drivers.map(d => ({ id: String(d.id), value: String(d.id), label: `${d.name} ${d.surname}`, raw: d }))}
+                      items={drivers.map(d => ({ id: String(d.id), value: String(d.id), label: d.name || "", raw: d }))}
                       value={driverName}
+                      onSearchChange={setDriverName}
                       onSelect={(item) => {
                         if (item) {
-                          setDriverName(item.raw.name || "");
-                          setDriverSurname(item.raw.surname || "");
-                          setDriverVkn(item.raw.vkn_tckn || "");
+                          const fullName = (item.raw.name || "").trim();
+                          const parts = fullName.split(/\s+/);
+                          if (parts.length > 1) {
+                            const surname = parts.pop() || "";
+                            const name = parts.join(" ");
+                            setDriverName(name);
+                            setDriverSurname(surname);
+                          } else {
+                            setDriverName(fullName);
+                            setDriverSurname("");
+                          }
+                          setDriverVkn(item.raw.national_id || "");
                         }
                       }}
                       displayField="label"
@@ -321,18 +331,23 @@ export const WaybillFormModal: React.FC<WaybillFormModalProps> = ({
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-500 block uppercase">{isTr ? "Şoför Soyadı" : "Driver Surname"}</label>
-                    <input type="text" value={driverSurname} onChange={(e) => setDriverSurname(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none" />
+                    <input type="text" value={driverSurname} onChange={(e) => setDriverSurname(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none" placeholder={isTr ? "Soyadı..." : "Surname..."} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-500 block uppercase">{isTr ? "Şoför TCKN" : "Driver ID/TC"}</label>
-                    <input type="text" maxLength={11} value={driverVkn} onChange={(e) => setDriverVkn(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none font-mono" />
+                    <input type="text" maxLength={11} value={driverVkn} onChange={(e) => setDriverVkn(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none font-mono" placeholder="11111111111" />
                   </div>
                   <div className="space-y-1 relative">
                     <label className="text-[10px] font-bold text-slate-500 block uppercase">{isTr ? "Araç Plaka" : "Plate No"}</label>
                     <AutocompleteSelect
-                      items={vehicles.map(v => ({ id: String(v.id), value: String(v.id), label: v.plate_number, raw: v }))}
+                      items={vehicles.map(v => ({ id: String(v.id), value: String(v.id), label: v.plate || v.plate_number || "", raw: v }))}
                       value={plateNumber}
-                      onSelect={(item) => { if (item) setPlateNumber(item.raw.plate_number || ""); }}
+                      onSearchChange={setPlateNumber}
+                      onSelect={(item) => { 
+                        if (item) {
+                          setPlateNumber(item.raw.plate || item.raw.plate_number || ""); 
+                        }
+                      }}
                       displayField="label"
                       type="company"
                       placeholder="34 ABC 123"

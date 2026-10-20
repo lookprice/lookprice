@@ -22,6 +22,9 @@ export class MySoftService {
 
   constructor(credentials: any) {
     let url = credentials.api_url || "https://edocumentapi.mysoft.com.tr/api";
+    if (credentials.is_test_mode) {
+      url = "https://test-edocumentapi.mysoft.com.tr/api";
+    }
     if (url.endsWith("/")) url = url.slice(0, -1);
     this.baseUrl = url;
     this.credentials = credentials;
@@ -946,7 +949,7 @@ export class MySoftService {
     }
   }
 
-  // 2. Get Waybill Status (E-İrsaliye Durum Sorgulama)
+  // 4. Get Waybill Status (E-İrsaliye Durum Sorgulama)
   async getWaybillStatus(ettn: string): Promise<{ status: string; message: string; gibStatusCode?: string }> {
      try {
       const token = await this.authenticate();
@@ -973,7 +976,47 @@ export class MySoftService {
     }
   }
 
-  // 3. Get Waybill HTML representation
+  // 6. Get Waybill Response (E-İrsaliye Yanıt Sorgulama)
+  async getWaybillResponse(ettn: string): Promise<any[]> {
+    try {
+      const token = await this.authenticate();
+      const config: any = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+      if (this.credentials.tenant_id) {
+        config.headers['TenantId'] = this.credentials.tenant_id;
+      }
+      const response = await axios.get(`${this.baseUrl}/DespatchOutbox/getDespatchOutboxResponseList?despatchETTN=${ettn}`, config);
+      return response.data.Data || response.data.data || [];
+    } catch (error: any) {
+      console.error("MySoft Waybill Response Error:", error.message);
+      return [];
+    }
+  }
+
+  // 7. Get Waybill List
+  async getWaybillList(startDate: string, endDate: string): Promise<any[]> {
+    try {
+      const token = await this.authenticate();
+      const config: any = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+      // Try getDespatchOutboxList variation
+      const response = await axios.post(`${this.baseUrl}/DespatchOutbox/getDespatchOutboxList`, {
+        startDate: startDate + " 00:00:00",
+        endDate: endDate + " 23:59:59",
+        pageIndex: 0,
+        pageSize: 100
+      }, config);
+
+      return response.data.Data || response.data.data || [];
+    } catch (error: any) {
+      console.error("MySoft Waybill List Error:", error.message);
+      return [];
+    }
+  }
+
+  // 6. Get Waybill HTML representation (Sent)
   async getWaybillHtml(ettn: string, notes?: string): Promise<string> {
     try {
       const token = await this.authenticate();
@@ -997,7 +1040,8 @@ export class MySoftService {
         `${this.baseUrl}/DespatchOutbox/getDespatchOutboxHTMLAsZip`,
         `${this.baseUrl}/DespatchInbox/getDespatchInboxHTMLAsZip`,
         `${this.baseUrl}/DespatchOutbox/getDespatchOutboxHTML`,
-        `${this.baseUrl}/DespatchInbox/getDespatchInboxHTML`
+        `${this.baseUrl}/DespatchInbox/getDespatchInboxHTML`,
+        `${this.baseUrl}/DespatchOutbox/GetDespatchOutboxPDFAsZip`,
       ];
 
       const paramVariations: any[] = [
@@ -1018,14 +1062,14 @@ export class MySoftService {
               const buffer = Buffer.from(response.data);
               
               // Handle JSON response
-              if (buffer[0] === 123) { // '{'
+              if (buffer.length > 0 && buffer[0] === 123) { // '{'
                 const jsonObj = JSON.parse(buffer.toString('utf8'));
                 const isSuccess = jsonObj.succeed ?? jsonObj.Succeed ?? jsonObj.success ?? jsonObj.Success ?? true;
                 if (isSuccess) {
                   const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
                   if (base64Data && typeof base64Data === 'string') {
                     const decoded = Buffer.from(base64Data, 'base64');
-                    if (decoded[0] === 0x50 && decoded[1] === 0x4B) { // ZIP
+                    if (decoded.length > 2 && decoded[0] === 0x50 && decoded[1] === 0x4B) { // ZIP
                       const AdmZip = (await import('adm-zip')).default;
                       const zip = new AdmZip(decoded);
                       for (const entry of zip.getEntries()) {
@@ -1042,7 +1086,7 @@ export class MySoftService {
               }
 
               // Handle direct ZIP
-              if (buffer[0] === 0x50 && buffer[1] === 0x4B) {
+              if (buffer.length > 2 && buffer[0] === 0x50 && buffer[1] === 0x4B) {
                 const AdmZip = (await import('adm-zip')).default;
                 const zip = new AdmZip(buffer);
                 for (const entry of zip.getEntries()) {
@@ -1059,45 +1103,42 @@ export class MySoftService {
         }
       }
       
-      // Fallback: build a beautiful customized print template
-      return `
-        <html>
-        <head>
-          <style>
-            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; background: white; line-height: 1.5; }
-            .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 25px; display: flex; justify-content: space-between; }
-            .title { font-size: 24px; font-weight: bold; color: #0f172a; margin: 0; }
-            .meta { font-size: 13px; color: #64748b; margin-top: 5px; }
-            .section { margin-bottom: 30px; }
-            .section-title { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; }
-            .note-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-top: 20px; white-space: pre-wrap; font-size: 13px; color: #334155; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h1 class="title">E-İRSALİYE SEVK BELGESİ</h1>
-              <div class="meta">ETTN: ${ettn}</div>
-            </div>
-            <div style="text-align: right">
-              <div style="font-weight: bold; font-size: 14px;">MÜKELLEF SEVK İRSALİYESİ</div>
-              <div class="meta">Yasal Belge / Resmi Evraktır</div>
-            </div>
-          </div>
-          <div class="section">
-             <div class="section-title">Bilgilendirme</div>
-             <p>Bu belge MySoft entegrasyonu üzerinden başarıyla tescil edilmiştir. Detaylı tasarım görüntüsü (XSLT) entegratör tarafından henüz oluşturuluyor olabilir.</p>
-          </div>
-          <div class="note-box">
-             <strong>NOTLAR:</strong><br/>
-             ${notes ? notes.replace(/\n/g, '<br/>') : 'Açıklama bulunmamaktadır.'}
-          </div>
-        </body>
-        </html>
-      `;
+      throw new Error("İrsaliye görseli bulunamadı.");
     } catch (error: any) {
       console.warn("MySoft Waybill HTML Fetch issue:", error.message);
       return `<html><body><h3>E-İRSALİYE BELGESİ</h3><p>ETTN: ${ettn}</p><div style="margin-top:20px; white-space:pre-wrap;"><strong>NOTLAR:</strong><br/>${notes || ''}</div></body></html>`;
+    }
+  }
+
+  // 7. Get Waybill Preview HTML
+  async getWaybillPreviewHtml(ublData: any): Promise<string> {
+    try {
+      const token = await this.authenticate();
+      const config: any = {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        responseType: 'arraybuffer'
+      };
+
+      console.log(`[MySoft] Fetching Waybill Preview HTML...`);
+      const response = await axios.post(`${this.baseUrl}/DespatchOutbox/getPreviewDespatchAdviceHTML`, ublData, config);
+      
+      if (response.status === 200 && response.data) {
+        const buffer = Buffer.from(response.data);
+        // Handle JSON response which might contain Base64 HTML
+        if (buffer.length > 0 && buffer[0] === 123) {
+          const jsonObj = JSON.parse(buffer.toString('utf8'));
+          const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
+          if (base64Data) return Buffer.from(base64Data, 'base64').toString('utf8');
+        }
+        return buffer.toString('utf8');
+      }
+      throw new Error("Önizleme oluşturulamadı.");
+    } catch (error: any) {
+      console.error("MySoft Waybill Preview Error:", error.response?.data?.toString() || error.message);
+      throw new Error("İrsaliye önizlemesi alınamadı.");
     }
   }
 }
