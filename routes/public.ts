@@ -732,7 +732,8 @@ router.get("/stores/by-domain", async (req, res) => {
       }
     }
 
-    const cleanQuery = (domain as string).toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').trim();
+    const rawClean = (domain as string).toLowerCase().replace(/^https?:\/\//, '').trim();
+    const cleanQuery = rawClean.split(':')[0].replace(/^www\./, '').replace(/\/$/, '').trim();
     const queryWithWww = `www.${cleanQuery}`;
 
     // Fetch all stores with custom_domain
@@ -740,7 +741,8 @@ router.get("/stores/by-domain", async (req, res) => {
     
     let matchedSlug: string | null = null;
     for (const row of storesRes.rows) {
-      const dbDomain = (row.custom_domain || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').trim();
+      const rawDbDomain = (row.custom_domain || '').toLowerCase().replace(/^https?:\/\//, '').trim();
+      const dbDomain = rawDbDomain.split(':')[0].replace(/^www\./, '').replace(/\/$/, '').trim();
       if (dbDomain === cleanQuery || dbDomain === queryWithWww || `www.${dbDomain}` === cleanQuery) {
         matchedSlug = row.slug;
         break;

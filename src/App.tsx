@@ -61,13 +61,22 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { lang } = useLanguage();
-  const initialHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const initialHostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+  const cachedDomainSlug = typeof window !== 'undefined' ? sessionStorage.getItem(`detected_slug_${initialHostname}`) : null;
+
   const [detectedSlug, setDetectedSlug] = useState<string | null>(() => {
+    if (typeof window !== 'undefined' && (window as any).__CUSTOM_STORE_SLUG__) {
+      return (window as any).__CUSTOM_STORE_SLUG__;
+    }
+    if (cachedDomainSlug) return cachedDomainSlug;
     if (initialHostname === "enrakipsiz.com" || initialHostname === "www.enrakipsiz.com") return "__portal__";
     return null;
   });
+
   const [isCheckingDomain, setIsCheckingDomain] = useState(() => {
     if (!initialHostname) return false;
+    if (typeof window !== 'undefined' && (window as any).__CUSTOM_STORE_SLUG__) return false;
+    if (cachedDomainSlug) return false;
     if (initialHostname === "enrakipsiz.com" || initialHostname === "www.enrakipsiz.com") return false;
     const mainDomains = [
       "lookprice.net",
@@ -76,9 +85,10 @@ export default function App() {
       "ais-pre-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app",
       "localhost",
       "0.0.0.0",
+      "127.0.0.1",
       "onrender.com"
     ];
-    const isMainDomain = mainDomains.some(d => initialHostname.includes(d)) || 
+    const isMainDomain = mainDomains.some(d => initialHostname === d || initialHostname.endsWith(`.${d}`)) || 
                         initialHostname.includes(".run.app") || 
                         initialHostname.includes(".google.com") ||
                         initialHostname.includes("webcontainer");
@@ -88,22 +98,41 @@ export default function App() {
   useEffect(() => {
     if (!isCheckingDomain) return; // Skip if already determined synchronously to be on main domain
 
-    const checkDomain = async () => {
+    let isMounted = true;
+    const checkDomain = async (retries = 2) => {
       const hostname = window.location.hostname;
       try {
-        const res = await fetch(`/api/public/stores/by-domain?domain=${hostname}`);
+        const res = await fetch(`/api/public/stores/by-domain?domain=${encodeURIComponent(hostname)}`);
         if (res.ok) {
           const data = await res.json();
-          setDetectedSlug(data.slug);
+          if (data && data.slug && isMounted) {
+            setDetectedSlug(data.slug);
+            try {
+              sessionStorage.setItem(`detected_slug_${hostname.toLowerCase()}`, data.slug);
+            } catch {}
+            setIsCheckingDomain(false);
+            return;
+          }
+        }
+        if (retries > 0 && isMounted) {
+          setTimeout(() => checkDomain(retries - 1), 600);
+          return;
         }
       } catch (e) {
+        if (retries > 0 && isMounted) {
+          setTimeout(() => checkDomain(retries - 1), 600);
+          return;
+        }
         console.error("Domain detection failed", e);
       } finally {
-        setIsCheckingDomain(false);
+        if (retries === 0 && isMounted) {
+          setIsCheckingDomain(false);
+        }
       }
     };
 
     checkDomain();
+    return () => { isMounted = false; };
   }, [isCheckingDomain]);
 
   useEffect(() => {

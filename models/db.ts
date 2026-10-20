@@ -14,12 +14,6 @@ class ResilientPool {
   private isEmbedded: boolean = false;
 
   constructor() {
-    const dataDir = path.join(process.cwd(), "data", "postgres_embedded");
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    this.pglite = new PGlite(dataDir);
-
     const dbUrl = process.env.DATABASE_URL || "";
     if (!dbUrl) {
       this.isEmbedded = true;
@@ -30,21 +24,31 @@ class ResilientPool {
         this.pgPool = new Pool({
           connectionString: dbUrl,
           ssl: isSsl ? { rejectUnauthorized: false } : false,
-          max: 5,
-          idleTimeoutMillis: 10000,
-          connectionTimeoutMillis: 5000,
-          statement_timeout: 15000,
+          max: 10,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 10000,
+          statement_timeout: 30000,
         });
         this.pgPool.on('error', (err: any) => {
-          console.warn('[ResilientPool] PG Pool background error, switching to embedded:', err?.message || err);
-          this.isEmbedded = true;
+          console.warn('[ResilientPool] PG Pool idle socket notice (pool auto-manages):', err?.message || err);
         });
         console.log("[ResilientPool] PostgreSQL pool initialized for remote database (Supabase).");
       } catch (e) {
-        console.warn("[ResilientPool] Failed to initialize PG pool, using embedded:", e);
+        console.error("[ResilientPool] Failed to initialize PG pool:", e);
         this.isEmbedded = true;
       }
     }
+  }
+
+  private async getPgLiteInstance(): Promise<any> {
+    if (!this.pglite) {
+      const dataDir = path.join(process.cwd(), "data", "postgres_embedded");
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+      this.pglite = new PGlite(dataDir);
+    }
+    return this.pglite;
   }
 
   async exec(text: string): Promise<any> {
@@ -53,21 +57,15 @@ class ResilientPool {
         return await this.pgPool.query(text);
       } catch (err: any) {
         const msg = String(err?.message || "");
-        if (
-          msg.includes("ENOTFOUND") ||
-          msg.includes("ECONNREFUSED") ||
-          msg.includes("tenant/user") ||
-          msg.includes("timeout") ||
-          msg.includes("Connection terminated")
-        ) {
-          console.warn(`[ResilientPool] Remote Postgres failed (${msg}). Switching to embedded PostgreSQL!`);
-          this.isEmbedded = true;
-        } else {
-          throw err;
+        if (msg.includes("Connection terminated") || msg.includes("timeout") || msg.includes("socket")) {
+          console.warn(`[ResilientPool] Retrying exec after transient connection blip: ${msg}`);
+          return await this.pgPool.query(text);
         }
+        throw err;
       }
     }
-    return await this.pglite.exec(text);
+    const pgl = await this.getPgLiteInstance();
+    return await pgl.exec(text);
   }
 
   async query(text: string, params?: any[]): Promise<any> {
@@ -76,24 +74,18 @@ class ResilientPool {
         return await this.pgPool.query(text, params);
       } catch (err: any) {
         const msg = String(err?.message || "");
-        if (
-          msg.includes("ENOTFOUND") ||
-          msg.includes("ECONNREFUSED") ||
-          msg.includes("tenant/user") ||
-          msg.includes("timeout") ||
-          msg.includes("Connection terminated")
-        ) {
-          console.warn(`[ResilientPool] Remote Postgres failed (${msg}). Switching to embedded PostgreSQL!`);
-          this.isEmbedded = true;
-        } else {
-          throw err;
+        if (msg.includes("Connection terminated") || msg.includes("timeout") || msg.includes("socket")) {
+          console.warn(`[ResilientPool] Retrying query after transient connection blip: ${msg}`);
+          return await this.pgPool.query(text, params);
         }
+        throw err;
       }
     }
 
+    const pgl = await this.getPgLiteInstance();
     if (!params || params.length === 0) {
       try {
-        const res = await this.pglite.query(text);
+        const res = await pgl.query(text);
         return {
           rows: res.rows || [],
           rowCount: res.rows ? res.rows.length : (res.affectedRows || 0),
@@ -102,7 +94,7 @@ class ResilientPool {
       } catch (err: any) {
         const msg = String(err?.message || "");
         if (msg.includes("cannot insert multiple commands into a prepared statement")) {
-          const results = await this.pglite.exec(text);
+          const results = await pgl.exec(text);
           const last = Array.isArray(results) && results.length > 0 ? results[results.length - 1] : { rows: [], affectedRows: 0 };
           return {
             rows: (last as any)?.rows || [],
@@ -114,7 +106,7 @@ class ResilientPool {
       }
     }
 
-    const res = await this.pglite.query(text, params);
+    const res = await pgl.query(text, params);
     return {
       rows: res.rows || [],
       rowCount: res.rows ? res.rows.length : (res.affectedRows || 0),
@@ -127,14 +119,15 @@ class ResilientPool {
       try {
         return await this.pgPool.connect();
       } catch (err: any) {
-        console.warn(`[ResilientPool] Remote connect failed. Switching to embedded:`, err?.message || err);
-        this.isEmbedded = true;
+        console.warn(`[ResilientPool] Remote connect failed, retrying once:`, err?.message || err);
+        return await this.pgPool.connect();
       }
     }
 
+    const pgl = await this.getPgLiteInstance();
     return {
-      query: (text: string, params?: any[]) => this.query(text, params),
-      exec: (text: string) => this.exec(text),
+      query: (text: string, params?: any[]) => pgl.query(text, params),
+      exec: (text: string) => pgl.exec(text),
       release: () => {},
       on: () => {}
     };

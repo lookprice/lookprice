@@ -870,13 +870,50 @@ router.post("/stores/bulk-subscription", async (req: any, res) => {
   }
 });
 
+let leadsAndRegTablesEnsured = false;
+async function ensureLeadsAndRegistrationTables() {
+  if (leadsAndRegTablesEnsured) return;
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        store_name TEXT,
+        phone TEXT,
+        email TEXT,
+        status TEXT DEFAULT 'new',
+        probability INT DEFAULT 50,
+        notes TEXT,
+        store_type TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS registration_requests (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT,
+        store_name TEXT,
+        store_slug TEXT,
+        store_type TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    leadsAndRegTablesEnsured = true;
+  } catch (err: any) {
+    console.error("Error ensuring leads/registration tables:", err?.message);
+  }
+}
+
 // Admin: Leads Management
 router.get("/leads", async (req: any, res) => {
   try {
+    await ensureLeadsAndRegistrationTables();
     const leads = await pool.query("SELECT * FROM leads ORDER BY created_at DESC");
     res.json(leads.rows);
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error("GET /api/admin/leads error:", e?.message);
+    res.json([]);
   }
 });
 
@@ -906,10 +943,12 @@ router.delete("/leads/:id", async (req: any, res) => {
 // Admin: Registration Requests
 router.get("/registration-requests", async (req: any, res) => {
   try {
+    await ensureLeadsAndRegistrationTables();
     const requests = await pool.query("SELECT * FROM registration_requests ORDER BY created_at DESC");
     res.json(requests.rows);
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error("GET /api/admin/registration-requests error:", e?.message);
+    res.json([]);
   }
 });
 
@@ -1081,7 +1120,9 @@ router.delete("/registration-requests/:id", async (req: any, res) => {
   }
 });
 
+let enrakipsizTablesEnsured = false;
 export async function ensureEnrakipsizTables() {
+  if (enrakipsizTablesEnsured) return;
   await pool.query(`
     CREATE TABLE IF NOT EXISTS enrakipsiz_settings (
       id INT PRIMARY KEY,
@@ -1277,6 +1318,7 @@ export async function ensureEnrakipsizTables() {
       ('hotel_channel', 'hotellp', 'Kanal Yöneticisi & Fiyat Matrisi', 'Sezonluk dinamik gecelik fiyatlar, hafta sonu çarpanları ve minimum konaklama kuralı tanımları.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80', FALSE, 3)
     `).catch((err) => console.error("Error seeding hotellp videos:", err));
   }
+  enrakipsizTablesEnsured = true;
 }
 
 router.get("/enrakipsiz/settings", async (req: any, res) => {

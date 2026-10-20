@@ -300,18 +300,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const handleCloseProductModal = useCallback(() => {
     setSelectedProduct(null);
     isProductModalOpenRef.current = false;
-    if (urlBarcode) {
-      navigate(getStorePath("/"), { replace: true });
-      return;
-    }
-    if (searchParams.has("product")) {
-      setSearchParams(prev => {
-        const next = new URLSearchParams(prev);
-        next.delete("product");
-        return next;
-      }, { replace: true });
-    }
-  }, [urlBarcode, navigate, searchParams, setSearchParams, customSlug, slug]);
+    // Always navigate back to the store clean root when closing a direct product landing
+    navigate(getStorePath("/"), { replace: true });
+  }, [navigate, customSlug, slug]);
 
   // Sync back from URL parameter '?product=id' or route '/p/:barcode' to state
   useEffect(() => {

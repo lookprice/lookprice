@@ -21,26 +21,33 @@ export const domainMiddleware = async (req: Request, res: Response, next: NextFu
     return next();
   }
 
-  const customDomain = req.headers['x-custom-domain'] as string;
-  const host = req.headers.host;
-  
-  if (!host) return next();
+  const host = (req.headers.host as string) || req.hostname || "";
+  const customDomain = (req.headers['x-custom-domain'] as string) || (req.query?.custom_domain as string) || "";
+  const rawDomain = (customDomain || (req.headers['x-forwarded-host'] as string) || host || "").trim();
+  const domainToLookup = rawDomain.split(":")[0].toLowerCase().trim();
+  if (!domainToLookup) return next();
 
   // Define main domains that should not be treated as custom domains
   const mainDomains = [
     "lookprice.net",
     "www.lookprice.net",
+    "enrakipsiz.com",
+    "www.enrakipsiz.com",
     "ais-dev-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app",
     "ais-pre-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app",
     "localhost",
     "0.0.0.0",
+    "127.0.0.1",
     "onrender.com"
   ];
 
-  const domainToLookup = customDomain || host;
-
-  // If it's a main domain, just continue
-  if (mainDomains.includes(domainToLookup.toLowerCase())) {
+  // If it's a main domain or internal preview host, just continue
+  if (
+    mainDomains.includes(domainToLookup) ||
+    domainToLookup.includes(".run.app") ||
+    domainToLookup.includes(".onrender.com") ||
+    domainToLookup.includes("webcontainer")
+  ) {
     return next();
   }
 
@@ -56,19 +63,15 @@ export const domainMiddleware = async (req: Request, res: Response, next: NextFu
   try {
     // Check if this host is a custom domain for any store
     const normalizedHost = domainToLookup.startsWith("www.") ? domainToLookup.substring(4) : domainToLookup;
-    console.log(`Looking up custom domain: ${domainToLookup}, normalized: ${normalizedHost}`);
-    
-    const cleanDomain = domainToLookup.trim();
-    const cleanNormalized = normalizedHost.trim();
+    const queryWithWww = `www.${normalizedHost}`;
     
     const result = await pool.query(
-      "SELECT slug FROM stores WHERE LOWER(TRIM(custom_domain)) = LOWER($1) OR LOWER(TRIM(custom_domain)) = LOWER($2)", 
-      [cleanDomain, cleanNormalized]
+      "SELECT slug FROM stores WHERE LOWER(TRIM(custom_domain)) = LOWER($1) OR LOWER(TRIM(custom_domain)) = LOWER($2) OR LOWER(TRIM(custom_domain)) = LOWER($3)", 
+      [domainToLookup, normalizedHost, queryWithWww]
     );
     
     if (result.rows.length > 0) {
       const storeSlug = result.rows[0].slug;
-      console.log(`Found slug for ${domainToLookup}: ${storeSlug}`);
       domainCache.set(domainToLookup, storeSlug);
       
       // Clear cache after TTL
@@ -95,6 +98,7 @@ function rewriteUrl(req: Request, storeSlug: string, next: NextFunction) {
     path.startsWith("/s/") || 
     path.startsWith("/store/") || 
     path.startsWith("/scan/") || 
+    path.startsWith("/admin") ||
     path.startsWith("/api/") ||
     path.startsWith("/assets/") ||
     path.startsWith("/uploads/") ||
