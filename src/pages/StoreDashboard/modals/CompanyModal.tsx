@@ -35,7 +35,7 @@ export const CompanyModal = ({
       >
         <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white animate-fade-in">
           <div>
-            <h3 className="text-lg font-black uppercase tracking-wider">
+            <h3 className="text-lg font-medium uppercase tracking-wider">
               {editingCompany
                 ? isTr
                   ? "Cari Hesap Düzenle"
@@ -70,7 +70,7 @@ export const CompanyModal = ({
         >
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+              <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider ml-1">
                 {isTr ? "Cari Hesap / Ticari Ünvan *" : "Company / Business Title *"}
               </label>
               <input
@@ -78,31 +78,31 @@ export const CompanyModal = ({
                 name="title"
                 required
                 placeholder={isTr ? "örn: Akdeniz İnşaat Ltd." : "Company business name"}
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-extrabold text-slate-900"
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-900"
                 defaultValue={editingCompany?.title || ""}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider ml-1">
                   {isTr ? "İlgili Kişi / Temsilci" : "Contact Person"}
                 </label>
                 <input
                   type="text"
                   name="representative"
                   placeholder={isTr ? "örn: Ahmet Yılmaz" : "Representative contact"}
-                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-900"
                   defaultValue={editingCompany?.representative || ""}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider ml-1">
                   {isTr ? "Cari Para Birimi" : "Client Account Currency"}
                 </label>
                 <select
                   name="currency"
-                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700 appearance-none text-xs h-[50px]"
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-700 appearance-none text-xs h-[50px]"
                   defaultValue={editingCompany?.currency || branding?.default_currency || "TRY"}
                 >
                   <option value="TRY">TRY (₺)</option>
@@ -115,26 +115,26 @@ export const CompanyModal = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider ml-1">
                   {isTr ? "Vergi Dairesi" : "Tax Office"}
                 </label>
                 <input
                   type="text"
                   name="tax_office"
                   placeholder={isTr ? "Lefkoşa Vergi Dairesi" : "Tax location"}
-                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-900"
                   defaultValue={editingCompany?.tax_office || ""}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider ml-1">
                   {isTr ? "Vergi Numarası VKN / KKTC VKN" : "Tax / Registration No"}
                 </label>
                 <input
                   type="text"
                   name="tax_number"
                   placeholder="0123456789"
-                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-900"
                   defaultValue={editingCompany?.tax_number || ""}
                 />
               </div>
@@ -142,7 +142,7 @@ export const CompanyModal = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider ml-1">
                   {isTr ? "E-Posta Adresi" : "Email Address"}
                 </label>
                 <input
@@ -154,21 +154,21 @@ export const CompanyModal = ({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider ml-1">
                   {isTr ? "Telefon Numarası" : "Phone Number"}
                 </label>
                 <input
                   type="tel"
                   name="phone"
                   placeholder="+90533..."
-                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700"
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-700"
                   defaultValue={editingCompany?.phone || ""}
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+              <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider ml-1">
                 {isTr ? "Adres / Lokasyon" : "Physical Address"}
               </label>
               <textarea
@@ -181,7 +181,7 @@ export const CompanyModal = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-rose-500 uppercase tracking-wider ml-1">
+              <label className="text-[10px] font-medium text-rose-500 uppercase tracking-wider ml-1">
                 {isTr ? "Sevk Adresi (2. Alternatif Adres)" : "Delivery / Dispatch Address (2nd Address)"}
               </label>
               <textarea
@@ -196,7 +196,7 @@ export const CompanyModal = ({
             {/* Vade ve Finansal Koşullar Kartı */}
             <div className="p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-[11px] font-medium text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
                   {isTr ? "Vade ve Finansal Koşullar" : "Payment Terms & Late Fee"}
                 </span>
@@ -206,7 +206,7 @@ export const CompanyModal = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider ml-1">
+                  <label className="text-[10px] font-medium text-slate-600 uppercase tracking-wider ml-1">
                     {isTr ? "Vade Süresi (Gün)" : "Due Term (Days)"}
                   </label>
                   <input
@@ -215,7 +215,7 @@ export const CompanyModal = ({
                     min="0"
                     max="365"
                     placeholder={isTr ? "örn: 30" : "e.g. 30"}
-                    className="w-full px-3 py-2.5 bg-white border-2 border-indigo-200/80 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-black text-slate-900 text-sm text-center"
+                    className="w-full px-3 py-2.5 bg-white border-2 border-indigo-200/80 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900 text-sm text-center"
                     defaultValue={editingCompany?.due_days ?? 0}
                   />
                   <span className="text-[9px] text-slate-400 block px-1">
@@ -223,7 +223,7 @@ export const CompanyModal = ({
                   </span>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider ml-1">
+                  <label className="text-[10px] font-medium text-slate-600 uppercase tracking-wider ml-1">
                     {isTr ? "Aylık Vade Farkı (%)" : "Monthly Late Fee (%)"}
                   </label>
                   <input
@@ -233,7 +233,7 @@ export const CompanyModal = ({
                     min="0"
                     max="100"
                     placeholder={isTr ? "örn: 3.50" : "e.g. 3.50"}
-                    className="w-full px-3 py-2.5 bg-white border-2 border-indigo-200/80 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-black text-slate-900 text-sm text-center"
+                    className="w-full px-3 py-2.5 bg-white border-2 border-indigo-200/80 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900 text-sm text-center"
                     defaultValue={editingCompany?.late_interest_rate ?? 0}
                   />
                   <span className="text-[9px] text-slate-400 block px-1">
@@ -244,7 +244,7 @@ export const CompanyModal = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+              <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider ml-1">
                 {isTr ? "Cari Özel Notlar / Açıklamalar" : "Company Notes / Remarks"}
               </label>
               <textarea
@@ -258,7 +258,7 @@ export const CompanyModal = ({
 
             {!editingCompany && (
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider ml-1">
                   {isTr ? "Açılış Devir Bakiyesi (Borç ise eksi girin)" : "Opening Devir Balance"}
                 </label>
                 <input
@@ -266,7 +266,7 @@ export const CompanyModal = ({
                   step="0.01"
                   name="opening_balance"
                   placeholder="0.00"
-                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-900"
                   defaultValue="0"
                 />
               </div>
@@ -280,13 +280,13 @@ export const CompanyModal = ({
                 setShowCompanyModal(false);
                 setEditingCompany(null);
               }}
-              className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all cursor-pointer"
+              className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-medium text-xs uppercase tracking-widest hover:bg-slate-200 transition-all cursor-pointer"
             >
               {t.cancel}
             </button>
             <button
               type="submit"
-              className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all cursor-pointer"
+              className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-medium text-xs uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all cursor-pointer"
             >
               {isTr ? "Cariyi Kaydet" : "Save Client Account"}
             </button>

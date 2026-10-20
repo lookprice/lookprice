@@ -30,7 +30,7 @@ export const UserModal = ({
         className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden"
       >
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-indigo-600 text-white">
-          <h3 className="text-sm font-black uppercase tracking-wider">
+          <h3 className="text-sm font-medium uppercase tracking-wider">
             {isTr ? "Personel / Kullanıcı Hesabı Ekle" : "Add User Account"}
           </h3>
           <button
@@ -49,7 +49,7 @@ export const UserModal = ({
           className="p-6 space-y-4"
         >
           <div className="space-y-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+            <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
               {isTr ? "Kullanıcı Giriş Adı *" : "Username *"}
             </label>
             <input
@@ -57,12 +57,12 @@ export const UserModal = ({
               name="username"
               required
               placeholder="örn: ahmet_yilmaz"
-              className="w-full px-4 py-2 text-xs bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+              className="w-full px-4 py-2 text-xs bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-900"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+            <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
               {isTr ? "Kullanıcı Adı E-Posta *" : "Email Address *"}
             </label>
             <input
@@ -75,7 +75,7 @@ export const UserModal = ({
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+            <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
               {isTr ? "Giriş Şifresi *" : "Password *"}
             </label>
             <div className="relative">
@@ -84,7 +84,7 @@ export const UserModal = ({
                 name="password"
                 required
                 placeholder="••••••••"
-                className="w-full px-4 py-2 text-xs bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900 pr-10"
+                className="w-full px-4 py-2 text-xs bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-900 pr-10"
               />
               <button
                 type="button"
@@ -97,12 +97,12 @@ export const UserModal = ({
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+            <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
               {isTr ? "Kullanıcı Yetki Rolü" : "Role Authorization"}
             </label>
             <select
               name="role"
-              className="w-full px-4 py-2 text-xs bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700 appearance-none h-[40px]"
+              className="w-full px-4 py-2 text-xs bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-700 appearance-none h-[40px]"
               defaultValue="editor"
             >
               <option value="storeadmin">
@@ -119,25 +119,25 @@ export const UserModal = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+              <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
                 {isTr ? "Adı Soyadı" : "Full Name"}
               </label>
               <input
                 type="text"
                 name="name"
                 placeholder="Ahmet Yılmaz"
-                className="w-full px-4 py-2 text-xs bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                className="w-full px-4 py-2 text-xs bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-900"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+              <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
                 {isTr ? "Telefon No" : "Phone"}
               </label>
               <input
                 type="tel"
                 name="phone"
                 placeholder="+90548..."
-                className="w-full px-4 py-2 text-xs bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700"
+                className="w-full px-4 py-2 text-xs bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-medium text-slate-700"
               />
             </div>
           </div>
@@ -146,13 +146,13 @@ export const UserModal = ({
             <button
               type="button"
               onClick={() => setShowUserModal(false)}
-              className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs uppercase hover:bg-slate-200 transition-all cursor-pointer"
+              className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-medium text-xs uppercase hover:bg-slate-200 transition-all cursor-pointer"
             >
               {t.cancel}
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-indigo-700 transition-all cursor-pointer"
+              className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-medium text-xs uppercase hover:bg-indigo-700 transition-all cursor-pointer"
             >
               {isTr ? "Kullanıcı Ekle" : "Add User Account"}
             </button>

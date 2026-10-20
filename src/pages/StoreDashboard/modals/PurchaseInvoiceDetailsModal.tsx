@@ -30,8 +30,8 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
       >
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div>
-            <h3 className="text-xl font-bold text-gray-900">{t.purchaseDetails || "Alış Faturası Detayları"}</h3>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
+            <h3 className="text-xl font-medium text-gray-900">{t.purchaseDetails || "Alış Faturası Detayları"}</h3>
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mt-1">
               #{selectedPurchaseInvoice.invoice_number || selectedPurchaseInvoice.id} • {formatDateTR(selectedPurchaseInvoice.created_at)}
             </p>
           </div>
@@ -45,24 +45,24 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
         <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
           <div className="p-4 bg-slate-900 rounded-2xl text-white">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{t.total?.toUpperCase() || 'TOTAL'}</span>
-              <span className="text-xl font-bold">
+              <span className="text-xs font-medium opacity-80 uppercase tracking-widest">{t.total?.toUpperCase() || 'TOTAL'}</span>
+              <span className="text-xl font-medium">
                 {Number(selectedPurchaseInvoice.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedPurchaseInvoice.currency?.slice(0, 3)}
               </span>
             </div>
           </div>
 
           <div className="space-y-3">
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">{t.supplier || "Tedarikçi"}</p>
-            <p className="text-sm font-bold text-gray-900">{selectedPurchaseInvoice.supplier_name || selectedPurchaseInvoice.company_title}</p>
+            <p className="text-sm font-medium text-gray-400 uppercase tracking-widest">{t.supplier || "Tedarikçi"}</p>
+            <p className="text-sm font-medium text-gray-900">{selectedPurchaseInvoice.supplier_name || selectedPurchaseInvoice.company_title}</p>
           </div>
 
           <div className="space-y-4">
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">{t.products || "Ürünler"}</p>
+            <p className="text-sm font-medium text-gray-400 uppercase tracking-widest">{t.products || "Ürünler"}</p>
             {(selectedPurchaseInvoice.items || []).map((item: any, idx: number) => (
               <div key={idx} className="flex justify-between items-center p-3 border border-gray-100 rounded-xl">
                 <div>
-                  <p className="text-sm font-bold text-gray-900">{item.product_name}</p>
+                  <p className="text-sm font-medium text-gray-900">{item.product_name}</p>
                   <p className="text-xs text-gray-500">{item.quantity} x {Number(item.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedPurchaseInvoice.currency?.slice(0, 3)}</p>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">

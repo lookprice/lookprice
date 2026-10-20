@@ -37,12 +37,12 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
           className="bg-white rounded-2xl shadow-xl w-full max-w-4xl my-auto overflow-hidden border border-slate-200"
         >
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h3 className="text-xl font-bold text-slate-900">{isTr ? 'Fatura Detayı' : 'Invoice Details'}</h3>
+            <h3 className="text-xl font-medium text-slate-900">{isTr ? 'Fatura Detayı' : 'Invoice Details'}</h3>
             <div className="flex gap-2">
               {handleViewHtml && invoice.id && (
                 <button
                   onClick={() => handleViewHtml(invoice.id)}
-                  className="px-3.5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-medium hover:bg-indigo-100 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <Eye className="h-4 w-4" />
                   {isTr ? 'E-Fatura Görseli' : 'E-Invoice View'}
@@ -50,7 +50,7 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
               )}
               <button 
                 onClick={handlePrint} 
-                className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-bold cursor-pointer"
+                className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-medium cursor-pointer"
               >
                 <Printer className="h-4 w-4" />
                 {isTr ? 'Yazdır' : 'Print'}
@@ -68,10 +68,10 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
             {(['cancelled', 'iptal', 'iptal edildi'].includes((invoice.status || '').toLowerCase().trim()) || invoice.sale_status === 'cancelled' || ['CANCELLED', 'İPTAL', 'İPTAL EDİLDİ'].includes((invoice.integration_status || '').toUpperCase())) && (
               <div className="mb-6 p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 text-rose-700">
-                  <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-xs font-black uppercase tracking-wider">
+                  <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-xs font-medium uppercase tracking-wider">
                     {isTr ? 'İPTAL EDİLDİ' : 'CANCELLED'}
                   </span>
-                  <span className="text-xs font-bold">
+                  <span className="text-xs font-medium">
                     {invoice.sale_cancellation_reason || invoice.integration_message || (isTr ? 'Bu faturaya bağlı sipariş iptal edilmiştir.' : 'The order linked to this invoice has been cancelled.')}
                   </span>
                 </div>
@@ -80,8 +80,8 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
             <div id="print-invoice-wrapper" ref={invoiceRef} className="print-section bg-white">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               <div className="space-y-1.5">
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</p>
-                <p className="text-base font-bold text-slate-900">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name || '-'}</p>
+                <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</p>
+                <p className="text-base font-medium text-slate-900">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name || '-'}</p>
                 {(() => {
                   const addr = invoice.customer_address || invoice.company_address || invoice.address || '';
                   const city = invoice.customer_city || invoice.company_city || invoice.city || '';
@@ -97,7 +97,7 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
                 )}
                 {(invoice.tax_number || invoice.company_tax_number || invoice.customer_tax_number) && (
                   <p className="text-xs text-slate-600 font-mono">
-                    <span className="font-bold text-slate-700">VKN/TCKN:</span> {invoice.tax_number || invoice.company_tax_number || invoice.customer_tax_number}
+                    <span className="font-medium text-slate-700">VKN/TCKN:</span> {invoice.tax_number || invoice.company_tax_number || invoice.customer_tax_number}
                     {(invoice.tax_office || invoice.company_tax_office || invoice.customer_tax_office) && (
                       <span className="text-slate-500 ml-1">({invoice.tax_office || invoice.company_tax_office || invoice.customer_tax_office} V.D.)</span>
                     )}
@@ -108,11 +108,11 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
                 )}
               </div>
               <div className="space-y-2 text-right">
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Fatura Bilgileri' : 'Invoice Info'}</p>
-                <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Fatura No:' : 'Inv No:'}</span> {invoice.invoice_number}</p>
-                <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Tarih:' : 'Date:'}</span> {formatDateTR(invoice.invoice_date)}</p>
-                <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency} {invoice.exchange_rate !== 1 && `(Kur: ${invoice.exchange_rate})`}</p>
-                <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Ödeme:' : 'Payment:'}</span> {invoice.payment_method}</p>
+                <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">{isTr ? 'Fatura Bilgileri' : 'Invoice Info'}</p>
+                <p className="text-sm text-slate-600"><span className="font-medium">{isTr ? 'Fatura No:' : 'Inv No:'}</span> {invoice.invoice_number}</p>
+                <p className="text-sm text-slate-600"><span className="font-medium">{isTr ? 'Tarih:' : 'Date:'}</span> {formatDateTR(invoice.invoice_date)}</p>
+                <p className="text-sm text-slate-600"><span className="font-medium">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency} {invoice.exchange_rate !== 1 && `(Kur: ${invoice.exchange_rate})`}</p>
+                <p className="text-sm text-slate-600"><span className="font-medium">{isTr ? 'Ödeme:' : 'Payment:'}</span> {invoice.payment_method}</p>
               </div>
             </div>
 
@@ -121,11 +121,11 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
                 <table className="w-full text-left border-collapse whitespace-nowrap">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">{isTr ? 'Ürün' : 'Product'}</th>
-                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{isTr ? 'Miktar' : 'Qty'}</th>
-                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
-                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{isTr ? 'KDV %' : 'VAT %'}</th>
-                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{isTr ? 'Toplam' : 'Total'}</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">{isTr ? 'Ürün' : 'Product'}</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase text-center">{isTr ? 'Miktar' : 'Qty'}</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase text-center">{isTr ? 'KDV %' : 'VAT %'}</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? 'Toplam' : 'Total'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -172,11 +172,11 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
               <div className="flex-1">
                 {invoice.notes && (
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
-                    <p className="text-xs font-bold text-slate-400 uppercase mb-2">{isTr ? 'NOTLAR' : 'NOTES'}</p>
+                    <p className="text-xs font-medium text-slate-400 uppercase mb-2">{isTr ? 'NOTLAR' : 'NOTES'}</p>
                     <p className="text-sm text-slate-700">{invoice.notes}</p>
                   </div>
                 )}
-                <div className="text-xs text-slate-400 font-bold italic">
+                <div className="text-xs text-slate-400 font-medium italic">
                   {isTr ? 'Yalnızca:' : 'Only:'} {numberToTurkishWords(Number(invoice.grand_total), invoice.currency)}
                 </div>
               </div>

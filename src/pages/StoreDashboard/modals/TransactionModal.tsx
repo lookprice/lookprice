@@ -486,16 +486,16 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               <div className="flex items-center gap-3 min-w-0">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm sm:text-base font-black text-white truncate max-w-md sm:max-w-xl">
+                    <h3 className="text-sm sm:text-base font-medium text-white truncate max-w-md sm:max-w-xl">
                       {selectedCompany.title || selectedCompany.name}
                     </h3>
                     {selectedCompany.tax_number && (
-                      <span className="text-[10px] font-mono font-bold text-slate-300 bg-white/10 px-2 py-0.5 rounded border border-white/10">
+                      <span className="text-[10px] font-mono font-medium text-slate-300 bg-white/10 px-2 py-0.5 rounded border border-white/10">
                         {selectedCompany.tax_number.length === 11 ? 'TCKN: ' : 'VKN: '}{selectedCompany.tax_number}
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">
                     {t.accountTransactions || "Cari Hesap Ekstresi & Hareketleri"}
                   </p>
                 </div>
@@ -503,7 +503,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               <div className="flex items-center gap-2 shrink-0">
                 <button 
                   onClick={handleOpenNewTransaction}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span>{t.newTransaction || (isTr ? "Yeni İşlem" : "New Transaction")}</span>
@@ -521,11 +521,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0 text-xs">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</span>
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</span>
                   <select
                     value={selectedCurrency}
                     onChange={(e) => setSelectedCurrency(e.target.value)}
-                    className="text-xs font-black text-slate-800 outline-none bg-transparent cursor-pointer"
+                    className="text-xs font-medium text-slate-800 outline-none bg-transparent cursor-pointer"
                   >
                     <option value="ALL">{isTr ? '🌐 Tüm Para Birimleri' : '🌐 All Currencies'}</option>
                     {Object.keys(selectedCompany.balances || {}).length > 0 ? (
@@ -546,7 +546,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       setTransactionEndDate('');
                       handleFetchTransactions(selectedCompany.id, selectedCompany.store_id, '', '');
                     }}
-                    className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                    className={`px-2 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
                       !transactionStartDate && !transactionEndDate
                         ? 'bg-white text-indigo-700 shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
@@ -565,7 +565,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       setTransactionEndDate(e);
                       handleFetchTransactions(selectedCompany.id, selectedCompany.store_id, s, e);
                     }}
-                    className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                    className={`px-2 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
                       transactionStartDate && !transactionStartDate.startsWith(new Date().getFullYear().toString() + '-01-01')
                         ? 'bg-white text-indigo-700 shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
@@ -582,7 +582,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       setTransactionEndDate(e);
                       handleFetchTransactions(selectedCompany.id, selectedCompany.store_id, s, e);
                     }}
-                    className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                    className={`px-2 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
                       transactionStartDate === `${new Date().getFullYear()}-01-01`
                         ? 'bg-white text-indigo-700 shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
@@ -593,7 +593,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">{t.startDate || "Başlangıç"}</span>
+                  <span className="text-[10px] font-medium text-slate-400 uppercase">{t.startDate || "Başlangıç"}</span>
                   <input 
                     type="date" 
                     value={transactionStartDate} 
@@ -601,7 +601,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     className="text-xs font-semibold text-slate-700 outline-none bg-transparent"
                   />
                   <span className="text-slate-300">-</span>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">{t.endDate || "Bitiş"}</span>
+                  <span className="text-[10px] font-medium text-slate-400 uppercase">{t.endDate || "Bitiş"}</span>
                   <input 
                     type="date" 
                     value={transactionEndDate} 
@@ -621,7 +621,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               <div className="flex items-center gap-2">
                 <button 
                   onClick={handleExportTransactionsExcel}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer shadow-xs"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-xs transition-all cursor-pointer shadow-xs"
                   title={isTr ? "Excel (XLSX) Formatında Dışa Aktar" : "Export to Excel"}
                 >
                   <FileDown className="h-3.5 w-3.5 text-white" />
@@ -629,7 +629,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 </button>
                 <button 
                   onClick={handleExportTransactionsPDF}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer shadow-xs"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg font-medium text-xs hover:bg-slate-50 transition-all cursor-pointer shadow-xs"
                 >
                   <FileDown className="h-3.5 w-3.5 text-slate-500" />
                   <span>{t.pdfStatement || "PDF Ekstre"}</span>
@@ -650,7 +650,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       ? `💱 Otomatik Kur Farkı Hesaplandı: ${diff} ${selectedCurrency}.\nKur farkı geliri/gideri cari hesaba başarıyla yansıtıldı.`
                       : `Exchange difference calculated: ${diff} ${selectedCurrency}. Recorded.`);
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg font-bold text-xs hover:bg-amber-100 transition-all cursor-pointer shadow-xs"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg font-medium text-xs hover:bg-amber-100 transition-all cursor-pointer shadow-xs"
                   title={isTr ? "Döviz Kur Farkı Hesapla ve Yansıt" : "Calculate Exchange Difference"}
                 >
                   <Calculator className="h-3.5 w-3.5 text-amber-600" />
@@ -819,7 +819,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       alert(isTr ? 'Mutabakat linki oluşturulurken bir hata oluştu.' : 'Failed to create reconciliation link.');
                     }
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-all shadow-xs cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-xs transition-all shadow-xs cursor-pointer"
                   title={isTr ? "Online Mutabakat Linki Oluştur" : "Create Digital Reconciliation"}
                 >
                   <FileCheck className="h-3.5 w-3.5" />
@@ -883,7 +883,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           onClick={() => setSelectedCurrency('ALL')}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                             selectedCurrency === 'ALL'
                               ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
                               : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -898,7 +898,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                             <button
                               key={curr}
                               onClick={() => setSelectedCurrency(curr)}
-                              className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                              className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                                 isSelected 
                                   ? 'bg-slate-900 border-slate-900 text-white shadow-xs' 
                                   : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -906,7 +906,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                             >
                               <span className="opacity-75">{curr}:</span>
                                <span className="font-mono">{Math.abs(nBal).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              <span className={`text-[9px] px-1 py-0.2 rounded font-mono font-black ${
+                              <span className={`text-[9px] px-1 py-0.2 rounded font-mono font-medium ${
                                 isSelected 
                                   ? 'bg-white/20 text-white' 
                                   : nBal > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
@@ -922,34 +922,34 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                         {selectedCurrency !== 'ALL' && (
                           <>
                             <div className="px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-indigo-500 uppercase">{t.statements?.balance || "Bakiye"}:</span>
-                              <span className="font-black font-mono text-indigo-950">
+                              <span className="text-[10px] font-medium text-indigo-500 uppercase">{t.statements?.balance || "Bakiye"}:</span>
+                              <span className="font-medium font-mono text-indigo-950">
                                 {currentBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency}
                               </span>
                             </div>
                             <div className="px-3 py-1 bg-rose-50 border border-rose-100 rounded-lg flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-rose-500 uppercase">{t.statements?.debt || "Toplam Borç"}:</span>
-                              <span className="font-black font-mono text-rose-700">
+                              <span className="text-[10px] font-medium text-rose-500 uppercase">{t.statements?.debt || "Toplam Borç"}:</span>
+                              <span className="font-medium font-mono text-rose-700">
                                 {totalDebt.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency}
                               </span>
                             </div>
                             <div className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-emerald-500 uppercase">{t.statements?.credit || "Toplam Alacak"}:</span>
-                              <span className="font-black font-mono text-emerald-700">
+                              <span className="text-[10px] font-medium text-emerald-500 uppercase">{t.statements?.credit || "Toplam Alacak"}:</span>
+                              <span className="font-medium font-mono text-emerald-700">
                                 {totalCredit.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency}
                               </span>
                             </div>
                           </>
                         )}
                         <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-amber-700 uppercase">
+                          <span className="text-[10px] font-medium text-amber-700 uppercase">
                             {isTr ? `Birleşik (${defaultCurr})` : `Combined (${defaultCurr})`}:
                           </span>
-                          <span className="font-black font-mono text-amber-950">
+                          <span className="font-medium font-mono text-amber-950">
                             {totalBaseNet.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {defaultCurr}
                           </span>
                         </div>
-                        <div className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-bold text-[11px]">
+                        <div className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-medium text-[11px]">
                           {filteredTransactions.length} {isTr ? 'İşlem' : 'Records'}
                         </div>
                       </div>
@@ -965,7 +965,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       ) : filteredTransactions.length === 0 ? (
                         <div className="text-center py-12 px-4">
                           <History className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                          <p className="text-slate-700 font-bold text-xs mb-1">{isTr ? 'Seçili Tarih Aralığında Hareket Bulunmuyor' : 'No transactions in selected range'}</p>
+                          <p className="text-slate-700 font-medium text-xs mb-1">{isTr ? 'Seçili Tarih Aralığında Hareket Bulunmuyor' : 'No transactions in selected range'}</p>
                           {openingBalances[selectedCurrency] ? (
                             <p className="text-[11px] text-amber-700 font-semibold mb-3">
                               {isTr ? `Geçmiş dönemden devreden bakiye: ${Number(openingBalances[selectedCurrency]).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${selectedCurrency}` : `Carry-over balance: ${openingBalances[selectedCurrency]} ${selectedCurrency}`}
@@ -981,7 +981,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                               setSelectedCurrency('ALL');
                               handleFetchTransactions(selectedCompany.id, selectedCompany.store_id, '', '');
                             }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-xs cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-all shadow-xs cursor-pointer"
                           >
                             <History className="h-3.5 w-3.5" />
                             <span>{isTr ? 'Tüm Zamanların Hareketlerini Göster' : 'Show All Time Transactions'}</span>
@@ -992,18 +992,18 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                           <table className="w-full text-left border-collapse">
                             <thead className="sticky top-0 bg-slate-100 border-b border-slate-200 z-20 shadow-xs">
                               <tr>
-                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{t.statements?.date || "Tarih"}</th>
-                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{isTr ? "Türü" : "Type"}</th>
-                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{isTr ? "Belge No" : "Doc No"}</th>
-                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{t.statements?.description || "Açıklama / İşlem"}</th>
-                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider">{isTr ? "Döviz / Kur" : "Currency / Rate"}</th>
-                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.debt || "Borç"}</th>
-                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.credit || "Alacak"}</th>
-                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right">{t.statements?.balance || "Bakiye"}</th>
-                                <th className="py-2 px-3 text-[10px] font-black text-indigo-700 uppercase tracking-wider text-right bg-indigo-50/60">
+                                <th className="py-2 px-3 text-[10px] font-medium text-slate-600 uppercase tracking-wider">{t.statements?.date || "Tarih"}</th>
+                                <th className="py-2 px-3 text-[10px] font-medium text-slate-600 uppercase tracking-wider">{isTr ? "Türü" : "Type"}</th>
+                                <th className="py-2 px-3 text-[10px] font-medium text-slate-600 uppercase tracking-wider">{isTr ? "Belge No" : "Doc No"}</th>
+                                <th className="py-2 px-3 text-[10px] font-medium text-slate-600 uppercase tracking-wider">{t.statements?.description || "Açıklama / İşlem"}</th>
+                                <th className="py-2 px-3 text-[10px] font-medium text-slate-600 uppercase tracking-wider">{isTr ? "Döviz / Kur" : "Currency / Rate"}</th>
+                                <th className="py-2 px-3 text-[10px] font-medium text-slate-600 uppercase tracking-wider text-right">{t.statements?.debt || "Borç"}</th>
+                                <th className="py-2 px-3 text-[10px] font-medium text-slate-600 uppercase tracking-wider text-right">{t.statements?.credit || "Alacak"}</th>
+                                <th className="py-2 px-3 text-[10px] font-medium text-slate-600 uppercase tracking-wider text-right">{t.statements?.balance || "Bakiye"}</th>
+                                <th className="py-2 px-3 text-[10px] font-medium text-indigo-700 uppercase tracking-wider text-right bg-indigo-50/60">
                                   {isTr ? `Birleşik Bakiye (${defaultCurr})` : `Combined (${defaultCurr})`}
                                 </th>
-                                <th className="py-2 px-3 text-[10px] font-black text-slate-600 uppercase tracking-wider text-right w-16">{isTr ? 'İşlem' : 'Action'}</th>
+                                <th className="py-2 px-3 text-[10px] font-medium text-slate-600 uppercase tracking-wider text-right w-16">{isTr ? 'İşlem' : 'Action'}</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs">
@@ -1013,10 +1013,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                 return (
                                   <>
                                     {selectedCurrency !== 'ALL' && openingBalances[selectedCurrency] ? (
-                                      <tr className="bg-amber-50/70 font-bold">
+                                      <tr className="bg-amber-50/70 font-medium">
                                         <td className="py-2 px-3 text-amber-800 font-mono text-[11px]">-</td>
                                         <td className="py-2 px-3 whitespace-nowrap">
-                                          <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-900 border border-amber-300">
                                             {isTr ? 'Devreden' : 'Opening'}
                                           </span>
                                         </td>
@@ -1028,10 +1028,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                         <td className="py-2 px-3 text-amber-800 font-mono text-[11px]">{selectedCurrency}</td>
                                         <td className="py-2 px-3 text-right text-amber-900 font-mono">-</td>
                                         <td className="py-2 px-3 text-right text-amber-900 font-mono">-</td>
-                                        <td className="py-2 px-3 text-right text-amber-900 font-mono font-bold">
+                                        <td className="py-2 px-3 text-right text-amber-900 font-mono font-medium">
                                           {Number(openingBalances[selectedCurrency]).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
                                         </td>
-                                        <td className="py-2 px-3 text-right text-amber-950 font-mono font-bold bg-amber-100/40">
+                                        <td className="py-2 px-3 text-right text-amber-950 font-mono font-medium bg-amber-100/40">
                                           {runningBaseBal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {defaultCurr}
                                         </td>
                                         <td className="py-2 px-3 text-right text-amber-700">-</td>
@@ -1153,7 +1153,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
                                           {/* İşlem Türü (Nevi) */}
                                           <td className="py-2 px-3 whitespace-nowrap">
-                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
                                               txTypeLabel.includes('Tahsilat')
                                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                                 : txTypeLabel.includes('Ödeme')
@@ -1178,7 +1178,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                           <td className="py-2 px-3 whitespace-nowrap">
                                             {docNo && docNo !== '-' ? (
                                               docNo.startsWith('POS #') ? (
-                                                <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-300 text-[11px]">
+                                                <span className="font-mono font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-300 text-[11px]">
                                                   {docNo}
                                                 </span>
                                               ) : (tx.is_invoice || (isDebt && tx.sales_invoice_number) || (!isDebt && tx.purchase_invoice_number)) ? (
@@ -1188,7 +1188,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                                     onClick={() => resolveAndOpenInvoice(tx, docNo, false)}
                                                     disabled={loadingInvoiceTxId === tx.id}
                                                     title={isTr ? 'Fatura Detayını Görüntüle' : 'View Invoice Details'}
-                                                    className="inline-flex items-center gap-1 font-mono font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 hover:border-indigo-400 shadow-2xs text-[11px] transition-all cursor-pointer disabled:opacity-60"
+                                                    className="inline-flex items-center gap-1 font-mono font-medium text-indigo-700 hover:text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 hover:border-indigo-400 shadow-2xs text-[11px] transition-all cursor-pointer disabled:opacity-60"
                                                   >
                                                     {loadingInvoiceTxId === tx.id ? (
                                                       <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
@@ -1208,7 +1208,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                                   </button>
                                                 </div>
                                               ) : (
-                                                <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-300 text-[11px]">
+                                                <span className="font-mono font-medium text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-300 text-[11px]">
                                                   {docNo}
                                                 </span>
                                               )
@@ -1229,7 +1229,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                                   .substring(0, 25) || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit'))}
                                               </span>
                                               {(tx.cross_amount || (tx.description && (tx.description.includes('TL Tahsilat') || tx.description.includes('TL Ödeme')))) && (
-                                                <span className="text-[9px] font-mono font-bold text-amber-700 truncate">
+                                                <span className="text-[9px] font-mono font-medium text-amber-700 truncate">
                                                   {tx.cross_amount 
                                                     ? `TL: ${Number(tx.cross_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ (Kur: ${Number(tx.cross_rate || tx.exchange_rate).toFixed(2)})`
                                                     : (isTr ? 'TL Çapraz Kur' : 'Cross TRY')}
@@ -1239,17 +1239,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                           </td>
                                           <td className="py-2 px-3 whitespace-nowrap">
                                             <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                                              <span className={`px-1.5 py-0.5 rounded border font-black text-[10px] ${currColor}`}>
+                                              <span className={`px-1.5 py-0.5 rounded border font-medium text-[10px] ${currColor}`}>
                                                 {curr}
                                               </span>
                                               {curr !== defaultCurr && (
-                                                <span className="text-slate-700 font-bold text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-slate-200">
+                                                <span className="text-slate-700 font-medium text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-slate-200">
                                                   {rate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                                                 </span>
                                               )}
                                             </div>
                                           </td>
-                                          <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-rose-600">
+                                          <td className="py-2 px-3 text-right font-mono font-medium whitespace-nowrap text-rose-600">
                                             {isDebt ? (
                                               <div>
                                                 <div>{amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {curr}</div>
@@ -1261,7 +1261,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                               </div>
                                             ) : '-'}
                                           </td>
-                                          <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-emerald-600">
+                                          <td className="py-2 px-3 text-right font-mono font-medium whitespace-nowrap text-emerald-600">
                                             {!isDebt ? (
                                               <div>
                                                 <div>{amt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {curr}</div>
@@ -1273,16 +1273,16 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                               </div>
                                             ) : '-'}
                                           </td>
-                                          <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-slate-900">
+                                          <td className="py-2 px-3 text-right font-mono font-medium whitespace-nowrap text-slate-900">
                                             {rowRunningBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
-                                            <span className="text-[10px] ml-1 font-bold text-slate-600">{curr}</span>
+                                            <span className="text-[10px] ml-1 font-medium text-slate-600">{curr}</span>
                                             <span className="text-[10px] ml-1 opacity-75 text-slate-500">
                                               {rowRunningBalance > 0 ? (isTr ? '(B)' : '(D)') : rowRunningBalance < 0 ? (isTr ? '(A)' : '(C)') : ''}
                                             </span>
                                           </td>
-                                          <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap text-indigo-950 bg-indigo-50/30">
+                                          <td className="py-2 px-3 text-right font-mono font-medium whitespace-nowrap text-indigo-950 bg-indigo-50/30">
                                             {runningBaseBal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            <span className="text-[10px] ml-1 font-bold text-indigo-700">{defaultCurr}</span>
+                                            <span className="text-[10px] ml-1 font-medium text-indigo-700">{defaultCurr}</span>
                                             <span className="text-[10px] ml-1 opacity-75 text-indigo-600">
                                               {runningBaseBal > 0 ? (isTr ? '(B)' : '(D)') : runningBaseBal < 0 ? (isTr ? '(A)' : '(C)') : ''}
                                             </span>
@@ -1332,7 +1332,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               </span>
               <button 
                 onClick={() => setShowTransactionModal(false)}
-                className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-bold text-xs transition-all cursor-pointer"
+                className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-medium text-xs transition-all cursor-pointer"
               >
                 {t.close || "Kapat"}
               </button>
@@ -1359,13 +1359,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   ) : (
                     <Plus className="h-4 w-4 text-indigo-400 shrink-0" />
                   )}
-                  <h3 className="text-sm sm:text-base font-black text-white truncate">
+                  <h3 className="text-sm sm:text-base font-medium text-white truncate">
                     {editingTransaction 
                       ? (isTr ? "Cari İşlemi Düzenle / Revize Et" : "Edit Account Transaction") 
                       : (t.addNewTransaction || (isTr ? "Yeni Cari Hesap İşlemi" : "New Account Transaction"))}
                   </h3>
                   {editingTransaction && (
-                    <span className="font-mono text-amber-300 bg-amber-400/20 px-1.5 py-0.5 rounded text-[10px] font-bold border border-amber-400/30">
+                    <span className="font-mono text-amber-300 bg-amber-400/20 px-1.5 py-0.5 rounded text-[10px] font-medium border border-amber-400/30">
                       ID #{editingTransaction.id}
                     </span>
                   )}
@@ -1402,14 +1402,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             <form onSubmit={handleFormSubmit} className="p-4 sm:p-5 space-y-3.5 overflow-y-auto text-xs">
               {/* Cari / Firma Seçimi */}
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-1">
+                <label className="text-[10px] font-medium text-slate-500 uppercase tracking-tight flex items-center gap-1">
                   <Building2 className="h-3 w-3 text-slate-400" />
                   <span>{isTr ? 'Cari Hesap / Müşteri' : 'Account / Company'}</span>
                 </label>
                 <select
                   value={formCompanyId}
                   onChange={(e) => setFormCompanyId(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-bold text-slate-800 cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-medium text-slate-800 cursor-pointer"
                 >
                   {companies && companies.length > 0 ? (
                     companies.map((c) => (
@@ -1428,7 +1428,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setFormType('credit')}
-                  className={`px-3 py-2 rounded-xl font-bold text-xs transition-all border-2 cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`px-3 py-2 rounded-xl font-medium text-xs transition-all border-2 cursor-pointer flex items-center justify-center gap-1.5 ${
                     formType === 'credit' 
                       ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs' 
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -1440,7 +1440,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setFormType('debt')}
-                  className={`px-3 py-2 rounded-xl font-bold text-xs transition-all border-2 cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`px-3 py-2 rounded-xl font-medium text-xs transition-all border-2 cursor-pointer flex items-center justify-center gap-1.5 ${
                     formType === 'debt' 
                       ? 'bg-rose-600 border-rose-600 text-white shadow-xs' 
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -1454,21 +1454,21 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               {/* Amount & Currency Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{isTr ? 'İşlem Tutarı' : 'Amount'}</label>
+                  <label className="text-[10px] font-medium text-slate-500 uppercase tracking-tight">{isTr ? 'İşlem Tutarı' : 'Amount'}</label>
                   <div className="relative">
                     <input 
                       type="text" 
                       required 
                       value={formAmount}
                       onChange={(e) => setFormAmount(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-black text-slate-900" 
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-medium text-slate-900" 
                       placeholder="0.00"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{isTr ? 'Para Birimi' : 'Currency'}</label>
+                  <label className="text-[10px] font-medium text-slate-500 uppercase tracking-tight">{isTr ? 'Para Birimi' : 'Currency'}</label>
                   <select
                     value={formCurrency}
                     onChange={(e) => {
@@ -1482,7 +1482,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                         setFormExchangeRate('1');
                       }
                     }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-black text-slate-800 cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-medium text-slate-800 cursor-pointer"
                   >
                     <option value="TRY">TRY (₺)</option>
                     <option value="USD">USD ($)</option>
@@ -1496,12 +1496,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               {formCurrency === 'TRY' && (
                 <div className="p-3 bg-gradient-to-br from-amber-50/70 via-indigo-50/30 to-slate-50 border border-amber-200/90 rounded-2xl space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-xs font-black text-amber-950">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-amber-950">
                       <Calculator className="h-4 w-4 text-amber-600 shrink-0" />
                       <span>{isTr ? 'Çapraz Döviz Kuru & Mahsup' : 'Cross Currency & Offset'}</span>
                     </div>
                     {formTargetCurrency ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
                         {formTargetCurrency} {isTr ? 'Hesabına Bağlı' : 'Linked'}
                       </span>
                     ) : (
@@ -1519,7 +1519,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">
+                      <label className="text-[10px] font-medium text-slate-600 uppercase tracking-tight">
                         {isTr ? 'Mahsup Edilecek Döviz Cinsi' : 'Target Foreign Currency'}
                       </label>
                       <select
@@ -1533,7 +1533,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                             setFormCrossRate('');
                           }
                         }}
-                        className="w-full px-3 py-2 bg-white border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 text-xs font-bold text-slate-900 cursor-pointer"
+                        className="w-full px-3 py-2 bg-white border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 text-xs font-medium text-slate-900 cursor-pointer"
                       >
                         <option value="">{isTr ? '— Yok (Sadece TL Kaydı) —' : '— None (Pure TL Record) —'}</option>
                         <option value="USD">USD ($) - Amerikan Doları</option>
@@ -1545,14 +1545,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     {formTargetCurrency ? (
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-bold text-amber-900 uppercase tracking-tight">
+                          <label className="text-[10px] font-medium text-amber-900 uppercase tracking-tight">
                             {isTr ? `Çapraz Kur (1 ${formTargetCurrency} = ... ₺)` : `Cross Rate (1 ${formTargetCurrency} = ... TRY)`}
                           </label>
                           {branding?.currency_rates?.[formTargetCurrency] && (
                             <button
                               type="button"
                               onClick={() => setFormCrossRate(String(branding.currency_rates[formTargetCurrency]))}
-                              className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
+                              className="text-[9px] font-medium text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
                               title={isTr ? "TCMB Kurunu Getir" : "Get CBRT Rate"}
                             >
                               TCMB: {Number(branding.currency_rates[formTargetCurrency]).toFixed(2)} ₺
@@ -1565,7 +1565,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                           value={formCrossRate}
                           onChange={(e) => setFormCrossRate(e.target.value.replace(',', '.'))}
                           placeholder="Örn: 34.5000"
-                          className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-xs font-black text-amber-950 font-mono"
+                          className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-xs font-medium text-amber-950 font-mono"
                         />
                       </div>
                     ) : null}
@@ -1576,16 +1576,16 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                         <div className="text-[11px] text-slate-800">
-                          <span className="font-bold text-slate-900">{parseAmount(formAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
+                          <span className="font-medium text-slate-900">{parseAmount(formAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
                           <span className="text-slate-400 mx-1">/</span>
-                          <span className="font-mono font-bold text-amber-800">{parseAmount(formCrossRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
+                          <span className="font-mono font-medium text-amber-800">{parseAmount(formCrossRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
                           <span className="text-slate-400 mx-1">=</span>
-                          <span className="font-black font-mono text-emerald-700 text-xs">
+                          <span className="font-medium font-mono text-emerald-700 text-xs">
                             {(parseAmount(formAmount) / parseAmount(formCrossRate)).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {formTargetCurrency}
                           </span>
                         </div>
                       </div>
-                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 shrink-0">
+                      <span className="text-[10px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 shrink-0">
                         {formType === 'credit' 
                           ? (isTr ? `Cari ${formTargetCurrency} Borcundan Düşülecek` : `Deducts from ${formTargetCurrency} debt`) 
                           : (isTr ? `Cari ${formTargetCurrency} Alacağından Düşülecek` : `Deducts from ${formTargetCurrency} credit`)}
@@ -1599,8 +1599,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               {formCurrency !== 'TRY' && (
                 <div className="p-2.5 bg-indigo-50/60 border border-indigo-100 rounded-xl space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <label className="text-[10px] font-bold text-indigo-900 uppercase tracking-tight">{isTr ? 'Döviz Alış Kuru (TCMB)' : 'Exchange Rate'}</label>
-                    <span className="text-[10px] text-indigo-600 font-mono font-bold">
+                    <label className="text-[10px] font-medium text-indigo-900 uppercase tracking-tight">{isTr ? 'Döviz Alış Kuru (TCMB)' : 'Exchange Rate'}</label>
+                    <span className="text-[10px] text-indigo-600 font-mono font-medium">
                       {formCurrency}/TRY
                     </span>
                   </div>
@@ -1610,10 +1610,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       required 
                       value={formExchangeRate}
                       onChange={(e) => setFormExchangeRate(e.target.value.replace(',', '.'))}
-                      className="w-32 px-3 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono" 
+                      className="w-32 px-3 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono" 
                       placeholder="1.0000"
                     />
-                    <div className="flex-1 text-right font-mono text-[11px] font-black text-indigo-950">
+                    <div className="flex-1 text-right font-mono text-[11px] font-medium text-indigo-950">
                       Karşılık: ~{(parseAmount(formAmount) * (parseAmount(formExchangeRate) || 1)).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
                     </div>
                   </div>
@@ -1623,14 +1623,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               {/* Payment Method & Document No */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-1">
+                  <label className="text-[10px] font-medium text-slate-500 uppercase tracking-tight flex items-center gap-1">
                     <CreditCard className="h-3 w-3 text-slate-400" />
                     <span>{t.paymentMethod || (isTr ? 'Ödeme Yöntemi / Kasa' : 'Payment Method')}</span>
                   </label>
                   <select
                     value={formPaymentMethod}
                     onChange={(e) => setFormPaymentMethod(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-bold text-slate-800 cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-medium text-slate-800 cursor-pointer"
                   >
                     <option value="cash">{t.cash || (isTr ? 'Nakit Kasa (Elden)' : 'Cash')}</option>
                     <option value="bank">{t.bank || (isTr ? 'Banka Transferi (Havale/EFT/FAST)' : 'Bank Transfer')}</option>
@@ -1640,7 +1640,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-1">
+                  <label className="text-[10px] font-medium text-slate-500 uppercase tracking-tight flex items-center gap-1">
                     <Receipt className="h-3 w-3 text-slate-400" />
                     <span>{isTr ? 'Belge / Fiş / Dekont No' : 'Doc / Voucher No'}</span>
                   </label>
@@ -1656,7 +1656,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
               {/* Date */}
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-1">
+                <label className="text-[10px] font-medium text-slate-500 uppercase tracking-tight flex items-center gap-1">
                   <Calendar className="h-3 w-3 text-slate-400" />
                   <span>{t.statements?.date || (isTr ? 'İşlem Tarihi' : 'Transaction Date')}</span>
                 </label>
@@ -1665,13 +1665,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   required 
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-bold text-slate-900 cursor-pointer" 
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-medium text-slate-900 cursor-pointer" 
                 />
               </div>
 
               {/* Description */}
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{t.statements?.description || (isTr ? 'İşlem Açıklaması' : 'Description')}</label>
+                <label className="text-[10px] font-medium text-slate-500 uppercase tracking-tight">{t.statements?.description || (isTr ? 'İşlem Açıklaması' : 'Description')}</label>
                 <textarea 
                   required
                   value={formDescription}
@@ -1693,7 +1693,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                         handleCloseAddOrEditModal();
                       }
                     }}
-                    className="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs transition-all flex items-center gap-1 cursor-pointer"
+                    className="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-medium text-xs transition-all flex items-center gap-1 cursor-pointer"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     <span>{isTr ? "Sil" : "Delete"}</span>
@@ -1706,13 +1706,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   <button
                     type="button"
                     onClick={handleCloseAddOrEditModal}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all cursor-pointer"
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium text-xs transition-all cursor-pointer"
                   >
                     {t.cancel || (isTr ? "Vazgeç" : "Cancel")}
                   </button>
                   <button 
                     type="submit" 
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold tracking-wide shadow-md shadow-indigo-100 transition-all text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium tracking-wide shadow-md shadow-indigo-100 transition-all text-xs cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <FileCheck className="h-4 w-4" />
                     <span>

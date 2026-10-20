@@ -163,7 +163,7 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddMaintenanceModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
               >
                 <Plus className="w-4 h-4" />
                 {lang === 'tr' ? 'Bakım Ekle' : 'Add Maintenance'}
@@ -189,7 +189,7 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddAssignmentModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
               >
                 <Plus className="w-4 h-4" />
                 {lang === 'tr' ? 'Zimmet Ekle' : 'Add Assignment'}
@@ -215,7 +215,7 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddMileageModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
               >
                 <Plus className="w-4 h-4" />
                 {lang === 'tr' ? 'Kilometre Kaydı' : 'Add Mileage Log'}
@@ -239,7 +239,7 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddIncidentModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
               >
                 <Plus className="w-4 h-4" />
                 {lang === 'tr' ? 'Olay/Kaza Ekle' : 'Add Incident'}
@@ -265,7 +265,7 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddDocumentModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-tighter"
               >
                 <Plus className="w-4 h-4" />
                 {lang === 'tr' ? 'Poliçe/Belge Ekle' : 'Add Policy/Document'}

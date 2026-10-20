@@ -22,8 +22,8 @@ export const SalesInvoiceStats: React.FC<SalesInvoiceStatsProps> = ({
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
       <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider truncate">{isTr ? "HESAPLANAN VERGİ" : "CALCULATED TAX"}</p>
-          <p className="text-sm sm:text-base font-bold text-slate-900 tracking-tight mt-0.5 truncate">
+          <p className="text-[10px] font-medium text-indigo-600 uppercase tracking-wider truncate">{isTr ? "HESAPLANAN VERGİ" : "CALCULATED TAX"}</p>
+          <p className="text-sm sm:text-base font-medium text-slate-900 tracking-tight mt-0.5 truncate">
             {totalCalculatedTax.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
@@ -34,8 +34,8 @@ export const SalesInvoiceStats: React.FC<SalesInvoiceStatsProps> = ({
 
       <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider truncate">{isTr ? "SATIŞ MATRAHI" : "SALES SUBTOTAL"}</p>
-          <p className="text-sm sm:text-base font-bold text-slate-900 tracking-tight mt-0.5 truncate">
+          <p className="text-[10px] font-medium text-emerald-600 uppercase tracking-wider truncate">{isTr ? "SATIŞ MATRAHI" : "SALES SUBTOTAL"}</p>
+          <p className="text-sm sm:text-base font-medium text-slate-900 tracking-tight mt-0.5 truncate">
             {totalSalesAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
@@ -46,8 +46,8 @@ export const SalesInvoiceStats: React.FC<SalesInvoiceStatsProps> = ({
 
       <div className="bg-white px-3.5 py-2.5 rounded-xl border border-indigo-200/80 shadow-xs flex items-center justify-between bg-gradient-to-br from-white to-indigo-50/30">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider truncate">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</p>
-          <p className="text-sm sm:text-base font-black text-indigo-950 tracking-tight mt-0.5 truncate">
+          <p className="text-[10px] font-medium text-indigo-900 uppercase tracking-wider truncate">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</p>
+          <p className="text-sm sm:text-base font-medium text-indigo-950 tracking-tight mt-0.5 truncate">
             {totalGrandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>

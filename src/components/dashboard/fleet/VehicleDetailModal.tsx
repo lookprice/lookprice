@@ -135,14 +135,14 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
         {/* Compact Header */}
         <div className="px-3 py-1 bg-slate-900 text-white flex items-center justify-between shrink-0 border-b border-slate-800">
           <div className="flex items-center gap-2 overflow-hidden">
-            <div className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-black tracking-widest uppercase flex items-center gap-1 shadow-sm shrink-0 border border-blue-500/50">
+            <div className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-medium tracking-widest uppercase flex items-center gap-1 shadow-sm shrink-0 border border-blue-500/50">
               <Car className="w-3 h-3" />
               <span>{vehicle.plate}</span>
             </div>
             <div className="min-w-0">
-              <h3 className="text-[10px] font-black text-white truncate flex items-center gap-2 uppercase tracking-widest">
+              <h3 className="text-[10px] font-medium text-white truncate flex items-center gap-2 uppercase tracking-widest">
                 <span>{generateVehicleTitle(vehicle)}</span>
-                <span className={`px-1.5 py-0 rounded-[4px] text-[8px] font-black uppercase tracking-widest border ${getStatusColor(vehicle.status).replace('bg-', 'bg-opacity-20 border-')}`}>
+                <span className={`px-1.5 py-0 rounded-[4px] text-[8px] font-medium uppercase tracking-widest border ${getStatusColor(vehicle.status).replace('bg-', 'bg-opacity-20 border-')}`}>
                   {getStatusText(vehicle.status)}
                 </span>
               </h3>
@@ -151,7 +151,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
 
           <div className="flex items-center gap-2 shrink-0">
             {vehicle.selling_price && (
-              <div className="hidden sm:flex items-center gap-1 bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter">
+              <div className="hidden sm:flex items-center gap-1 bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2 py-0.5 rounded text-[9px] font-medium uppercase tracking-tighter">
                 <Tag className="w-2.5 h-2.5 text-emerald-400" />
                 <span>{vehicle.selling_price.toLocaleString()} {vehicle.currency || 'TRY'}</span>
               </div>
@@ -160,7 +160,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
             {!isViewer && onEditVehicle && (
               <button
                 onClick={onEditVehicle}
-                className="flex items-center gap-1 px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white rounded text-[9px] font-black uppercase tracking-widest transition-all border border-slate-700"
+                className="flex items-center gap-1 px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white rounded text-[9px] font-medium uppercase tracking-widest transition-all border border-slate-700"
               >
                 <Settings className="w-2.5 h-2.5" />
                 <span>{isTr ? 'DÜZENLE' : 'EDIT'}</span>
@@ -189,11 +189,11 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
               ) : (
                 <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center gap-1 text-slate-400">
                   <Car className="w-6 h-6 text-slate-300" />
-                  <span className="text-[9px] font-black uppercase tracking-wider">{isTr ? 'Görsel Yok' : 'No Image'}</span>
+                  <span className="text-[9px] font-medium uppercase tracking-wider">{isTr ? 'Görsel Yok' : 'No Image'}</span>
                 </div>
               )}
               {vehicle.images && vehicle.images.length > 1 && (
-                <span className="absolute bottom-1 right-1 bg-slate-900/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded backdrop-blur-xs border border-white/10">
+                <span className="absolute bottom-1 right-1 bg-slate-900/90 text-white text-[8px] font-medium px-1.5 py-0.5 rounded backdrop-blur-xs border border-white/10">
                   +{vehicle.images.length - 1} FOTO
                 </span>
               )}
@@ -202,68 +202,68 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
             {/* ARAÇ SECERESİ & KÜNYESİ (Micro Bento Grid) */}
             <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-xs space-y-2">
               <div className="flex items-center justify-between border-b border-slate-100 pb-1 px-0.5">
-                <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-1">
+                <span className="text-[9px] font-medium text-slate-900 uppercase tracking-widest flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-blue-600" />
                   Araç Künyesi & Seceresi
                 </span>
-                <span className="text-[8px] font-mono font-bold text-slate-400">#{vehicle.id}</span>
+                <span className="text-[8px] font-mono font-medium text-slate-400">#{vehicle.id}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-1 text-[11px]">
                 <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
-                  <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Plaka</span>
-                  <span className="font-black text-slate-900 font-mono tracking-tighter uppercase">{vehicle.plate}</span>
+                  <span className="text-[8px] font-medium text-slate-400 uppercase block mb-0.5">Plaka</span>
+                  <span className="font-medium text-slate-900 font-mono tracking-tighter uppercase">{vehicle.plate}</span>
                 </div>
 
                 <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
-                  <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Satış Fiyatı</span>
-                  <span className="font-black text-emerald-700 tracking-tighter">
+                  <span className="text-[8px] font-medium text-slate-400 uppercase block mb-0.5">Satış Fiyatı</span>
+                  <span className="font-medium text-emerald-700 tracking-tighter">
                     {vehicle.selling_price ? `${vehicle.selling_price.toLocaleString()} ${vehicle.currency || 'TRY'}` : 'N/A'}
                   </span>
                 </div>
 
                 <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
-                  <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Marka / Model</span>
-                  <span className="font-black text-slate-800 truncate block tracking-tight uppercase">{vehicle.brand} {vehicle.model}</span>
+                  <span className="text-[8px] font-medium text-slate-400 uppercase block mb-0.5">Marka / Model</span>
+                  <span className="font-medium text-slate-800 truncate block tracking-tight uppercase">{vehicle.brand} {vehicle.model}</span>
                 </div>
 
                 <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
-                  <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Yıl / KM</span>
-                  <span className="font-black text-slate-800 tracking-tighter">{vehicle.year} • {(vehicle.current_mileage || 0).toLocaleString()} KM</span>
+                  <span className="text-[8px] font-medium text-slate-400 uppercase block mb-0.5">Yıl / KM</span>
+                  <span className="font-medium text-slate-800 tracking-tighter">{vehicle.year} • {(vehicle.current_mileage || 0).toLocaleString()} KM</span>
                 </div>
 
                 <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
-                  <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Yakıt / Vites</span>
-                  <span className="font-bold text-slate-700 truncate block tracking-tighter uppercase">
+                  <span className="text-[8px] font-medium text-slate-400 uppercase block mb-0.5">Yakıt / Vites</span>
+                  <span className="font-medium text-slate-700 truncate block tracking-tighter uppercase">
                     {formatFuelType(vehicle.fuel_type)} • {formatTransmission(vehicle.transmission)}
                   </span>
                 </div>
 
                 <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
-                  <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Paket / Renk</span>
-                  <span className="font-bold text-slate-700 truncate block tracking-tighter uppercase">
+                  <span className="text-[8px] font-medium text-slate-400 uppercase block mb-0.5">Paket / Renk</span>
+                  <span className="font-medium text-slate-700 truncate block tracking-tighter uppercase">
                     {vehicle.package_name || '-'} {vehicle.color ? `(${vehicle.color})` : ''}
                   </span>
                 </div>
 
                 <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
-                  <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Kategori / Kasa</span>
-                  <span className="font-bold text-slate-700 truncate block tracking-tighter uppercase">
+                  <span className="text-[8px] font-medium text-slate-400 uppercase block mb-0.5">Kategori / Kasa</span>
+                  <span className="font-medium text-slate-700 truncate block tracking-tighter uppercase">
                     {vehicle.category || 'Otomobil'} {vehicle.body_type ? `• ${vehicle.body_type}` : ''}
                   </span>
                 </div>
 
                 <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
-                  <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Tramer Kaydı</span>
-                  <span className="font-black text-slate-900 tracking-tighter">
+                  <span className="text-[8px] font-medium text-slate-400 uppercase block mb-0.5">Tramer Kaydı</span>
+                  <span className="font-medium text-slate-900 tracking-tighter">
                     {vehicle.tramer_amount ? `${vehicle.tramer_amount.toLocaleString()} TL` : '0 TL (Temiz)'}
                   </span>
                 </div>
 
                 {vehicle.chassis_number && (
                   <div className="col-span-2 p-1.5 bg-slate-50 rounded border border-slate-100 flex items-center justify-between">
-                    <span className="text-[8px] font-black text-slate-400 uppercase">Şasi:</span>
-                    <span className="font-mono text-[10px] font-black text-slate-800 tracking-tight">{vehicle.chassis_number}</span>
+                    <span className="text-[8px] font-medium text-slate-400 uppercase">Şasi:</span>
+                    <span className="font-mono text-[10px] font-medium text-slate-800 tracking-tight">{vehicle.chassis_number}</span>
                   </div>
                 )}
               </div>
@@ -271,10 +271,10 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
 
             {/* Ekspertiz Özeti */}
             <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-xs space-y-1.5">
-              <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest block border-b border-slate-100 pb-1">
+              <span className="text-[9px] font-medium text-slate-900 uppercase tracking-widest block border-b border-slate-100 pb-1">
                 Ekspertiz Durumu
               </span>
-              <div className="flex items-center justify-between text-[10px] font-black pt-0.5 px-0.5 uppercase tracking-tighter">
+              <div className="flex items-center justify-between text-[10px] font-medium pt-0.5 px-0.5 uppercase tracking-tighter">
                 <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
                   Orj: {paintCounts.original}
                 </span>
@@ -290,7 +290,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
             {/* Descriptions (Pazar Hikayesi & Teknik) */}
             {vehicle.market_story && (
               <div className="bg-indigo-50/40 p-2 rounded-lg border border-indigo-100 space-y-1">
-                <span className="text-[9px] font-black text-indigo-700 uppercase tracking-widest block">Açıklama</span>
+                <span className="text-[9px] font-medium text-indigo-700 uppercase tracking-widest block">Açıklama</span>
                 <p className="text-[10px] text-slate-800 leading-tight font-medium line-clamp-3 italic">"{vehicle.market_story}"</p>
               </div>
             )}
@@ -307,7 +307,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                   <button
                     key={sec.id}
                     onClick={() => setActiveVehicleTab(sec.id)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-[10px] font-black transition-all whitespace-nowrap uppercase tracking-widest border-x border-t ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-[10px] font-medium transition-all whitespace-nowrap uppercase tracking-widest border-x border-t ${
                       isActive 
                         ? 'bg-white text-blue-600 border-white/10 shadow-sm' 
                         : 'text-slate-400 hover:text-white border-transparent'
@@ -322,7 +322,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
 
             {/* Sub-Tab Header Bar */}
             <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
-              <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+              <span className="text-[10px] font-medium text-slate-900 uppercase tracking-widest flex items-center gap-2">
                 {(() => {
                   const s = sections.find(x => x.id === activeVehicleTab);
                   return s ? (
@@ -343,7 +343,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                     else if (activeVehicleTab === 'mileage') onAddMileage();
                     else if (activeVehicleTab === 'incidents') onAddIncident();
                   }}
-                  className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded-md text-[10px] font-black hover:bg-blue-700 transition-all uppercase tracking-tighter"
+                  className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded-md text-[10px] font-medium hover:bg-blue-700 transition-all uppercase tracking-tighter"
                 >
                   <Plus className="w-3 h-3" />
                   <span>{isTr ? 'Kaydı İşle' : 'Add'}</span>
@@ -371,10 +371,10 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                             <FileText className="w-3.5 h-3.5" />
                           </div>
                           <div className="min-w-0">
-                            <p className="font-black text-slate-800 text-[11px] truncate uppercase tracking-tighter">{doc.type}</p>
+                            <p className="font-medium text-slate-800 text-[11px] truncate uppercase tracking-tighter">{doc.type}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                                <Calendar className="w-2.5 h-2.5 text-slate-400" />
-                               <span className="text-[9px] text-slate-500 font-bold uppercase">SON: {new Date(doc.expiry_date).toLocaleDateString('tr-TR')}</span>
+                               <span className="text-[9px] text-slate-500 font-medium uppercase">SON: {new Date(doc.expiry_date).toLocaleDateString('tr-TR')}</span>
                             </div>
                           </div>
                         </div>
@@ -406,7 +406,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                                 const win = window.open('', '_blank');
                                 if (win) { win.document.write(`<html><head><title>${cTitle}</title></head><body onload="window.print()">${html}</body></html>`); win.document.close(); }
                               }}
-                              className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[9px] font-black uppercase hover:bg-emerald-200 transition-colors"
+                              className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[9px] font-medium uppercase hover:bg-emerald-200 transition-colors"
                             >
                               GÖR
                             </button>
@@ -435,15 +435,15 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                             <Wrench className="w-3.5 h-3.5" />
                           </div>
                           <div>
-                            <p className="font-black text-slate-800 text-[11px] uppercase tracking-tighter">{m.type}</p>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">
+                            <p className="font-medium text-slate-800 text-[11px] uppercase tracking-tighter">{m.type}</p>
+                            <p className="text-[9px] text-slate-500 font-medium uppercase mt-0.5">
                               {m.provider_name || 'Servis'} • {formatDateTR(m.date)} • {(m.mileage || 0).toLocaleString()} KM
                             </p>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-black text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded tabular-nums">{m.cost?.toLocaleString()} TL</span>
+                          <span className="text-[11px] font-medium text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded tabular-nums">{m.cost?.toLocaleString()} TL</span>
                           {!isViewer && (
                             <button onClick={() => handleDeleteMaintenance(m.id)} className="p-1 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                               <Trash2 className="w-3.5 h-3.5" />
@@ -463,19 +463,19 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                             <UserCheck className="w-3.5 h-3.5" />
                           </div>
                           <div>
-                            <p className="font-black text-slate-800 text-[11px] uppercase tracking-tighter truncate max-w-[140px]">{a.user_email}</p>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">
+                            <p className="font-medium text-slate-800 text-[11px] uppercase tracking-tighter truncate max-w-[140px]">{a.user_email}</p>
+                            <p className="text-[9px] text-slate-500 font-medium uppercase mt-0.5">
                               {formatDateTR(a.start_date)} • {a.start_mileage?.toLocaleString()} KM
                             </p>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-1.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${a.status === 'active' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-medium uppercase tracking-widest border ${a.status === 'active' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
                             {a.status === 'active' ? 'AKTİF' : 'BİTTİ'}
                           </span>
                           {a.status === 'active' && !isViewer && (
-                            <button onClick={() => handleUpdateAssignment(a.id, 0)} className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[9px] font-black hover:bg-indigo-700 uppercase tracking-tighter">
+                            <button onClick={() => handleUpdateAssignment(a.id, 0)} className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[9px] font-medium hover:bg-indigo-700 uppercase tracking-tighter">
                               İADE
                             </button>
                           )}
@@ -493,8 +493,8 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                             <History className="w-3.5 h-3.5" />
                           </div>
                           <div>
-                            <p className="text-[11px] font-black text-slate-900 tracking-tight">{log.mileage.toLocaleString()} KM</p>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">{formatDateTR(log.date)}</p>
+                            <p className="text-[11px] font-medium text-slate-900 tracking-tight">{log.mileage.toLocaleString()} KM</p>
+                            <p className="text-[9px] text-slate-500 font-medium uppercase mt-0.5">{formatDateTR(log.date)}</p>
                           </div>
                         </div>
                       </div>
@@ -510,11 +510,11 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                             <AlertTriangle className="w-3.5 h-3.5" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[11px] font-black text-slate-800 uppercase tracking-tighter truncate">{inc.type}: {inc.description}</p>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">{formatDateTR(inc.date)}</p>
+                            <p className="text-[11px] font-medium text-slate-800 uppercase tracking-tighter truncate">{inc.type}: {inc.description}</p>
+                            <p className="text-[9px] text-slate-500 font-medium uppercase mt-0.5">{formatDateTR(inc.date)}</p>
                           </div>
                         </div>
-                        <span className="text-[11px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 tabular-nums shrink-0">{inc.cost?.toLocaleString()} TL</span>
+                        <span className="text-[11px] font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 tabular-nums shrink-0">{inc.cost?.toLocaleString()} TL</span>
                       </div>
                     ))
                   )}
@@ -527,8 +527,8 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                     (activeVehicleTab === 'incidents' && incidents.length === 0)) && (
                     <div className="py-8 text-center bg-white rounded-lg border border-dashed border-slate-200">
                       <Info className="w-6 h-6 text-slate-300 mx-auto mb-1.5" />
-                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{isTr ? 'Kayıt Yok' : 'No Records'}</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5 tracking-tighter">{isTr ? 'Henüz veri girilmemiş.' : 'No data recorded.'}</p>
+                      <p className="text-[10px] font-medium text-slate-700 uppercase tracking-widest">{isTr ? 'Kayıt Yok' : 'No Records'}</p>
+                      <p className="text-[9px] text-slate-400 font-medium uppercase mt-0.5 tracking-tighter">{isTr ? 'Henüz veri girilmemiş.' : 'No data recorded.'}</p>
                     </div>
                   )}
                 </motion.div>

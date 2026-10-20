@@ -128,11 +128,11 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div>
-            <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h3 className="text-xl font-medium text-slate-900 tracking-tight flex items-center gap-2">
               {editingInvoiceId ? <Save className="h-5 w-5 text-indigo-600" /> : <Plus className="h-5 w-5 text-indigo-600" />}
               {editingInvoiceId ? (isTr ? "Faturayı Düzenle" : "Edit Invoice") : (isTr ? "Yeni Alış Faturası" : "New Purchase Invoice")}
             </h3>
-            <p className="text-xs font-bold text-slate-400 mt-0.5 uppercase tracking-widest">
+            <p className="text-xs font-medium text-slate-400 mt-0.5 uppercase tracking-widest">
               {isTr ? "Fatura Bilgilerini Girin" : "Enter Invoice Details"}
             </p>
           </div>
@@ -172,10 +172,10 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura No' : 'Invoice No'}</label>
+                    <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura No' : 'Invoice No'}</label>
                     <input 
                       type="text"
-                      className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
+                      className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
                       value={invoiceNumber}
                       onChange={(e) => setInvoiceNumber(e.target.value.toUpperCase())}
                       placeholder="ALIS-0001"
@@ -183,10 +183,10 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     />
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'İrsaliye No' : 'Waybill No'}</label>
+                    <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest px-2">{isTr ? 'İrsaliye No' : 'Waybill No'}</label>
                     <input 
                       type="text"
-                      className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
+                      className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
                       value={waybillNumber}
                       onChange={(e) => setWaybillNumber(e.target.value.toUpperCase())}
                       placeholder="İRS-0001"
@@ -197,10 +197,10 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
 
              <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/50 p-6 rounded-3xl border-2 border-slate-100">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura Tarihi' : 'Invoice Date'}</label>
+                  <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura Tarihi' : 'Invoice Date'}</label>
                   <input 
                     type="date"
-                    className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
+                    className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-medium text-slate-700"
                     value={invoiceDate}
                     onChange={(e) => setInvoiceDate(e.target.value)}
                     required
@@ -208,19 +208,19 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                 </div>
 
                 <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fiyat Ayarı' : 'Tax Setting'}</label>
+                    <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fiyat Ayarı' : 'Tax Setting'}</label>
                     <div className="flex items-center gap-2">
                        <button
                          type="button"
                          onClick={() => setIsTaxInclusive(true)}
-                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-500'}`}
+                         className={`flex-1 py-3 text-xs font-medium rounded-xl border-2 transition-all ${isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-500'}`}
                        >
                          {isTr ? "KDV DAHİL" : "TAX INCL."}
                        </button>
                        <button
                          type="button"
                          onClick={() => setIsTaxInclusive(false)}
-                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${!isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-500'}`}
+                         className={`flex-1 py-3 text-xs font-medium rounded-xl border-2 transition-all ${!isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-500'}`}
                        >
                          {isTr ? "KDV HARİÇ" : "TAX EXCL."}
                        </button>
@@ -228,19 +228,19 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                 </div>
 
                 <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura Tipi' : 'Invoice Type'}</label>
+                    <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura Tipi' : 'Invoice Type'}</label>
                     <div className="flex items-center gap-2">
                        <button
                          type="button"
                          onClick={() => setIsExpense(false)}
-                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${!isExpense ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-500'}`}
+                         className={`flex-1 py-3 text-xs font-medium rounded-xl border-2 transition-all ${!isExpense ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-500'}`}
                        >
                          {isTr ? "STOKLU ALIM" : "STOCK BUY"}
                        </button>
                        <button
                          type="button"
                          onClick={() => setIsExpense(true)}
-                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${isExpense ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-slate-200 text-slate-500 hover:border-amber-500'}`}
+                         className={`flex-1 py-3 text-xs font-medium rounded-xl border-2 transition-all ${isExpense ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-slate-200 text-slate-500 hover:border-amber-500'}`}
                        >
                          {isTr ? "GİDER" : "EXPENSE"}
                        </button>
@@ -249,11 +249,11 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
 
                 {isExpense && (
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-2">{isTr ? 'Gider Yeri' : 'Expense Center'}</label>
+                    <label className="text-[10px] font-medium text-amber-500 uppercase tracking-widest px-2">{isTr ? 'Gider Yeri' : 'Expense Center'}</label>
                     <select
                       value={expenseCenter}
                       onChange={(e) => setExpenseCenter(e.target.value)}
-                      className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-amber-500 transition-all font-bold text-slate-700"
+                      className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-amber-500 transition-all font-medium text-slate-700"
                     >
                       <option value="">{isTr ? "Gider Yeri Seçin" : "Select Center"}</option>
                       <option value="showroom">Showroom</option>
@@ -270,14 +270,14 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
 
           <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{isTr ? "KALEMLER" : "ITEMS"}</h4>
+              <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-[0.2em]">{isTr ? "KALEMLER" : "ITEMS"}</h4>
               <div className="flex items-center gap-4">
                 {isExpense && (
                   <div className="flex items-center gap-2">
                     <select
                       value={expenseCenter}
                       onChange={(e) => setExpenseCenter(e.target.value)}
-                      className="text-xs font-bold px-2 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg outline-none"
+                      className="text-xs font-medium px-2 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg outline-none"
                     >
                       <option value="">{isTr ? "Gider Yeri Seçin" : "Select Expense Center"}</option>
                       <option value="showroom">Showroom</option>
@@ -296,7 +296,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     onChange={(e) => setIsExpense(e.target.checked)} 
                     className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
                   />
-                  <span className="text-xs font-black text-slate-600 group-hover:text-amber-600 transition-colors">{isTr ? "GİDER OLARAK İŞLE" : "MARK AS EXPENSE"}</span>
+                  <span className="text-xs font-medium text-slate-600 group-hover:text-amber-600 transition-colors">{isTr ? "GİDER OLARAK İŞLE" : "MARK AS EXPENSE"}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <input 
@@ -305,7 +305,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     onChange={(e) => setIsTaxInclusive(e.target.checked)} 
                     className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
                   />
-                  <span className="text-xs font-black text-slate-600 group-hover:text-indigo-600 transition-colors">{isTr ? "FİYATLAR KDV DAHİL" : "PRICES VAT INCLUSIVE"}</span>
+                  <span className="text-xs font-medium text-slate-600 group-hover:text-indigo-600 transition-colors">{isTr ? "FİYATLAR KDV DAHİL" : "PRICES VAT INCLUSIVE"}</span>
                 </label>
               </div>
             </div>
@@ -322,7 +322,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     setShowProductDropdown(true);
                   }}
                   onFocus={() => setShowProductDropdown(true)}
-                  className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
+                  className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-medium shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                 />
               </div>
               
@@ -341,7 +341,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                           setShowQuickProductModal(true);
                           setShowProductDropdown(false);
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition-all shadow-sm"
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-all shadow-sm"
                       >
                         <Plus className="h-3.5 w-3.5" />
                         {isTr ? `Hızlı Ürün Ekle: "${productSearch}"` : `Quick Add Product: "${productSearch}"`}
@@ -363,29 +363,29 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                                 <Package className="h-4 w-4 text-slate-500" />
                               </div>
                               <div>
-                                <p className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                <p className="text-sm font-medium text-slate-900 tracking-tight flex items-center gap-2">
                                   <span>{p.name}</span>
                                   {pHasVariants && (
-                                    <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
+                                    <span className="text-[9px] font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
                                       {variantsList.length} {isTr ? "Varyant" : "Variants"}
                                     </span>
                                   )}
                                 </p>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                <p className="text-[10px] font-medium text-slate-400 uppercase">
                                   {p.barcode || '-'}
                                   {p.product_code ? ` • Kod: ${p.product_code}` : ''}
                                 </p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs font-black text-emerald-600">{Number(p.cost_price || p.price).toLocaleString()} {p.currency}</p>
-                              <p className="text-[10px] font-bold text-slate-400 tracking-widest text-right">STOK: {p.stock_quantity}</p>
+                              <p className="text-xs font-medium text-emerald-600">{Number(p.cost_price || p.price).toLocaleString()} {p.currency}</p>
+                              <p className="text-[10px] font-medium text-slate-400 tracking-widest text-right">STOK: {p.stock_quantity}</p>
                             </div>
                           </button>
 
                           {pHasVariants && variantsList.length > 0 && (
                             <div className="bg-slate-50/90 px-4 py-2 border-t border-slate-100 space-y-1.5">
-                              <p className="text-[9px] font-black text-indigo-600 uppercase tracking-wider">
+                              <p className="text-[9px] font-medium text-indigo-600 uppercase tracking-wider">
                                 {isTr ? "Varyant / Çeşit Doğrudan Ekle:" : "Select Variant:"}
                               </p>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -402,7 +402,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                                       className="flex items-center justify-between p-2 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-left transition-all text-xs group"
                                     >
                                       <div className="min-w-0 pr-2">
-                                        <span className="font-bold text-slate-800 group-hover:text-indigo-700 block truncate">
+                                        <span className="font-medium text-slate-800 group-hover:text-indigo-700 block truncate">
                                           {v.name}
                                         </span>
                                         {v.barcode && (
@@ -412,10 +412,10 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                                         )}
                                       </div>
                                       <div className="text-right shrink-0">
-                                        <span className="text-[10px] font-black text-emerald-600 block">
+                                        <span className="text-[10px] font-medium text-emerald-600 block">
                                           {Number(vCost).toLocaleString()} {p.currency}
                                         </span>
-                                        <span className="text-[9px] font-bold text-slate-400 block">
+                                        <span className="text-[9px] font-medium text-slate-400 block">
                                           {isTr ? `Stok: ${vStock}` : `Stock: ${vStock}`}
                                         </span>
                                       </div>
@@ -441,7 +441,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
             <div className="overflow-x-auto -mx-4 px-4">
               <table className="w-full border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <tr className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">
                     <th className="pb-2 pl-4 text-left">{isTr ? "ÜRÜN / HİZMET" : "PRODUCT / SERVICE"}</th>
                     {isCafeRestaurant ? (
                       <>
@@ -474,17 +474,17 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                                  e.preventDefault();
                                  if (onEditProduct) onEditProduct(item);
                                }}
-                               className={`text-left text-sm font-black text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                               className={`text-left text-sm font-medium text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
                              >
                                {item.product_name || item.name || '-'}
                              </button>
                              {item.variant_name && (
-                               <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">
+                               <span className="text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">
                                  {item.variant_name}
                                </span>
                              )}
                            </div>
-                           <p className="text-[10px] font-bold text-slate-400 uppercase">{item.barcode || '-'}</p>
+                           <p className="text-[10px] font-medium text-slate-400 uppercase">{item.barcode || '-'}</p>
                          </td>
                          {isCafeRestaurant ? (
                            <>
@@ -496,7 +496,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                                    value={item.quantity || ''}
                                    onChange={(e) => updateItem(index, 'quantity', e.target.value)}
                                    placeholder={isTr ? "Miktar" : "Qty"}
-                                   className="w-24 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                   className="w-24 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                                  />
                                  <input
                                    type="text"
@@ -515,7 +515,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                                    value={item.system_quantity || ''}
                                    onChange={(e) => updateItem(index, 'system_quantity', e.target.value)}
                                    placeholder={isTr ? "Sis. Miktar" : "Sys Qty"}
-                                   className="w-24 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                   className="w-24 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                                  />
                                  <input
                                    type="text"
@@ -534,7 +534,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                                inputMode="numeric"
                                value={item.quantity}
                                onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                               className="w-20 mx-auto block px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-center text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                               className="w-20 mx-auto block px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-center text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                              />
                            </td>
                          )}
@@ -543,7 +543,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                              type="text"
                              value={item.unit_price}
                              onChange={(e) => updateItem(index, 'unit_price', e.target.value)}
-                             className="w-28 ml-auto block px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-right text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                             className="w-28 ml-auto block px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-right text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                            />
                          </td>
                          <td className="py-4 px-2">
@@ -552,10 +552,10 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                              maxLength={2}
                              value={item.tax_rate}
                              onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
-                             className="w-12 mx-auto block px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-center text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                             className="w-12 mx-auto block px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-center text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                            />
                          </td>
-                         <td className="py-4 text-right pr-4 font-black text-slate-900 text-sm">
+                         <td className="py-4 text-right pr-4 font-medium text-slate-900 text-sm">
                            {total.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                          </td>
                          <td className="py-4 pr-4 rounded-r-xl">
@@ -574,7 +574,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     <tr>
                       <td colSpan={6} className="py-12 text-center">
                         <Package className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-                        <p className="text-xs font-black text-slate-300 uppercase tracking-widest">{isTr ? "HENÜZ ÜRÜN EKLENMEMİŞ" : "NO ITEMS ADDED YET"}</p>
+                        <p className="text-xs font-medium text-slate-300 uppercase tracking-widest">{isTr ? "HENÜZ ÜRÜN EKLENMEMİŞ" : "NO ITEMS ADDED YET"}</p>
                       </td>
                     </tr>
                   )}
@@ -587,14 +587,14 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
             <div className="md:col-span-2 space-y-6">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                  <label className="text-[10px] font-medium text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
                     <CreditCard className="h-3 w-3" />
                     {isTr ? "ÖDEME ŞEKLİ" : "PAYMENT METHOD"}
                   </label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
                   >
                     <option value="term">{isTr ? "Açık Hesap (Vadeli)" : "Term / Account"}</option>
                     <option value="cash">{isTr ? "Nakit" : "Cash"}</option>
@@ -604,13 +604,13 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                    <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                    <label className="text-[10px] font-medium text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
                       {isTr ? "BİRİM" : "CURRENCY"}
                     </label>
                     <select
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
                     >
                       <option value="TRY">TRY</option>
                       <option value="USD">USD</option>
@@ -619,7 +619,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                    <label className="text-[10px] font-medium text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
                       {isTr ? "KUR" : "RATE"}
                     </label>
                     <input
@@ -627,20 +627,20 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                       value={exchangeRate}
                       disabled={currency === 'TRY'}
                       onChange={(e) => setExchangeRate(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none disabled:opacity-50"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none disabled:opacity-50"
                     />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{isTr ? "FATURA NOTLARI" : "INVOICE NOTES"}</label>
+                <label className="text-[10px] font-medium text-slate-500 uppercase tracking-widest ml-1">{isTr ? "FATURA NOTLARI" : "INVOICE NOTES"}</label>
                 <textarea
                   rows={4}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder={isTr ? "Opsiyonel notlar..." : "Optional notes..."}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none resize-none"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none resize-none"
                 />
               </div>
             </div>
@@ -648,26 +648,26 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
             <div className="bg-slate-900 rounded-3xl p-8 space-y-6 text-white h-fit shadow-2xl shadow-slate-900/40">
               <div className="space-y-4">
                 <div className="flex justify-between items-center group">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover:text-white transition-colors">{isTr ? "MATRAH" : "SUBTOTAL"}</span>
-                  <span className="text-sm font-bold text-slate-200">{totals.subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {currency}</span>
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-[0.2em] group-hover:text-white transition-colors">{isTr ? "MATRAH" : "SUBTOTAL"}</span>
+                  <span className="text-sm font-medium text-slate-200">{totals.subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {currency}</span>
                 </div>
                 <div className="flex justify-between items-center group">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover:text-white transition-colors">{isTr ? "KDV TOPLAM" : "VAT TOTAL"}</span>
-                  <span className="text-sm font-bold text-slate-200">{totals.taxTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {currency}</span>
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-[0.2em] group-hover:text-white transition-colors">{isTr ? "KDV TOPLAM" : "VAT TOTAL"}</span>
+                  <span className="text-sm font-medium text-slate-200">{totals.taxTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {currency}</span>
                 </div>
                 <div className="pt-4 border-t border-slate-800 flex justify-between items-end">
                   <div className="space-y-1">
-                    <span className="text-[11px] font-black text-indigo-400 uppercase tracking-[0.3em] block">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</span>
-                    <span className="text-3xl font-black tracking-tighter block">{totals.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-[11px] font-medium text-indigo-400 uppercase tracking-[0.3em] block">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</span>
+                    <span className="text-3xl font-medium tracking-tighter block">{totals.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
                   </div>
-                  <span className="text-lg font-black text-slate-500 mb-1 ml-2">{currency}</span>
+                  <span className="text-lg font-medium text-slate-500 mb-1 ml-2">{currency}</span>
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 group"
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-medium text-sm uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 group"
               >
                 {isSubmitting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />

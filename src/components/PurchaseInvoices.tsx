@@ -199,6 +199,69 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     return () => clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => {
+    const handleProductUpdated = (e: any) => {
+      const detail = e?.detail;
+      if (!detail || !detail.product) return;
+      const updatedProd = detail.product;
+      const productId = detail.productId || updatedProd.id;
+      const linkedInvoiceItemId = detail.linkedInvoiceItemId || updatedProd._purchaseInvoiceItemId;
+
+      setProducts((prev: any[]) => {
+        const exists = prev.some(p => Number(p.id) === Number(productId));
+        if (exists) {
+          return prev.map(p => Number(p.id) === Number(productId) ? { ...p, ...updatedProd } : p);
+        }
+        return [{ ...updatedProd, id: productId }, ...prev];
+      });
+
+      setSelectedInvoice((prev: any) => {
+        if (!prev || !Array.isArray(prev.items)) return prev;
+        const updatedItems = prev.items.map((item: any) => {
+          const isMatch = (linkedInvoiceItemId && Number(item.id) === Number(linkedInvoiceItemId)) ||
+            Number(item.product_id) === Number(productId) ||
+            (updatedProd.barcode && item.barcode && String(item.barcode) === String(updatedProd.barcode));
+          if (isMatch) {
+            return {
+              ...item,
+              product_id: productId,
+              barcode: updatedProd.barcode || item.barcode,
+              product_code: updatedProd.product_code || updatedProd.sku || item.product_code
+            };
+          }
+          return item;
+        });
+        return { ...prev, items: updatedItems };
+      });
+
+      setInvoices((prev: any[]) =>
+        prev.map((inv: any) => {
+          if (!Array.isArray(inv.items)) return inv;
+          return {
+            ...inv,
+            items: inv.items.map((item: any) => {
+              const isMatch = (linkedInvoiceItemId && Number(item.id) === Number(linkedInvoiceItemId)) ||
+                Number(item.product_id) === Number(productId) ||
+                (updatedProd.barcode && item.barcode && String(item.barcode) === String(updatedProd.barcode));
+              if (isMatch) {
+                return {
+                  ...item,
+                  product_id: productId,
+                  barcode: updatedProd.barcode || item.barcode,
+                  product_code: updatedProd.product_code || updatedProd.sku || item.product_code
+                };
+              }
+              return item;
+            })
+          };
+        })
+      );
+    };
+
+    window.addEventListener('lp_product_updated', handleProductUpdated);
+    return () => window.removeEventListener('lp_product_updated', handleProductUpdated);
+  }, []);
+
   const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string, silent = false) => {
     if (role === 'superadmin' && !storeId) return;
     if (!silent) setLoading(true);

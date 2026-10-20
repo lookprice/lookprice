@@ -431,7 +431,7 @@ const CompaniesTab = ({
           {onNewCompany && !isViewer && (
             <button 
               onClick={onNewCompany}
-              className="flex items-center gap-2 bg-slate-900 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-indigo-600/20 active:scale-95 transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-slate-900 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md hover:shadow-indigo-600/20 active:scale-95 transition-all cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               <span>{t.registerCompany}</span>
@@ -442,7 +442,7 @@ const CompaniesTab = ({
               handleRefreshRecons();
               setShowReconHistory(true);
             }}
-            className="flex items-center gap-2 bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all cursor-pointer"
+            className="flex items-center gap-2 bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-all cursor-pointer"
           >
             <History className="h-4 w-4" />
             {isTr ? 'Mutabakat Geçmişi & Durum Takibi' : 'Reconciliation History & Status'}
@@ -451,7 +451,7 @@ const CompaniesTab = ({
             <button
               onClick={handleMergeDuplicates}
               disabled={isMerging}
-              className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3.5 py-2 rounded-xl text-sm font-bold hover:bg-emerald-100 disabled:opacity-50 transition-all cursor-pointer shadow-xs active:scale-95"
+              className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3.5 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 disabled:opacity-50 transition-all cursor-pointer shadow-xs active:scale-95"
               title={isTr ? "Aynı VKN/TCKN ve unvana sahip mükerrer cari hesapları ve hareketlerini tek bir çatı altında birleştirir" : "Consolidate duplicate accounts with same Tax ID/VKN"}
             >
               <Layers className={`h-4 w-4 text-emerald-600 ${isMerging ? 'animate-spin' : ''}`} />
@@ -484,11 +484,11 @@ const CompaniesTab = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
-                <th className="py-3 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">{t.companyTitle}</th>
-                <th className="py-3 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">{t.taxInfo}</th>
-                <th className="py-3 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">{t.contactPerson}</th>
-                <th className="py-3 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">{t.balance}</th>
-                <th className="py-3 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
+                <th className="py-3 px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.companyTitle}</th>
+                <th className="py-3 px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.taxInfo}</th>
+                <th className="py-3 px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.contactPerson}</th>
+                <th className="py-3 px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.balance}</th>
+                <th className="py-3 px-6 text-xs font-medium text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -503,7 +503,7 @@ const CompaniesTab = ({
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-6">
                       <div className="flex items-center space-x-3">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-sm shrink-0 border border-slate-200">
+                        <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 font-medium text-sm shrink-0 border border-slate-200">
                           {c.title ? c.title.charAt(0).toUpperCase() : 'C'}
                         </div>
                         <div>
@@ -783,17 +783,17 @@ const CompaniesTab = ({
               <button 
                 disabled={page === 1}
                 onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all cursor-pointer"
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all cursor-pointer"
               >
                 {t.prev}
               </button>
-              <div className="text-xs font-bold text-slate-600 tabular-nums">
+              <div className="text-xs font-medium text-slate-600 tabular-nums">
                 {page} <span className="text-slate-300 mx-1">/</span> {totalPages}
               </div>
               <button 
                 disabled={page === totalPages}
                 onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all cursor-pointer"
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all cursor-pointer"
               >
                 {t.next}
               </button>
@@ -815,10 +815,10 @@ const CompaniesTab = ({
                 </div>
                 <div>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                    <h3 className="text-xs sm:text-sm font-black tracking-tight text-white">
+                    <h3 className="text-xs sm:text-sm font-medium tracking-tight text-white">
                       {isTr ? 'Dijital Mutabakat Takibi' : 'Digital Reconciliation'}
                     </h3>
-                    <span className="hidden sm:inline px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[9px] font-black uppercase tracking-wider">
+                    <span className="hidden sm:inline px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[9px] font-medium uppercase tracking-wider">
                       {isTr ? 'Resmi Evrak' : 'Official'}
                     </span>
                   </div>
@@ -830,7 +830,7 @@ const CompaniesTab = ({
                 <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800">
                   <button
                     onClick={() => setReconViewMode('active')}
-                    className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-extrabold transition-all cursor-pointer ${
+                    className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all cursor-pointer ${
                       reconViewMode === 'active'
                         ? 'bg-indigo-600 text-white shadow-sm'
                         : 'text-slate-300 hover:text-white'
@@ -844,7 +844,7 @@ const CompaniesTab = ({
                   </button>
                   <button
                     onClick={() => setReconViewMode('archived')}
-                    className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-extrabold transition-all cursor-pointer ${
+                    className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all cursor-pointer ${
                       reconViewMode === 'archived'
                         ? 'bg-amber-600 text-white shadow-sm'
                         : 'text-slate-300 hover:text-white'
@@ -885,10 +885,10 @@ const CompaniesTab = ({
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-black text-emerald-300 uppercase tracking-wider">
+                      <span className="text-xs font-medium text-emerald-300 uppercase tracking-wider">
                         {isTr ? '🔗 Dijital Mutabakat Linki Oluşturuldu & Panoya Kopyalandı!' : '🔗 Digital Reconciliation Link Created & Copied!'}
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-white/10 text-white text-[10px] font-bold truncate max-w-[260px]">
+                      <span className="px-2 py-0.5 rounded bg-white/10 text-white text-[10px] font-medium truncate max-w-[260px]">
                         {recentlyCreatedRecon.companyTitle} ({recentlyCreatedRecon.periodMonthName})
                       </span>
                     </div>
@@ -904,7 +904,7 @@ const CompaniesTab = ({
                       setCopiedBannerLink(true);
                       setTimeout(() => setCopiedBannerLink(false), 2500);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-950 hover:bg-emerald-50 rounded-lg text-xs font-extrabold transition-all cursor-pointer shadow-xs"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-950 hover:bg-emerald-50 rounded-lg text-xs font-medium transition-all cursor-pointer shadow-xs"
                   >
                     <Copy className="w-3.5 h-3.5" />
                     <span>{copiedBannerLink ? (isTr ? 'Kopyalandı ✓' : 'Copied ✓') : (isTr ? 'Linki Kopyala' : 'Copy Link')}</span>
@@ -917,7 +917,7 @@ const CompaniesTab = ({
                     )}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-extrabold transition-all cursor-pointer shadow-xs"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition-all cursor-pointer shadow-xs"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>{isTr ? 'WhatsApp ile Gönder' : 'Send via WhatsApp'}</span>
@@ -939,7 +939,7 @@ const CompaniesTab = ({
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   onClick={() => setReconStatusFilter('all')}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
                     reconStatusFilter === 'all'
                       ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                       : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
@@ -953,7 +953,7 @@ const CompaniesTab = ({
 
                 <button
                   onClick={() => setReconStatusFilter('confirmed')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
                     reconStatusFilter === 'confirmed'
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                       : 'bg-emerald-50/70 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
@@ -968,7 +968,7 @@ const CompaniesTab = ({
 
                 <button
                   onClick={() => setReconStatusFilter('disputed')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
                     reconStatusFilter === 'disputed'
                       ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
                       : 'bg-rose-50/70 text-rose-800 border-rose-200 hover:bg-rose-100'
@@ -983,7 +983,7 @@ const CompaniesTab = ({
 
                 <button
                   onClick={() => setReconStatusFilter('pending')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
                     reconStatusFilter === 'pending'
                       ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
                       : 'bg-amber-50/70 text-amber-800 border-amber-200 hover:bg-amber-100'
@@ -1013,7 +1013,7 @@ const CompaniesTab = ({
                 <select
                   value={reconCompanyFilter}
                   onChange={(e) => setReconCompanyFilter(e.target.value)}
-                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 max-w-[200px] truncate cursor-pointer"
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 max-w-[200px] truncate cursor-pointer"
                 >
                   <option value="ALL">{isTr ? 'Tüm Cariler' : 'All Companies'} ({reconCompaniesList.length})</option>
                   {reconCompaniesList.map(c => (
@@ -1026,7 +1026,7 @@ const CompaniesTab = ({
                 <select
                   value={reconPeriodFilter}
                   onChange={(e) => setReconPeriodFilter(e.target.value)}
-                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 max-w-[150px] cursor-pointer"
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 max-w-[150px] cursor-pointer"
                 >
                   <option value="ALL">{isTr ? 'Tüm Dönemler' : 'All Periods'}</option>
                   {reconPeriods.map(p => (
@@ -1037,7 +1037,7 @@ const CompaniesTab = ({
                 {reconViewMode === 'active' && reconStats.confirmed > 0 && (
                   <button
                     onClick={() => handleBulkArchiveCompleted(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-medium shadow-xs transition-all cursor-pointer"
                     title={isTr ? 'Onaylanan tüm mutabakatları cari arşivine kaldır' : 'Archive all confirmed reconciliations'}
                   >
                     <Archive className="w-3.5 h-3.5" />
@@ -1054,7 +1054,7 @@ const CompaniesTab = ({
               {reconCompaniesList.length > 0 && (
                 <div className="w-full md:w-60 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col shrink-0 max-h-36 md:max-h-none overflow-y-auto">
                   <div className="px-3.5 py-2.5 border-b border-slate-200 flex items-center justify-between bg-slate-100/80 sticky top-0 z-10">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                       <Building2 className="w-3.5 h-3.5 text-indigo-600" />
                       {reconViewMode === 'archived'
                         ? (isTr ? 'Cari Arşiv Klasörleri' : 'Archived by Company')
@@ -1063,7 +1063,7 @@ const CompaniesTab = ({
                     {reconCompanyFilter !== 'ALL' && (
                       <button
                         onClick={() => setReconCompanyFilter('ALL')}
-                        className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                        className="text-[10px] font-medium text-indigo-600 hover:underline cursor-pointer"
                       >
                         {isTr ? 'Sıfırla' : 'Reset'}
                       </button>
@@ -1072,7 +1072,7 @@ const CompaniesTab = ({
                   <div className="p-2 space-y-1">
                     <button
                       onClick={() => setReconCompanyFilter('ALL')}
-                      className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                      className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition-all cursor-pointer ${
                         reconCompanyFilter === 'ALL'
                           ? 'bg-slate-900 text-white shadow-xs'
                           : 'text-slate-700 hover:bg-slate-200/70'
@@ -1101,7 +1101,7 @@ const CompaniesTab = ({
                           }`}
                         >
                           <div className="min-w-0 flex-1">
-                            <p className="truncate font-bold leading-tight">{comp.title}</p>
+                            <p className="truncate font-medium leading-tight">{comp.title}</p>
                             <div className="flex items-center gap-1.5 mt-0.5 text-[9px] opacity-80">
                               {comp.confirmedCount > 0 && <span className={isSelected ? 'text-emerald-200' : 'text-emerald-600'}>✓{comp.confirmedCount}</span>}
                               {comp.disputedCount > 0 && <span className={isSelected ? 'text-rose-200' : 'text-rose-600'}>!{comp.disputedCount}</span>}
@@ -1126,7 +1126,7 @@ const CompaniesTab = ({
                       {reconViewMode === 'archived' ? <FolderArchive className="w-6 h-6" /> : <History className="w-6 h-6" />}
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm font-black text-slate-800">
+                      <p className="text-sm font-medium text-slate-800">
                         {reconViewMode === 'archived'
                           ? (isTr ? 'Bu filtrede arşivlenmiş resmi mutabakat evrakı bulunmuyor.' : 'No archived reconciliation documents found for this filter.')
                           : (isTr ? 'Gösterilecek aktif dijital mutabakat kaydı bulunamadı.' : 'No active digital reconciliation records found.')}
@@ -1143,7 +1143,7 @@ const CompaniesTab = ({
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-slate-900 text-white text-[10px] font-extrabold uppercase tracking-wider">
+                          <tr className="bg-slate-900 text-white text-[10px] font-medium uppercase tracking-wider">
                             <th className="py-2.5 px-3.5">{isTr ? 'Evrak No & Tarih' : 'Doc ID & Date'}</th>
                             <th className="py-2.5 px-3.5">{isTr ? 'Dönem' : 'Period'}</th>
                             <th className="py-2.5 px-3.5">{isTr ? 'Cari Hesap / Vergi No' : 'Company / Tax ID'}</th>
@@ -1169,9 +1169,9 @@ const CompaniesTab = ({
                                   {/* Doc ID & Date */}
                                   <td className="py-2.5 px-3.5 whitespace-nowrap">
                                     <div className="flex items-center gap-1.5">
-                                      <span className="font-mono font-black text-slate-900 text-[11px]">#{String(recon.id).slice(-6)}</span>
+                                      <span className="font-mono font-medium text-slate-900 text-[11px]">#{String(recon.id).slice(-6)}</span>
                                       {isArchived && (
-                                        <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase">
+                                        <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-medium uppercase">
                                           {isTr ? 'Arşiv' : 'Archived'}
                                         </span>
                                       )}
@@ -1183,7 +1183,7 @@ const CompaniesTab = ({
 
                                   {/* Period */}
                                   <td className="py-2.5 px-3.5 whitespace-nowrap">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60 font-extrabold text-[11px]">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60 font-medium text-[11px]">
                                       <Calendar className="w-3 h-3" />
                                       {recon.periodMonthName || (isTr ? 'Cari Dönem' : 'Period')}
                                     </span>
@@ -1193,7 +1193,7 @@ const CompaniesTab = ({
                                   <td className="py-2.5 px-3.5">
                                     <button
                                       onClick={() => setReconCompanyFilter(recon.companyTitle)}
-                                      className="font-bold text-slate-900 hover:text-indigo-600 text-left block truncate max-w-[230px] cursor-pointer"
+                                      className="font-medium text-slate-900 hover:text-indigo-600 text-left block truncate max-w-[230px] cursor-pointer"
                                       title={recon.companyTitle}
                                     >
                                       {recon.companyTitle}
@@ -1201,17 +1201,17 @@ const CompaniesTab = ({
                                     <div className="text-[10px] text-slate-500 font-mono flex items-center gap-2">
                                       {recon.taxNumber ? <span>VKN: {recon.taxNumber}</span> : <span>{recon.taxOffice || '-'}</span>}
                                       {recon.responderName && (
-                                        <span className="text-indigo-600 font-sans font-bold">• {recon.responderName}</span>
+                                        <span className="text-indigo-600 font-sans font-medium">• {recon.responderName}</span>
                                       )}
                                     </div>
                                   </td>
 
                                   {/* Balance */}
                                   <td className="py-2.5 px-3.5 text-right whitespace-nowrap">
-                                    <div className="font-mono font-black text-slate-900 text-xs">
+                                    <div className="font-mono font-medium text-slate-900 text-xs">
                                       {Math.abs(bal).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {curr}
                                     </div>
-                                    <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded ${
+                                    <span className={`text-[9px] font-medium uppercase px-1.5 py-0.2 rounded ${
                                       bal === 0 ? 'bg-slate-100 text-slate-600' : isDebt ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'
                                     }`}>
                                       {bal === 0 ? (isTr ? 'SIFIR' : 'ZERO') : isDebt ? (isTr ? 'BORÇ (B)' : 'DEBT') : (isTr ? 'ALACAK (A)' : 'CREDIT')}
@@ -1220,7 +1220,7 @@ const CompaniesTab = ({
 
                                   {/* BA/BS */}
                                   <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
-                                    <span className="text-[11px] font-mono font-bold text-slate-700 block">
+                                    <span className="text-[11px] font-mono font-medium text-slate-700 block">
                                       {recon.babsInvoiceCount || 0} {isTr ? 'Fatura' : 'Inv.'}
                                     </span>
                                     <span className="text-[9px] font-mono text-slate-500">
@@ -1242,7 +1242,7 @@ const CompaniesTab = ({
                                           }
                                           handleUpdateReconItem(recon.id, { status: newSt });
                                         }}
-                                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border cursor-pointer transition-all ${
+                                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border cursor-pointer transition-all ${
                                           isConfirmed
                                             ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                                             : isDisputed
@@ -1286,7 +1286,7 @@ const CompaniesTab = ({
                                     <div className="flex items-center justify-end gap-1.5">
                                       <button
                                         onClick={() => setSelectedReconDetail(selectedReconDetail?.id === recon.id ? null : recon)}
-                                        className={`p-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                                        className={`p-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                                           selectedReconDetail?.id === recon.id
                                             ? 'bg-slate-900 text-white border-slate-900'
                                             : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
@@ -1322,7 +1322,7 @@ const CompaniesTab = ({
                                         isArchived ? (
                                           <button
                                             onClick={() => handleUpdateReconItem(recon.id, { isArchived: false })}
-                                            className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer"
+                                            className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[11px] font-medium transition-all cursor-pointer"
                                             title={isTr ? 'Arşivden Geri Çağır (Canlı Listeye Al)' : 'Restore from Archive'}
                                           >
                                             <ArchiveRestore className="w-3.5 h-3.5" />
@@ -1331,7 +1331,7 @@ const CompaniesTab = ({
                                         ) : (
                                           <button
                                             onClick={() => handleUpdateReconItem(recon.id, { isArchived: true })}
-                                            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[11px] font-extrabold transition-all cursor-pointer"
+                                            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[11px] font-medium transition-all cursor-pointer"
                                             title={isTr ? 'Tamamlanan Evrakı Cari Arşivine Kaldır' : 'Move to Official Company Archive'}
                                           >
                                             <Archive className="w-3.5 h-3.5" />
@@ -1348,7 +1348,7 @@ const CompaniesTab = ({
                                   <tr className="bg-slate-50">
                                     <td colSpan={7} className="px-4 py-2.5">
                                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                        <span className="text-[11px] font-extrabold text-slate-700 shrink-0">
+                                        <span className="text-[11px] font-medium text-slate-700 shrink-0">
                                           {isTr ? 'Süreç / İtiraz Açıklaması:' : 'Process / Dispute Note:'}
                                         </span>
                                         <input
@@ -1364,13 +1364,13 @@ const CompaniesTab = ({
                                               handleUpdateReconItem(recon.id, { disputeNote: editingDisputeText });
                                               setEditingDisputeId(null);
                                             }}
-                                            className="px-3 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold cursor-pointer"
+                                            className="px-3 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-xs font-medium cursor-pointer"
                                           >
                                             {isTr ? 'Kaydet' : 'Save'}
                                           </button>
                                           <button
                                             onClick={() => setEditingDisputeId(null)}
-                                            className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
+                                            className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-medium cursor-pointer"
                                           >
                                             {isTr ? 'Kapat' : 'Cancel'}
                                           </button>
@@ -1387,23 +1387,23 @@ const CompaniesTab = ({
                                       <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3 shadow-xs">
                                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
                                           <div>
-                                            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 block">
+                                            <span className="text-[10px] font-medium uppercase tracking-wider text-indigo-600 block">
                                               {isTr ? 'Resmi Mutabakat Evrak Özeti' : 'Official Reconciliation Summary'}
                                             </span>
-                                            <h5 className="text-sm font-black text-slate-900">
+                                            <h5 className="text-sm font-medium text-slate-900">
                                               {recon.companyTitle} — {recon.periodMonthName} (#{recon.id})
                                             </h5>
                                           </div>
                                           <div className="flex items-center gap-3 text-xs">
                                             <div className="px-3 py-1 rounded-lg bg-slate-100 font-mono">
                                               <span className="text-slate-500 mr-1">{isTr ? 'Önceki Ay Devri:' : 'Carry-Over:'}</span>
-                                              <span className="font-bold text-slate-900">
+                                              <span className="font-medium text-slate-900">
                                                 {Number(recon.carryOverBalance || 0).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {curr}
                                               </span>
                                             </div>
                                             <div className="px-3 py-1 rounded-lg bg-indigo-50 font-mono">
                                               <span className="text-indigo-600 mr-1">{isTr ? 'Dönem Sonu Net Bakiye:' : 'Closing Balance:'}</span>
-                                              <span className="font-black text-indigo-950">
+                                              <span className="font-medium text-indigo-950">
                                                 {Number(recon.balance || 0).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {curr}
                                               </span>
                                             </div>
@@ -1414,7 +1414,7 @@ const CompaniesTab = ({
                                           <div className="max-h-44 overflow-y-auto border border-slate-100 rounded-lg">
                                             <table className="w-full text-left border-collapse text-[11px]">
                                               <thead>
-                                                <tr className="bg-slate-50 text-slate-500 font-bold uppercase text-[9px]">
+                                                <tr className="bg-slate-50 text-slate-500 font-medium uppercase text-[9px]">
                                                   <th className="py-1.5 px-2.5">{isTr ? 'Tarih' : 'Date'}</th>
                                                   <th className="py-1.5 px-2.5">{isTr ? 'Açıklama' : 'Description'}</th>
                                                   <th className="py-1.5 px-2.5 text-right">{isTr ? 'Borç' : 'Debit'}</th>
@@ -1433,7 +1433,7 @@ const CompaniesTab = ({
                                                     <td className="py-1 px-2.5 text-right text-emerald-600">
                                                       {Number(tx.credit || 0) > 0 ? Number(tx.credit).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 }) : '-'}
                                                     </td>
-                                                    <td className="py-1 px-2.5 text-right font-bold text-slate-900">
+                                                    <td className="py-1 px-2.5 text-right font-medium text-slate-900">
                                                       {Number(tx.balance || 0).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {curr}
                                                     </td>
                                                   </tr>
@@ -1474,7 +1474,7 @@ const CompaniesTab = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowReconHistory(false)}
-                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold rounded-xl cursor-pointer transition-all"
+                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-xl cursor-pointer transition-all"
                 >
                   {isTr ? 'Kapat' : 'Close'}
                 </button>

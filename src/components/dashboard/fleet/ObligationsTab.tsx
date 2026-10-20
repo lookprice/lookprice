@@ -41,8 +41,8 @@ export const ObligationsTab: React.FC<ObligationsTabProps> = ({
                 <FileText className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0">
-                <h4 className="font-black text-slate-900 text-[10px] truncate uppercase tracking-tighter leading-tight">{d.type}</h4>
-                <span className="inline-flex px-1 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase border border-blue-100 mt-0.5 leading-none">
+                <h4 className="font-medium text-slate-900 text-[10px] truncate uppercase tracking-tighter leading-tight">{d.type}</h4>
+                <span className="inline-flex px-1 bg-blue-50 text-blue-600 rounded text-[7px] font-medium uppercase border border-blue-100 mt-0.5 leading-none">
                   {getVehiclePlate(d.vehicle_id)}
                 </span>
               </div>
@@ -63,8 +63,8 @@ export const ObligationsTab: React.FC<ObligationsTabProps> = ({
               : 'bg-green-50 text-green-700 border-green-100'
           }`}>
             <div className="flex flex-col">
-              <span className="text-[6px] font-black uppercase tracking-widest opacity-60 leading-tight">{t.expiryDate}</span>
-              <span className="text-[10px] font-black">{safeFormatDate(d.expiry_date, 'dd.MM.yyyy')}</span>
+              <span className="text-[6px] font-medium uppercase tracking-widest opacity-60 leading-tight">{t.expiryDate}</span>
+              <span className="text-[10px] font-medium">{safeFormatDate(d.expiry_date, 'dd.MM.yyyy')}</span>
             </div>
             {new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) && (
               <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
@@ -76,7 +76,7 @@ export const ObligationsTab: React.FC<ObligationsTabProps> = ({
               href={d.document_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full py-1 bg-slate-50 border border-slate-200 rounded text-[8px] font-black text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all uppercase tracking-wider mt-auto text-center"
+              className="w-full py-1 bg-slate-50 border border-slate-200 rounded text-[8px] font-medium text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all uppercase tracking-wider mt-auto text-center"
             >
               {t.downloadDocument}
             </a>
@@ -86,7 +86,7 @@ export const ObligationsTab: React.FC<ObligationsTabProps> = ({
       {filteredDocs.length === 0 && (
         <div className="col-span-full py-8 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
           <FileText className="w-6 h-6 text-slate-300 mx-auto mb-2" />
-          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">{t.noDocumentsFound}</p>
+          <p className="text-slate-500 font-medium text-[10px] uppercase tracking-widest">{t.noDocumentsFound}</p>
         </div>
       )}
     </div>

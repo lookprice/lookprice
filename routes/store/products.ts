@@ -1,7 +1,7 @@
 import express from "express";
 import { pool, logAction } from "../../models/db";
 import { getAuthorizedStoreId, getTurkishSearchSnippet, normalizeTurkishParam, checkProductLimit, getGeminiApiKey } from "./utils";
-import { isValidStandardBarcode, hasProductMatchConflict, invalidateStoreProductsCache } from "./invoiceMatching";
+import { isValidStandardBarcode, hasProductMatchConflict, invalidateStoreProductsCache, transferAndCleanupInvoiceGeneratedProduct, saveSupplierMapping } from "./invoiceMatching";
 import { GoogleGenAI } from "@google/genai";
 import XLSX from "xlsx";
 import { masterBookLookup, generateHighResBookCoverSvg } from "./bookLookupService";
@@ -933,14 +933,89 @@ router.post("/", async (req: any, res) => {
       sectorDataVal
     ]);
 
-    if (parseFloat(stock_quantity) > 0 && result.rows[0]?.id) {
-      try {
-        await pool.query(`
-          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-          VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok Girişi', $4, $5, CURRENT_TIMESTAMP)
-        `, [storeId, result.rows[0].id, parseFloat(stock_quantity), parseFloat(cost_price) || finalPrice || 0, currency || 'TRY']);
-      } catch (smErr) {
-        console.error("Failed to log initial stock movement:", smErr);
+    const linkedInvoiceItemId = req.body._purchaseInvoiceItemId || req.body.purchase_invoice_item_id;
+    if (result.rows[0]?.id) {
+      const createdProdId = result.rows[0].id;
+      let handledAsInvoiceMovement = false;
+
+      if (linkedInvoiceItemId) {
+        try {
+          const piiRes = await pool.query(
+            `SELECT pii.*, pi.invoice_number, pi.document_number, pi.is_expense, pi.tax_number as supplier_vkn, pi.currency as inv_currency, pi.supplier_name
+             FROM purchase_invoice_items pii
+             JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+             WHERE pii.id = $1 AND pi.store_id = $2`,
+            [linkedInvoiceItemId, storeId]
+          );
+          if (piiRes.rows.length > 0) {
+            const pii = piiRes.rows[0];
+            const oldProdId = pii.product_id ? Number(pii.product_id) : null;
+            const invNum = pii.document_number || pii.invoice_number || String(pii.purchase_invoice_id);
+            const itemQty = pii.system_quantity != null ? Number(pii.system_quantity) : Number(pii.quantity || parseFloat(stock_quantity) || 1);
+            const itemUnitPrice = Number(pii.unit_price) || parseFloat(cost_price) || 0;
+
+            if (oldProdId && oldProdId !== createdProdId) {
+              await transferAndCleanupInvoiceGeneratedProduct(pool, storeId, {
+                oldProductId: oldProdId,
+                newProductId: createdProdId,
+                invoiceId: Number(pii.purchase_invoice_id),
+                invoiceItemId: Number(linkedInvoiceItemId),
+                invNum,
+                itemQty,
+                unitPrice: itemUnitPrice,
+                supplierVkn: pii.supplier_vkn,
+                itemProductName: pii.product_name
+              });
+            }
+
+            await pool.query(
+              `UPDATE purchase_invoice_items
+               SET product_id = $1,
+                   barcode = COALESCE($2, barcode),
+                   product_code = COALESCE($3, product_code)
+               WHERE id = $4`,
+              [createdProdId, finalBarcode, finalProductCode, linkedInvoiceItemId]
+            );
+
+            if (!pii.is_expense && (parseFloat(stock_quantity) > 0 || itemQty > 0)) {
+              const movQty = parseFloat(stock_quantity) > 0 ? parseFloat(stock_quantity) : itemQty;
+              await pool.query(
+                `INSERT INTO stock_movements
+                 (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
+                 VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, 'purchase', $9)`,
+                [
+                  storeId,
+                  createdProdId,
+                  movQty,
+                  `Alış Faturası: ${invNum}`,
+                  itemUnitPrice,
+                  pii.supplier_name || 'Tedarikçi',
+                  pii.inv_currency || currency || 'TRY',
+                  pii.purchase_invoice_id,
+                  invNum
+                ]
+              );
+              handledAsInvoiceMovement = true;
+            }
+
+            if (pii.supplier_vkn && pii.product_name) {
+              await saveSupplierMapping(pool, storeId, pii.supplier_vkn, pii.product_name, createdProdId, finalProductCode);
+            }
+          }
+        } catch (invLinkErr) {
+          console.error("Failed to link purchase invoice item on product creation:", invLinkErr);
+        }
+      }
+
+      if (!handledAsInvoiceMovement && parseFloat(stock_quantity) > 0) {
+        try {
+          await pool.query(`
+            INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+            VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok Girişi', $4, $5, CURRENT_TIMESTAMP)
+          `, [storeId, createdProdId, parseFloat(stock_quantity), parseFloat(cost_price) || finalPrice || 0, currency || 'TRY']);
+        } catch (smErr) {
+          console.error("Failed to log initial stock movement:", smErr);
+        }
       }
     }
 
@@ -2076,11 +2151,16 @@ export async function ensureProductMovements(productId: number, storeId: number)
         "SELECT id, type, quantity FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock' ORDER BY id ASC LIMIT 1",
         [productId]
       );
-      if (initRes.rows.length > 0 && initRes.rows[0].type === 'in' && (parseFloat(initRes.rows[0].quantity) + diff) >= 0) {
-        await pool.query(
-          "UPDATE stock_movements SET quantity = $1 WHERE id = $2",
-          [parseFloat(initRes.rows[0].quantity) + diff, initRes.rows[0].id]
-        );
+      if (initRes.rows.length > 0 && initRes.rows[0].type === 'in' && (parseFloat(initRes.rows[0].quantity) + diff) >= -0.001) {
+        const updatedInitQty = parseFloat(initRes.rows[0].quantity) + diff;
+        if (updatedInitQty <= 0.001) {
+          await pool.query("DELETE FROM stock_movements WHERE id = $1", [initRes.rows[0].id]);
+        } else {
+          await pool.query(
+            "UPDATE stock_movements SET quantity = $1 WHERE id = $2",
+            [updatedInitQty, initRes.rows[0].id]
+          );
+        }
       } else {
         await pool.query(`
           INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)

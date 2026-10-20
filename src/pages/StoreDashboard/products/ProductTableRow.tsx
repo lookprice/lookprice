@@ -298,7 +298,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                   {p.name || 'İsimsiz Ürün'}
                 </div>
                 {p.store_name && (showStoreName || (currentStoreId && Number(p.store_id) !== Number(currentStoreId))) && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80 shrink-0" title={`Şube / Mağaza: ${p.store_name}`}>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-medium bg-amber-50 text-amber-800 border border-amber-200/80 shrink-0" title={`Şube / Mağaza: ${p.store_name}`}>
                     <Store className="w-2.5 h-2.5 text-amber-600" />
                     {p.store_name}
                   </span>
@@ -323,7 +323,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                     const diffDays = (now.getTime() - date.getTime()) / (1000 * 3600 * 24);
                     if (diffDays < 3) {
                       return (
-                        <span className="text-[8px] font-bold text-white bg-indigo-600 px-1 py-0.2 rounded uppercase">
+                        <span className="text-[8px] font-medium text-white bg-indigo-600 px-1 py-0.2 rounded uppercase">
                           {lang === 'tr' ? 'YENİ' : 'NEW'}
                         </span>
                       );
@@ -336,7 +336,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[8px] font-extrabold text-orange-700 bg-orange-100 hover:bg-orange-200 border border-orange-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
+                      className="text-[8px] font-medium text-orange-700 bg-orange-100 hover:bg-orange-200 border border-orange-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
                       title={lang === 'tr' ? (p.hepsiburada_sku ? `Hepsiburada İlanı (${p.hepsiburada_sku})` : "Hepsiburada Canlı İlan") : "HB Live"}
                     >
                       <span className="w-1 h-1 rounded-full bg-orange-500 animate-pulse"></span>
@@ -352,7 +352,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                         setMarketplaceModalStatus('pending');
                         setShowMarketplaceListingsModal(true);
                       }}
-                      className="text-[8px] font-extrabold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors cursor-pointer"
+                      className="text-[8px] font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors cursor-pointer"
                       title={lang === 'tr' ? 'Hepsiburada katalog ve barkod onay incelemesinde (Tıkla ve İncele)' : 'HB Catalog Pending Review'}
                     >
                       <Clock className="w-2.5 h-2.5 text-amber-600 animate-spin" />
@@ -368,7 +368,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                         setMarketplaceModalStatus('error');
                         setShowMarketplaceListingsModal(true);
                       }}
-                      className="text-[8px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5 cursor-pointer"
+                      className="text-[8px] font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5 cursor-pointer"
                       title={`Hepsiburada Hatası: ${p.hepsiburada_last_error}`}
                     >
                       <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
@@ -381,7 +381,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[8px] font-extrabold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
+                      className="text-[8px] font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
                       title={lang === 'tr' ? "Trendyol Canlı İlan" : "Trendyol Live"}
                     >
                       <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse"></span>
@@ -394,7 +394,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[8px] font-extrabold text-red-800 bg-red-100 hover:bg-red-200 border border-red-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
+                      className="text-[8px] font-medium text-red-800 bg-red-100 hover:bg-red-200 border border-red-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
                       title={lang === 'tr' ? "N11 Canlı İlan" : "N11 Live"}
                     >
                       <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse"></span>
@@ -407,7 +407,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[8px] font-extrabold text-amber-300 bg-slate-900 hover:bg-black border border-amber-500/40 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
+                      className="text-[8px] font-medium text-amber-300 bg-slate-900 hover:bg-black border border-amber-500/40 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
                       title={lang === 'tr' ? "Amazon Canlı İlan" : "Amazon Live"}
                     >
                       <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse"></span>
@@ -420,7 +420,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[8px] font-extrabold text-blue-800 bg-blue-100 hover:bg-blue-200 border border-blue-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
+                      className="text-[8px] font-medium text-blue-800 bg-blue-100 hover:bg-blue-200 border border-blue-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
                       title={lang === 'tr' ? "Pazarama Canlı İlan" : "Pazarama Live"}
                     >
                       <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></span>
@@ -441,7 +441,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                     </span>
                   )}
                   {isCafe && getIsBestseller(p) && (
-                    <span className="text-[8px] font-bold text-white bg-orange-500 px-1.5 py-0.2 rounded uppercase inline-flex items-center gap-0.5">
+                    <span className="text-[8px] font-medium text-white bg-orange-500 px-1.5 py-0.2 rounded uppercase inline-flex items-center gap-0.5">
                       <Flame className="h-2.5 w-2.5 fill-white text-white" />
                       {lang === 'tr' ? 'ÇOK SATAN' : 'BESTSELLER'}
                     </span>
@@ -472,7 +472,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                           return (
                             <span 
                               key={`table-badge-${p.id}-${def.id}`}
-                              className={`text-[8px] font-bold px-1.5 py-0.2 rounded inline-flex items-center gap-0.5 shadow-2xs ${def.badgeBgClass}`}
+                              className={`text-[8px] font-medium px-1.5 py-0.2 rounded inline-flex items-center gap-0.5 shadow-2xs ${def.badgeBgClass}`}
                               title={`${lang === 'tr' ? def.labelTr : def.labelEn} (${lang === 'tr' ? def.gridTitleTr : def.gridTitleEn})`}
                             >
                               <IconComp className="w-2.5 h-2.5 shrink-0" />
@@ -489,7 +489,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                               e.stopPropagation();
                               setBadgePopoverProductId(badgePopoverProductId === p.id ? null : p.id);
                             }}
-                            className={`text-[8px] font-bold px-1.5 py-0.2 rounded inline-flex items-center gap-0.5 transition-all cursor-pointer ${
+                            className={`text-[8px] font-medium px-1.5 py-0.2 rounded inline-flex items-center gap-0.5 transition-all cursor-pointer ${
                               badgePopoverProductId === p.id 
                                 ? 'bg-indigo-600 text-white shadow-xs' 
                                 : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80'
@@ -514,7 +514,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                     );
                   })()}
                   {p.is_web_sale === false && (
-                    <span className="text-[8px] font-bold text-rose-500 bg-rose-50 border border-rose-100 px-1 py-0.2 rounded uppercase">
+                    <span className="text-[8px] font-medium text-rose-500 bg-rose-50 border border-rose-100 px-1 py-0.2 rounded uppercase">
                       {lang === 'tr' ? 'KAPALI' : 'OFFLINE'}
                     </span>
                   )}
@@ -525,7 +525,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
         </td>
         {showStoreName && tableManager.isColumnVisible('branch') && (
           <td className="px-2.5 py-1.5 whitespace-nowrap">
-            <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+            <span className="text-[9px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
               {p.store_name}
             </span>
           </td>
@@ -545,7 +545,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                     if (e.key === "Enter") handleSavePrice(e);
                     if (e.key === "Escape") setIsEditingPrice(false);
                   }}
-                  className="w-20 px-1.5 py-0.5 text-xs font-mono font-bold text-slate-900 bg-white border-2 border-indigo-600 rounded-md shadow-xs outline-none"
+                  className="w-20 px-1.5 py-0.5 text-xs font-mono font-medium text-slate-900 bg-white border-2 border-indigo-600 rounded-md shadow-xs outline-none"
                 />
                 <button
                   type="button"
@@ -583,7 +583,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                 const maxP = Math.max(...varPrices);
                 return (
                   <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-900 tabular-nums">
+                    <span className="text-xs font-medium text-slate-900 tabular-nums">
                       {minP === maxP
                         ? minP.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         : `${minP.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - ${maxP.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -608,7 +608,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                   className={`group/price flex items-center gap-1.5 ${!isViewer ? 'cursor-pointer hover:bg-indigo-50/60 px-1 py-0.5 -mx-1 rounded transition-colors' : ''}`}
                   title={!isViewer ? (lang === 'tr' ? "Çift tıkla veya basılı tut: Hızlı Fiyat Değiştir" : "Double-click or hold to quick edit price") : undefined}
                 >
-                  <span className="text-xs font-bold text-slate-900 tabular-nums">
+                  <span className="text-xs font-medium text-slate-900 tabular-nums">
                     {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.currency || 'TRY').substring(0, 3)}</span>
                   </span>
                   {!isViewer && (
@@ -631,7 +631,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                   if (!profit) return null;
                   const isLoss = profit.margin < 0;
                   return (
-                    <span className={`text-[8px] font-bold uppercase ${isLoss ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    <span className={`text-[8px] font-medium uppercase ${isLoss ? 'text-rose-600' : 'text-emerald-600'}`}>
                       {isLoss ? (lang === 'tr' ? 'DÜŞÜK' : 'LOW') : `%${profit.margin.toFixed(0)} KÂR`}
                     </span>
                   );
@@ -658,7 +658,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                     if (e.key === "Enter") handleSaveStock(e);
                     if (e.key === "Escape") setIsEditingStock(false);
                   }}
-                  className="w-16 px-1.5 py-0.5 text-xs font-mono font-bold text-slate-900 bg-white border-2 border-indigo-600 rounded-md shadow-xs outline-none"
+                  className="w-16 px-1.5 py-0.5 text-xs font-mono font-medium text-slate-900 bg-white border-2 border-indigo-600 rounded-md shadow-xs outline-none"
                 />
                 <button
                   type="button"
@@ -696,11 +696,11 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
               if (hasVariants) {
                 return (
                   <div className="flex items-center gap-1.5">
-                    <span className={`text-xs font-bold tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
+                    <span className={`text-xs font-medium tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
                       {Math.floor(effectiveStock)}
                     </span>
                     {isLowStock && (
-                      <span className="px-1 py-0.2 bg-rose-50 text-[8px] font-bold text-rose-600 border border-rose-100 rounded uppercase">
+                      <span className="px-1 py-0.2 bg-rose-50 text-[8px] font-medium text-rose-600 border border-rose-100 rounded uppercase">
                         !
                       </span>
                     )}
@@ -720,11 +720,11 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                   className={`group/stock flex items-center gap-1.5 ${!isViewer ? 'cursor-pointer hover:bg-indigo-50/60 px-1 py-0.5 -mx-1 rounded transition-colors' : ''}`}
                   title={!isViewer ? (lang === 'tr' ? "Çift tıkla veya basılı tut: Hızlı Stok Değiştir" : "Double-click or hold to quick edit stock") : undefined}
                 >
-                  <span className={`text-xs font-bold tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
+                  <span className={`text-xs font-medium tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
                     {Math.floor(effectiveStock)}
                   </span>
                   {isLowStock && (
-                    <span className="px-1 py-0.2 bg-rose-50 text-[8px] font-bold text-rose-600 border border-rose-100 rounded uppercase">
+                    <span className="px-1 py-0.2 bg-rose-50 text-[8px] font-medium text-rose-600 border border-rose-100 rounded uppercase">
                       !
                     </span>
                   )}
@@ -765,7 +765,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                     title={lang === 'tr' ? "Tüm İşlemler Menüsü" : "All Actions Menu"}
                   >
                     <MoreVertical className="h-3.5 w-3.5" />
-                    <span className="text-[10px] font-bold hidden sm:inline-block pr-0.5">{lang === 'tr' ? 'İşlem' : 'More'}</span>
+                    <span className="text-[10px] font-medium hidden sm:inline-block pr-0.5">{lang === 'tr' ? 'İşlem' : 'More'}</span>
                   </button>
 
                   {/* Dropdown Popup Menu */}
@@ -775,7 +775,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
                           {p.name || (lang === 'tr' ? 'Ürün İşlemleri' : 'Product Actions')}
                         </span>
                       </div>
@@ -870,7 +870,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                 const profit = calculateProfitMargin(p);
                 if (!profit) return null;
                 return (
-                  <span className={`font-bold px-2 py-0.5 rounded border shadow-2xs ${profit.margin < 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                  <span className={`font-medium px-2 py-0.5 rounded border shadow-2xs ${profit.margin < 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                     %{profit.margin.toFixed(1)} {lang === 'tr' ? 'Kâr Marjı' : 'Margin'}
                   </span>
                 );
@@ -883,7 +883,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="font-extrabold text-orange-700 bg-orange-100 hover:bg-orange-200 border border-orange-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
+                      className="font-medium text-orange-700 bg-orange-100 hover:bg-orange-200 border border-orange-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
                       title={lang === 'tr' ? (p.hepsiburada_sku ? `Hepsiburada İlanı (${p.hepsiburada_sku})` : "Hepsiburada Canlı İlan") : "HB Live"}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
@@ -899,7 +899,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                         setMarketplaceModalStatus('pending');
                         setShowMarketplaceListingsModal(true);
                       }}
-                      className="font-extrabold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                      className="font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
                       title={lang === 'tr' ? 'Hepsiburada katalog ve barkod onay incelemesinde' : 'HB Catalog Pending Review'}
                     >
                       <Clock className="w-3 h-3 text-amber-600 animate-spin" />
@@ -912,7 +912,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="font-extrabold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
+                      className="font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
                       title={lang === 'tr' ? "Trendyol Canlı İlan" : "Trendyol Live"}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -925,7 +925,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="font-extrabold text-red-800 bg-red-100 hover:bg-red-200 border border-red-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
+                      className="font-medium text-red-800 bg-red-100 hover:bg-red-200 border border-red-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
                       title={lang === 'tr' ? "N11 Canlı İlan" : "N11 Live"}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
@@ -938,7 +938,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="font-extrabold text-amber-300 bg-slate-900 hover:bg-black border border-amber-500/40 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
+                      className="font-medium text-amber-300 bg-slate-900 hover:bg-black border border-amber-500/40 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
                       title={lang === 'tr' ? "Amazon Canlı İlan" : "Amazon Live"}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
@@ -951,7 +951,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="font-extrabold text-blue-800 bg-blue-100 hover:bg-blue-200 border border-blue-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
+                      className="font-medium text-blue-800 bg-blue-100 hover:bg-blue-200 border border-blue-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
                       title={lang === 'tr' ? "Pazarama Canlı İlan" : "Pazarama Live"}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>

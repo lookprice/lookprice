@@ -107,21 +107,21 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <h3 className="text-xl font-medium text-slate-900 tracking-tight flex items-center gap-2">
                 <Info className="h-5 w-5 text-indigo-600" />
                 {isTr ? "Fatura Detayları" : "Invoice Details"}
               </h3>
               {invoice.is_expense ? (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
                   💼 {isTr ? `GİDER (${invoice.expense_category || 'DİĞER'})` : `EXPENSE (${invoice.expense_category || 'OTHER'})`}
                 </span>
               ) : (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
                   📦 {isTr ? "STOKLU ALIM" : "STOCK BUY"}
                 </span>
               )}
             </div>
-            <p className="text-xs font-bold text-slate-400 mt-0.5 uppercase tracking-widest">
+            <p className="text-xs font-medium text-slate-400 mt-0.5 uppercase tracking-widest">
               {invoice.invoice_number}
             </p>
           </div>
@@ -129,7 +129,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
              {invoice.is_expense && handleConvertToStock && (
                 <button
                   onClick={() => handleConvertToStock(invoice.id)}
-                  className="px-3.5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-sm"
+                  className="px-3.5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-medium hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-sm"
                   title={isTr ? "Bu faturayı Stoklu Alım statüsüne geçir ve ürün stoklarını sisteme ekle" : "Convert to Stock Purchase"}
                 >
                   <Package className="h-4 w-4" />
@@ -139,7 +139,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
              {!invoice.is_expense && handleConvertToExpense && (
                 <button
                   onClick={() => handleConvertToExpense(invoice.id)}
-                  className="px-3.5 py-2 bg-amber-600 text-white rounded-xl text-xs font-black hover:bg-amber-700 transition-all flex items-center gap-1.5 shadow-sm"
+                  className="px-3.5 py-2 bg-amber-600 text-white rounded-xl text-xs font-medium hover:bg-amber-700 transition-all flex items-center gap-1.5 shadow-sm"
                   title={isTr ? "Bu faturayı Gider Faturasına dönüştür ve stokları geri çek" : "Convert to Expense Invoice"}
                 >
                   <Layers className="h-4 w-4" />
@@ -150,7 +150,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                 <button
                   onClick={handleReSync}
                   disabled={syncing}
-                  className="px-3.5 py-2 bg-slate-800 text-white rounded-xl text-xs font-black hover:bg-slate-700 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                  className="px-3.5 py-2 bg-slate-800 text-white rounded-xl text-xs font-medium hover:bg-slate-700 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50"
                   title={isTr ? "Resmi e-fatura detaylarından kalemleri ve stokları yeniden senkronize et" : "Re-sync from official invoice"}
                 >
                   <RefreshCw className={`h-4 w-4 text-cyan-400 ${syncing ? 'animate-spin' : ''}`} />
@@ -160,7 +160,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
              {handleViewHtml && (
                 <button
                   onClick={() => handleViewHtml(invoice.id)}
-                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-all flex items-center gap-2"
+                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-medium hover:bg-indigo-100 transition-all flex items-center gap-2"
                 >
                   <Eye className="h-4 w-4" />
                   {isTr ? "E-FATURA GÖRSELİ" : "E-INVOICE VIEW"}
@@ -177,10 +177,10 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
             <div className="space-y-6">
               <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 relative overflow-hidden group">
                 <Building2 className="absolute -right-4 -bottom-4 h-24 w-24 text-slate-200/50 group-hover:scale-110 transition-transform duration-500" />
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">{isTr ? "SATICI (TEDARİKÇİ)" : "SUPPLIER"}</label>
-                <p className="text-lg font-black text-slate-900 tracking-tight relative z-10">{invoice.company_name}</p>
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-2 block">{isTr ? "SATICI (TEDARİKÇİ)" : "SUPPLIER"}</label>
+                <p className="text-lg font-medium text-slate-900 tracking-tight relative z-10">{invoice.company_name}</p>
                 <div className="mt-4 space-y-2 relative z-10">
-                   <p className="text-sm font-bold text-slate-500 flex items-center gap-2">
+                   <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
                      <Hash className="h-4 w-4 text-indigo-400" />
                      {invoice.tax_number || '-'} {invoice.tax_office ? ` / ${invoice.tax_office}` : ''}
                    </p>
@@ -189,23 +189,23 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
 
               <div className="grid grid-cols-2 gap-4">
                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">{isTr ? "FATURA TARİHİ" : "INVOICE DATE"}</label>
-                    <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-1 block">{isTr ? "FATURA TARİHİ" : "INVOICE DATE"}</label>
+                    <p className="text-sm font-medium text-slate-800 flex items-center gap-2">
                        <Calendar className="h-4 w-4 text-indigo-400" />
                        {formatDateTR(invoice.invoice_date)}
                     </p>
                  </div>
                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">{isTr ? "ÖDEME ŞEKLİ" : "PAYMENT"}</label>
-                    <p className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase">
+                    <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-1 block">{isTr ? "ÖDEME ŞEKLİ" : "PAYMENT"}</label>
+                    <p className="text-sm font-medium text-slate-800 flex items-center gap-2 uppercase">
                        <CreditCard className="h-4 w-4 text-indigo-400" />
                        {invoice.payment_method === 'cash' ? (isTr ? 'Nakit' : 'Cash') : (isTr ? 'Vadeli' : 'Term')}
                     </p>
                  </div>
                  {invoice.is_expense && invoice.expense_center && (
                     <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 col-span-2">
-                       <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1 block">{isTr ? "GİDER YERİ" : "EXPENSE CENTER"}</label>
-                       <p className="text-sm font-black text-amber-700 flex items-center gap-2 uppercase">
+                       <label className="text-[10px] font-medium text-amber-500 uppercase tracking-widest mb-1 block">{isTr ? "GİDER YERİ" : "EXPENSE CENTER"}</label>
+                       <p className="text-sm font-medium text-amber-700 flex items-center gap-2 uppercase">
                           <CheckCircle2 className="h-4 w-4" />
                           {invoice.expense_center}
                        </p>
@@ -218,22 +218,22 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-slate-900/20">
                   <div className="space-y-3">
                     <div className="flex justify-between items-center opacity-60">
-                      <span className="text-[10px] font-black uppercase tracking-widest">{isTr ? "MATRAH" : "SUBTOTAL"}</span>
+                      <span className="text-[10px] font-medium uppercase tracking-widest">{isTr ? "MATRAH" : "SUBTOTAL"}</span>
                       <span className="text-sm font-medium">{Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
                     </div>
                     <div className="flex justify-between items-center opacity-60">
-                      <span className="text-[10px] font-black uppercase tracking-widest">{isTr ? "KDV TOPLAM" : "VAT TOTAL"}</span>
+                      <span className="text-[10px] font-medium uppercase tracking-widest">{isTr ? "KDV TOPLAM" : "VAT TOTAL"}</span>
                       <span className="text-sm font-medium">{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
                     </div>
                     <div className="pt-4 border-t border-slate-800 flex justify-between items-end">
-                       <span className="text-xs font-black text-indigo-400 uppercase tracking-widest">{isTr ? "GENEL TOPLAM" : "TOTAL"}</span>
+                       <span className="text-xs font-medium text-indigo-400 uppercase tracking-widest">{isTr ? "GENEL TOPLAM" : "TOTAL"}</span>
                        <span className="text-3xl font-semibold tracking-tighter">{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} <span className="text-sm font-medium text-slate-400 uppercase">{invoice.currency}</span></span>
                     </div>
                   </div>
                </div>
 
                <div className="mt-6 p-4 rounded-2xl border border-slate-200 bg-slate-50/50">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">{isTr ? "NOTLAR" : "NOTES"}</label>
+                  <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-2 block">{isTr ? "NOTLAR" : "NOTES"}</label>
                   <p className="text-sm font-medium text-slate-600 italic">
                     {invoice.notes || (isTr ? "Not eklenmemiş." : "No notes.")}
                   </p>
@@ -242,18 +242,18 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
           </div>
 
           <div className="space-y-4">
-             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{isTr ? "KALEM DETAYLARI" : "ITEM DETAILS"}</h4>
+             <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-[0.2em]">{isTr ? "KALEM DETAYLARI" : "ITEM DETAILS"}</h4>
              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                      <thead>
                         <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest">
-                           <th className="p-4 font-bold">{isTr ? "ÜRÜN / HİZMET" : "PRODUCT"}</th>
-                           <th className="p-4 font-bold text-center">{isTr ? "FATURA MİKTARI / BİRİMİ" : "INVOICE QTY / UNIT"}</th>
-                           <th className="p-4 font-bold text-center">{isTr ? "SİSTEM MİKTARI / BİRİMİ" : "SYSTEM QTY / UNIT"}</th>
-                           <th className="p-4 font-bold text-right">{isTr ? "BİRİM FİYAT" : "UNIT PRICE"}</th>
-                           <th className="p-4 font-bold text-center">{isTr ? "KDV %" : "VAT %"}</th>
-                           <th className="p-4 font-bold text-right">{isTr ? "TOPLAM" : "TOTAL"}</th>
+                           <th className="p-4 font-medium">{isTr ? "ÜRÜN / HİZMET" : "PRODUCT"}</th>
+                           <th className="p-4 font-medium text-center">{isTr ? "FATURA MİKTARI / BİRİMİ" : "INVOICE QTY / UNIT"}</th>
+                           <th className="p-4 font-medium text-center">{isTr ? "SİSTEM MİKTARI / BİRİMİ" : "SYSTEM QTY / UNIT"}</th>
+                           <th className="p-4 font-medium text-right">{isTr ? "BİRİM FİYAT" : "UNIT PRICE"}</th>
+                           <th className="p-4 font-medium text-center">{isTr ? "KDV %" : "VAT %"}</th>
+                           <th className="p-4 font-medium text-right">{isTr ? "TOPLAM" : "TOTAL"}</th>
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
@@ -289,7 +289,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                         onClick={() => {
                                           if (onEditProduct) onEditProduct(item);
                                         }}
-                                        className={`text-left text-sm font-black text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                                        className={`text-left text-sm font-medium text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
                                       >
                                         {item.product_name}
                                       </button>
@@ -297,7 +297,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                         <button
                                           type="button"
                                           onClick={() => onEditProduct(item)}
-                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
                                           title={isTr ? "Ürün kartını düzenle, yeni kart aç veya eşleştirmeyi revize et" : "Edit product or revise matching"}
                                         >
                                           <Edit3 className="w-2.5 h-2.5" />
@@ -305,18 +305,18 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                         </button>
                                       )}
                                     </div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                    <p className="text-[10px] font-medium text-slate-400 uppercase">
                                       {item.barcode ? `Barkod: ${item.barcode}` : (isTr ? 'Barkod Yok' : 'No Barcode')}{item.product_code ? ` • Kod: ${item.product_code}` : ''}
                                     </p>
 
                                     {!invoice.is_expense && (
                                       <div className="flex items-center gap-1.5 flex-wrap">
                                         {item.product_id ? (
-                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
+                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-medium">
                                             <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
                                             <span>
                                               {isTr ? 'Eşleşen Envanter:' : 'Matched Inventory:'}{' '}
-                                              <strong className="font-black text-emerald-950">{matchedName || `#${item.product_id}`}</strong>
+                                              <strong className="font-medium text-emerald-950">{matchedName || `#${item.product_id}`}</strong>
                                             </span>
                                             <button
                                               type="button"
@@ -328,7 +328,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                                   setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
                                                 }
                                               }}
-                                              className="ml-1 px-1.5 py-0.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-emerald-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                              className="ml-1 px-1.5 py-0.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-emerald-200 rounded text-[9px] font-medium inline-flex items-center gap-0.5 transition-colors"
                                             >
                                               <RefreshCw className="h-2.5 w-2.5" />
                                               {isTr ? 'Değiştir' : 'Change'}
@@ -337,14 +337,14 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                               type="button"
                                               disabled={isUpdatingMatch}
                                               onClick={() => handleMatchProduct(item.id, null)}
-                                              className="px-1.5 py-0.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                              className="px-1.5 py-0.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-medium inline-flex items-center gap-0.5 transition-colors"
                                             >
                                               <Unlink className="h-2.5 w-2.5" />
                                               {isTr ? 'Bağı Kopar' : 'Unlink'}
                                             </button>
                                           </div>
                                         ) : (
-                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
+                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-medium">
                                             <span>{isTr ? 'Envanterde Eşleşen Ürün Yok' : 'Unmatched in Inventory'}</span>
                                             <button
                                               type="button"
@@ -356,7 +356,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                                   setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
                                                 }
                                               }}
-                                              className="ml-1 px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                              className="ml-1 px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-medium inline-flex items-center gap-0.5 transition-colors"
                                             >
                                               <Link2 className="h-2.5 w-2.5" />
                                               {isTr ? 'Envanterden Eşleştir' : 'Link Product'}
@@ -369,13 +369,13 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                     {isPickerOpen && (
                                       <div className="mt-1 p-2.5 bg-slate-900 text-white rounded-xl shadow-xl border border-slate-700 max-w-xl">
                                         <div className="flex items-center justify-between gap-2 mb-2">
-                                          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                                          <span className="text-[10px] font-medium uppercase tracking-wider text-indigo-300">
                                             {isTr ? 'Envanterden Doğru Ürünü Seçin' : 'Select Inventory Product to Match'}
                                           </span>
                                           <button
                                             type="button"
                                             onClick={() => setMatchingItemId(null)}
-                                            className="text-[10px] text-slate-400 hover:text-white font-bold"
+                                            className="text-[10px] text-slate-400 hover:text-white font-medium"
                                           >
                                             {isTr ? 'Kapat ✕' : 'Close ✕'}
                                           </button>
@@ -406,14 +406,14 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                                 className="w-full px-2.5 py-1.5 text-left hover:bg-indigo-950/80 transition-colors flex items-center justify-between gap-2"
                                               >
                                                 <div className="min-w-0">
-                                                  <div className="text-[11px] font-bold text-slate-100 truncate">{p.name}</div>
+                                                  <div className="text-[11px] font-medium text-slate-100 truncate">{p.name}</div>
                                                   <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
                                                     {p.barcode && <span>Barkod: {p.barcode}</span>}
                                                     {(p.product_code || p.sku) && <span>Kod: {p.product_code || p.sku}</span>}
                                                     <span>Stok: {p.stock_quantity ?? 0}</span>
                                                   </div>
                                                 </div>
-                                                <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-black shrink-0">
+                                                <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-medium shrink-0">
                                                   {isTr ? 'Seç & Eşleştir' : 'Select'}
                                                 </span>
                                               </button>
@@ -425,10 +425,10 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                   </div>
                                </td>
                                <td className="p-4 text-center font-medium text-slate-700 text-sm">
-                                  {Number(item.quantity).toLocaleString('tr-TR')} <span className="text-xs text-slate-400 font-bold">({item.unit_code || (isTr ? 'Adet' : 'Pcs')})</span>
+                                  {Number(item.quantity).toLocaleString('tr-TR')} <span className="text-xs text-slate-400 font-medium">({item.unit_code || (isTr ? 'Adet' : 'Pcs')})</span>
                                </td>
                                <td className="p-4 text-center font-medium text-slate-700 text-sm">
-                                  {sysQty.toLocaleString('tr-TR')} <span className="text-xs text-indigo-500 font-bold">({sysUnit})</span>
+                                  {sysQty.toLocaleString('tr-TR')} <span className="text-xs text-indigo-500 font-medium">({sysUnit})</span>
                                </td>
                                <td className="p-4 text-right font-medium text-slate-700 text-sm">
                                   {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
@@ -452,7 +452,7 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
         <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
            <button
              onClick={onClose}
-             className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100 transition-all shadow-sm"
+             className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-medium text-sm hover:bg-slate-100 transition-all shadow-sm"
            >
              {isTr ? "Kapat" : "Close"}
            </button>

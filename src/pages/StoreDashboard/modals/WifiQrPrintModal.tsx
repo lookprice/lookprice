@@ -201,9 +201,9 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
               <Wifi className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-medium text-white tracking-tight flex items-center gap-2">
                 {isTr ? "Müşteri Wi-Fi QR & Masa Standı Merkezi" : "Guest Wi-Fi QR & Table Stand Hub"}
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   {isTr ? "Hazır Çıktı" : "Print Ready"}
                 </span>
               </h3>
@@ -228,13 +228,13 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
           {/* Left Column: Configuration Controls */}
           <div className="md:col-span-6 p-5 sm:p-6 space-y-4 bg-slate-50/50">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 block mb-2">
                 1. {isTr ? "Wi-Fi Bağlantı Bilgileri" : "Wi-Fi Credentials"}
               </span>
 
               <div className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
                 <div>
-                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-medium text-slate-600 uppercase tracking-wider block mb-1">
                     {isTr ? "Ağ Adı (SSID) *" : "Network Name (SSID) *"}
                   </label>
                   <div className="relative">
@@ -243,7 +243,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
                       value={ssid}
                       onChange={(e) => setSsid(e.target.value)}
                       placeholder={isTr ? "Örn: LookPrice_Guest" : "e.g. LookPrice_Guest"}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-0 outline-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-0 outline-none"
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <Wifi className="w-4 h-4 text-slate-400" />
@@ -252,7 +252,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-medium text-slate-600 uppercase tracking-wider block mb-1">
                     {isTr ? "Wi-Fi Şifresi" : "Wi-Fi Password"}
                   </label>
                   <div className="relative">
@@ -261,7 +261,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={isTr ? "Şifre (Boş bırakılırsa şifresiz ağ)" : "Password (Leave blank for open network)"}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-0 outline-none pr-10"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-0 outline-none pr-10"
                     />
                     <button
                       type="button"
@@ -275,13 +275,13 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <div>
-                    <label className="text-[9.5px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                    <label className="text-[9.5px] font-medium text-slate-500 uppercase tracking-wider block mb-1">
                       {isTr ? "Güvenlik Türü" : "Security"}
                     </label>
                     <select
                       value={encryption}
                       onChange={(e: any) => setEncryption(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 cursor-pointer"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 cursor-pointer"
                     >
                       <option value="WPA">WPA / WPA2 / WPA3</option>
                       <option value="nopass">{isTr ? "Şifresiz (Açık Ağ)" : "Open / No Pass"}</option>
@@ -293,7 +293,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
                     <button
                       type="button"
                       onClick={handleCopyInfo}
-                      className="w-full py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      className="w-full py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
                       {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
                       <span>{copied ? (isTr ? "Kopyalandı" : "Copied") : (isTr ? "Bilgileri Kopyala" : "Copy Info")}</span>
@@ -305,7 +305,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
 
             {/* Format & Style Selection */}
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 block mb-2">
                 2. {isTr ? "Çıktı Formatı & Tasarım Şablonu" : "Print Format & Design"}
               </span>
 
@@ -326,7 +326,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
                         : "border-slate-200 bg-white hover:border-slate-300"
                     }`}
                   >
-                    <div className={`text-xs font-black ${printFormat === fmt.id ? "text-indigo-900" : "text-slate-800"}`}>
+                    <div className={`text-xs font-medium ${printFormat === fmt.id ? "text-indigo-900" : "text-slate-800"}`}>
                       {fmt.label}
                     </div>
                     <div className="text-[9.5px] text-slate-400 font-medium">{fmt.sub}</div>
@@ -337,7 +337,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
 
             {/* Extra Options */}
             <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2">
-              <label className="flex items-center justify-between text-xs font-bold text-slate-700 cursor-pointer">
+              <label className="flex items-center justify-between text-xs font-medium text-slate-700 cursor-pointer">
                 <span>{isTr ? "Kamera ile otomatik bağlanma talimatını göster" : "Show camera scan auto-connect guide"}</span>
                 <input
                   type="checkbox"
@@ -361,7 +361,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
 
           {/* Right Column: Live Printable Visual Stand Preview */}
           <div className="md:col-span-6 p-5 sm:p-6 flex flex-col items-center justify-center bg-slate-100/70">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3 self-start">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 mb-3 self-start">
               {isTr ? "Canlı Önizleme & Masaüstü Kartı" : "Live Stand & Card Preview"}
             </span>
 
@@ -379,11 +379,11 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
                 </div>
               )}
 
-              <div className="inline-block bg-slate-900 text-white text-[9px] font-black tracking-widest px-2.5 py-0.5 rounded-full uppercase mb-1.5">
+              <div className="inline-block bg-slate-900 text-white text-[9px] font-medium tracking-widest px-2.5 py-0.5 rounded-full uppercase mb-1.5">
                 FREE WI-FI
               </div>
 
-              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">{storeName}</h4>
+              <h4 className="text-sm font-medium text-slate-900 uppercase tracking-tight">{storeName}</h4>
               <p className="text-[10px] text-slate-500 font-medium mb-3">
                 {isTr ? "Misafir Wi-Fi Ağı" : "Guest Wi-Fi Network"}
               </p>
@@ -402,12 +402,12 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
               {/* Credentials Box */}
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-left space-y-1">
                 <div className="flex justify-between items-center text-[10px]">
-                  <span className="font-bold text-slate-400 uppercase tracking-wider">{isTr ? "AĞ ADI" : "SSID"}:</span>
-                  <span className="font-mono font-black text-slate-900">{ssid || "-"}</span>
+                  <span className="font-medium text-slate-400 uppercase tracking-wider">{isTr ? "AĞ ADI" : "SSID"}:</span>
+                  <span className="font-mono font-medium text-slate-900">{ssid || "-"}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px]">
-                  <span className="font-bold text-slate-400 uppercase tracking-wider">{isTr ? "ŞİFRE" : "PASS"}:</span>
-                  <span className="font-mono font-black text-slate-900">
+                  <span className="font-medium text-slate-400 uppercase tracking-wider">{isTr ? "ŞİFRE" : "PASS"}:</span>
+                  <span className="font-mono font-medium text-slate-900">
                     {password || (isTr ? "Şifresiz" : "Open")}
                   </span>
                 </div>
@@ -425,7 +425,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
               <button
                 type="button"
                 onClick={handlePrint}
-                className="flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
+                className="flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-medium text-xs uppercase tracking-wider shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
               >
                 <Printer className="w-4 h-4" />
                 <span>{isTr ? "Yazdır / PDF Al" : "Print / PDF"}</span>
@@ -444,7 +444,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs transition-all cursor-pointer"
+              className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-medium text-xs transition-all cursor-pointer"
             >
               {isTr ? "Kapat" : "Close"}
             </button>

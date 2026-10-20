@@ -352,6 +352,40 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
     } catch (err: any) { toast.error(err.message); }
   };
 
+  const handleSaveAlternativeAddress = async (newAddress: string) => {
+    if (!newAddress.trim()) return;
+    try {
+      const token = localStorage.getItem("token");
+      if (companyId) {
+        const comp = companies.find(c => String(c.id) === String(companyId));
+        if (!comp) return;
+        const res = await fetch(`/api/companies/${companyId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ ...comp, storeId: Number(storeId), delivery_address: newAddress.trim() })
+        });
+        if (res.ok) {
+          setCompanies(prev => prev.map(c => String(c.id) === String(companyId) ? { ...c, delivery_address: newAddress.trim() } : c));
+          toast.success(isTr ? "Alternatif sevk adresi cari kartına kaydedildi." : "Alternative shipment address saved to account.");
+        }
+      } else if (customerId) {
+        const cust = customers.find(c => String(c.id) === String(customerId));
+        if (!cust) return;
+        const res = await fetch(`/api/customers/${customerId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ ...cust, storeId: Number(storeId), address: newAddress.trim() })
+        });
+        if (res.ok) {
+          setCustomers(prev => prev.map(c => String(c.id) === String(customerId) ? { ...c, address: newAddress.trim() } : c));
+          toast.success(isTr ? "Sevk adresi müşteri kartına kaydedildi." : "Shipment address saved to customer.");
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? "Adres kaydedilemedi." : "Failed to save address."));
+    }
+  };
+
   const handleBulkConversionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedIds.length === 0) return;
@@ -373,7 +407,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 flex items-center gap-2">
             <Truck className="h-6 w-6 text-indigo-600" />
             {isTr ? "Sevk ve Taşıma İrsaliyeleri" : "Waybills & Shipments"}
           </h1>
@@ -381,14 +415,14 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {branding?.einvoice_settings?.is_active && (
-            <button onClick={handleOpenCreateNew} className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm shadow-sm">
+            <button onClick={handleOpenCreateNew} className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm shadow-sm">
               <Plus className="h-4 w-4" /> {isTr ? "İrsaliye Oluştur" : "Create Waybill"}
             </button>
           )}
           <button onClick={() => {
             const clean = waybills.map(w => ({ ID: w.id, [isTr ? "No" : "No"]: w.waybill_number, [isTr ? "Tarih" : "Date"]: formatDateTR(w.waybill_date), [isTr ? "Alıcı" : "Receiver"]: w.company_title || w.company_name || `${w.customer_name || ''} ${w.customer_surname || ''}`, [isTr ? "Plaka" : "Plate"]: w.plate_number, [isTr ? "Durum" : "Status"]: w.status }));
             const ws = XLSX.utils.json_to_sheet(clean); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "e-İrsaliyeler"); XLSX.writeFile(wb, `E_Irsaliyeler_${formatFileDateTR()}.xlsx`);
-          }} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold transition flex items-center justify-center gap-2 text-sm">
+          }} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium transition flex items-center justify-center gap-2 text-sm">
             <FileDown className="h-4 w-4 text-emerald-600" /> {isTr ? "Excel Çıktısı" : "Export Excel"}
           </button>
         </div>
@@ -399,11 +433,11 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600"><Plus className="h-5 w-5" /></div>
             <div>
-              <h3 className="text-sm font-bold text-indigo-900">{isTr ? `${selectedIds.length} İrsaliye Seçildi` : `${selectedIds.length} Selected`}</h3>
+              <h3 className="text-sm font-semibold text-indigo-900">{isTr ? `${selectedIds.length} İrsaliye Seçildi` : `${selectedIds.length} Selected`}</h3>
               <p className="text-xs text-indigo-700">{isTr ? "Seçtiğiniz irsaliyeleri faturaya dönüştürebilirsiniz." : "Convert selected waybills to invoice."}</p>
             </div>
           </div>
-          <button onClick={() => { setConvertForm(p => ({ ...p, notes: isTr ? "Seçilen sevk irsaliyelerinden otomatik birleştirilmiştir." : "Automatically consolidated." })); setShowConvertModal(true); }} className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition flex items-center gap-2 shadow-sm">
+          <button onClick={() => { setConvertForm(p => ({ ...p, notes: isTr ? "Seçilen sevk irsaliyelerinden otomatik birleştirilmiştir." : "Automatically consolidated." })); setShowConvertModal(true); }} className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm transition flex items-center gap-2 shadow-sm">
             <CheckCircle2 className="h-4 w-4" /> {isTr ? "Birleştirip Faturaya Dönüştür" : "Consolidate to Bill"}
           </button>
         </motion.div>
@@ -448,6 +482,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
             orderNumber={orderNumber} setOrderNumber={setOrderNumber} orderDate={orderDate} setOrderDate={setOrderDate}
             matbuNumber={matbuNumber} setMatbuNumber={setMatbuNumber} matbuDate={matbuDate} setMatbuDate={setMatbuDate}
             driverPhone={driverPhone} setDriverPhone={setDriverPhone}
+            onSaveAlternativeAddress={handleSaveAlternativeAddress}
             INCOTERMS_LIST={INCOTERMS_LIST}
           />
         )}

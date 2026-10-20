@@ -56,7 +56,7 @@ export const FleetStats: React.FC<FleetStatsProps> = ({
             <Car className="w-3.5 h-3.5" />
             <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">{t.totalVehicles}</span>
           </div>
-          <span className="text-sm font-bold text-gray-900">{vehicles.length}</span>
+          <span className="text-sm font-medium text-gray-900">{vehicles.length}</span>
         </div>
 
         <div className="bg-white px-3 py-1.5 rounded-xl border border-gray-200/80 shadow-2xs flex items-center justify-between">
@@ -64,7 +64,7 @@ export const FleetStats: React.FC<FleetStatsProps> = ({
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">{t.activeVehicles}</span>
           </div>
-          <span className="text-sm font-bold text-gray-900">
+          <span className="text-sm font-medium text-gray-900">
             {vehicles.filter(v => v.status === 'active').length}
           </span>
         </div>
@@ -74,7 +74,7 @@ export const FleetStats: React.FC<FleetStatsProps> = ({
             <AlertCircle className="w-3.5 h-3.5" />
             <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">{t.documentAlert}</span>
           </div>
-          <span className={`text-sm font-bold ${expiringDocsCount > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+          <span className={`text-sm font-medium ${expiringDocsCount > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
             {expiringDocsCount}
           </span>
         </div>
@@ -84,7 +84,7 @@ export const FleetStats: React.FC<FleetStatsProps> = ({
             <Wrench className="w-3.5 h-3.5" />
             <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">{t.maintenanceAlert}</span>
           </div>
-          <span className={`text-sm font-bold ${maintenanceDueCount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+          <span className={`text-sm font-medium ${maintenanceDueCount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
             {maintenanceDueCount}
           </span>
         </div>

@@ -135,23 +135,23 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                 })()}
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="font-black text-slate-900 text-sm uppercase tracking-tight truncate">{vehicle.plate}</p>
-                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase tracking-widest border border-blue-100">
+                    <p className="font-medium text-slate-900 text-sm uppercase tracking-tight truncate">{vehicle.plate}</p>
+                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-medium uppercase tracking-widest border border-blue-100">
                       {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Ticari' : 'Comm') : 
                        vehicle.category === 'suv' ? (lang === 'tr' ? 'SUV' : 'SUV') :
                        vehicle.category === 'pickup' ? (lang === 'tr' ? 'Pick-up' : 'Pick-up') :
                        (lang === 'tr' ? 'Oto' : 'Car')}
                     </span>
                   </div>
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tight truncate">{generateVehicleTitle(vehicle)}</p>
+                  <p className="text-[9px] text-slate-500 font-medium uppercase tracking-tight truncate">{generateVehicleTitle(vehicle)}</p>
                 </div>
               </div>
               <div className="flex flex-col gap-1 items-end shrink-0">
-                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${getStatusColor(vehicle.status)}`}>
+                <span className={`px-2 py-0.5 rounded text-[8px] font-medium uppercase tracking-widest border ${getStatusColor(vehicle.status)}`}>
                   {getStatusText(vehicle.status)}
                 </span>
                 {vehicle.selling_price && (
-                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                  <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                     {vehicle.selling_price.toLocaleString()} {vehicle.currency || 'TRY'}
                   </span>
                 )}
@@ -159,7 +159,7 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
             </div>
             
             <div className="py-2 border-y border-slate-50 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-              <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-700 shrink-0">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-700 shrink-0">
                 <MapPin className="w-3 h-3 text-slate-400" />
                 {(vehicle.current_mileage || 0).toLocaleString()} <span className="text-[8px] text-slate-400">KM</span>
               </div>
@@ -167,11 +167,11 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                 {allDocuments
                   .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
                   .map((d, idx) => (
-                    <div key={idx} className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[8px] font-black border border-amber-100 uppercase">{d.type}</div>
+                    <div key={idx} className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[8px] font-medium border border-amber-100 uppercase">{d.type}</div>
                   ))
                 }
                 {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
-                  <div className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[8px] font-black border border-red-100 uppercase">{t.service}</div>
+                  <div className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[8px] font-medium border border-red-100 uppercase">{t.service}</div>
                 )}
               </div>
             </div>
@@ -199,20 +199,20 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest">#</th>
-                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest">{t.vehicleInfo}</th>
-                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest min-w-[110px]">{t.status}</th>
-                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest min-w-[100px]">Yayın</th>
-                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">KM</th>
-                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest">{t.alerts}</th>
-                <th className="p-2 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right min-w-[140px] whitespace-nowrap">{t.actions}</th>
+                <th className="p-2 text-[9px] font-medium text-slate-500 uppercase tracking-widest">#</th>
+                <th className="p-2 text-[9px] font-medium text-slate-500 uppercase tracking-widest">{t.vehicleInfo}</th>
+                <th className="p-2 text-[9px] font-medium text-slate-500 uppercase tracking-widest min-w-[110px]">{t.status}</th>
+                <th className="p-2 text-[9px] font-medium text-slate-500 uppercase tracking-widest min-w-[100px]">Yayın</th>
+                <th className="p-2 text-[9px] font-medium text-slate-500 uppercase tracking-widest text-center">KM</th>
+                <th className="p-2 text-[9px] font-medium text-slate-500 uppercase tracking-widest">{t.alerts}</th>
+                <th className="p-2 text-[9px] font-medium text-slate-500 uppercase tracking-widest text-right min-w-[140px] whitespace-nowrap">{t.actions}</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100">
               {paginatedVehicles.map((vehicle) => (
                 <tr key={vehicle.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="p-2 text-[10px] font-black text-slate-400 font-mono">
+                  <td className="p-2 text-[10px] font-medium text-slate-400 font-mono">
                     {vehicle.id}
                   </td>
                   <td className="p-2">
@@ -237,22 +237,22 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                       })()}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <p className="font-black text-slate-900 text-[11px] uppercase tracking-tighter truncate">{vehicle.plate}</p>
-                          <span className="px-1 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100">
+                          <p className="font-medium text-slate-900 text-[11px] uppercase tracking-tighter truncate">{vehicle.plate}</p>
+                          <span className="px-1 bg-blue-50 text-blue-600 rounded text-[7px] font-medium uppercase tracking-widest border border-blue-100">
                             {vehicle.category?.substring(0, 3)}
                           </span>
                         </div>
-                        <p className="text-[9px] text-slate-500 font-bold truncate uppercase tracking-tighter">{generateVehicleTitle(vehicle)}</p>
+                        <p className="text-[9px] text-slate-500 font-medium truncate uppercase tracking-tighter">{generateVehicleTitle(vehicle)}</p>
                       </div>
                     </div>
                   </td>
                   <td className="p-2 min-w-[110px]">
                     <div className="flex flex-col gap-0.5 items-start">
-                      <span className={`px-1 rounded-sm text-[7px] font-black uppercase tracking-widest border ${getStatusColor(vehicle.status)}`}>
+                      <span className={`px-1 rounded-sm text-[7px] font-medium uppercase tracking-widest border ${getStatusColor(vehicle.status)}`}>
                         {getStatusText(vehicle.status)}
                       </span>
                       {vehicle.selling_price && (
-                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-1 rounded-sm border border-emerald-200/30 tabular-nums">
+                        <span className="text-[10px] font-medium text-emerald-800 bg-emerald-50 px-1 rounded-sm border border-emerald-200/30 tabular-nums">
                           {vehicle.selling_price.toLocaleString()} <span className="text-[8px] opacity-60">{vehicle.currency || 'TRY'}</span>
                         </span>
                       )}
@@ -260,12 +260,12 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                   </td>
                   <td className="p-2 min-w-[100px]">
                     <div className="flex flex-wrap items-center gap-1">
-                      <span className={`px-1 rounded-sm text-[7px] font-black border uppercase tracking-tighter ${vehicle.is_on_website !== false ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>Web</span>
-                      <span className={`px-1 rounded-sm text-[7px] font-black border uppercase tracking-tighter ${vehicle.is_on_enrakipsiz ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>EnR</span>
+                      <span className={`px-1 rounded-sm text-[7px] font-medium border uppercase tracking-tighter ${vehicle.is_on_website !== false ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>Web</span>
+                      <span className={`px-1 rounded-sm text-[7px] font-medium border uppercase tracking-tighter ${vehicle.is_on_enrakipsiz ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>EnR</span>
                     </div>
                   </td>
                   <td className="p-2 text-center">
-                    <div className="inline-flex items-center gap-1 text-[10px] font-black text-slate-900 tabular-nums tracking-tighter">
+                    <div className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-900 tabular-nums tracking-tighter">
                       {(vehicle.current_mileage || 0).toLocaleString()} <span className="text-[8px] text-slate-400">KM</span>
                     </div>
                   </td>
@@ -274,11 +274,11 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                       {allDocuments
                         .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
                         .map((d, idx) => (
-                          <div key={idx} className="px-1 bg-amber-50 text-amber-600 rounded text-[7px] font-black border border-amber-100 uppercase tracking-tighter">{d.type}</div>
+                          <div key={idx} className="px-1 bg-amber-50 text-amber-600 rounded text-[7px] font-medium border border-amber-100 uppercase tracking-tighter">{d.type}</div>
                         ))
                       }
                       {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
-                        <div className="px-1 bg-red-50 text-red-600 rounded text-[7px] font-black border border-red-100 uppercase tracking-tighter">SERVİS</div>
+                        <div className="px-1 bg-red-50 text-red-600 rounded text-[7px] font-medium border border-red-100 uppercase tracking-tighter">SERVİS</div>
                       )}
                     </div>
                   </td>
@@ -325,7 +325,7 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
               <div className="px-6 py-4 flex items-center justify-between border-b border-slate-800 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-                  <span className="text-sm font-black tracking-wider uppercase text-slate-300">
+                  <span className="text-sm font-medium tracking-wider uppercase text-slate-300">
                     {previewVehiclePlate} - {lang === 'tr' ? 'Araç Görseli' : 'Vehicle Image'}
                   </span>
                 </div>
@@ -396,7 +396,7 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                   </div>
                 )}
                 
-                <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">
+                <span className="text-[10px] uppercase font-medium tracking-widest text-slate-500">
                   {lang === 'tr' ? 'Seçkin Otomotiv' : 'Premium Automotive'}
                 </span>
               </div>

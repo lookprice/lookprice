@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Building2, RefreshCw, FileCheck2, ShieldCheck, Tag, Key, Save, CheckCircle2 } from "lucide-react";
+import { Building2, RefreshCw, FileCheck2, ShieldCheck, Tag, Key, Save, CheckCircle2, Sparkles, FlaskConical, Truck } from "lucide-react";
 import { motion } from "motion/react";
 import { api } from "../../../services/api";
 
@@ -196,20 +196,19 @@ export const SettingsEInvoiceTab = ({
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     {txt('Entegratör Servis Sağlayıcı', 'Integrator Provider', 'Πάροχος')}
                   </label>
-                  <select 
-                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                  <select
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none"
                     value={branding.einvoice_settings?.provider || 'none'}
                     onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, provider: e.target.value })}
                   >
-                    <option value="none">-- {txt('Seçiniz', 'Select', 'Επιλέξτε')} --</option>
-                    <option value="mysoft">MySoft (Resmi Entegratör)</option>
-                    <option value="diyalogo">{txt('Diyalogo (Yakında)', 'Diyalogo (Coming Soon)', 'Diyalogo (Σύντομα)')}</option>
+                    <option value="none">{txt('Seçiniz (Devre Dışı)', 'Select (Disabled)', 'Επιλέξτε')}</option>
+                    <option value="mysoft">MySoft Dijital Dönüşüm (GİB)</option>
                   </select>
                 </div>
 
                 <div className="space-y-1 md:col-span-2">
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    MySoft E-Fatura API URL (Opsiyonel)
+                    MySoft E-Fatura Canlı API URL (Opsiyonel)
                   </label>
                   <input 
                     type="text" 
@@ -220,6 +219,115 @@ export const SettingsEInvoiceTab = ({
                   />
                 </div>
               </div>
+
+              {/* Isolated E-Waybill Sandbox / Test Mode Panel (Never touches live E-Invoice) */}
+              {isEWaybillActive && branding.einvoice_settings?.provider === 'mysoft' && (
+                <div className="p-3.5 rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/20 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">
+                        <Truck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>{txt('Sadece E-İrsaliye Test Modu (Sandbox)', 'E-Waybill Only Test Mode (Sandbox)', 'Δοκιμαστική Λειτουργία Ηλ. Δελτίου')}</span>
+                          <span className="px-1.5 py-0.5 text-[9px] font-black uppercase rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            {txt('E-Fatura Canlı Sistemini Etkilemez', 'Live E-Invoice Untouched', 'Ασφαλές για E-Invoice')}
+                          </span>
+                        </h4>
+                        <p className="text-[10px] text-slate-600 dark:text-slate-400">
+                          {txt(
+                            'Aktif edildiğinde E-Fatura/E-Arşiv işlemleriniz canlı sistemde normal çalışmaya devam eder; yalnızca E-İrsaliye gönderimleri test sunucusuna yönlendirilir.',
+                            'When enabled, live E-Invoice/E-Archive remains untouched while only E-Waybill requests use the Sandbox endpoint.',
+                            'Μόνο τα δελτία αποστολής στέλνονται στο περιβάλλον δοκιμών.'
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onBrandingChange('einvoice_settings', {
+                          ...branding.einvoice_settings,
+                          ewaybill_test_mode: !branding.einvoice_settings?.ewaybill_test_mode,
+                          ewaybill_test_api_url: branding.einvoice_settings?.ewaybill_test_api_url || 'https://test-edocumentapi.mysoft.com.tr/api'
+                        })
+                      }
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all border cursor-pointer ${
+                        branding.einvoice_settings?.ewaybill_test_mode
+                          ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <FlaskConical className="w-3.5 h-3.5" />
+                      <span>
+                        {branding.einvoice_settings?.ewaybill_test_mode
+                          ? txt('E-İrsaliye Test Modu: AÇIK', 'E-Waybill Sandbox: ON', 'Sandbox: ΕΝΕΡΓΟ')
+                          : txt('E-İrsaliye Test Modu: KAPALI (Canlı)', 'E-Waybill Sandbox: OFF (Live)', 'Sandbox: ΑΝΕΝΕΡΓΟ')}
+                      </span>
+                    </button>
+                  </div>
+
+                  {branding.einvoice_settings?.ewaybill_test_mode && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 pt-2 border-t border-amber-200/70 dark:border-amber-800/50">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                          E-İrsaliye Test API URL
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-lg text-[11px] font-mono text-slate-900 dark:text-white outline-none"
+                          placeholder="https://test-edocumentapi.mysoft.com.tr/api"
+                          value={branding.einvoice_settings?.ewaybill_test_api_url || 'https://test-edocumentapi.mysoft.com.tr/api'}
+                          onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, ewaybill_test_api_url: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                          Test Kullanıcı Adı (Boşsa Canlı Kullanılır)
+                        </label>
+                        <input
+                          type="text"
+                          autoComplete="off"
+                          data-lpignore="true"
+                          className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-lg text-[11px] font-bold text-slate-900 dark:text-white outline-none"
+                          placeholder={branding.einvoice_settings?.username || 'Opsiyonel Test Kullanıcısı'}
+                          value={branding.einvoice_settings?.ewaybill_test_username || ''}
+                          onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, ewaybill_test_username: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                          Test Şifresi (Boşsa Canlı Kullanılır)
+                        </label>
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          data-lpignore="true"
+                          className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-lg text-[11px] font-bold text-slate-900 dark:text-white outline-none"
+                          placeholder="••••••••"
+                          value={branding.einvoice_settings?.ewaybill_test_password || ''}
+                          onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, ewaybill_test_password: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                          Test VKN/TCKN (Boşsa Canlı Kullanılır)
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={11}
+                          className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-lg text-[11px] font-mono font-bold text-slate-900 dark:text-white outline-none"
+                          placeholder={branding.einvoice_settings?.vkn || 'Opsiyonel Test VKN'}
+                          value={branding.einvoice_settings?.ewaybill_test_vkn || ''}
+                          onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, ewaybill_test_vkn: e.target.value.replace(/[^0-9]/g, '') })}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {branding.einvoice_settings?.provider === 'mysoft' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">

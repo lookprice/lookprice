@@ -25,7 +25,7 @@ export const WaybillHtmlModal: React.FC<WaybillHtmlModalProps> = ({
       >
         <div className="p-4 px-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
           <div>
-            <h2 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+            <h2 className="font-medium text-slate-900 text-sm flex items-center gap-2">
               <Truck className="h-4 w-4 text-emerald-600" />
               {isTr ? `Resmî E-İrsaliye Görsel Baskısı (${selectedWaybill.waybill_number})` : `Official e-Waybill visual print representation`}
             </h2>
@@ -40,7 +40,7 @@ export const WaybillHtmlModal: React.FC<WaybillHtmlModalProps> = ({
                   frame.contentWindow.print();
                 }
               }}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-medium transition flex items-center gap-1.5"
             >
               <Printer className="h-3.5 w-3.5 text-indigo-600" />
               {isTr ? "Yazdır / PDF Kaydet" : "Print PDF"}
@@ -55,7 +55,7 @@ export const WaybillHtmlModal: React.FC<WaybillHtmlModalProps> = ({
           {previewLoading ? (
             <div className="flex flex-col items-center justify-center text-slate-400 gap-2">
               <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
-              <p className="text-xs font-bold">{isTr ? "Entegratörden döküman şablonu alınıyor..." : "Downloading visual markup..."}</p>
+              <p className="text-xs font-medium">{isTr ? "Entegratörden döküman şablonu alınıyor..." : "Downloading visual markup..."}</p>
             </div>
           ) : (
             <iframe

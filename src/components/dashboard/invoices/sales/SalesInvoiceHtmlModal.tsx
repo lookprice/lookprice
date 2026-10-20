@@ -134,7 +134,7 @@ export const SalesInvoiceHtmlModal: React.FC<SalesInvoiceHtmlModalProps> = ({
           className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[90vh] overflow-hidden border border-slate-200 flex flex-col"
         >
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h3 className="text-xl font-bold text-slate-900">{isTr ? 'E-Fatura Görseli' : 'E-Invoice Preview'}</h3>
+            <h3 className="text-xl font-medium text-slate-900">{isTr ? 'E-Fatura Görseli' : 'E-Invoice Preview'}</h3>
             <div className="flex gap-2">
               <button 
                 onClick={() => {
@@ -144,7 +144,7 @@ export const SalesInvoiceHtmlModal: React.FC<SalesInvoiceHtmlModalProps> = ({
                     iframe.contentWindow.print();
                   }
                 }} 
-                className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-bold"
+                className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-medium"
               >
                 <Printer className="h-4 w-4" />
                 {isTr ? 'Yazdır' : 'Print'}
@@ -159,7 +159,7 @@ export const SalesInvoiceHtmlModal: React.FC<SalesInvoiceHtmlModalProps> = ({
             {(htmlLoading || !iframeReady) && (
                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100/90 backdrop-blur-xs gap-4 z-10 transition-opacity duration-300">
                  <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
-                 <p className="text-sm font-bold text-slate-500 animate-pulse uppercase tracking-widest">{isTr ? 'Görsel Hazırlanıyor...' : 'Preparing Preview...'}</p>
+                 <p className="text-sm font-medium text-slate-500 animate-pulse uppercase tracking-widest">{isTr ? 'Görsel Hazırlanıyor...' : 'Preparing Preview...'}</p>
                </div>
             )}
             <iframe 

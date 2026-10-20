@@ -558,12 +558,27 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
 
   const handleUpdateAssignment = async (id: number, data: any) => {
     try {
-      const res = await api.updateVehicleAssignment(id, data);
+      const existing = (allAssignments || []).find(a => a.id === id) || (assignments || []).find(a => a.id === id);
+      const vehicle = existing ? vehicles.find(v => v.id === existing.vehicle_id) : null;
+      const defaultEndMileage = vehicle?.current_mileage || existing?.start_mileage || 0;
+      const payload = (typeof data === 'object' && data !== null)
+        ? {
+            end_date: data.end_date || new Date().toISOString().split('T')[0],
+            end_mileage: data.end_mileage ?? defaultEndMileage,
+            status: data.status || 'returned'
+          }
+        : {
+            end_date: new Date().toISOString().split('T')[0],
+            end_mileage: (typeof data === 'number' && data > 0) ? data : defaultEndMileage,
+            status: 'returned'
+          };
+      const res = await api.updateVehicleAssignment(id, payload);
       if (res.error) {
         alert(res.error);
         return;
       }
-      setAssignments((assignments || []).map(a => a.id === id ? res : a));
+      setAssignments(prev => (prev || []).map(a => a.id === id ? { ...a, ...res } : a));
+      setAllAssignments(prev => (prev || []).map(a => a.id === id ? { ...a, ...res } : a));
     } catch (error) {
       alert(t.errorSavingAssignment);
     }
@@ -752,24 +767,24 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
       {/* FUTURISTIC HIGH-DENSITY AUTOLP OTO GALERİ / ARAÇLAR HEADER BANNER */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-3 md:p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-700 text-white flex items-center justify-center font-black shadow-xs shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-700 text-white flex items-center justify-center font-medium shadow-xs shrink-0">
             <Car className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-200/60">
+              <span className="text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-200/60">
                 AUTOLP &bull; OTO GALERİ
               </span>
-              <span className="text-[11px] font-extrabold text-slate-400">/ araçlar</span>
+              <span className="text-[11px] font-medium text-slate-400">/ araçlar</span>
             </div>
-            <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight mt-0.5">
+            <h1 className="text-base sm:text-lg font-medium text-slate-900 tracking-tight leading-tight mt-0.5">
               Oto Galeri & Araç Portföy Yönetimi
             </h1>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-          <div className="hidden md:flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200/80 mr-1">
+          <div className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-600 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200/80 mr-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>{vehicles.length} Toplam Araç</span>
             <span className="text-slate-300">|</span>
@@ -797,7 +812,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
                 });
                 setShowAddModal(true);
               }}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-xs active:scale-95 cursor-pointer"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-medium transition-all shadow-xs active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>{t.addVehicle || '+ Araç Ekle'}</span>
@@ -871,7 +886,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
               <button
                 key={i + 1}
                 onClick={() => setCurrentPage(i + 1)}
-                className={`w-8 h-8 rounded-xl text-sm font-bold transition-all ${
+                className={`w-8 h-8 rounded-xl text-sm font-medium transition-all ${
                   currentPage === i + 1
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
                     : 'text-gray-500 hover:bg-gray-100'

@@ -37,11 +37,11 @@ export const QuotationDetailsModal: React.FC<QuotationDetailsModalProps> = ({
         className="bg-white rounded-2xl shadow-xl w-full max-w-4xl my-auto overflow-hidden border border-slate-200"
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h3 className="text-xl font-bold text-slate-900">{t.quotationDetails || "Teklif Detayları"}</h3>
+          <h3 className="text-xl font-medium text-slate-900">{t.quotationDetails || "Teklif Detayları"}</h3>
           <div className="flex gap-2">
             <button 
               onClick={() => onDownloadQuotationPDF(selectedQuotationDetails)} 
-              className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-bold cursor-pointer"
+              className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-medium cursor-pointer"
             >
               <Download className="h-4 w-4" />
               {isTr ? 'İndir' : 'Download'}
@@ -58,22 +58,22 @@ export const QuotationDetailsModal: React.FC<QuotationDetailsModalProps> = ({
         <div className="p-6 max-h-[75vh] overflow-y-auto" ref={quotationPrintRef}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div className="space-y-2">
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t.customer || "Müşteri"}</p>
-              <p className="text-lg font-bold text-slate-900">{selectedQuotationDetails.customer_name}</p>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">{t.customer || "Müşteri"}</p>
+              <p className="text-lg font-medium text-slate-900">{selectedQuotationDetails.customer_name}</p>
               {selectedQuotationDetails.customer_title && <p className="text-sm text-slate-500">{selectedQuotationDetails.customer_title}</p>}
             </div>
             <div className="space-y-2 text-right">
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Teklif Bilgileri' : 'Quotation Info'}</p>
-              <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Teklif No:' : 'Quote No:'}</span> #{selectedQuotationDetails.id}</p>
-              <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Tarih:' : 'Date:'}</span> {formatDateTR(selectedQuotationDetails.created_at)}</p>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">{isTr ? 'Teklif Bilgileri' : 'Quotation Info'}</p>
+              <p className="text-sm text-slate-600"><span className="font-medium">{isTr ? 'Teklif No:' : 'Quote No:'}</span> #{selectedQuotationDetails.id}</p>
+              <p className="text-sm text-slate-600"><span className="font-medium">{isTr ? 'Tarih:' : 'Date:'}</span> {formatDateTR(selectedQuotationDetails.created_at)}</p>
               <p className="text-sm text-slate-600">
-                <span className="font-bold">{t.validUntil || "Geçerlilik"}:</span> {
+                <span className="font-medium">{t.validUntil || "Geçerlilik"}:</span> {
                   selectedQuotationDetails.expiry_date 
                     ? formatDateTR(selectedQuotationDetails.expiry_date)
                     : formatDateTR(new Date(new Date(selectedQuotationDetails.created_at).getTime() + 7 * 24 * 60 * 60 * 1000))
                 }
               </p>
-              <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {selectedQuotationDetails.currency}</p>
+              <p className="text-sm text-slate-600"><span className="font-medium">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {selectedQuotationDetails.currency}</p>
             </div>
           </div>
 
@@ -81,11 +81,11 @@ export const QuotationDetailsModal: React.FC<QuotationDetailsModalProps> = ({
             <table className="w-full text-left border-collapse">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">{t.product || "Ürün"}</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{t.quantity || "Miktar"}</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{t.unitPrice || "Birim Fiyat"}</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">KDV</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{t.total || "Toplam"}</th>
+                  <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">{t.product || "Ürün"}</th>
+                  <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase text-center">{t.quantity || "Miktar"}</th>
+                  <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase text-right">{t.unitPrice || "Birim Fiyat"}</th>
+                  <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase text-center">KDV</th>
+                  <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase text-right">{t.total || "Toplam"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -102,7 +102,7 @@ export const QuotationDetailsModal: React.FC<QuotationDetailsModalProps> = ({
                     <td className="px-4 py-3 text-sm text-slate-500 text-center">
                       %{item.tax_rate || 20}
                     </td>
-                    <td className="px-4 py-3 text-sm font-bold text-slate-900 text-right">
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900 text-right">
                       {Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
                     </td>
                   </tr>
@@ -115,15 +115,15 @@ export const QuotationDetailsModal: React.FC<QuotationDetailsModalProps> = ({
             <div className="flex-1">
               {selectedQuotationDetails.notes && (
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
-                  <p className="text-xs font-bold text-slate-400 uppercase mb-2">{t.notes || "Notlar"}</p>
+                  <p className="text-xs font-medium text-slate-400 uppercase mb-2">{t.notes || "Notlar"}</p>
                   <p className="text-sm text-slate-700">{selectedQuotationDetails.notes}</p>
                 </div>
               )}
             </div>
             <div className="w-full md:w-80 space-y-3">
-              <div className="flex justify-between items-center text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+              <div className="flex justify-between items-center text-[11px] font-medium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
                 <span>{selectedQuotationDetails.is_tax_inclusive ? (t.grandTotal || "Genel Toplam") : (isTr ? "Toplam (Vergi Hariç)" : "Total (Excl. Tax)")}</span>
-                <span className="text-indigo-600 text-lg font-bold">
+                <span className="text-indigo-600 text-lg font-medium">
                   {(() => {
                     const sub = (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + Number(i.total_price), 0);
                     return sub.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
@@ -131,15 +131,15 @@ export const QuotationDetailsModal: React.FC<QuotationDetailsModalProps> = ({
                 </span>
               </div>
               {selectedQuotationDetails.is_tax_inclusive ? (
-                <div className="text-[10px] text-right text-slate-400 font-bold italic">
+                <div className="text-[10px] text-right text-slate-400 font-medium italic">
                   {isTr ? "* Fiyatlara KDV dahildir." : "* Prices include VAT."}
                 </div>
               ) : (
-                <div className="text-[10px] text-right text-indigo-500 font-bold italic">
+                <div className="text-[10px] text-right text-indigo-500 font-medium italic">
                   {isTr ? "* Fiyatlara KDV dahil değildir." : "* Prices exclude VAT."}
                 </div>
               )}
-              <div className="text-[10px] text-right text-slate-500 font-bold italic pt-2">
+              <div className="text-[10px] text-right text-slate-500 font-medium italic pt-2">
                  {isTr ? 'Yalnızca:' : 'Only:'} {(() => {
                    const sub = (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + Number(i.total_price), 0);
                    return numberToTurkishWords(sub, selectedQuotationDetails.currency);

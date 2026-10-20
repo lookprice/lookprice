@@ -543,11 +543,20 @@ router.get('/assignments', authenticate, async (req: any, res) => {
   const storeId = req.query.store_id || req.user.store_id;
   try {
     const result = await pool.query(
-      'SELECT va.*, v.plate FROM vehicle_assignments va JOIN vehicles v ON va.vehicle_id = v.id WHERE v.store_id = $1 ORDER BY va.start_date DESC',
+      `SELECT va.*, v.plate, 
+              COALESCE(u.email, d.email, d.name) as user_email, 
+              COALESCE(d.name, u.name, u.email) as driver_name
+       FROM vehicle_assignments va 
+       JOIN vehicles v ON va.vehicle_id = v.id 
+       LEFT JOIN users u ON va.user_id = u.id
+       LEFT JOIN drivers d ON va.driver_id = d.id
+       WHERE v.store_id = $1 
+       ORDER BY va.start_date DESC`,
       [storeId]
     );
     res.json(result.rows);
   } catch (error) {
+    console.error('Error fetching all assignments:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -556,7 +565,7 @@ router.get('/vehicles/:id/assignments', authenticate, async (req: any, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(
-      `SELECT va.*, u.email as user_email, d.name as driver_name
+      `SELECT va.*, COALESCE(u.email, d.email, d.name) as user_email, d.name as driver_name
        FROM vehicle_assignments va
        LEFT JOIN users u ON va.user_id = u.id
        LEFT JOIN drivers d ON va.driver_id = d.id
@@ -610,13 +619,41 @@ router.post('/vehicles/:id/assignments', authenticate, async (req: any, res) => 
 
 router.put('/vehicle-assignments/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { end_date, end_mileage, status } = req.body;
+  const body = (typeof req.body === 'object' && req.body !== null) ? req.body : {};
+  const end_date = body.end_date || new Date().toISOString().split('T')[0];
+  const parsedEndMileage = (body.end_mileage !== undefined && body.end_mileage !== null && body.end_mileage !== '')
+    ? Number(body.end_mileage)
+    : null;
+  const validEndMileage = (parsedEndMileage !== null && !isNaN(parsedEndMileage) && parsedEndMileage > 0) ? parsedEndMileage : null;
+  const status = body.status === 'active' ? 'active' : 'returned';
+
   try {
     const result = await pool.query(
-      'UPDATE vehicle_assignments SET end_date = $1, end_mileage = $2, status = $3 WHERE id = $4 RETURNING *',
-      [end_date || null, end_mileage, status, id]
+      `UPDATE vehicle_assignments 
+       SET end_date = $1, 
+           end_mileage = COALESCE($2, end_mileage, start_mileage, 0), 
+           status = $3 
+       WHERE id = $4 
+       RETURNING *`,
+      [end_date, validEndMileage, status, id]
     );
-    res.json(result.rows[0]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Zimmet kaydı bulunamadı' });
+    }
+
+    const enriched = await pool.query(
+      `SELECT va.*, v.plate, 
+              COALESCE(u.email, d.email, d.name) as user_email, 
+              COALESCE(d.name, u.name, u.email) as driver_name
+       FROM vehicle_assignments va
+       LEFT JOIN vehicles v ON va.vehicle_id = v.id
+       LEFT JOIN users u ON va.user_id = u.id
+       LEFT JOIN drivers d ON va.driver_id = d.id
+       WHERE va.id = $1`,
+      [id]
+    );
+    res.json(enriched.rows[0] || result.rows[0]);
   } catch (error) {
     console.error("Error updating assignment:", error);
     res.status(500).json({ error: 'Internal server error' });

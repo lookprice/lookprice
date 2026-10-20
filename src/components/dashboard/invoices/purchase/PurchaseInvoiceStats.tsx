@@ -24,8 +24,8 @@ export const PurchaseInvoiceStats: React.FC<PurchaseInvoiceStatsProps> = ({
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
       <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider truncate">{isTr ? "KDV TOPLAM" : "TOTAL TAX"}</p>
-          <p className="text-sm sm:text-base font-bold text-slate-900 tracking-tight mt-0.5 truncate">
+          <p className="text-[10px] font-medium text-indigo-600 uppercase tracking-wider truncate">{isTr ? "KDV TOPLAM" : "TOTAL TAX"}</p>
+          <p className="text-sm sm:text-base font-medium text-slate-900 tracking-tight mt-0.5 truncate">
             {totalDeductibleTax.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
@@ -36,8 +36,8 @@ export const PurchaseInvoiceStats: React.FC<PurchaseInvoiceStatsProps> = ({
 
       <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider truncate">{isTr ? "ALIŞ MATRAH" : "PURCHASE MATRAH"}</p>
-          <p className="text-sm sm:text-base font-bold text-slate-900 tracking-tight mt-0.5 truncate">
+          <p className="text-[10px] font-medium text-emerald-600 uppercase tracking-wider truncate">{isTr ? "ALIŞ MATRAH" : "PURCHASE MATRAH"}</p>
+          <p className="text-sm sm:text-base font-medium text-slate-900 tracking-tight mt-0.5 truncate">
             {totalPurchaseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
@@ -48,8 +48,8 @@ export const PurchaseInvoiceStats: React.FC<PurchaseInvoiceStatsProps> = ({
 
       <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider truncate">{isTr ? "GİDERLER" : "EXPENSES"}</p>
-          <p className="text-sm sm:text-base font-bold text-slate-900 tracking-tight mt-0.5 truncate">
+          <p className="text-[10px] font-medium text-rose-600 uppercase tracking-wider truncate">{isTr ? "GİDERLER" : "EXPENSES"}</p>
+          <p className="text-sm sm:text-base font-medium text-slate-900 tracking-tight mt-0.5 truncate">
             {totalExpenseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
@@ -60,8 +60,8 @@ export const PurchaseInvoiceStats: React.FC<PurchaseInvoiceStatsProps> = ({
 
       <div className="bg-white px-3.5 py-2.5 rounded-xl border border-indigo-200/80 shadow-xs flex items-center justify-between bg-gradient-to-br from-white to-indigo-50/30">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider truncate">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</p>
-          <p className="text-sm sm:text-base font-black text-indigo-950 tracking-tight mt-0.5 truncate">
+          <p className="text-[10px] font-medium text-indigo-900 uppercase tracking-wider truncate">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</p>
+          <p className="text-sm sm:text-base font-medium text-indigo-950 tracking-tight mt-0.5 truncate">
             {totalGrandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>

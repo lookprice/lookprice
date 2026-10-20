@@ -40,8 +40,8 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
       >
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div>
-            <h3 className="text-xl font-bold text-gray-900">{t.saleDetails}</h3>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
+            <h3 className="text-xl font-medium text-gray-900">{t.saleDetails}</h3>
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mt-1">
               #{selectedSale.id} • {formatDateTR(selectedSale.created_at)}
             </p>
           </div>
@@ -62,11 +62,11 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
             <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 text-rose-900">
               <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="text-xs font-black uppercase tracking-wider text-rose-700">
+                <p className="text-xs font-medium uppercase tracking-wider text-rose-700">
                   {lang === 'tr' ? 'İptal Edilmiş Satış' : 'Cancelled Sale'}
                 </p>
-                <p className="text-xs font-bold text-rose-900">
-                  <span className="font-bold text-rose-600">{lang === 'tr' ? 'İptal Sebebi:' : 'Cancellation Reason:'} </span>
+                <p className="text-xs font-medium text-rose-900">
+                  <span className="font-medium text-rose-600">{lang === 'tr' ? 'İptal Sebebi:' : 'Cancellation Reason:'} </span>
                   {selectedSale.cancellation_reason || selectedSale.cancel_reason || selectedSale.notes || (lang === 'tr' ? 'Neden belirtilmedi' : 'No reason provided')}
                 </p>
               </div>
@@ -76,11 +76,11 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3 text-emerald-900">
               <Gift className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="text-xs font-black uppercase tracking-wider text-emerald-700">
+                <p className="text-xs font-medium uppercase tracking-wider text-emerald-700">
                   {lang === 'tr' ? 'İkram Tanımlı Sipariş / Adisyon' : 'Complimentary (Treat) Order'}
                 </p>
-                <p className="text-xs font-bold text-emerald-900">
-                  <span className="font-bold text-emerald-700">{lang === 'tr' ? 'İkram / Kişi / Kurum Bilgisi:' : 'Treat Recipient Note:'} </span>
+                <p className="text-xs font-medium text-emerald-900">
+                  <span className="font-medium text-emerald-700">{lang === 'tr' ? 'İkram / Kişi / Kurum Bilgisi:' : 'Treat Recipient Note:'} </span>
                   {selectedSale.notes || (lang === 'tr' ? 'İkram olarak uygulandı' : 'Applied as complimentary')}
                 </p>
               </div>
@@ -89,7 +89,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
           <div className="p-4 bg-indigo-600 rounded-2xl text-white">
             <div className="flex justify-between items-center">
               <div>
-                <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{t.total?.toUpperCase() || 'TOTAL'}</span>
+                <span className="text-xs font-medium opacity-80 uppercase tracking-widest">{t.total?.toUpperCase() || 'TOTAL'}</span>
                 {(() => {
                   const pm = (selectedSale.payment_method || '').trim();
                   const pmLower = pm.toLowerCase();
@@ -131,7 +131,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
                   );
                 })()}
               </div>
-              <span className="text-xl font-bold">{Number(selectedSale.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.slice(0, 3)}</span>
+              <span className="text-xl font-medium">{Number(selectedSale.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.slice(0, 3)}</span>
             </div>
           </div>
           
@@ -140,7 +140,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
             {(selectedSale.items || []).map((item: any, idx: number) => (
               <div key={idx} className="flex justify-between items-center p-3 border border-gray-100 rounded-xl">
                 <div>
-                  <p className="text-sm font-bold text-gray-900">{item.product_name}</p>
+                  <p className="text-sm font-medium text-gray-900">{item.product_name}</p>
                   <p className="text-xs text-gray-500">{item.quantity} x {Number(item.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.slice(0, 3)}</p>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">{Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.slice(0, 3)}</p>
@@ -161,7 +161,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
                         else window.location.reload();
                       } catch (e: any) { alert(e.message || "Hata"); }
                     }}
-                    className="px-3 py-2 bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-3 py-2 bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <Clock className="w-3.5 h-3.5" />
                     {lang === 'tr' ? 'Hazırlanıyor Olarak İşaretle' : 'Mark as Preparing'}
@@ -176,7 +176,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
                         else window.location.reload();
                       } catch (e: any) { alert(e.message || "Hata"); }
                     }}
-                    className="px-3 py-2 bg-indigo-100 text-indigo-800 hover:bg-indigo-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-3 py-2 bg-indigo-100 text-indigo-800 hover:bg-indigo-200 text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <Truck className="w-3.5 h-3.5" />
                     {lang === 'tr' ? 'Kargoya Verildi Yap' : 'Mark as Shipped'}
@@ -191,7 +191,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
                         else window.location.reload();
                       } catch (e: any) { alert(e.message || "Hata"); }
                     }}
-                    className="px-3 py-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-3 py-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     {lang === 'tr' ? 'Teslim Edildi Yap' : 'Mark as Delivered'}
@@ -211,13 +211,13 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
                       else window.location.reload();
                     } catch (e: any) { alert(e.message || "Hata"); }
                   }}
-                  className="px-4 py-2 bg-slate-900 text-white hover:bg-black text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  className="px-4 py-2 bg-slate-900 text-white hover:bg-black text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <FileText className="w-4 h-4 text-emerald-400" />
                   {lang === 'tr' ? 'Satış Faturasına Dönüştür' : 'Convert to Invoice'}
                 </button>
               ) : (
-                <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5">
+                <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5 text-emerald-600" />
                   {lang === 'tr' ? 'Faturalandı:' : 'Invoiced:'} #{selectedSale.sales_invoice_number}
                 </span>

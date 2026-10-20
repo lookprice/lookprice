@@ -511,7 +511,7 @@ export const ProductModal = ({
           <div className="flex items-center gap-2 min-w-0">
             {isBookstore && <BookOpen className="w-4 h-4 text-amber-400 shrink-0" />}
             <div className="min-w-0">
-              <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white flex items-center gap-1.5 truncate">
+              <h3 className="text-xs sm:text-sm font-medium uppercase tracking-wider text-white flex items-center gap-1.5 truncate">
                 <span className="truncate">
                   {editingProduct
                     ? isTr
@@ -522,7 +522,7 @@ export const ProductModal = ({
                     : isBookstore ? "Add Book" : "New Product"}
                 </span>
                 {hasVariants && (
-                  <span className="px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 text-[9px] font-bold rounded border border-indigo-500/30 shrink-0">
+                  <span className="px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 text-[9px] font-medium rounded border border-indigo-500/30 shrink-0">
                     Varyantlı
                   </span>
                 )}
@@ -539,7 +539,7 @@ export const ProductModal = ({
               <button
                 type="button"
                 onClick={() => setShowMovementModal(true)}
-                className="px-2 sm:px-2.5 py-1 bg-indigo-600/40 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-400/30 rounded-lg text-[10px] sm:text-[11px] font-bold flex items-center gap-1 transition-all shadow-xs cursor-pointer"
+                className="px-2 sm:px-2.5 py-1 bg-indigo-600/40 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-400/30 rounded-lg text-[10px] sm:text-[11px] font-medium flex items-center gap-1 transition-all shadow-xs cursor-pointer"
                 title={isTr ? "Ürün Hareketleri & Ekstresi" : "Product Movement & Statement"}
               >
                 <History className="h-3.5 w-3.5" />
@@ -570,7 +570,7 @@ export const ProductModal = ({
           <button
             type="button"
             onClick={() => setActiveTab('general')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
               activeTab === 'general' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
             }`}
           >
@@ -579,7 +579,7 @@ export const ProductModal = ({
           <button
             type="button"
             onClick={() => setActiveTab('variants')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
               activeTab === 'variants' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
             }`}
           >
@@ -604,18 +604,18 @@ export const ProductModal = ({
                 {/* 1. TEMEL KİMLİK & KODLAR */}
                 <div className="order-1 lg:order-none p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-1">
-                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="text-[10px] font-medium text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
                       <span>{isTr ? (isBookstore ? "Eser Kimliği & ISBN" : "Temel Kimlik & Barkod") : "Identity & Barcode"}</span>
                     </span>
-                    <span className="text-[9px] font-bold text-slate-500">
+                    <span className="text-[9px] font-medium text-slate-500">
                       {isBookstore ? "ISBN Standart" : "EAN-13 Standart"}
                     </span>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2 items-start">
                     <div className="space-y-0.5 flex-1 w-full min-w-0">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? (isBookstore ? "Eser Adı *" : "Ürün Adı *") : "Product Name *"}
                       </label>
                       <input
@@ -623,13 +623,13 @@ export const ProductModal = ({
                         name="name"
                         required
                         placeholder={isTr ? (isBookstore ? "örn: Suç ve Ceza, İnce Memed" : "Ürün Adı") : "Product name"}
-                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
                         defaultValue={editingProduct?.name || ""}
                       />
                     </div>
 
                     <div className="space-y-0.5 w-full sm:w-44 sm:max-w-[170px] shrink-0">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr 
                           ? (hasVariants ? "Barkod" : isBookstore ? "Barkod / ISBN *" : `Barkod${isCafeRestaurant ? " (İsteğe)" : " *"}`) 
                           : (hasVariants ? "Barcode" : isBookstore ? "Barcode / ISBN *" : `Barcode${isCafeRestaurant ? " (Opt)" : " *"}`)}
@@ -640,7 +640,7 @@ export const ProductModal = ({
                         required={!hasVariants && !isCafeRestaurant}
                         disabled={hasVariants}
                         placeholder={hasVariants ? (isTr ? "Varyantta" : "In variants") : (isTr ? (isCafeRestaurant ? "Oto boş bırak..." : isBookstore ? "örn: 978-605-241-607-5" : "Barkod") : "Barcode")}
-                        className={`w-full px-2 py-1 border rounded-lg transition-all font-mono font-bold text-xs h-7.5 outline-none ${
+                        className={`w-full px-2 py-1 border rounded-lg transition-all font-mono font-medium text-xs h-7.5 outline-none ${
                           hasVariants 
                             ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-80" 
                             : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600 shadow-2xs"
@@ -652,7 +652,7 @@ export const ProductModal = ({
                           type="button"
                           onClick={handleAutoLookup}
                           disabled={lookupLoading}
-                          className="mt-1 w-full py-1 px-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-md text-[9px] font-black flex items-center justify-center gap-1 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                          className="mt-1 w-full py-1 px-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-md text-[9px] font-medium flex items-center justify-center gap-1 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
                           title="Google Books ile ISBN sorgula ve bilgileri doldur"
                         >
                           {lookupLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5 text-amber-300" />}
@@ -662,14 +662,14 @@ export const ProductModal = ({
                     </div>
 
                     <div className="space-y-0.5 w-full sm:w-32 sm:max-w-[120px] shrink-0">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? "Kod / SKU" : "SKU / Code"}
                       </label>
                       <input
                         type="text"
                         name="product_code"
                         placeholder={isTr ? "SKU-123" : "SKU-123"}
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-mono font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-mono font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
                         defaultValue={editingProduct?.product_code || editingProduct?.sku || ""}
                       />
                     </div>
@@ -680,27 +680,27 @@ export const ProductModal = ({
                     {/* Eser Sahibi / Yazar (Bookstore ise öncelikli) */}
                     {isBookstore ? (
                       <div className="space-y-0.5">
-                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                           {isTr ? "Yazar *" : "Author *"}
                         </label>
                         <input
                           type="text"
                           name="author"
                           placeholder={isTr ? "örn: Dostoyevski" : "Author"}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
                           defaultValue={editingProduct?.author || (editingProduct as any)?.sector_data?.author || ""}
                         />
                       </div>
                     ) : (
                       <div className="space-y-0.5">
-                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                           {isTr ? "Marka" : "Brand"}
                         </label>
                         <input
                           type="text"
                           name="brand"
                           placeholder={isTr ? "örn: Apple, Nike" : "Brand"}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
                           defaultValue={editingProduct?.brand || ""}
                         />
                       </div>
@@ -709,25 +709,25 @@ export const ProductModal = ({
                     {/* Yayınevi (Bookstore) / Ürün Tipi */}
                     {isBookstore ? (
                       <div className="space-y-0.5">
-                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                           {isTr ? "Yayınevi *" : "Publisher *"}
                         </label>
                         <input
                           type="text"
                           name="brand"
                           placeholder={isTr ? "örn: Can Yayınları" : "Publisher"}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
                           defaultValue={editingProduct?.brand || (editingProduct as any)?.sector_data?.publisher || ""}
                         />
                       </div>
                     ) : (
                       <div className="space-y-0.5">
-                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                           {isTr ? "Ürün Tipi" : "Type"}
                         </label>
                         <select
                           name="product_type"
-                          className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                          className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
                           value={productType}
                           onChange={(e) => setProductType(e.target.value)}
                         >
@@ -740,7 +740,7 @@ export const ProductModal = ({
                     {/* Kategori */}
                     <div className="space-y-0.5">
                       <div className="flex justify-between items-center">
-                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                           {isTr ? "Kategori" : "Category"}
                         </label>
                         {categoriesList.length > 0 && (
@@ -757,7 +757,7 @@ export const ProductModal = ({
                                 setIsNewSubCategoryMode(false);
                               }
                             }}
-                            className="text-[9px] font-bold text-indigo-700 hover:text-indigo-900 cursor-pointer border-0 outline-none"
+                            className="text-[9px] font-medium text-indigo-700 hover:text-indigo-900 cursor-pointer border-0 outline-none"
                           >
                             {isNewCategoryMode ? (isTr ? "Listeden" : "List") : (isTr ? "+ Yeni" : "+ New")}
                           </button>
@@ -768,7 +768,7 @@ export const ProductModal = ({
                           type="text"
                           name="category"
                           placeholder={isTr ? (isBookstore ? "örn: Edebiyat" : "Kategori") : "Category"}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
                           value={selectedCategory}
                           onChange={(e) => handleCategoryTextChange(e.target.value)}
                         />
@@ -777,7 +777,7 @@ export const ProductModal = ({
                           name="category"
                           value={selectedCategory}
                           onChange={(e) => handleCategoryChange(e.target.value)}
-                          className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                          className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
                         >
                           <option value="">{isTr ? "-- Kategori Seçin --" : "-- Select --"}</option>
                           {categoriesList.map((cat) => (
@@ -790,7 +790,7 @@ export const ProductModal = ({
                     {/* Alt Kategori */}
                     <div className="space-y-0.5">
                       <div className="flex justify-between items-center">
-                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                           {isTr ? "Alt Kategori" : "Sub Category"}
                         </label>
                         {!isNewCategoryMode && selectedCategory && (subCategoriesMap.get(selectedCategory)?.size || 0) > 0 && (
@@ -800,7 +800,7 @@ export const ProductModal = ({
                               setIsNewSubCategoryMode(!isNewSubCategoryMode);
                               if (isNewSubCategoryMode) setSelectedSubCategory("");
                             }}
-                            className="text-[9px] font-bold text-indigo-700 hover:text-indigo-900 cursor-pointer border-0 outline-none"
+                            className="text-[9px] font-medium text-indigo-700 hover:text-indigo-900 cursor-pointer border-0 outline-none"
                           >
                             {isNewSubCategoryMode ? (isTr ? "Listeden" : "List") : (isTr ? "+ Yeni" : "+ New")}
                           </button>
@@ -811,7 +811,7 @@ export const ProductModal = ({
                           type="text"
                           name="sub_category"
                           placeholder={isTr ? (isBookstore ? "örn: Dünya Klasikleri" : "Alt Kategori") : "Sub Category"}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
                           value={selectedSubCategory}
                           onChange={(e) => handleSubCategoryChange(e.target.value)}
                         />
@@ -820,7 +820,7 @@ export const ProductModal = ({
                           name="sub_category"
                           value={selectedSubCategory}
                           onChange={(e) => handleSubCategoryChange(e.target.value)}
-                          className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                          className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
                         >
                           <option value="">{isTr ? "-- Alt Kategori --" : "-- Select --"}</option>
                           {Array.from(subCategoriesMap.get(selectedCategory) || []).map((sub) => (
@@ -848,7 +848,7 @@ export const ProductModal = ({
                 {/* 3. AÇIKLAMA / ARKA KAPAK YAZISI */}
                 <div className="order-7 lg:order-none p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-0.5">
-                    <label className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
+                    <label className="text-[10px] font-medium text-slate-800 uppercase tracking-wider">
                       {isBookstore ? (isTr ? "Arka Kapak Tanıtım Yazısı" : "Book Synopsis") : (isTr ? "Açıklama" : "Description")}
                     </label>
                   </div>
@@ -868,7 +868,7 @@ export const ProductModal = ({
                   <div className="order-9 lg:order-none p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
                     <div className="flex items-center gap-1.5 border-b border-slate-200 pb-1">
                       <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                      <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
+                      <span className="text-[10px] font-medium text-slate-800 uppercase tracking-wider">
                         {isTr ? "PAZARYERİ & NİTELİKLER" : "MARKETPLACE & ATTRIBUTES"}
                       </span>
                     </div>
@@ -899,7 +899,7 @@ export const ProductModal = ({
                         type="button"
                         onClick={handleDirectPublishToHb}
                         disabled={isPublishingToHb}
-                        className="w-full py-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border-0"
+                        className="w-full py-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-medium text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border-0"
                       >
                         <Sparkles className="h-3 w-3" />
                         <span>{isPublishingToHb ? "Hepsiburada'ya Gönderiliyor..." : "Hepsiburada'da Satışa Aç"}</span>
@@ -916,17 +916,17 @@ export const ProductModal = ({
                       <div className="flex justify-between items-center border-b border-orange-200 pb-1.5">
                         <div className="flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-orange-600"></span>
-                          <span className="text-[10px] font-black text-orange-950 uppercase tracking-wider">
+                          <span className="text-[10px] font-medium text-orange-950 uppercase tracking-wider">
                             {isTr ? "Malzeme Reçetesi (BOM)" : "Recipe / Bill of Materials (BOM)"}
                           </span>
-                          <span className="text-[9px] font-bold text-orange-700 bg-orange-100/80 px-1.5 py-0.2 rounded">
+                          <span className="text-[9px] font-medium text-orange-700 bg-orange-100/80 px-1.5 py-0.2 rounded">
                             {recipeItems.length} {isTr ? "Kalem" : "Items"}
                           </span>
                         </div>
                         <button
                           type="button"
                           onClick={() => setShowIngredientSelector(!showIngredientSelector)}
-                          className="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold text-[10px] uppercase flex items-center gap-1 transition-all shadow-2xs cursor-pointer active:scale-95"
+                          className="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-[10px] uppercase flex items-center gap-1 transition-all shadow-2xs cursor-pointer active:scale-95"
                         >
                           <Plus className="h-3 w-3" />
                           <span>{isTr ? "Malzeme Ekle" : "Add Ingredient"}</span>
@@ -941,7 +941,7 @@ export const ProductModal = ({
                               type="text"
                               autoFocus
                               placeholder={isTr ? "Malzeme adı veya barkod ile ara..." : "Search ingredient by name or barcode..."}
-                              className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-orange-500"
+                              className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:outline-none focus:border-orange-500"
                               value={ingredientSearch}
                               onChange={(e) => setIngredientSearch(e.target.value)}
                             />
@@ -968,13 +968,13 @@ export const ProductModal = ({
                                     setShowIngredientSelector(false);
                                     setIngredientSearch("");
                                   }}
-                                  className="w-full text-left px-2.5 py-1.5 hover:bg-orange-50/80 rounded-lg text-[11px] font-bold text-slate-800 flex justify-between items-center cursor-pointer transition-colors"
+                                  className="w-full text-left px-2.5 py-1.5 hover:bg-orange-50/80 rounded-lg text-[11px] font-medium text-slate-800 flex justify-between items-center cursor-pointer transition-colors"
                                 >
                                   <div className="min-w-0 pr-2">
                                     <span className="truncate block">{p.name}</span>
                                     <span className="text-[9px] text-slate-400 font-medium">Stok: {p.stock_quantity || 0} {p.unit || 'Adet'}</span>
                                   </div>
-                                  <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-700 font-mono font-bold rounded-md shrink-0 border border-slate-200">{p.unit || 'Adet'}</span>
+                                  <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-700 font-mono font-medium rounded-md shrink-0 border border-slate-200">{p.unit || 'Adet'}</span>
                                 </button>
                               ))}
                           </div>
@@ -982,7 +982,7 @@ export const ProductModal = ({
                       )}
 
                       {recipeItems.length === 0 ? (
-                        <div className="py-3 text-center text-slate-400 text-[11px] font-bold border border-dashed border-orange-200 rounded-lg bg-white/60">
+                        <div className="py-3 text-center text-slate-400 text-[11px] font-medium border border-dashed border-orange-200 rounded-lg bg-white/60">
                           {isTr ? "Reçeteye henüz malzeme eklenmedi. (Yukarıdan 'Malzeme Ekle' butonunu kullanın)" : "No recipe ingredients added yet."}
                         </div>
                       ) : (
@@ -990,7 +990,7 @@ export const ProductModal = ({
                           {recipeItems.map((item, idx) => (
                             <div key={idx} className="flex items-center gap-2 p-1.5 bg-white border border-orange-200 rounded-lg shadow-2xs">
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-slate-900 truncate" title={item.ingredient_name}>{item.ingredient_name}</p>
+                                <p className="text-xs font-medium text-slate-900 truncate" title={item.ingredient_name}>{item.ingredient_name}</p>
                                 <p className="text-[9px] text-slate-400 font-medium">
                                   {isTr ? 'Girdi ID' : 'ID'}: #{item.ingredient_id}
                                 </p>
@@ -1003,7 +1003,7 @@ export const ProductModal = ({
                                   step="any"
                                   min="0.001"
                                   placeholder="Miktar"
-                                  className="w-16 sm:w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs font-mono font-bold text-slate-900 text-center focus:border-orange-500 outline-none"
+                                  className="w-16 sm:w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs font-mono font-medium text-slate-900 text-center focus:border-orange-500 outline-none"
                                   value={item.amount || item.quantity || ""}
                                   onChange={(e) => {
                                     const newItems = [...recipeItems];
@@ -1022,7 +1022,7 @@ export const ProductModal = ({
                                     newItems[idx].ingredient_unit = e.target.value;
                                     setRecipeItems(newItems);
                                   }}
-                                  className="w-20 sm:w-24 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-bold text-slate-800 focus:border-orange-500 outline-none cursor-pointer"
+                                  className="w-20 sm:w-24 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium text-slate-800 focus:border-orange-500 outline-none cursor-pointer"
                                 >
                                   <option value="ml">ml</option>
                                   <option value="cl">cl</option>
@@ -1062,11 +1062,11 @@ export const ProductModal = ({
                     {/* 2. BESİN DEĞERLERİ & ALERJENLER */}
                     <div className="p-3 bg-emerald-50/40 rounded-xl border border-emerald-200/80 space-y-2.5">
                       <div className="border-b border-emerald-200 pb-1.5 flex items-center justify-between">
-                        <span className="text-[10px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="text-[10px] font-medium text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                           <span>{isTr ? "Besin Değerleri & Porsiyon" : "Nutritional Values & Portion"}</span>
                         </span>
-                        <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded">
+                        <span className="text-[9px] font-medium text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded">
                           HoReCa Standart
                         </span>
                       </div>
@@ -1075,7 +1075,7 @@ export const ProductModal = ({
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {/* Kalori */}
                         <div className="space-y-0.5">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                          <label className="text-[9px] font-medium text-slate-600 uppercase tracking-wider block">
                             {isTr ? "Kalori (kcal)" : "Calories (kcal)"}
                           </label>
                           <input
@@ -1084,13 +1084,13 @@ export const ProductModal = ({
                             value={calories}
                             onChange={(e) => setCalories(e.target.value)}
                             placeholder="örn: 320"
-                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:border-emerald-600 outline-none"
                           />
                         </div>
 
                         {/* Porsiyon */}
                         <div className="space-y-0.5">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                          <label className="text-[9px] font-medium text-slate-600 uppercase tracking-wider block">
                             {isTr ? "Porsiyon Ölçüsü" : "Portion Size"}
                           </label>
                           <input
@@ -1099,13 +1099,13 @@ export const ProductModal = ({
                             value={portionSize}
                             onChange={(e) => setPortionSize(e.target.value)}
                             placeholder={isTr ? "örn: 250 gr / 330 ml" : "e.g: 250 g / 330 ml"}
-                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:border-emerald-600 outline-none"
                           />
                         </div>
 
                         {/* Hazırlık Süresi */}
                         <div className="space-y-0.5">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                          <label className="text-[9px] font-medium text-slate-600 uppercase tracking-wider block">
                             {isTr ? "Hazırlık (Dk)" : "Prep (Min)"}
                           </label>
                           <input
@@ -1114,13 +1114,13 @@ export const ProductModal = ({
                             value={prepTimeMin}
                             onChange={(e) => setPrepTimeMin(e.target.value)}
                             placeholder="örn: 12"
-                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:border-emerald-600 outline-none"
                           />
                         </div>
 
                         {/* Protein */}
                         <div className="space-y-0.5">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                          <label className="text-[9px] font-medium text-slate-600 uppercase tracking-wider block">
                             {isTr ? "Protein (g)" : "Protein (g)"}
                           </label>
                           <input
@@ -1130,13 +1130,13 @@ export const ProductModal = ({
                             value={protein}
                             onChange={(e) => setProtein(e.target.value)}
                             placeholder="örn: 18.5"
-                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:border-emerald-600 outline-none"
                           />
                         </div>
 
                         {/* Karbonhidrat */}
                         <div className="space-y-0.5">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                          <label className="text-[9px] font-medium text-slate-600 uppercase tracking-wider block">
                             {isTr ? "Karbonhidrat (g)" : "Carbs (g)"}
                           </label>
                           <input
@@ -1146,13 +1146,13 @@ export const ProductModal = ({
                             value={carbs}
                             onChange={(e) => setCarbs(e.target.value)}
                             placeholder="örn: 42.0"
-                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:border-emerald-600 outline-none"
                           />
                         </div>
 
                         {/* Yağ */}
                         <div className="space-y-0.5">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                          <label className="text-[9px] font-medium text-slate-600 uppercase tracking-wider block">
                             {isTr ? "Yağ (g)" : "Fat (g)"}
                           </label>
                           <input
@@ -1162,13 +1162,13 @@ export const ProductModal = ({
                             value={fat}
                             onChange={(e) => setFat(e.target.value)}
                             placeholder="örn: 11.2"
-                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:border-emerald-600 outline-none"
                           />
                         </div>
 
                         {/* Şeker */}
                         <div className="space-y-0.5">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                          <label className="text-[9px] font-medium text-slate-600 uppercase tracking-wider block">
                             {isTr ? "Şeker (g)" : "Sugar (g)"}
                           </label>
                           <input
@@ -1178,13 +1178,13 @@ export const ProductModal = ({
                             value={sugar}
                             onChange={(e) => setSugar(e.target.value)}
                             placeholder="örn: 4.5"
-                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:border-emerald-600 outline-none"
                           />
                         </div>
 
                         {/* Lif */}
                         <div className="space-y-0.5">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                          <label className="text-[9px] font-medium text-slate-600 uppercase tracking-wider block">
                             {isTr ? "Lif (g)" : "Fiber (g)"}
                           </label>
                           <input
@@ -1194,7 +1194,7 @@ export const ProductModal = ({
                             value={fiber}
                             onChange={(e) => setFiber(e.target.value)}
                             placeholder="örn: 3.0"
-                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:border-emerald-600 outline-none"
                           />
                         </div>
                       </div>
@@ -1202,10 +1202,10 @@ export const ProductModal = ({
                       {/* 3. ALERJENLER & DİYET ETİKETLERİ */}
                       <div className="pt-2 border-t border-emerald-100 space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-[9px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                          <label className="text-[9px] font-medium text-slate-700 uppercase tracking-wider flex items-center gap-1">
                             <span>⚠️ {isTr ? "Alerjen & Diyet Seçimi" : "Allergens & Dietary Flags"}</span>
                           </label>
-                          <span className="text-[9px] text-slate-400 font-bold">
+                          <span className="text-[9px] text-slate-400 font-medium">
                             {selectedAllergens.length > 0 ? `${selectedAllergens.length} ${isTr ? "Seçildi" : "Selected"}` : (isTr ? "Alerjen Yok" : "None")}
                           </span>
                         </div>
@@ -1241,7 +1241,7 @@ export const ProductModal = ({
                                     setSelectedAllergens([...selectedAllergens, alg.id]);
                                   }
                                 }}
-                                className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer border ${
+                                className={`px-2 py-1 rounded-lg text-[10px] font-medium flex items-center gap-1 transition-all cursor-pointer border ${
                                   isSelected 
                                     ? "bg-rose-600 text-white border-rose-600 shadow-2xs scale-[1.02]" 
                                     : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
@@ -1256,7 +1256,7 @@ export const ProductModal = ({
 
                         {/* Alerjen & Çapraz Bulaşma Uyarısı (Serbest Metin) */}
                         <div className="space-y-0.5 pt-1">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                          <label className="text-[9px] font-medium text-slate-600 uppercase tracking-wider block">
                             {isTr ? "Alerjen & Çapraz Bulaşma Açıklaması / Uyarısı" : "Allergen & Cross-Contamination Note"}
                           </label>
                           <input
@@ -1265,7 +1265,7 @@ export const ProductModal = ({
                             value={allergenWarning}
                             onChange={(e) => setAllergenWarning(e.target.value)}
                             placeholder={isTr ? "örn: Eser miktarda yer fıstığı, ceviz ve susam içerebilir." : "e.g. May contain traces of peanuts and sesame."}
-                            className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                            className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:border-emerald-600 outline-none"
                           />
                         </div>
                       </div>
@@ -1278,7 +1278,7 @@ export const ProductModal = ({
                 {/* VARYANT MATRİSİ AÇIKSA GÖSTERİMİ */}
                 {hasVariants && (
                   <div className="order-5 lg:order-none p-3 bg-indigo-50/40 rounded-xl border border-indigo-200 space-y-2">
-                    <span className="text-[10px] font-black text-indigo-950 uppercase tracking-wider block">
+                    <span className="text-[10px] font-medium text-indigo-950 uppercase tracking-wider block">
                       {isTr ? "Varyant ve Ebat Kırılımları" : "Variant Attributes Matrix"}
                     </span>
                     <VariantMatrixManager
@@ -1308,7 +1308,7 @@ export const ProductModal = ({
                 {/* 1. FİYATLANDIRMA & MALİYETLER */}
                 <div className="order-2 lg:order-none p-2 bg-emerald-50/30 rounded-xl border border-emerald-100 space-y-1.5">
                   <div className="flex items-center justify-between border-b border-emerald-100 pb-0.5">
-                    <span className="text-[10px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="text-[10px] font-medium text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                       <span>{isTr ? "Fiyat & Vergi" : "Pricing & VAT"}</span>
                     </span>
@@ -1317,7 +1317,7 @@ export const ProductModal = ({
                   <div className="grid grid-cols-2 gap-2">
                     {/* Satış Fiyatı + Para Birimi */}
                     <div className="space-y-0.5 col-span-2">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? `Satış Fiyatı${hasVariants ? "" : " *"}` : `Price${hasVariants ? "" : " *"}`}
                       </label>
                       <div className="flex items-center">
@@ -1326,12 +1326,12 @@ export const ProductModal = ({
                           name="price"
                           required={!hasVariants}
                           placeholder={hasVariants ? (isTr ? "Varyantta" : "In variants") : "0.00"}
-                          className="flex-1 min-w-0 px-2.5 py-1 bg-white border border-r-0 border-slate-200 rounded-l-lg focus:border-indigo-600 font-black text-emerald-700 text-xs sm:text-sm h-7.5 shadow-2xs outline-none"
+                          className="flex-1 min-w-0 px-2.5 py-1 bg-white border border-r-0 border-slate-200 rounded-l-lg focus:border-indigo-600 font-medium text-emerald-700 text-xs sm:text-sm h-7.5 shadow-2xs outline-none"
                           defaultValue={editingProduct?.price || ""}
                         />
                         <select
                           name="currency"
-                          className="w-18 shrink-0 px-1 py-1 bg-slate-100 border border-slate-200 rounded-r-lg font-bold text-slate-900 text-xs text-center cursor-pointer h-7.5 outline-none"
+                          className="w-18 shrink-0 px-1 py-1 bg-slate-100 border border-slate-200 rounded-r-lg font-medium text-slate-900 text-xs text-center cursor-pointer h-7.5 outline-none"
                           defaultValue={editingProduct?.currency || branding?.default_currency || "TRY"}
                         >
                           <option value="TRY">TRY (₺)</option>
@@ -1344,34 +1344,34 @@ export const ProductModal = ({
 
                     {/* Eski Fiyat & 2. Fiyat */}
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? "Eski Fiyat" : "Old Price"}
                       </label>
                       <input
                         type="text"
                         name="old_price"
                         placeholder="0.00"
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
                         defaultValue={editingProduct?.old_price || ""}
                       />
                     </div>
 
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? "2. Fiyat" : "2nd Price"}
                       </label>
                       <input
                         type="text"
                         name="price_2"
                         placeholder="0.00"
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
                         defaultValue={editingProduct?.price_2 || ""}
                       />
                     </div>
 
                     {/* Maliyet & KDV */}
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? "Maliyet" : "Cost"}
                       </label>
                       <div className="flex items-center">
@@ -1379,12 +1379,12 @@ export const ProductModal = ({
                           type="text"
                           name="cost_price"
                           placeholder="0.00"
-                          className="flex-1 min-w-0 px-2 py-1 bg-white border border-r-0 border-slate-200 rounded-l-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 outline-none"
+                          className="flex-1 min-w-0 px-2 py-1 bg-white border border-r-0 border-slate-200 rounded-l-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 outline-none"
                           defaultValue={editingProduct?.cost_price || ""}
                         />
                         <select
                           name="cost_currency"
-                          className="w-16 shrink-0 px-1 py-1 bg-slate-100 border border-slate-200 rounded-r-lg font-bold text-slate-900 text-[11px] text-center cursor-pointer h-7.5 outline-none"
+                          className="w-16 shrink-0 px-1 py-1 bg-slate-100 border border-slate-200 rounded-r-lg font-medium text-slate-900 text-[11px] text-center cursor-pointer h-7.5 outline-none"
                           defaultValue={editingProduct?.cost_currency || branding?.default_currency || "TRY"}
                         >
                           <option value="TRY">TRY</option>
@@ -1396,12 +1396,12 @@ export const ProductModal = ({
                     </div>
 
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? "KDV Oranı" : "VAT Rate"}
                       </label>
                       <select
                         name="tax_rate"
-                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
                         defaultValue={editingProduct?.tax_rate !== undefined ? String(editingProduct.tax_rate) : "20"}
                       >
                         <option value="20">%20 (Genel)</option>
@@ -1421,14 +1421,14 @@ export const ProductModal = ({
                         <div className="p-1 bg-indigo-600 text-white rounded-md shadow-2xs">
                           <TrendingUp className="w-3.5 h-3.5" />
                         </div>
-                        <span className="text-[11px] font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-tight">
+                        <span className="text-[11px] font-medium text-indigo-950 dark:text-indigo-200 uppercase tracking-tight">
                           {isTr ? "📊 Canlı Piyasa Fiyat Analizi" : "📊 Live Market Price Analysis"}
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => setMarketPrices(null)}
-                        className="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        className="text-[10px] font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                         title={isTr ? "Kapat" : "Close"}
                       >
                         ✕
@@ -1437,10 +1437,10 @@ export const ProductModal = ({
 
                     <div className="grid grid-cols-3 gap-1.5 text-center">
                       <div className="p-1.5 bg-white/90 dark:bg-slate-900 rounded-lg border border-emerald-200 dark:border-emerald-900/60">
-                        <span className="text-[9px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-tighter block">
+                        <span className="text-[9px] font-medium text-emerald-800 dark:text-emerald-300 uppercase tracking-tighter block">
                           {isTr ? "En Düşük" : "Min Price"}
                         </span>
-                        <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 block">
+                        <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400 block">
                           ₺{marketPrices.min_price?.toFixed(2)}
                         </span>
                         <button
@@ -1453,17 +1453,17 @@ export const ProductModal = ({
                               el.dispatchEvent(new Event('change', { bubbles: true }));
                             }
                           }}
-                          className="mt-1 w-full py-0.5 px-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold tracking-tight cursor-pointer transition-colors"
+                          className="mt-1 w-full py-0.5 px-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-medium tracking-tight cursor-pointer transition-colors"
                         >
                           {isTr ? "Uygula" : "Apply"}
                         </button>
                       </div>
 
                       <div className="p-1.5 bg-white/90 dark:bg-slate-900 rounded-lg border border-indigo-200 dark:border-indigo-900/60">
-                        <span className="text-[9px] font-black text-indigo-800 dark:text-indigo-300 uppercase tracking-tighter block">
+                        <span className="text-[9px] font-medium text-indigo-800 dark:text-indigo-300 uppercase tracking-tighter block">
                           {isTr ? "Piyasa Ort." : "Avg Price"}
                         </span>
-                        <span className="text-xs font-black text-indigo-700 dark:text-indigo-400 block">
+                        <span className="text-xs font-medium text-indigo-700 dark:text-indigo-400 block">
                           ₺{marketPrices.avg_price?.toFixed(2)}
                         </span>
                         <button
@@ -1476,17 +1476,17 @@ export const ProductModal = ({
                               el.dispatchEvent(new Event('change', { bubbles: true }));
                             }
                           }}
-                          className="mt-1 w-full py-0.5 px-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-bold tracking-tight cursor-pointer transition-colors"
+                          className="mt-1 w-full py-0.5 px-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-medium tracking-tight cursor-pointer transition-colors"
                         >
                           {isTr ? "Uygula" : "Apply"}
                         </button>
                       </div>
 
                       <div className="p-1.5 bg-white/90 dark:bg-slate-900 rounded-lg border border-purple-200 dark:border-purple-900/60">
-                        <span className="text-[9px] font-black text-purple-800 dark:text-purple-300 uppercase tracking-tighter block">
+                        <span className="text-[9px] font-medium text-purple-800 dark:text-purple-300 uppercase tracking-tighter block">
                           {isTr ? "Etiket / Liste" : "List Price"}
                         </span>
-                        <span className="text-xs font-black text-purple-700 dark:text-purple-400 block">
+                        <span className="text-xs font-medium text-purple-700 dark:text-purple-400 block">
                           ₺{(marketPrices.suggested_price || marketPrices.list_price)?.toFixed(2)}
                         </span>
                         <button
@@ -1505,7 +1505,7 @@ export const ProductModal = ({
                               oldEl.dispatchEvent(new Event('change', { bubbles: true }));
                             }
                           }}
-                          className="mt-1 w-full py-0.5 px-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-[9px] font-bold tracking-tight cursor-pointer transition-colors"
+                          className="mt-1 w-full py-0.5 px-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-[9px] font-medium tracking-tight cursor-pointer transition-colors"
                         >
                           {isTr ? "Uygula" : "Apply"}
                         </button>
@@ -1515,7 +1515,7 @@ export const ProductModal = ({
                     {/* Sources List */}
                     {marketPrices.sources && marketPrices.sources.length > 0 && (
                       <div className="space-y-1 pt-1 border-t border-indigo-100 dark:border-indigo-900/40">
-                        <span className="text-[9px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
+                        <span className="text-[9px] font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
                           {isTr ? "Taranan Kaynaklar & Canlı Fiyatlar:" : "Scraped Sources:"}
                         </span>
                         <div className="max-h-28 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
@@ -1523,11 +1523,11 @@ export const ProductModal = ({
                             <div key={idx} className="flex items-center justify-between text-[10px] p-1.5 bg-white/80 dark:bg-slate-900/80 rounded-md border border-slate-100 dark:border-slate-800">
                               <div className="flex items-center gap-1.5 truncate">
                                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.is_exact_match ? 'bg-emerald-500' : 'bg-indigo-400'}`}></span>
-                                <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{s.source_name}</span>
+                                <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{s.source_name}</span>
                                 {s.publisher && <span className="text-[9px] text-slate-500 truncate">({s.publisher})</span>}
                               </div>
                               <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="font-black text-indigo-700 dark:text-indigo-300">{s.price_formatted || `₺${s.price?.toFixed(2)}`}</span>
+                                <span className="font-medium text-indigo-700 dark:text-indigo-300">{s.price_formatted || `₺${s.price?.toFixed(2)}`}</span>
                                 {s.url && (
                                   <a
                                     href={s.url}
@@ -1551,7 +1551,7 @@ export const ProductModal = ({
                 {/* 2. STOK, BİRİM & KARGO */}
                 <div className="order-3 lg:order-none p-2 bg-amber-50/30 rounded-xl border border-amber-100 space-y-1.5">
                   <div className="flex items-center justify-between border-b border-amber-100 pb-0.5">
-                    <span className="text-[10px] font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="text-[10px] font-medium text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
                       <span>{isTr ? "Stok, Birim & Kargo" : "Stock & Shipping"}</span>
                     </span>
@@ -1559,12 +1559,12 @@ export const ProductModal = ({
 
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? "Birim *" : "Unit *"}
                       </label>
                       <select
                         name="unit"
-                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7 outline-none cursor-pointer"
+                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7 outline-none cursor-pointer"
                         defaultValue={editingProduct?.unit || (isBookstore ? "Adet" : "Adet")}
                       >
                         <option value="Adet">{isTr ? "Adet" : "Pieces"}</option>
@@ -1577,7 +1577,7 @@ export const ProductModal = ({
                     </div>
 
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? "Stok Miktarı" : "Stock"}
                       </label>
                       <input
@@ -1586,9 +1586,9 @@ export const ProductModal = ({
                         readOnly={hasVariants}
                         disabled={hasVariants}
                         placeholder="0"
-                        className={`w-full px-2 py-0.5 border rounded-lg font-bold text-xs h-7 outline-none ${
+                        className={`w-full px-2 py-0.5 border rounded-lg font-medium text-xs h-7 outline-none ${
                           hasVariants 
-                            ? "bg-slate-100 text-slate-700 border-slate-200 cursor-not-allowed font-black" 
+                            ? "bg-slate-100 text-slate-700 border-slate-200 cursor-not-allowed font-medium" 
                             : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600"
                         }`}
                         value={hasVariants ? variants.reduce((acc, curr) => acc + (parseInt(curr.stock_quantity) || 0), 0) : undefined}
@@ -1597,25 +1597,25 @@ export const ProductModal = ({
                     </div>
 
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? "Kritik Stok" : "Min Stock"}
                       </label>
                       <input
                         type="number"
                         name="min_stock_level"
                         placeholder="5"
-                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7 outline-none"
+                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7 outline-none"
                         defaultValue={editingProduct?.min_stock_level !== undefined ? String(editingProduct.min_stock_level) : "5"}
                       />
                     </div>
 
                     <div className="space-y-0.5 col-span-3">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
                         {isTr ? "Kargo Profili" : "Shipping Profile"}
                       </label>
                       <select
                         name="shipping_profile_id"
-                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7 outline-none cursor-pointer"
+                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-medium text-slate-900 text-xs h-7 outline-none cursor-pointer"
                         defaultValue={editingProduct?.shipping_profile_id || ""}
                       >
                         <option value="">{isTr ? "Varsayılan Kargo Profili" : "Default Profile"}</option>
@@ -1632,7 +1632,7 @@ export const ProductModal = ({
                 {/* 3. GÖRSEL, ETİKETLER & VİTRİN ANAHTARLARI */}
                 <div className="order-4 lg:order-none p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-0.5">
-                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="text-[10px] font-medium text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
                       <span>{isTr ? (isBookstore ? "Kapak Görseli" : "Görsel & Galeri") : "Image & Gallery"}</span>
                     </span>
@@ -1657,7 +1657,7 @@ export const ProductModal = ({
                             }}
                           />
                         ) : (
-                          <span className="text-[8px] text-slate-400 font-bold">{isTr ? "Yok" : "None"}</span>
+                          <span className="text-[8px] text-slate-400 font-medium">{isTr ? "Yok" : "None"}</span>
                         )}
                       </div>
                       <input
@@ -1691,7 +1691,7 @@ export const ProductModal = ({
                     {/* Ekstra Ürün Görselleri (Çoklu Resim Linki veya Yükleme) */}
                     <div className="p-1.5 bg-white rounded-lg border border-slate-200 space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1">
+                        <span className="text-[10px] font-medium text-indigo-950 uppercase tracking-wider flex items-center gap-1">
                           <Camera className="w-3 h-3 text-indigo-600" />
                           <span>{isTr ? `Ekstra Görseller (${productExtraImages.length})` : `Extra Images (${productExtraImages.length})`}</span>
                         </span>
@@ -1735,7 +1735,7 @@ export const ProductModal = ({
                             }
                             setNewExtraImageUrl("");
                           }}
-                          className="px-2.5 h-6.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-black flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+                          className="px-2.5 h-6.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-medium flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
                         >
                           <Plus className="w-3 h-3" />
                           <span>{isTr ? "Link Ekle" : "Add URL"}</span>
@@ -1753,7 +1753,7 @@ export const ProductModal = ({
                                 className="w-full h-full object-contain bg-white"
                                 referrerPolicy="no-referrer"
                               />
-                              <span className="absolute bottom-0 inset-x-0 bg-indigo-600 text-white text-[8px] font-black text-center leading-tight py-0.2">
+                              <span className="absolute bottom-0 inset-x-0 bg-indigo-600 text-white text-[8px] font-medium text-center leading-tight py-0.2">
                                 {isTr ? "KAPAK" : "MAIN"}
                               </span>
                             </div>
@@ -1775,7 +1775,7 @@ export const ProductModal = ({
                                   });
                                 }}
                               />
-                              <span className="absolute bottom-0 left-0 bg-slate-900/75 text-white text-[8px] font-bold px-1 rounded-tr">
+                              <span className="absolute bottom-0 left-0 bg-slate-900/75 text-white text-[8px] font-medium px-1 rounded-tr">
                                 #{idx + 2}
                               </span>
                               <button
@@ -1809,7 +1809,7 @@ export const ProductModal = ({
                     return (
                       <div className="space-y-1 pt-0.5">
                         <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-1">
+                          <label className="text-[10px] font-medium text-indigo-950 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-1">
                             <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                             <span>{isTr ? "Vitrin Rozetleri" : "Showcase Badges"}</span>
                           </label>
@@ -1834,7 +1834,7 @@ export const ProductModal = ({
                                 key={`badge-opt-${b.id}`}
                                 type="button"
                                 onClick={() => toggleBookBadge(b.id)}
-                                className={`px-2 py-1.5 rounded-lg text-[10px] font-black flex items-center justify-between gap-1 transition-all border cursor-pointer select-none text-left ${
+                                className={`px-2 py-1.5 rounded-lg text-[10px] font-medium flex items-center justify-between gap-1 transition-all border cursor-pointer select-none text-left ${
                                   isSelected
                                     ? `${b.badgeBgClass} border-transparent shadow-xs scale-[1.01]`
                                     : "bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -1876,7 +1876,7 @@ export const ProductModal = ({
                         className="h-3.5 w-3.5 text-indigo-600 rounded cursor-pointer"
                         defaultChecked={editingProduct?.is_web_sale !== false}
                       />
-                      <span className="text-[11px] font-black text-slate-900">
+                      <span className="text-[11px] font-medium text-slate-900">
                         {isTr ? "Vitrinde Yayınla" : "Showcase"}
                       </span>
                     </label>
@@ -1889,7 +1889,7 @@ export const ProductModal = ({
                         className="h-3.5 w-3.5 text-amber-500 rounded cursor-pointer"
                         defaultChecked={editingProduct?.is_sellable !== false}
                       />
-                      <span className="text-[11px] font-black text-slate-900">
+                      <span className="text-[11px] font-medium text-slate-900">
                         {isTr ? "Satışa Açık" : "Sellable"}
                       </span>
                     </label>
@@ -1903,7 +1903,7 @@ export const ProductModal = ({
                           className="h-3.5 w-3.5 text-orange-600 rounded cursor-pointer"
                           defaultChecked={!!editingProduct?.is_bestseller}
                         />
-                        <span className="text-[11px] font-black text-slate-900 flex items-center gap-0.5">
+                        <span className="text-[11px] font-medium text-slate-900 flex items-center gap-0.5">
                           <Flame className="w-3 h-3 text-orange-500 fill-orange-500" />
                           <span>{isTr ? "En Çok Satan" : "Bestseller"}</span>
                         </span>
@@ -1938,12 +1938,12 @@ export const ProductModal = ({
                       }}
                       className="h-4 w-4 text-indigo-600 rounded cursor-pointer"
                     />
-                    <label htmlFor="prod_has_variants" className="text-[11px] font-black text-indigo-950 uppercase tracking-wider cursor-pointer select-none">
+                    <label htmlFor="prod_has_variants" className="text-[11px] font-medium text-indigo-950 uppercase tracking-wider cursor-pointer select-none">
                       {isTr ? (isBookstore ? "Varyantlı Eser" : "Varyantlı Ürün") : "Has Variants"}
                     </label>
                   </div>
                   {hasVariants && (
-                    <span className="text-[9px] font-black text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded">
+                    <span className="text-[9px] font-medium text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded">
                       {variants.length} {isTr ? "Varyant" : "Vars"}
                     </span>
                   )}
@@ -1959,7 +1959,7 @@ export const ProductModal = ({
         {activeTab === 'variants' && (
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-xs font-medium text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <Layers className="h-4 w-4 text-indigo-600" />
                 <span>{isTr ? "Varyant Matrisi" : "Variant Matrix"}</span>
               </h3>
@@ -1999,13 +1999,13 @@ export const ProductModal = ({
                   }, 50);
                 }
               }}
-              className="px-3 sm:px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer border-0"
+              className="px-3 sm:px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-medium text-xs uppercase tracking-wider transition-all cursor-pointer border-0"
             >
               {t.cancel}
             </button>
             <button
               type="submit"
-              className="px-4 sm:px-6 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer border-0 flex items-center gap-1.5"
+              className="px-4 sm:px-6 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer border-0 flex items-center gap-1.5"
             >
               <span>{isTr ? (isBookstore ? "Eseri Kaydet" : "Ürünü Kaydet") : (isBookstore ? "Save Book" : "Save Product")}</span>
             </button>

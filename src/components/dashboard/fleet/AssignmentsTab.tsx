@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   UserCheck, 
   CheckCircle2, 
-  Clock 
+  Clock,
+  Calendar,
+  Gauge,
+  RotateCcw
 } from 'lucide-react';
 import { VehicleAssignment, Vehicle } from '../../../types';
 
@@ -19,7 +22,6 @@ interface AssignmentsTabProps {
 
 export const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
   assignments,
-  vehicles,
   t,
   lang,
   isViewer,
@@ -27,69 +29,139 @@ export const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
   safeFormatDate,
   getVehiclePlate
 }) => {
+  const [returningId, setReturningId] = useState<number | null>(null);
+
+  const handleReturnClick = async (a: VehicleAssignment) => {
+    setReturningId(a.id);
+    try {
+      await onReturn(a);
+    } finally {
+      setReturningId(null);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-      {assignments.map(a => (
-        <div key={a.id} className="bg-white p-2.5 rounded-lg border border-slate-200 hover:shadow-sm hover:border-purple-300 transition-all group flex flex-col">
-          <div className="flex justify-between items-start mb-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 bg-slate-50 rounded flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-all border border-slate-100 shrink-0">
-                <UserCheck className="w-3.5 h-3.5 text-purple-600 group-hover:text-white" />
-              </div>
-              <div className="min-w-0">
-                <h4 className="font-black text-slate-900 text-[10px] truncate uppercase tracking-tighter leading-tight">{a.user_email}</h4>
-                <span className="inline-flex px-1 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100 mt-0.5">
-                  {getVehiclePlate(a.vehicle_id)}
-                </span>
-              </div>
-            </div>
-            <span className={`text-[6px] px-1 py-0.5 rounded-sm font-black uppercase tracking-widest border ${
-              a.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'
-            }`}>
-              {a.status === 'active' ? t.active : t.returned}
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2 p-2 bg-slate-50/50 rounded-lg mb-2 border border-slate-100/50 flex-1">
-            <div className="space-y-0.5">
-              <p className="text-[6px] text-slate-400 font-black uppercase tracking-widest leading-none">{t.received}</p>
-              <div>
-                <p className="text-[9px] font-black text-slate-700">{safeFormatDate(a.start_date, 'dd.MM.yyyy')}</p>
-                <p className="text-[8px] font-bold text-blue-600 leading-none mt-0.5">{(a.start_mileage || 0).toLocaleString()} KM</p>
-              </div>
-            </div>
-            {a.end_date ? (
-              <div className="space-y-0.5 border-l border-slate-200 pl-2">
-                <p className="text-[6px] text-slate-400 font-black uppercase tracking-widest leading-none">{t.returned}</p>
-                <div>
-                  <p className="text-[9px] font-black text-slate-700">{safeFormatDate(a.end_date, 'dd.MM.yyyy')}</p>
-                  <p className="text-[8px] font-bold text-blue-600 leading-none mt-0.5">{(a.end_mileage || 0).toLocaleString()} KM</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+      {assignments.map(a => {
+        const assigneeLabel = (a as any).driver_name || a.user_email || (lang === 'tr' ? 'Atanmış Sürücü' : 'Assigned Driver');
+        const subEmail = (a as any).driver_name && a.user_email && a.user_email !== (a as any).driver_name ? a.user_email : null;
+        const isActive = a.status === 'active';
+
+        return (
+          <div
+            key={a.id}
+            className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all group flex flex-col justify-between gap-3"
+          >
+            {/* Header: Driver & Plate & Status */}
+            <div className="flex justify-between items-start gap-2.5">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all border shrink-0 ${
+                  isActive
+                    ? 'bg-indigo-50 text-indigo-600 border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white'
+                    : 'bg-slate-100 text-slate-500 border-slate-200'
+                }`}>
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-black text-slate-900 dark:text-white text-xs sm:text-sm truncate tracking-tight leading-snug">
+                    {assigneeLabel}
+                  </h4>
+                  {subEmail && (
+                    <p className="text-[11px] text-slate-500 truncate">{subEmail}</p>
+                  )}
+                  <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-md text-[11px] font-black uppercase tracking-wider border border-blue-200 dark:border-blue-800 mt-1">
+                    {getVehiclePlate(a.vehicle_id)}
+                  </span>
                 </div>
               </div>
-            ) : (
-              <div className="flex items-center justify-center border-l border-slate-200 pl-2">
-                <span className="text-[7px] text-slate-400 font-black uppercase tracking-widest animate-pulse">{t.ongoing}</span>
+
+              <span className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg font-black uppercase tracking-wider border shrink-0 ${
+                isActive
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}>
+                {isActive ? (
+                  <>
+                    <Clock className="w-3 h-3 text-emerald-600" />
+                    <span>{t.active}</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3 h-3 text-slate-500" />
+                    <span>{t.returned}</span>
+                  </>
+                )}
+              </span>
+            </div>
+
+            {/* Dates & Mileage Bento */}
+            <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-200/70 dark:border-slate-700/60">
+              <div className="space-y-1">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-indigo-500" />
+                  <span>{t.received}</span>
+                </p>
+                <p className="text-xs font-black text-slate-800 dark:text-slate-100">
+                  {safeFormatDate(a.start_date, 'dd.MM.yyyy')}
+                </p>
+                <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                  <Gauge className="w-3 h-3" />
+                  <span>{(a.start_mileage || 0).toLocaleString()} KM</span>
+                </p>
               </div>
+
+              {a.end_date || !isActive ? (
+                <div className="space-y-1 border-l border-slate-200 dark:border-slate-700 pl-3">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                    <span>{t.returned}</span>
+                  </p>
+                  <p className="text-xs font-black text-slate-800 dark:text-slate-100">
+                    {safeFormatDate(a.end_date, 'dd.MM.yyyy')}
+                  </p>
+                  <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                    <Gauge className="w-3 h-3" />
+                    <span>{(a.end_mileage || a.start_mileage || 0).toLocaleString()} KM</span>
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center border-l border-slate-200 dark:border-slate-700 pl-3 text-center">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-black uppercase tracking-wider">
+                    <Clock className="w-3 h-3 animate-spin" />
+                    <span>{t.ongoing}</span>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {a.notes && (
+              <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 px-2.5 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 line-clamp-2">
+                {a.notes}
+              </p>
+            )}
+
+            {/* Action Button */}
+            {!isViewer && isActive && (
+              <button
+                type="button"
+                disabled={returningId === a.id}
+                onClick={() => handleReturnClick(a)}
+                className="w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-indigo-600 rounded-xl text-xs font-black transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${returningId === a.id ? 'animate-spin' : ''}`} />
+                <span>{returningId === a.id ? (lang === 'tr' ? 'İade Alınıyor...' : 'Returning...') : t.returnVehicle}</span>
+              </button>
             )}
           </div>
-
-          {!isViewer && a.status === 'active' && (
-            <button
-              onClick={() => onReturn(a)}
-              className="w-full py-1 bg-white border border-slate-200 rounded text-[9px] font-black text-blue-600 hover:bg-blue-600 hover:text-white transition-all uppercase tracking-wider"
-            >
-              {t.returnVehicle}
-            </button>
-          )}
-        </div>
-      ))}
+        );
+      })}
       {assignments.length === 0 && (
-        <div className="col-span-full py-8 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
-          <UserCheck className="w-6 h-6 text-slate-300 mx-auto mb-2" />
-          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">{t.noAssignmentsFound}</p>
+        <div className="col-span-full py-10 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
+          <UserCheck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+          <p className="text-slate-500 font-black text-xs uppercase tracking-widest">{t.noAssignmentsFound}</p>
         </div>
       )}
     </div>
-
   );
 };
+

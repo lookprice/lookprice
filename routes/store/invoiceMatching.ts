@@ -1679,4 +1679,370 @@ export async function resolveExpenseClassification(
   };
 }
 
+/**
+ * Checks whether an invoice line item is a non-stock service, commission, shipping, or fee line
+ * that should not auto-generate a physical product card in inventory.
+ */
+export function isNonStockFeeOrServiceItem(productName?: string | null): boolean {
+  if (!productName) return true;
+  const lower = productName.trim().toLocaleLowerCase('tr-TR');
+  if (lower.length < 2) return true;
+  const feeKeywords = [
+    'kargo bedeli', 'kargo yansıtması', 'kargo ücreti', 'nakliye bedeli', 'nakliye ücreti',
+    'komisyon bedeli', 'pazaryeri hizmet', 'pazarlama hizmet', 'hizmet bedeli', 'servis bedeli',
+    'işçilik bedeli', 'kur farkı', 'vade farkı', 'fiyat farkı', 'amazon kolay gönderi',
+    'amazon komisyonu', 'tarifesi ücr', 'telsiz kullanım', 'haberl', 'poşet bedeli', 'plastık poşet'
+  ];
+  if (lower === 'kargo' || lower === 'nakliye' || lower === 'komisyon' || lower === 'işçilik' || lower === 'hizmet') {
+    return true;
+  }
+  return feeKeywords.some(k => lower.includes(k));
+}
+
+/**
+ * Finds an existing matching product in inventory for a purchase invoice item, or if none exists,
+ * automatically creates a product card (with stock_quantity = 0 initially so the caller can add
+ * the purchase_invoice stock movement and quantity simultaneously without creating an initial_stock entry).
+ */
+export async function findOrCreateProductForInvoiceItem(
+  clientOrPool: any,
+  storeId: number,
+  params: {
+    supplierVkn?: string | null;
+    productName: string;
+    barcode?: string | null;
+    productCode?: string | null;
+    sellerCode?: string | null;
+    buyerCode?: string | null;
+    unitPrice?: number;
+    taxRate?: number;
+    currency?: string | null;
+    unitCode?: string | null;
+  }
+): Promise<{
+  productId: number | null;
+  barcode: string | null;
+  productCode: string | null;
+  autoCreated: boolean;
+}> {
+  const {
+    supplierVkn,
+    productName,
+    barcode,
+    productCode,
+    sellerCode,
+    buyerCode,
+    unitPrice = 0,
+    taxRate = 20,
+    currency = 'TRY',
+    unitCode = 'Adet'
+  } = params;
+
+  const cleanName = (productName || '').trim();
+  const match = await findMatchingProduct(clientOrPool, storeId, {
+    supplierVkn,
+    productName: cleanName,
+    barcode,
+    productCode: productCode || sellerCode || buyerCode,
+    sellerCode,
+    buyerCode
+  });
+
+  const incomingSanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, productCode || match?.productCode || null);
+
+  if (match) {
+    let finalBarcode: string | null;
+    if (isValidStandardBarcode(incomingSanitized.barcode) && !incomingSanitized.isTempBarcode) {
+      finalBarcode = incomingSanitized.barcode;
+    } else if (isValidStandardBarcode(match.barcode)) {
+      finalBarcode = match.barcode;
+    } else {
+      finalBarcode = match.barcode || incomingSanitized.barcode || null;
+    }
+    const finalProductCode = match.productCode || incomingSanitized.productCode || sellerCode || buyerCode || productCode || null;
+    return {
+      productId: match.productId,
+      barcode: finalBarcode,
+      productCode: finalProductCode,
+      autoCreated: false
+    };
+  }
+
+  // Secondary check by exact barcode or product_code with 5-Gate Conflict Veto
+  const candidateBarcode = incomingSanitized.isTempBarcode ? null : incomingSanitized.barcode;
+  const candidateCode = incomingSanitized.productCode || sellerCode || buyerCode || productCode || null;
+
+  if (candidateBarcode || candidateCode) {
+    const existingRes = await clientOrPool.query(
+      `SELECT id, name, brand, barcode, COALESCE(product_code, sku, '') as product_code
+       FROM products
+       WHERE store_id = $1
+         AND (
+           ($2::text IS NOT NULL AND barcode = $2)
+           OR ($3::text IS NOT NULL AND (LOWER(product_code) = LOWER($3) OR LOWER(sku) = LOWER($3)))
+         )
+       LIMIT 5`,
+      [storeId, candidateBarcode, candidateCode]
+    );
+    for (const row of existingRes.rows) {
+      if (cleanName && hasProductMatchConflict(cleanName, row.name, { productBrand: row.brand })) continue;
+      return {
+        productId: row.id,
+        barcode: row.barcode || candidateBarcode,
+        productCode: row.product_code || candidateCode,
+        autoCreated: false
+      };
+    }
+  }
+
+  // Do not auto-create inventory products for service/commission/shipping lines
+  if (!cleanName || isNonStockFeeOrServiceItem(cleanName)) {
+    return {
+      productId: null,
+      barcode: candidateBarcode,
+      productCode: candidateCode,
+      autoCreated: false
+    };
+  }
+
+  // Determine unique barcode for the new product card
+  let newBarcode = candidateBarcode && isValidStandardBarcode(candidateBarcode) ? candidateBarcode : generateTempBarcode();
+  const bcCheck = await clientOrPool.query(
+    "SELECT id FROM products WHERE store_id = $1 AND barcode = $2 LIMIT 1",
+    [storeId, newBarcode]
+  );
+  if (bcCheck.rows.length > 0) {
+    newBarcode = generateTempBarcode();
+  }
+
+  const extractedTokens = extractModelTokens(cleanName);
+  const newProductCode = candidateCode || (extractedTokens.length > 0 ? extractedTokens[0] : null);
+  const costVal = Math.max(0, Number(unitPrice) || 0);
+  const sellingVal = Math.round(costVal * 1.25 * 100) / 100;
+  const taxVal = Number(taxRate) || 20;
+
+  const insertRes = await clientOrPool.query(
+    `INSERT INTO products
+      (store_id, name, barcode, product_code, sku, price, cost_price, cost_currency, tax_rate, stock_quantity, currency, unit, product_type, labels, updated_at)
+     VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, 0, $7, $9, 'product', $10::jsonb, CURRENT_TIMESTAMP)
+     RETURNING id, barcode, product_code`,
+    [
+      storeId,
+      cleanName,
+      newBarcode,
+      newProductCode,
+      sellingVal,
+      costVal,
+      currency || 'TRY',
+      taxVal,
+      unitCode || 'Adet',
+      JSON.stringify(["yeni_fatura_urunu"])
+    ]
+  );
+
+  invalidateStoreProductsCache(storeId);
+  const created = insertRes.rows[0];
+  return {
+    productId: created.id,
+    barcode: created.barcode,
+    productCode: created.product_code,
+    autoCreated: true
+  };
+}
+
+/**
+ * When linking a purchase invoice item to a target product, checks if that target product has a
+ * redundant 'initial_stock' movement that was created for the exact same invoice item quantity/price.
+ * If so, deletes the redundant 'initial_stock' movement and deducts its quantity from products.stock_quantity
+ * so that adding the 'purchase_invoice' movement does not double-count the stock.
+ */
+export async function deduplicateInitialStockOnInvoiceMatch(
+  clientOrPool: any,
+  storeId: number,
+  targetProductId: number,
+  itemQty: number,
+  unitPrice: number
+): Promise<boolean> {
+  if (!targetProductId || itemQty <= 0) return false;
+  try {
+    const initRes = await clientOrPool.query(
+      `SELECT id, quantity, unit_price, created_at
+       FROM stock_movements
+       WHERE store_id = $1 AND product_id = $2 AND source = 'initial_stock' AND type = 'in'
+       ORDER BY id DESC`,
+      [storeId, targetProductId]
+    );
+    for (const row of initRes.rows) {
+      const initQty = Number(row.quantity) || 0;
+      const initPrice = Number(row.unit_price) || 0;
+      const priceMatches = unitPrice > 0 && initPrice > 0 && Math.abs(initPrice - unitPrice) < 0.05;
+      const qtyMatches = Math.abs(initQty - itemQty) < 0.001;
+      if (qtyMatches && (priceMatches || initPrice === 0)) {
+        await clientOrPool.query("DELETE FROM stock_movements WHERE id = $1", [row.id]);
+        await clientOrPool.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1::numeric WHERE id = $2 AND store_id = $3",
+          [initQty, targetProductId, storeId]
+        );
+        return true;
+      }
+    }
+  } catch (err) {
+    console.error("[deduplicateInitialStockOnInvoiceMatch] Error:", err);
+  }
+  return false;
+}
+
+/**
+ * When a purchase invoice item is re-matched from oldProductId to newProductId (or unlinked):
+ * 1. Reverts the invoice item's stock & purchase_invoice movement from oldProductId.
+ * 2. If oldProductId was auto-created by this purchase invoice (or created exclusively for this invoice item)
+ *    and is being replaced by an existing inventory product (newProductId):
+ *    - Transfers any subsequent sales/movements (e.g. POS sales) from oldProductId to newProductId.
+ *    - Deletes oldProductId from inventory so duplicate invoice-generated products do not remain.
+ */
+export async function transferAndCleanupInvoiceGeneratedProduct(
+  clientOrPool: any,
+  storeId: number,
+  params: {
+    oldProductId: number;
+    newProductId: number | null;
+    invoiceId: number;
+    invoiceItemId: number;
+    invNum: string;
+    itemQty: number;
+    unitPrice?: number;
+    supplierVkn?: string | null;
+    itemProductName?: string | null;
+  }
+): Promise<{ deletedOldProductId: number | null }> {
+  const {
+    oldProductId,
+    newProductId,
+    invoiceId,
+    invoiceItemId,
+    invNum,
+    itemQty,
+    unitPrice = 0,
+    supplierVkn,
+    itemProductName
+  } = params;
+
+  if (!oldProductId || oldProductId === newProductId) {
+    return { deletedOldProductId: null };
+  }
+
+  // 1. Delete old purchase_invoice stock movement for this invoice and deduct its stock
+  const delMov = await clientOrPool.query(
+    `DELETE FROM stock_movements
+     WHERE store_id = $1 AND product_id = $2
+       AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+       AND (invoice_id = $3 OR ($4 != '' AND (invoice_number = $4 OR description LIKE $5)))
+     RETURNING quantity`,
+    [storeId, oldProductId, invoiceId, invNum, `%${invNum}%`]
+  );
+
+  if (delMov.rows.length > 0 && itemQty > 0) {
+    await clientOrPool.query(
+      "UPDATE products SET stock_quantity = stock_quantity - $1::numeric WHERE id = $2 AND store_id = $3",
+      [itemQty, oldProductId, storeId]
+    );
+  }
+
+  if (supplierVkn && itemProductName) {
+    await clientOrPool.query(
+      "DELETE FROM supplier_product_mappings WHERE store_id = $1 AND supplier_vkn = $2 AND supplier_product_name = $3 AND product_id = $4",
+      [storeId, supplierVkn, itemProductName, oldProductId]
+    );
+  }
+
+  // 2. Check if oldProductId was generated for this purchase invoice and has no other purchase invoices
+  if (newProductId) {
+    try {
+      const prodRes = await clientOrPool.query(
+        "SELECT id, name, labels, stock_quantity, cost_price FROM products WHERE id = $1 AND store_id = $2",
+        [oldProductId, storeId]
+      );
+      if (prodRes.rows.length > 0) {
+        const oldProd = prodRes.rows[0];
+        const labelsStr = JSON.stringify(oldProd.labels || []);
+        const hasInvoiceLabel = labelsStr.includes("yeni_fatura_urunu") || labelsStr.includes("fatura_kalem_revizyon");
+
+        const otherPiiRes = await clientOrPool.query(
+          "SELECT 1 FROM purchase_invoice_items WHERE product_id = $1 AND id != $2 LIMIT 1",
+          [oldProductId, invoiceItemId]
+        );
+        const otherPurchaseMovRes = await clientOrPool.query(
+          "SELECT 1 FROM stock_movements WHERE product_id = $1 AND (source = 'purchase_invoice' OR invoice_type = 'purchase') AND (invoice_id IS NULL OR invoice_id != $2) LIMIT 1",
+          [oldProductId, invoiceId]
+        );
+
+        // Also check if oldProd had an initial_stock movement that merely mirrored this invoice item
+        const initMovRes = await clientOrPool.query(
+          "SELECT id, quantity, unit_price FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock'",
+          [oldProductId]
+        );
+        const hasGenuineInitialStock = initMovRes.rows.some((r: any) => {
+          const q = Number(r.quantity) || 0;
+          const p = Number(r.unit_price) || 0;
+          if (q <= 0) return false;
+          const matchesItem = Math.abs(q - itemQty) < 0.001 && (unitPrice <= 0 || Math.abs(p - unitPrice) < 0.05);
+          return !matchesItem;
+        });
+
+        const nameMatchesInvoiceItem = itemProductName && oldProd.name && oldProd.name.trim().toLowerCase() === itemProductName.trim().toLowerCase();
+
+        if (
+          otherPiiRes.rows.length === 0 &&
+          otherPurchaseMovRes.rows.length === 0 &&
+          (hasInvoiceLabel || (!hasGenuineInitialStock && nameMatchesInvoiceItem))
+        ) {
+          // Delete any bogus initial_stock on oldProductId first
+          await clientOrPool.query(
+            "DELETE FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock'",
+            [oldProductId]
+          );
+
+          // Transfer any remaining movements (e.g. POS sales, sales invoices) from oldProductId to newProductId
+          const remMovRes = await clientOrPool.query(
+            `SELECT id, type, quantity FROM stock_movements WHERE product_id = $1 AND store_id = $2`,
+            [oldProductId, storeId]
+          );
+          let netTransferDelta = 0;
+          for (const m of remMovRes.rows) {
+            const q = Number(m.quantity) || 0;
+            netTransferDelta += m.type === 'in' ? q : -q;
+          }
+
+          if (remMovRes.rows.length > 0) {
+            await clientOrPool.query(
+              "UPDATE stock_movements SET product_id = $1 WHERE product_id = $2 AND store_id = $3",
+              [newProductId, oldProductId, storeId]
+            );
+            if (Math.abs(netTransferDelta) > 0.001) {
+              await clientOrPool.query(
+                "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) + $1::numeric WHERE id = $2 AND store_id = $3",
+                [netTransferDelta, newProductId, storeId]
+              );
+            }
+          }
+
+          // Transfer any sale_items or sales_invoice_items referencing oldProductId
+          await clientOrPool.query("UPDATE sale_items SET product_id = $1 WHERE product_id = $2", [newProductId, oldProductId]);
+          await clientOrPool.query("UPDATE sales_invoice_items SET product_id = $1 WHERE product_id = $2", [newProductId, oldProductId]);
+          await clientOrPool.query("DELETE FROM supplier_product_mappings WHERE product_id = $1 AND store_id = $2", [oldProductId, storeId]);
+
+          // Remove the invoice-generated temporary product from inventory
+          await clientOrPool.query("DELETE FROM products WHERE id = $1 AND store_id = $2", [oldProductId, storeId]);
+          return { deletedOldProductId: oldProductId };
+        }
+      }
+    } catch (cleanupErr) {
+      console.error("[transferAndCleanupInvoiceGeneratedProduct] Error:", cleanupErr);
+    }
+  }
+
+  return { deletedOldProductId: null };
+}
+
+
 

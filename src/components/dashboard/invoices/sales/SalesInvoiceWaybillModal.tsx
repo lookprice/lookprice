@@ -182,10 +182,10 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
           <div className="flex items-center gap-3">
             <Truck className="h-6 w-6 text-indigo-400 animate-pulse" />
             <div>
-              <h3 className="font-sans font-black text-lg tracking-tight">
+              <h3 className="font-sans font-medium text-lg tracking-tight">
                 {isTr ? 'MySoft e-İrsaliye Entegrasyonu' : 'MySoft e-Waybill Module'}
               </h3>
-              <h4 className="text-xs text-indigo-200/80 font-bold tracking-widest uppercase">
+              <h4 className="text-xs text-indigo-200/80 font-medium tracking-widest uppercase">
                 {isTr ? `Fatura No: #${invoice.invoice_number}` : `Invoice No: #${invoice.invoice_number}`}
               </h4>
             </div>
@@ -208,7 +208,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
             ) : (
               <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
             )}
-            <div className="text-xs font-bold font-sans">{statusMessage.text}</div>
+            <div className="text-xs font-medium font-sans">{statusMessage.text}</div>
           </div>
         )}
 
@@ -216,12 +216,12 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
         {(viewHtml || viewPreview) ? (
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-widest">
                 {viewPreview ? (isTr ? 'GİB e-İrsaliye CANLI ÖNİZLEME' : 'Live e-Waybill Preview') : (isTr ? 'GİB e-İrsaliye RESMİ BELGE' : 'Official e-Waybill Document')}
               </span>
               <button 
                 onClick={() => { setViewHtml(false); setViewPreview(false); }}
-                className="text-xs font-bold text-indigo-600 hover:underline"
+                className="text-xs font-medium text-indigo-600 hover:underline"
               >
                 {isTr ? 'Detaylara / Form Girişine Dön' : 'Return to Inputs Form'}
               </button>
@@ -240,26 +240,26 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
             {/* Context Invoice Banner */}
             <div className="bg-slate-50/80 rounded-2xl border border-slate-100 p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
-                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">{isTr ? 'Müşteri / Cari' : 'Customer'}</span>
-                <span className="text-xs font-bold text-slate-700 truncate block">
+                <span className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider">{isTr ? 'Müşteri / Cari' : 'Customer'}</span>
+                <span className="text-xs font-medium text-slate-700 truncate block">
                   {invoice.customer_name || invoice.company_title || '-'}
                 </span>
               </div>
               <div>
-                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">{isTr ? 'Vergi / TCKN' : 'Tax Registration'}</span>
-                <span className="text-xs font-mono font-bold text-indigo-600">
+                <span className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider">{isTr ? 'Vergi / TCKN' : 'Tax Registration'}</span>
+                <span className="text-xs font-mono font-medium text-indigo-600">
                   {invoice.tax_number || 'Tanımsız / Girilmemiş'}
                 </span>
               </div>
               <div>
-                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">{isTr ? 'Fatura Toplamı' : 'Grand Total'}</span>
-                <span className="text-xs font-black text-slate-900">
+                <span className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider">{isTr ? 'Fatura Toplamı' : 'Grand Total'}</span>
+                <span className="text-xs font-medium text-slate-900">
                   {Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}
                 </span>
               </div>
               <div>
-                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">{isTr ? 'İrsaliye Durumu' : 'Waybill State'}</span>
-                <span className={`inline-flex items-center px-2 py-0.5 mt-0.5 rounded text-[9px] font-black tracking-widest uppercase border ${
+                <span className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider">{isTr ? 'İrsaliye Durumu' : 'Waybill State'}</span>
+                <span className={`inline-flex items-center px-2 py-0.5 mt-0.5 rounded text-[9px] font-medium tracking-widest uppercase border ${
                   invoice.waybill_status === 'SUCCESS' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
                   invoice.waybill_status === 'QUEUED' ? 'border-amber-200 bg-amber-50 text-amber-700' :
                   invoice.waybill_status === 'ERROR' ? 'border-rose-200 bg-rose-50 text-rose-700' :
@@ -273,7 +273,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
             {/* Form Fields split */}
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <h4 className="text-xs font-medium text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <Truck className="h-4 w-4 text-slate-500" />
                   {isTr ? 'Taşıyıcı ve Sevk Araç Detayları (GİB Zorunlu Sektörel Alanlar)' : 'Carrier Logistics Details'}
                 </h4>
@@ -287,7 +287,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                     className="sr-only peer"
                   />
                   <div className="relative w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                  <span className="ms-2 text-xs font-bold text-slate-700">{isTr ? 'Kargo / Kurye ile Gönderim' : 'Cargo Shipment'}</span>
+                  <span className="ms-2 text-xs font-medium text-slate-700">{isTr ? 'Kargo / Kurye ile Gönderim' : 'Cargo Shipment'}</span>
                 </label>
               </div>
 
@@ -297,7 +297,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                   <>
                     {/* Cargo Carrier */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                         <Truck className="h-3.5 w-3.5 text-slate-400" />
                         {isTr ? 'Kargo Firması' : 'Carrier'}
                       </label>
@@ -306,13 +306,13 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                         value={carrierName}
                         onChange={(e) => setCarrierName(e.target.value)}
                         placeholder="Örn: Aras Kargo"
-                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-xs font-medium bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
 
                     {/* Tracking Number */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                         <FileText className="h-3.5 w-3.5 text-slate-400" />
                         {isTr ? 'Kargo Takip No / Desi' : 'Tracking Number'}
                       </label>
@@ -321,20 +321,20 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                         value={trackingNumber}
                         onChange={(e) => setTrackingNumber(e.target.value)}
                         placeholder="Örn: 1234567890"
-                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-xs font-medium bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
 
                     {/* Transport Mode */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                         <HelpCircle className="h-3.5 w-3.5 text-slate-400" />
                         {isTr ? 'Taşıma Türü' : 'Transport Mode'}
                       </label>
                       <select
                         value={transportMode}
                         onChange={(e) => setTransportMode(e.target.value)}
-                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-xs font-medium bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                       >
                         <option value="5">{isTr ? '5 - Posta / Kargo' : '5 - Postal/Cargo'}</option>
                         <option value="1">{isTr ? '1 - Karayolu Taşımacılığı' : '1 - Road Transport'}</option>
@@ -343,14 +343,14 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
 
                     {/* Delivery Term */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                         <HelpCircle className="h-3.5 w-3.5 text-slate-400" />
                         {isTr ? 'Teslim Şekli (Incoterm)' : 'Delivery Term'}
                       </label>
                       <select
                         value={deliveryTerm}
                         onChange={(e) => setDeliveryTerm(e.target.value)}
-                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-xs font-medium bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                       >
                         <option value="CFR">CFR</option>
                         <option value="CIF">CIF</option>
@@ -368,7 +368,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                   <>
                     {/* Driver Name */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                         <User className="h-3.5 w-3.5 text-slate-400" />
                         {isTr ? 'Sürücü Adı' : 'Driver Name'}
                       </label>
@@ -377,13 +377,13 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                         value={driverName}
                         onChange={(e) => setDriverName(e.target.value)}
                         placeholder="Örn: Ahmet"
-                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-xs font-medium bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
 
                     {/* Driver Surname */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                         <User className="h-3.5 w-3.5 text-slate-400" />
                         {isTr ? 'Sürücü Soyadı' : 'Driver Surname'}
                       </label>
@@ -392,13 +392,13 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                         value={driverSurname}
                         onChange={(e) => setDriverSurname(e.target.value)}
                         placeholder="Örn: Yılmaz"
-                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-xs font-medium bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
 
                     {/* Driver VKN / TCKN */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                         <CreditCard className="h-3.5 w-3.5 text-slate-400" />
                         {isTr ? 'Sürücü TCKN / VKN' : 'Driver ID Number'}
                       </label>
@@ -408,29 +408,29 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                         value={driverVkn}
                         onChange={(e) => setDriverVkn(e.target.value)}
                         placeholder="11111111111"
-                        className="w-full text-xs font-mono font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-xs font-mono font-medium bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
 
                     {/* Vehicle Plate Number */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                         <Truck className="h-3.5 w-3.5 text-slate-400" />
                         {isTr ? 'Çekici Araç Plakası *' : 'Vehicle Plate Number *'}
-                        <span className="text-red-500 font-bold">*</span>
+                        <span className="text-red-500 font-medium">*</span>
                       </label>
                       <input 
                         type="text"
                         value={plateNumber}
                         onChange={(e) => setPlateNumber(e.target.value)}
                         placeholder="Örn: 34ABC123"
-                        className="w-full text-xs font-mono font-black uppercase tracking-wider bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-xs font-mono font-medium uppercase tracking-wider bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
 
                     {/* Trailer / Dorse Plate */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                         <Truck className="h-3.5 w-3.5 text-slate-400" />
                         {isTr ? 'Dorse / Treyler Plakası' : 'Trailer Plate Number'}
                       </label>
@@ -439,7 +439,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                         value={trailerPlate}
                         onChange={(e) => setTrailerPlate(e.target.value)}
                         placeholder="Örn: 34XYZ987"
-                        className="w-full text-xs font-mono font-black uppercase tracking-wider bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-xs font-mono font-medium uppercase tracking-wider bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
                   </>
@@ -447,7 +447,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
 
                 {/* Prefix */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                     <FileText className="h-3.5 w-3.5 text-slate-400" />
                     {isTr ? 'İrsaliye Ön Eki' : 'Waybill Prefix'}
                   </label>
@@ -457,13 +457,13 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                     value={prefix}
                     onChange={(e) => setPrefix(e.target.value)}
                     placeholder="IRS"
-                    className="w-full text-xs font-mono font-black uppercase bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-xs font-mono font-medium uppercase bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
                 {/* Shipping Date */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-slate-400" />
                     {isTr ? 'Fiili Sevk Tarihi' : 'Actual Shipping Date'}
                   </label>
@@ -471,13 +471,13 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                     type="date"
                     value={actualDate}
                     onChange={(e) => setActualDate(e.target.value)}
-                    className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-xs font-medium bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
                 {/* Shipping Time */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5 text-slate-400" />
                     {isTr ? 'Fiili Sevk Saati' : 'Actual Shipping Time'}
                   </label>
@@ -485,7 +485,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
                     type="time"
                     value={actualTime}
                     onChange={(e) => setActualTime(e.target.value)}
-                    className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-xs font-medium bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
@@ -496,7 +496,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
             <div className="bg-indigo-50/50 rounded-2xl border border-indigo-100/50 p-4 text-[11px] text-indigo-950 font-medium flex gap-3">
               <HelpCircle className="h-5 w-5 text-indigo-600 shrink-0" />
               <div>
-                <p className="font-bold mb-0.5">{isTr ? 'GİB ve Şematron Gereksinimleri:' : 'GİB Schematron Compliance guidelines:'}</p>
+                <p className="font-medium mb-0.5">{isTr ? 'GİB ve Şematron Gereksinimleri:' : 'GİB Schematron Compliance guidelines:'}</p>
                 <p>{isTr 
                   ? 'Fiili Sevk Tarihi girilmediği takdirde fatura tarihi geçerli sayılır. Sürücü kimlik numarası girilmezse varsayılan olarak "11111111111" atanacaktır. Araç çekici plakası girilmesi yasal bir zorunluluktur.'
                   : 'Vehicle plate number is mandatory. Driver national ID can fallback to "11111111111" if left unfilled.'
@@ -513,7 +513,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
             {!invoice.waybill_ettn && (
               <button 
                 onClick={() => setViewPreview(!viewPreview)}
-                className={`inline-flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-all shadow-sm ${
+                className={`inline-flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-medium transition-all shadow-sm ${
                   viewPreview ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -525,7 +525,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
             {invoice.waybill_ettn && (
               <button 
                 onClick={() => setViewHtml(!viewHtml)}
-                className={`inline-flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-all shadow-sm ${
+                className={`inline-flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-medium transition-all shadow-sm ${
                   viewHtml ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -539,7 +539,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
               <button 
                 disabled={loading}
                 onClick={handleSaveDraft}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 bg-white hover:bg-slate-100/30 text-xs font-black text-slate-700 rounded-xl transition-all shadow-sm disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 bg-white hover:bg-slate-100/30 text-xs font-medium text-slate-700 rounded-xl transition-all shadow-sm disabled:opacity-50"
               >
                 <Save className="h-4 w-4 text-slate-500" />
                 {isTr ? 'Taslak Kaydet' : 'Save Draft'}
@@ -550,7 +550,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
               <button 
                 disabled={loading}
                 onClick={handleCheckStatus}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-xl transition-all shadow-md shadow-amber-500/10 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-xl transition-all shadow-md shadow-amber-500/10 disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 {isTr ? 'Durum Sorgula' : 'Check Status'}
@@ -561,7 +561,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
               <button 
                 disabled={loading}
                 onClick={handleSendToGIB}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-xs font-black rounded-xl transition-all shadow-md shadow-indigo-600/10 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-xs font-medium rounded-xl transition-all shadow-md shadow-indigo-600/10 disabled:opacity-50"
               >
                 {loading ? (
                   <RefreshCw className="h-4 w-4 animate-spin" />

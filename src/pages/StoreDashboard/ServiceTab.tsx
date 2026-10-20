@@ -629,7 +629,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100">
-                <h3 className="text-lg font-bold text-slate-900">{t.service_tab.convertToSale}</h3>
+                <h3 className="text-lg font-medium text-slate-900">{t.service_tab.convertToSale}</h3>
               </div>
               <div className="p-6 space-y-4">
                 <div>
@@ -657,7 +657,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{t.service_tab.title}</h2>
+          <h2 className="text-2xl font-medium text-gray-900">{t.service_tab.title}</h2>
           <p className="text-gray-500">{t.service_tab.description}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -849,7 +849,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-extrabold tracking-tight text-white uppercase">
+                      <h3 className="text-sm font-medium tracking-tight text-white uppercase">
                         {editingRecord?.id ? t.service_tab.editServiceRecord : t.service_tab.newRecord}
                       </h3>
                       <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold tracking-wider">
@@ -865,10 +865,10 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 <div className="flex items-center gap-3">
                   <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs">
                     <span className="text-slate-400">{isTr ? "Kalem:" : "Items:"}</span>
-                    <span className="font-mono font-bold text-indigo-400">{serviceItems.length}</span>
+                    <span className="font-mono font-medium text-indigo-400">{serviceItems.length}</span>
                     <span className="text-slate-700">|</span>
                     <span className="text-slate-400">{isTr ? "Toplam:" : "Total:"}</span>
-                    <span className="font-mono font-bold text-emerald-400">
+                    <span className="font-mono font-medium text-emerald-400">
                       {totalServiceAmount.toLocaleString('tr-TR', { style: 'currency', currency: (editingRecord?.currency || storeInfo?.default_currency || 'TRY').toUpperCase() })}
                     </span>
                   </div>
@@ -889,7 +889,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 <div className="col-span-12 lg:col-span-5 flex flex-col justify-between p-3.5 border-r border-slate-200/80 dark:border-slate-800/80 overflow-hidden space-y-2.5">
                   {/* Box 1: Customer Info */}
                   <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                       <User className="w-3.5 h-3.5 text-indigo-500" />
                       {t.service_tab.customerInfo}
                     </span>
@@ -925,7 +925,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       />
 
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                           {t.service_tab.phone}
                         </label>
                         <input
@@ -941,14 +941,14 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
                   {/* Box 2: Device & Status */}
                   <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                       <Smartphone className="w-3.5 h-3.5 text-cyan-500" />
                       {t.service_tab.deviceInfo}
                     </span>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                           {t.service_tab.deviceModel} *
                         </label>
                         <input
@@ -960,7 +960,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                           {t.service_tab.serialImei}
                         </label>
                         <input
@@ -975,13 +975,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
                     <div className="grid grid-cols-2 gap-2 pt-0.5">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                           {t.service_tab.status}
                         </label>
                         <select
                           value={editingRecord?.status || 'received'}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, status: e.target.value as any }))}
-                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 outline-none"
+                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-indigo-600 dark:text-indigo-400 outline-none"
                         >
                           <option value="received">{t.service_tab.statuses.received}</option>
                           <option value="diagnosing">{t.service_tab.statuses.diagnosing}</option>
@@ -994,13 +994,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                           {isTr ? "Para Birimi" : "Currency"}
                         </label>
                         <select
                           value={editingRecord?.currency || storeInfo?.default_currency || 'TRY'}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, currency: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold text-emerald-600 dark:text-emerald-400 outline-none"
+                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-emerald-600 dark:text-emerald-400 outline-none"
                         >
                           <option value="TRY">TRY (₺)</option>
                           <option value="USD">USD ($)</option>
@@ -1015,7 +1015,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-2.5 shadow-xs space-y-1.5">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                           {t.service_tab.issueDescription}
                         </label>
                         <textarea
@@ -1026,7 +1026,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                           {t.service_tab.notesInternal}
                         </label>
                         <textarea
@@ -1046,10 +1046,10 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   <div className="flex items-center justify-between pb-1">
                     <div className="flex items-center gap-2">
                       <Package className="w-4 h-4 text-indigo-500" />
-                      <h4 className="text-xs font-black uppercase text-slate-700 dark:text-slate-300 tracking-wider">
+                      <h4 className="text-xs font-medium uppercase text-slate-700 dark:text-slate-300 tracking-wider">
                         {t.service_tab.partsAndLabor}
                       </h4>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold">
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
                         {serviceItems.length} {isTr ? "kalem" : "items"}
                       </span>
                     </div>
@@ -1058,7 +1058,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       <button
                         type="button"
                         onClick={() => addItem('part')}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-cyan-50 dark:bg-cyan-950/50 hover:bg-cyan-100 text-cyan-700 dark:text-cyan-300 border border-cyan-200/60 dark:border-cyan-800/50 rounded-lg text-xs font-bold transition-all shadow-xs"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-cyan-50 dark:bg-cyan-950/50 hover:bg-cyan-100 text-cyan-700 dark:text-cyan-300 border border-cyan-200/60 dark:border-cyan-800/50 rounded-lg text-xs font-medium transition-all shadow-xs"
                       >
                         <Plus className="w-3 h-3" />
                         <span>{t.service_tab.addPart}</span>
@@ -1066,7 +1066,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       <button
                         type="button"
                         onClick={() => addItem('labor')}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50 rounded-lg text-xs font-bold transition-all shadow-xs"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50 rounded-lg text-xs font-medium transition-all shadow-xs"
                       >
                         <Plus className="w-3 h-3" />
                         <span>{t.service_tab.addLabor}</span>
@@ -1076,7 +1076,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
                   {/* High-Density Service Items Table */}
                   <div className="flex-1 my-2 overflow-y-auto rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col">
-                    <div className="sticky top-0 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-xs border-b border-slate-200 dark:border-slate-700/80 px-3 py-1.5 grid grid-cols-12 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 z-10">
+                    <div className="sticky top-0 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-xs border-b border-slate-200 dark:border-slate-700/80 px-3 py-1.5 grid grid-cols-12 text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 z-10">
                       <span className="col-span-2">{isTr ? "Tür" : "Type"}</span>
                       <span className="col-span-4">{isTr ? "Kalem / İşlem Adı" : "Item / Service"}</span>
                       <span className="col-span-1 text-center">{isTr ? "Miktar" : "Qty"}</span>
@@ -1090,7 +1090,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                         <div key={index} className="px-3 py-2 grid grid-cols-12 items-center text-xs hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors gap-2">
                           {/* Type Pill */}
                           <div className="col-span-2">
-                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md inline-block ${
+                            <span className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-md inline-block ${
                               item.type === 'part'
                                 ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20'
                                 : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
@@ -1166,7 +1166,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                                 const val = e.target.value.replace(/[^0-9]/g, '');
                                 updateItem(index, { quantity: val });
                               }}
-                              className="w-12 px-1.5 py-1 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-center text-slate-800 dark:text-slate-200 outline-none"
+                              className="w-12 px-1.5 py-1 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-medium text-center text-slate-800 dark:text-slate-200 outline-none"
                             />
                           </div>
 
@@ -1176,7 +1176,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                               type="text"
                               value={item.unit_price}
                               onChange={(e) => updateItem(index, { unit_price: e.target.value })}
-                              className="w-20 px-1.5 py-1 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-right text-slate-800 dark:text-slate-200 outline-none"
+                              className="w-20 px-1.5 py-1 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-medium text-right text-slate-800 dark:text-slate-200 outline-none"
                             />
                           </div>
 
@@ -1192,7 +1192,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
                           {/* Total & Delete */}
                           <div className="col-span-2 flex items-center justify-end gap-1.5">
-                            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs">
+                            <span className="font-mono font-medium text-slate-900 dark:text-slate-100 text-xs">
                               {item.total_price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                             <button
@@ -1211,7 +1211,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-2">
                             <Package className="h-5 w-5" />
                           </div>
-                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
                             {t.service_tab.noRecordsFound}
                           </p>
                           <p className="text-[11px] text-slate-400 max-w-xs mt-0.5">
@@ -1225,10 +1225,10 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   {/* Bottom Action Cockpit */}
                   <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
                         {t.service_tab.totalAmount}:
                       </span>
-                      <span className="text-xl font-mono font-extrabold text-slate-900 dark:text-white leading-none">
+                      <span className="text-xl font-mono font-medium text-slate-900 dark:text-white leading-none">
                         {totalServiceAmount.toLocaleString('tr-TR', { style: 'currency', currency: (editingRecord?.currency || storeInfo?.default_currency || 'TRY').toUpperCase() })}
                       </span>
                     </div>
@@ -1237,14 +1237,14 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       <button
                         type="button"
                         onClick={() => setShowModal(false)}
-                        className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition-all cursor-pointer"
+                        className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-medium text-xs transition-all cursor-pointer"
                       >
                         {t.cancel}
                       </button>
                       <button
                         type="button"
                         onClick={handleSaveRecord}
-                        className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-xs transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20 cursor-pointer group"
+                        className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-xs transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20 cursor-pointer group"
                       >
                         <Save className="w-4 h-4" />
                         <span>{t.save}</span>
@@ -1270,13 +1270,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <h2 className="text-xl font-medium text-slate-900 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-indigo-600" />
                   {t.service_tab.details} #{selectedRecord.id}
                 </h2>
                 <div className="flex items-center gap-2">
                   {selectedRecord.quotation_id && (
-                    <div className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold flex items-center gap-2">
+                    <div className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium flex items-center gap-2">
                       <FileText className="w-3.5 h-3.5" />
                       {isTr ? `Teklif #${selectedRecord.quotation_id}` : `Quotation #${selectedRecord.quotation_id}`}
                     </div>
@@ -1284,14 +1284,14 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   {selectedRecord.status === 'delivered' && !selectedRecord.is_converted_to_sale && !selectedRecord.quotation_id && (
                     <button
                       onClick={() => setShowConversionModal(true)}
-                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-bold flex items-center gap-2"
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium flex items-center gap-2"
                     >
                       <Check className="w-4 h-4" />
                       {t.service_tab.convertToSale}
                     </button>
                   )}
                   {selectedRecord.is_converted_to_sale && (
-                    <div className="px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm font-bold flex items-center gap-2">
+                    <div className="px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm font-medium flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4" />
                       {t.service_tab.statuses.converted_to_sale}
                     </div>
@@ -1315,7 +1315,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 {/* Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div className="w-1/2 space-y-0.5 pr-4">
-                    <h1 className="font-bold text-xs uppercase">{storeInfo?.name || "Teknik Servis"}</h1>
+                    <h1 className="font-medium text-xs uppercase">{storeInfo?.name || "Teknik Servis"}</h1>
                     <p className="leading-tight">{storeInfo?.address}</p>
                     <p>Tel: {storeInfo?.phone}</p>
                     <p>E-Posta: {storeInfo?.email}</p>
@@ -1325,7 +1325,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       <div className="w-12 h-12 bg-slate-100 rounded-full mx-auto mb-1 flex items-center justify-center border border-slate-200">
                         <Wrench className="w-6 h-6 text-slate-400" />
                       </div>
-                      <span className="font-bold text-base uppercase tracking-widest">{isTr ? 'TEKNİK SERVİS FORMU' : 'SERVICE FORM'}</span>
+                      <span className="font-medium text-base uppercase tracking-widest">{isTr ? 'TEKNİK SERVİS FORMU' : 'SERVICE FORM'}</span>
                     </div>
                   </div>
                 </div>
@@ -1336,23 +1336,23 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 {/* Customer & Service Info */}
                 <div className="flex justify-between items-start mb-4">
                   <div className="w-1/2 space-y-0.5 pr-4">
-                    <p className="font-bold border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{isTr ? 'MÜŞTERİ BİLGİLERİ' : 'CUSTOMER INFO'}</p>
-                    <p className="font-bold text-[11px]">{selectedRecord.customer_name || '-'}</p>
+                    <p className="font-medium border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{isTr ? 'MÜŞTERİ BİLGİLERİ' : 'CUSTOMER INFO'}</p>
+                    <p className="font-medium text-[11px]">{selectedRecord.customer_name || '-'}</p>
                     <p>Tel: {selectedRecord.customer_phone || '-'}</p>
                   </div>
                   <div className="w-1/2 pl-4">
                     <table className="w-full border-collapse border border-slate-900 text-[9px]">
                       <tbody>
                         <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold w-1/3">{isTr ? 'Kayıt No:' : 'Record No:'}</td>
+                          <td className="border border-slate-900 p-0.5 font-medium w-1/3">{isTr ? 'Kayıt No:' : 'Record No:'}</td>
                           <td className="border border-slate-900 p-0.5">#{selectedRecord.id.toString().padStart(6, '0')}</td>
                         </tr>
                         <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Tarih:' : 'Date:'}</td>
+                          <td className="border border-slate-900 p-0.5 font-medium">{isTr ? 'Tarih:' : 'Date:'}</td>
                           <td className="border border-slate-900 p-0.5">{formatDateTR(selectedRecord.created_at)}</td>
                         </tr>
                         <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Durum:' : 'Status:'}</td>
+                          <td className="border border-slate-900 p-0.5 font-medium">{isTr ? 'Durum:' : 'Status:'}</td>
                           <td className="border border-slate-900 p-0.5 uppercase">{getStatusLabel(selectedRecord.status)}</td>
                         </tr>
                       </tbody>
@@ -1362,14 +1362,14 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
                 {/* Device Info */}
                 <div className="mb-4">
-                  <p className="font-bold border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{isTr ? 'CİHAZ / ARAÇ BİLGİLERİ & AÇIKLAMA' : 'DEVICE/VEHICLE INFO & DESCRIPTION'}</p>
+                  <p className="font-medium border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{isTr ? 'CİHAZ / ARAÇ BİLGİLERİ & AÇIKLAMA' : 'DEVICE/VEHICLE INFO & DESCRIPTION'}</p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p><span className="font-bold">{isTr ? 'Cihaz / Araç Modeli:' : 'Device/Vehicle Model:'}</span> {selectedRecord.device_model}</p>
-                      <p><span className="font-bold">{isTr ? 'Seri, Şasi veya Plaka:' : 'Serial, Chassis or Plate:'}</span> {selectedRecord.device_serial || '-'}</p>
+                      <p><span className="font-medium">{isTr ? 'Cihaz / Araç Modeli:' : 'Device/Vehicle Model:'}</span> {selectedRecord.device_model}</p>
+                      <p><span className="font-medium">{isTr ? 'Seri, Şasi veya Plaka:' : 'Serial, Chassis or Plate:'}</span> {selectedRecord.device_serial || '-'}</p>
                     </div>
                     <div>
-                      <p><span className="font-bold">{isTr ? 'Açıklama:' : 'Description:'}</span> {selectedRecord.issue_description || '-'}</p>
+                      <p><span className="font-medium">{isTr ? 'Açıklama:' : 'Description:'}</span> {selectedRecord.issue_description || '-'}</p>
                     </div>
                   </div>
                 </div>
@@ -1395,7 +1395,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                         <tr key={idx}>
                           <td className="border border-slate-900 p-2 text-center">{idx + 1}</td>
                           <td className="border border-slate-900 p-2">
-                            <div className="font-bold">{item.item_name}</div>
+                            <div className="font-medium">{item.item_name}</div>
                             <div className="text-[10px] text-slate-500 uppercase">{item.type === 'part' ? (isTr ? 'Yedek Parça' : 'Spare Part') : (isTr ? 'İşçilik' : 'Labor')}</div>
                           </td>
                           <td className="border border-slate-900 p-2 text-center">{Math.floor(qty)}</td>
@@ -1412,33 +1412,33 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   <table className="w-1/2 border-collapse border border-slate-900 text-[9px]">
                     <tbody>
                       <tr className="bg-slate-50">
-                        <td className="border border-slate-900 p-1 font-bold text-right text-[10px]">{isTr ? 'Genel Toplam' : 'Grand Total'}</td>
-                        <td className="border border-slate-900 p-1 text-right font-bold w-32 text-[10px]">{Number(selectedRecord.total_amount).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} {selectedRecord.currency}</td>
+                        <td className="border border-slate-900 p-1 font-medium text-right text-[10px]">{isTr ? 'Genel Toplam' : 'Grand Total'}</td>
+                        <td className="border border-slate-900 p-1 text-right font-medium w-32 text-[10px]">{Number(selectedRecord.total_amount).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} {selectedRecord.currency}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
               <div className="p-6 bg-slate-50 flex justify-end gap-3">
-                <button onClick={() => handleDownloadServicePDF(selectedRecord)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all">
+                <button onClick={() => handleDownloadServicePDF(selectedRecord)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-medium hover:bg-slate-100 transition-all">
                   <Download className="w-4 h-4" /> {t.downloadPDF}
                 </button>
                 {!selectedRecord.is_converted_to_sale && (
                   <button
                     onClick={() => handleConvertToSale()}
-                    className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all"
+                    className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-all"
                   >
                     {t.service_tab.convertToSale}
                   </button>
                 )}
                 {selectedRecord.is_converted_to_sale && (
-                  <div className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold border border-emerald-100 flex items-center gap-2">
+                  <div className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-medium border border-emerald-100 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4" /> {t.service_tab.statuses.converted_to_sale}
                   </div>
                 )}
                 <button
                   onClick={() => setShowDetailsModal(false)}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-all"
                 >
                   {t.close}
                 </button>
@@ -1464,7 +1464,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               className="relative w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden"
             >
               <div className="flex items-center justify-between p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <h3 className="text-xl font-medium text-slate-900 flex items-center gap-2">
                   <User className="h-5 w-5 text-indigo-600" />
                   {isTr ? "Hızlı Müşteri Ekle" : "Quick Add Customer"}
                 </h3>
@@ -1535,7 +1535,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               className="relative w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden"
             >
               <div className="flex items-center justify-between p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <h3 className="text-xl font-medium text-slate-900 flex items-center gap-2">
                   <Package className="h-5 w-5 text-indigo-600" />
                   {isTr ? "Hızlı Ekle" : "Quick Add"}
                 </h3>

@@ -301,6 +301,15 @@ export const useProductActions = (
       return;
     }
 
+    const linkedInvoiceItemId = editingProduct?._purchaseInvoiceItemId || (data as any)?._purchaseInvoiceItemId;
+    const linkedInvoiceId = editingProduct?._purchaseInvoiceId || (data as any)?._purchaseInvoiceId;
+    if (linkedInvoiceItemId) {
+      data._purchaseInvoiceItemId = Number(linkedInvoiceItemId);
+    }
+    if (linkedInvoiceId) {
+      data._purchaseInvoiceId = Number(linkedInvoiceId);
+    }
+
     const savePromise = (async () => {
       let res;
       if (editingProductId) {
@@ -324,21 +333,11 @@ export const useProductActions = (
         });
       }
 
-      // Dispatch global product update event for other components (e.g. Sales Invoices, Fast POS, details modal)
-      if (typeof window !== 'undefined' && productId) {
-        window.dispatchEvent(new CustomEvent('lp_product_updated', {
-          detail: {
-            productId,
-            product: { ...data, id: productId, ...(returnedProduct || {}) }
-          }
-        }));
-      }
-
       // Sync purchase invoice item if requested from purchase invoice product edit
-      if (editingProduct?._purchaseInvoiceItemId && productId) {
+      if (linkedInvoiceItemId && productId) {
         try {
           await api.updatePurchaseInvoiceItem(
-            Number(editingProduct._purchaseInvoiceItemId),
+            Number(linkedInvoiceItemId),
             {
               product_id: productId,
               barcode: barcode || undefined,
@@ -349,6 +348,18 @@ export const useProductActions = (
         } catch (err) {
           console.error("Purchase invoice item update error:", err);
         }
+      }
+
+      // Dispatch global product update event for other components (e.g. Sales Invoices, Purchase Invoices, Fast POS, details modal)
+      if (typeof window !== 'undefined' && productId) {
+        window.dispatchEvent(new CustomEvent('lp_product_updated', {
+          detail: {
+            productId,
+            linkedInvoiceItemId: linkedInvoiceItemId ? Number(linkedInvoiceItemId) : undefined,
+            linkedInvoiceId: linkedInvoiceId ? Number(linkedInvoiceId) : undefined,
+            product: { ...data, id: productId, ...(returnedProduct || {}) }
+          }
+        }));
       }
 
       // Save recipe if data is present

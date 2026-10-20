@@ -119,28 +119,28 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                 </th>
               )}
               {tableManager.metadataMode === 'expandable' && (
-                <th className="w-7 py-2 px-1 text-center text-[10px] text-slate-400 font-bold">
+                <th className="w-7 py-2 px-1 text-center text-[10px] text-slate-400 font-medium">
                   <span className="sr-only">Expand</span>
                 </th>
               )}
               {!isCafe && tableManager.isColumnVisible('barcode') && (
-                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.barcode}</th>
+                <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.barcode}</th>
               )}
-              <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.productName}</th>
+              <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.productName}</th>
               {showStoreName && tableManager.isColumnVisible('branch') && (
-                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.branch}</th>
+                <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.branch}</th>
               )}
               {tableManager.isColumnVisible('price') && (
-                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.price}</th>
+                <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.price}</th>
               )}
               {tableManager.isColumnVisible('cost') && (
-                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.cost}</th>
+                <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.cost}</th>
               )}
               {tableManager.isColumnVisible('stock') && (
-                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.stock}</th>
+                <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.stock}</th>
               )}
               {tableManager.isColumnVisible('actions') && (
-                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
+                <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
               )}
             </tr>
           </thead>
@@ -149,12 +149,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
               <tr>
                 <td colSpan={10} className="px-3.5 py-8 text-center">
                   <div className="animate-spin h-6 w-6 border-2 border-slate-900 border-t-transparent rounded-full mx-auto mb-2 shadow-xs"></div>
-                  <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider">{t.loading}</p>
+                  <p className="text-slate-500 text-[11px] font-medium uppercase tracking-wider">{t.loading}</p>
                 </td>
               </tr>
             ) : paginatedProducts.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-3.5 py-10 text-center text-slate-400 text-[11px] font-bold uppercase tracking-wider italic">
+                <td colSpan={10} className="px-3.5 py-10 text-center text-slate-400 text-[11px] font-medium uppercase tracking-wider italic">
                   {t.noProducts}
                 </td>
               </tr>
@@ -217,7 +217,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
 
       {totalPages > 1 && (
         <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+          <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
             {filteredProducts.length} {lang === 'tr' ? 'ürün' : 'products'}
           </p>
           <div className="flex items-center space-x-1.5">

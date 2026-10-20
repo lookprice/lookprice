@@ -105,7 +105,7 @@ const QuotationsTab = ({
           {onNewQuotation && !isViewer && (
             <button 
               onClick={onNewQuotation}
-              className="flex-1 md:flex-none flex items-center justify-center bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 active:scale-95 transition-all"
+              className="flex-1 md:flex-none flex items-center justify-center bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 active:scale-95 transition-all"
             >
               <Plus className="h-4 w-4 mr-1.5" /> {t.newQuotation}
             </button>
@@ -153,7 +153,7 @@ const QuotationsTab = ({
                       {q.customer_title && <div className="text-xs text-slate-400 truncate max-w-[240px] mt-0.5">{q.customer_title}</div>}
                       {q.service_id && (
                         <div className="mt-1 flex items-center gap-1.5">
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 text-[10px] font-bold border border-indigo-100">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 text-[10px] font-medium border border-indigo-100">
                             <Wrench className="w-2.5 h-2.5 mr-1" />
                             {lang === 'tr' ? `${q.service_id} nolu Teknik Servis` : `Technical Service #${q.service_id}`}
                           </span>
@@ -167,7 +167,7 @@ const QuotationsTab = ({
                       <div className="text-sm font-medium text-slate-900 font-mono tabular-nums">
                         {Number(q.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 font-medium ml-0.5 font-sans">{(q.currency || 'TRY').substring(0, 3)}</span>
                       </div>
-                      <div className="text-[9px] text-slate-400 uppercase font-bold tracking-tight flex items-center mt-0.5">
+                      <div className="text-[9px] text-slate-400 uppercase font-medium tracking-tight flex items-center mt-0.5">
                         <CreditCard className="h-2.5 w-2.5 mr-1" /> {t[q.payment_method] || q.payment_method || t.notSpecified}
                         {q.due_date && (
                           <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">
@@ -178,7 +178,7 @@ const QuotationsTab = ({
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-medium uppercase tracking-wider border ${
                           q.status === 'approved' || q.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
                           q.status === 'cancelled' ? 'bg-rose-50 text-rose-600 border-rose-100' :
                           'bg-amber-50 text-amber-600 border-amber-100'
@@ -187,17 +187,17 @@ const QuotationsTab = ({
                            q.status === 'cancelled' ? t.cancelled : t.pending}
                         </span>
                         {(q.customer_response_status === 'approved' || (q.status === 'approved' && q.notes && (q.notes.includes('Customer Note') || q.notes.includes('Müşteri')))) && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-2xs">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-600 text-white shadow-2xs">
                             ✓ {lang === 'tr' ? 'Müşteri Onayladı' : 'Customer Approved'}
                           </span>
                         )}
                         {(q.customer_response_status === 'rejected' || (q.status === 'cancelled' && q.notes && q.notes.includes('Customer Note (Reject)'))) && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-2xs">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-600 text-white shadow-2xs">
                             ✕ {lang === 'tr' ? 'Müşteri Reddetti' : 'Customer Rejected'}
                           </span>
                         )}
                         {q.is_sale && (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-medium uppercase tracking-wider bg-slate-900 text-white">
                             {t.sale}
                           </span>
                         )}
@@ -236,7 +236,7 @@ const QuotationsTab = ({
                               title={lang === 'tr' ? "Tüm İşlemler" : "All Actions"}
                             >
                               <MoreVertical className="h-3.5 w-3.5" />
-                              <span className="text-[10px] font-bold hidden sm:inline-block pr-0.5">{lang === 'tr' ? 'İşlem' : 'More'}</span>
+                              <span className="text-[10px] font-medium hidden sm:inline-block pr-0.5">{lang === 'tr' ? 'İşlem' : 'More'}</span>
                             </button>
 
                             {openActionMenuId === q.id && (
@@ -247,7 +247,7 @@ const QuotationsTab = ({
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
-                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
+                                  <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
                                     {q.quotation_number || (lang === 'tr' ? 'Teklif İşlemleri' : 'Quotation Actions')}
                                   </span>
                                 </div>
@@ -368,17 +368,17 @@ const QuotationsTab = ({
               <button 
                 disabled={page === 1}
                 onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
               >
                 {t.prev}
               </button>
-              <div className="text-xs font-bold text-slate-600 tabular-nums">
+              <div className="text-xs font-medium text-slate-600 tabular-nums">
                 {page} <span className="text-slate-300 mx-1">/</span> {totalPages}
               </div>
               <button 
                 disabled={page === totalPages}
                 onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
               >
                 {t.next}
               </button>

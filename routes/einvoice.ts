@@ -6,7 +6,7 @@ import { MySoftService } from "../src/services/backend/mysoftService";
 import { IntegrationService } from "../src/services/IntegrationService";
 import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
 import { numberToTurkishWords } from "../src/utils/formatUtils";
-import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification } from "./store/invoiceMatching";
+import { findMatchingProduct, findOrCreateProductForInvoiceItem, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification } from "./store/invoiceMatching";
 
 const router = express.Router();
 
@@ -155,7 +155,48 @@ export const getEInvoiceService = async (storeId: number) => {
   }
 
   if (settings.provider === 'mysoft') {
-    return new MySoftService(settings);
+    return new MySoftService({ ...settings, is_ewaybill_test_mode: false });
+  } else {
+    throw new Error(`Desteklenmeyen entegratör: ${settings.provider}`);
+  }
+};
+
+// Dedicated E-Waybill service instance (allows isolated E-Waybill Sandbox testing without touching live E-Invoice)
+export const getEWaybillService = async (storeId: number) => {
+  const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+  if (storeRes.rows.length === 0) {
+    throw new Error("Mağaza bulunamadı");
+  }
+
+  let settings = storeRes.rows[0].einvoice_settings || {};
+  if (typeof settings === 'string') {
+    try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+  }
+  let branding = storeRes.rows[0].branding || {};
+  if (typeof branding === 'string') {
+    try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+  }
+  const brandingSettings = branding.einvoice_settings || {};
+  settings = { ...brandingSettings, ...settings };
+
+  if (!settings || (!settings.is_active && !settings.is_ewaybill_active)) {
+    throw new Error("E-İrsaliye sistemi bu mağaza için aktif değil");
+  }
+
+  if (settings.provider === 'mysoft') {
+    const isWaybillTest = !!settings.ewaybill_test_mode;
+    const waybillCredentials = isWaybillTest
+      ? {
+          ...settings,
+          is_ewaybill_test_mode: true,
+          ewaybill_test_api_url: settings.ewaybill_test_api_url || "https://test-edocumentapi.mysoft.com.tr/api",
+          username: settings.ewaybill_test_username || settings.username,
+          password: settings.ewaybill_test_password || settings.password,
+          vkn: settings.ewaybill_test_vkn || settings.vkn,
+          tenant_id: settings.ewaybill_test_tenant_id || settings.tenant_id
+        }
+      : { ...settings, is_ewaybill_test_mode: false };
+    return new MySoftService(waybillCredentials);
   } else {
     throw new Error(`Desteklenmeyen entegratör: ${settings.provider}`);
   }
@@ -1887,24 +1928,53 @@ export async function importIncomingInvoicesForStore(
       if (existingItems.rows.length === 0 && Array.isArray(rawLines)) {
         for (const line of rawLines) {
           const pName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || 'Bilinmeyen Ürün';
+          const sellerCodeRaw = line.detailItem?.sellersItemIdentificationId || line.detailItem?.sellersItemIdentification || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.sellersItemIdentification;
+          const sellerCode = typeof sellerCodeRaw === 'string' ? sellerCodeRaw.trim() : (typeof sellerCodeRaw === 'number' ? String(sellerCodeRaw) : null);
+          const buyerCodeRaw = line.detailItem?.buyersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.buyersItemIdentification;
+          const buyerCode = typeof buyerCodeRaw === 'string' ? buyerCodeRaw.trim() : (typeof buyerCodeRaw === 'number' ? String(buyerCodeRaw) : null);
+          const barcodeRaw = line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.ItemInstance?.ProductTraceID;
+          const barcode = typeof barcodeRaw === 'string' ? barcodeRaw.trim() : (typeof barcodeRaw === 'number' ? String(barcodeRaw) : null);
+
           const qty = Number(String(line.invoicedQuantity || line.Quantity || 0).replace(',','.')) || 0;
           const up = Number(String(line.unitPrice || line.Price?.PriceAmount || 0).replace(',','.')) || 0;
           const tr = Number(String(line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent || 0).replace(',','.')) || 0;
           const lTax = (qty * up * tr) / 100;
           const lTotal = qty * up;
 
-          const match = await findMatchingProduct(pool, storeId, { supplierVkn: senderVkn, productName: pName });
-          const productId = match ? match.productId : null;
+          let productId: number | null = null;
+          let finalBarcode: string | null = barcode;
+          let finalProductCode: string | null = sellerCode || buyerCode || null;
+
+          if (!expenseCheck.isExpense) {
+            const resolved = await findOrCreateProductForInvoiceItem(pool, storeId, {
+              supplierVkn: senderVkn,
+              productName: pName,
+              barcode,
+              productCode: sellerCode || buyerCode,
+              sellerCode,
+              buyerCode,
+              unitPrice: up,
+              taxRate: tr,
+              currency: details.documentCurrencyCode || 'TRY'
+            });
+            productId = resolved.productId;
+            finalBarcode = resolved.barcode;
+            finalProductCode = resolved.productCode;
+
+            if (senderVkn && pName && productId && !resolved.autoCreated) {
+              await saveSupplierMapping(pool, storeId, senderVkn, pName, productId, finalProductCode);
+            }
+          }
 
           await pool.query(
-            `INSERT INTO purchase_invoice_items (purchase_invoice_id, product_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [invoiceId, productId, pName, qty, up, tr, lTax, lTotal]
+            `INSERT INTO purchase_invoice_items (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [invoiceId, productId, pName, finalBarcode, finalProductCode, qty, up, tr, lTax, lTotal]
           );
 
-          if (productId && !expenseCheck.isExpense) {
-            await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2 WHERE id = $3", [qty, up, productId]);
-            await addStockMovement(pool, storeId, productId, 'in', qty, 'purchase_invoice', `E-Fatura İçe Aktarma: ${finalDocNo}`, up, senderTitle, details.documentCurrencyCode || 'TRY', null, invoiceId, 'purchase', finalDocNo);
+          if (productId && !expenseCheck.isExpense && qty > 0) {
+            await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4", [qty, up, details.documentCurrencyCode || 'TRY', productId]);
+            await addStockMovement(pool, storeId, productId, 'in', qty, 'purchase_invoice', `Alış Faturası: ${finalDocNo}`, up, senderTitle, details.documentCurrencyCode || 'TRY', null, invoiceId, 'purchase', finalDocNo);
           }
         }
       }
@@ -2811,7 +2881,10 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
   const actualDate = (isIndependent ? data.actual_date : data.waybill_actual_date) ? new Date(isIndependent ? data.actual_date : data.waybill_actual_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
   const actualTime = (isIndependent ? data.actual_time : data.waybill_actual_time) || new Date().toTimeString().split(' ')[0];
 
-  const storeTaxNumber = (storeSettings.vkn || storeSettings.tax_number || branding.tax_number || "").replace(/\D/g, '');
+  const effectiveVkn = (storeSettings.ewaybill_test_mode && storeSettings.ewaybill_test_vkn)
+    ? storeSettings.ewaybill_test_vkn
+    : (storeSettings.vkn || storeSettings.tax_number || branding.tax_number || "");
+  const storeTaxNumber = effectiveVkn.replace(/\D/g, '');
 
   // Retrieve items
   let lines = [];
@@ -2981,7 +3054,7 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
     const settings = storeRes.rows[0]?.einvoice_settings || {};
     const branding = storeRes.rows[0]?.branding || {};
 
-    const service = await getEInvoiceService(storeId);
+    const service = await getEWaybillService(storeId);
     const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
     const taxpayerCheck = await service.checkTaxpayer(taxNumber);
     let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
@@ -3032,7 +3105,7 @@ router.get("/einvoice/waybill/status/:invoiceId", authenticate, async (req: any,
 
     if (!waybill_ettn) return res.status(400).json({ error: "E-İrsaliye henüz gönderilmemiş." });
 
-    const service = await getEInvoiceService(store_id);
+    const service = await getEWaybillService(store_id);
     const result = await service.getWaybillStatus(waybill_ettn);
 
     await pool.query("UPDATE sales_invoices SET waybill_status = $1, waybill_message = $2 WHERE id = $3", [result.status.toUpperCase(), result.message, invoiceId]);
@@ -3055,7 +3128,7 @@ router.get("/einvoice/waybill/preview-html/:invoiceId", authenticate, async (req
     const settings = storeRes.rows[0]?.einvoice_settings || {};
     const branding = storeRes.rows[0]?.branding || {};
 
-    const service = await getEInvoiceService(invoice.store_id);
+    const service = await getEWaybillService(invoice.store_id);
     
     // Determine PK Alias
     const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
@@ -3086,7 +3159,7 @@ router.get("/einvoice/waybill/html/:invoiceId", authenticate, async (req: any, r
 
     if (!invoice.waybill_ettn) return res.status(400).json({ error: "E-İrsaliye ETTN bulunamadı." });
 
-    const service = await getEInvoiceService(invoice.store_id);
+    const service = await getEWaybillService(invoice.store_id);
     const htmlContent = await service.getWaybillHtml(invoice.waybill_ettn, invoice.notes || "");
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -3615,7 +3688,7 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
     const settings = storeRes.rows[0].einvoice_settings || {};
     const branding = storeRes.rows[0].branding || {};
 
-    const service = await getEInvoiceService(storeId);
+    const service = await getEWaybillService(storeId);
     
     // Taxpayer check for pkAlias
     const taxNumber = (waybill.company_tax_number || "").replace(/\D/g, '');
@@ -3649,7 +3722,7 @@ router.get("/independent-waybills/:id/status", authenticate, async (req: any, re
 
     if (!ettn) return res.status(400).json({ error: "İrsaliye henüz gönderilmemiş." });
 
-    const service = await getEInvoiceService(storeId);
+    const service = await getEWaybillService(storeId);
     const result = await service.getWaybillStatus(ettn);
 
     await pool.query("UPDATE e_waybills SET status = $1, message = $2 WHERE id = $3", [result.status.toUpperCase(), result.message, id]);
@@ -3682,7 +3755,7 @@ router.get("/independent-waybills/:id/preview-html", authenticate, async (req: a
     const settings = storeRes.rows[0].einvoice_settings || {};
     const branding = storeRes.rows[0].branding || {};
 
-    const service = await getEInvoiceService(storeId);
+    const service = await getEWaybillService(storeId);
     
     // Determine PK Alias
     const taxNumber = (waybill.company_tax_number || "").replace(/\D/g, '');
@@ -3725,7 +3798,7 @@ router.get("/independent-waybills/:id/control", authenticate, async (req: any, r
     const settings = storeRes.rows[0].einvoice_settings || {};
     const branding = storeRes.rows[0].branding || {};
 
-    const service = await getEInvoiceService(storeId);
+    const service = await getEWaybillService(storeId);
     const taxNumber = (waybill.company_tax_number || "").replace(/\D/g, '');
     const taxpayerCheck = await service.checkTaxpayer(taxNumber);
     let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
@@ -3748,10 +3821,10 @@ router.get("/einvoice/waybill/control/:invoiceId", authenticate, async (req: any
     if (!invoice) return res.status(404).json({ error: "Fatura bulunamadı" });
 
     const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [invoice.store_id]);
-    const settings = storeRes.rows[0].einvoice_settings || {};
-    const branding = storeRes.rows[0].branding || {};
+    const settings = storeRes.rows[0]?.einvoice_settings || {};
+    const branding = storeRes.rows[0]?.branding || {};
 
-    const service = await getEInvoiceService(invoice.store_id);
+    const service = await getEWaybillService(invoice.store_id);
     const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
     const taxpayerCheck = await service.checkTaxpayer(taxNumber);
     let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
@@ -3776,7 +3849,7 @@ router.get("/independent-waybills/:id/html", authenticate, async (req: any, res)
 
     if (!waybill.ettn) return res.status(400).json({ error: "İrsaliye ETTN bulunamadı." });
 
-    const service = await getEInvoiceService(storeId);
+    const service = await getEWaybillService(storeId);
     const htmlContent = await service.getWaybillHtml(waybill.ettn, waybill.notes || "");
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");

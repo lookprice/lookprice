@@ -161,7 +161,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
       <div className="overflow-x-auto min-h-[360px]">
         <table className="w-full text-left border-collapse min-w-[760px] sm:min-w-[840px]">
           <thead>
-            <tr className="bg-slate-50/70 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            <tr className="bg-slate-50/70 border-b border-slate-200 text-[10px] font-medium text-slate-500 uppercase tracking-wider">
               <th className="px-2 py-2 text-center w-7">
                 <input 
                   type="checkbox" 
@@ -279,7 +279,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             #{inv.invoice_number}
                           </button>
                           {(inv.gi_invoice_type === 'IADE' || inv.invoice_type === 'IADE') && (
-                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-black bg-rose-100 text-rose-700 border border-rose-200">
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-medium bg-rose-100 text-rose-700 border border-rose-200">
                               - İADE -
                             </span>
                           )}
@@ -320,7 +320,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                         <div className="flex justify-center mb-0.5">
                           {isCancelled ? (
                             <div 
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-700 border border-rose-300 shadow-2xs"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-rose-100 text-rose-700 border border-rose-300 shadow-2xs"
                               title={inv.sale_cancellation_reason || inv.integration_message || (isTr ? 'Sipariş / Fatura İptal Edildi' : 'Order / Invoice Cancelled')}
                             >
                               <XCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
@@ -371,10 +371,10 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               {(inv.integration_status || isApproved || isUnknown || isCancelled) && (
                                 <div 
                                   className={`inline-flex px-1.5 py-0.2 rounded text-[8px] font-medium border w-fit ${
-                                    isCancelled ? 'border-rose-300 bg-rose-50 text-rose-700 font-bold' :
+                                    isCancelled ? 'border-rose-300 bg-rose-50 text-rose-700 font-medium' :
                                     isQueued ? 'border-amber-200 bg-amber-50 text-amber-700' :
                                     isApproved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
-                                    isFailed ? 'border-rose-300 bg-rose-50 text-rose-700 font-bold' :
+                                    isFailed ? 'border-rose-300 bg-rose-50 text-rose-700 font-medium' :
                                     isRejected ? 'border-amber-300 bg-amber-50 text-amber-800' :
                                     'border-slate-200 bg-slate-100 text-slate-600'
                                   }`}
@@ -439,7 +439,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                         </div>
                       </td>
                       <td className="px-2 py-2 text-right whitespace-nowrap">
-                        <div className="text-xs font-bold text-slate-900 font-mono tabular-nums">
+                        <div className="text-xs font-medium text-slate-900 font-mono tabular-nums">
                           {Number(inv.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </td>
@@ -510,7 +510,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               title={isTr ? "Tüm İşlemler Menüsü" : "All Actions Menu"}
                             >
                               <MoreVertical className="h-3.5 w-3.5" />
-                              <span className="text-[10px] font-bold hidden sm:inline-block pr-0.5">{isTr ? 'İşlem' : 'More'}</span>
+                              <span className="text-[10px] font-medium hidden sm:inline-block pr-0.5">{isTr ? 'İşlem' : 'More'}</span>
                             </button>
                           </div>
                         </div>
@@ -529,9 +529,9 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                   <Layers className="w-4 h-4" />
                                 </div>
                                 <div>
-                                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                  <h4 className="text-xs font-medium text-slate-900 uppercase tracking-wider flex items-center gap-2">
                                     <span>{isTr ? 'Fatura Kalemleri & Ürün Detayları' : 'Invoice Items & Details'}</span>
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
                                       {items.length} {isTr ? 'Kalem' : 'Lines'}
                                     </span>
                                   </h4>
@@ -577,7 +577,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               <div className="mt-3 overflow-x-auto">
                                 <table className="w-full text-left border-collapse text-xs">
                                   <thead>
-                                    <tr className="bg-slate-100/70 text-slate-600 font-bold border-y border-slate-200 text-[10px] uppercase tracking-wider">
+                                    <tr className="bg-slate-100/70 text-slate-600 font-medium border-y border-slate-200 text-[10px] uppercase tracking-wider">
                                       <th className="py-2.5 px-3 w-10 text-center">#</th>
                                       <th className="py-2.5 px-3">{isTr ? 'Ürün / Hizmet Açıklaması' : 'Product / Service'}</th>
                                       <th className="py-2.5 px-3 text-right w-24">{isTr ? 'Miktar' : 'Qty'}</th>
@@ -600,11 +600,11 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
 
                                       return (
                                         <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                                          <td className="py-2.5 px-3 text-center font-bold text-slate-400">
+                                          <td className="py-2.5 px-3 text-center font-medium text-slate-400">
                                             {idx + 1}
                                           </td>
                                           <td className="py-2.5 px-3 max-w-[260px] sm:max-w-[340px] lg:max-w-[420px]">
-                                            <div className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
+                                            <div className="font-medium text-slate-800 flex items-center gap-2 flex-wrap">
                                               <button 
                                                 type="button"
                                                 onClick={(e) => {
@@ -631,14 +631,14 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                             {formatCurrency(unitPrice, inv.currency)}
                                           </td>
                                           <td className="py-2.5 px-3 text-center">
-                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-bold text-[10px] border border-indigo-100">
+                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-medium text-[10px] border border-indigo-100">
                                               %{taxRate}
                                             </span>
                                           </td>
                                           <td className="py-2.5 px-3 text-right font-mono text-slate-600">
                                             {formatCurrency(taxAmt, inv.currency)}
                                           </td>
-                                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                          <td className="py-2.5 px-3 text-right font-mono font-medium text-slate-900">
                                             {formatCurrency(lineTotal, inv.currency)}
                                           </td>
                                         </tr>
@@ -664,18 +664,18 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
 
                               <div className="flex items-center gap-4 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200">
                                 <div>
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{isTr ? 'Matrah' : 'Subtotal'}</span>
-                                  <span className="font-mono font-bold text-slate-700">{formatCurrency(inv.total_amount, inv.currency)}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">{isTr ? 'Matrah' : 'Subtotal'}</span>
+                                  <span className="font-mono font-medium text-slate-700">{formatCurrency(inv.total_amount, inv.currency)}</span>
                                 </div>
                                 <div className="w-px h-6 bg-slate-200" />
                                 <div>
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{isTr ? 'KDV Toplamı' : 'VAT Total'}</span>
-                                  <span className="font-mono font-bold text-indigo-700">{formatCurrency(inv.tax_amount, inv.currency)}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">{isTr ? 'KDV Toplamı' : 'VAT Total'}</span>
+                                  <span className="font-mono font-medium text-indigo-700">{formatCurrency(inv.tax_amount, inv.currency)}</span>
                                 </div>
                                 <div className="w-px h-6 bg-slate-200" />
                                 <div>
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
-                                  <span className="font-mono font-black text-slate-900">{formatCurrency(inv.grand_total, inv.currency)}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
+                                  <span className="font-mono font-medium text-slate-900">{formatCurrency(inv.grand_total, inv.currency)}</span>
                                 </div>
                               </div>
                             </div>
@@ -700,19 +700,19 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
       
       {totalPages > 1 && (
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Page {page} of {totalPages}</span>
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-widest">Page {page} of {totalPages}</span>
           <div className="flex gap-2">
             <button 
               disabled={page === 1}
               onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-slate-50 transition-colors"
+              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-slate-50 transition-colors"
             >
               Prev
             </button>
             <button 
               disabled={page === totalPages}
               onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-slate-50 transition-colors"
+              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-slate-50 transition-colors"
             >
               Next
             </button>
@@ -733,11 +733,11 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
               {activeInvoiceForMenu.invoice_number || (isTr ? 'Fatura İşlemleri' : 'Invoice Actions')}
             </span>
             {activeInvoiceForMenu.currency && (
-              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+              <span className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
                 {activeInvoiceForMenu.currency}
               </span>
             )}
@@ -813,7 +813,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                       setMenuPos(null);
                       handleSendToGIB(id);
                     }}
-                    className="w-full px-3 py-1.5 text-xs font-bold text-purple-700 hover:bg-purple-100/70 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    className="w-full px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-100/70 flex items-center gap-2.5 transition-colors cursor-pointer"
                   >
                     <CloudUpload className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                     <span>{['HATALI', 'HATA', 'ERROR', 'FAILED'].includes((activeInvoiceForMenu.integration_status || '').toUpperCase()) ? (isTr ? "Tekrar GİB'e Gönder" : "Re-send to GİB") : (isTr ? "GİB'e Gönder (E-Fatura)" : "Push to GİB")}</span>

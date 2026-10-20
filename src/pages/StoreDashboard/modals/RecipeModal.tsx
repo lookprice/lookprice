@@ -131,10 +131,10 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 uppercase tracking-tight">
+              <h3 className="text-base font-medium text-slate-900 uppercase tracking-tight">
                 {isTr ? "Ürün Reçetesi (Birleşik Ürün)" : "Product Recipe (Composite Product)"}
               </h3>
-              <p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider">
+              <p className="text-xs text-slate-400 font-medium mt-1 uppercase tracking-wider">
                 {product.name}
               </p>
             </div>
@@ -151,8 +151,8 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Quick Info Alert */}
           <div className="p-4 bg-indigo-50 border border-indigo-100/50 rounded-2xl flex items-start gap-3">
-            <div className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center text-[11px] font-black shrink-0 mt-0.5">i</div>
-            <p className="text-xs text-slate-600 leading-relaxed font-bold">
+            <div className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center text-[11px] font-medium shrink-0 mt-0.5">i</div>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
               {isTr 
                 ? "Bu birleşik ürün satıldığında (örneğin POS üzerinden), aşağıda tanımlayacağınız malzemeler belirtilen miktarlarda stoktan otomatik olarak düşecektir." 
                 : "When this composite product is sold, the ingredients defined below will be automatically deducted from stock based on their defined quantities."}
@@ -161,20 +161,20 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
 
           {/* Add Ingredient Form */}
           <div className="p-5 bg-slate-50 border border-slate-100 rounded-2xl space-y-4">
-            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">
+            <h4 className="text-xs font-medium text-slate-700 uppercase tracking-wider">
               {isTr ? "Yeni Malzeme Ekle" : "Add New Ingredient"}
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
               
               {/* Product Selection */}
               <div className="md:col-span-6 space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
                   {isTr ? "Malzeme Ürün" : "Ingredient Product"}
                 </label>
                 <select
                   value={selectedIngredientId}
                   onChange={(e) => setSelectedIngredientId(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500"
                 >
                   <option value="">{isTr ? "-- Malzeme Seçin --" : "-- Select Ingredient --"}</option>
                   {availableIngredients.map(p => (
@@ -187,7 +187,7 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
 
               {/* Quantity */}
               <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
                   {isTr ? "Miktar" : "Quantity"}
                 </label>
                 <input
@@ -197,19 +197,19 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500"
                 />
               </div>
 
               {/* Unit */}
               <div className="md:col-span-2 space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
                   {isTr ? "Birim" : "Unit"}
                 </label>
                 <select
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500"
                 >
                   <option value="ml">ml (Mililitre)</option>
                   <option value="cl">cl (Santilitre)</option>
@@ -247,17 +247,17 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
 
           {/* Ingredient List */}
           <div className="space-y-3">
-            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">
+            <h4 className="text-xs font-medium text-slate-700 uppercase tracking-wider">
               {isTr ? "Reçete İçeriği" : "Recipe Content"}
             </h4>
             
             {loading ? (
               <div className="py-12 text-center text-slate-400 flex flex-col items-center gap-3">
                 <Loader className="h-8 w-8 animate-spin" />
-                <span className="text-xs font-black uppercase tracking-widest">{isTr ? 'YÜKLENİYOR...' : 'LOADING...'}</span>
+                <span className="text-xs font-medium uppercase tracking-widest">{isTr ? 'YÜKLENİYOR...' : 'LOADING...'}</span>
               </div>
             ) : recipeItems.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 font-bold border-2 border-dashed border-slate-100 rounded-2xl italic text-xs uppercase tracking-widest">
+              <div className="py-12 text-center text-slate-400 font-medium border-2 border-dashed border-slate-100 rounded-2xl italic text-xs uppercase tracking-widest">
                 {isTr ? "Bu ürün için henüz reçete tanımlanmamış." : "No recipe defined for this product yet."}
               </div>
             ) : (
@@ -265,12 +265,12 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
                 {recipeItems.map((item, index) => (
                   <div key={index} className="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors gap-3">
                     <div className="space-y-0.5 min-w-0 flex-1">
-                      <p className="text-sm font-black text-slate-800 uppercase tracking-tight truncate">
+                      <p className="text-sm font-medium text-slate-800 uppercase tracking-tight truncate">
                         {item.ingredient_name}
                       </p>
-                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider flex items-center gap-1.5">
+                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider flex items-center gap-1.5">
                         {isTr ? 'GÜNCEL STOK' : 'CURRENT STOCK'}: 
-                        <span className={item.ingredient_stock <= 0 ? "text-rose-500 font-black" : "text-slate-600 font-black"}>
+                        <span className={item.ingredient_stock <= 0 ? "text-rose-500 font-medium" : "text-slate-600 font-medium"}>
                           {item.ingredient_stock} {item.ingredient_unit || item.unit || 'Adet'}
                         </span>
                       </p>
@@ -289,7 +289,7 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
                             return next;
                           });
                         }}
-                        className="w-20 px-2.5 py-1.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs font-mono font-black text-slate-900 text-center outline-none focus:border-amber-500"
+                        className="w-20 px-2.5 py-1.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs font-mono font-medium text-slate-900 text-center outline-none focus:border-amber-500"
                       />
                       <select
                         value={item.unit || item.ingredient_unit || 'Adet'}
@@ -301,7 +301,7 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
                             return next;
                           });
                         }}
-                        className="w-24 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-amber-500 cursor-pointer"
+                        className="w-24 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-amber-500 cursor-pointer"
                       >
                         <option value="ml">ml</option>
                         <option value="cl">cl</option>
@@ -342,7 +342,7 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+            className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-medium uppercase tracking-wider hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
           >
             {isTr ? "İptal" : "Cancel"}
           </button>
@@ -350,7 +350,7 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
             type="button"
             disabled={saving || loading}
             onClick={handleSaveRecipe}
-            className="px-6 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-amber-600 active:scale-95 transition-all shadow-lg flex items-center gap-2"
+            className="px-6 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-medium uppercase tracking-wider hover:bg-amber-600 active:scale-95 transition-all shadow-lg flex items-center gap-2"
           >
             {saving ? <Loader className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             <span>{isTr ? "Reçeteyi Kaydet" : "Save Recipe"}</span>

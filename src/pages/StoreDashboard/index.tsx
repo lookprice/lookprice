@@ -1535,12 +1535,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onFetchDetails={handleFetchPurchaseInvoiceDetails}
                   products={products}
                   onEditProduct={(item: any) => {
+                    const invoiceItemId = item._purchaseInvoiceItemId ?? (item.purchase_invoice_id ? item.id : undefined);
+                    const invoiceId = item._purchaseInvoiceId ?? item.purchase_invoice_id;
                     const normItemName = (item.product_name || item.name || '').trim().toLowerCase();
                     const normItemBarcode = (item.barcode || '').trim();
                     const normItemCode = (item.product_code || '').trim().toLowerCase();
+                    const explicitProdId = item.product_id ?? (item._purchaseInvoiceItemId ? item.id : undefined);
 
                     const found = products.find((p: any) => {
-                      if (item.product_id && Number(p.id) === Number(item.product_id)) return true;
+                      if (explicitProdId && Number(p.id) === Number(explicitProdId)) return true;
+                      if (!item._purchaseInvoiceItemId && item.id && !item.purchase_invoice_id && Number(p.id) === Number(item.id)) return true;
                       if (normItemBarcode && p.barcode && p.barcode.trim() === normItemBarcode) return true;
                       if (normItemCode && p.product_code && p.product_code.trim().toLowerCase() === normItemCode) return true;
                       if (normItemName && p.name && p.name.trim().toLowerCase() === normItemName) return true;
@@ -1550,19 +1554,25 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     if (found) {
                       setEditingProduct({
                         ...found,
-                        _purchaseInvoiceItemId: item.id
+                        _purchaseInvoiceItemId: invoiceItemId,
+                        _purchaseInvoiceId: invoiceId
                       });
                     } else {
+                      const resolvedCost = Number(item.cost_price ?? item.unit_price ?? 0) || 0;
+                      const resolvedPrice = Number(item.price ?? (resolvedCost * 1.25)) || 0;
+                      const resolvedStock = Number(item.stock_quantity ?? item.system_quantity ?? item.quantity ?? 1) || 1;
                       setEditingProduct({
-                        id: item.product_id ? Number(item.product_id) : undefined,
-                        _purchaseInvoiceItemId: item.id,
+                        id: explicitProdId ? Number(explicitProdId) : undefined,
+                        _purchaseInvoiceItemId: invoiceItemId,
+                        _purchaseInvoiceId: invoiceId,
                         name: item.product_name || item.name || '',
                         barcode: item.barcode || '',
                         product_code: item.product_code || '',
-                        cost_price: Number(item.unit_price) || 0,
-                        price: Number(item.unit_price) * 1.25 || 0,
-                        tax_rate: Number(item.tax_rate) || 20,
-                        stock_quantity: Number(item.quantity) || 0
+                        cost_price: resolvedCost,
+                        price: resolvedPrice,
+                        tax_rate: Number(item.tax_rate ?? 20) || 20,
+                        stock_quantity: resolvedStock,
+                        currency: item.currency || 'TRY'
                       } as any);
                     }
                     setShowProductModal(true);

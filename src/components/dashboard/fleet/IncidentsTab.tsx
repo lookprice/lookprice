@@ -39,11 +39,11 @@ export const IncidentsTab: React.FC<IncidentsTabProps> = ({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-black text-slate-900 text-[11px] uppercase tracking-tighter truncate">{i.type}</h4>
-                  <span className="shrink-0 px-1 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase border border-blue-100">
+                  <h4 className="font-medium text-slate-900 text-[11px] uppercase tracking-tighter truncate">{i.type}</h4>
+                  <span className="shrink-0 px-1 bg-blue-50 text-blue-600 rounded text-[7px] font-medium uppercase border border-blue-100">
                     {getVehiclePlate(i.vehicle_id)}
                   </span>
-                  <span className={`shrink-0 px-1 rounded text-[7px] font-black uppercase border ${
+                  <span className={`shrink-0 px-1 rounded text-[7px] font-medium uppercase border ${
                     i.is_owner_fault ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-green-50 text-green-700 border-green-200'
                   }`}>
                     {i.is_owner_fault ? (lang === 'tr' ? 'Kusurlu' : 'At Fault') : (lang === 'tr' ? 'Kusursuz' : 'No Fault')}
@@ -54,7 +54,7 @@ export const IncidentsTab: React.FC<IncidentsTabProps> = ({
                   {i.description}
                 </p>
 
-                <div className="flex items-center gap-3 text-[8px] font-black text-slate-400 uppercase tracking-tighter">
+                <div className="flex items-center gap-3 text-[8px] font-medium text-slate-400 uppercase tracking-tighter">
                   <div className="flex items-center gap-1">
                     <Calendar className="w-2.5 h-2.5" />
                     {safeFormatDate(i.date, 'dd.MM.yyyy, HH:mm')}
@@ -69,8 +69,8 @@ export const IncidentsTab: React.FC<IncidentsTabProps> = ({
 
             <div className="flex items-center gap-4 shrink-0">
               <div className="text-right">
-                <p className="text-[6px] font-black text-slate-400 uppercase tracking-widest leading-none">{lang === 'tr' ? 'HASAR' : 'DAMAGE'}</p>
-                <p className="text-[11px] font-black text-red-600 mt-0.5">{(i.cost || 0).toLocaleString()} <span className="text-[9px] opacity-50">{i.currency}</span></p>
+                <p className="text-[6px] font-medium text-slate-400 uppercase tracking-widest leading-none">{lang === 'tr' ? 'HASAR' : 'DAMAGE'}</p>
+                <p className="text-[11px] font-medium text-red-600 mt-0.5">{(i.cost || 0).toLocaleString()} <span className="text-[9px] opacity-50">{i.currency}</span></p>
               </div>
               {!isViewer && (
                 <button
@@ -88,7 +88,7 @@ export const IncidentsTab: React.FC<IncidentsTabProps> = ({
       {incidents.length === 0 && (
         <div className="py-8 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
           <AlertTriangle className="w-6 h-6 text-slate-300 mx-auto mb-2" />
-          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">{t.noIncidentsFound}</p>
+          <p className="text-slate-500 font-medium text-[10px] uppercase tracking-widest">{t.noIncidentsFound}</p>
         </div>
       )}
     </div>

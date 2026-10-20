@@ -132,7 +132,7 @@ export default function AiMenuScanModal({ isOpen, onClose, lang, storeId, onSucc
               <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <h2 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-wider">{t.title}</h2>
+              <h2 className="text-base font-medium text-slate-900 dark:text-white uppercase tracking-wider">{t.title}</h2>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{t.desc}</p>
             </div>
           </div>
@@ -155,7 +155,7 @@ export default function AiMenuScanModal({ isOpen, onClose, lang, storeId, onSucc
                     <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <Upload className="w-6 h-6 text-slate-400" />
                     </div>
-                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{t.uploadBtn}</span>
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{t.uploadBtn}</span>
                     <span className="text-xs font-medium text-slate-400 mt-1">PNG, JPG (Max 10MB)</span>
                   </>
                 )}
@@ -172,7 +172,7 @@ export default function AiMenuScanModal({ isOpen, onClose, lang, storeId, onSucc
                 <button
                   onClick={handleScan}
                   disabled={isScanning}
-                  className="w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 dark:shadow-none disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 dark:shadow-none disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isScanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                   <span>{isScanning ? (lang === 'tr' ? 'Görsel Taranıyor...' : 'Scanning Image...') : t.scanBtn}</span>
@@ -184,7 +184,7 @@ export default function AiMenuScanModal({ isOpen, onClose, lang, storeId, onSucc
               <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 flex items-start gap-3">
                 <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                 <div>
-                  <h4 className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                  <h4 className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
                     {lang === 'tr' ? 'Tarama Tamamlandı' : 'Scan Completed'}
                   </h4>
                   <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-1">
@@ -198,7 +198,7 @@ export default function AiMenuScanModal({ isOpen, onClose, lang, storeId, onSucc
               <div className="space-y-6">
                 {parsedData.categories.map((cat: any, i: number) => (
                   <div key={i} className="space-y-3">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <h3 className="text-sm font-medium text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
                       {cat.name}
                     </h3>
@@ -207,8 +207,8 @@ export default function AiMenuScanModal({ isOpen, onClose, lang, storeId, onSucc
                         <div key={j} className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl flex flex-col justify-between">
                           <div>
                             <div className="flex justify-between items-start gap-2">
-                              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{prod.name}</h4>
-                              <span className="text-sm font-black text-slate-900 dark:text-white whitespace-nowrap bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">{prod.price} ₺</span>
+                              <h4 className="text-sm font-medium text-slate-800 dark:text-slate-200">{prod.name}</h4>
+                              <span className="text-sm font-medium text-slate-900 dark:text-white whitespace-nowrap bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">{prod.price} ₺</span>
                             </div>
                             {prod.description && (
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">{prod.description}</p>
@@ -232,14 +232,14 @@ export default function AiMenuScanModal({ isOpen, onClose, lang, storeId, onSucc
                 setSelectedImage(null);
               }}
               disabled={isSaving}
-              className="px-5 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
+              className="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
             >
               {lang === 'tr' ? 'Yeniden Tara' : 'Scan Again'}
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-indigo-200 dark:shadow-none disabled:opacity-70 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-indigo-200 dark:shadow-none disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ListPlus className="w-4 h-4" />}
               <span>{isSaving ? t.savingBtn : t.saveBtn}</span>

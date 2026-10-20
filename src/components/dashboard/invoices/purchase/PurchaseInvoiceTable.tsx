@@ -82,6 +82,43 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
   const [matchSearch, setMatchSearch] = useState<string>("");
   const [isUpdatingMatch, setIsUpdatingMatch] = useState<boolean>(false);
 
+  React.useEffect(() => {
+    const handleProductUpdated = (e: any) => {
+      const detail = e?.detail;
+      if (!detail || !detail.product) return;
+      const updatedProd = detail.product;
+      const productId = detail.productId || updatedProd.id;
+      const linkedInvoiceItemId = detail.linkedInvoiceItemId || updatedProd._purchaseInvoiceItemId;
+
+      setItemsCache(prev => {
+        const next: Record<number, any[]> = {};
+        for (const [invId, list] of Object.entries(prev)) {
+          if (!Array.isArray(list)) {
+            next[Number(invId)] = list;
+            continue;
+          }
+          next[Number(invId)] = list.map((item: any) => {
+            const isMatch = (linkedInvoiceItemId && Number(item.id) === Number(linkedInvoiceItemId)) ||
+              Number(item.product_id) === Number(productId) ||
+              (updatedProd.barcode && item.barcode && String(item.barcode) === String(updatedProd.barcode));
+            if (isMatch) {
+              return {
+                ...item,
+                product_id: productId,
+                barcode: updatedProd.barcode || item.barcode,
+                product_code: updatedProd.product_code || updatedProd.sku || item.product_code
+              };
+            }
+            return item;
+          });
+        }
+        return next;
+      });
+    };
+    window.addEventListener('lp_product_updated', handleProductUpdated);
+    return () => window.removeEventListener('lp_product_updated', handleProductUpdated);
+  }, []);
+
   const handleMatchProduct = async (invoiceId: number, itemId: number, targetProductId: number | null) => {
     setIsUpdatingMatch(true);
     try {
@@ -161,15 +198,15 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
               <th className="px-2 py-2.5 text-center w-8">
                 <span className="sr-only">Detay</span>
               </th>
-              <th className="px-3 py-2.5 font-bold">{isTr ? "Tarih" : "Date"}</th>
-              <th className="px-3 py-2.5 font-bold">{isTr ? "Fatura No" : "Inv No"}</th>
-              <th className="px-3 py-2.5 font-bold">{isTr ? "Satıcı" : "Supplier"}</th>
-              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "Matrah" : "Subtotal"}</th>
-              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "KDV" : "VAT"}</th>
-              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "Toplam" : "Total"}</th>
-              <th className="px-3 py-2.5 font-bold text-center">{isTr ? "Döviz" : "Curr"}</th>
-              <th className="px-3 py-2.5 font-bold text-center">{isTr ? "Ödeme" : "Payment"}</th>
-              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "İşlemler" : "Actions"}</th>
+              <th className="px-3 py-2.5 font-medium">{isTr ? "Tarih" : "Date"}</th>
+              <th className="px-3 py-2.5 font-medium">{isTr ? "Fatura No" : "Inv No"}</th>
+              <th className="px-3 py-2.5 font-medium">{isTr ? "Satıcı" : "Supplier"}</th>
+              <th className="px-3 py-2.5 font-medium text-right">{isTr ? "Matrah" : "Subtotal"}</th>
+              <th className="px-3 py-2.5 font-medium text-right">{isTr ? "KDV" : "VAT"}</th>
+              <th className="px-3 py-2.5 font-medium text-right">{isTr ? "Toplam" : "Total"}</th>
+              <th className="px-3 py-2.5 font-medium text-center">{isTr ? "Döviz" : "Curr"}</th>
+              <th className="px-3 py-2.5 font-medium text-center">{isTr ? "Ödeme" : "Payment"}</th>
+              <th className="px-3 py-2.5 font-medium text-right">{isTr ? "İşlemler" : "Actions"}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -200,7 +237,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                         invoice.is_out_of_sequence 
                           ? 'bg-amber-50/60 hover:bg-amber-100/70 border-l-4 border-l-amber-500' 
                           : invoice.is_read === false 
-                            ? 'font-bold bg-indigo-50/30' 
+                            ? 'font-medium bg-indigo-50/30' 
                             : ''
                       } ${
                         lastEditedId === invoice.id ? 'bg-indigo-100/50 ring-1 ring-inset ring-indigo-200' : ''
@@ -243,7 +280,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           </span>
                           {invoice.is_out_of_sequence && (
                             <span 
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 w-fit" 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-medium uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 w-fit" 
                               title={isTr ? "Bu fatura sisteme sonradan (ara tarihli / geriye dönük) girilmiştir." : "This invoice was entered out of sequence (backdated)."}
                             >
                               ⚠️ {isTr ? "Ara Tarihli" : "Backdated"}
@@ -251,7 +288,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-xs font-bold text-slate-900 whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-xs font-medium text-slate-900 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                            {invoice.is_read === false && (
                              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" title={isTr ? "Yeni (Okunmadı)" : "New (Unread)"}></span>
@@ -260,7 +297,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                              <button
                                type="button"
                                onClick={() => handleViewHtml(invoice.id, invoice)}
-                               className="text-indigo-600 hover:text-indigo-800 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                               className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium flex items-center gap-1 cursor-pointer"
                                title={isTr ? "Fatura HTML görselini görüntüle" : "View invoice HTML"}
                              >
                                {invoice.invoice_number}
@@ -271,19 +308,19 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                         </div>
                         {invoice.e_document_type && (
                            <div className="flex items-center gap-1.5 mt-0.5">
-                             <div className="text-[9px] text-indigo-600 font-bold uppercase">{invoice.e_document_type}</div>
+                             <div className="text-[9px] text-indigo-600 font-medium uppercase">{invoice.e_document_type}</div>
                              {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toUpperCase() === 'APPROVED' && (
-                                <span className="text-[8px] bg-emerald-100 text-emerald-700 px-1 py-0.2 rounded font-black uppercase tracking-wider">{isTr ? 'Kabul Edildi' : 'Approved'}</span>
+                                <span className="text-[8px] bg-emerald-100 text-emerald-700 px-1 py-0.2 rounded font-medium uppercase tracking-wider">{isTr ? 'Kabul Edildi' : 'Approved'}</span>
                              )}
                              {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toUpperCase() === 'REJECTED' && (
-                                <span className="text-[8px] bg-rose-100 text-rose-700 px-1 py-0.2 rounded font-black uppercase tracking-wider">{isTr ? 'Reddedildi' : 'Rejected'}</span>
+                                <span className="text-[8px] bg-rose-100 text-rose-700 px-1 py-0.2 rounded font-medium uppercase tracking-wider">{isTr ? 'Reddedildi' : 'Rejected'}</span>
                              )}
                              {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toLowerCase() === 'pending' && (() => {
                                const arrivalDate = new Date(invoice.created_at || invoice.invoice_date);
                                const diffDays = (new Date().getTime() - arrivalDate.getTime()) / (1000 * 3600 * 24);
                                return diffDays > 8;
                              })() && (
-                                <span className="text-[8px] bg-slate-100 text-slate-500 px-1 py-0.2 rounded font-black uppercase tracking-wider" title={isTr ? "8 günlük süreyi aştığı için yasal olarak otomatik kabul edilmiştir." : "Auto accepted legally over 8 days limit."}>{isTr ? 'Oto Kabul' : 'Auto'}</span>
+                                <span className="text-[8px] bg-slate-100 text-slate-500 px-1 py-0.2 rounded font-medium uppercase tracking-wider" title={isTr ? "8 günlük süreyi aştığı için yasal olarak otomatik kabul edilmiştir." : "Auto accepted legally over 8 days limit."}>{isTr ? 'Oto Kabul' : 'Auto'}</span>
                              )}
                            </div>
                         )}
@@ -313,7 +350,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           {invoice.is_expense ? (
                             <>
-                              <span className="text-[8px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-black uppercase tracking-wider inline-flex items-center gap-0.5">
+                              <span className="text-[8px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-medium uppercase tracking-wider inline-flex items-center gap-0.5">
                                 💼 {isTr ? `GİDER (${invoice.expense_category || 'DİĞER'})` : `EXPENSE (${invoice.expense_category || 'OTHER'})`}
                               </span>
                               {handleConvertToStock && (
@@ -324,7 +361,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                     handleConvertToStock(invoice.id);
                                   }}
                                   title={isTr ? "Bu faturayı Stoklu Alım (Ticari) faturasına dönüştür ve stokları işle" : "Convert to Stock Purchase"}
-                                  className="text-[8px] font-black bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded transition-colors inline-flex items-center gap-1 shadow-2xs"
+                                  className="text-[8px] font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded transition-colors inline-flex items-center gap-1 shadow-2xs"
                                 >
                                   <Package className="w-2.5 h-2.5" />
                                   {isTr ? "Stoklu Alıma Çevir" : "To Stock"}
@@ -333,7 +370,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                             </>
                           ) : (
                             <>
-                              <span className="text-[8px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-black uppercase tracking-wider inline-flex items-center gap-0.5">
+                              <span className="text-[8px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-medium uppercase tracking-wider inline-flex items-center gap-0.5">
                                 📦 {isTr ? "STOKLU ALIM" : "STOCK BUY"}
                               </span>
                               {handleConvertToExpense && (
@@ -344,7 +381,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                     handleConvertToExpense(invoice.id);
                                   }}
                                   title={isTr ? "Bu faturayı Gider Faturasına dönüştür ve stokları iptal et" : "Convert to Expense Invoice"}
-                                  className="text-[8px] font-black bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 px-1.5 py-0.5 rounded transition-colors inline-flex items-center gap-1 shadow-2xs"
+                                  className="text-[8px] font-medium bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 px-1.5 py-0.5 rounded transition-colors inline-flex items-center gap-1 shadow-2xs"
                                 >
                                   <Layers className="w-2.5 h-2.5" />
                                   {isTr ? "Gidere Çevir" : "To Expense"}
@@ -360,21 +397,21 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                       <td className="px-3 py-2.5 text-xs text-slate-600 text-right font-medium whitespace-nowrap">
                         {Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-3 py-2.5 text-xs font-bold text-slate-900 text-right whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-xs font-medium text-slate-900 text-right whitespace-nowrap">
                         {Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-3 py-2.5 text-xs text-slate-500 text-center font-bold">
+                      <td className="px-3 py-2.5 text-xs text-slate-500 text-center font-medium">
                         {invoice.currency}
                       </td>
                       <td className="px-3 py-2.5 text-center whitespace-nowrap">
                         {invoice.payment_method && invoice.payment_method !== 'term' && invoice.payment_method !== 'vadeli' ? (
-                          <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-100">
+                          <span className="px-2 py-0.5 rounded text-[9px] font-medium uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-100">
                             {isTr ? 'Ödendi' : 'Paid'}
                           </span>
                         ) : (
                           <button
                             onClick={() => handleUpdatePaymentStatus(invoice.id, invoice.payment_status === 'paid' ? 'unpaid' : 'paid')}
-                            className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all border ${
+                            className={`px-2 py-0.5 rounded text-[9px] font-medium uppercase tracking-wider transition-all border ${
                               invoice.payment_status === 'paid' 
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
                                 : 'bg-rose-50 text-rose-700 border-rose-100'
@@ -433,7 +470,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                               title={isTr ? "Tüm İşlemler" : "All Actions"}
                             >
                               <MoreVertical className="h-3.5 w-3.5" />
-                              <span className="text-[10px] font-bold hidden sm:inline-block pr-0.5">{isTr ? 'İşlem' : 'More'}</span>
+                              <span className="text-[10px] font-medium hidden sm:inline-block pr-0.5">{isTr ? 'İşlem' : 'More'}</span>
                             </button>
 
                             {openActionMenuId === invoice.id && (
@@ -444,7 +481,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
-                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
+                                  <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
                                     {invoice.invoice_number || (isTr ? 'Fatura İşlemleri' : 'Invoice Actions')}
                                   </span>
                                 </div>
@@ -509,9 +546,9 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                   <Layers className="w-4 h-4" />
                                 </div>
                                 <div>
-                                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                  <h4 className="text-xs font-medium text-slate-900 uppercase tracking-wider flex items-center gap-2">
                                     <span>{isTr ? 'Alış Faturası Kalemleri & Ürün Detayları' : 'Purchase Invoice Items & Details'}</span>
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
                                       {items.length} {isTr ? 'Kalem' : 'Lines'}
                                     </span>
                                   </h4>
@@ -557,7 +594,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                               <div className="mt-3 overflow-x-auto">
                                 <table className="w-full text-left border-collapse text-xs">
                                   <thead>
-                                    <tr className="bg-slate-100/70 text-slate-600 font-bold border-y border-slate-200 text-[10px] uppercase tracking-wider">
+                                    <tr className="bg-slate-100/70 text-slate-600 font-medium border-y border-slate-200 text-[10px] uppercase tracking-wider">
                                       <th className="py-2.5 px-3 w-10 text-center">#</th>
                                       <th className="py-2.5 px-3">{isTr ? 'Ürün / Hizmet Açıklaması' : 'Product / Service'}</th>
                                       <th className="py-2.5 px-3 text-right w-24">{isTr ? 'Miktar' : 'Qty'}</th>
@@ -594,12 +631,12 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
 
                                       return (
                                         <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                                          <td className="py-2.5 px-3 text-center font-bold text-slate-400">
+                                          <td className="py-2.5 px-3 text-center font-medium text-slate-400">
                                             {idx + 1}
                                           </td>
                                           <td className="py-2.5 px-3">
                                             <div className="flex flex-col gap-1.5">
-                                              <div className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
+                                              <div className="font-medium text-slate-800 flex items-center gap-2 flex-wrap">
                                                 <button 
                                                   type="button"
                                                   onClick={(e) => {
@@ -622,7 +659,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                                   </span>
                                                 )}
                                                 {item.product_code && (
-                                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 font-bold">
+                                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 font-medium">
                                                     Kod: {item.product_code}
                                                   </span>
                                                 )}
@@ -631,11 +668,11 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                               {!invoice.is_expense && (
                                                 <div className="flex items-center gap-1.5 flex-wrap">
                                                   {item.product_id ? (
-                                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
+                                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-medium">
                                                       <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
                                                       <span>
                                                         {isTr ? 'Eşleşen Envanter:' : 'Matched Inventory:'}{' '}
-                                                        <strong className="font-black text-emerald-950">{matchedName || `#${item.product_id}`}</strong>
+                                                        <strong className="font-medium text-emerald-950">{matchedName || `#${item.product_id}`}</strong>
                                                       </span>
                                                       <button
                                                         type="button"
@@ -648,7 +685,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                                             setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
                                                           }
                                                         }}
-                                                        className="ml-1 px-1.5 py-0.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-emerald-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                                        className="ml-1 px-1.5 py-0.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-emerald-200 rounded text-[9px] font-medium inline-flex items-center gap-0.5 transition-colors"
                                                         title={isTr ? 'Farklı bir envanter ürünü ile değiştir' : 'Change matched product'}
                                                       >
                                                         <RefreshCw className="h-2.5 w-2.5" />
@@ -661,7 +698,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                                           e.stopPropagation();
                                                           handleMatchProduct(invoice.id, item.id, null);
                                                         }}
-                                                        className="px-1.5 py-0.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                                        className="px-1.5 py-0.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-medium inline-flex items-center gap-0.5 transition-colors"
                                                         title={isTr ? 'Hatalı ürün eşleştirmesini kaldır' : 'Unlink product match'}
                                                       >
                                                         <Unlink className="h-2.5 w-2.5" />
@@ -669,7 +706,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                                       </button>
                                                     </div>
                                                   ) : (
-                                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
+                                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-medium">
                                                       <span>{isTr ? 'Envanterde Eşleşen Ürün Yok' : 'Unmatched in Inventory'}</span>
                                                       <button
                                                         type="button"
@@ -682,7 +719,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                                             setMatchSearch(item.product_code || item.product_name?.split(' ').slice(0, 2).join(' ') || '');
                                                           }
                                                         }}
-                                                        className="ml-1 px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-black inline-flex items-center gap-0.5 transition-colors"
+                                                        className="ml-1 px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-medium inline-flex items-center gap-0.5 transition-colors"
                                                       >
                                                         <Link2 className="h-2.5 w-2.5" />
                                                         {isTr ? 'Envanterden Eşleştir' : 'Link Product'}
@@ -698,13 +735,13 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                                   className="mt-1 p-2.5 bg-slate-900 text-white rounded-xl shadow-xl border border-slate-700 max-w-xl"
                                                 >
                                                   <div className="flex items-center justify-between gap-2 mb-2">
-                                                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                                                    <span className="text-[10px] font-medium uppercase tracking-wider text-indigo-300">
                                                       {isTr ? 'Envanterden Doğru Ürünü Seçin' : 'Select Inventory Product to Match'}
                                                     </span>
                                                     <button
                                                       type="button"
                                                       onClick={() => setMatchingItemId(null)}
-                                                      className="text-[10px] text-slate-400 hover:text-white font-bold"
+                                                      className="text-[10px] text-slate-400 hover:text-white font-medium"
                                                     >
                                                       {isTr ? 'Kapat ✕' : 'Close ✕'}
                                                     </button>
@@ -735,14 +772,14 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                                           className="w-full px-2.5 py-1.5 text-left hover:bg-indigo-950/80 transition-colors flex items-center justify-between gap-2"
                                                         >
                                                           <div className="min-w-0">
-                                                            <div className="text-[11px] font-bold text-slate-100 truncate">{p.name}</div>
+                                                            <div className="text-[11px] font-medium text-slate-100 truncate">{p.name}</div>
                                                             <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
                                                               {p.barcode && <span>Barkod: {p.barcode}</span>}
                                                               {(p.product_code || p.sku) && <span>Kod: {p.product_code || p.sku}</span>}
                                                               <span>Stok: {p.stock_quantity ?? 0}</span>
                                                             </div>
                                                           </div>
-                                                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-black shrink-0">
+                                                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-medium shrink-0">
                                                             {isTr ? 'Seç & Eşleştir' : 'Select'}
                                                           </span>
                                                         </button>
@@ -760,14 +797,14 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                             {formatCurrency(unitPrice, invoice.currency)}
                                           </td>
                                           <td className="py-2.5 px-3 text-center">
-                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-bold text-[10px] border border-indigo-100">
+                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-medium text-[10px] border border-indigo-100">
                                               %{taxRate}
                                             </span>
                                           </td>
                                           <td className="py-2.5 px-3 text-right font-mono text-slate-600">
                                             {formatCurrency(taxAmt, invoice.currency)}
                                           </td>
-                                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                          <td className="py-2.5 px-3 text-right font-mono font-medium text-slate-900">
                                             {formatCurrency(lineTotal, invoice.currency)}
                                           </td>
                                         </tr>
@@ -793,18 +830,18 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
 
                               <div className="flex items-center gap-4 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200">
                                 <div>
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{isTr ? 'Matrah' : 'Subtotal'}</span>
-                                  <span className="font-mono font-bold text-slate-700">{formatCurrency(invoice.total_amount, invoice.currency)}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">{isTr ? 'Matrah' : 'Subtotal'}</span>
+                                  <span className="font-mono font-medium text-slate-700">{formatCurrency(invoice.total_amount, invoice.currency)}</span>
                                 </div>
                                 <div className="w-px h-6 bg-slate-200" />
                                 <div>
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{isTr ? 'KDV Toplamı' : 'VAT Total'}</span>
-                                  <span className="font-mono font-bold text-indigo-700">{formatCurrency(invoice.tax_amount, invoice.currency)}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">{isTr ? 'KDV Toplamı' : 'VAT Total'}</span>
+                                  <span className="font-mono font-medium text-indigo-700">{formatCurrency(invoice.tax_amount, invoice.currency)}</span>
                                 </div>
                                 <div className="w-px h-6 bg-slate-200" />
                                 <div>
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
-                                  <span className="font-mono font-black text-slate-900">{formatCurrency(invoice.grand_total, invoice.currency)}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
+                                  <span className="font-mono font-medium text-slate-900">{formatCurrency(invoice.grand_total, invoice.currency)}</span>
                                 </div>
                               </div>
                             </div>
@@ -829,19 +866,19 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
       
       {totalPages > 1 && (
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Page {page} of {totalPages}</span>
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-widest">Page {page} of {totalPages}</span>
           <div className="flex gap-2">
             <button 
               disabled={page === 1}
               onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-slate-50 transition-colors"
+              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-slate-50 transition-colors"
             >
               Prev
             </button>
             <button 
               disabled={page === totalPages}
               onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-slate-50 transition-colors"
+              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-slate-50 transition-colors"
             >
               Next
             </button>

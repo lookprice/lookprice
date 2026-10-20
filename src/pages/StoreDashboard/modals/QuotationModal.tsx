@@ -127,7 +127,7 @@ export const QuotationModal = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-extrabold tracking-tight text-white uppercase">
+                <h3 className="text-sm font-medium tracking-tight text-white uppercase">
                   {editingQuotation ? (isTr ? "Teklifi Düzenle" : "Edit Quotation") : (isTr ? "Yeni Teklif Oluştur" : "Create New Quotation")}
                 </h3>
                 <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold tracking-wider">
@@ -143,10 +143,10 @@ export const QuotationModal = ({
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs">
               <span className="text-slate-400">{isTr ? "Kalem Sayısı:" : "Items:"}</span>
-              <span className="font-mono font-bold text-indigo-400">{quotationItems?.length || 0}</span>
+              <span className="font-mono font-medium text-indigo-400">{quotationItems?.length || 0}</span>
               <span className="text-slate-700">|</span>
               <span className="text-slate-400">{isTr ? "Canlı Tutar:" : "Total:"}</span>
-              <span className="font-mono font-bold text-emerald-400">
+              <span className="font-mono font-medium text-emerald-400">
                 {totalLinesAmount.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {currencySymbol}
               </span>
             </div>
@@ -177,7 +177,7 @@ export const QuotationModal = ({
             {/* Box 1: Cari & Müşteri */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
                   {isTr ? "Cari / Müşteri Bilgileri" : "Client / Customer"}
                 </span>
@@ -186,7 +186,7 @@ export const QuotationModal = ({
                     type="button"
                     disabled={savingCari}
                     onClick={handleSaveAsCari}
-                    className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-all flex items-center gap-1 border border-indigo-200/60 dark:border-indigo-800/50"
+                    className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-all flex items-center gap-1 border border-indigo-200/60 dark:border-indigo-800/50"
                   >
                     <Plus className="h-2.5 w-2.5" />
                     {savingCari ? (isTr ? "Kaydediliyor..." : "Saving...") : (isTr ? "Cari Olarak Kaydet" : "Save as Cari")}
@@ -229,7 +229,7 @@ export const QuotationModal = ({
               {/* Inputs Grid */}
               <div className="grid grid-cols-2 gap-2 pt-0.5">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                     {isTr ? "Müşteri / Ünvan *" : "Customer Title *"}
                   </label>
                   <input
@@ -243,7 +243,7 @@ export const QuotationModal = ({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                     {isTr ? "Yetkili Kişi" : "Contact Person"}
                   </label>
                   <input
@@ -256,7 +256,7 @@ export const QuotationModal = ({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                     {isTr ? "Vergi Dairesi" : "Tax Office"}
                   </label>
                   <input
@@ -269,7 +269,7 @@ export const QuotationModal = ({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                     {isTr ? "Vergi No / VKN" : "Tax / VKN"}
                   </label>
                   <input
@@ -286,19 +286,19 @@ export const QuotationModal = ({
 
             {/* Box 2: Finansal Koşullar & Vade */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3 shadow-xs space-y-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                 {isTr ? "Ticari & Finansal Koşullar" : "Commercial Terms"}
               </span>
 
               <div className="grid grid-cols-4 gap-2">
                 <div className="col-span-1">
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                     {isTr ? "Para Birimi" : "Currency"}
                   </label>
                   <select
                     name="currency"
-                    className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 outline-none"
+                    className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-indigo-600 dark:text-indigo-400 outline-none"
                     defaultValue={editingQuotation?.currency || branding?.default_currency || "TRY"}
                   >
                     <option value="TRY">TRY (₺)</option>
@@ -310,20 +310,20 @@ export const QuotationModal = ({
                 </div>
 
                 <div className="col-span-1">
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                     {isTr ? "Döviz Kuru" : "Rate"}
                   </label>
                   <input
                     type="text"
                     name="exchange_rate"
                     placeholder="1.00"
-                    className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-slate-100 outline-none text-center"
+                    className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-medium text-slate-900 dark:text-slate-100 outline-none text-center"
                     defaultValue={editingQuotation?.exchange_rate || "1"}
                   />
                 </div>
 
                 <div className="col-span-1">
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                     {isTr ? "Ödeme Şekli" : "Payment"}
                   </label>
                   <select
@@ -339,7 +339,7 @@ export const QuotationModal = ({
                 </div>
 
                 <div className="col-span-1">
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
                     {isTr ? "Vade Tarihi" : "Due Date"}
                   </label>
                   <input
@@ -380,7 +380,7 @@ export const QuotationModal = ({
                     />
                     <span>{isTr ? "Birim Fiyatlara KDV Dahildir" : "Prices Include VAT"}</span>
                   </div>
-                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                  <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded ${
                     isTaxInclusive ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
                   }`}>
                     {isTaxInclusive ? (isTr ? "DAHİL" : "INCL") : (isTr ? "+ KDV HARİÇ" : "+ EXCL")}
@@ -391,7 +391,7 @@ export const QuotationModal = ({
 
             {/* Box 3: Notlar */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-2.5 shadow-xs space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                 {isTr ? "Teklif Notları & Teslimat Şartları" : "Quotation Terms & Delivery Notes"}
               </label>
               <textarea
@@ -434,7 +434,7 @@ export const QuotationModal = ({
                               setShowQuickProductModal(true);
                               setProdSearch("");
                             }}
-                            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/50 rounded-lg text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all"
+                            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/50 rounded-lg text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all"
                           >
                             <Plus className="h-3 w-3" />
                             {isTr ? `Hızlı Ürün Tanımla: "${prodSearch}"` : `Quick Add Product: "${prodSearch}"`}
@@ -478,10 +478,10 @@ export const QuotationModal = ({
                             className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors rounded-lg flex justify-between items-center text-xs"
                           >
                             <div className="min-w-0 pr-2">
-                              <p className="font-bold text-slate-800 dark:text-slate-200 truncate">{p.name}</p>
+                              <p className="font-medium text-slate-800 dark:text-slate-200 truncate">{p.name}</p>
                               {p.barcode && <p className="text-[10px] text-slate-400 font-mono">#{p.barcode}</p>}
                             </div>
-                            <span className="text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-200/50 shrink-0">
+                            <span className="text-[11px] font-mono font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-200/50 shrink-0">
                               {Number(p.price).toLocaleString("tr-TR")} {p.currency || currencySymbol}
                             </span>
                           </button>
@@ -503,7 +503,7 @@ export const QuotationModal = ({
                   <button
                     type="button"
                     onClick={() => setShowQuickProductModal(true)}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-medium transition-all shadow-xs shrink-0 flex items-center gap-1.5"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     <span>{isTr ? "Hızlı Ürün" : "Quick Item"}</span>
@@ -514,7 +514,7 @@ export const QuotationModal = ({
 
             {/* High-Density Futuristic Items Table */}
             <div className="flex-1 my-2 overflow-y-auto rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col">
-              <div className="sticky top-0 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-xs border-b border-slate-200 dark:border-slate-700/80 px-3 py-1.5 grid grid-cols-12 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 z-10">
+              <div className="sticky top-0 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-xs border-b border-slate-200 dark:border-slate-700/80 px-3 py-1.5 grid grid-cols-12 text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 z-10">
                 <span className="col-span-5">{isTr ? "Kalem / Ürün Adı" : "Item / Product"}</span>
                 <span className="col-span-2 text-center">{isTr ? "Miktar" : "Qty"}</span>
                 <span className="col-span-2 text-right">{isTr ? "B.Fiyat" : "Price"}</span>
@@ -527,7 +527,7 @@ export const QuotationModal = ({
                   <div key={idx} className="px-3 py-1.5 grid grid-cols-12 items-center text-xs hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                     {/* Item Name */}
                     <div className="col-span-5 pr-2 min-w-0">
-                      <p className="font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">{item.product_name}</p>
+                      <p className="font-medium text-slate-800 dark:text-slate-200 truncate leading-tight">{item.product_name}</p>
                       {item.barcode && <span className="text-[9px] font-mono text-slate-400">#{item.barcode}</span>}
                     </div>
 
@@ -544,11 +544,11 @@ export const QuotationModal = ({
                               setQuotationItems(updated);
                             }
                           }}
-                          className="px-1.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold"
+                          className="px-1.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium"
                         >
                           -
                         </button>
-                        <span className="w-7 text-center font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">
+                        <span className="w-7 text-center font-mono font-medium text-slate-800 dark:text-slate-200 text-xs">
                           {item.quantity}
                         </span>
                         <button
@@ -561,7 +561,7 @@ export const QuotationModal = ({
                               setQuotationItems(updated);
                             }
                           }}
-                          className="px-1.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold"
+                          className="px-1.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium"
                         >
                           +
                         </button>
@@ -582,7 +582,7 @@ export const QuotationModal = ({
                             setQuotationItems(updated);
                           }
                         }}
-                        className="w-20 px-1.5 py-0.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono font-bold text-slate-800 dark:text-slate-200 text-right outline-none focus:border-indigo-500"
+                        className="w-20 px-1.5 py-0.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono font-medium text-slate-800 dark:text-slate-200 text-right outline-none focus:border-indigo-500"
                       />
                     </div>
 
@@ -604,7 +604,7 @@ export const QuotationModal = ({
 
                     {/* Row Total & Trash Button */}
                     <div className="col-span-2 flex items-center justify-end gap-2">
-                      <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs">
+                      <span className="font-mono font-medium text-slate-900 dark:text-slate-100 text-xs">
                         {Number(item.total_price || item.quantity * item.unit_price).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
                       </span>
                       <button
@@ -627,7 +627,7 @@ export const QuotationModal = ({
                     <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-2">
                       <FileText className="h-5 w-5" />
                     </div>
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
                       {isTr ? "Henüz teklif kalemi eklenmedi" : "No items added yet"}
                     </p>
                     <p className="text-[11px] text-slate-400 max-w-xs mt-0.5">
@@ -641,12 +641,12 @@ export const QuotationModal = ({
             {/* Bottom Actions & Totals Cockpit */}
             <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4">
               <div className="flex items-baseline gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
                   {isTr ? "Teklif Genel Tutarı:" : "Total Quotation:"}
                 </span>
-                <span className="text-xl font-mono font-extrabold text-slate-900 dark:text-white leading-none">
+                <span className="text-xl font-mono font-medium text-slate-900 dark:text-white leading-none">
                   {totalLinesAmount.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
-                  <span className="text-xs font-sans font-bold ml-1 text-indigo-600 dark:text-indigo-400">{currencySymbol}</span>
+                  <span className="text-xs font-sans font-medium ml-1 text-indigo-600 dark:text-indigo-400">{currencySymbol}</span>
                 </span>
                 <span className="text-[10px] text-slate-400">
                   {isTaxInclusive ? (isTr ? "(KDV Dahil)" : "(VAT Included)") : (isTr ? "(+ KDV)" : "(+ VAT)")}
@@ -661,14 +661,14 @@ export const QuotationModal = ({
                     setEditingQuotation(null);
                     setQuotationItems([]);
                   }}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition-all cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-medium text-xs transition-all cursor-pointer"
                 >
                   {t.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={!quotationItems || quotationItems.length === 0}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-xs transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:pointer-events-none cursor-pointer group"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-xs transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:pointer-events-none cursor-pointer group"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   <span>{isTr ? "Teklifi Kaydet" : "Save Quotation"}</span>

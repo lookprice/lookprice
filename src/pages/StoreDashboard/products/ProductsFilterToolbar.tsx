@@ -185,7 +185,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                 setSelectedCategory(selectedCategory === 'bestsellers' ? 'all' : 'bestsellers');
                 setPage(1);
               }}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all shrink-0 border cursor-pointer select-none active:scale-95 ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-all shrink-0 border cursor-pointer select-none active:scale-95 ${
                 selectedCategory === 'bestsellers'
                   ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-xs'
                   : 'bg-orange-50/80 text-orange-800 hover:bg-orange-100 border-orange-200/80'
@@ -194,7 +194,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
             >
               <Flame className={`w-3.5 h-3.5 ${selectedCategory === 'bestsellers' ? 'fill-white text-white' : 'text-orange-500 fill-orange-500'}`} />
               <span className="hidden md:inline">{lang === 'tr' ? 'Çok Satan' : 'Bestseller'}</span>
-              <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${selectedCategory === 'bestsellers' ? 'bg-white/20 text-white' : 'bg-orange-200/60 text-orange-900'}`}>
+              <span className={`px-1 py-0.2 rounded text-[9px] font-medium ${selectedCategory === 'bestsellers' ? 'bg-white/20 text-white' : 'bg-orange-200/60 text-orange-900'}`}>
                 {products.filter(p => getIsBestseller(p)).length}
               </span>
             </button>
@@ -205,7 +205,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
             <button
               type="button"
               onClick={() => setIsBadgeMenuOpen((prev) => !prev)}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border cursor-pointer select-none active:scale-95 shadow-xs ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all border cursor-pointer select-none active:scale-95 shadow-xs ${
                 activeBadgeDef
                   ? `${activeBadgeDef.badgeBgClass} border-transparent shadow-sm ring-1 ring-black/10`
                   : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
@@ -227,7 +227,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   <span className="truncate max-w-[110px]">
                     {lang === 'tr' ? activeBadgeDef.labelTr : activeBadgeDef.labelEn}
                   </span>
-                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-white/20 text-white">
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-medium bg-white/20 text-white">
                     {activeBadgeCount}
                   </span>
                   <span
@@ -257,7 +257,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
             {/* Dropdown Popover */}
             {isBadgeMenuOpen && (
               <div className="absolute left-0 sm:right-0 sm:left-auto mt-1.5 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-100 divide-y divide-slate-100 dark:divide-slate-800">
-                <div className="px-3 py-1.5 text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <div className="px-3 py-1.5 text-[11px] font-medium text-slate-400 uppercase tracking-wider flex items-center justify-between">
                   <span>{lang === 'tr' ? 'Vitrin Izgara Rozeti' : 'Showcase Badge'}</span>
                   <span className="text-[10px] text-slate-400 font-medium">({products.length} {lang === 'tr' ? 'Ürün' : 'Products'})</span>
                 </div>
@@ -272,7 +272,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                     }}
                     className={`w-full px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                       !activeBadgeId 
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold' 
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-medium' 
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                     }`}
                   >
@@ -308,7 +308,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                         }}
                         className={`w-full px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer group ${
                           isSelected 
-                            ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 font-bold' 
+                            ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 font-medium' 
                             : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                         }`}
                       >
@@ -319,7 +319,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                           <span className="truncate">{lang === 'tr' ? b.labelTr : b.labelEn}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-medium ${
                             isSelected ? 'bg-indigo-200/60 text-indigo-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
                           }`}>
                             {count}
@@ -354,7 +354,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
 
           {branches && branches.length > 0 && onToggleIncludeBranches && (
             <label className={`flex items-center cursor-pointer group shrink-0 select-none px-2 py-1 rounded-lg border transition-all ${
-              includeBranches ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-bold' : 'hover:bg-slate-100 border-slate-200 text-slate-600'
+              includeBranches ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-medium' : 'hover:bg-slate-100 border-slate-200 text-slate-600'
             }`}>
               <input 
                 type="checkbox" 
@@ -365,7 +365,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               <span className="ml-1.5 text-xs font-semibold whitespace-nowrap flex items-center gap-1">
                 <Store className="w-3 h-3 text-indigo-500" />
                 {lang === 'tr' ? 'Şube Stokları' : 'Branch Stocks'}
-                <span className="px-1 py-0.2 text-[9px] rounded bg-indigo-100 text-indigo-800 font-extrabold">
+                <span className="px-1 py-0.2 text-[9px] rounded bg-indigo-100 text-indigo-800 font-medium">
                   +{branches.length}
                 </span>
               </span>
@@ -378,12 +378,12 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
       {isShopLp && (
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60 overflow-x-auto pb-1 scrollbar-none text-xs">
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11px] font-bold text-slate-400 mr-1 hidden sm:inline">Pazaryeri:</span>
+            <span className="text-[11px] font-medium text-slate-400 mr-1 hidden sm:inline">Pazaryeri:</span>
             
             <button
               type="button"
               onClick={() => { setMarketplaceFilter('all'); setPage(1); }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 cursor-pointer ${
                 marketplaceFilter === 'all'
                   ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -397,7 +397,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                 <button
                   type="button"
                   onClick={() => { setMarketplaceFilter('listed'); setPage(1); }}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
                     marketplaceFilter === 'listed'
                       ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
                       : 'bg-white text-orange-800 border-orange-200 hover:bg-orange-50'
@@ -405,7 +405,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                 >
                   <Store className="w-3 h-3" />
                   {lang === 'tr' ? 'Satışta' : 'In Marketplace'}
-                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-medium ${
                     marketplaceFilter === 'listed' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
                   }`}>
                     {marketplaceActiveCount}
@@ -416,7 +416,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   <button
                     type="button"
                     onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
                       marketplaceFilter === 'hepsiburada'
                         ? 'bg-orange-600 text-white border-orange-600 shadow-xs'
                         : 'bg-white text-orange-900 border-orange-200 hover:bg-orange-50'
@@ -424,7 +424,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                     HB
-                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-medium ${
                       marketplaceFilter === 'hepsiburada' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
                     }`}>
                       {hbActiveCount}
@@ -436,7 +436,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   <button
                     type="button"
                     onClick={() => { setMarketplaceFilter('trendyol'); setPage(1); }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
                       marketplaceFilter === 'trendyol'
                         ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
                         : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-50'
@@ -444,7 +444,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                     TY
-                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-medium ${
                       marketplaceFilter === 'trendyol' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-900'
                     }`}>
                       {tyActiveCount}
@@ -456,7 +456,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   <button
                     type="button"
                     onClick={() => { setMarketplaceFilter('n11'); setPage(1); }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
                       marketplaceFilter === 'n11'
                         ? 'bg-red-600 text-white border-red-600 shadow-xs'
                         : 'bg-white text-red-900 border-red-200 hover:bg-red-50'
@@ -464,7 +464,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                     N11
-                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-medium ${
                       marketplaceFilter === 'n11' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-900'
                     }`}>
                       {n11ActiveCount}
@@ -476,7 +476,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   <button
                     type="button"
                     onClick={() => { setMarketplaceFilter('amazon'); setPage(1); }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
                       marketplaceFilter === 'amazon'
                         ? 'bg-slate-800 text-amber-300 border-slate-800 shadow-xs'
                         : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
@@ -484,7 +484,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                     AMZ
-                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-medium ${
                       marketplaceFilter === 'amazon' ? 'bg-white/20 text-white' : 'bg-amber-100 text-slate-900'
                     }`}>
                       {amzActiveCount}
@@ -496,7 +496,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   <button
                     type="button"
                     onClick={() => { setMarketplaceFilter('pazarama'); setPage(1); }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
                       marketplaceFilter === 'pazarama'
                         ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                         : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-50'
@@ -504,7 +504,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                     PZR
-                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-medium ${
                       marketplaceFilter === 'pazarama' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-900'
                     }`}>
                       {pzrActiveCount}
@@ -516,7 +516,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   <button
                     type="button"
                     onClick={() => { setMarketplaceFilter('errors'); setPage(1); }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
                       marketplaceFilter === 'errors'
                         ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
                         : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
@@ -524,7 +524,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   >
                     <AlertTriangle className="w-3 h-3 text-rose-500" />
                     {lang === 'tr' ? 'Hatalı' : 'Marketplace Errors'}
-                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-200 text-rose-900 animate-pulse">
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-medium bg-rose-200 text-rose-900 animate-pulse">
                       {marketplaceErrorCount}
                     </span>
                   </button>
@@ -533,7 +533,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                 <button
                   type="button"
                   onClick={() => { setMarketplaceFilter('not_listed'); setPage(1); }}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border shrink-0 cursor-pointer ${
                     marketplaceFilter === 'not_listed'
                       ? 'bg-slate-700 text-white border-slate-700 shadow-xs'
                       : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
@@ -556,7 +556,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               setMarketplaceModalStatus('active');
               setShowMarketplaceListingsModal(true);
             }}
-            className="px-2.5 py-1 rounded-lg bg-orange-50 border border-orange-200 text-[11px] font-bold text-orange-700 hover:bg-orange-100 transition-colors flex items-center gap-1 shrink-0 ml-auto cursor-pointer"
+            className="px-2.5 py-1 rounded-lg bg-orange-50 border border-orange-200 text-[11px] font-medium text-orange-700 hover:bg-orange-100 transition-colors flex items-center gap-1 shrink-0 ml-auto cursor-pointer"
           >
             <ExternalLink className="w-3 h-3" />
             {lang === 'tr' ? 'E-marketler Entegrasyonu' : 'Manage Marketplace Listings'}

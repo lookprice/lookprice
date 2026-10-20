@@ -36,7 +36,7 @@ export const IncidentFormModal: React.FC<IncidentFormModalProps> = ({
           className="bg-white w-full max-w-lg rounded-xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-slate-200"
         >
           <div className="p-3 px-4 border-b border-slate-100 flex justify-between items-center bg-slate-900">
-            <h3 className="text-xs font-black text-white tracking-widest flex items-center gap-2 uppercase">
+            <h3 className="text-xs font-medium text-white tracking-widest flex items-center gap-2 uppercase">
               <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
               {isTr ? 'Olay / Kaza Bildirimi' : 'Incident Report'}
             </h3>
@@ -48,14 +48,14 @@ export const IncidentFormModal: React.FC<IncidentFormModalProps> = ({
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-50/30">
             <div className="space-y-3">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest block">
                   {isTr ? 'Araç Seçin' : 'Select Vehicle'}
                 </label>
                 <select
                   required
                   value={formData.vehicle_id || ''}
                   onChange={(e) => setFormData({ ...formData, vehicle_id: Number(e.target.value) })}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-medium text-xs"
                 >
                   <option value="">{isTr ? 'Araç Seçin' : 'Select Vehicle'}</option>
                   {vehicles.map(v => (
@@ -65,14 +65,14 @@ export const IncidentFormModal: React.FC<IncidentFormModalProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest block">
                   {isTr ? 'Olay Tipi' : 'Incident Type'}
                 </label>
                 <select
                   required
                   value={formData.type || ''}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-medium text-xs"
                 >
                   <option value="">{isTr ? 'Seçin' : 'Select'}</option>
                   <option value="accident">{isTr ? 'Kaza' : 'Accident'}</option>
@@ -85,7 +85,7 @@ export const IncidentFormModal: React.FC<IncidentFormModalProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                  <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest block">
                     {isTr ? 'Olay Tarihi' : 'Incident Date'}
                   </label>
                   <input
@@ -93,31 +93,31 @@ export const IncidentFormModal: React.FC<IncidentFormModalProps> = ({
                     required
                     value={formData.date || ''}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-medium text-xs"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                  <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest block">
                     {isTr ? 'Tahmini Maliyet' : 'Estimated Cost'}
                   </label>
                   <input
                     type="number"
                     value={formData.cost || ''}
                     onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-medium text-xs"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-widest block">
                   {isTr ? 'Olay Detayları / Notlar' : 'Incident Details / Notes'}
                 </label>
                 <textarea
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={2}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-bold text-xs resize-none"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:border-blue-500 outline-none transition-all font-medium text-xs resize-none"
                 />
               </div>
             </div>
@@ -126,13 +126,13 @@ export const IncidentFormModal: React.FC<IncidentFormModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg font-black text-[10px] text-slate-500 hover:bg-slate-50 uppercase tracking-widest transition-all"
+                className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg font-medium text-[10px] text-slate-500 hover:bg-slate-50 uppercase tracking-widest transition-all"
               >
                 {isTr ? 'İptal' : 'Cancel'}
               </button>
               <button
                 type="submit"
-                className="px-6 py-1.5 bg-red-600 text-white rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-sm flex items-center gap-2"
+                className="px-6 py-1.5 bg-red-600 text-white rounded-lg font-medium text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-sm flex items-center gap-2"
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
                 {isTr ? 'Bildir' : 'Report'}

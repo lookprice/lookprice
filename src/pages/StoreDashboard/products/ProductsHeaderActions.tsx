@@ -70,7 +70,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
     <div className="flex items-center justify-between gap-3 w-full">
       <div className="flex items-center space-x-3 min-w-0">
         <div className="bg-indigo-600 rounded-full h-8 sm:h-9 w-1 shrink-0" />
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase truncate">
+        <h2 className="text-xl sm:text-2xl font-medium text-slate-900 tracking-tight uppercase truncate">
           {t.products || "ÜRÜNLER"}
         </h2>
       </div>
@@ -87,7 +87,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
                 title={lang === 'tr' ? "Yapay Zeka ile Menü Oku (Görselden)" : "Scan Menu with AI (From Image)"}
               >
                 <Sparkles className="h-4 w-4 shrink-0" />
-                <span className="text-[11px] font-bold hidden md:inline whitespace-nowrap">
+                <span className="text-[11px] font-medium hidden md:inline whitespace-nowrap">
                   {lang === 'tr' ? "Menü Tara" : "AI Menu"}
                 </span>
               </button>
@@ -113,7 +113,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
               <button 
                 type="button"
                 onClick={() => setIsMergeModalOpen(true)}
-                className="p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg transition-all border border-indigo-200 hover:border-indigo-700 active:scale-95 font-bold flex items-center gap-1.5 shadow-xs text-xs cursor-pointer animate-in fade-in duration-200"
+                className="p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg transition-all border border-indigo-200 hover:border-indigo-700 active:scale-95 font-medium flex items-center gap-1.5 shadow-xs text-xs cursor-pointer animate-in fade-in duration-200"
                 title={lang === 'tr' ? "Seçilen 2 Mükerrer Ürünü Birleştir" : "Merge Selected 2 Products"}
               >
                 <Layers className="h-4 w-4" />
@@ -127,7 +127,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
               <button 
                 type="button"
                 onClick={handleBulkDeleteSelected}
-                className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg transition-all border border-rose-200 hover:border-rose-700 active:scale-95 font-bold flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-300 shadow-xs text-xs cursor-pointer"
+                className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg transition-all border border-rose-200 hover:border-rose-700 active:scale-95 font-medium flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-300 shadow-xs text-xs cursor-pointer"
                 title={lang === 'tr' ? "Seçilenleri Sil" : "Delete Selected"}
               >
                 <Trash2 className="h-4 w-4" />
@@ -143,7 +143,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
           <button
             type="button"
             onClick={onOpenXRay}
-            className="hidden md:flex os-btn-secondary px-3 py-2 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 rounded-lg transition-all border border-indigo-200 dark:border-indigo-800 active:scale-95 shadow-xs items-center gap-1.5 cursor-pointer font-bold text-xs"
+            className="hidden md:flex os-btn-secondary px-3 py-2 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 rounded-lg transition-all border border-indigo-200 dark:border-indigo-800 active:scale-95 shadow-xs items-center gap-1.5 cursor-pointer font-medium text-xs"
             title={lang === 'tr' ? "Çok Kanallı Ürün Röntgeni & Kanal Senaryo Raporu" : "Multi-Channel Product X-Ray Report"}
           >
             <Activity className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
@@ -182,7 +182,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
                 title={lang === 'tr' ? "Google Books & Yapay Zeka ile Barkodlu Kitapları Toplu Eşleştir" : "Bulk Match Books with Google Books & AI"}
               >
                 <Sparkles className="h-4 w-4 text-violet-600 shrink-0" />
-                <span className="text-[11px] font-bold text-violet-900 hidden lg:inline whitespace-nowrap">
+                <span className="text-[11px] font-medium text-violet-900 hidden lg:inline whitespace-nowrap">
                   {lang === 'tr' ? "Kitapları Eşleştir" : "Match Books"}
                 </span>
               </button>
@@ -194,7 +194,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
               title={lang === 'tr' ? "Mükerrer Ürünleri Birleştir / Envanter Temizliği" : "Merge Duplicate Products / Clean Inventory"}
             >
               <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
-              <span className="text-[11px] font-bold text-amber-900 hidden lg:inline whitespace-nowrap">
+              <span className="text-[11px] font-medium text-amber-900 hidden lg:inline whitespace-nowrap">
                 {lang === 'tr' ? "Mükerrer Birleştir" : "Merge Duplicates"}
               </span>
             </button>
@@ -206,7 +206,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
                 title={lang === 'tr' ? "Geçici Barkodları Orijinal EAN-13 Barkodlarına Dönüştür" : "Enrich Temporary Barcodes to Original EAN"}
               >
                 <BarcodeIcon className="h-4 w-4 text-blue-600 shrink-0" />
-                <span className="text-[11px] font-bold text-blue-900 hidden lg:inline whitespace-nowrap">
+                <span className="text-[11px] font-medium text-blue-900 hidden lg:inline whitespace-nowrap">
                   {lang === 'tr' ? "EAN Tamamla" : "Enrich EAN"}
                 </span>
               </button>
@@ -219,7 +219,7 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
                 title={lang === 'tr' ? "Standart Sektör & Hepsiburada Kategori Ağacını Eşitle" : "Sync Sector & Hepsiburada Taxonomy"}
               >
                 <FolderTree className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span className="text-[11px] font-bold text-indigo-900 hidden lg:inline whitespace-nowrap">
+                <span className="text-[11px] font-medium text-indigo-900 hidden lg:inline whitespace-nowrap">
                   {lang === 'tr' ? "Kategori Şablonu" : "Taxonomy"}
                 </span>
               </button>

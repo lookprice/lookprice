@@ -22,8 +22,8 @@ export class MySoftService {
 
   constructor(credentials: any) {
     let url = credentials.api_url || "https://edocumentapi.mysoft.com.tr/api";
-    if (credentials.is_test_mode) {
-      url = "https://test-edocumentapi.mysoft.com.tr/api";
+    if (credentials.is_ewaybill_test_mode) {
+      url = credentials.ewaybill_test_api_url || "https://test-edocumentapi.mysoft.com.tr/api";
     }
     if (url.endsWith("/")) url = url.slice(0, -1);
     this.baseUrl = url;

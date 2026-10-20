@@ -24,8 +24,8 @@ export const WaybillConvertModal: React.FC<WaybillConvertModalProps> = ({
         animate={{ scale: 1, opacity: 1 }}
         className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100"
       >
-        <div className="px-4 py-2 border-b border-slate-100 bg-slate-900 flex justify-between items-center">
-          <h2 className="text-[11px] font-black text-white flex items-center gap-2 uppercase tracking-widest">
+        <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-900 flex justify-between items-center">
+          <h2 className="text-xs font-semibold text-white flex items-center gap-2 uppercase tracking-wider">
             <FileText className="h-4 w-4 text-indigo-400" />
             {isTr ? "E-FATURA DÖNÜŞÜMÜ" : "CONVERT TO E-INVOICE"}
           </h2>
@@ -35,20 +35,20 @@ export const WaybillConvertModal: React.FC<WaybillConvertModalProps> = ({
         </div>
 
         <form onSubmit={handleBulkConversionSubmit} className="p-4 space-y-4 bg-slate-50/50">
-          <div className="text-[10px] font-bold leading-relaxed bg-indigo-50 p-2.5 rounded-lg border border-indigo-100 text-indigo-800 uppercase tracking-tight">
+          <div className="text-xs font-medium leading-relaxed bg-indigo-50 p-2.5 rounded-lg border border-indigo-100 text-indigo-800">
             {isTr 
-              ? `${selectedIds.length} ADET İRSALİYE TEK BİR SATIŞ FATURASINDA BİRLEŞTİRİLECEKTİR.`
-              : `${selectedIds.length} WAYBILLS WILL BE CONSOLIDATED INTO ONE INVOICE.`}
+              ? `${selectedIds.length} adet irsaliye tek bir satış faturasında birleştirilecektir.`
+              : `${selectedIds.length} waybills will be consolidated into one invoice.`}
           </div>
 
-          <div className="space-y-3 bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+          <div className="space-y-3 bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 block uppercase tracking-widest">{isTr ? "Fatura Senaryosu" : "Invoice Profile"}</label>
+                <label className="text-[10px] font-medium text-slate-500 block uppercase tracking-wider">{isTr ? "Fatura Senaryosu" : "Invoice Profile"}</label>
                 <select
                   value={convertForm.invoiceProfile}
                   onChange={(e) => setConvertForm((prev: any) => ({ ...prev, invoiceProfile: e.target.value }))}
-                  className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-[11px] font-black bg-white focus:border-indigo-500 outline-none text-slate-700"
+                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-normal bg-white focus:border-indigo-500 outline-none text-slate-700"
                 >
                   <option value="TICARIFATURA">{isTr ? "TİCARİ FATURA" : "TICARIFATURA"}</option>
                   <option value="TEMELFATURA">{isTr ? "TEMEL FATURA" : "TEMELFATURA"}</option>
@@ -56,11 +56,11 @@ export const WaybillConvertModal: React.FC<WaybillConvertModalProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 block uppercase tracking-widest">{isTr ? "Fatura Tipi" : "Billing Category"}</label>
+                <label className="text-[10px] font-medium text-slate-500 block uppercase tracking-wider">{isTr ? "Fatura Tipi" : "Billing Category"}</label>
                 <select
                   value={convertForm.giInvoiceType}
                   onChange={(e) => setConvertForm((prev: any) => ({ ...prev, giInvoiceType: e.target.value }))}
-                  className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-[11px] font-black bg-white focus:border-indigo-500 outline-none text-slate-700"
+                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-normal bg-white focus:border-indigo-500 outline-none text-slate-700"
                 >
                   <option value="SATIS">{isTr ? "SATIŞ FATURASI" : "SATIS"}</option>
                   <option value="ISTISNA">{isTr ? "İSTİSNA FATURASI" : "ISTISNA"}</option>
@@ -69,11 +69,11 @@ export const WaybillConvertModal: React.FC<WaybillConvertModalProps> = ({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-400 block uppercase tracking-widest">{isTr ? "Ödeme Şekli" : "Payment Method"}</label>
+              <label className="text-[10px] font-medium text-slate-500 block uppercase tracking-wider">{isTr ? "Ödeme Şekli" : "Payment Method"}</label>
               <select
                 value={convertForm.paymentMethod}
                 onChange={(e) => setConvertForm((prev: any) => ({ ...prev, paymentMethod: e.target.value }))}
-                className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-[11px] font-black bg-white focus:border-indigo-500 outline-none text-slate-700"
+                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-normal bg-white focus:border-indigo-500 outline-none text-slate-700"
               >
                 <option value="cash">{isTr ? "NAKİT" : "CASH"}</option>
                 <option value="credit_card">{isTr ? "KREDİ KARTI" : "CREDIT CARD"}</option>
@@ -83,28 +83,28 @@ export const WaybillConvertModal: React.FC<WaybillConvertModalProps> = ({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-400 block uppercase tracking-widest">{isTr ? "Özel Fatura Notu" : "Invoice Notes"}</label>
+              <label className="text-[10px] font-medium text-slate-500 block uppercase tracking-wider">{isTr ? "Özel Fatura Notu" : "Invoice Notes"}</label>
               <textarea
                 value={convertForm.notes}
                 onChange={(e) => setConvertForm((prev: any) => ({ ...prev, notes: e.target.value }))}
-                rows={1}
-                className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-[11px] font-medium bg-white focus:border-indigo-500 outline-none resize-none placeholder:text-slate-300"
+                rows={2}
+                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-normal bg-white focus:border-indigo-500 outline-none resize-y placeholder:text-slate-400"
                 placeholder={isTr ? "Opsiyonel açıklama..." : "Optional notes..."}
               />
             </div>
           </div>
 
-          <div className="pt-3 flex justify-end gap-2 shrink-0">
+          <div className="pt-2 flex justify-end gap-2 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition text-slate-500"
+              className="px-4 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-xs font-medium transition text-slate-600"
             >
               {isTr ? "İptal" : "Cancel"}
             </button>
             <button
               type="submit"
-              className="px-6 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-[10px] font-black transition flex items-center gap-1.5 shadow-md shadow-indigo-200 active:scale-95 uppercase tracking-widest"
+              className="px-5 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-xs font-medium transition flex items-center gap-1.5 shadow-sm active:scale-95"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               {isTr ? "Dönüştür ve Taslak Oluştur" : "Convert & Create Draft"}

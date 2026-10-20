@@ -38,7 +38,7 @@ export const QuickProductModal: React.FC<QuickProductModalProps> = ({
           className="relative w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden"
         >
           <div className="flex items-center justify-between p-6 border-b border-slate-100">
-            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <h3 className="text-xl font-medium text-slate-900 flex items-center gap-2">
               <Package className="h-5 w-5 text-indigo-600" />
               {isTr ? "Hızlı Ürün Ekle" : "Quick Add Product"}
             </h3>
@@ -114,7 +114,7 @@ export const QuickProductModal: React.FC<QuickProductModalProps> = ({
                 <select
                   value={quickProductForm.currency}
                   onChange={(e) => setQuickProductForm({ ...quickProductForm, currency: e.target.value })}
-                  className="w-24 px-2 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-bold"
+                  className="w-24 px-2 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-medium"
                 >
                   <option value="TRY">TL</option>
                   <option value="USD">USD</option>

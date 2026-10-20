@@ -84,7 +84,7 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
           className="relative w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden"
         >
           <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-900 text-white">
-            <h3 className="text-base font-black uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-base font-medium uppercase tracking-wider flex items-center gap-2">
               <Building2 className="h-5 w-5 text-rose-500 animate-pulse" />
               {isTr ? "Hızlı Cari Kart Oluştur" : "Quick Add Cari Account"}
             </h3>
@@ -98,12 +98,12 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
           <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
             {/* Cari Type Selector */}
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Cari Türü" : "Cari Type"}</label>
+              <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Cari Türü" : "Cari Type"}</label>
               <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setType('company')}
-                  className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${type === 'company' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${type === 'company' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   <Building2 className="h-3.5 w-3.5" />
                   {isTr ? "Kurumsal (Firma)" : "Corporate (Company)"}
@@ -111,7 +111,7 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setType('customer')}
-                  className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${type === 'customer' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${type === 'customer' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   <User className="h-3.5 w-3.5" />
                   {isTr ? "Bireysel (Müşteri)" : "Individual (Customer)"}
@@ -121,7 +121,7 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
 
             {/* Account Title or Customer Name */}
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+              <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1.5">
                 {type === 'company' 
                   ? (isTr ? "Cari Hesap / Ticari Ünvan *" : "Business Title *") 
                   : (isTr ? "Müşteri Adı Soyadı *" : "Customer Name *")}
@@ -132,14 +132,14 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={type === 'company' ? (isTr ? "örn: Akdeniz İnşaat Ltd." : "Company name") : (isTr ? "örn: Ahmet Yılmaz" : "Customer name")}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none font-bold text-slate-700 text-sm"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none font-medium text-slate-700 text-sm"
               />
             </div>
 
             {/* Contact Parameters */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Telefon" : "Phone"}</label>
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Telefon" : "Phone"}</label>
                 <input
                   type="text"
                   value={phone}
@@ -149,7 +149,7 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
                 />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "E-Posta" : "Email"}</label>
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "E-Posta" : "Email"}</label>
                 <input
                   type="email"
                   value={email}
@@ -162,11 +162,11 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
 
             {/* Currency */}
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Cari Para Birimi" : "Currency"}</label>
+              <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Cari Para Birimi" : "Currency"}</label>
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none bg-white font-bold text-slate-700 text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none bg-white font-medium text-slate-700 text-sm"
               >
                 <option value="TRY">TRY (₺)</option>
                 <option value="USD">USD ($)</option>
@@ -178,7 +178,7 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
             {/* Address Details */}
             <div className="space-y-3 pt-2 border-t border-slate-100">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Fatura Adresi" : "Billing Address"}</label>
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Fatura Adresi" : "Billing Address"}</label>
                 <textarea
                   rows={2}
                   value={address}
@@ -190,7 +190,7 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
 
               {type === 'company' && (
                 <div>
-                  <label className="text-[10px] font-black text-rose-500 uppercase tracking-wider block mb-1.5">{isTr ? "Sevk Adresi (2. Alternatif Adres)" : "Delivery / Dispatch Address"}</label>
+                  <label className="text-[10px] font-medium text-rose-500 uppercase tracking-wider block mb-1.5">{isTr ? "Sevk Adresi (2. Alternatif Adres)" : "Delivery / Dispatch Address"}</label>
                   <textarea
                     rows={2}
                     value={deliveryAddress}
@@ -206,7 +206,7 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
             {type === 'company' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Vergi Dairesi" : "Tax Office"}</label>
+                  <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Vergi Dairesi" : "Tax Office"}</label>
                   <input
                     type="text"
                     value={taxOffice}
@@ -216,7 +216,7 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Vergi Numarası" : "Tax Number / VKN"}</label>
+                  <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Vergi Numarası" : "Tax Number / VKN"}</label>
                   <input
                     type="text"
                     value={taxNumber}
@@ -232,13 +232,13 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                className="px-4 py-2.5 text-xs font-medium uppercase tracking-widest text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
               >
                 {isTr ? "İptal" : "Cancel"}
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-all shadow-md active:scale-95"
+                className="px-6 py-2.5 text-xs font-medium uppercase tracking-widest text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-all shadow-md active:scale-95"
               >
                 {isTr ? "Cariyi Kaydet" : "Register Cari"}
               </button>
