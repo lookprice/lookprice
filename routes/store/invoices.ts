@@ -1723,49 +1723,60 @@ router.get("/purchase", async (req: any, res) => {
                LEFT JOIN products p_match ON pii.product_id = p_match.id
                WHERE pii.purchase_invoice_id = pi.id
              ) as items,
-             EXISTS (
-               SELECT 1 FROM purchase_invoices pi_older
-               WHERE pi_older.store_id = pi.store_id
-                 AND pi_older.created_at < pi.created_at
-                 AND pi_older.invoice_date > pi.invoice_date
-             ) as is_out_of_sequence
-      FROM purchase_invoices pi 
-      LEFT JOIN companies c ON pi.company_id = c.id 
-      WHERE pi.store_id = $1
-    `;
-    const params: any[] = [storeId];
-
-    if (search) {
-      const searchTerms = search.split(/\s+/).filter(Boolean);
-      searchTerms.forEach(term => {
-        const pLen = params.length + 1;
-        query += ` AND (
-          ${getTurkishSearchSnippet('pi.invoice_number', pLen)} OR 
-          ${getTurkishSearchSnippet('pi.document_number', pLen)} OR
-          ${getTurkishSearchSnippet('pi.supplier_name', pLen)} OR
-          ${getTurkishSearchSnippet('pi.ettn', pLen)} OR
-          ${getTurkishSearchSnippet('pi.notes', pLen)} OR
-          ${getTurkishSearchSnippet('pi.waybill_number', pLen)} OR
-          ${getTurkishSearchSnippet('pi.tax_number', pLen)} OR
-          ${getTurkishSearchSnippet('c.title', pLen)} OR
-          EXISTS (
-            SELECT 1 FROM purchase_invoice_items sub_pii 
-            WHERE sub_pii.purchase_invoice_id = pi.id 
-            AND (
-              ${getTurkishSearchSnippet('sub_pii.product_name', pLen)} OR
-              ${getTurkishSearchSnippet('sub_pii.barcode', pLen)} OR
-              ${getTurkishSearchSnippet('sub_pii.variant_name', pLen)}
-            )
-          )
-        )`;
-        params.push(normalizeTurkishParam(term));
-      });
-    }
-
-    if (startDate && (!search || search.trim() === '')) {
-      params.push(startDate);
-      query += ` AND pi.invoice_date >= $${params.length}`;
-    }
+              EXISTS (
+                SELECT 1 FROM purchase_invoices pi_older
+                WHERE pi_older.store_id = pi.store_id
+                  AND pi_older.id != pi.id
+                  AND pi_older.invoice_date::date > pi.invoice_date::date
+                  AND (
+                    pi_older.created_at < pi.created_at
+                    OR (pi.status = 'pending' AND pi_older.status IN ('approved', 'completed'))
+                  )
+              ) as is_out_of_sequence,
+              (
+                DATE_TRUNC('month', pi.invoice_date::date) < DATE_TRUNC('month', CURRENT_DATE)
+                AND (
+                  pi.status = 'pending'
+                  OR DATE_TRUNC('month', pi.invoice_date::date) < DATE_TRUNC('month', COALESCE(pi.created_at, CURRENT_TIMESTAMP)::date)
+                )
+              ) as is_prev_month_carryover
+       FROM purchase_invoices pi 
+       LEFT JOIN companies c ON pi.company_id = c.id 
+       WHERE pi.store_id = $1
+     `;
+     const params: any[] = [storeId];
+ 
+     if (search) {
+       const searchTerms = search.split(/\s+/).filter(Boolean);
+       searchTerms.forEach(term => {
+         const pLen = params.length + 1;
+         query += ` AND (
+           ${getTurkishSearchSnippet('pi.invoice_number', pLen)} OR 
+           ${getTurkishSearchSnippet('pi.document_number', pLen)} OR
+           ${getTurkishSearchSnippet('pi.supplier_name', pLen)} OR
+           ${getTurkishSearchSnippet('pi.ettn', pLen)} OR
+           ${getTurkishSearchSnippet('pi.notes', pLen)} OR
+           ${getTurkishSearchSnippet('pi.waybill_number', pLen)} OR
+           ${getTurkishSearchSnippet('pi.tax_number', pLen)} OR
+           ${getTurkishSearchSnippet('c.title', pLen)} OR
+           EXISTS (
+             SELECT 1 FROM purchase_invoice_items sub_pii 
+             WHERE sub_pii.purchase_invoice_id = pi.id 
+             AND (
+               ${getTurkishSearchSnippet('sub_pii.product_name', pLen)} OR
+               ${getTurkishSearchSnippet('sub_pii.barcode', pLen)} OR
+               ${getTurkishSearchSnippet('sub_pii.variant_name', pLen)}
+             )
+           )
+         )`;
+         params.push(normalizeTurkishParam(term));
+       });
+     }
+ 
+     if (startDate && (!search || search.trim() === '')) {
+       params.push(startDate);
+       query += ` AND (pi.invoice_date >= $${params.length} OR pi.status = 'pending')`;
+     }
 
     if (endDate && (!search || search.trim() === '')) {
       params.push(endDate + ' 23:59:59');

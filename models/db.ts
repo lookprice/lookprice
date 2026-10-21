@@ -914,6 +914,7 @@ export async function initDb() {
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS expense_category TEXT;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS expense_center TEXT;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS due_date DATE;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
       
       -- Update foreign key to SET NULL
       DO $$ 

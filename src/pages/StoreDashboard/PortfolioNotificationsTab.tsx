@@ -123,8 +123,8 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
   // Grouped Counts
   const criticalCount = feed.filter(f => f.severity === "critical").reduce((acc, curr) => acc + (curr.count || 1), 0);
   const reconQuoteCount = feed.filter(f => f.category === "reconciliation" || f.category === "quotation").reduce((acc, curr) => acc + (curr.count || 1), 0);
-  const unsentCount = feed.filter(f => f.id === "gib-unsent").reduce((acc, curr) => acc + (curr.count || 1), 0);
-  const stockCount = feed.filter(f => f.category === "stock" || f.category === "invoice").reduce((acc, curr) => acc + (curr.count || 1), 0);
+  const gibCount = feed.filter(f => f.category === "gib").reduce((acc, curr) => acc + (curr.count || 1), 0);
+  const stockCount = feed.filter(f => f.category === "stock" || f.category === "invoice" || f.category === "order").reduce((acc, curr) => acc + (curr.count || 1), 0);
   const flowCount = feed.filter(f => ["hotel", "transfer", "service", "fleet", "crm"].includes(f.category)).reduce((acc, curr) => acc + (curr.count || 1), 0);
 
   // Filtered List
@@ -132,8 +132,8 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
     if (categoryFilter === "all") return true;
     if (categoryFilter === "critical") return item.severity === "critical";
     if (categoryFilter === "reconciliation_quote") return item.category === "reconciliation" || item.category === "quotation";
-    if (categoryFilter === "gib") return item.category === "gib" || item.category === "invoice";
-    if (categoryFilter === "order_stock") return item.category === "order" || item.category === "stock";
+    if (categoryFilter === "gib") return item.category === "gib";
+    if (categoryFilter === "order_stock") return item.category === "order" || item.category === "stock" || item.category === "invoice";
     if (categoryFilter === "crm_hotel") return ["hotel", "crm", "fleet", "service", "transfer"].includes(item.category);
     return true;
   });
@@ -266,21 +266,21 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
         <div 
           onClick={() => setCategoryFilter(categoryFilter === "gib" ? "all" : "gib")}
           className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
-            unsentCount > 0 
+            gibCount > 0 
               ? "bg-blue-500/10 border-blue-500/40 text-blue-950 dark:text-blue-100 shadow-sm hover:border-blue-500" 
               : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 hover:border-slate-300"
           } ${categoryFilter === "gib" ? "ring-2 ring-blue-500 shadow-md" : ""}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
-              {isTr ? "GİB Bekleyen" : "Unsent to GİB"}
+              {isTr ? "GİB & Faturalar" : "GİB & Invoices"}
             </span>
-            <div className={`p-1.5 rounded-lg shrink-0 ${unsentCount > 0 ? "bg-blue-600 text-white shadow-xs" : "bg-slate-100 text-slate-400"}`}>
+            <div className={`p-1.5 rounded-lg shrink-0 ${gibCount > 0 ? "bg-blue-600 text-white shadow-xs" : "bg-slate-100 text-slate-400"}`}>
               <CloudOff className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400">{unsentCount}</span>
+            <span className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400">{gibCount}</span>
             <span className="text-[11px] text-slate-500 font-semibold">{isTr ? "Fatura" : "Invoices"}</span>
           </div>
         </div>
@@ -393,9 +393,9 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
         >
           <CloudOff className="w-3.5 h-3.5" />
           <span>{isTr ? "GİB & Faturalar" : "GİB & Invoices"}</span>
-          {unsentCount > 0 && (
+          {gibCount > 0 && (
             <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-blue-100 text-blue-800">
-              {unsentCount}
+              {gibCount}
             </span>
           )}
         </button>
@@ -411,6 +411,11 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
         >
           <ShoppingBag className="w-3.5 h-3.5" />
           <span>{isTr ? "Sipariş & Stok" : "Orders & Stock"}</span>
+          {stockCount > 0 && (
+            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-amber-500 text-slate-950">
+              {stockCount}
+            </span>
+          )}
         </button>
 
         <button
@@ -424,6 +429,11 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
         >
           <Hotel className="w-3.5 h-3.5" />
           <span>{isTr ? "Rezervasyon & CRM" : "CRM & Hotel"}</span>
+          {flowCount > 0 && (
+            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-indigo-200 text-indigo-900">
+              {flowCount}
+            </span>
+          )}
         </button>
       </div>
 

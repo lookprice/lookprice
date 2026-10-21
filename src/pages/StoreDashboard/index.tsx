@@ -133,6 +133,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [companiesInitialOpenRecon, setCompaniesInitialOpenRecon] = useState(false);
   const [companiesInitialReconFilter, setCompaniesInitialReconFilter] = useState<'all' | 'confirmed' | 'disputed' | 'pending'>('all');
   const [salesInvoicesInitialFilter, setSalesInvoicesInitialFilter] = useState<string>('all');
+  const [purchaseInvoicesInitialFilter, setPurchaseInvoicesInitialFilter] = useState<string>('all');
 
   const t = translations[lang].dashboard;
   const {
@@ -1447,6 +1448,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   api={api} 
                   branding={branding} 
                   companies={companyList}
+                  initialStatusFilter={salesInvoicesInitialFilter}
+                  onClearInitialFilter={() => setSalesInvoicesInitialFilter('all')}
                   onViewTransactions={(c: any) => { setSelectedCompany(c); setShowTransactionModal(true); }}
                   onFetchDetails={handleFetchSalesInvoiceDetails}
                   products={products}
@@ -1533,6 +1536,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   api={api} 
                   branding={branding} 
                   companies={companyList}
+                  initialFilter={purchaseInvoicesInitialFilter}
+                  onClearInitialFilter={() => setPurchaseInvoicesInitialFilter('all')}
                   onViewTransactions={(c: any) => { setSelectedCompany(c); setShowTransactionModal(true); }}
                   onFetchDetails={handleFetchPurchaseInvoiceDetails}
                   products={products}
@@ -1669,6 +1674,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     } else if (tab === "sales_invoices") {
                       if (filter) {
                         setSalesInvoicesInitialFilter(filter);
+                      }
+                    } else if (tab === "purchase_invoices") {
+                      if (filter) {
+                        setPurchaseInvoicesInitialFilter(filter);
+                      }
+                    } else if (tab === "pos") {
+                      if (filter) {
+                        setSalesStatusFilter(filter);
                       }
                     }
                     setActiveTab(tab);

@@ -278,7 +278,15 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           <span className="font-semibold text-slate-800">
                             {formatDateTR(invoice.invoice_date)}
                           </span>
-                          {invoice.is_out_of_sequence && (
+                          {invoice.is_prev_month_carryover && (
+                            <span 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-300 w-fit" 
+                              title={isTr ? "Bu fatura önceki aydan devreden / geçmiş dönem tarihlidir." : "Carried over from previous month."}
+                            >
+                              📅 {isTr ? "Önceki Ay Devir" : "Prev Month Carryover"}
+                            </span>
+                          )}
+                          {invoice.is_out_of_sequence && !invoice.is_prev_month_carryover && (
                             <span 
                               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-medium uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 w-fit" 
                               title={isTr ? "Bu fatura sisteme sonradan (ara tarihli / geriye dönük) girilmiştir." : "This invoice was entered out of sequence (backdated)."}

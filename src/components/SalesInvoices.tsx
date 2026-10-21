@@ -55,7 +55,7 @@ import { SalesInvoiceFormModal } from "./dashboard/invoices/sales/SalesInvoiceFo
 import { SalesInvoiceWaybillModal } from "./dashboard/invoices/sales/SalesInvoiceWaybillModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
-export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, companies: propCompanies, onViewTransactions, onSave, initialData, onCloseInitialData, products: propProducts, onEditProduct }: any) {
+export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, companies: propCompanies, onViewTransactions, onSave, initialData, onCloseInitialData, products: propProducts, onEditProduct, initialStatusFilter, onClearInitialFilter }: any) {
   const storeId = initialStoreId || currentStoreId;
   const isTr = lang === 'tr';
   const isTrBoolean = isTr;
@@ -88,7 +88,19 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [showHtmlModal, setShowHtmlModal] = useState(false);
   const [htmlContent, setHtmlContent] = useState("");
   const [htmlLoading, setHtmlLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'not_sent' | 'draft' | 'rejected'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'not_sent' | 'draft' | 'rejected'>(() => {
+    if (initialStatusFilter && ['not_sent', 'draft', 'rejected'].includes(initialStatusFilter)) {
+      return initialStatusFilter;
+    }
+    return 'all';
+  });
+
+  useEffect(() => {
+    if (initialStatusFilter && ['all', 'not_sent', 'draft', 'rejected'].includes(initialStatusFilter)) {
+      setStatusFilter(initialStatusFilter);
+    }
+  }, [initialStatusFilter]);
+
   const [marketplaceFilter, setMarketplaceFilter] = useState<'all' | 'web' | 'trendyol' | 'hepsiburada' | 'amazon' | 'n11' | 'pazarama'>('all');
   const [showStats, setShowStats] = useState(false);
   const [page, setPage] = useState(1);

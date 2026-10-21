@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import React, { useState, useEffect, useDeferredValue } from "react";
+import React, { useState, useEffect, useDeferredValue, useMemo } from "react";
 import { 
   Plus, 
   Search, 
@@ -10,7 +10,11 @@ import {
   CloudDownload, 
   Printer, 
   Loader2,
-  X 
+  X,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
+  Receipt
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { normalizeSearch } from "../lib/searchUtils";
@@ -27,7 +31,7 @@ import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal"
 import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
-export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, onEditProduct, companies: propCompanies, onViewTransactions }: any) {
+export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, onEditProduct, companies: propCompanies, onViewTransactions, initialFilter, onClearInitialFilter }: any) {
   const storeId = initialStoreId || currentStoreId;
   const isTr = lang === 'tr';
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
@@ -56,6 +60,43 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
 
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
+
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'backdated_carryover' | 'approved' | 'expense'>(() => {
+    if (initialFilter && ['pending', 'backdated_carryover', 'approved', 'expense'].includes(initialFilter)) {
+      return initialFilter;
+    }
+    return 'all';
+  });
+
+  useEffect(() => {
+    if (initialFilter && ['all', 'pending', 'backdated_carryover', 'approved', 'expense'].includes(initialFilter)) {
+      setStatusFilter(initialFilter);
+    }
+  }, [initialFilter]);
+
+  const filteredInvoices = useMemo(() => {
+    if (!Array.isArray(invoices)) return [];
+    return invoices.filter((inv: any) => {
+      if (statusFilter === 'pending') {
+        return inv.status === 'pending';
+      }
+      if (statusFilter === 'backdated_carryover') {
+        return Boolean(inv.is_out_of_sequence || inv.is_prev_month_carryover);
+      }
+      if (statusFilter === 'approved') {
+        return inv.status === 'approved' || inv.status === 'completed';
+      }
+      if (statusFilter === 'expense') {
+        return inv.is_expense === true;
+      }
+      return true;
+    });
+  }, [invoices, statusFilter]);
+
+  const pendingCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.status === 'pending').length : 0, [invoices]);
+  const backdatedCarryoverCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.is_out_of_sequence || i.is_prev_month_carryover).length : 0, [invoices]);
+  const approvedCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.status === 'approved' || i.status === 'completed').length : 0, [invoices]);
+  const expenseCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.is_expense === true).length : 0, [invoices]);
 
   const getStyledHtml = (html: string | null) => {
     if (!html) return '';
@@ -747,6 +788,96 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         branding={branding}
       />
 
+      {/* Quick Status / Scenario Filter Pills */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter("all");
+            if (onClearInitialFilter) onClearInitialFilter();
+          }}
+          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+            statusFilter === "all"
+              ? "bg-slate-900 text-white shadow-xs"
+              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+          }`}
+        >
+          {isTr ? `Tümü (${invoices.length})` : `All (${invoices.length})`}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStatusFilter("backdated_carryover")}
+          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
+            statusFilter === "backdated_carryover"
+              ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+              : "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+          }`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>{isTr ? "Ara Tarihli & Devir" : "Backdated & Carryover"}</span>
+          {backdatedCarryoverCount > 0 && (
+            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-purple-200 text-purple-900">
+              {backdatedCarryoverCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStatusFilter("pending")}
+          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
+            statusFilter === "pending"
+              ? "bg-amber-600 text-white border-amber-600 shadow-xs"
+              : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+          }`}
+        >
+          <Clock className="w-3.5 h-3.5" />
+          <span>{isTr ? "Onay Bekleyenler" : "Pending Approval"}</span>
+          {pendingCount > 0 && (
+            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-amber-200 text-amber-900">
+              {pendingCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStatusFilter("approved")}
+          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
+            statusFilter === "approved"
+              ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+              : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+          }`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          <span>{isTr ? "Onaylanan & İşlenen" : "Approved"}</span>
+          {approvedCount > 0 && (
+            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-emerald-200 text-emerald-900">
+              {approvedCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStatusFilter("expense")}
+          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
+            statusFilter === "expense"
+              ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+              : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+          }`}
+        >
+          <Receipt className="w-3.5 h-3.5" />
+          <span>{isTr ? "Gider Faturaları" : "Expense Invoices"}</span>
+          {expenseCount > 0 && (
+            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-blue-200 text-blue-900">
+              {expenseCount}
+            </span>
+          )}
+        </button>
+      </div>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex-1 flex flex-wrap items-center gap-3 w-full">
           <div className="relative flex-1 min-w-[200px]">
@@ -808,7 +939,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       </div>
 
       <PurchaseInvoiceTable 
-        invoices={invoices.slice((page - 1) * itemsPerPage, page * itemsPerPage)}
+        invoices={filteredInvoices.slice((page - 1) * itemsPerPage, page * itemsPerPage)}
         loading={loading}
         isTr={isTr}
         selectedIds={selectedIds}

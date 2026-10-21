@@ -89,6 +89,7 @@ export interface Product {
   author?: string;
   labels?: string[];
   _purchaseInvoiceItemId?: number | string;
+  _purchaseInvoiceId?: number | string;
   sector_data?: any;
   is_active?: boolean;
   is_web_sale?: boolean;
@@ -597,6 +598,7 @@ export interface VehicleAssignment {
   start_mileage: number;
   end_mileage: number | null;
   status: 'active' | 'returned';
+  notes?: string | null;
 }
 
 export interface VehicleIncident {
