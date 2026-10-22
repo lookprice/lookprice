@@ -2250,6 +2250,132 @@ router.get("/:id/movements/export", async (req: any, res) => {
   }
 });
 
+// Accounting-Grade Stock Movement Correction & Reversal (Senaryo 2 - Ters Kayıt / Düzeltme)
+router.post("/:id/movements/correction", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const storeId = req.user?.store_id || req.body.store_id;
+    const { movement_id, correction_type, target_quantity, reason } = req.body;
+
+    if (!movement_id) {
+      return res.status(400).json({ error: "Düzeltilecek hareket ID'si belirtilmelidir." });
+    }
+
+    // 1. Ürünü doğrula
+    const prodRes = await client.query("SELECT * FROM products WHERE id = $1", [id]);
+    if (prodRes.rows.length === 0) {
+      return res.status(404).json({ error: "Ürün bulunamadı." });
+    }
+    const product = prodRes.rows[0];
+    const targetStoreId = product.store_id || storeId;
+
+    // 2. Hedef hareketi doğrula
+    const movRes = await client.query(
+      "SELECT * FROM stock_movements WHERE id = $1 AND product_id = $2",
+      [movement_id, id]
+    );
+    if (movRes.rows.length === 0) {
+      return res.status(404).json({ error: "Düzeltilecek stok hareketi bulunamadı." });
+    }
+    const targetMov = movRes.rows[0];
+
+    // Sadece manuel düzeltmeler veya açılış stokları revize edilebilir
+    const allowedSources = ['manual_adjustment', 'initial_stock'];
+    if (!allowedSources.includes(targetMov.source)) {
+      return res.status(400).json({ 
+        error: "Fatura, POS veya pazaryeri kaynaklı hareketler doğrudan düzeltilemez. Bu işlemler ilgili fatura/satış iadesi üzerinden yönetilmelidir." 
+      });
+    }
+
+    const origType = targetMov.type; // 'in' or 'out'
+    const origQty = parseFloat(targetMov.quantity) || 0;
+    const origEffect = origType === 'in' ? origQty : -origQty;
+
+    let newType: 'in' | 'out' = 'in';
+    let newQty = 0;
+    let stockDelta = 0;
+    let description = '';
+
+    if (correction_type === 'full_reversal') {
+      // Tam Ters Kayıt: Orijinal hareketin etkisini sıfırlar
+      newType = origType === 'in' ? 'out' : 'in';
+      newQty = origQty;
+      stockDelta = -origEffect;
+      description = `Hata Düzeltme & Ters Kayıt: Hatalı ${origType === 'in' ? 'Manuel Artış' : 'Manuel Azalış'} İptal Edildi (Ref #${targetMov.id})`;
+    } else if (correction_type === 'partial_difference') {
+      // Hedef Miktar ile Fark Dengelemesi
+      const targetQtyNum = parseFloat(target_quantity);
+      if (isNaN(targetQtyNum) || targetQtyNum < 0) {
+        return res.status(400).json({ error: "Geçerli bir hedef miktar girilmelidir." });
+      }
+      const desiredEffect = origType === 'in' ? targetQtyNum : -targetQtyNum;
+      const differenceEffect = desiredEffect - origEffect;
+
+      if (Math.abs(differenceEffect) < 0.001) {
+        return res.status(400).json({ error: "Girilen hedef miktar mevcut hareket miktarı ile aynıdır, düzeltme gerekmiyor." });
+      }
+
+      newType = differenceEffect > 0 ? 'in' : 'out';
+      newQty = Math.abs(differenceEffect);
+      stockDelta = differenceEffect;
+      description = `Hata Düzeltme Fark Kaydı: Manuel ${origType === 'in' ? 'Artış' : 'Azalış'} Revize Edildi (Ref #${targetMov.id}, Hedef: ${targetQtyNum} ${product.unit || 'Adet'})`;
+    } else {
+      return res.status(400).json({ error: "Geçersiz düzeltme türü. 'full_reversal' veya 'partial_difference' seçilmelidir." });
+    }
+
+    if (reason && String(reason).trim()) {
+      description += ` | Not: ${String(reason).trim()}`;
+    }
+
+    await client.query("BEGIN");
+
+    // 1. Ters kayıt / Dengeleme hareketini ekle
+    const insertMovRes = await client.query(`
+      INSERT INTO stock_movements (
+        store_id, product_id, type, quantity, source, description, 
+        unit_price, currency, reference_movement_id, created_at
+      ) VALUES ($1, $2, $3, $4, 'manual_adjustment', $5, $6, $7, $8, CURRENT_TIMESTAMP)
+      RETURNING *
+    `, [
+      targetStoreId,
+      id,
+      newType,
+      newQty,
+      description,
+      targetMov.unit_price || parseFloat(product.cost_price) || parseFloat(product.price) || 0,
+      targetMov.currency || product.currency || 'TRY',
+      targetMov.id
+    ]);
+
+    // 2. Ürünün güncel stok miktarını güncelle
+    const updateProdRes = await client.query(`
+      UPDATE products 
+      SET stock_quantity = stock_quantity + $1,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING stock_quantity
+    `, [stockDelta, id]);
+
+    await client.query("COMMIT");
+
+    const newStockQuantity = updateProdRes.rows[0]?.stock_quantity;
+
+    res.json({
+      success: true,
+      message: "Düzeltme ters kaydı başarıyla oluşturuldu.",
+      new_stock: newStockQuantity,
+      movement: insertMovRes.rows[0]
+    });
+  } catch (error: any) {
+    await client.query("ROLLBACK");
+    console.error("Create stock movement correction error:", error);
+    res.status(500).json({ error: error.message || "Ters kayıt oluşturulurken bir hata oluştu." });
+  } finally {
+    client.release();
+  }
+});
+
 // Toggle Bestseller
 router.put("/:id/toggle-bestseller", async (req: any, res) => {
   const storeId = req.user.store_id;

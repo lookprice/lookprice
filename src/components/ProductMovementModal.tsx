@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { 
   X, Package, ArrowUpCircle, ArrowDownCircle, FileDown, FileText, 
   ExternalLink, Loader2, Receipt, Search, Filter, Printer, 
-  TrendingUp, TrendingDown, Store, User, Hash, Calendar, Layers
+  TrendingUp, TrendingDown, Store, User, Hash, Calendar, Layers,
+  RotateCcw, Scale, CheckCircle2, AlertCircle, Info, ArrowRight
 } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from 'sonner';
@@ -29,6 +30,7 @@ interface Movement {
   invoice_type?: 'purchase' | 'sales' | null;
   invoice_number?: string | null;
   sale_id?: number | null;
+  reference_movement_id?: number | null;
 }
 
 interface ProductMovementModalProps {
@@ -37,9 +39,10 @@ interface ProductMovementModalProps {
   branding?: any;
   storeId?: any;
   isOpen?: boolean;
+  onStockUpdated?: (newStock: number) => void;
 }
 
-export const ProductMovementModal = ({ product, onClose, branding, storeId, isOpen }: ProductMovementModalProps) => {
+export const ProductMovementModal = ({ product, onClose, branding, storeId, isOpen, onStockUpdated }: ProductMovementModalProps) => {
   const { lang } = useLanguage();
   const isTr = lang === 'tr';
   const t = translations[lang]?.dashboard || {};
@@ -69,7 +72,47 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
   const statementPrintRef = useRef<HTMLDivElement>(null);
   const handlePrintStatement = useReactToPrint({ contentRef: statementPrintRef });
 
+  // Correction / Reversal modal states (Scenario 2 - Accounting Reversal)
+  const [correctingMovement, setCorrectingMovement] = useState<Movement | null>(null);
+  const [correctionType, setCorrectionType] = useState<'full_reversal' | 'partial_difference'>('full_reversal');
+  const [targetQuantity, setTargetQuantity] = useState<string>('');
+  const [correctionReason, setCorrectionReason] = useState<string>('');
+  const [submittingCorrection, setSubmittingCorrection] = useState<boolean>(false);
+
   const defaultCurrency = product?.currency || branding?.default_currency || 'TRY';
+
+  const handleConfirmCorrection = async () => {
+    if (!correctingMovement) return;
+    setSubmittingCorrection(true);
+    try {
+      const res = await api.post(`/api/store/products/${product.id}/movements/correction`, {
+        movement_id: correctingMovement.id,
+        correction_type: correctionType,
+        target_quantity: correctionType === 'partial_difference' ? parseFloat(targetQuantity) : undefined,
+        reason: correctionReason,
+        store_id: storeId || (product as any)?.store_id || branding?.id
+      });
+
+      if (res?.error) {
+        toast.error(res.error);
+        return;
+      }
+
+      toast.success(isTr ? 'Ters kayıt / düzeltme hareketi başarıyla işlendi.' : 'Correction reversal recorded successfully.');
+      if (res?.new_stock !== undefined) {
+        product.stock_quantity = res.new_stock;
+        if (onStockUpdated) onStockUpdated(res.new_stock);
+      }
+      setCorrectingMovement(null);
+      setTargetQuantity('');
+      setCorrectionReason('');
+      fetchMovements();
+    } catch (err: any) {
+      toast.error(err?.message || (isTr ? 'İşlem başarısız oldu' : 'Action failed'));
+    } finally {
+      setSubmittingCorrection(false);
+    }
+  };
 
   const fetchMovements = () => {
     setLoading(true);
@@ -327,7 +370,13 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
     return `${Number(val || 0).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
   };
 
-  const formatSourceBadge = (source: string, type: string) => {
+  const formatSourceBadge = (source: string, type: string, description?: string, refId?: number | null) => {
+    if (refId || (description && /ters kay[ıi]t|d[üu]zeltme fark/i.test(description))) {
+      return { 
+        label: isTr ? 'Düzeltme & Ters Kayıt' : 'Correction / Reversal', 
+        color: 'bg-purple-100 text-purple-800 border-purple-200' 
+      };
+    }
     switch (source) {
       case 'purchase_invoice':
       case 'purchase':
@@ -589,8 +638,12 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             ) : (
               filteredMovements.map(m => {
                 const { type: invType, number: invNumber, hasInvoice } = getInvoiceDetailsFromMovement(m);
-                const badge = formatSourceBadge(m.source, m.type);
+                const badge = formatSourceBadge(m.source, m.type, m.description, m.reference_movement_id);
                 const rowTotal = (Number(m.quantity) || 0) * (Number(m.unit_price) || 0);
+
+                const isManualAdjust = m.source === 'manual_adjustment' || m.source === 'initial_stock';
+                const isReversalEntry = Boolean(m.reference_movement_id || /ters kay[ıi]t|d[üu]zeltme fark/i.test(m.description || ''));
+                const isAlreadyReversed = movements.some(other => other.reference_movement_id === m.id);
 
                 return (
                   <div 
@@ -653,7 +706,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                               disabled={loadingInvoiceId === m.id}
                               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium transition-all shadow-2xs border cursor-pointer ${
                                 invType === 'purchase'
-                                  ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200 hover:border-indigo-300'
+                                   ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200 hover:border-indigo-300'
                                   : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 hover:border-blue-300'
                               }`}
                               title={isTr ? 'Fatura detaylarını görüntüleyin' : 'View invoice details'}
@@ -684,6 +737,42 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                                 <span>{isTr ? 'e-Fatura Görseli' : 'e-Invoice HTML'}</span>
                               </button>
                             )}
+                          </div>
+                        )}
+
+                        {/* Accounting Reversal / Correction Action Button (Senaryo 2) */}
+                        {isManualAdjust && !isReversalEntry && (
+                          <div className="pt-1.5 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCorrectingMovement(m);
+                                setCorrectionType('full_reversal');
+                                setTargetQuantity(String(m.quantity || ''));
+                                setCorrectionReason('');
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 hover:border-purple-300 transition-all shadow-2xs cursor-pointer active:scale-95"
+                              title={isTr ? 'Muhasebe standartlarında ters kayıt / düzeltme hareketi oluştur' : 'Create accounting reversal/correction entry'}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5 text-purple-600" />
+                              <span>{isTr ? 'Hata Düzeltme / Ters Kayıt' : 'Correction / Reversal'}</span>
+                            </button>
+                            {isAlreadyReversed && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <CheckCircle2 className="w-3 h-3 text-amber-600" />
+                                {isTr ? 'Ters Kayıt / Düzeltme İşlendi' : 'Corrected via Reversal'}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* If this row is a reversal entry referencing another movement */}
+                        {isReversalEntry && m.reference_movement_id && (
+                          <div className="pt-1 flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200/60 font-mono">
+                              <Scale className="w-3 h-3 text-purple-600" />
+                              {isTr ? `Orijinal Hareket: Ref #${m.reference_movement_id}` : `Original Ref #${m.reference_movement_id}`}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -798,6 +887,241 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
         htmlLoading={htmlLoading}
         isTr={isTr}
       />
+
+      {/* Accounting Reversal & Correction Modal (Senaryo 2) */}
+      {correctingMovement && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh]">
+            
+            {/* Modal Header */}
+            <div className="px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300">
+                  <Scale className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                    <span>{isTr ? 'Hata Düzeltme & Ters Kayıt' : 'Stock Correction & Reversal'}</span>
+                    <span className="font-mono text-[10px] text-purple-300 font-bold bg-purple-900/50 px-1.5 py-0.2 rounded border border-purple-500/30">
+                      Ref #{correctingMovement.id}
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    {isTr ? 'Muhasebe denetim izini koruyarak karşı ters kayıt oluşturma' : 'Creates an offsetting reversal entry preserving audit history'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCorrectingMovement(null)}
+                disabled={submittingCorrection}
+                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 overflow-y-auto space-y-3.5 text-xs">
+              {/* Original Movement Summary Card */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    {isTr ? 'Düzeltilecek Orijinal Kayıt' : 'Target Movement'}
+                  </span>
+                  <span className="font-mono text-[10px] text-slate-400">
+                    {formatDateTimeTR(correctingMovement.created_at)}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">
+                  {correctingMovement.description}
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+                  <span className="text-[11px] text-slate-500">
+                    {isTr ? 'Kayıtlı İşlem Yönü & Miktar:' : 'Recorded Effect:'}
+                  </span>
+                  <span className={`text-sm font-black font-mono ${correctingMovement.type === 'in' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    {correctingMovement.type === 'in' ? '+' : '-'}{correctingMovement.quantity} {product.unit || 'Adet'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Correction Mode Options */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-purple-600" />
+                  <span>{isTr ? 'Düzeltme Yöntemini Seçin:' : 'Select Correction Mode:'}</span>
+                </label>
+
+                {/* Option 1: Full Reversal */}
+                <div 
+                  onClick={() => setCorrectionType('full_reversal')}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                    correctionType === 'full_reversal'
+                      ? 'bg-purple-50/70 dark:bg-purple-950/30 border-purple-400 shadow-2xs'
+                      : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:border-purple-200'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <input 
+                      type="radio"
+                      name="correctionType"
+                      checked={correctionType === 'full_reversal'}
+                      onChange={() => setCorrectionType('full_reversal')}
+                      className="mt-0.5 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                    <div className="space-y-0.5 flex-1">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                        <span>{isTr ? 'Tam Ters Kayıt (Hareketi Sıfırla / İptal Et)' : 'Full Reversal (Nullify Entry)'}</span>
+                        <span className="text-[10px] font-mono font-black text-purple-700 dark:text-purple-300">
+                          {correctingMovement.type === 'in' ? `-${correctingMovement.quantity}` : `+${correctingMovement.quantity}`} {product.unit || 'Adet'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                        {isTr 
+                          ? `Bu hareketin stoğa yaptığı etkiyi tam karşı yönde (${correctingMovement.type === 'in' ? 'Stok Çıkışı' : 'Stok Girişi'}) yeni bir ters kayıt atarak tamamen sıfırlar.` 
+                          : `Creates an offsetting entry in the exact opposite direction to fully cancel out the quantity.`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Option 2: Partial Difference */}
+                <div 
+                  onClick={() => setCorrectionType('partial_difference')}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                    correctionType === 'partial_difference'
+                      ? 'bg-purple-50/70 dark:bg-purple-950/30 border-purple-400 shadow-2xs'
+                      : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:border-purple-200'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <input 
+                      type="radio"
+                      name="correctionType"
+                      checked={correctionType === 'partial_difference'}
+                      onChange={() => setCorrectionType('partial_difference')}
+                      className="mt-0.5 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                    <div className="space-y-1 flex-1">
+                      <div className="font-bold text-slate-900 dark:text-white">
+                        {isTr ? 'Hedef Miktar ile Dengeleme (Fark Kaydı)' : 'Target Adjustment (Difference Entry)'}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                        {isTr 
+                          ? 'Bu işlem aslında ne kadar olmalıydı? Doğru hedef miktarı yazın; sistem aradaki farkı otomatik hesaplayıp telafi kaydı atar.' 
+                          : 'Enter the intended correct amount. The system will automatically compute and log the difference.'}
+                      </p>
+
+                      {correctionType === 'partial_difference' && (
+                        <div className="pt-2 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                              {isTr ? 'Olması Gereken Doğru Miktar:' : 'Correct Intended Amount:'}
+                            </label>
+                            <div className="relative w-32">
+                              <input 
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={targetQuantity}
+                                onChange={(e) => setTargetQuantity(e.target.value)}
+                                placeholder="0"
+                                className="w-full px-2.5 py-1 text-xs font-mono font-bold bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                              />
+                              <span className="absolute right-2 top-1 text-[10px] text-slate-400 font-bold">
+                                {product.unit || 'Adet'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Live Difference Preview */}
+                          {targetQuantity !== '' && !isNaN(parseFloat(targetQuantity)) && (
+                            (() => {
+                              const origQty = parseFloat(String(correctingMovement.quantity || '0')) || 0;
+                              const origType = correctingMovement.type;
+                              const origEffect = origType === 'in' ? origQty : -origQty;
+                              const targetNum = parseFloat(targetQuantity) || 0;
+                              const desiredEffect = origType === 'in' ? targetNum : -targetNum;
+                              const differenceEffect = desiredEffect - origEffect;
+
+                              if (Math.abs(differenceEffect) < 0.001) {
+                                return (
+                                  <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 font-medium">
+                                    ⚠️ {isTr ? 'Hedef miktar mevcut miktar ile aynıdır; fark bulunmuyor.' : 'Target quantity matches existing entry.'}
+                                  </div>
+                                );
+                              }
+
+                              const isAddingStock = differenceEffect > 0;
+                              return (
+                                <div className="p-2 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-[11px] text-indigo-950 dark:text-indigo-200 space-y-0.5">
+                                  <div className="font-bold flex items-center gap-1">
+                                    <Scale className="w-3.5 h-3.5 text-indigo-600" />
+                                    <span>{isTr ? 'Oluşturulacak Otomatik Dengeleme:' : 'Generated Offset Entry:'}</span>
+                                  </div>
+                                  <div className="font-mono text-xs font-black text-indigo-700 dark:text-indigo-300">
+                                    {isAddingStock ? `+${Math.abs(differenceEffect)}` : `-${Math.abs(differenceEffect)}`} {product.unit || 'Adet'} {isAddingStock ? (isTr ? '(Stok Girişi)' : '(Stock In)') : (isTr ? '(Stok Çıkışı)' : '(Stock Out)')}
+                                  </div>
+                                </div>
+                              );
+                            })()
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Reason / Note input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  {isTr ? 'Gerekçe / Düzeltme Notu (Opsiyonel):' : 'Reason / Note (Optional):'}
+                </label>
+                <input 
+                  type="text"
+                  value={correctionReason}
+                  onChange={(e) => setCorrectionReason(e.target.value)}
+                  placeholder={isTr ? 'Örn: Sayım esnasında sehven fazla girilmişti' : 'e.g., Keying error during manual stock take'}
+                  className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:bg-white focus:border-purple-600 focus:ring-0 outline-none text-slate-900 dark:text-white"
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between shrink-0">
+              <button
+                type="button"
+                onClick={() => setCorrectingMovement(null)}
+                disabled={submittingCorrection}
+                className="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
+              >
+                {isTr ? 'Vazgeç' : 'Cancel'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmCorrection}
+                disabled={submittingCorrection || (correctionType === 'partial_difference' && (!targetQuantity || isNaN(parseFloat(targetQuantity))))}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer active:scale-95"
+              >
+                {submittingCorrection ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>{isTr ? 'İşleniyor...' : 'Processing...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>{isTr ? 'Ters Kaydı Onayla & Stoğu Güncelle' : 'Confirm Reversal & Update Stock'}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

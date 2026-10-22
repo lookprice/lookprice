@@ -2042,6 +2042,11 @@ export const ProductModal = ({
           product={editingProduct}
           branding={branding}
           storeId={branding?.id}
+          onStockUpdated={(newStock) => {
+            if (editingProduct) editingProduct.stock_quantity = newStock;
+            const input = document.querySelector('form input[name="stock_quantity"]') as HTMLInputElement;
+            if (input) input.value = String(newStock);
+          }}
         />
       )}
     </div>

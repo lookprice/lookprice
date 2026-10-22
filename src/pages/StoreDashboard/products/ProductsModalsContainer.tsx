@@ -87,6 +87,9 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
         <ProductMovementModal
           product={selectedProduct}
           onClose={() => setSelectedProduct(null)}
+          onStockUpdated={() => {
+            if (onRefresh) onRefresh();
+          }}
         />
       )}
 
