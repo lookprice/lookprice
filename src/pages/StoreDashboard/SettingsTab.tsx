@@ -342,7 +342,12 @@ const SettingsTab = ({
       });
       if (res.error) {
         if (res.error.toLowerCase().includes("configuration missing")) {
-          setShowManualCf(true);
+          if (currentUser?.role === "superadmin") {
+            setShowManualCf(true);
+            throw new Error(lang === 'tr' ? 'Cloudflare sistem anahtarları eksik. Lütfen aşağıdaki Süper Admin formundan API Token ve Account ID giriniz.' : 'Cloudflare system keys missing. Please enter API Token and Account ID below.');
+          } else {
+            throw new Error(lang === 'tr' ? 'Otomatik Cloudflare NS altyapısı sistem yöneticisi tarafından yapılandırılıyor. Lütfen aşağıdaki Hızlı DNS (A Kaydı) yöntemini kullanarak alan adınızı hemen bağlayın.' : 'Automated Cloudflare setup is being initialized by admin. Please use the Fast DNS (A-Record) method below.');
+          }
         }
         throw new Error(res.error);
       }
