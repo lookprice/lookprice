@@ -3,7 +3,15 @@ import {
   Plus, 
   FileDown, 
   Truck, 
-  CheckCircle2
+  CheckCircle2,
+  Sliders,
+  Hash,
+  ShieldCheck,
+  AlertCircle,
+  X,
+  Check,
+  Globe,
+  RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
@@ -47,6 +55,13 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // E-Waybill Series & Provider Info
+  const [seriesInfo, setSeriesInfo] = useState<any>(null);
+  const [showSeriesModal, setShowSeriesModal] = useState(false);
+  const [newStartSeq, setNewStartSeq] = useState("");
+  const [newPrefix, setNewPrefix] = useState("IRS");
+  const [savingSeries, setSavingSeries] = useState(false);
 
   // Filter/Search states
   const [search, setSearch] = useState("");
@@ -138,10 +153,46 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       setProducts(await api.getProducts("", storeId) || []);
       try { setDrivers(await api.getDrivers(storeId) || []); } catch (err) {}
       try { setVehicles(await api.getVehicles(storeId) || []); } catch (err) {}
+      try {
+        const sRes = await fetch(`/api/independent-waybills/series-info?storeId=${storeId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          setSeriesInfo(sData);
+          setNewStartSeq(String(sData.startSequence || ""));
+          setNewPrefix(sData.prefix || "IRS");
+        }
+      } catch (e) {}
     } catch (err) {
       toast.error(isTr ? "Veriler yüklenirken bir hata oluştu." : "Error loading data.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveSeries = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSeries(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/independent-waybills/series-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ storeId: Number(storeId), startSequence: newStartSeq, prefix: newPrefix })
+      });
+      if (res.ok) {
+        toast.success(isTr ? "E-İrsaliye seri ve sayaç bilgisi başarıyla güncellendi." : "Series settings updated.");
+        setShowSeriesModal(false);
+        fetchData();
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Update failed.");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingSeries(false);
     }
   };
 
@@ -414,16 +465,64 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
           <p className="text-sm text-slate-500 mt-1">{isTr ? "Ürün sevkiyatlarını takip edin ve e-Faturaya dönüştürün." : "Track shipments and convert to e-Invoices."}</p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          {branding?.einvoice_settings?.is_active && (
-            <button onClick={handleOpenCreateNew} className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm shadow-sm">
-              <Plus className="h-4 w-4" /> {isTr ? "İrsaliye Oluştur" : "Create Waybill"}
-            </button>
-          )}
+          <button onClick={handleOpenCreateNew} className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm shadow-sm cursor-pointer">
+            <Plus className="h-4 w-4" /> {isTr ? "İrsaliye Oluştur" : "Create Waybill"}
+          </button>
           <button onClick={() => {
             const clean = waybills.map(w => ({ ID: w.id, [isTr ? "No" : "No"]: w.waybill_number, [isTr ? "Tarih" : "Date"]: formatDateTR(w.waybill_date), [isTr ? "Alıcı" : "Receiver"]: w.company_title || w.company_name || `${w.customer_name || ''} ${w.customer_surname || ''}`, [isTr ? "Plaka" : "Plate"]: w.plate_number, [isTr ? "Durum" : "Status"]: w.status }));
             const ws = XLSX.utils.json_to_sheet(clean); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "e-İrsaliyeler"); XLSX.writeFile(wb, `E_Irsaliyeler_${formatFileDateTR()}.xlsx`);
-          }} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium transition flex items-center justify-center gap-2 text-sm">
+          }} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium transition flex items-center justify-center gap-2 text-sm cursor-pointer">
             <FileDown className="h-4 w-4 text-emerald-600" /> {isTr ? "Excel Çıktısı" : "Export Excel"}
+          </button>
+        </div>
+      </div>
+
+      {/* ENTEGRASYON & SERİ YAŞAM DÖNGÜSÜ BİLGİ ŞERİDİ */}
+      <div className="bg-slate-900 border border-slate-800 text-white p-4 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0">
+            <Globe className="w-4 h-4 text-blue-400" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-white uppercase tracking-wider">
+                {isTr ? "E-İrsaliye Entegrasyon & Seri Radarı" : "E-Waybill Integration & Series Radar"}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {seriesInfo?.provider === 'mysoft' ? "MySoft GİB Entegratörü Aktif" : (isTr ? "GİB Entegratör Bağlantısı Aktif" : "Integrator Connected")}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {seriesInfo?.vkn ? `VKN: ${seriesInfo.vkn}` : ""} {seriesInfo?.username ? `• Hesap: ${seriesInfo.username}` : ""} • {isTr ? "GİB UBL 2.1 e-İrsaliye Şematron Standartları Devrede" : "UBL 2.1 Active"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">{isTr ? "Seri & Yıl" : "Series & Year"}</span>
+            <span className="font-mono font-semibold text-white">{seriesInfo?.prefix || 'IRS'} • {seriesInfo?.year || '2026'}</span>
+          </div>
+
+          <div className="bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">{isTr ? "Son Kesilen İrsaliye" : "Last Issued"}</span>
+            <span className="font-mono font-medium text-slate-300">{seriesInfo?.lastNumber || "-"}</span>
+          </div>
+
+          <div className="bg-indigo-950/60 border border-indigo-700/60 px-3 py-1.5 rounded-xl text-xs">
+            <span className="text-[10px] text-indigo-300 uppercase tracking-wider block">{isTr ? "Sıradaki Otomatik No" : "Next Number"}</span>
+            <span className="font-mono font-bold text-indigo-400">{seriesInfo?.nextNumber || "-"}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowSeriesModal(true)}
+            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition flex items-center gap-1.5 text-xs font-medium cursor-pointer shadow-2xs"
+            title={isTr ? "E-İrsaliye Seri ve Sayaç Ayarları" : "Configure Series Counter"}
+          >
+            <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+            <span>{isTr ? "Seri / Sayaç Ayarla" : "Configure Series"}</span>
           </button>
         </div>
       </div>
@@ -484,9 +583,81 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
             driverPhone={driverPhone} setDriverPhone={setDriverPhone}
             onSaveAlternativeAddress={handleSaveAlternativeAddress}
             INCOTERMS_LIST={INCOTERMS_LIST}
+            seriesInfo={seriesInfo}
           />
         )}
       </AnimatePresence>
+
+      {/* E-İRSALİYE SERİ & SAYAÇ AYARLAMA MODALI */}
+      {showSeriesModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-100">
+            <div className="px-4 py-3 border-b border-slate-100 bg-slate-900 text-white flex justify-between items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-indigo-400" />
+                {isTr ? "E-İrsaliye Seri & Sayaç Ayarı" : "E-Waybill Series & Counter"}
+              </h3>
+              <button onClick={() => setShowSeriesModal(false)} className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveSeries} className="p-4 space-y-3.5 text-xs">
+              <div className="bg-indigo-50/70 border border-indigo-100 p-3 rounded-xl text-indigo-900 text-[11px] leading-relaxed">
+                {isTr ? "MySoft portalı üzerinden doğrudan düzenlenmiş son irsaliye sayacını girerek sistemin kaldığı yerden ardışık devam etmesini sağlayabilirsiniz (Örn: 37 girildiğinde bir sonraki irsaliye IRS2026000000038 olacaktır)." : "Specify the last sequence issued directly on the integrator portal so subsequent waybills continue seamlessly."}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider block">
+                  {isTr ? "Seri Ön Eki (3 Harf)" : "Prefix (3 Chars)"}
+                </label>
+                <input
+                  type="text"
+                  maxLength={3}
+                  value={newPrefix}
+                  onChange={(e) => setNewPrefix(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono font-bold uppercase text-xs outline-none focus:border-indigo-500"
+                  placeholder="IRS"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider block">
+                  {isTr ? "Son Düzenlenen İrsaliye Sayacı / Başlangıç Numarası" : "Last Issued Counter"}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={newStartSeq}
+                  onChange={(e) => setNewStartSeq(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs outline-none focus:border-indigo-500"
+                  placeholder="37"
+                />
+                <span className="text-[10px] text-slate-400 block">
+                  {isTr ? `Sıradaki atanacak numara: ${newPrefix}${new Date().getFullYear()}${(Number(newStartSeq || 0) + 1).toString().padStart(9, '0')}` : ""}
+                </span>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowSeriesModal(false)}
+                  className="px-4 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  {isTr ? "Vazgeç" : "Cancel"}
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingSeries}
+                  className="px-5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium cursor-pointer flex items-center gap-1.5"
+                >
+                  {savingSeries ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  {isTr ? "Kaydet & Uygula" : "Save"}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       <WaybillDetailsModal isOpen={showDetailsModal} onClose={() => setShowDetailsModal(false)} isTr={isTr} selectedWaybill={selectedWaybill} />
       <WaybillHtmlModal isOpen={showHtmlModal} onClose={() => setShowHtmlModal(false)} isTr={isTr} selectedWaybill={selectedWaybill} previewLoading={previewLoading} previewContent={previewContent} />

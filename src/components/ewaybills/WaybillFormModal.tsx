@@ -101,6 +101,7 @@ interface WaybillFormModalProps {
   setDriverPhone: (s: string) => void;
   onSaveAlternativeAddress?: (address: string) => void;
   INCOTERMS_LIST: any[];
+  seriesInfo?: any;
 }
 
 export const WaybillFormModal: React.FC<WaybillFormModalProps> = ({
@@ -120,7 +121,8 @@ export const WaybillFormModal: React.FC<WaybillFormModalProps> = ({
   matbuNumber, setMatbuNumber, matbuDate, setMatbuDate,
   driverPhone, setDriverPhone,
   onSaveAlternativeAddress,
-  INCOTERMS_LIST
+  INCOTERMS_LIST,
+  seriesInfo
 }) => {
   const [addressMode, setAddressMode] = useState<'corporate' | 'alternative' | 'custom'>('corporate');
 
@@ -358,7 +360,14 @@ export const WaybillFormModal: React.FC<WaybillFormModalProps> = ({
                   </div>
                   <div className="space-y-2.5">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-medium text-slate-500 block uppercase">{isTr ? "Seri / Önek" : "Prefix"}</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-medium text-slate-500 uppercase">{isTr ? "Seri / Önek" : "Prefix"}</label>
+                        {seriesInfo?.nextNumber && (
+                          <span className="text-[10px] font-mono font-medium text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100" title={isTr ? "Sıradaki Otomatik İrsaliye No" : "Next Auto Waybill No"}>
+                            {seriesInfo.nextNumber}
+                          </span>
+                        )}
+                      </div>
                       <input type="text" maxLength={3} value={prefix} onChange={(e) => setPrefix(e.target.value.toUpperCase())} className="w-24 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs outline-none font-medium uppercase bg-slate-50/50 text-slate-800 focus:border-indigo-500" />
                     </div>
                     <div className="space-y-1">

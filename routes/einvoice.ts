@@ -221,9 +221,11 @@ export const getSeriesStatusList = async (storeId: number) => {
   if (!Array.isArray(seriesList) || seriesList.length === 0) {
     const efPrefix = (merged.einvoice_prefix || 'GEF').toUpperCase().substring(0, 3);
     const eaPrefix = (merged.earchive_prefix || 'GEA').toUpperCase().substring(0, 3);
+    const ewPrefix = (merged.ewaybill_prefix || 'IRS').toUpperCase().substring(0, 3);
     seriesList = [
       { id: 'series_ef_default', prefix: efPrefix, type: 'E-FATURA', description: 'Ana E-Fatura Serisi', is_default: true },
-      { id: 'series_ea_default', prefix: eaPrefix, type: 'E-ARSIV', description: 'Ana E-Arşiv Serisi', is_default: true }
+      { id: 'series_ea_default', prefix: eaPrefix, type: 'E-ARSIV', description: 'Ana E-Arşiv Serisi', is_default: true },
+      { id: 'series_ew_default', prefix: ewPrefix, type: 'E-İRSALİYE', description: 'Ana E-İrsaliye Serisi', is_default: true }
     ];
   }
 
@@ -231,28 +233,57 @@ export const getSeriesStatusList = async (storeId: number) => {
   const results = [];
 
   for (const s of seriesList) {
-    const cleanPrefix = (s.prefix || 'GAP').toUpperCase().substring(0, 3).padEnd(3, 'X');
+    const cleanPrefix = (s.prefix || (s.type === 'E-İRSALİYE' ? 'IRS' : 'GAP')).toUpperCase().substring(0, 3).padEnd(3, 'X');
     const prefixWithYear = `${cleanPrefix}${currentYear}`;
-
-    const seqRes = await pool.query(
-      `SELECT COALESCE(document_number, invoice_number) as doc_num 
-       FROM sales_invoices 
-       WHERE store_id = $1 
-         AND (document_number LIKE $2 OR invoice_number LIKE $2) 
-         AND (LENGTH(document_number) = 16 OR LENGTH(invoice_number) = 16)
-       ORDER BY COALESCE(document_number, invoice_number) DESC 
-       LIMIT 1`,
-      [storeId, `${prefixWithYear}%`]
-    );
 
     let lastDocNum = null;
     let nextSeq = 1;
-    if (seqRes.rows.length > 0) {
-      lastDocNum = seqRes.rows[0].doc_num;
-      const lastSeqPart = lastDocNum.substring(7);
-      const parsed = parseInt(lastSeqPart, 10);
-      if (!isNaN(parsed)) {
-        nextSeq = parsed + 1;
+
+    if (s.type === 'E-İRSALİYE') {
+      const baseStartSeq = Number(merged.ewaybill_start_sequence || merged.waybill_start_sequence || 0);
+      nextSeq = baseStartSeq + 1;
+      if (baseStartSeq > 0) {
+        lastDocNum = merged.ewaybill_last_number || `${prefixWithYear}${baseStartSeq.toString().padStart(9, '0')}`;
+      }
+
+      const seqRes = await pool.query(
+        `SELECT waybill_number as doc_num 
+         FROM e_waybills 
+         WHERE store_id = $1 
+           AND waybill_number LIKE $2 
+           AND LENGTH(waybill_number) = 16
+         ORDER BY waybill_number DESC 
+         LIMIT 1`,
+        [storeId, `${prefixWithYear}%`]
+      );
+
+      if (seqRes.rows.length > 0 && seqRes.rows[0].doc_num) {
+        const foundDocNum = seqRes.rows[0].doc_num;
+        const parsed = parseInt(foundDocNum.substring(7), 10);
+        if (!isNaN(parsed) && parsed >= nextSeq) {
+          nextSeq = parsed + 1;
+          lastDocNum = foundDocNum;
+        }
+      }
+    } else {
+      const seqRes = await pool.query(
+        `SELECT COALESCE(document_number, invoice_number) as doc_num 
+         FROM sales_invoices 
+         WHERE store_id = $1 
+           AND (document_number LIKE $2 OR invoice_number LIKE $2) 
+           AND (LENGTH(document_number) = 16 OR LENGTH(invoice_number) = 16)
+         ORDER BY COALESCE(document_number, invoice_number) DESC 
+         LIMIT 1`,
+        [storeId, `${prefixWithYear}%`]
+      );
+
+      if (seqRes.rows.length > 0) {
+        lastDocNum = seqRes.rows[0].doc_num;
+        const lastSeqPart = lastDocNum.substring(7);
+        const parsed = parseInt(lastSeqPart, 10);
+        if (!isNaN(parsed)) {
+          nextSeq = parsed + 1;
+        }
       }
     }
 
@@ -2937,6 +2968,46 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
   const cityName = addressTokens[addressTokens.length - 1] || "İSTANBUL";
   const districtName = addressTokens[addressTokens.length - 2] || "MERKEZ";
 
+  // Delivery Account & Address object for MySoft DespatchOutbox
+  const deliveryAccountObj = {
+    vknTckn: taxNumber,
+    accountName: customerTitle.substring(0, 100),
+    title: customerTitle.substring(0, 100),
+    taxOfficeName: (data.tax_office || data.company_tax_office || "").trim(),
+    taxOffice: (data.tax_office || data.company_tax_office || "").trim(),
+    email1: data.company_email || data.customer_email || data.email || "",
+    countryName: "Türkiye",
+    cityName: cityName.toUpperCase(),
+    citySubdivision: districtName.toUpperCase(),
+    citySubdivisionName: districtName.toUpperCase(),
+    streetName: addrStr.substring(0, 250),
+    postalAddress: {
+      streetName: addrStr.substring(0, 250),
+      cityName: cityName.toUpperCase(),
+      citySubdivisionName: districtName.toUpperCase(),
+      countryName: "Türkiye"
+    }
+  };
+
+  const supplierAccountObj = {
+    vknTckn: storeTaxNumber,
+    accountName: branding.store_name || "Seçkin Mağaza",
+    title: branding.store_name || "Seçkin Mağaza",
+    taxOfficeName: storeSettings.tax_office || "",
+    taxOffice: storeSettings.tax_office || "",
+    countryName: "Türkiye",
+    cityName: (storeSettings.city || "İSTANBUL").toUpperCase(),
+    citySubdivision: (storeSettings.district || "MERKEZ").toUpperCase(),
+    citySubdivisionName: (storeSettings.district || "MERKEZ").toUpperCase(),
+    streetName: storeSettings.address || "İstanbul",
+    postalAddress: {
+      streetName: storeSettings.address || "İstanbul",
+      cityName: (storeSettings.city || "İSTANBUL").toUpperCase(),
+      citySubdivisionName: (storeSettings.district || "MERKEZ").toUpperCase(),
+      countryName: "Türkiye"
+    }
+  };
+
   return {
     isCalculateByApi: true,
     isManuelCalculation: false,
@@ -2963,6 +3034,14 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
       id: data.matbu_number,
       issueDate: (data.matbu_date) ? new Date(data.matbu_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
     } : undefined,
+
+    // MySoft Account objects
+    deliveryAccount: deliveryAccountObj,
+    DeliveryAccount: deliveryAccountObj,
+    supplierAccount: supplierAccountObj,
+    SupplierAccount: supplierAccountObj,
+    despatchAccount: supplierAccountObj,
+    DespatchAccount: supplierAccountObj,
 
     despatchSupplierParty: {
       vknTckn: storeTaxNumber,
@@ -3029,7 +3108,15 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
         } : {}),
         delivery: {
           actualDeliveryDate: actualDate,
-          actualDeliveryTime: actualTime
+          actualDeliveryTime: actualTime,
+          deliveryAccount: deliveryAccountObj,
+          DeliveryAccount: deliveryAccountObj,
+          deliveryAddress: {
+            streetName: addrStr.substring(0, 250),
+            cityName: cityName.toUpperCase(),
+            citySubdivisionName: districtName.toUpperCase(),
+            countryName: "Türkiye"
+          }
         },
         transportMeans: {
           roadTransportMeans: {
@@ -3202,7 +3289,7 @@ router.get("/independent-waybills", authenticate, async (req: any, res) => {
     let paramIndex = 2;
 
     if (status) {
-      query += ` AND ew.status = $${paramIndex}`;
+      query += ` AND LOWER(ew.status) = LOWER($${paramIndex})`;
       params.push(status);
       paramIndex++;
     }
@@ -3466,7 +3553,8 @@ router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
     }
 
     const currentWaybill = statusCheck.rows[0];
-    if (currentWaybill.status !== 'draft' && currentWaybill.status !== 'error') {
+    const currentStatus = (currentWaybill.status || '').toLowerCase();
+    if (currentStatus !== 'draft' && currentStatus !== 'error') {
       return res.status(400).json({ error: "Sadece Taslak veya Hatalı durumundaki irsaliyeler düzenlenebilir." });
     }
 
@@ -3640,20 +3728,38 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
       return res.status(400).json({ error: "GİB kuralları gereği İrsaliye Gönderiminde Araç Plakası girilmesi zorunludur." });
     }
 
+    // Load store setup
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) throw new Error("Mağaza ayarları yüklenemedi.");
+    const settings = storeRes.rows[0].einvoice_settings || {};
+    const branding = storeRes.rows[0].branding || {};
+
     // Sequence Generator
-    const prefix = (waybill.prefix || "IRS").toUpperCase().substring(0,3);
+    const prefix = (waybill.prefix || settings.ewaybill_prefix || "IRS").toUpperCase().substring(0,3);
     const year = new Date().getFullYear().toString();
     const prefixWithYear = `${prefix}${year}`;
+
+    // Read configured starting sequence from store settings (e.g. 37 for Gap Bilişim so next is 38)
+    let baseStartSeq = Number(settings.ewaybill_start_sequence || settings.waybill_start_sequence || settings.ewaybill_last_sequence || 0);
+    if (!baseStartSeq && settings.ewaybill_last_number && settings.ewaybill_last_number.startsWith(prefixWithYear)) {
+      const p = parseInt(settings.ewaybill_last_number.substring(7), 10);
+      if (!isNaN(p)) baseStartSeq = p;
+    }
 
     const client = await pool.connect();
     let waybillNumber = waybill.waybill_number;
     let waybillEttn = waybill.ettn || crypto.randomUUID();
 
+    const currentSeqPart = (waybillNumber && waybillNumber.startsWith(prefixWithYear) && waybillNumber.length === 16)
+      ? parseInt(waybillNumber.substring(7), 10)
+      : 0;
+
     try {
       await client.query("BEGIN");
 
-      if (!waybillNumber || waybillNumber.startsWith("TASLAK") || waybillNumber.substring(0,3) !== prefix) {
-        // Count existing e-waybills under this prefix/year
+      // Assign or update sequence if draft, TASLAK prefix, wrong prefix, or if current number is <= baseStartSeq
+      if (!waybillNumber || waybillNumber.startsWith("TASLAK") || waybillNumber.substring(0,3) !== prefix || (baseStartSeq > 0 && currentSeqPart <= baseStartSeq && (waybill.status === 'ERROR' || waybill.status === 'error' || waybill.status === 'draft'))) {
+        // Query highest waybill number recorded in database for this store and prefix
         const seqRes = await client.query(
           `SELECT waybill_number FROM e_waybills 
            WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16 
@@ -3661,7 +3767,7 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
           [storeId, `${prefixWithYear}%`]
         );
 
-        let nextSequenceNumber = 1;
+        let nextSequenceNumber = baseStartSeq + 1;
         if (seqRes.rows.length > 0 && seqRes.rows[0].waybill_number) {
           const lastDocNum = seqRes.rows[0].waybill_number;
           const lastSequencePart = lastDocNum.substring(7);
@@ -3676,7 +3782,7 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
       }
 
       await client.query(
-        "UPDATE e_waybills SET waybill_number = $1, ettn = $2, status = 'queued' WHERE id = $3",
+        "UPDATE e_waybills SET waybill_number = $1, ettn = $2, status = 'queued', message = NULL WHERE id = $3",
         [waybillNumber, waybillEttn, id]
       );
 
@@ -3689,12 +3795,6 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
     } finally {
       client.release();
     }
-
-    // Load store setup
-    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
-    if (storeRes.rows.length === 0) throw new Error("Mağaza ayarları yüklenemedi.");
-    const settings = storeRes.rows[0].einvoice_settings || {};
-    const branding = storeRes.rows[0].branding || {};
 
     const service = await getEWaybillService(storeId);
     
@@ -3817,6 +3917,91 @@ router.get("/independent-waybills/:id/control", authenticate, async (req: any, r
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: "Kontrol gerçekleştirilemedi: " + err.message });
+  }
+});
+
+// 8.1 E-Waybill Series & Sequence Info
+router.get("/independent-waybills/series-info", authenticate, async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı." });
+
+    const settings = storeRes.rows[0].einvoice_settings || {};
+    const prefix = (settings.ewaybill_prefix || "IRS").toUpperCase().substring(0, 3);
+    const year = new Date().getFullYear().toString();
+    const prefixWithYear = `${prefix}${year}`;
+
+    let baseStartSeq = Number(settings.ewaybill_start_sequence || settings.waybill_start_sequence || settings.ewaybill_last_sequence || 0);
+    if (!baseStartSeq && settings.ewaybill_last_number && settings.ewaybill_last_number.startsWith(prefixWithYear)) {
+      const p = parseInt(settings.ewaybill_last_number.substring(7), 10);
+      if (!isNaN(p)) baseStartSeq = p;
+    }
+
+    // Get highest number in DB
+    const seqRes = await pool.query(
+      `SELECT waybill_number FROM e_waybills 
+       WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16 
+       ORDER BY waybill_number DESC LIMIT 1`,
+      [storeId, `${prefixWithYear}%`]
+    );
+
+    let highestSeq = baseStartSeq;
+    let lastNumber = settings.ewaybill_last_number || (baseStartSeq > 0 ? `${prefixWithYear}${baseStartSeq.toString().padStart(9, '0')}` : null);
+    if (seqRes.rows.length > 0 && seqRes.rows[0].waybill_number) {
+      const docNum = seqRes.rows[0].waybill_number;
+      const parsed = parseInt(docNum.substring(7), 10);
+      if (!isNaN(parsed) && parsed > highestSeq) {
+        highestSeq = parsed;
+        lastNumber = docNum;
+      }
+    }
+
+    const nextSeq = highestSeq + 1;
+    const nextNumber = `${prefixWithYear}${nextSeq.toString().padStart(9, '0')}`;
+
+    res.json({
+      prefix,
+      year,
+      startSequence: baseStartSeq,
+      lastNumber: lastNumber || (baseStartSeq > 0 ? `${prefixWithYear}${baseStartSeq.toString().padStart(9, '0')}` : "-"),
+      nextSequence: nextSeq,
+      nextNumber,
+      provider: settings.provider || "none",
+      isActive: !!settings.is_ewaybill_active,
+      username: settings.username || "",
+      vkn: settings.vkn || ""
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Seri bilgisi alınamadı: " + err.message });
+  }
+});
+
+// 8.2 Update E-Waybill Start Sequence
+router.post("/independent-waybills/series-info", authenticate, async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.body.storeId);
+    const { startSequence, prefix } = req.body;
+
+    const storeRes = await pool.query("SELECT einvoice_settings FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı." });
+
+    const settings = storeRes.rows[0].einvoice_settings || {};
+    if (prefix) settings.ewaybill_prefix = prefix.toUpperCase().substring(0, 3);
+    if (startSequence !== undefined) {
+      const num = parseInt(startSequence, 10);
+      if (!isNaN(num) && num >= 0) {
+        settings.ewaybill_start_sequence = num;
+        const curPrefix = (settings.ewaybill_prefix || "IRS").toUpperCase().substring(0, 3);
+        const curYear = new Date().getFullYear().toString();
+        settings.ewaybill_last_number = `${curPrefix}${curYear}${num.toString().padStart(9, '0')}`;
+      }
+    }
+
+    await pool.query("UPDATE stores SET einvoice_settings = $1 WHERE id = $2", [JSON.stringify(settings), storeId]);
+    res.json({ success: true, message: "E-İrsaliye seri bilgisi güncellendi.", settings });
+  } catch (err: any) {
+    res.status(500).json({ error: "Güncelleme başarısız: " + err.message });
   }
 });
 

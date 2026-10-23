@@ -507,7 +507,7 @@ export const SettingsEInvoiceTab = ({
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     {txt('E-Fatura Ön Eki (3 Harf)', 'E-Invoice Prefix (3 Chars)', 'Πρόθεμα Ηλ. Τιμολογίου')}
@@ -534,6 +534,39 @@ export const SettingsEInvoiceTab = ({
                     value={branding.einvoice_settings?.earchive_prefix || ''}
                     onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, earchive_prefix: e.target.value.toUpperCase() })}
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    {txt('E-İrsaliye Ön Eki (3 Harf)', 'E-Waybill Prefix (3 Chars)', 'Πρόθεμα Ηλ. Δελτίου')}
+                  </label>
+                  <input 
+                    type="text" 
+                    maxLength={3}
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white uppercase outline-none"
+                    placeholder="IRS"
+                    value={branding.einvoice_settings?.ewaybill_prefix || ''}
+                    onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, ewaybill_prefix: e.target.value.toUpperCase() })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    {txt('E-İrsaliye Başlangıç / Son Sayacı', 'E-Waybill Starting / Last Counter', 'Μετρητής Ηλ. Δελτίου')}
+                  </label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white outline-none"
+                    placeholder="37"
+                    value={branding.einvoice_settings?.ewaybill_start_sequence ?? ''}
+                    onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, ewaybill_start_sequence: e.target.value ? parseInt(e.target.value, 10) : 0 })}
+                  />
+                  <p className="text-[9px] text-slate-400">
+                    {txt('Entegratör portalında kesilen son irsaliye numarası (Örn: 37 yazılırsa ilk irsaliye 38 olarak kesilir).', 'Last waybill number issued directly on integrator portal.', 'Τελευταίος αριθμός.')}
+                  </p>
                 </div>
               </div>
             </div>
