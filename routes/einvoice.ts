@@ -2970,11 +2970,16 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
 
   // Delivery Account & Address object for MySoft DespatchOutbox
   const deliveryAccountObj = {
+    identifierNumber: taxNumber,
+    IdentifierNumber: taxNumber,
     vknTckn: taxNumber,
+    taxNumber: taxNumber,
     accountName: customerTitle.substring(0, 100),
     title: customerTitle.substring(0, 100),
+    name: customerTitle.substring(0, 100),
     taxOfficeName: (data.tax_office || data.company_tax_office || "").trim(),
     taxOffice: (data.tax_office || data.company_tax_office || "").trim(),
+    email: data.company_email || data.customer_email || data.email || "",
     email1: data.company_email || data.customer_email || data.email || "",
     countryName: "Türkiye",
     cityName: cityName.toUpperCase(),
@@ -2990,9 +2995,13 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
   };
 
   const supplierAccountObj = {
+    identifierNumber: storeTaxNumber,
+    IdentifierNumber: storeTaxNumber,
     vknTckn: storeTaxNumber,
+    taxNumber: storeTaxNumber,
     accountName: branding.store_name || "Seçkin Mağaza",
     title: branding.store_name || "Seçkin Mağaza",
+    name: branding.store_name || "Seçkin Mağaza",
     taxOfficeName: storeSettings.tax_office || "",
     taxOffice: storeSettings.tax_office || "",
     countryName: "Türkiye",
@@ -3013,7 +3022,7 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
     isManuelCalculation: false,
     connectorGuid: storeSettings.connector_guid || undefined,
     eDocumentType: "IRSALIYE",
-    profile: data.scenario || "TEMELIRSALIYE",
+    profile: (data.scenario ? data.scenario.replace(/\s+/g, '') : "TEMELIRSALIYE"),
     despatchAdviceType: data.waybill_type || "SEVK",
     issueDate: (isIndependent ? data.waybill_date : actualDate) ? new Date(isIndependent ? data.waybill_date : actualDate).toISOString().split('T')[0] : actualDate,
     issueTime: (isIndependent ? data.waybill_time : actualTime) || actualTime,
@@ -3042,8 +3051,11 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
     SupplierAccount: supplierAccountObj,
     despatchAccount: supplierAccountObj,
     DespatchAccount: supplierAccountObj,
+    buyerAccount: deliveryAccountObj,
+    BuyerAccount: deliveryAccountObj,
 
     despatchSupplierParty: {
+      identifierNumber: storeTaxNumber,
       vknTckn: storeTaxNumber,
       accountName: branding.store_name || "Seçkin Mağaza",
       taxOfficeName: storeSettings.tax_office || "",
@@ -3056,6 +3068,20 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
     },
 
     deliveryCustomerParty: {
+      identifierNumber: taxNumber,
+      vknTckn: taxNumber,
+      accountName: customerTitle.substring(0, 100),
+      taxOfficeName: data.tax_office || data.company_tax_office || "",
+      postalAddress: {
+        streetName: addrStr.substring(0, 250),
+        cityName: cityName.toUpperCase(),
+        citySubdivisionName: districtName.toUpperCase(),
+        countryName: "Türkiye"
+      }
+    },
+
+    buyerCustomerParty: {
+      identifierNumber: taxNumber,
       vknTckn: taxNumber,
       accountName: customerTitle.substring(0, 100),
       taxOfficeName: data.tax_office || data.company_tax_office || "",
@@ -3271,7 +3297,17 @@ router.get("/einvoice/waybill/html/:invoiceId", authenticate, async (req: any, r
 // 1. List independent waybills
 router.get("/independent-waybills", authenticate, async (req: any, res) => {
   try {
+    const rawStoreId = req.query.storeId;
+    if (rawStoreId === 'undefined' || rawStoreId === 'null') {
+      const userStoreId = req.user?.store_id;
+      if (!userStoreId) {
+        return res.json([]);
+      }
+    }
     const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    if (!storeId || storeId <= 0) {
+      return res.json([]);
+    }
     let query = `
       SELECT ew.*, 
              c.title as company_name, c.title as company_title,
@@ -3734,8 +3770,8 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
     const settings = storeRes.rows[0].einvoice_settings || {};
     const branding = storeRes.rows[0].branding || {};
 
-    // Sequence Generator
-    const prefix = (waybill.prefix || settings.ewaybill_prefix || "IRS").toUpperCase().substring(0,3);
+    // Sequence Generator: Always respect configured official e-waybill prefix
+    const prefix = (settings.ewaybill_prefix || waybill.prefix || "IRS").toUpperCase().substring(0,3);
     const year = new Date().getFullYear().toString();
     const prefixWithYear = `${prefix}${year}`;
 
@@ -3782,13 +3818,14 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
       }
 
       await client.query(
-        "UPDATE e_waybills SET waybill_number = $1, ettn = $2, status = 'queued', message = NULL WHERE id = $3",
-        [waybillNumber, waybillEttn, id]
+        "UPDATE e_waybills SET waybill_number = $1, ettn = $2, prefix = $3, status = 'queued', message = NULL WHERE id = $4",
+        [waybillNumber, waybillEttn, prefix, id]
       );
 
       await client.query("COMMIT");
       waybill.waybill_number = waybillNumber;
       waybill.ettn = waybillEttn;
+      waybill.prefix = prefix;
     } catch (dbErr) {
       await client.query("ROLLBACK");
       throw dbErr;
@@ -3923,7 +3960,17 @@ router.get("/independent-waybills/:id/control", authenticate, async (req: any, r
 // 8.1 E-Waybill Series & Sequence Info
 router.get("/independent-waybills/series-info", authenticate, async (req: any, res) => {
   try {
+    const rawStoreId = req.query.storeId;
+    if (rawStoreId === 'undefined' || rawStoreId === 'null') {
+      const userStoreId = req.user?.store_id;
+      if (!userStoreId) {
+        return res.status(400).json({ error: "Geçerli bir mağaza ID'si belirtilmelidir." });
+      }
+    }
     const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    if (!storeId || storeId <= 0) {
+      return res.status(400).json({ error: "Geçerli bir mağaza seçilmelidir." });
+    }
     const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı." });
 

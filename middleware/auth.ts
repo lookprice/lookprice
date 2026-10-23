@@ -22,7 +22,7 @@ export const authenticate = (req: any, res: any, next: any) => {
  * Ensures non-superadmin users can ONLY access their own store_id.
  */
 export function getAuthorizedStoreId(req: any, requestedStoreId?: any): number {
-  if (req.user?.role === "superadmin" && requestedStoreId !== undefined && requestedStoreId !== null && requestedStoreId !== "") {
+  if (req.user?.role === "superadmin" && requestedStoreId !== undefined && requestedStoreId !== null && requestedStoreId !== "" && requestedStoreId !== "undefined" && requestedStoreId !== "null") {
     const parsed = Number(requestedStoreId);
     if (!isNaN(parsed) && parsed > 0) {
       return parsed;

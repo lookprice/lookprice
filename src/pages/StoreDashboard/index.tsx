@@ -1536,7 +1536,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               )}
               {activeTab === "e_waybills" && !isPortfolio && permittedTabIds.has("e_waybills") && (
                 <EWaybillsTab 
-                  storeId={currentStoreId} 
+                  storeId={currentStoreId || branding?.id || user?.store_id} 
                   lang={lang} 
                   api={api} 
                   branding={branding} 

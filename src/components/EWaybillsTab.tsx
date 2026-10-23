@@ -46,8 +46,9 @@ const INCOTERMS_LIST = [
   { code: "FOB", labelTr: "FOB - Gemide Masrafsız", labelEn: "FOB - Free On Board" }
 ];
 
-export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
+export default function EWaybillsTab({ storeId: propStoreId, lang, api, branding }: any) {
   const isTr = lang === 'tr';
+  const storeId = Number(propStoreId || branding?.id || 0) || undefined;
 
   // Data states
   const [waybills, setWaybills] = useState<any[]>([]);
@@ -141,20 +142,24 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   const [quickCariSearchInitial, setQuickCariSearchInitial] = useState("");
 
   const fetchData = async () => {
+    const activeStoreId = Number(storeId || branding?.id || 0);
+    if (!activeStoreId || isNaN(activeStoreId) || activeStoreId <= 0) {
+      return;
+    }
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const waybillRes = await fetch(`/api/independent-waybills?storeId=${storeId}&search=${deferredSearch}&status=${statusFilter === 'all' ? '' : statusFilter}`, {
+      const waybillRes = await fetch(`/api/independent-waybills?storeId=${activeStoreId}&search=${deferredSearch}&status=${statusFilter === 'all' ? '' : statusFilter}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       if (waybillRes.ok) setWaybills(await waybillRes.json());
-      setCompanies(await api.getCompanies(storeId) || []);
-      setCustomers(await api.getCustomers(storeId) || []);
-      setProducts(await api.getProducts("", storeId) || []);
-      try { setDrivers(await api.getDrivers(storeId) || []); } catch (err) {}
-      try { setVehicles(await api.getVehicles(storeId) || []); } catch (err) {}
+      setCompanies(await api.getCompanies(false, activeStoreId) || []);
+      setCustomers(await api.getCustomers(activeStoreId) || []);
+      setProducts(await api.getProducts("", activeStoreId) || []);
+      try { setDrivers(await api.getDrivers(activeStoreId) || []); } catch (err) {}
+      try { setVehicles(await api.getVehicles(activeStoreId) || []); } catch (err) {}
       try {
-        const sRes = await fetch(`/api/independent-waybills/series-info?storeId=${storeId}`, {
+        const sRes = await fetch(`/api/independent-waybills/series-info?storeId=${activeStoreId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (sRes.ok) {
@@ -173,13 +178,15 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
 
   const handleSaveSeries = async (e: React.FormEvent) => {
     e.preventDefault();
+    const activeStoreId = Number(storeId || branding?.id || 0);
+    if (!activeStoreId) return;
     setSavingSeries(true);
     try {
       const token = localStorage.getItem("token");
       const res = await fetch("/api/independent-waybills/series-info", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ storeId: Number(storeId), startSequence: newStartSeq, prefix: newPrefix })
+        body: JSON.stringify({ storeId: activeStoreId, startSequence: newStartSeq, prefix: newPrefix })
       });
       if (res.ok) {
         toast.success(isTr ? "E-İrsaliye seri ve sayaç bilgisi başarıyla güncellendi." : "Series settings updated.");
@@ -196,7 +203,12 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
     }
   };
 
-  useEffect(() => { fetchData(); }, [storeId, deferredSearch, statusFilter]);
+  useEffect(() => { 
+    const activeStoreId = Number(storeId || branding?.id || 0);
+    if (activeStoreId > 0) {
+      fetchData(); 
+    }
+  }, [storeId, branding?.id, deferredSearch, statusFilter]);
 
   const handleOpenCreateNew = () => {
     setFormId(null); setCompanyId(""); setCustomerId(""); setCustomerSearch("");
