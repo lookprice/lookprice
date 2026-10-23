@@ -72,7 +72,20 @@ export const PortfolioWebsiteGenerator = ({
   const [textColor, setTextColor] = useState<string>("#0f172a");
   const [secondaryAccentColor, setSecondaryAccentColor] = useState<string>("#6366f1");
 
-  const isAutomotive = originalBranding?.store_type === 'motor_vehicle' || originalBranding?.page_layout_settings?.sector === 'automotive';
+  const isAutomotive = Boolean(
+    originalBranding?.store_type === 'motor_vehicle' ||
+    originalBranding?.store_type === 'automotive' ||
+    originalBranding?.store_type === 'auto' ||
+    originalBranding?.store_type === 'autolp' ||
+    originalBranding?.store_type === 'oto' ||
+    originalBranding?.store_type === 'galeri' ||
+    originalBranding?.sector === 'automotive' ||
+    originalBranding?.sector === 'auto' ||
+    originalBranding?.sector === 'motor_vehicle' ||
+    originalBranding?.page_layout_settings?.sector === 'automotive' ||
+    originalBranding?.page_layout_settings?.sector === 'auto' ||
+    originalBranding?.slug?.startsWith('autolp')
+  );
 
   useEffect(() => {
     if (storeId) {

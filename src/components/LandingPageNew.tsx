@@ -1152,7 +1152,7 @@ export const LandingPage = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-[#0A0A0E] rounded-[2rem] border border-white/10 p-6 md:p-8 shadow-2xl z-10 scrollbar-thin scrollbar-thumb-white/10"
+              className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0A0A0E] rounded-[2rem] border border-white/10 p-6 md:p-8 shadow-2xl z-10 scrollbar-thin scrollbar-thumb-white/10"
             >
               <button 
                 onClick={() => setShowDemoModal(false)}
@@ -1183,14 +1183,42 @@ export const LandingPage = () => {
                   {txt('CANLI DEMO HESAPLARI (TEK TIKLA GİRİŞ)', 'LIVE DEMO ACCOUNTS (1-CLICK ACCESS)', 'ΛΟΓΑΡΙΑΣΜΟΙ DEMO')}
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* autoLP Demo Card */}
+                  <div className="p-3 bg-gradient-to-br from-blue-950/40 to-slate-900/80 border border-blue-500/30 rounded-xl flex flex-col justify-between gap-2.5 shadow-sm">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-xs font-black text-blue-400">
+                        <Car className="w-3.5 h-3.5" />
+                        <span className="truncate">autoLP (Oto Galeri & Filo)</span>
+                      </div>
+                      <p className="text-[10px] text-white/60 font-mono mt-1 truncate">
+                        demo@autolp.com
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={Boolean(demoLoginLoading)}
+                      onClick={() => handleQuickDemoLogin('demo@autolp.com', 'autolp1234', '/dashboard/autolp-demo?tab=fleet')}
+                      className="w-full py-2 px-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
+                    >
+                      {demoLoginLoading === 'demo@autolp.com' ? (
+                        <span>{txt('Giriş Yapılıyor...', 'Logging In...', 'Σύνδεση...')}</span>
+                      ) : (
+                        <>
+                          <span className="truncate">{txt('Oto Demoya Gir', 'Open Auto Demo', 'Είσοδος')}</span>
+                          <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+
                   {/* restateLP Demo Card */}
                   <div className="p-3 bg-gradient-to-br from-sky-950/40 to-slate-900/80 border border-sky-500/30 rounded-xl flex flex-col justify-between gap-2.5 shadow-sm">
                     <div>
                       <div className="flex items-center gap-1.5 text-xs font-black text-sky-400">
                         <Building2 className="w-3.5 h-3.5" />
-                        <span>restateLP (Emlak & Portföy)</span>
+                        <span className="truncate">restateLP (Emlak & Portföy)</span>
                       </div>
-                      <p className="text-[10px] text-white/60 font-mono mt-1">
+                      <p className="text-[10px] text-white/60 font-mono mt-1 truncate">
                         demo@restatelp.com
                       </p>
                     </div>
@@ -1198,27 +1226,83 @@ export const LandingPage = () => {
                       type="button"
                       disabled={Boolean(demoLoginLoading)}
                       onClick={() => handleQuickDemoLogin('demo@restatelp.com', 'restatelp1234', '/dashboard/restatelp-demo?tab=real_estate')}
-                      className="w-full py-2 px-3 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
+                      className="w-full py-2 px-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
                     >
                       {demoLoginLoading === 'demo@restatelp.com' ? (
                         <span>{txt('Giriş Yapılıyor...', 'Logging In...', 'Σύνδεση...')}</span>
                       ) : (
                         <>
-                          <span>{txt('Emlak Demoya Gir', 'Open Real Estate Demo', 'Είσοδος στο Demo')}</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span className="truncate">{txt('Emlak Demoya Gir', 'Open RE Demo', 'Είσοδος')}</span>
+                          <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* horecaLP Demo Card */}
+                  <div className="p-3 bg-gradient-to-br from-emerald-950/40 to-slate-900/80 border border-emerald-500/30 rounded-xl flex flex-col justify-between gap-2.5 shadow-sm">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-xs font-black text-emerald-400">
+                        <Hotel className="w-3.5 h-3.5" />
+                        <span className="truncate">horecaLP (Otel & Restoran)</span>
+                      </div>
+                      <p className="text-[10px] text-white/60 font-mono mt-1 truncate">
+                        demo@horecalp.com
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={Boolean(demoLoginLoading)}
+                      onClick={() => handleQuickDemoLogin('demo@horecalp.com', 'horecalp1234', '/dashboard/horecalp-demo?tab=hotel-rooms')}
+                      className="w-full py-2 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
+                    >
+                      {demoLoginLoading === 'demo@horecalp.com' ? (
+                        <span>{txt('Giriş Yapılıyor...', 'Logging In...', 'Σύνδεση...')}</span>
+                      ) : (
+                        <>
+                          <span className="truncate">{txt('Otel & POS Demoya Gir', 'Open Hotel & POS Demo', 'Είσοδος')}</span>
+                          <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* bookLP Demo Card */}
+                  <div className="p-3 bg-gradient-to-br from-amber-950/40 to-slate-900/80 border border-amber-500/30 rounded-xl flex flex-col justify-between gap-2.5 shadow-sm">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-400">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span className="truncate">bookLP (Kitabevi & Yayınevi)</span>
+                      </div>
+                      <p className="text-[10px] text-white/60 font-mono mt-1 truncate">
+                        demo@booklp.com
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={Boolean(demoLoginLoading)}
+                      onClick={() => handleQuickDemoLogin('demo@booklp.com', 'booklp1234', '/dashboard/booklp-demo?tab=products')}
+                      className="w-full py-2 px-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
+                    >
+                      {demoLoginLoading === 'demo@booklp.com' ? (
+                        <span>{txt('Giriş Yapılıyor...', 'Logging In...', 'Σύνδεση...')}</span>
+                      ) : (
+                        <>
+                          <span className="truncate">{txt('Kitap Demoya Gir', 'Open Book Demo', 'Είσοδος')}</span>
+                          <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                         </>
                       )}
                     </button>
                   </div>
 
                   {/* shopLP Demo Card */}
-                  <div className="p-3 bg-gradient-to-br from-indigo-950/40 to-slate-900/80 border border-indigo-500/30 rounded-xl flex flex-col justify-between gap-2.5 shadow-sm">
+                  <div className="p-3 bg-gradient-to-br from-indigo-950/40 to-slate-900/80 border border-indigo-500/30 rounded-xl flex flex-col justify-between gap-2.5 shadow-sm sm:col-span-2">
                     <div>
                       <div className="flex items-center gap-1.5 text-xs font-black text-indigo-400">
                         <ShoppingCart className="w-3.5 h-3.5" />
-                        <span>shopLP (Perakende & POS)</span>
+                        <span className="truncate">shopLP (Perakende, E-Ticaret & Pazaryeri POS)</span>
                       </div>
-                      <p className="text-[10px] text-white/60 font-mono mt-1">
+                      <p className="text-[10px] text-white/60 font-mono mt-1 truncate">
                         demo@shoplp.com
                       </p>
                     </div>
@@ -1226,14 +1310,14 @@ export const LandingPage = () => {
                       type="button"
                       disabled={Boolean(demoLoginLoading)}
                       onClick={() => handleQuickDemoLogin('demo@shoplp.com', 'shoplp1234', '/dashboard/shoplp-demo?tab=products')}
-                      className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
+                      className="w-full py-2 px-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 shadow-md cursor-pointer disabled:opacity-50 active:scale-95"
                     >
                       {demoLoginLoading === 'demo@shoplp.com' ? (
                         <span>{txt('Giriş Yapılıyor...', 'Logging In...', 'Σύνδεση...')}</span>
                       ) : (
                         <>
-                          <span>{txt('Perakende Demoya Gir', 'Open Retail Demo', 'Είσοδος στο Demo')}</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span className="truncate">{txt('Perakende Demoya Gir', 'Open Shop Demo', 'Είσοδος')}</span>
+                          <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                         </>
                       )}
                     </button>

@@ -170,7 +170,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     action();
   };
 
-  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.store_type === 'horeca' || branding?.store_type === 'horecalp' || branding?.page_layout_settings?.sector === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'horeca' || Boolean(branding?.hotel_module_enabled);
   const isHotelActive = isCafeRestaurant && Boolean(branding?.hotel_module_enabled);
   const [showRoomTransferModal, setShowRoomTransferModal] = useState(false);
 

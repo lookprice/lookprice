@@ -31,7 +31,7 @@ router.get("/", async (req: any, res) => {
     const sector = (storeRow.store_type || storeRow.branding?.store_type || storeRow.branding?.page_layout_settings?.sector || "product").toUpperCase();
     const branding = storeRow.branding || {};
     const isHotelModuleActive = branding?.hotel_module_enabled === true;
-    const isPortfolio = sector === "REAL_ESTATE" || sector === "AUTOMOTIVE" || sector === "MOTOR_VEHICLE" || sector === "PORTFOLIO";
+    const isPortfolio = ["REAL_ESTATE", "AUTOMOTIVE", "MOTOR_VEHICLE", "PORTFOLIO", "AUTO", "AUTOLP", "GALERI", "OTO", "EMLAK"].includes(sector);
     const isCafeRestaurant = sector === "HORECA" || sector === "CAFE_RESTAURANT";
     const isShopLp = !isPortfolio && !isCafeRestaurant;
 
@@ -302,7 +302,7 @@ router.get("/feed", async (req: any, res) => {
     const sector = (storeRow.store_type || storeRow.branding?.store_type || storeRow.branding?.page_layout_settings?.sector || "product").toUpperCase();
     const branding = storeRow.branding || {};
     const isHotelModuleActive = branding?.hotel_module_enabled === true;
-    const isPortfolio = sector === "REAL_ESTATE" || sector === "AUTOMOTIVE" || sector === "MOTOR_VEHICLE" || sector === "PORTFOLIO";
+    const isPortfolio = ["REAL_ESTATE", "AUTOMOTIVE", "MOTOR_VEHICLE", "PORTFOLIO", "AUTO", "AUTOLP", "GALERI", "OTO", "EMLAK"].includes(sector);
     const isCafeRestaurant = sector === "HORECA" || sector === "CAFE_RESTAURANT";
     const isShopLp = !isPortfolio && !isCafeRestaurant;
 
@@ -1078,7 +1078,9 @@ router.get("/feed", async (req: any, res) => {
       } catch (e) {}
     }
 
-    // 17. Araç Muayene, Sigorta & Periyodik Bakım (Filo Yönetimi)
+    const isAutomotiveStore = ["AUTOMOTIVE", "MOTOR_VEHICLE", "AUTO", "AUTOLP", "GALERI", "OTO"].includes(sector);
+
+    // 17. Araç Muayene, Sigorta & Periyodik Bakım (Filo / Oto Galeri Yönetimi)
     try {
       const expiringDocs = await pool.query(
         `SELECT v.id as vehicle_id, v.brand, v.model, v.plate, vd.type as document_type, vd.expiry_date 
@@ -1122,12 +1124,16 @@ router.get("/feed", async (req: any, res) => {
           id: "fleet-docs",
           category: "fleet",
           severity: "warning",
-          title: "Filo Araç Muayene, Sigorta & Bakım Hatırlatması",
-          description: `${totalFleetAlerts} aracın resmi evrak/sigorta süresi veya periyodik bakım zamanı geldi.`,
+          title: isAutomotiveStore
+            ? "Oto Galeri Araç Muayene, Seyrüsefer/Sigorta & Bakım Hatırlatması"
+            : "Filo Araç Muayene, Sigorta & Bakım Hatırlatması",
+          description: isAutomotiveStore
+            ? `Portföydeki ${totalFleetAlerts} aracın seyrüsefer, sigorta, muayene veya periyodik servis bakım tarihi yaklaştı.`
+            : `${totalFleetAlerts} aracın resmi evrak/sigorta süresi veya periyodik bakım zamanı geldi.`,
           count: totalFleetAlerts,
           timestamp: nowIso,
           targetTab: "fleet",
-          actionText: "Filo Yönetimine Git",
+          actionText: isAutomotiveStore ? "Araç Portföyüne Git" : "Filo Yönetimine Git",
           items: fleetItems
         });
       }
@@ -1136,28 +1142,70 @@ router.get("/feed", async (req: any, res) => {
     // 18. Web Portföy & CRM Müşteri Talepleri (Emlak / Oto)
     if (isPortfolio) {
       try {
-        const leads = await pool.query(
+        const pendingLeads = await pool.query(
           `SELECT id, name, phone, email, notes, created_at 
            FROM real_estate_contacts 
            WHERE store_id = $1 
+             AND (notes LIKE '%[MÜLK SAHİBİ BAŞVURUSU]%' OR notes LIKE '%[ARAÇ SAHİBİ BAŞVURUSU]%')
            ORDER BY created_at DESC LIMIT 5`,
           [storeId]
         );
-        if (leads.rows.length > 0) {
+        if (pendingLeads.rows.length > 0) {
           feed.push({
-            id: "crm-contacts",
+            id: "crm-pending-leads",
             category: "crm",
-            severity: "info",
-            title: "Yeni Müşteri & Portföy Başvuruları",
-            description: `${leads.rows.length} müşteri web siteniz üzerinden iletişim veya portföy başvuru formu doldurdu.`,
-            count: leads.rows.length,
-            timestamp: leads.rows[0].created_at || nowIso,
+            severity: "warning",
+            title: isAutomotiveStore
+              ? "Bekleyen Araç Değerleme / Konsinye Başvuruları"
+              : "Bekleyen Mülk Sahibi Portföy Başvuruları",
+            description: isAutomotiveStore
+              ? `${pendingLeads.rows.length} araç sahibi web siteniz üzerinden konsinye satış veya takas değerleme başvurusu gönderdi.`
+              : `${pendingLeads.rows.length} mülk sahibi web siteniz üzerinden gayrimenkul değerleme ve portföy başvurusu gönderdi.`,
+            count: pendingLeads.rows.length,
+            timestamp: pendingLeads.rows[0].created_at || nowIso,
             targetTab: "real_estate_crm",
-            actionText: "CRM Taleplerini Gör",
-            items: leads.rows.map(r => ({
+            targetFilter: "new",
+            actionText: isAutomotiveStore ? "Araç Başvurularını İncele" : "Mülk Başvurularını İncele",
+            items: pendingLeads.rows.map(r => ({
               id: r.id,
               label: `${r.name || "Müşteri"} (${r.phone || r.email || "-"})`,
-              detail: r.notes ? String(r.notes).slice(0, 50) : "Başvuru alındı"
+              detail: r.notes ? String(r.notes).replace(/\[.*?\]/g, '').trim().slice(0, 50) : "Yeni başvuru"
+            }))
+          });
+        }
+      } catch (e) {}
+
+      // 19. Yaklaşan Randevu & Test Sürüşü / Yer Gösterme Takvimi
+      try {
+        const upcomingTasks = await pool.query(
+          `SELECT id, description, due_date, task_type
+           FROM consultant_tasks
+           WHERE store_id = $1
+             AND (is_completed = false OR is_completed IS NULL)
+             AND due_date IS NOT NULL
+           ORDER BY due_date ASC LIMIT 5`,
+          [storeId]
+        );
+        if (upcomingTasks.rows.length > 0) {
+          feed.push({
+            id: "crm-upcoming-appointments",
+            category: "crm",
+            severity: "info",
+            title: isAutomotiveStore
+              ? "Planlanan Araç Randevuları & Ekspertiz / Test Sürüşleri"
+              : "Planlanan Yer Gösterme & Müşteri Randevuları",
+            description: isAutomotiveStore
+              ? `Takvimde ${upcomingTasks.rows.length} adet tamamlanmayı bekleyen müşteri randevusu, test sürüşü veya ekspertiz görüşmesi bulunuyor.`
+              : `Takvimde ${upcomingTasks.rows.length} adet tamamlanmayı bekleyen yer gösterme veya müşteri görüşmesi bulunuyor.`,
+            count: upcomingTasks.rows.length,
+            timestamp: upcomingTasks.rows[0].due_date || nowIso,
+            targetTab: "team-crm",
+            targetFilter: "calendar",
+            actionText: "Randevu Takvimini Aç",
+            items: upcomingTasks.rows.map(r => ({
+              id: r.id,
+              label: String(r.description || "Randevu").slice(0, 48),
+              detail: r.due_date ? new Date(r.due_date).toLocaleString("tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : ""
             }))
           });
         }

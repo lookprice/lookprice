@@ -1,5 +1,5 @@
 import React, { useState, useDeferredValue } from "react";
-import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building, LayoutList, LayoutGrid, Home, Key, Globe, Check, Briefcase, Clock, XCircle } from "lucide-react";
+import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building, LayoutList, LayoutGrid, Home, Car, Key, Globe, Check, Briefcase, Clock, XCircle } from "lucide-react";
 import { RealEstateContact } from "../../types";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -9,35 +9,42 @@ export type LeadStage = 'new' | 'contacted' | 'converted' | 'reviewed' | 'cancel
 
 export const getLeadStage = (notes?: string): LeadStage => {
   if (!notes) return 'none';
-  if (notes.includes('[MÜLK SAHİBİ BAŞVURUSU]')) return 'new';
-  if (notes.includes('[MÜLK SAHİBİ - İLETİŞİME GEÇİLDİ]')) return 'contacted';
-  if (notes.includes('[MÜLK SAHİBİ - PORTFÖYE ALINDI]')) return 'converted';
-  if (notes.includes('[MÜLK SAHİBİ - İNCELENDİ]')) return 'reviewed';
-  if (notes.includes('[MÜLK SAHİBİ - İPTAL]')) return 'cancelled';
-  if (notes.includes('[MÜLK SAHİBİ')) return 'reviewed';
+  if (notes.includes('[MÜLK SAHİBİ BAŞVURUSU]') || notes.includes('[ARAÇ SAHİBİ BAŞVURUSU]')) return 'new';
+  if (notes.includes('[MÜLK SAHİBİ - İLETİŞİME GEÇİLDİ]') || notes.includes('[ARAÇ SAHİBİ - İLETİŞİME GEÇİLDİ]')) return 'contacted';
+  if (notes.includes('[MÜLK SAHİBİ - PORTFÖYE ALINDI]') || notes.includes('[ARAÇ SAHİBİ - PORTFÖYE ALINDI]')) return 'converted';
+  if (notes.includes('[MÜLK SAHİBİ - İNCELENDİ]') || notes.includes('[ARAÇ SAHİBİ - İNCELENDİ]')) return 'reviewed';
+  if (notes.includes('[MÜLK SAHİBİ - İPTAL]') || notes.includes('[ARAÇ SAHİBİ - İPTAL]')) return 'cancelled';
+  if (notes.includes('[MÜLK SAHİBİ') || notes.includes('[ARAÇ SAHİBİ')) return 'reviewed';
   return 'none';
 };
 
-export const updateLeadStageInNotes = (existingNotes: string = "", newStage: LeadStage): string => {
+export const updateLeadStageInNotes = (existingNotes: string = "", newStage: LeadStage, isAutomotive: boolean = false): string => {
   let cleanNotes = existingNotes
     .replace('[MÜLK SAHİBİ BAŞVURUSU]', '')
     .replace('[MÜLK SAHİBİ - İLETİŞİME GEÇİLDİ]', '')
     .replace('[MÜLK SAHİBİ - PORTFÖYE ALINDI]', '')
     .replace('[MÜLK SAHİBİ - İNCELENDİ]', '')
     .replace('[MÜLK SAHİBİ - İPTAL]', '')
+    .replace('[ARAÇ SAHİBİ BAŞVURUSU]', '')
+    .replace('[ARAÇ SAHİBİ - İLETİŞİME GEÇİLDİ]', '')
+    .replace('[ARAÇ SAHİBİ - PORTFÖYE ALINDI]', '')
+    .replace('[ARAÇ SAHİBİ - İNCELENDİ]', '')
+    .replace('[ARAÇ SAHİBİ - İPTAL]', '')
     .trim();
+
+  const prefix = isAutomotive ? 'ARAÇ SAHİBİ' : 'MÜLK SAHİBİ';
 
   switch (newStage) {
     case 'new':
-      return `[MÜLK SAHİBİ BAŞVURUSU] ${cleanNotes}`.trim();
+      return `[${prefix} BAŞVURUSU] ${cleanNotes}`.trim();
     case 'contacted':
-      return `[MÜLK SAHİBİ - İLETİŞİME GEÇİLDİ] ${cleanNotes}`.trim();
+      return `[${prefix} - İLETİŞİME GEÇİLDİ] ${cleanNotes}`.trim();
     case 'converted':
-      return `[MÜLK SAHİBİ - PORTFÖYE ALINDI] ${cleanNotes}`.trim();
+      return `[${prefix} - PORTFÖYE ALINDI] ${cleanNotes}`.trim();
     case 'reviewed':
-      return `[MÜLK SAHİBİ - İNCELENDİ] ${cleanNotes}`.trim();
+      return `[${prefix} - İNCELENDİ] ${cleanNotes}`.trim();
     case 'cancelled':
-      return `[MÜLK SAHİBİ - İPTAL] ${cleanNotes}`.trim();
+      return `[${prefix} - İPTAL] ${cleanNotes}`.trim();
     default:
       return cleanNotes;
   }
@@ -47,9 +54,11 @@ interface RealEstateCrmTabProps {
   contacts: RealEstateContact[];
   onSaveContact: (contact: Partial<RealEstateContact>) => Promise<void>;
   onDeleteContact: (id: string) => Promise<void>;
+  isAutomotive?: boolean;
+  initialFilter?: 'all' | 'new' | 'owner' | 'investor';
 }
 
-const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEstateCrmTabProps) => {
+const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact, isAutomotive = false, initialFilter = 'all' }: RealEstateCrmTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const isTr = lang === 'tr';
@@ -57,6 +66,11 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [quickFilter, setQuickFilter] = useState<'all' | 'new' | 'owner' | 'investor'>(initialFilter);
+
+  React.useEffect(() => {
+    if (initialFilter) setQuickFilter(initialFilter);
+  }, [initialFilter]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -91,17 +105,27 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
     return cleaned;
   };
 
+  const newLeadsCount = contacts.filter(c => getLeadStage(c.notes) === 'new').length;
+  const ownersCount = contacts.filter(c => c.type === 'owner').length;
+  const investorsCount = contacts.filter(c => c.type !== 'owner').length;
+
   const filteredContacts = contacts.filter(c => {
     const s = deferredSearch.toLowerCase();
-    return (
+    const matchesSearch = (
       (c.name || "").toLowerCase().includes(s) || 
       (c.phone || "").includes(s) || 
-      (c.email || "").toLowerCase().includes(s)
+      (c.email || "").toLowerCase().includes(s) ||
+      (c.notes || "").toLowerCase().includes(s)
     );
+    if (!matchesSearch) return false;
+    if (quickFilter === 'new') return getLeadStage(c.notes) === 'new';
+    if (quickFilter === 'owner') return c.type === 'owner';
+    if (quickFilter === 'investor') return c.type !== 'owner';
+    return true;
   });
 
   const handleQuickStatusChange = async (contact: RealEstateContact, newStage: LeadStage) => {
-    const updatedNotes = updateLeadStageInNotes(contact.notes, newStage);
+    const updatedNotes = updateLeadStageInNotes(contact.notes, newStage, isAutomotive);
     try {
       await onSaveContact({
         ...contact,
@@ -149,7 +173,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
       let finalNotes = formData.notes || "";
       // If editing an unreviewed new lead, saving the edit form automatically marks it as reviewed if stage wasn't changed
       if (editingContact && getLeadStage(editingContact.notes) === 'new' && getLeadStage(finalNotes) === 'new') {
-        finalNotes = updateLeadStageInNotes(finalNotes, 'reviewed');
+        finalNotes = updateLeadStageInNotes(finalNotes, 'reviewed', isAutomotive);
       }
 
       const finalizedData = {
@@ -167,67 +191,244 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* HEADER CONTROL BANNER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
-        <div className="flex items-center gap-2 flex-1 w-full max-w-2xl">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder={isTr ? "Mülk sahibi, yatırımcı veya telefon ara..." : t.search}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500 shadow-2xs"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+      <div className="flex flex-col gap-2.5 bg-white p-3 rounded-2xl border border-slate-200/90 shadow-2xs">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2.5">
+          <div className="flex items-center gap-2 flex-1 w-full max-w-2xl">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder={isTr ? (isAutomotive ? "Araç sahibi, konsinye satıcı, alıcı veya telefon ara..." : "Mülk sahibi, yatırımcı veya telefon ara...") : t.search}
+                className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500 shadow-2xs"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            <div className="bg-slate-100 p-0.5 rounded-xl flex items-center border border-slate-200 shrink-0">
+              <button 
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                  viewMode === 'table' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Satır / Tablo Görünümü"
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Satır Tipi</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                  viewMode === 'grid' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Kart Görünümü"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Kartlar</span>
+              </button>
+            </div>
           </div>
 
-          <div className="bg-slate-100 p-0.5 rounded-xl flex items-center border border-slate-200 shrink-0">
-            <button 
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
-                viewMode === 'table' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Satır / Tablo Görünümü"
-            >
-              <LayoutList className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Satır Tipi</span>
-            </button>
-            <button 
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
-                viewMode === 'grid' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Kart Görünümü"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Kartlar</span>
-            </button>
-          </div>
+          <button 
+            onClick={openAddModal}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-black transition-all w-full sm:w-auto justify-center cursor-pointer shadow-2xs active:scale-95 shrink-0"
+          >
+            <UserPlus size={15} className="stroke-[2.5]" />
+            <span>{isTr ? "Yeni Kişi Ekle" : t.add}</span>
+          </button>
         </div>
 
-        <button 
-          onClick={openAddModal}
-          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-black transition-all w-full sm:w-auto justify-center cursor-pointer shadow-2xs active:scale-95 shrink-0"
-        >
-          <UserPlus size={15} className="stroke-[2.5]" />
-          <span>{isTr ? "Yeni Kişi Ekle" : t.add}</span>
-        </button>
+        {/* Quick Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setQuickFilter('all')}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border transition-all cursor-pointer ${
+              quickFilter === 'all'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            Tümü ({contacts.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickFilter('new')}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border transition-all flex items-center gap-1 cursor-pointer ${
+              quickFilter === 'new'
+                ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-2xs'
+                : newLeadsCount > 0
+                ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            <Globe size={11} />
+            <span>Yeni Başvurular ({newLeadsCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickFilter('owner')}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border transition-all flex items-center gap-1 cursor-pointer ${
+              quickFilter === 'owner'
+                ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            {isAutomotive ? <Car size={11} /> : <Home size={11} />}
+            <span>{isAutomotive ? `Araç Sahibi / Konsinye (${ownersCount})` : `Mülk Sahipleri (${ownersCount})`}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickFilter('investor')}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border transition-all flex items-center gap-1 cursor-pointer ${
+              quickFilter === 'investor'
+                ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            <Briefcase size={11} />
+            <span>{isAutomotive ? `Alıcı / Filo (${investorsCount})` : `Yatırımcılar (${investorsCount})`}</span>
+          </button>
+        </div>
       </div>
       
       {filteredContacts.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-slate-200/80 shadow-2xs">
           <Users size={40} className="mx-auto text-slate-300 mb-2" />
           <p className="text-slate-500 text-xs font-bold">
-            {isTr ? "Kayıtlı mülk sahibi veya yatırımcı bulunamadı." : "No property owners or investors found."}
+            {isTr ? (isAutomotive ? "Kayıtlı araç sahibi, konsinye satıcı veya alıcı bulunamadı." : "Kayıtlı mülk sahibi veya yatırımcı bulunamadı.") : "No contacts found."}
           </p>
         </div>
       ) : viewMode === 'table' ? (
-        /* HIGH-DENSITY ROW / TABLE VIEW */
+        /* HIGH-DENSITY ROW / TABLE VIEW (MOBILE CARDS + DESKTOP TABLE) */
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar">
+          {/* Mobile Compact Cards */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {filteredContacts.map(contact => {
+              const stage = getLeadStage(contact.notes);
+              return (
+                <div key={contact.id} className="p-3 space-y-2 hover:bg-slate-50/70 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 font-extrabold ${
+                        stage === 'new' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                        stage === 'contacted' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                        stage === 'converted' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                        'bg-slate-100 border-slate-200 text-slate-600'
+                      }`}>
+                        {stage === 'new' ? (isAutomotive ? <Car size={14} /> : <Home size={14} />) : stage === 'contacted' ? <Phone size={14} /> : stage === 'converted' ? <Key size={14} /> : <Users size={14} />}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-extrabold text-slate-900 text-xs truncate leading-tight">{contact.name}</h4>
+                        <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                          <span className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${
+                            contact.type === 'owner'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200/80'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                          }`}>
+                            {contact.type === 'owner'
+                              ? (isAutomotive ? 'Araç Sahibi' : 'Mülk Sahibi')
+                              : (isAutomotive ? 'Alıcı / Filo' : 'Yatırımcı')}
+                          </span>
+                          {stage === 'new' && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 border border-amber-600 animate-pulse">
+                              <Globe size={9} />
+                              <span>Yeni Başvuru</span>
+                            </span>
+                          )}
+                          {stage === 'contacted' && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-blue-600 text-white">
+                              <span>İletişime Geçildi</span>
+                            </span>
+                          )}
+                          {stage === 'converted' && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-emerald-600 text-white">
+                              <span>Portföye Alındı</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {contact.phone && (
+                        <a
+                          href={`tel:${contact.phone}`}
+                          className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition-colors"
+                          title="Hemen Ara"
+                        >
+                          <Phone size={13} />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => openEditModal(contact)}
+                        className="px-2 py-1 bg-slate-100 hover:bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                      >
+                        İncele
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(isTr ? "Bu kişiyi silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this contact?")) {
+                            onDeleteContact(contact.id!);
+                          }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {contact.notes && (
+                    <p className="text-[11px] text-slate-600 font-medium line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      {contact.notes}
+                    </p>
+                  )}
+
+                  {stage !== 'none' && (
+                    <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-500">{contact.phone}</span>
+                      <div className="flex items-center gap-1">
+                        {stage !== 'contacted' && (
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(contact, 'contacted')}
+                            className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[9px] font-black cursor-pointer"
+                          >
+                            +İletişim
+                          </button>
+                        )}
+                        {stage !== 'converted' && (
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(contact, 'converted')}
+                            className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-black cursor-pointer"
+                          >
+                            +Portföy
+                          </button>
+                        )}
+                        {stage !== 'reviewed' && (
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(contact, 'reviewed')}
+                            className="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded text-[9px] font-bold cursor-pointer"
+                          >
+                            +İncelendi
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto custom-scrollbar">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-50/90 border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
@@ -253,7 +454,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                             stage === 'converted' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
                             'bg-slate-100 border-slate-200 text-slate-600'
                           }`}>
-                            {stage === 'new' ? <Home size={14} /> : stage === 'contacted' ? <Phone size={14} /> : stage === 'converted' ? <Key size={14} /> : <Users size={14} />}
+                            {stage === 'new' ? (isAutomotive ? <Car size={14} /> : <Home size={14} />) : stage === 'contacted' ? <Phone size={14} /> : stage === 'converted' ? <Key size={14} /> : <Users size={14} />}
                           </div>
                           <div>
                             <h4 className="font-extrabold text-slate-900 text-xs leading-tight">{contact.name}</h4>
@@ -268,7 +469,9 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                             ? 'bg-indigo-50 text-indigo-700 border-indigo-200/80' 
                             : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
                         }`}>
-                          {contact.type === 'owner' ? (isTr ? 'Mülk Sahibi' : 'Owner') : (isTr ? 'Yatırımcı' : 'Investor')}
+                          {contact.type === 'owner' 
+                            ? (isTr ? (isAutomotive ? 'Araç Sahibi / Konsinye' : 'Mülk Sahibi') : 'Owner') 
+                            : (isTr ? (isAutomotive ? 'Alıcı / Filo Müşterisi' : 'Yatırımcı') : 'Buyer / Investor')}
                         </span>
                       </td>
 
@@ -288,7 +491,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                           )}
                           {stage === 'converted' && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-600 text-white border border-emerald-700 shadow-2xs">
-                              <Home size={11} />
+                              {isAutomotive ? <Car size={11} /> : <Home size={11} />}
                               <span>Portföye Alındı</span>
                             </span>
                           )}
@@ -419,13 +622,15 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                         stage === 'converted' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' :
                         'bg-slate-50 border-slate-100 text-slate-600'
                       }`}>
-                        {stage === 'new' ? <Home size={18} /> : stage === 'contacted' ? <Phone size={18} /> : stage === 'converted' ? <Key size={18} /> : <Users size={18} />}
+                        {stage === 'new' ? (isAutomotive ? <Car size={18} /> : <Home size={18} />) : stage === 'contacted' ? <Phone size={18} /> : stage === 'converted' ? <Key size={18} /> : <Users size={18} />}
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900 text-sm">{contact.name}</h3>
                         <div className="flex flex-wrap gap-1 mt-1">
                           <span className={`inline-block text-[9px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full ${contact.type === 'owner' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
-                            {contact.type === 'owner' ? (isTr ? 'Mülk Sahibi' : 'Owner') : (isTr ? 'Yatırımcı' : 'Investor')}
+                            {contact.type === 'owner' 
+                              ? (isTr ? (isAutomotive ? 'Araç Sahibi / Konsinye' : 'Mülk Sahibi') : 'Owner') 
+                              : (isTr ? (isAutomotive ? 'Alıcı / Filo Müşterisi' : 'Yatırımcı') : 'Buyer / Investor')}
                           </span>
                           {stage === 'new' && (
                             <span className="inline-flex items-center gap-1 text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 border border-amber-600 shadow-xs animate-pulse">
@@ -441,7 +646,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                           )}
                           {stage === 'converted' && (
                             <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-700 shadow-xs">
-                              <Home size={10} />
+                              {isAutomotive ? <Car size={10} /> : <Home size={10} />}
                               <span>Portföye Alındı</span>
                             </span>
                           )}
@@ -695,8 +900,8 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                         onClick={() => setFormData({ ...formData, type: "owner" })}
                         className={`py-1.5 px-2 text-[11px] font-black rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${formData.type === 'owner' ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                       >
-                        <Home size={12} />
-                        <span>{isTr ? "Mülk Sahibi" : "Owner"}</span>
+                        {isAutomotive ? <Car size={12} /> : <Home size={12} />}
+                        <span>{isTr ? (isAutomotive ? "Araç Sahibi" : "Mülk Sahibi") : "Owner"}</span>
                       </button>
                       <button
                         type="button"
@@ -704,7 +909,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                         className={`py-1.5 px-2 text-[11px] font-black rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${formData.type === 'investor' ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                       >
                         <Briefcase size={12} />
-                        <span>{isTr ? "Yatırımcı" : "Investor"}</span>
+                        <span>{isTr ? (isAutomotive ? "Alıcı / Filo" : "Yatırımcı") : "Buyer / Investor"}</span>
                       </button>
                     </div>
                   </div>

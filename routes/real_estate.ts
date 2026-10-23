@@ -249,10 +249,11 @@ router.get('/properties/tasks', authenticate, async (req: any, res) => {
       result = await pool.query(
         `SELECT pt.*, (pt.status = 'completed') as is_completed 
          FROM property_tasks pt
-         LEFT JOIN real_estate_properties rp ON pt.property_id = rp.id
-         WHERE (rp.store_id = $1 OR pt.store_id = $1 OR (pt.consultant_id = $2 AND pt.consultant_id IS NOT NULL))
+         LEFT JOIN real_estate_properties rp ON pt.property_id = rp.id AND rp.store_id = $1
+         LEFT JOIN vehicles v ON pt.property_id = v.id AND v.store_id = $1
+         WHERE (pt.store_id = $1 OR rp.store_id = $1 OR v.store_id = $1)
          ORDER BY pt.due_date ASC`,
-        [storeId, consultant_id]
+        [storeId]
       );
     } else {
       result = await pool.query(
@@ -1179,8 +1180,8 @@ const storeId = req.query.store_id || req.query.storeId || req.body.store_id || 
       `SELECT t.*, 
               COALESCE(p.title, CONCAT(v.plate, ' - ', v.brand, ' ', v.model)) as property_title 
        FROM portfolio_transactions t
-       LEFT JOIN real_estate_properties p ON t.property_id = p.id
-       LEFT JOIN vehicles v ON t.property_id = v.id
+       LEFT JOIN real_estate_properties p ON t.property_id = p.id AND p.store_id = t.store_id
+       LEFT JOIN vehicles v ON t.property_id = v.id AND v.store_id = t.store_id
        WHERE t.store_id = $1
        ORDER BY t.date DESC, t.id DESC`,
       [storeId]
@@ -1221,16 +1222,18 @@ const storeId = req.query.store_id || req.query.storeId || req.body.store_id || 
     
     // Log the transaction in the audit log if property_id was provided
     if (property_id) {
-      await pool.query(
-        `INSERT INTO property_audit_log (property_id, action, changed_by, details) 
-         VALUES ($1, $2, $3, $4)`,
-        [
-          property_id, 
-          'FINANCIAL_RECORD', 
-          req.user.id, 
-          `Created financial entry: ${type === 'income' ? 'Gelir' : 'Gider'} - ${title} (${amount} ${currency || 'TRY'})`
-        ]
-      );
+      try {
+        await pool.query(
+          `INSERT INTO property_audit_log (property_id, action, changed_by, details) 
+           VALUES ($1, $2, $3, $4)`,
+          [
+            property_id, 
+            'FINANCIAL_RECORD', 
+            req.user.id, 
+            `Created financial entry: ${type === 'income' ? 'Gelir' : 'Gider'} - ${title} (${amount} ${currency || 'TRY'})`
+          ]
+        );
+      } catch (e) {}
     }
     
     res.json(result.rows[0]);
@@ -1257,16 +1260,18 @@ const storeId = req.query.store_id || req.query.storeId || req.body.store_id || 
 
     const deleted = result.rows[0];
     if (deleted.property_id) {
-      await pool.query(
-        `INSERT INTO property_audit_log (property_id, action, changed_by, details) 
-         VALUES ($1, $2, $3, $4)`,
-        [
-          deleted.property_id, 
-          'FINANCIAL_DELETE', 
-          req.user.id, 
-          `Deleted financial entry: ${deleted.title} (${deleted.amount} ${deleted.currency})`
-        ]
-      );
+      try {
+        await pool.query(
+          `INSERT INTO property_audit_log (property_id, action, changed_by, details) 
+           VALUES ($1, $2, $3, $4)`,
+          [
+            deleted.property_id, 
+            'FINANCIAL_DELETE', 
+            req.user.id, 
+            `Deleted financial entry: ${deleted.title} (${deleted.amount} ${deleted.currency})`
+          ]
+        );
+      } catch (e) {}
     }
 
     res.json({ success: true, deleted });

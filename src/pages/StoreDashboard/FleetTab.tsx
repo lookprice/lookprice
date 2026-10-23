@@ -771,11 +771,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
             <Car className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-200/60">
                 AUTOLP &bull; OTO GALERİ
               </span>
               <span className="text-[11px] font-medium text-slate-400">/ araçlar</span>
+              {Boolean(branding?.is_demo) && (
+                <span className="text-[9px] font-medium uppercase tracking-wider px-2 py-0.5 bg-amber-50 text-amber-800 rounded-md border border-amber-200/80 flex items-center gap-1 shadow-2xs">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Demo Korumalı (enrakipsiz.com İzolasyonu)</span>
+                </span>
+              )}
             </div>
             <h1 className="text-base sm:text-lg font-medium text-slate-900 tracking-tight leading-tight mt-0.5">
               Oto Galeri & Araç Portföy Yönetimi
@@ -805,7 +811,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
                   tramer_currency: 'GBP', buying_price: 0, buying_currency: 'GBP',
                   currency: 'GBP', expenses: '[]', target_profit_margin: 0,
                   description: '', images: [], virtual_tour_url: '',
-                  ai_tour_enabled: false, is_on_enrakipsiz: true,
+                  ai_tour_enabled: false, is_on_enrakipsiz: !branding?.is_demo,
                   is_on_website: true,
                   auto_post_instagram: false,
                   market_story: '', technical_description: '', is_trade_in_available: false
@@ -922,6 +928,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         generatingVehicleDesc={generatingVehicleDesc}
         handleGenerateVehicleDesc={handleGenerateVehicleDesc}
         vehicleAiNotice={vehicleAiNotice}
+        isDemoStore={Boolean(branding?.is_demo)}
       />
 
       <VehicleDetailModal

@@ -209,6 +209,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
     <AnimatePresence>
       {/* QR & Printable Poster Hub Modal */}
       <QrCodeModal
+        key="qr-code-modal"
         showQrModal={showQrModal}
         setShowQrModal={setShowQrModal}
         scanUrl={scanUrl}
@@ -224,6 +225,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* Purchase Invoice Details Modal */}
       <PurchaseInvoiceDetailsModal
+        key="purchase-invoice-details-modal"
         showPurchaseInvoiceDetailsModal={showPurchaseInvoiceDetailsModal}
         setShowPurchaseInvoiceDetailsModal={setShowPurchaseInvoiceDetailsModal}
         selectedPurchaseInvoice={selectedPurchaseInvoice}
@@ -233,6 +235,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* Sale Details Modal */}
       <SaleDetailsModal
+        key="sale-details-modal"
         showSaleDetailsModal={showSaleDetailsModal}
         setShowSaleDetailsModal={setShowSaleDetailsModal}
         selectedSale={selectedSale}
@@ -246,6 +249,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* Quotation Details Modal */}
       <QuotationDetailsModal
+        key="quotation-details-modal"
         showQuotationDetailsModal={showQuotationDetailsModal}
         setShowQuotationDetailsModal={setShowQuotationDetailsModal}
         selectedQuotationDetails={selectedQuotationDetails}
@@ -258,6 +262,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* Daily Sales Report Modal */}
       <DailyReportModal
+        key="daily-report-modal"
         showDailyReportModal={showDailyReportModal}
         setShowDailyReportModal={setShowDailyReportModal}
         dailyReportData={dailyReportData}
@@ -275,6 +280,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* Account Statement & Add Transaction Modal */}
       <TransactionModal
+        key="transaction-modal"
         showTransactionModal={showTransactionModal}
         setShowTransactionModal={setShowTransactionModal}
         selectedCompany={selectedCompany}
@@ -317,6 +323,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* Quotation to Sale Conversion Modal */}
       <ConfirmSaleModal
+        key="confirm-sale-modal"
         showSaleModal={showSaleModal}
         setShowSaleModal={setShowSaleModal}
         selectedQuotation={selectedQuotation}
@@ -334,6 +341,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* Bulk Price & Quick Product Modal */}
       <BulkPriceModal
+        key="bulk-price-modal"
         showBulkPriceModal={showBulkPriceModal}
         setShowBulkPriceModal={setShowBulkPriceModal}
         bulkPriceForm={bulkPriceForm}
@@ -352,6 +360,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* Main Quotation Creation / Editing Modal */}
       <QuotationModal
+        key="quotation-modal"
         showQuotationModal={showQuotationModal || false}
         setShowQuotationModal={setShowQuotationModal || (() => {})}
         editingQuotation={editingQuotation}
@@ -373,6 +382,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* Product Add / Edit Modal */}
       <ProductModal
+        key="product-modal"
         showProductModal={showProductModal || false}
         setShowProductModal={setShowProductModal || (() => {})}
         editingProduct={editingProduct}
@@ -387,6 +397,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* Company Add / Edit Modal */}
       <CompanyModal
+        key="company-modal"
         showCompanyModal={showCompanyModal || false}
         setShowCompanyModal={setShowCompanyModal || (() => {})}
         editingCompany={editingCompany}
@@ -399,6 +410,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* User Account Add Modal */}
       <UserModal
+        key="user-modal"
         showUserModal={showUserModal || false}
         setShowUserModal={setShowUserModal || (() => {})}
         handleAddUser={handleAddUser}
@@ -408,6 +420,7 @@ export const DashboardModals: React.FC<DashboardModalsProps> = (props) => {
 
       {/* CSV/Excel Import Modal */}
       <ImportModal 
+        key="import-modal"
         showImportModal={showImportModal}
         setShowImportModal={setShowImportModal}
         isImporting={isImporting}

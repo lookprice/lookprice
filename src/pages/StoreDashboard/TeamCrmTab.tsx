@@ -17,6 +17,8 @@ interface TeamCrmTabProps {
   storeName?: string;
   isAutomotive?: boolean;
   isRealEstate?: boolean;
+  initialSubTab?: 'agents' | 'branches' | 'pipeline';
+  initialCrmView?: 'leads' | 'portfolio' | 'calendar';
 }
 
 const AUTO_STAGES = [
@@ -58,31 +60,51 @@ const getSectorDefaultDeals = (isAuto: boolean, sid?: number) => {
     return [
       {
         id: 'd_auto_1',
-        title: 'Sedan / Yönetici Aracı Arayışı',
-        description: 'Otomatik vites, düşük kilometreli, servis bakımlı 2021 ve üzeri model.',
-        agent_name: 'Satış Temsilcisi',
-        budget: '1.450.000 TL',
-        stage: 'Yeni Talep / Aday',
+        title: '2023 Mercedes-Benz S400d AMG Executive Talebi (Levent K.)',
+        description: 'Düşük kilometreli, hatasız boyasız, Burmester ses sistemli makam aracı arayışı. Takas + Nakit ödeme.',
+        agent_name: 'Kaan Soylu',
+        budget: '£115,000 Bütçe',
+        stage: 'Test Sürüşü & Ekspertiz',
         sector: 'automotive',
         store_id: sid
       },
       {
         id: 'd_auto_2',
-        title: 'SUV / Aile Aracı Talebi',
-        description: 'Kazasız, boyasız, geniş hacimli dizel/hibrit SUV arayışı.',
-        agent_name: 'Satış Temsilcisi',
-        budget: '2.100.000 TL',
-        stage: 'Görüşme / Analiz',
+        title: 'Range Rover Sport D300 Dynamic SE Siparişi (Cemre A.)',
+        description: 'Panoramik cam tavanlı, 2023 model SUV için ekspertiz raporu paylaşıldı, kapora sözleşmesi aşamasında.',
+        agent_name: 'Merve Aydın',
+        budget: '£125,000 Bütçe',
+        stage: 'Teklif & Pazarlık',
         sector: 'automotive',
         store_id: sid
       },
       {
         id: 'd_auto_3',
-        title: 'Ticari Panelvan Filo Talebi',
-        description: 'İşletme dağıtım operasyonu için uygun hacimli araç talebi.',
-        agent_name: 'Satış Temsilcisi',
-        budget: '850.000 TL',
-        stage: 'Teklif & Pazarlık',
+        title: 'Porsche Taycan 4S Performance Plus (Barış T.)',
+        description: 'Elektrikli spor sedan için batarya SOH sağlık raporu ve gümrük evrakları onaylandı.',
+        agent_name: 'Bora Tekin',
+        budget: '£98,000 Bütçe',
+        stage: 'Görüşme / Analiz',
+        sector: 'automotive',
+        store_id: sid
+      },
+      {
+        id: 'd_auto_4',
+        title: 'Kurumsal Filo 3 Adet SUV / Pickup Alımı (Kıbrıs Lojistik A.Ş.)',
+        description: 'Şirket üst düzey yöneticileri için 2 adet SUV ve 1 adet 4x4 Pickup paket teklifi sunuldu.',
+        agent_name: 'Kaan Soylu',
+        budget: '£155,000 Bütçe',
+        stage: 'Yeni Talep / Aday',
+        sector: 'automotive',
+        store_id: sid
+      },
+      {
+        id: 'd_auto_5',
+        title: 'BMW 520i M Sport Carbon Edition Satışı (Serhat D.)',
+        description: 'Peşin ödeme ve devir işlemleri tamamlandı, seyrüsefer ve kasko poliçesi teslim edildi.',
+        agent_name: 'Merve Aydın',
+        budget: '£58,000 Bütçe',
+        stage: 'Satış Tamamlandı / Kapandı',
         sector: 'automotive',
         store_id: sid
       }
@@ -180,7 +202,7 @@ const loadIsolatedDeals = (isAuto: boolean, sid?: number, key?: string) => {
   return defaults;
 };
 
-export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEstate = true }: TeamCrmTabProps) => {
+export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEstate = true, initialSubTab, initialCrmView }: TeamCrmTabProps) => {
   const { lang } = useLanguage();
   const isTr = lang === 'tr';
   const [agents, setAgents] = useState<any[]>([]);
@@ -190,7 +212,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [editingBranch, setEditingBranch] = useState<any>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'agents' | 'branches' | 'pipeline'>('agents');
+  const [activeSubTab, setActiveSubTab] = useState<'agents' | 'branches' | 'pipeline'>(initialSubTab || 'agents');
   const [isSaving, setIsSaving] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -212,12 +234,21 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
   const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
-  const [crmView, setCrmView] = useState<'leads' | 'portfolio' | 'calendar'>('leads');
+  const [crmView, setCrmView] = useState<'leads' | 'portfolio' | 'calendar'>(initialCrmView || 'leads');
   const [leadsDisplayMode, setLeadsDisplayMode] = useState<'list' | 'kanban'>('list');
+  const [mobileLeadStageFilter, setMobileLeadStageFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [isAutoAppointmentModalOpen, setIsAutoAppointmentModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (initialSubTab) setActiveSubTab(initialSubTab);
+  }, [initialSubTab]);
+
+  useEffect(() => {
+    if (initialCrmView) setCrmView(initialCrmView);
+  }, [initialCrmView]);
 
   const currentStages = isAutomotive ? AUTO_STAGES : RE_STAGES;
   const storageKey = isAutomotive 
@@ -253,7 +284,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
 
   useEffect(() => {
     fetchData();
-  }, [storeId]);
+  }, [storeId, isAutomotive]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -772,13 +803,13 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
         </div>
       ) : activeSubTab === 'pipeline' ? (
         <div className="space-y-2.5">
-          {/* UNIFIED SINGLE TOOLBAR FOR PIPELINE (NO DUPLICATE ROWS, NO DUPLICATE SEARCH, NO DUPLICATE CALENDAR BUTTON) */}
+          {/* Uncovered Mobile & Desktop Toolbar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/90 p-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
             {/* Left: View Tabs */}
-            <div className="flex items-center gap-1 p-0.5 bg-slate-200/70 rounded-lg w-fit shrink-0">
+            <div className="flex items-center gap-1 p-0.5 bg-slate-200/70 rounded-lg w-full sm:w-fit overflow-x-auto no-scrollbar shrink-0">
               <button 
                 onClick={() => setCrmView('leads')}
-                className={`px-3 py-1 rounded-md text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
                   crmView === 'leads' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -786,7 +817,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
               </button>
               <button 
                 onClick={() => setCrmView('portfolio')}
-                className={`px-3 py-1 rounded-md text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
                   crmView === 'portfolio' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -794,7 +825,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
               </button>
               <button 
                 onClick={() => setCrmView('calendar')}
-                className={`px-3 py-1 rounded-md text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
                   crmView === 'calendar' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -803,9 +834,9 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
             </div>
 
             {/* Right: Integrated Single Search & Controls */}
-            <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0 self-start sm:self-center">
               {crmView === 'leads' && (
-                <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shrink-0">
                   <button 
                     onClick={() => setLeadsDisplayMode('list')}
                     className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
@@ -851,7 +882,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
               )}
 
               {crmView !== 'calendar' && (
-                <div className="relative w-48 sm:w-60">
+                <div className="relative flex-1 sm:w-60 sm:flex-none">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                   <input 
                     type="text"
@@ -867,9 +898,72 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
 
           {crmView === 'leads' ? (
             leadsDisplayMode === 'list' ? (
-              /* MÜŞTERİ & YATIRIMCI TALEPLERİ - LISTE GÖRÜNÜMÜ TABLE */
+              /* MÜŞTERİ & YATIRIMCI TALEPLERİ - LISTE GÖRÜNÜMÜ (MOBILE CARDS + DESKTOP TABLE) */
               <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
-                <div className="overflow-x-auto custom-scrollbar">
+                {/* Mobile Cards for Leads */}
+                <div className="md:hidden divide-y divide-slate-100">
+                  {filteredDeals.map((deal) => (
+                    <div key={deal.id} className="p-3 space-y-2 hover:bg-slate-50/70 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-extrabold text-slate-900 text-xs leading-snug">{deal.title}</h4>
+                          <p className="text-[11px] text-slate-600 line-clamp-2 mt-0.5">{deal.description || '---'}</p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => {
+                              setEditingDeal(deal);
+                              setDealFormData({
+                                title: deal.title,
+                                description: deal.description || '',
+                                agent_name: deal.agent_name || '',
+                                budget: deal.budget || '',
+                                stage: deal.stage
+                              });
+                              setShowDealModal(true);
+                            }}
+                            className="p-1.5 bg-slate-100 hover:bg-indigo-50 text-indigo-600 rounded-lg border border-slate-200/60"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(isTr ? 'Bu talebi silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this deal?')) {
+                                setDeals(prev => prev.filter(d => d.id !== deal.id));
+                                toast.success(isTr ? 'Talep silindi' : 'Lead deleted');
+                              }
+                            }}
+                            className="p-1.5 bg-slate-100 hover:bg-rose-50 text-rose-500 rounded-lg border border-slate-200/60"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[10px] font-black">
+                            {deal.stage}
+                          </span>
+                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[10px] font-bold">
+                            {deal.budget || '---'}
+                          </span>
+                        </div>
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                          <Users className="w-3 h-3 text-slate-400" />
+                          <span>{deal.agent_name || 'Atanmamış'}</span>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {filteredDeals.length === 0 && (
+                    <div className="py-8 text-center text-xs text-slate-400 font-bold">
+                      Kayıtlı talep/fırsat bulunamadı.
+                    </div>
+                  )}
+                </div>
+
+                {/* Desktop Table for Leads */}
+                <div className="hidden md:block overflow-x-auto custom-scrollbar">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-50/90 border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
@@ -955,69 +1049,108 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
               </div>
             ) : (
               /* KANBAN VIEW FOR LEADS */
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-                {currentStages.map((stage, idx) => {
-                  const stageDeals = filteredDeals.filter(d => d.stage === stage);
-                  return (
-                    <div key={idx} className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-2 flex flex-col gap-2 min-w-0">
-                      <div className="flex items-center justify-between px-1 py-0.5 border-b border-slate-200/60 pb-1">
-                        <span className="text-[10px] font-black uppercase text-slate-800 truncate">{stage}</span>
-                        <span className="text-[9px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded">
-                          {stageDeals.length}
+              <div className="space-y-2">
+                {/* Mobile Stage Quick Filter for Leads Kanban */}
+                <div className="flex sm:hidden items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setMobileLeadStageFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border transition-all cursor-pointer ${
+                      mobileLeadStageFilter === 'all'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    Tümü ({filteredDeals.length})
+                  </button>
+                  {currentStages.map((stage) => {
+                    const count = filteredDeals.filter(d => d.stage === stage).length;
+                    const isSelected = mobileLeadStageFilter === stage;
+                    return (
+                      <button
+                        key={stage}
+                        type="button"
+                        onClick={() => setMobileLeadStageFilter(stage)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tight shrink-0 border transition-all flex items-center gap-1 cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                            : 'bg-white text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        <span>{stage}</span>
+                        <span className={`px-1 py-0.2 rounded text-[9px] font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                          {count}
                         </span>
-                      </div>
+                      </button>
+                    );
+                  })}
+                </div>
 
-                      <div className="space-y-1.5 overflow-y-auto max-h-[380px] custom-scrollbar pr-0.5">
-                        {stageDeals.map((deal) => (
-                          <div key={deal.id} className="bg-white p-2.5 rounded-lg border border-slate-200/80 shadow-2xs group relative">
-                            <div className="flex items-start justify-between gap-1 mb-1">
-                              <p className="font-bold text-slate-900 text-xs truncate leading-tight">{deal.title}</p>
-                              <div className="flex items-center gap-0.5 shrink-0">
-                                <button
-                                  onClick={() => {
-                                    setEditingDeal(deal);
-                                    setDealFormData({
-                                      title: deal.title,
-                                      description: deal.description || '',
-                                      agent_name: deal.agent_name || '',
-                                      budget: deal.budget || '',
-                                      stage: deal.stage
-                                    });
-                                    setShowDealModal(true);
-                                  }}
-                                  className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    if (confirm('Silmek istediğinize emin misiniz?')) {
-                                      setDeals(prev => prev.filter(d => d.id !== deal.id));
-                                    }
-                                  }}
-                                  className="p-1 text-rose-500 hover:bg-rose-50 rounded"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                  {currentStages.map((stage, idx) => {
+                    const stageDeals = filteredDeals.filter(d => d.stage === stage);
+                    const hiddenOnMobile = mobileLeadStageFilter !== 'all' && mobileLeadStageFilter !== stage;
+                    return (
+                      <div key={idx} className={`${hiddenOnMobile ? 'hidden sm:flex' : 'flex'} bg-slate-50/70 border border-slate-200/80 rounded-xl p-2 flex-col gap-2 min-w-0`}>
+                        <div className="flex items-center justify-between px-1 py-0.5 border-b border-slate-200/60 pb-1">
+                          <span className="text-[10px] font-black uppercase text-slate-800 truncate">{stage}</span>
+                          <span className="text-[9px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded">
+                            {stageDeals.length}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5 overflow-y-auto max-h-[380px] custom-scrollbar pr-0.5">
+                          {stageDeals.map((deal) => (
+                            <div key={deal.id} className="bg-white p-2.5 rounded-lg border border-slate-200/80 shadow-2xs group relative">
+                              <div className="flex items-start justify-between gap-1 mb-1">
+                                <p className="font-bold text-slate-900 text-xs truncate leading-tight">{deal.title}</p>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  <button
+                                    onClick={() => {
+                                      setEditingDeal(deal);
+                                      setDealFormData({
+                                        title: deal.title,
+                                        description: deal.description || '',
+                                        agent_name: deal.agent_name || '',
+                                        budget: deal.budget || '',
+                                        stage: deal.stage
+                                      });
+                                      setShowDealModal(true);
+                                    }}
+                                    className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm('Silmek istediğinize emin misiniz?')) {
+                                        setDeals(prev => prev.filter(d => d.id !== deal.id));
+                                      }
+                                    }}
+                                    className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-slate-500 line-clamp-2 mb-2">{deal.description}</p>
+                              <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 pt-1.5 border-t border-slate-100">
+                                <span>{deal.agent_name || 'Atanmamış'}</span>
+                                <span className="text-indigo-700 font-extrabold">{deal.budget || '---'}</span>
                               </div>
                             </div>
-                            <p className="text-[10px] text-slate-500 line-clamp-2 mb-2">{deal.description}</p>
-                            <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 pt-1.5 border-t border-slate-100">
-                              <span>{deal.agent_name || 'Atanmamış'}</span>
-                              <span className="text-indigo-700 font-extrabold">{deal.budget || '---'}</span>
-                            </div>
-                          </div>
-                        ))}
+                          ))}
 
-                        {stageDeals.length === 0 && (
-                          <div className="py-4 text-center text-[10px] text-slate-400 border border-dashed border-slate-200 rounded-lg">
-                            Talep yok
-                          </div>
-                        )}
+                          {stageDeals.length === 0 && (
+                            <div className="py-4 text-center text-[10px] text-slate-400 border border-dashed border-slate-200 rounded-lg">
+                              Talep yok
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             )
           ) : crmView === 'portfolio' ? (
@@ -1052,12 +1185,14 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                 storeId={storeId!}
                 vehicles={portfolioItems}
                 onClose={() => setCrmView('portfolio')}
+                hideHeader={true}
               />
             ) : (
               <RealEstateCalendar 
                 storeId={storeId!}
                 properties={portfolioItems}
                 onClose={() => setCrmView('portfolio')}
+                hideHeader={true}
               />
             )
           )}

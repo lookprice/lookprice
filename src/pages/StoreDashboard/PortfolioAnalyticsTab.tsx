@@ -84,10 +84,19 @@ const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange, onN
   const isAutomotive = Boolean(
     branding?.store_type === 'motor_vehicle' || 
     branding?.store_type === 'automotive' || 
+    branding?.store_type === 'auto' || 
+    branding?.store_type === 'autolp' || 
+    branding?.store_type === 'oto' || 
+    branding?.store_type === 'galeri' || 
     branding?.store_type === 'gallery' || 
     branding?.store_type === 'car_dealer' ||
+    branding?.sector === 'automotive' ||
+    branding?.sector === 'auto' ||
+    branding?.sector === 'motor_vehicle' ||
     branding?.page_layout_settings?.sector === 'automotive' ||
-    branding?.page_layout_settings?.template === 'automotive'
+    branding?.page_layout_settings?.sector === 'auto' ||
+    branding?.page_layout_settings?.template === 'automotive' ||
+    branding?.slug?.startsWith('autolp')
   );
 
   const targetTab = isAutomotive ? 'fleet' : 'real_estate';

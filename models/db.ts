@@ -2182,16 +2182,20 @@ export async function initDb() {
     const defaultStores = [
       { id: 1, name: "GAP Bilişim", slug: "gap", code: "LP-100001", type: "shop" },
       { id: 2, name: "LookPrice Gayrimenkul", slug: "restatelp", code: "LP-200002", type: "real_estate" },
-      { id: 3, name: "LookPrice Motorlu Araçlar", slug: "autolp", code: "LP-300003", type: "auto" },
-      { id: 4, name: "LookPrice Horeca", slug: "horecalp", code: "LP-400004", type: "horeca" }
+      { id: 3, name: "autoLP Motorlu Araçlar & VIP Galeri (Demo)", slug: "autolp-demo", code: "LP-AUTO00", type: "auto", is_demo: true, branch_name: "Merkez Showroom (Lefkoşa)" },
+      { id: 4, name: "Grand LookPrice Hotel & Resort (Demo)", slug: "horecalp-demo", code: "LP-HORECA00", type: "cafe_restaurant", is_demo: true, hotel_module_enabled: true },
+      { id: 43, name: "autoLP Girne Prestij & Spor Araçlar Şubesi (Demo)", slug: "autolp-girne-demo", code: "LP-AUTO01", type: "auto", parent_id: 3, is_demo: true, branch_name: "Girne Prestij & Spor Araçlar Şubesi" },
+      { id: 44, name: "autoLP Gazimağusa SUV & Ticari Şubesi (Demo)", slug: "autolp-magusa-demo", code: "LP-AUTO02", type: "auto", parent_id: 3, is_demo: true, branch_name: "Gazimağusa SUV & Ticari Şubesi" },
+      { id: 45, name: "bookLP Kültür, Sanat & Kitabevi (Demo)", slug: "booklp-demo", code: "LP-BOOK00", type: "product", is_demo: true, bookstore_module_enabled: true, branch_name: "Merkez Kitabevi & Kültür Salonu (Lefkoşa)" },
+      { id: 46, name: "bookLP Girne Liman & Sahaf Şubesi (Demo)", slug: "booklp-girne-demo", code: "LP-BOOK01", type: "product", parent_id: 45, is_demo: true, bookstore_module_enabled: true, branch_name: "Girne Liman & Sahaf Şubesi" }
     ];
 
     for (const s of defaultStores) {
       const stCheck = await client.query("SELECT id FROM stores WHERE slug = $1 OR id = $2", [s.slug, s.id]);
       if (stCheck.rows.length === 0) {
         await client.query(`
-          INSERT INTO stores (id, name, slug, store_code, store_type, is_approved, status, plan, branding)
-          VALUES ($1, $2, $3, $4, $5, true, 'active', 'pro', $6)
+          INSERT INTO stores (id, name, slug, store_code, store_type, is_approved, status, plan, branding, parent_id, branch_name, hotel_module_enabled, bookstore_module_enabled)
+          VALUES ($1, $2, $3, $4, $5, true, 'active', 'pro', $6, $7, $8, $9, $10)
           ON CONFLICT (slug) DO NOTHING
         `, [
           s.id, 
@@ -2199,7 +2203,11 @@ export async function initDb() {
           s.slug, 
           s.code, 
           s.type, 
-          JSON.stringify({ store_name: s.name, store_type: s.type, sub_sector: s.type })
+          JSON.stringify({ store_name: s.name, store_type: s.type, sub_sector: s.type, is_demo: Boolean((s as any).is_demo), hotel_module_enabled: Boolean((s as any).hotel_module_enabled), bookstore_module_enabled: Boolean((s as any).bookstore_module_enabled), store_concept: (s as any).bookstore_module_enabled ? 'bookstore' : undefined }),
+          (s as any).parent_id || null,
+          (s as any).branch_name || null,
+          Boolean((s as any).hotel_module_enabled),
+          Boolean((s as any).bookstore_module_enabled)
         ]);
       }
     }
@@ -2210,7 +2218,8 @@ export async function initDb() {
       { email: "demo@shoplp.com", store_id: 1 },
       { email: "demo@restatelp.com", store_id: 2 },
       { email: "demo@autolp.com", store_id: 3 },
-      { email: "demo@horecalp.com", store_id: 4 }
+      { email: "demo@horecalp.com", store_id: 4 },
+      { email: "demo@booklp.com", store_id: 45 }
     ];
 
     for (const sa of storeAdmins) {

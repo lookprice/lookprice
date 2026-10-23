@@ -681,7 +681,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         initial={{ scale: 0.95, opacity: 0, y: 15 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 15 }}
-        className="bg-white w-full max-w-4xl lg:max-w-5xl rounded-2xl md:rounded-3xl shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[92vh] md:max-h-[88vh] border border-slate-200 mt-8 sm:mt-0"
+        className="bg-white w-full max-w-4xl lg:max-w-5xl rounded-2xl md:rounded-3xl shadow-2xl relative z-10 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row max-h-[92vh] md:max-h-[88vh] border border-slate-200 mt-8 sm:mt-0 custom-scrollbar"
       >
         <button
           onClick={onClose}

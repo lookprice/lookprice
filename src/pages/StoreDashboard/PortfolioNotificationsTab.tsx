@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
+import { resolveDomainId } from "../../utils/sectorCapability";
 import { motion, AnimatePresence } from "motion/react";
 
 interface NotificationItem {
@@ -63,6 +64,10 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
 }) => {
   const { lang } = useLanguage();
   const isTr = propIsTr !== undefined ? propIsTr : lang === "tr";
+  const domainId = resolveDomainId(branding);
+  const isAutomotive = domainId === "AUTOMOTIVE";
+  const isRealEstate = domainId === "REAL_ESTATE";
+  const isPortfolio = isAutomotive || isRealEstate;
 
   const [feed, setFeed] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,59 +148,67 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
       case "reconciliation":
         return <Scale className="w-5 h-5" />;
       case "quotation":
-        return <FileSignature className="w-5 h-5" />;
+        return <FileSignature className="w-3.5 h-3.5" />;
       case "gib":
-        return <CloudOff className="w-5 h-5" />;
+        return <CloudOff className="w-3.5 h-3.5" />;
       case "order":
-        return <ShoppingBag className="w-5 h-5" />;
+        return <ShoppingBag className="w-3.5 h-3.5" />;
       case "stock":
-        return <PackageX className="w-5 h-5" />;
+        return <PackageX className="w-3.5 h-3.5" />;
       case "hotel":
-        return <Hotel className="w-5 h-5" />;
+        return <Hotel className="w-3.5 h-3.5" />;
       case "invoice":
-        return <FileDown className="w-5 h-5" />;
+        return <FileDown className="w-3.5 h-3.5" />;
       case "transfer":
-        return <ArrowLeftRight className="w-5 h-5" />;
+        return <ArrowLeftRight className="w-3.5 h-3.5" />;
       case "service":
-        return <Wrench className="w-5 h-5" />;
+        return <Wrench className="w-3.5 h-3.5" />;
       case "fleet":
-        return <Car className="w-5 h-5" />;
+        return <Car className="w-3.5 h-3.5" />;
       case "crm":
-        return <Users className="w-5 h-5" />;
+        return <Users className="w-3.5 h-3.5" />;
       default:
-        return <Bell className="w-5 h-5" />;
+        return <Bell className="w-3.5 h-3.5" />;
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* 1. LIVE RADAR PULSE HEADER */}
-      <div className="bg-slate-900 border border-slate-800 text-white p-4 sm:p-5 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center shrink-0">
-            <Radio className="w-5 h-5 text-indigo-400 animate-pulse" />
+      <div className="bg-slate-900 border border-slate-800 text-white px-4 py-2.5 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+            <Radio className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm sm:text-base font-black tracking-tight text-white">
+              <h2 className="text-xs sm:text-sm font-semibold tracking-tight text-white">
                 {isTr ? "Operasyonel Bildirim & Nabız Radarı" : "Operational Alert & Pulse Radar"}
               </h2>
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider">
+              <span className="flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-medium uppercase tracking-wider">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                {isTr ? "Canlı İzleme Aktif" : "Live Pulse"}
+                {isTr ? "Canlı İzleme" : "Live Pulse"}
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {isTr 
-                ? "E-Fatura, pazaryeri siparişleri, kritik stok ve operasyon alarmları anlık taranıyor." 
-                : "Real-time monitoring of e-Invoices, marketplace orders, stock levels, and operations."}
+            <p className="text-[11px] text-slate-400 mt-0.5 hidden sm:block">
+              {isAutomotive
+                ? (isTr
+                    ? "Araç portföyü, seyrüsefer/sigorta/muayene tarihleri, periyodik bakımlar ve CRM alarmları anlık taranıyor."
+                    : "Real-time monitoring of vehicle portfolio, registration/insurance expiry, maintenance, and CRM alerts.")
+                : isRealEstate
+                ? (isTr
+                    ? "Gayrimenkul portföyü, mülk sahibi başvuruları, yer gösterme randevuları ve cari mutabakatlar anlık taranıyor."
+                    : "Real-time monitoring of property portfolio, owner leads, tour appointments, and reconciliations.")
+                : (isTr 
+                    ? "E-Fatura, pazaryeri siparişleri, kritik stok ve operasyon alarmları anlık taranıyor." 
+                    : "Real-time monitoring of e-Invoices, marketplace orders, and inventory.")}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-center">
           {lastSyncTime && (
-            <span className="text-[11px] font-medium text-slate-400">
+            <span className="text-[11px] font-mono text-slate-400">
               {isTr ? `Son kontrol: ${lastSyncTime}` : `Updated: ${lastSyncTime}`}
             </span>
           )}
@@ -206,140 +219,154 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
               if (onRefreshNotifications) onRefreshNotifications();
             }}
             disabled={loading}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all border border-slate-700/60 shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors border border-slate-700/60 shadow-2xs cursor-pointer disabled:opacity-50"
             title={isTr ? "Bildirimleri Yenile" : "Refresh Alerts"}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-indigo-400" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
           </button>
         </div>
       </div>
 
-      {/* 2. FIVE PULSE KPI STAT CARDS */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+      {/* 2. PULSE KPI STAT CARDS */}
+      <div className={`grid grid-cols-2 ${isPortfolio ? "sm:grid-cols-3" : "sm:grid-cols-3 lg:grid-cols-5"} gap-2`}>
         {/* Acil Aksiyon */}
         <div 
           onClick={() => setCategoryFilter(categoryFilter === "critical" ? "all" : "critical")}
-          className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
-            criticalCount > 0 
-              ? "bg-rose-500/10 border-rose-500/40 text-rose-950 dark:text-rose-100 shadow-sm hover:border-rose-500" 
-              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 hover:border-slate-300"
-          } ${categoryFilter === "critical" ? "ring-2 ring-rose-500 shadow-md" : ""}`}
+          className={`px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+            categoryFilter === "critical" 
+              ? "bg-slate-900 text-white border-slate-900 shadow-sm" 
+              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300"
+          }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
+            <span className={`text-[10px] font-medium uppercase tracking-wider ${
+              categoryFilter === "critical" ? "text-slate-300" : "text-slate-600 dark:text-slate-400"
+            }`}>
               {isTr ? "Kritik & Acil" : "Critical"}
             </span>
-            <div className={`p-1.5 rounded-lg shrink-0 ${criticalCount > 0 ? "bg-rose-500 text-white animate-pulse shadow-xs" : "bg-slate-100 text-slate-400"}`}>
-              <AlertOctagon className="w-4 h-4" />
-            </div>
+            <AlertOctagon className={`w-3.5 h-3.5 ${categoryFilter === "critical" ? "text-white" : criticalCount > 0 ? "text-slate-900 dark:text-slate-100" : "text-slate-400"}`} />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400">{criticalCount}</span>
-            <span className="text-[11px] text-slate-500 font-semibold">{isTr ? "Kayıt" : "Items"}</span>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className={`text-base sm:text-lg font-mono font-medium ${
+              categoryFilter === "critical" ? "text-white" : "text-slate-900 dark:text-slate-100"
+            }`}>{criticalCount}</span>
+            <span className={`text-[10px] ${categoryFilter === "critical" ? "text-slate-400" : "text-slate-500"}`}>{isTr ? "kayıt" : "items"}</span>
           </div>
         </div>
 
         {/* Mutabakat & Teklifler */}
         <div 
           onClick={() => setCategoryFilter(categoryFilter === "reconciliation_quote" ? "all" : "reconciliation_quote")}
-          className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
-            reconQuoteCount > 0 
-              ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-emerald-100 shadow-sm hover:border-emerald-500" 
-              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 hover:border-slate-300"
-          } ${categoryFilter === "reconciliation_quote" ? "ring-2 ring-emerald-500 shadow-md" : ""}`}
+          className={`px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+            categoryFilter === "reconciliation_quote" 
+              ? "bg-slate-900 text-white border-slate-900 shadow-sm" 
+              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300"
+          }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-              {isTr ? "Mutabakat & Teklif" : "Recon & Quotes"}
+            <span className={`text-[10px] font-medium uppercase tracking-wider ${
+              categoryFilter === "reconciliation_quote" ? "text-slate-300" : "text-slate-600 dark:text-slate-400"
+            }`}>
+              {isTr ? (isPortfolio ? "Cari Mutabakat" : "Mutabakat & Teklif") : "Recon & Quotes"}
             </span>
-            <div className={`p-1.5 rounded-lg shrink-0 ${reconQuoteCount > 0 ? "bg-emerald-600 text-white shadow-xs animate-pulse" : "bg-slate-100 text-slate-400"}`}>
-              <Scale className="w-4 h-4" />
-            </div>
+            <Scale className={`w-3.5 h-3.5 ${categoryFilter === "reconciliation_quote" ? "text-white" : "text-slate-600"}`} />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">{reconQuoteCount}</span>
-            <span className="text-[11px] text-slate-500 font-semibold">{isTr ? "Yanıt" : "Responses"}</span>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className={`text-base sm:text-lg font-mono font-medium ${
+              categoryFilter === "reconciliation_quote" ? "text-white" : "text-slate-900 dark:text-slate-100"
+            }`}>{reconQuoteCount}</span>
+            <span className={`text-[10px] ${categoryFilter === "reconciliation_quote" ? "text-slate-400" : "text-slate-500"}`}>{isTr ? "yanıt" : "responses"}</span>
           </div>
         </div>
 
-        {/* İletim & GİB Bekleyen */}
-        <div 
-          onClick={() => setCategoryFilter(categoryFilter === "gib" ? "all" : "gib")}
-          className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
-            gibCount > 0 
-              ? "bg-blue-500/10 border-blue-500/40 text-blue-950 dark:text-blue-100 shadow-sm hover:border-blue-500" 
-              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 hover:border-slate-300"
-          } ${categoryFilter === "gib" ? "ring-2 ring-blue-500 shadow-md" : ""}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
-              {isTr ? "GİB & Faturalar" : "GİB & Invoices"}
-            </span>
-            <div className={`p-1.5 rounded-lg shrink-0 ${gibCount > 0 ? "bg-blue-600 text-white shadow-xs" : "bg-slate-100 text-slate-400"}`}>
-              <CloudOff className="w-4 h-4" />
+        {/* GİB & Faturalar - Strictly hidden for Portfolio stores */}
+        {!isPortfolio && (
+          <div 
+            onClick={() => setCategoryFilter(categoryFilter === "gib" ? "all" : "gib")}
+            className={`px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+              categoryFilter === "gib" 
+                ? "bg-slate-900 text-white border-slate-900 shadow-sm" 
+                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-medium uppercase tracking-wider ${
+                categoryFilter === "gib" ? "text-slate-300" : "text-slate-600 dark:text-slate-400"
+              }`}>
+                {isTr ? "GİB & Faturalar" : "GİB & Invoices"}
+              </span>
+              <CloudOff className={`w-3.5 h-3.5 ${categoryFilter === "gib" ? "text-white" : "text-slate-600"}`} />
+            </div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className={`text-base sm:text-lg font-mono font-medium ${
+                categoryFilter === "gib" ? "text-white" : "text-slate-900 dark:text-slate-100"
+              }`}>{gibCount}</span>
+              <span className={`text-[10px] ${categoryFilter === "gib" ? "text-slate-400" : "text-slate-500"}`}>{isTr ? "fatura" : "invoices"}</span>
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400">{gibCount}</span>
-            <span className="text-[11px] text-slate-500 font-semibold">{isTr ? "Fatura" : "Invoices"}</span>
-          </div>
-        </div>
+        )}
 
-        {/* Stok & Tedarik Alarmları */}
-        <div 
-          onClick={() => setCategoryFilter(categoryFilter === "order_stock" ? "all" : "order_stock")}
-          className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
-            stockCount > 0 
-              ? "bg-amber-500/10 border-amber-500/40 text-amber-950 dark:text-amber-100 shadow-sm hover:border-amber-500" 
-              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 hover:border-slate-300"
-          } ${categoryFilter === "order_stock" ? "ring-2 ring-amber-500 shadow-md" : ""}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
-              {isTr ? "Stok & Tedarik" : "Stock & Supply"}
-            </span>
-            <div className={`p-1.5 rounded-lg shrink-0 ${stockCount > 0 ? "bg-amber-500 text-slate-950 font-black shadow-xs" : "bg-slate-100 text-slate-400"}`}>
-              <PackageX className="w-4 h-4" />
+        {/* Stok & Tedarik - Strictly hidden for Portfolio stores */}
+        {!isPortfolio && (
+          <div 
+            onClick={() => setCategoryFilter(categoryFilter === "order_stock" ? "all" : "order_stock")}
+            className={`px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+              categoryFilter === "order_stock" 
+                ? "bg-slate-900 text-white border-slate-900 shadow-sm" 
+                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-medium uppercase tracking-wider ${
+                categoryFilter === "order_stock" ? "text-slate-300" : "text-slate-600 dark:text-slate-400"
+              }`}>
+                {isTr ? "Stok & Tedarik" : "Stock & Supply"}
+              </span>
+              <PackageX className={`w-3.5 h-3.5 ${categoryFilter === "order_stock" ? "text-white" : "text-slate-600"}`} />
+            </div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className={`text-base sm:text-lg font-mono font-medium ${
+                categoryFilter === "order_stock" ? "text-white" : "text-slate-900 dark:text-slate-100"
+              }`}>{stockCount}</span>
+              <span className={`text-[10px] ${categoryFilter === "order_stock" ? "text-slate-400" : "text-slate-500"}`}>{isTr ? "alarm" : "alerts"}</span>
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400">{stockCount}</span>
-            <span className="text-[11px] text-slate-500 font-semibold">{isTr ? "Alarm" : "Alerts"}</span>
-          </div>
-        </div>
+        )}
 
         {/* Operasyonel Akış */}
         <div 
           onClick={() => setCategoryFilter(categoryFilter === "crm_hotel" ? "all" : "crm_hotel")}
-          className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
-            flowCount > 0 
-              ? "bg-indigo-500/10 border-indigo-500/40 text-indigo-950 dark:text-indigo-100 shadow-sm hover:border-indigo-500" 
-              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 hover:border-slate-300"
-          } ${categoryFilter === "crm_hotel" ? "ring-2 ring-indigo-500 shadow-md" : ""}`}
+          className={`px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+            categoryFilter === "crm_hotel" 
+              ? "bg-slate-900 text-white border-slate-900 shadow-sm" 
+              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300"
+          }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-              {isTr ? "Operasyonel Akış" : "Operations Flow"}
+            <span className={`text-[10px] font-medium uppercase tracking-wider ${
+              categoryFilter === "crm_hotel" ? "text-slate-300" : "text-slate-600 dark:text-slate-400"
+            }`}>
+              {isTr ? (isAutomotive ? "Filo, Evrak & CRM" : isRealEstate ? "Portföy & CRM Akışı" : "Operasyonel Akış") : "Operations Flow"}
             </span>
-            <div className={`p-1.5 rounded-lg shrink-0 ${flowCount > 0 ? "bg-indigo-600 text-white shadow-xs" : "bg-slate-100 text-slate-400"}`}>
-              <Activity className="w-4 h-4" />
-            </div>
+            <Activity className={`w-3.5 h-3.5 ${categoryFilter === "crm_hotel" ? "text-white" : "text-slate-600"}`} />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400">{flowCount}</span>
-            <span className="text-[11px] text-slate-500 font-semibold">{isTr ? "İşlem" : "Tasks"}</span>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className={`text-base sm:text-lg font-mono font-medium ${
+              categoryFilter === "crm_hotel" ? "text-white" : "text-slate-900 dark:text-slate-100"
+            }`}>{flowCount}</span>
+            <span className={`text-[10px] ${categoryFilter === "crm_hotel" ? "text-slate-400" : "text-slate-500"}`}>{isTr ? "işlem" : "tasks"}</span>
           </div>
         </div>
       </div>
 
       {/* 3. CATEGORY FILTER TABS */}
-      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
         <button
           type="button"
           onClick={() => setCategoryFilter("all")}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
             categoryFilter === "all"
-              ? "bg-slate-900 text-white shadow-xs"
+              ? "bg-slate-900 text-white shadow-2xs"
               : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50"
           }`}
         >
@@ -349,16 +376,16 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
         <button
           type="button"
           onClick={() => setCategoryFilter("critical")}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
+          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer border ${
             categoryFilter === "critical"
-              ? "bg-rose-600 text-white border-rose-600 shadow-xs"
-              : "bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900 hover:bg-rose-50"
+              ? "bg-rose-600 text-white border-rose-600 shadow-2xs"
+              : "bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900/40 hover:bg-rose-50"
           }`}
         >
-          <AlertOctagon className="w-3.5 h-3.5" />
+          <AlertOctagon className="w-3 h-3" />
           <span>{isTr ? "Kritik / Acil" : "Critical"}</span>
           {criticalCount > 0 && (
-            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-rose-500 text-white">
+            <span className="px-1.5 py-0.2 text-[10px] rounded font-mono font-medium bg-rose-500 text-white">
               {criticalCount}
             </span>
           )}
@@ -367,70 +394,74 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
         <button
           type="button"
           onClick={() => setCategoryFilter("reconciliation_quote")}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
+          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer border ${
             categoryFilter === "reconciliation_quote"
-              ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-              : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50"
+              ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
+              : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40 hover:bg-emerald-50"
           }`}
         >
-          <Scale className="w-3.5 h-3.5" />
+          <Scale className="w-3 h-3" />
           <span>{isTr ? "Mutabakat & Teklifler" : "Reconciliation & Quotes"}</span>
           {reconQuoteCount > 0 && (
-            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-emerald-500 text-white">
+            <span className="px-1.5 py-0.2 text-[10px] rounded font-mono font-medium bg-emerald-500 text-white">
               {reconQuoteCount}
             </span>
           )}
         </button>
 
-        <button
-          type="button"
-          onClick={() => setCategoryFilter("gib")}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
-            categoryFilter === "gib"
-              ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-              : "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900 hover:bg-blue-50"
-          }`}
-        >
-          <CloudOff className="w-3.5 h-3.5" />
-          <span>{isTr ? "GİB & Faturalar" : "GİB & Invoices"}</span>
-          {gibCount > 0 && (
-            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-blue-100 text-blue-800">
-              {gibCount}
-            </span>
-          )}
-        </button>
+        {!isPortfolio && (
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("gib")}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer border ${
+              categoryFilter === "gib"
+                ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                : "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900/40 hover:bg-blue-50"
+            }`}
+          >
+            <CloudOff className="w-3 h-3" />
+            <span>{isTr ? "GİB & Faturalar" : "GİB & Invoices"}</span>
+            {gibCount > 0 && (
+              <span className="px-1.5 py-0.2 text-[10px] rounded font-mono font-medium bg-blue-100 text-blue-800">
+                {gibCount}
+              </span>
+            )}
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={() => setCategoryFilter("order_stock")}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
-            categoryFilter === "order_stock"
-              ? "bg-amber-600 text-white border-amber-600 shadow-xs"
-              : "bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900 hover:bg-amber-50"
-          }`}
-        >
-          <ShoppingBag className="w-3.5 h-3.5" />
-          <span>{isTr ? "Sipariş & Stok" : "Orders & Stock"}</span>
-          {stockCount > 0 && (
-            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-amber-500 text-slate-950">
-              {stockCount}
-            </span>
-          )}
-        </button>
+        {!isPortfolio && (
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("order_stock")}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer border ${
+              categoryFilter === "order_stock"
+                ? "bg-amber-600 text-white border-amber-600 shadow-2xs"
+                : "bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/40 hover:bg-amber-50"
+            }`}
+          >
+            <ShoppingBag className="w-3 h-3" />
+            <span>{isTr ? "Sipariş & Stok" : "Orders & Stock"}</span>
+            {stockCount > 0 && (
+              <span className="px-1.5 py-0.2 text-[10px] rounded font-mono font-medium bg-amber-500 text-slate-950">
+                {stockCount}
+              </span>
+            )}
+          </button>
+        )}
 
         <button
           type="button"
           onClick={() => setCategoryFilter("crm_hotel")}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
+          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer border ${
             categoryFilter === "crm_hotel"
-              ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
-              : "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50"
+              ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+              : "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/40 hover:bg-indigo-50"
           }`}
         >
-          <Hotel className="w-3.5 h-3.5" />
-          <span>{isTr ? "Rezervasyon & CRM" : "CRM & Hotel"}</span>
+          {isAutomotive ? <Car className="w-3 h-3" /> : <Hotel className="w-3 h-3" />}
+          <span>{isTr ? (isAutomotive ? "Filo, Evrak & CRM" : isRealEstate ? "Portföy & CRM" : "Rezervasyon & CRM") : "CRM & Operations"}</span>
           {flowCount > 0 && (
-            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-indigo-200 text-indigo-900">
+            <span className="px-1.5 py-0.2 text-[10px] rounded font-mono font-medium bg-indigo-100 text-indigo-800">
               {flowCount}
             </span>
           )}
@@ -438,11 +469,11 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
       </div>
 
       {/* 4. NOTIFICATIONS FEED LIST */}
-      <div className="space-y-3">
+      <div className="space-y-1.5">
         {loading && feed.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center space-y-3">
-            <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-500">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 text-center space-y-2">
+            <RefreshCw className="w-6 h-6 text-indigo-600 animate-spin mx-auto" />
+            <p className="text-xs font-medium text-slate-500">
               {isTr ? "Sistem operasyonel bildirimleri taranıyor..." : "Scanning operational alerts..."}
             </p>
           </div>
@@ -455,107 +486,108 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
             return (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 sm:p-5 shadow-xs transition-all hover:shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                transition={{ duration: 0.15 }}
+                onClick={() => handleAction(item)}
+                className={`group bg-white dark:bg-slate-900 border rounded-xl py-2 px-3 sm:px-3.5 shadow-2xs transition-all flex items-center justify-between gap-2.5 text-xs cursor-pointer ${
                   isCritical 
-                    ? "border-rose-300 dark:border-rose-900/60 bg-gradient-to-r from-rose-50/40 to-transparent" 
+                    ? "border-rose-200 dark:border-rose-900/50 hover:bg-rose-50/25 hover:border-rose-300" 
                     : isWarning 
-                    ? "border-amber-300 dark:border-amber-900/60 bg-gradient-to-r from-amber-50/30 to-transparent" 
+                    ? "border-amber-200 dark:border-amber-900/50 hover:bg-amber-50/25 hover:border-amber-300" 
                     : isReconOrQuote
-                    ? "border-emerald-300 dark:border-emerald-900/60 bg-gradient-to-r from-emerald-50/30 to-transparent"
-                    : "border-slate-200 dark:border-slate-800"
+                    ? "border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-50/25 hover:border-emerald-300"
+                    : "border-slate-200/80 dark:border-slate-800 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 hover:border-slate-300"
                 }`}
               >
-                <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                  {/* Category Icon */}
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  {/* Category Mini Icon */}
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
                     isCritical 
-                      ? "bg-rose-500 text-white animate-pulse" 
+                      ? "bg-rose-50 text-rose-600 border-rose-200/80" 
                       : isWarning 
-                      ? "bg-amber-500 text-slate-950 font-black" 
+                      ? "bg-amber-50 text-amber-700 border-amber-200/80" 
                       : isReconOrQuote
-                      ? "bg-emerald-600 text-white shadow-emerald-500/20"
-                      : "bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
                   }`}>
                     {getCategoryIcon(item.category)}
                   </div>
 
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                  <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2.5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
+                      <h3 className="text-xs font-semibold text-slate-900 dark:text-slate-100 break-words group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                         {item.title}
                       </h3>
 
                       {isCritical ? (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse">
-                          <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                          {isTr ? "Kritik Aksiyon" : "Action Required"}
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
+                          {isTr ? "Kritik" : "Critical"}
                         </span>
                       ) : isWarning ? (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-pulse" />
-                          {isTr ? "İşlem Bekliyor" : "Pending"}
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                          {isTr ? "Bekliyor" : "Pending"}
                         </span>
                       ) : isReconOrQuote ? (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-[10px] font-bold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          {isTr ? "Müşteri Onayladı" : "Confirmed"}
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          {isTr ? "Onaylandı" : "Confirmed"}
                         </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px] font-bold">
-                          {isTr ? "Bilgi & Akış" : "Info"}
-                        </span>
-                      )}
+                      ) : null}
 
                       {item.count > 0 && (
-                        <span className="px-2 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-black">
-                          {item.count} {isTr ? "Adet" : "Records"}
+                        <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-mono font-medium shrink-0">
+                          {item.count}
                         </span>
                       )}
                     </div>
 
-                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 sm:line-clamp-none max-w-xl font-normal">
                       {item.description}
                     </p>
 
-                    {/* Sub-item previews */}
+                    {/* Sub-item previews (compact inline tags) */}
                     {item.items && item.items.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1.5">
-                        {item.items.map((sub, idx) => (
-                          <div 
+                      <div className="hidden xl:flex items-center gap-1 shrink-0">
+                        {item.items.slice(0, 2).map((sub, idx) => (
+                          <span 
                             key={idx} 
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 max-w-[240px] truncate"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 text-[9px] font-mono text-slate-600 dark:text-slate-400 max-w-[160px] truncate"
                           >
                             <span className="truncate">{sub.label}</span>
                             {sub.detail && (
-                              <span className="text-slate-400 font-mono text-[9px] shrink-0">({sub.detail})</span>
+                              <span className="text-slate-400 font-mono">({sub.detail})</span>
                             )}
-                          </div>
+                          </span>
                         ))}
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Direct Action Button */}
-                <div className="w-full sm:w-auto shrink-0 pt-2 sm:pt-0">
+                {/* Direct Action Icon Button */}
+                <div className="shrink-0">
                   <button
                     type="button"
-                    onClick={() => handleAction(item)}
-                    className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95 ${
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAction(item);
+                    }}
+                    title={item.actionText}
+                    aria-label={item.actionText}
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-medium transition-all flex items-center justify-center cursor-pointer shadow-2xs group-hover:scale-105 active:scale-95 ${
                       isCritical
-                        ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200/50"
+                        ? "bg-rose-600 hover:bg-rose-700 text-white"
                         : isWarning
-                        ? "bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-500/30"
+                        ? "bg-amber-600 hover:bg-amber-700 text-white"
                         : isReconOrQuote
-                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200/50"
-                        : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200/50"
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        : "bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-800 dark:hover:bg-slate-700"
                     }`}
                   >
-                    <span>{item.actionText}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                   </button>
                 </div>
               </motion.div>
@@ -563,18 +595,22 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
           })
         ) : (
           /* 5. ALL SYSTEMS NORMAL & HEALTHY (EMPTY STATE) */
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center space-y-3 shadow-xs">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-sm">
-              <ShieldCheck className="w-8 h-8" />
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 text-center space-y-2 shadow-2xs">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-200/50">
+              <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {isTr ? "Tüm Sistemler Normal & Kusursuz" : "All Systems Operational & Synced"}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
-                {isTr 
-                  ? "Bekleyen acil web siparişi, GİB e-fatura hatası veya kritik stok alarmı bulunmuyor. Mağazanız ve entegrasyonlarınız kusursuz çalışıyor." 
-                  : "No urgent orders, e-invoice errors, or low stock warnings. Your store and marketplace integrations are operating smoothly."}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-0.5 leading-relaxed">
+                {isPortfolio
+                  ? (isTr
+                      ? "Bekleyen acil evrak/sigorta uyarısı, mutabakat uyuşmazlığı veya aksiyon bekleyen CRM talebi bulunmuyor."
+                      : "No urgent fleet/portfolio alerts, reconciliation disputes, or pending CRM requests.")
+                  : (isTr 
+                      ? "Bekleyen acil web siparişi, GİB e-fatura hatası veya kritik stok alarmı bulunmuyor." 
+                      : "No urgent orders, e-invoice errors, or low stock warnings.")}
               </p>
             </div>
           </div>

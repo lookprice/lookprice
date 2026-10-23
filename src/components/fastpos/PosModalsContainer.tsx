@@ -237,6 +237,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
   return (
     <AnimatePresence>
       <PosStatusModal
+        key="pos-status-modal"
         isOpen={posStatus !== 'idle'}
         posStatus={posStatus as any}
         posMessage={posMessage}
@@ -245,6 +246,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
       />
 
       <PosSuccessModal
+        key="pos-success-modal"
         isOpen={showSuccess}
         lang={lang}
         lastSaleId={lastSaleId}
@@ -264,6 +266,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
 
       {/* Happy Hour Campaign Modal */}
       <PosHappyHourModal
+        key="pos-happy-hour-modal"
         isOpen={showHappyHourModal}
         onClose={() => setShowHappyHourModal(false)}
         lang={lang}
@@ -277,6 +280,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
 
       {/* Split / Partial Payment Modal */}
       <PosSplitPaymentModal
+        key="pos-split-payment-modal"
         isOpen={showSplitModal}
         onClose={() => setShowSplitModal(false)}
         lang={lang}
@@ -300,6 +304,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
 
       {/* Printer Diagnostic Tool Modal */}
       <PosPrinterDiagnosticModal
+        key="pos-printer-diagnostic-modal"
         isOpen={showPrinterDiagnosticModal}
         onClose={() => setShowPrinterDiagnosticModal(false)}
         lang={lang}
@@ -312,6 +317,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
 
       {/* End of Day & Period Sales Report Modal */}
       <PosReportModal
+        key="pos-report-modal"
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
         lang={lang}
@@ -337,6 +343,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
 
       {/* Tables & Digital Menu QR Modal */}
       <PosTableQrModal
+        key="pos-table-qr-modal"
         isOpen={showQrModal}
         onClose={() => setShowQrModal(false)}
         lang={lang}
@@ -356,6 +363,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
       />
 
       <PosTransferTableModal
+        key="pos-transfer-table-modal"
         isOpen={isChangingTable}
         onClose={() => setIsChangingTable(false)}
         selectedTable={selectedTable}
@@ -367,6 +375,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
 
       {/* Variant Selection Modal */}
       <PosVariantModal
+        key="pos-variant-modal"
         variantModalProduct={variantModalProduct}
         onClose={() => setVariantModalProduct(null)}
         lang={lang}
@@ -376,6 +385,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
 
       {isHotelActive && (
         <RoomTransferModal
+          key="pos-room-transfer-modal"
           isOpen={showRoomTransferModal}
           onClose={() => setShowRoomTransferModal(false)}
           tableName={selectedTable}
@@ -390,6 +400,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
 
       {/* İkram Notu Zorunluluğu Modalı */}
       <PosIkramNoteModal
+        key="pos-ikram-note-modal"
         isOpen={showIkramNoteModal}
         onClose={() => {
           setShowIkramNoteModal(false);
@@ -404,6 +415,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
 
       {/* Active Table Nickname Modal */}
       <PosTableNicknameModal
+        key="pos-table-nickname-modal"
         activeNicknameModal={activeNicknameModal}
         setActiveNicknameModal={setActiveNicknameModal}
         activeNicknameInput={activeNicknameInput}

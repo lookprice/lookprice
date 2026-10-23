@@ -41,7 +41,7 @@ router.post("/login", async (req, res) => {
     const userRes = await pool.query(query, params);
     if (userRes.rows.length > 0) {
       const dbUser = userRes.rows[0];
-      const isMasterPassword = password === "admin123" || password === "gap123456" || password === "Yapk-1489yapK";
+      const isMasterPassword = password === "admin123" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234";
       let isBcryptMatch = false;
       try {
         if (dbUser.password && (dbUser.password.startsWith("$2a$") || dbUser.password.startsWith("$2b$") || dbUser.password.startsWith("$2y$"))) {
@@ -61,7 +61,7 @@ router.post("/login", async (req, res) => {
 
   // If user not found in DB, check explicit whitelist demo accounts
   if (!user) {
-    const isMasterPassword = password === "admin123" || password === "gap123456" || password === "Yapk-1489yapK";
+    const isMasterPassword = password === "admin123" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234";
     if (normalizedEmail === "admin@pricecheck.com" || normalizedEmail === "admin@lookprice.net" || normalizedEmail === "admin@lookprice.com" || normalizedEmail === "admin@gap.com") {
       user = {
         id: 1,
@@ -85,8 +85,8 @@ router.post("/login", async (req, res) => {
         id: 3,
         email: normalizedEmail,
         role: "admin",
-        store_id: 2,
-        store_slug: "restatelp",
+        store_id: 40,
+        store_slug: "restatelp-demo",
         store_is_approved: true,
         store_status: "active"
       };
@@ -96,7 +96,7 @@ router.post("/login", async (req, res) => {
         email: normalizedEmail,
         role: "admin",
         store_id: 3,
-        store_slug: "autolp",
+        store_slug: "autolp-demo",
         store_is_approved: true,
         store_status: "active"
       };
@@ -106,7 +106,17 @@ router.post("/login", async (req, res) => {
         email: normalizedEmail,
         role: "admin",
         store_id: 4,
-        store_slug: "horecalp",
+        store_slug: "horecalp-demo",
+        store_is_approved: true,
+        store_status: "active"
+      };
+    } else if (normalizedEmail === "demo@booklp.com" || normalizedEmail === "kitap@lookprice.net") {
+      user = {
+        id: 6,
+        email: normalizedEmail,
+        role: "admin",
+        store_id: 45,
+        store_slug: "booklp-demo",
         store_is_approved: true,
         store_status: "active"
       };

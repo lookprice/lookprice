@@ -130,10 +130,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [dismissedHotelReservations, setDismissedHotelReservations] = useState(false);
   const [dismissedReconDispute, setDismissedReconDispute] = useState(false);
   const [dismissedQuotationAlert, setDismissedQuotationAlert] = useState(false);
+  const [dismissedOwnerLeads, setDismissedOwnerLeads] = useState(false);
   const [companiesInitialOpenRecon, setCompaniesInitialOpenRecon] = useState(false);
   const [companiesInitialReconFilter, setCompaniesInitialReconFilter] = useState<'all' | 'confirmed' | 'disputed' | 'pending'>('all');
   const [salesInvoicesInitialFilter, setSalesInvoicesInitialFilter] = useState<string>('all');
   const [purchaseInvoicesInitialFilter, setPurchaseInvoicesInitialFilter] = useState<string>('all');
+  const [teamCrmInitialSubTab, setTeamCrmInitialSubTab] = useState<'agents' | 'branches' | 'pipeline' | undefined>(undefined);
+  const [teamCrmInitialView, setTeamCrmInitialView] = useState<'leads' | 'portfolio' | 'calendar' | undefined>(undefined);
+  const [realEstateCrmInitialFilter, setRealEstateCrmInitialFilter] = useState<'all' | 'new' | 'owner' | 'investor'>('all');
 
   const t = translations[lang].dashboard;
   const {
@@ -141,7 +145,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     branding, setBranding
   } = useDashboardController(user);
 
-  const domainId = resolveDomainId(branding);
+  const domainId = resolveDomainId({ ...branding, slug: slug || branding?.slug || user?.store_slug });
   const isRealEstate = domainId === 'REAL_ESTATE';
   const isAutomotive = domainId === 'AUTOMOTIVE';
   const isPortfolio = isRealEstate || isAutomotive;
@@ -437,7 +441,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const webOwnerLeadsCount = useMemo(() => {
     if (!Array.isArray(contacts)) return 0;
-    return contacts.filter(c => c.notes && c.notes.includes('[MÜLK SAHİBİ BAŞVURUSU]')).length;
+    return contacts.filter(c => c.notes && (c.notes.includes('[MÜLK SAHİBİ BAŞVURUSU]') || c.notes.includes('[ARAÇ SAHİBİ BAŞVURUSU]'))).length;
   }, [contacts]);
 
   useEffect(() => {
@@ -843,11 +847,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     Number(notifications?.reconciliations_disputed || 0) +
     Number(notifications?.reconciliations_confirmed || 0) +
     Number(notifications?.quotations_action || 0) +
-    Number(notifications?.quotations_rejected || 0);
+    Number(notifications?.quotations_rejected || 0) +
+    (isPortfolio ? (Number(notifications?.fleet || 0) > 0 ? 1 : 0) + Number(webOwnerLeadsCount || 0) : 0);
   const hasCriticalNotifications = 
     Number(notifications?.sales_invoices || 0) > 0 || 
     Number(notifications?.web_sales || 0) > 0 ||
-    Number(notifications?.reconciliations_disputed || 0) > 0;
+    Number(notifications?.reconciliations_disputed || 0) > 0 ||
+    Number(webOwnerLeadsCount || 0) > 0;
 
   const rawNavItems = isPortfolio ? [
     { type: 'category', key: "real_estate", title: txt('Portföy & İlan', 'Portfolios & Listings', 'Χαρτοφυλάκιο & Αγγελίες'), items: [
@@ -869,7 +875,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "team", title: txt('Personel & Şube', 'Staff & Branches', 'Προσωπικό & Υποκαταστήματα'), items: [
       { id: "team-crm", label: txt('Personel & Şube Yönetimi', 'Staff & Branch CRM', 'Διαχείριση Προσωπικού & Υποκαταστημάτων'), icon: Users },
-      { id: "real_estate_crm", label: txt('Mülk Sahibi & Yatırımcı CRM', 'Property Owner & Investor CRM', 'CRM Ιδιοκτητών & Επενδυτών'), icon: Users, badge: webOwnerLeadsCount > 0 ? webOwnerLeadsCount : undefined, badgeType: 'error' },
+      { id: "real_estate_crm", label: isAutomotive ? txt('Araç Sahibi & Müşteri CRM', 'Vehicle Owner & Buyer CRM', 'CRM Ιδιοκτητών & Αγοραστών Οχημάτων') : txt('Mülk Sahibi & Yatırımcı CRM', 'Property Owner & Investor CRM', 'CRM Ιδιοκτητών & Επενδυτών'), icon: Users, badge: webOwnerLeadsCount > 0 ? webOwnerLeadsCount : undefined, badgeType: 'error' },
       ...(isRealEstate ? [{ id: "authority_transfer", label: txt('Yetki Devri (Tapu)', 'Authority Transfer', 'Μεταβίβαση Εξουσιοδότησης'), icon: Briefcase }] : []),
     ]},
     { type: 'category', key: "integrations", title: txt('Yedekleme & Kanallar', 'Backup & Channels', 'Δημιουργία Αντιγράφων & Κανάλια'), items: [
@@ -1077,41 +1083,43 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         desktopSidebarCollapsed,
         setDesktopSidebarCollapsed,
         translations: t,
-        startTransition
+        startTransition,
+        totalUrgentNotifications,
+        hasCriticalNotifications
       }}
     >
       <div className={activeTab === 'fast-pos' ? "h-full w-full" : "w-full"}>
         {user?.password_needs_update && (
-          <div className="mb-6">
+          <div className="mb-4">
             {!showPasswordBanner ? (
               <button 
                 onClick={() => setShowPasswordBanner(true)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-xs"
               >
-                <span className="text-sm">🛡️</span> {isTr ? 'Şifre Güvenlik Uyarısı' : 'Password Security Alert'}
+                <ShieldCheck className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" /> {isTr ? 'Şifre Güvenlik Uyarısı' : 'Password Security Alert'}
               </button>
             ) : (
-              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm relative">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs relative">
                 <button 
                   onClick={() => setShowPasswordBanner(false)}
-                  className="absolute top-2 right-2 text-rose-400 hover:text-rose-600 transition-colors"
+                  className="absolute top-2.5 right-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
-                <div className="flex items-start gap-2.5 pr-6">
-                  <div className="w-8 h-8 rounded-lg bg-rose-500 text-white flex items-center justify-center font-black shrink-0 text-lg">
-                    🛡️
+                <div className="flex items-start gap-3 pr-6">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-semibold shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-rose-700 text-xs uppercase tracking-tight">{isTr ? 'Güvenlik Uyarısı' : 'Security Alert'}</h4>
-                    <p className="text-rose-600 font-medium text-[11px] mt-0.5 leading-tight max-w-lg">
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider">{isTr ? 'Güvenlik Uyarısı' : 'Security Alert'}</h4>
+                    <p className="text-slate-600 dark:text-slate-400 font-normal text-xs mt-0.5 leading-relaxed max-w-lg">
                       {isTr ? 'Hesabınızın güvenliği için lütfen şifrenizi güncelleyiniz. (En az 12 karakter, büyük/küçük harf, rakam ve sembol).' : 'Please update your password for your account security. (Min 12 characters, uppercase/lowercase, numbers and symbols).'}
                     </p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setShowPasswordModal(true)}
-                  className="px-3 py-1.5 bg-rose-600 text-white text-[11px] font-bold uppercase tracking-wider rounded-lg hover:bg-rose-700 transition-colors shrink-0 cursor-pointer"
+                  className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-semibold rounded-lg transition-colors shrink-0 cursor-pointer shadow-xs"
                 >
                   {isTr ? 'Şifremi Değiştir' : 'Change Password'}
                 </button>
@@ -1135,178 +1143,223 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           translations={t}
         />
 
-        {!dismissedWebSales && notifications?.web_sales > 0 && (
-          <div className="mb-6 bg-rose-500/10 border-2 border-rose-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+        {!dismissedWebSales && activeTab !== "pos" && notifications?.web_sales > 0 && (
+          <div className="mb-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fadeIn relative pr-8 sm:pr-3.5">
+            <button
+              type="button"
+              onClick={() => setDismissedWebSales(true)}
+              className="absolute top-2.5 right-2.5 sm:static sm:order-last p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              title={isTr ? "Bildirimi Gizle" : "Dismiss"}
+            >
+              <X className="w-4 h-4" />
+            </button>
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center text-xl font-black shrink-0 shadow">
-                🛍️
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                <ShoppingBag className="w-4 h-4" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
                     {isTr ? `YENİ WEB SİPARİŞİ (${notifications.web_sales} Bekleyen)` : `NEW WEB ORDER (${notifications.web_sales})`}
                   </span>
-                  <span className="animate-pulse px-2 py-0.5 bg-rose-500 text-white font-black text-[10px] rounded-full uppercase">
-                    {isTr ? 'Aksiyon Bekliyor' : 'Action Required'}
+                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-medium text-[10px] rounded-md uppercase tracking-wider">
+                    {isTr ? 'İşlem Bekliyor' : 'Action Required'}
                   </span>
                 </div>
-                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                <div className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5 leading-relaxed">
                   {isTr 
-                    ? 'E-Ticaret siteniz üzerinden yeni siparişleriniz var. Sipariş durumlarını "Satışlar" (Finans) sekmesinden güncelleyebilirsiniz.' 
+                    ? 'E-Ticaret siteniz üzerinden yeni siparişleriniz var. Sipariş durumlarını "Satışlar" sekmesinden yönetebilirsiniz.' 
                     : 'You have new orders from your website. Please check the Sales tab to process them.'}
                 </div>
               </div>
             </div>
             <button
               onClick={() => { setActiveTab("pos"); setDismissedWebSales(true); }}
-              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-rose-400 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center gap-1.5 border border-rose-500/30"
+              className="w-full sm:w-auto px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-medium text-xs rounded-lg shadow-xs transition-all shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <span>{isTr ? 'Satışları Görüntüle' : 'View Sales'}</span>
+              <span>{isTr ? 'Siparişleri İncele' : 'View Orders'}</span>
               <span>→</span>
             </button>
           </div>
         )}
 
-        {!dismissedHotelReservations && isHotelModuleActive && Number(notifications?.hotel_reservations || 0) > 0 && (
-          <div className="mb-6 bg-amber-500/10 border-2 border-amber-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md animate-fadeIn">
+        {!dismissedHotelReservations && activeTab !== "hotel-rooms" && isHotelModuleActive && Number(notifications?.hotel_reservations || 0) > 0 && (
+          <div className="mb-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fadeIn relative pr-8 sm:pr-3.5">
+            <button
+              type="button"
+              onClick={() => setDismissedHotelReservations(true)}
+              className="absolute top-2.5 right-2.5 sm:static sm:order-last p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              title={isTr ? "Bildirimi Gizle" : "Dismiss"}
+            >
+              <X className="w-4 h-4" />
+            </button>
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl font-black shrink-0 shadow">
-                🏨
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                <Building2 className="w-4 h-4" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
                     {isTr ? `YENİ OTEL REZERVASYONU (${notifications.hotel_reservations} Bekleyen)` : `NEW HOTEL RESERVATION (${notifications.hotel_reservations})`}
                   </span>
-                  <span className="animate-pulse px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-[10px] rounded-full uppercase">
-                    {isTr ? 'Aksiyon Bekliyor' : 'Action Required'}
+                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-medium text-[10px] rounded-md uppercase tracking-wider">
+                    {isTr ? 'Onay Bekliyor' : 'Action Required'}
                   </span>
                 </div>
-                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                <div className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5 leading-relaxed">
                   {isTr 
                     ? 'Web siteniz üzerinden yeni oda rezervasyonu alındı. Misafir kayıt, check-in veya oda ataması yapmak için rezervasyonları inceleyebilirsiniz.' 
                     : 'A new online hotel reservation was completed. Please check room assignments or check-in to confirm.'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => { setActiveTab("hotel-rooms"); setDismissedHotelReservations(true); }}
-                className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center justify-center gap-1.5 border border-amber-500/30 cursor-pointer"
-              >
-                <span>{isTr ? 'Rezervasyonları Yönet' : 'Manage Reservations'}</span>
-                <span>→</span>
-              </button>
-            </div>
+            <button
+              onClick={() => { setActiveTab("hotel-rooms"); setDismissedHotelReservations(true); }}
+              className="w-full sm:w-auto px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-medium text-xs rounded-lg shadow-xs transition-all shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>{isTr ? 'Rezervasyonları Yönet' : 'Manage Reservations'}</span>
+              <span>→</span>
+            </button>
           </div>
         )}
 
-        {!dismissedReconDispute && Number(notifications?.reconciliations_disputed || 0) > 0 && (
-          <div className="mb-6 bg-rose-500/10 border-2 border-rose-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+        {!dismissedReconDispute && activeTab !== "companies" && Number(notifications?.reconciliations_disputed || 0) > 0 && (
+          <div className="mb-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fadeIn relative pr-8 sm:pr-3.5">
+            <button
+              type="button"
+              onClick={() => setDismissedReconDispute(true)}
+              className="absolute top-2.5 right-2.5 sm:static sm:order-last p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              title={isTr ? "Bildirimi Gizle" : "Dismiss"}
+            >
+              <X className="w-4 h-4" />
+            </button>
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center text-xl font-black shrink-0 shadow">
-                ⚖️
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
                     {isTr ? `CARİ MUTABAKAT UYUŞMAZLIĞI (${notifications.reconciliations_disputed} İtiraz)` : `RECONCILIATION DISPUTE (${notifications.reconciliations_disputed} Disputed)`}
                   </span>
-                  <span className="animate-pulse px-2 py-0.5 bg-rose-600 text-white font-black text-[10px] rounded-full uppercase">
-                    {isTr ? 'İtirazı İncele' : 'Review Dispute'}
+                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-medium text-[10px] rounded-md uppercase tracking-wider">
+                    {isTr ? 'İnceleme Gerekli' : 'Review Required'}
                   </span>
                 </div>
-                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                <div className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5 leading-relaxed">
                   {isTr 
                     ? 'Müşteriniz resmi dijital mutabakat mektubunuza itiraz bildirdi. Uyuşmazlık gerekçesini ve bakiye farkını inceleyebilirsiniz.' 
                     : 'A company has reported a dispute on their reconciliation statement. Please review the dispute note.'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => {
-                  setCompaniesInitialOpenRecon(true);
-                  setCompaniesInitialReconFilter('disputed');
-                  setActiveTab("companies");
-                  setDismissedReconDispute(true);
-                }}
-                className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-rose-300 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center justify-center gap-1.5 border border-rose-500/30 cursor-pointer"
-              >
-                <span>{isTr ? 'Uyuşmazlıkları Aç' : 'Open Disputes'}</span>
-                <span>→</span>
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setCompaniesInitialOpenRecon(true);
+                setCompaniesInitialReconFilter('disputed');
+                setActiveTab("companies");
+                setDismissedReconDispute(true);
+              }}
+              className="w-full sm:w-auto px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-medium text-xs rounded-lg shadow-xs transition-all shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>{isTr ? 'Uyuşmazlıkları Aç' : 'Open Disputes'}</span>
+              <span>→</span>
+            </button>
           </div>
         )}
 
-        {!dismissedQuotationAlert && Number(notifications?.quotations_action || 0) > 0 && (
-          <div className="mb-6 bg-emerald-500/10 border-2 border-emerald-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+        {!dismissedQuotationAlert && activeTab !== "quotations" && Number(notifications?.quotations_action || 0) > 0 && (
+          <div className="mb-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fadeIn relative pr-8 sm:pr-3.5">
+            <button
+              type="button"
+              onClick={() => setDismissedQuotationAlert(true)}
+              className="absolute top-2.5 right-2.5 sm:static sm:order-last p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              title={isTr ? "Bildirimi Gizle" : "Dismiss"}
+            >
+              <X className="w-4 h-4" />
+            </button>
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xl font-black shrink-0 shadow">
-                📑
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                <FileCheck className="w-4 h-4" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
                     {isTr 
                       ? `YENİ TEKLİF YANITI (${notifications.quotations_approved || 0} Onay / ${notifications.quotations_rejected || 0} Ret)`
                       : `NEW QUOTE RESPONSES (${notifications.quotations_approved || 0} Approved / ${notifications.quotations_rejected || 0} Rejected)`}
                   </span>
-                  <span className="px-2 py-0.5 bg-emerald-600 text-white font-black text-[10px] rounded-full uppercase">
+                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-medium text-[10px] rounded-md uppercase tracking-wider">
                     {isTr ? 'Müşteri Yanıtladı' : 'Customer Replied'}
                   </span>
                 </div>
-                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                <div className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5 leading-relaxed">
                   {isTr 
                     ? 'Gönderdiğiniz tekliflere online müşteri yanıtı geldi. Onaylanan siparişleri ve ret gerekçelerini inceleyebilirsiniz.' 
                     : 'Customers have responded to your sent proposals online. Check approved orders and rejection feedback.'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => {
-                  setQuotationStatusFilter(Number(notifications?.quotations_approved || 0) > 0 ? 'approved' : 'cancelled');
-                  setActiveTab("quotations");
-                  setDismissedQuotationAlert(true);
-                }}
-                className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center justify-center gap-1.5 border border-emerald-500/30 cursor-pointer"
-              >
-                <span>{isTr ? 'Teklifleri İncele' : 'View Quotes'}</span>
-                <span>→</span>
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setQuotationStatusFilter(Number(notifications?.quotations_approved || 0) > 0 ? 'approved' : 'cancelled');
+                setActiveTab("quotations");
+                setDismissedQuotationAlert(true);
+              }}
+              className="w-full sm:w-auto px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-medium text-xs rounded-lg shadow-xs transition-all shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>{isTr ? 'Teklifleri İncele' : 'View Quotes'}</span>
+              <span>→</span>
+            </button>
           </div>
         )}
 
-        {webOwnerLeadsCount > 0 && (
-          <div className="mb-6 bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+        {!dismissedOwnerLeads && activeTab !== "real_estate_crm" && webOwnerLeadsCount > 0 && (
+          <div className="mb-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fadeIn relative pr-8 sm:pr-3.5">
+            <button
+              type="button"
+              onClick={() => setDismissedOwnerLeads(true)}
+              className="absolute top-2.5 right-2.5 sm:static sm:order-last p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              title={isTr ? "Bildirimi Gizle" : "Dismiss"}
+            >
+              <X className="w-4 h-4" />
+            </button>
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl font-black shrink-0 shadow">
-                🏡
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                {isAutomotive ? <Car className="w-4 h-4 text-slate-700 dark:text-slate-300" /> : <Building2 className="w-4 h-4 text-slate-700 dark:text-slate-300" />}
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                    {isTr ? `YENİ MÜLK SAHİBİ BAŞVURUSU (${webOwnerLeadsCount} Talep)` : `NEW PROPERTY OWNER LEAD (${webOwnerLeadsCount})`}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
+                    {isAutomotive
+                      ? (isTr ? `Yeni Araç Değerleme / Konsinye (${webOwnerLeadsCount} Talep)` : `New Vehicle Leads (${webOwnerLeadsCount})`)
+                      : (isTr ? `Yeni Mülk Sahibi Başvurusu (${webOwnerLeadsCount} Talep)` : `New Property Leads (${webOwnerLeadsCount})`)}
                   </span>
-                  <span className="animate-pulse px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-[10px] rounded-full uppercase">
+                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-medium text-[10px] rounded-md uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-900 dark:bg-slate-100" />
                     {isTr ? 'Aksiyon Bekliyor' : 'Action Required'}
                   </span>
                 </div>
-                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
-                  {isTr 
-                    ? 'Web sitenizdeki "Mülk Sahibi Başvuru Formu" üzerinden yeni mülk değerleme ve portföye ekleme talepleri alındı.' 
-                    : 'New property valuation & portfolio listing requests received from website owner application forms.'}
+                <div className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5 leading-relaxed">
+                  {isAutomotive
+                    ? (isTr
+                        ? 'Web siteniz üzerinden yeni konsinye araç satışı, takas değerleme ve alıcı portföy talepleri alındı.'
+                        : 'New vehicle trade-in valuation & consignment listing requests received from website forms.')
+                    : (isTr 
+                        ? 'Web sitenizdeki "Mülk Sahibi Başvuru Formu" üzerinden yeni mülk değerleme ve portföye ekleme talepleri alındı.' 
+                        : 'New property valuation & portfolio listing requests received from website owner application forms.')}
                 </div>
               </div>
             </div>
             <button
-              onClick={() => setActiveTab("real_estate_crm")}
-              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center gap-1.5 border border-amber-500/30"
+              onClick={() => {
+                setRealEstateCrmInitialFilter('new');
+                setActiveTab("real_estate_crm");
+                setDismissedOwnerLeads(true);
+              }}
+              className="w-full sm:w-auto px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-medium text-xs rounded-lg shadow-xs transition-all shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <span>{isTr ? 'Mülk Sahibi CRM Taleplerini Aç' : 'View Owner Leads'}</span>
+              <span>{isAutomotive ? (isTr ? 'Araç Sahibi CRM Taleplerini Aç' : 'View Vehicle Leads') : (isTr ? 'Mülk Sahibi CRM Taleplerini Aç' : 'View Owner Leads')}</span>
               <span>→</span>
             </button>
           </div>
@@ -1683,6 +1736,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       if (filter) {
                         setSalesStatusFilter(filter);
                       }
+                    } else if (tab === "team-crm") {
+                      if (filter === "calendar") {
+                        setTeamCrmInitialSubTab("pipeline");
+                        setTeamCrmInitialView("calendar");
+                      } else if (filter === "portfolio") {
+                        setTeamCrmInitialSubTab("pipeline");
+                        setTeamCrmInitialView("portfolio");
+                      }
+                    } else if (tab === "real_estate_crm") {
+                      if (filter === "new" || filter === "owner" || filter === "investor" || filter === "all") {
+                        setRealEstateCrmInitialFilter(filter);
+                      }
                     }
                     setActiveTab(tab);
                   }}
@@ -1700,6 +1765,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   storeName={branding?.store_name || branding?.name || ""}
                   isAutomotive={isAutomotive} 
                   isRealEstate={isRealEstate}
+                  initialSubTab={teamCrmInitialSubTab}
+                  initialCrmView={teamCrmInitialView}
                 />
               )}
               {activeTab === "real_estate_crm" && permittedTabIds.has("real_estate_crm") && (
@@ -1707,6 +1774,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   contacts={contacts}
                   onSaveContact={saveContact}
                   onDeleteContact={deleteContact}
+                  isAutomotive={isAutomotive}
+                  initialFilter={realEstateCrmInitialFilter}
                 />
               )}
               {activeTab === "radar_alerts" && permittedTabIds.has("radar_alerts") && (

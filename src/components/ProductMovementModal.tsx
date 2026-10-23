@@ -3,7 +3,7 @@ import {
   X, Package, ArrowUpCircle, ArrowDownCircle, FileDown, FileText, 
   ExternalLink, Loader2, Receipt, Search, Filter, Printer, 
   TrendingUp, TrendingDown, Store, User, Hash, Calendar, Layers,
-  RotateCcw, Scale, CheckCircle2, AlertCircle, Info, ArrowRight
+  RotateCcw, Scale, CheckCircle2, AlertCircle, Info, ArrowRight, Edit2
 } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from 'sonner';
@@ -407,27 +407,27 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
   return (
     <>
       <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
-        <div className="bg-white rounded-none sm:rounded-3xl shadow-2xl w-full max-w-4xl h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col overflow-hidden border border-slate-200">
+        <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-6xl xl:max-w-7xl h-[100dvh] sm:h-auto sm:max-h-[92dvh] flex flex-col overflow-hidden border border-slate-200">
           
           {/* HEADER */}
-          <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white shrink-0">
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0">
-                <Layers className="h-4 w-4 sm:h-5 sm:w-5" />
+          <div className="px-4 py-2.5 sm:px-5 sm:py-3 border-b border-slate-800 flex items-center justify-between bg-slate-900 text-white shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0">
+                <Layers className="h-4 w-4" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xs sm:text-base font-medium uppercase tracking-wide text-white truncate">
+                  <h2 className="text-xs sm:text-sm font-medium uppercase tracking-wide text-white truncate">
                     {isTr ? 'Ürün Ekstresi' : 'Product Statement'}
                   </h2>
-                  <span className="text-[10px] sm:text-[11px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
                     #{product.id}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-300 mt-0.5 truncate">
-                  <span className="font-medium text-white truncate max-w-[160px] sm:max-w-md">{product.name}</span>
+                  <span className="font-medium text-white truncate max-w-md sm:max-w-xl">{product.name}</span>
                   {product.barcode && (
-                    <span className="font-mono bg-slate-800 px-1 py-0.5 rounded text-slate-300 text-[10px] hidden sm:inline">
+                    <span className="font-mono bg-slate-800 px-1.5 py-0.2 rounded text-slate-300 text-[10px] hidden sm:inline border border-slate-700">
                       {product.barcode}
                     </span>
                   )}
@@ -435,15 +435,15 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button 
                 type="button"
                 onClick={handlePrintStatement}
                 disabled={movements.length === 0}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl transition-all text-xs font-medium border border-slate-700 disabled:opacity-40 cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg transition-all text-xs font-medium border border-slate-700 disabled:opacity-40 cursor-pointer"
                 title={isTr ? 'Yazdır / PDF Ekstre' : 'Print Statement'}
               >
-                <Printer className="h-4 w-4" />
+                <Printer className="h-3.5 w-3.5" />
                 <span>{isTr ? 'Yazdır' : 'Print'}</span>
               </button>
 
@@ -451,106 +451,106 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                 type="button"
                 onClick={handleExport}
                 disabled={exporting || movements.length === 0}
-                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all text-xs font-medium shadow-xs disabled:opacity-40 cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all text-xs font-medium shadow-2xs disabled:opacity-40 cursor-pointer"
                 title={isTr ? 'Excel Olarak İndir' : 'Export Excel'}
               >
-                <FileDown className="h-4 w-4" />
+                <FileDown className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{exporting ? '...' : 'Excel'}</span>
               </button>
 
               <button 
                 type="button"
                 onClick={onClose} 
-                className="p-2.5 hover:bg-white/20 rounded-full transition-colors text-white cursor-pointer ml-1 touch-manipulation"
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-slate-300 hover:text-white cursor-pointer ml-1"
                 title={isTr ? 'Kapat' : 'Close'}
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               </button>
             </div>
           </div>
 
-          {/* SUMMARY KPI CARDS */}
-          <div className="p-4 bg-slate-50/90 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
+          {/* COMPACT SUMMARY KPI CARDS */}
+          <div className="py-2 px-4 bg-slate-50/80 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2.5 shrink-0">
             {/* INCOMING / PURCHASES */}
-            <div className="p-3 bg-white rounded-2xl border border-emerald-100 shadow-2xs flex items-center justify-between">
+            <div className="px-3 py-2 bg-white rounded-xl border border-emerald-100/90 shadow-2xs flex items-center justify-between">
               <div className="space-y-0.5">
-                <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3 text-emerald-600" />
                   {isTr ? 'Toplam Giriş / Alış' : 'Total In / Purchases'}
                 </div>
-                <div className="text-lg font-medium text-emerald-700">
-                  +{stats.totalInQty} <span className="text-xs font-medium text-slate-600">{product.unit || 'Adet'}</span>
+                <div className="text-sm font-medium font-mono text-emerald-700">
+                  +{stats.totalInQty} <span className="text-[11px] font-normal text-slate-500">{product.unit || 'Adet'}</span>
                 </div>
-                <div className="text-[11px] font-medium text-slate-500">
+                <div className="text-[10px] font-mono text-slate-500">
                   {formatCurrency(stats.totalInAmount)}
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-medium text-xs">
+              <div className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-mono font-medium text-[11px]">
                 {stats.purchaseCount} {isTr ? 'fat' : 'inv'}
               </div>
             </div>
 
             {/* OUTGOING / SALES */}
-            <div className="p-3 bg-white rounded-2xl border border-rose-100 shadow-2xs flex items-center justify-between">
+            <div className="px-3 py-2 bg-white rounded-xl border border-rose-100/90 shadow-2xs flex items-center justify-between">
               <div className="space-y-0.5">
-                <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
+                <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <TrendingDown className="h-3 w-3 text-rose-600" />
                   {isTr ? 'Toplam Çıkış / Satış' : 'Total Out / Sales'}
                 </div>
-                <div className="text-lg font-medium text-rose-700">
-                  -{stats.totalOutQty} <span className="text-xs font-medium text-slate-600">{product.unit || 'Adet'}</span>
+                <div className="text-sm font-medium font-mono text-rose-700">
+                  -{stats.totalOutQty} <span className="text-[11px] font-normal text-slate-500">{product.unit || 'Adet'}</span>
                 </div>
-                <div className="text-[11px] font-medium text-slate-500">
+                <div className="text-[10px] font-mono text-slate-500">
                   {formatCurrency(stats.totalOutAmount)}
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 font-medium text-xs">
+              <div className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/60 font-mono font-medium text-[11px]">
                 {stats.salesCount + stats.posCount} {isTr ? 'işl' : 'tx'}
               </div>
             </div>
 
             {/* NET STOCK & BALANCE */}
-            <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100 shadow-2xs flex items-center justify-between">
+            <div className="px-3 py-2 bg-indigo-50/50 rounded-xl border border-indigo-100 shadow-2xs flex items-center justify-between">
               <div className="space-y-0.5">
-                <div className="text-[11px] font-medium text-indigo-900 uppercase tracking-wider flex items-center gap-1">
-                  <Package className="h-3.5 w-3.5 text-indigo-600" />
+                <div className="text-[10px] font-medium text-indigo-900 uppercase tracking-wider flex items-center gap-1">
+                  <Package className="h-3 w-3 text-indigo-600" />
                   {isTr ? 'Mevcut Stok Durumu' : 'Current Stock Balance'}
                 </div>
-                <div className="text-lg font-medium text-indigo-950">
-                  {stats.totalCount > 0 ? stats.netStock : (product.stock_quantity ?? 0)} <span className="text-xs font-medium text-indigo-700">{product.unit || 'Adet'}</span>
+                <div className="text-sm font-medium font-mono text-indigo-950">
+                  {stats.totalCount > 0 ? stats.netStock : (product.stock_quantity ?? 0)} <span className="text-[11px] font-normal text-indigo-700">{product.unit || 'Adet'}</span>
                 </div>
-                <div className="text-[11px] font-medium text-indigo-700">
-                  {isTr ? 'Satış Fiyatı:' : 'Price:'} {formatCurrency(product.price)}
+                <div className="text-[10px] font-mono text-indigo-700">
+                  {isTr ? 'Satış:' : 'Price:'} {formatCurrency(product.price)}
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-medium text-xs shadow-xs">
+              <div className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono font-medium text-[10px] shadow-2xs">
                 OK
               </div>
             </div>
           </div>
 
-          {/* FILTER & SEARCH TOOLBAR */}
-          <div className="px-4 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          {/* FILTER & SEARCH TOOLBAR (SINGLE LINE) */}
+          <div className="px-4 py-2 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
             {/* Filter Chips */}
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
               <button
                 type="button"
                 onClick={() => setSelectedFilter('all')}
-                className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   selectedFilter === 'all'
                     ? 'bg-slate-900 text-white shadow-2xs'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
-                {isTr ? 'Tüm Hareketler' : 'All Movements'} ({stats.totalCount})
+                {isTr ? 'Tümü' : 'All'} ({stats.totalCount})
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedFilter('purchase')}
-                className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   selectedFilter === 'purchase'
                     ? 'bg-emerald-600 text-white shadow-2xs'
-                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/60'
                 }`}
               >
                 {isTr ? 'Alış Faturaları' : 'Purchases'} ({stats.purchaseCount})
@@ -558,10 +558,10 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
               <button
                 type="button"
                 onClick={() => setSelectedFilter('sales')}
-                className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   selectedFilter === 'sales'
                     ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
+                    : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200/60'
                 }`}
               >
                 {isTr ? 'Satış Faturaları' : 'Sales'} ({stats.salesCount})
@@ -569,10 +569,10 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
               <button
                 type="button"
                 onClick={() => setSelectedFilter('pos')}
-                className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   selectedFilter === 'pos'
                     ? 'bg-violet-600 text-white shadow-2xs'
-                    : 'bg-violet-50 text-violet-800 hover:bg-violet-100'
+                    : 'bg-violet-50 text-violet-800 hover:bg-violet-100 border border-violet-200/60'
                 }`}
               >
                 {isTr ? 'POS / Kasa' : 'POS'} ({stats.posCount})
@@ -581,10 +581,10 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                 <button
                   type="button"
                   onClick={() => setSelectedFilter('other')}
-                  className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                     selectedFilter === 'other'
                       ? 'bg-amber-600 text-white shadow-2xs'
-                      : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                      : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200/60'
                   }`}
                 >
                   {isTr ? 'Devir / Düzeltme' : 'Adjustment'} ({stats.otherCount})
@@ -593,20 +593,20 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             </div>
 
             {/* Search Input */}
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+            <div className="relative w-full sm:w-64 shrink-0">
+              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={isTr ? 'Fatura no, cari veya açıklama ara...' : 'Search invoice, customer...'}
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-100 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900"
+                className="w-full pl-8 pr-7 py-1 text-xs bg-slate-100 border border-slate-200 rounded-lg focus:bg-white focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-800"
               />
               {searchQuery && (
                 <button 
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2 top-1.5 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -614,22 +614,22 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
             </div>
           </div>
 
-          {/* MOVEMENTS LIST / TABLE */}
-          <div className="p-4 overflow-y-auto flex-1 space-y-2.5 bg-slate-50/50">
+          {/* MOVEMENTS LIST / HIGH DENSITY SINGLE-ROW TABLE */}
+          <div className="p-3 overflow-y-auto flex-1 space-y-1.5 bg-slate-50/50">
             {loading ? (
               <div className="text-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-2" />
+                <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mx-auto mb-2" />
                 <div className="text-xs font-medium text-slate-500">
                   {isTr ? 'Ürün hareketleri ve fatura eşleşmeleri kontrol ediliyor...' : 'Checking product movements and invoice links...'}
                 </div>
               </div>
             ) : filteredMovements.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200">
-                <Package className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                <div className="text-sm font-medium text-slate-700">
+              <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-200">
+                <Package className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                <div className="text-xs font-medium text-slate-700">
                   {isTr ? 'Kayıtlı Hareket Bulunamadı' : 'No Movements Found'}
                 </div>
-                <div className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                <div className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
                   {searchQuery || selectedFilter !== 'all'
                     ? (isTr ? 'Seçili filtrelere uygun hareket kaydı bulunamadı.' : 'No movements match the current filter.')
                     : (isTr ? 'Bu ürüne ait henüz alış faturası, satış veya stok devri kaydedilmemiştir.' : 'No invoices or sales recorded for this product yet.')}
@@ -648,144 +648,139 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                 return (
                   <div 
                     key={m.id} 
-                    className="p-3.5 bg-white hover:bg-slate-50 rounded-2xl border border-slate-200/80 hover:border-slate-300 shadow-2xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="py-1.5 px-3 bg-white hover:bg-slate-50/90 rounded-xl border border-slate-200/80 hover:border-slate-300 shadow-2xs transition-colors flex items-center justify-between gap-3 text-xs"
                   >
-                    <div className="flex items-start gap-3">
+                    {/* Left: Direction Icon + Date + Badge + Description & Context */}
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      {/* Direction Icon */}
                       {m.type === 'in' ? (
-                        <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
-                          <ArrowUpCircle className="h-5 w-5" />
+                        <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200/70 flex items-center justify-center shrink-0" title={isTr ? 'Stok Girişi' : 'Stock In'}>
+                          <ArrowUpCircle className="h-3.5 w-3.5" />
                         </div>
                       ) : (
-                        <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 mt-0.5">
-                          <ArrowDownCircle className="h-5 w-5" />
+                        <div className="w-6 h-6 rounded-md bg-rose-50 text-rose-600 border border-rose-200/70 flex items-center justify-center shrink-0" title={isTr ? 'Stok Çıkışı' : 'Stock Out'}>
+                          <ArrowDownCircle className="h-3.5 w-3.5" />
                         </div>
                       )}
 
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md border uppercase tracking-wide ${badge.color}`}>
-                            {badge.label}
+                      {/* Date Time */}
+                      <span className="font-mono text-[11px] text-slate-500 whitespace-nowrap shrink-0">
+                        {formatDateTimeTR(m.created_at)}
+                      </span>
+
+                      {/* Badge */}
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border uppercase tracking-wider whitespace-nowrap shrink-0 ${badge.color}`}>
+                        {badge.label}
+                      </span>
+
+                      {/* Description and Document Info (Inline) */}
+                      <div className="flex items-center gap-2 min-w-0 flex-1 truncate">
+                        <span className="text-xs font-medium text-slate-800 truncate" title={m.description}>
+                          {m.description}
+                        </span>
+
+                        {/* Customer Info */}
+                        {m.customer_info && (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 truncate shrink-0 max-w-[180px]" title={m.customer_info}>
+                            <User className="h-3 w-3 text-slate-400 shrink-0" />
+                            <span className="truncate">{m.customer_info}</span>
                           </span>
-                          <span className="text-xs font-medium text-slate-900">
-                            {m.description}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                          <span className="flex items-center gap-1 font-mono text-[11px]">
-                            <Calendar className="h-3 w-3 text-slate-400" />
-                            {formatDateTimeTR(m.created_at)}
-                          </span>
-
-                          {m.customer_info && (
-                            <span className="flex items-center gap-1 text-slate-700 font-medium">
-                              <User className="h-3 w-3 text-slate-400" />
-                              {m.customer_info}
-                            </span>
-                          )}
-
-                          {m.unit_price != null && Number(m.unit_price) > 0 && (
-                            <span className="text-slate-600 font-medium">
-                              {isTr ? 'Birim:' : 'Unit:'} <strong className="text-slate-900">{formatCurrency(m.unit_price, m.currency)}</strong>
-                            </span>
-                          )}
-
-                          {rowTotal > 0 && (
-                            <span className="text-indigo-700 font-medium bg-indigo-50 px-1.5 py-0.2 rounded">
-                              {isTr ? 'Tutar:' : 'Total:'} {formatCurrency(rowTotal, m.currency)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Direct Invoice Action Buttons */}
-                        {hasInvoice && (
-                          <div className="pt-1.5 flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenInvoice(m)}
-                              disabled={loadingInvoiceId === m.id}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium transition-all shadow-2xs border cursor-pointer ${
-                                invType === 'purchase'
-                                   ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200 hover:border-indigo-300'
-                                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 hover:border-blue-300'
-                              }`}
-                              title={isTr ? 'Fatura detaylarını görüntüleyin' : 'View invoice details'}
-                            >
-                              {loadingInvoiceId === m.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin text-current" />
-                              ) : (
-                                <FileText className="h-3.5 w-3.5 text-current" />
-                              )}
-                              <span>
-                                {invType === 'purchase'
-                                  ? (isTr ? 'Alış Faturasını Aç' : 'Open Purchase Invoice')
-                                  : (isTr ? 'Satış Faturasını Aç' : 'Open Sales Invoice')}
-                                {invNumber ? ` (${invNumber})` : ''}
-                              </span>
-                              <ExternalLink className="h-3 w-3 opacity-60 ml-0.5" />
-                            </button>
-
-                            {/* View e-Invoice HTML if purchase invoice */}
-                            {invType === 'purchase' && m.invoice_id && (
-                              <button
-                                type="button"
-                                onClick={() => handleViewPurchaseHtml(m.invoice_id!)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 transition-all cursor-pointer"
-                                title={isTr ? 'Orijinal e-Fatura HTML görselini görüntüle' : 'View e-Invoice HTML'}
-                              >
-                                <Receipt className="h-3.5 w-3.5 text-slate-600" />
-                                <span>{isTr ? 'e-Fatura Görseli' : 'e-Invoice HTML'}</span>
-                              </button>
-                            )}
-                          </div>
                         )}
 
-                        {/* Accounting Reversal / Correction Action Button (Senaryo 2) */}
-                        {isManualAdjust && !isReversalEntry && (
-                          <div className="pt-1.5 flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCorrectingMovement(m);
-                                setCorrectionType('full_reversal');
-                                setTargetQuantity(String(m.quantity || ''));
-                                setCorrectionReason('');
-                              }}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 hover:border-purple-300 transition-all shadow-2xs cursor-pointer active:scale-95"
-                              title={isTr ? 'Muhasebe standartlarında ters kayıt / düzeltme hareketi oluştur' : 'Create accounting reversal/correction entry'}
-                            >
-                              <RotateCcw className="h-3.5 w-3.5 text-purple-600" />
-                              <span>{isTr ? 'Hata Düzeltme / Ters Kayıt' : 'Correction / Reversal'}</span>
-                            </button>
-                            {isAlreadyReversed && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                <CheckCircle2 className="w-3 h-3 text-amber-600" />
-                                {isTr ? 'Ters Kayıt / Düzeltme İşlendi' : 'Corrected via Reversal'}
-                              </span>
+                        {/* Unit Price & Total Amount if present */}
+                        {(m.unit_price != null && Number(m.unit_price) > 0) && (
+                          <span className="hidden lg:inline-flex items-center gap-1 font-mono text-[11px] text-slate-500 whitespace-nowrap shrink-0">
+                            <span>{isTr ? 'Birim:' : 'Unit:'}</span>
+                            <span className="text-slate-800 font-medium">{formatCurrency(m.unit_price, m.currency)}</span>
+                            {rowTotal > 0 && (
+                              <>
+                                <span className="text-slate-300">|</span>
+                                <span>{isTr ? 'Tutar:' : 'Total:'}</span>
+                                <span className="text-indigo-700 font-medium">{formatCurrency(rowTotal, m.currency)}</span>
+                              </>
                             )}
-                          </div>
+                          </span>
                         )}
 
-                        {/* If this row is a reversal entry referencing another movement */}
+                        {/* Reversal Reference Note if this is a reversal */}
                         {isReversalEntry && m.reference_movement_id && (
-                          <div className="pt-1 flex items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200/60 font-mono">
-                              <Scale className="w-3 h-3 text-purple-600" />
-                              {isTr ? `Orijinal Hareket: Ref #${m.reference_movement_id}` : `Original Ref #${m.reference_movement_id}`}
-                            </span>
-                          </div>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200/60 shrink-0">
+                            <Scale className="w-2.5 h-2.5 text-purple-600" />
+                            <span>Ref #{m.reference_movement_id}</span>
+                          </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 shrink-0">
-                      <span className="text-[11px] text-slate-400 font-medium uppercase sm:hidden">
-                        {isTr ? 'Miktar' : 'Quantity'}
-                      </span>
-                      <div className={`font-medium text-base sm:text-lg tabular-nums ${
-                        m.type === 'in' ? 'text-emerald-600' : 'text-rose-600'
+                    {/* Right: Actions + Reversal Pen Icon + Quantity */}
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      {/* Direct Invoice Action Buttons (compact icons) */}
+                      {hasInvoice && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenInvoice(m)}
+                            disabled={loadingInvoiceId === m.id}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all border cursor-pointer ${
+                              invType === 'purchase'
+                                ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200'
+                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200'
+                            }`}
+                            title={invType === 'purchase' ? (isTr ? 'Alış Faturasını Aç' : 'Open Purchase Invoice') : (isTr ? 'Satış Faturasını Aç' : 'Open Sales Invoice')}
+                          >
+                            {loadingInvoiceId === m.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin text-current" />
+                            ) : (
+                              <FileText className="h-3 w-3 text-current" />
+                            )}
+                            <span className="font-mono">{invNumber || (invType === 'purchase' ? (isTr ? 'Alış Faturası' : 'Purchase') : (isTr ? 'Satış Faturası' : 'Sales'))}</span>
+                            <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+                          </button>
+
+                          {invType === 'purchase' && m.invoice_id && (
+                            <button
+                              type="button"
+                              onClick={() => handleViewPurchaseHtml(m.invoice_id!)}
+                              className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-transparent hover:border-indigo-200 transition-colors cursor-pointer"
+                              title={isTr ? 'Orijinal e-Fatura HTML görselini görüntüle' : 'View e-Invoice HTML'}
+                            >
+                              <Receipt className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Reversal Tag if already reversed */}
+                      {isAlreadyReversed && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200" title={isTr ? 'Bu hareket için ters kayıt/düzeltme oluşturuldu' : 'Corrected via reversal'}>
+                          <CheckCircle2 className="w-3 h-3 text-amber-600" />
+                          <span className="hidden sm:inline">{isTr ? 'Düzeltildi' : 'Reversed'}</span>
+                        </span>
+                      )}
+
+                      {/* Kalem İkonu ile Hata Düzeltme / Ters Kayıt Revizesi */}
+                      {isManualAdjust && !isReversalEntry && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCorrectingMovement(m);
+                            setCorrectionType('full_reversal');
+                            setTargetQuantity(String(m.quantity || ''));
+                            setCorrectionReason('');
+                          }}
+                          className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg transition-all cursor-pointer shadow-2xs active:scale-95"
+                          title={isTr ? 'Hata Düzeltme / Ters Kayıt (Miktar Revizesi)' : 'Correction / Reversal'}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+
+                      {/* Movement Quantity: Single-Line, Clean Font */}
+                      <div className={`font-mono font-medium text-xs sm:text-sm whitespace-nowrap min-w-[65px] text-right ${
+                        m.type === 'in' ? 'text-emerald-700' : 'text-rose-700'
                       }`}>
-                        {m.type === 'in' ? '+' : '-'}{Math.abs(Number(m.quantity))} <span className="text-xs font-medium text-slate-500">{product.unit || 'Adet'}</span>
+                        {m.type === 'in' ? `+${m.quantity}` : `-${m.quantity}`}{' '}
+                        <span className="text-[11px] font-normal text-slate-500">{product.unit || 'Adet'}</span>
                       </div>
                     </div>
                   </div>
@@ -795,14 +790,14 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
           </div>
 
           {/* FOOTER */}
-          <div className="px-6 py-3 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
+          <div className="px-4 py-2.5 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
             <span className="font-medium">
-              {isTr ? 'Gösterilen Hareket:' : 'Shown Movements:'} <strong className="text-slate-900">{filteredMovements.length}</strong> / {movements.length}
+              {isTr ? 'Gösterilen Hareket:' : 'Shown Movements:'} <strong className="text-slate-800">{filteredMovements.length}</strong> / {movements.length}
             </span>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-medium transition-all cursor-pointer"
+              className="px-3.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-medium transition-all cursor-pointer"
             >
               {isTr ? 'Kapat' : 'Close'}
             </button>
@@ -900,9 +895,9 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                   <Scale className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-xs sm:text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                  <h3 className="text-xs sm:text-sm font-semibold tracking-tight text-white flex items-center gap-1.5">
                     <span>{isTr ? 'Hata Düzeltme & Ters Kayıt' : 'Stock Correction & Reversal'}</span>
-                    <span className="font-mono text-[10px] text-purple-300 font-bold bg-purple-900/50 px-1.5 py-0.2 rounded border border-purple-500/30">
+                    <span className="font-mono text-[10px] text-purple-300 font-medium bg-purple-900/50 px-1.5 py-0.2 rounded border border-purple-500/30">
                       Ref #{correctingMovement.id}
                     </span>
                   </h3>
@@ -926,21 +921,21 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
               {/* Original Movement Summary Card */}
               <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
                     {isTr ? 'Düzeltilecek Orijinal Kayıt' : 'Target Movement'}
                   </span>
                   <span className="font-mono text-[10px] text-slate-400">
                     {formatDateTimeTR(correctingMovement.created_at)}
                   </span>
                 </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">
+                <div className="text-xs font-semibold text-slate-900 dark:text-white">
                   {correctingMovement.description}
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-[11px] text-slate-500 font-normal">
                     {isTr ? 'Kayıtlı İşlem Yönü & Miktar:' : 'Recorded Effect:'}
                   </span>
-                  <span className={`text-sm font-black font-mono ${correctingMovement.type === 'in' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  <span className={`text-sm font-semibold font-mono ${correctingMovement.type === 'in' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                     {correctingMovement.type === 'in' ? '+' : '-'}{correctingMovement.quantity} {product.unit || 'Adet'}
                   </span>
                 </div>

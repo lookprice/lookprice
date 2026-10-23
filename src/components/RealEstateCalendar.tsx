@@ -252,9 +252,9 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
         </div>
       ) : (
         /* CALENDAR GRID & MOBILE RESPONSIVE SIDEBAR */
-        <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+        <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
           {/* Calendar Grid */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar border-b lg:border-b-0 lg:border-r border-slate-100">
+          <div className="flex-1 lg:overflow-y-auto p-3 sm:p-6 custom-scrollbar border-b lg:border-b-0 lg:border-r border-slate-100 shrink-0 lg:shrink">
             <div className="grid grid-cols-7 gap-1 sm:gap-1.5 bg-slate-200/70 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
               {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map(day => (
                 <div key={day} className="bg-slate-50 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">

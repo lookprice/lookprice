@@ -159,10 +159,53 @@ export const useCompanyExport = (
       const crossRate = Number(tx.cross_rate || rate || 1);
       const descLower = (tx.description || '').toLowerCase();
 
+      // Detect cross-currency transaction where entry was in TRY (TL) converting to foreign target (USD/EUR/GBP)
+      const isCrossFromTRY = (txCrossCurr === defaultCurr && rawCrossAmt > 0 && txCurr !== defaultCurr) ||
+        ((descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:')) && txCurr !== defaultCurr);
+      const isCrossToTRY = (txCurr === defaultCurr && txCrossCurr && txCrossCurr !== defaultCurr);
+
       if (selectedCurrency === 'ALL') {
+        if (isCrossFromTRY) {
+          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * (crossRate > 0 ? crossRate : rate)).toFixed(2));
+          enrichedTransactions.push({
+            ...tx,
+            statementCurr: defaultCurr,
+            statementAmt: tryAmt,
+            statementRate: crossRate > 0 ? crossRate : rate,
+            fxCurr: txCurr,
+            fxAmt: rawAmt,
+            fxRate: crossRate > 0 ? crossRate : rate,
+            baseAmt: tryAmt,
+            targetBalCurr: txCurr,
+            targetBalAmt: rawAmt,
+            isCross: true,
+            crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${(crossRate > 0 ? crossRate : rate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+          });
+          return;
+        }
+
+        if (isCrossToTRY) {
+          const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (crossRate > 0 ? Number((rawAmt / crossRate).toFixed(2)) : null);
+          enrichedTransactions.push({
+            ...tx,
+            statementCurr: defaultCurr,
+            statementAmt: rawAmt,
+            statementRate: crossRate > 0 ? crossRate : 1,
+            fxCurr: txCrossCurr,
+            fxAmt: fxAmt,
+            fxRate: crossRate > 0 ? crossRate : rate,
+            baseAmt: rawAmt,
+            targetBalCurr: defaultCurr,
+            targetBalAmt: rawAmt,
+            isCross: true,
+            crossNote: fxAmt ? `${Number(fxAmt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCrossCurr} Mahsubu` : undefined
+          });
+          return;
+        }
+
         const baseAmt = Number((rawAmt * rate).toFixed(2));
-        const fxCurr = txCrossCurr || (txCurr !== defaultCurr ? txCurr : '');
-        const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (txCurr !== defaultCurr ? rawAmt : null);
+        const fxCurr = txCrossCurr || (txCurr !== defaultCurr ? defaultCurr : '');
+        const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (txCurr !== defaultCurr ? baseAmt : null);
         enrichedTransactions.push({
           ...tx,
           statementCurr: txCurr,
@@ -172,12 +215,33 @@ export const useCompanyExport = (
           fxAmt,
           fxRate: crossRate > 0 ? crossRate : rate,
           baseAmt,
+          targetBalCurr: txCurr,
+          targetBalAmt: rawAmt,
           isCross: Boolean(txCrossCurr && txCrossCurr !== txCurr)
         });
         return;
       }
 
       if (selectedCurrency === defaultCurr) {
+        if (isCrossFromTRY) {
+          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * crossRate).toFixed(2));
+          enrichedTransactions.push({
+            ...tx,
+            statementCurr: defaultCurr,
+            statementAmt: tryAmt,
+            statementRate: crossRate > 0 ? crossRate : rate,
+            fxCurr: txCurr,
+            fxAmt: rawAmt,
+            fxRate: crossRate > 0 ? crossRate : rate,
+            baseAmt: tryAmt,
+            targetBalCurr: txCurr,
+            targetBalAmt: rawAmt,
+            isCross: true,
+            crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${(crossRate > 0 ? crossRate : rate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+          });
+          return;
+        }
+
         if (txCurr === defaultCurr) {
           const hasTargetCross = Boolean(txCrossCurr && txCrossCurr !== defaultCurr);
           const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (hasTargetCross && crossRate > 0 ? Number((rawAmt / crossRate).toFixed(2)) : null);
@@ -190,24 +254,9 @@ export const useCompanyExport = (
             fxAmt: hasTargetCross ? fxAmt : null,
             fxRate: crossRate > 0 ? crossRate : (rate > 1 ? rate : 1),
             baseAmt: rawAmt,
+            targetBalCurr: defaultCurr,
+            targetBalAmt: rawAmt,
             isCross: hasTargetCross
-          });
-          return;
-        }
-
-        if (txCrossCurr === defaultCurr) {
-          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * crossRate).toFixed(2));
-          enrichedTransactions.push({
-            ...tx,
-            statementCurr: defaultCurr,
-            statementAmt: tryAmt,
-            statementRate: crossRate,
-            fxCurr: txCurr,
-            fxAmt: rawAmt,
-            fxRate: crossRate,
-            baseAmt: tryAmt,
-            isCross: true,
-            crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu`
           });
           return;
         }
@@ -222,6 +271,8 @@ export const useCompanyExport = (
           fxAmt: rawAmt,
           fxRate: rate,
           baseAmt: tryAmt,
+          targetBalCurr: txCurr,
+          targetBalAmt: rawAmt,
           isForeignInBase: true
         });
         return;
@@ -229,8 +280,8 @@ export const useCompanyExport = (
 
       if (selectedCurrency !== defaultCurr && selectedCurrency !== 'ALL') {
         if (txCurr === selectedCurrency) {
-          const hasTryCross = txCrossCurr === defaultCurr || descLower.includes('tl tahsilat') || descLower.includes('tl ödeme');
-          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * rate).toFixed(2));
+          const hasTryCross = txCrossCurr === defaultCurr || descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:');
+          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * (crossRate > 0 ? crossRate : rate)).toFixed(2));
           enrichedTransactions.push({
             ...tx,
             statementCurr: selectedCurrency,
@@ -240,8 +291,10 @@ export const useCompanyExport = (
             fxAmt: tryAmt,
             fxRate: crossRate > 0 ? crossRate : rate,
             baseAmt: tryAmt,
+            targetBalCurr: selectedCurrency,
+            targetBalAmt: rawAmt,
             isCross: hasTryCross,
-            crossNote: hasTryCross ? `${tryAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ Karşılığı` : undefined
+            crossNote: hasTryCross ? `${tryAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${(crossRate > 0 ? crossRate : rate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
           });
           return;
         }
@@ -257,6 +310,8 @@ export const useCompanyExport = (
             fxAmt: rawAmt,
             fxRate: crossRate,
             baseAmt: Number((rawAmt * (txCurr === defaultCurr ? 1 : rate)).toFixed(2)),
+            targetBalCurr: selectedCurrency,
+            targetBalAmt: fxAmt,
             isCross: true,
             crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${txCurr} Karşılığı`
           });
@@ -392,19 +447,36 @@ export const useCompanyExport = (
       const rate = Number(t_item.statementRate || resolveRate(curr, t_item.exchange_rate));
       const baseAmount = Number(t_item.baseAmt || (amount * (curr === defaultCurr ? 1 : rate)).toFixed(2));
 
-      if (runningBalancesByCurr[curr] === undefined) {
-        runningBalancesByCurr[curr] = Number(openingBalances[curr] || 0);
+      if (t_item.targetBalCurr && t_item.targetBalCurr !== curr) {
+        if (runningBalancesByCurr[t_item.targetBalCurr] === undefined) {
+          runningBalancesByCurr[t_item.targetBalCurr] = Number(openingBalances[t_item.targetBalCurr] || 0);
+        }
+        const tAmt = Number(t_item.targetBalAmt || t_item.fxAmt || 0);
+        if (t_item.type === 'debt') {
+          runningBalancesByCurr[t_item.targetBalCurr] = Number((runningBalancesByCurr[t_item.targetBalCurr] + tAmt).toFixed(2));
+        } else {
+          runningBalancesByCurr[t_item.targetBalCurr] = Number((runningBalancesByCurr[t_item.targetBalCurr] - tAmt).toFixed(2));
+        }
+      } else {
+        if (runningBalancesByCurr[curr] === undefined) {
+          runningBalancesByCurr[curr] = Number(openingBalances[curr] || 0);
+        }
+        if (t_item.type === 'debt') {
+          runningBalancesByCurr[curr] = Number((runningBalancesByCurr[curr] + amount).toFixed(2));
+        } else {
+          runningBalancesByCurr[curr] = Number((runningBalancesByCurr[curr] - amount).toFixed(2));
+        }
       }
       if (t_item.type === 'debt') {
-        runningBalancesByCurr[curr] = Number((runningBalancesByCurr[curr] + amount).toFixed(2));
         runningStatementBal = Number((runningStatementBal + amount).toFixed(2));
         runningBaseBalance = Number((runningBaseBalance + baseAmount).toFixed(2));
       } else {
-        runningBalancesByCurr[curr] = Number((runningBalancesByCurr[curr] - amount).toFixed(2));
         runningStatementBal = Number((runningStatementBal - amount).toFixed(2));
         runningBaseBalance = Number((runningBaseBalance - baseAmount).toFixed(2));
       }
-      const rowBal = selectedCurrency === 'ALL' ? runningBalancesByCurr[curr] : runningStatementBal;
+      const rowBal = selectedCurrency === 'ALL' 
+        ? (t_item.targetBalCurr ? runningBalancesByCurr[t_item.targetBalCurr] : runningBalancesByCurr[curr]) 
+        : runningStatementBal;
       
       const docNo = resolveDocNo(t_item);
       const closedInvNo = resolveClosedInvNo(t_item);
@@ -422,7 +494,7 @@ export const useCompanyExport = (
         fxStr,
         t_item.type === 'debt' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${curr}` : "-",
         t_item.type === 'credit' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${curr}` : "-",
-        `${rowBal.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${selectedCurrency === 'ALL' ? curr : selectedCurrency}`,
+        `${rowBal.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${selectedCurrency === 'ALL' ? (t_item.targetBalCurr || curr) : selectedCurrency}`,
         `${runningBaseBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${defaultCurr}`
       ]);
     });
@@ -578,10 +650,53 @@ export const useCompanyExport = (
       const crossRate = Number(tx.cross_rate || rate || 1);
       const descLower = (tx.description || '').toLowerCase();
 
+      // Detect cross-currency transaction where entry was in TRY (TL) converting to foreign target (USD/EUR/GBP)
+      const isCrossFromTRY = (txCrossCurr === defaultCurr && rawCrossAmt > 0 && txCurr !== defaultCurr) ||
+        ((descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:')) && txCurr !== defaultCurr);
+      const isCrossToTRY = (txCurr === defaultCurr && txCrossCurr && txCrossCurr !== defaultCurr);
+
       if (selectedCurrency === 'ALL') {
+        if (isCrossFromTRY) {
+          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * (crossRate > 0 ? crossRate : rate)).toFixed(2));
+          enrichedExcelTxs.push({
+            ...tx,
+            statementCurr: defaultCurr,
+            statementAmt: tryAmt,
+            statementRate: crossRate > 0 ? crossRate : rate,
+            fxCurr: txCurr,
+            fxAmt: rawAmt,
+            fxRate: crossRate > 0 ? crossRate : rate,
+            baseAmt: tryAmt,
+            targetBalCurr: txCurr,
+            targetBalAmt: rawAmt,
+            isCross: true,
+            crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${(crossRate > 0 ? crossRate : rate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+          });
+          return;
+        }
+
+        if (isCrossToTRY) {
+          const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (crossRate > 0 ? Number((rawAmt / crossRate).toFixed(2)) : null);
+          enrichedExcelTxs.push({
+            ...tx,
+            statementCurr: defaultCurr,
+            statementAmt: rawAmt,
+            statementRate: crossRate > 0 ? crossRate : 1,
+            fxCurr: txCrossCurr,
+            fxAmt: fxAmt,
+            fxRate: crossRate > 0 ? crossRate : rate,
+            baseAmt: rawAmt,
+            targetBalCurr: defaultCurr,
+            targetBalAmt: rawAmt,
+            isCross: true,
+            crossNote: fxAmt ? `${Number(fxAmt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCrossCurr} Mahsubu` : undefined
+          });
+          return;
+        }
+
         const baseAmt = Number((rawAmt * rate).toFixed(2));
-        const fxCurr = txCrossCurr || (txCurr !== defaultCurr ? txCurr : '');
-        const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (txCurr !== defaultCurr ? rawAmt : null);
+        const fxCurr = txCrossCurr || (txCurr !== defaultCurr ? defaultCurr : '');
+        const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (txCurr !== defaultCurr ? baseAmt : null);
         enrichedExcelTxs.push({
           ...tx,
           statementCurr: txCurr,
@@ -591,12 +706,33 @@ export const useCompanyExport = (
           fxAmt,
           fxRate: crossRate > 0 ? crossRate : rate,
           baseAmt,
+          targetBalCurr: txCurr,
+          targetBalAmt: rawAmt,
           isCross: Boolean(txCrossCurr && txCrossCurr !== txCurr)
         });
         return;
       }
 
       if (selectedCurrency === defaultCurr) {
+        if (isCrossFromTRY) {
+          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * crossRate).toFixed(2));
+          enrichedExcelTxs.push({
+            ...tx,
+            statementCurr: defaultCurr,
+            statementAmt: tryAmt,
+            statementRate: crossRate > 0 ? crossRate : rate,
+            fxCurr: txCurr,
+            fxAmt: rawAmt,
+            fxRate: crossRate > 0 ? crossRate : rate,
+            baseAmt: tryAmt,
+            targetBalCurr: txCurr,
+            targetBalAmt: rawAmt,
+            isCross: true,
+            crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${(crossRate > 0 ? crossRate : rate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+          });
+          return;
+        }
+
         if (txCurr === defaultCurr) {
           const hasTargetCross = Boolean(txCrossCurr && txCrossCurr !== defaultCurr);
           const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (hasTargetCross && crossRate > 0 ? Number((rawAmt / crossRate).toFixed(2)) : null);
@@ -609,24 +745,9 @@ export const useCompanyExport = (
             fxAmt: hasTargetCross ? fxAmt : null,
             fxRate: crossRate > 0 ? crossRate : (rate > 1 ? rate : 1),
             baseAmt: rawAmt,
+            targetBalCurr: defaultCurr,
+            targetBalAmt: rawAmt,
             isCross: hasTargetCross
-          });
-          return;
-        }
-
-        if (txCrossCurr === defaultCurr) {
-          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * crossRate).toFixed(2));
-          enrichedExcelTxs.push({
-            ...tx,
-            statementCurr: defaultCurr,
-            statementAmt: tryAmt,
-            statementRate: crossRate,
-            fxCurr: txCurr,
-            fxAmt: rawAmt,
-            fxRate: crossRate,
-            baseAmt: tryAmt,
-            isCross: true,
-            crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu`
           });
           return;
         }
@@ -641,6 +762,8 @@ export const useCompanyExport = (
           fxAmt: rawAmt,
           fxRate: rate,
           baseAmt: tryAmt,
+          targetBalCurr: txCurr,
+          targetBalAmt: rawAmt,
           isForeignInBase: true
         });
         return;
@@ -648,8 +771,8 @@ export const useCompanyExport = (
 
       if (selectedCurrency !== defaultCurr && selectedCurrency !== 'ALL') {
         if (txCurr === selectedCurrency) {
-          const hasTryCross = txCrossCurr === defaultCurr || descLower.includes('tl tahsilat') || descLower.includes('tl ödeme');
-          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * rate).toFixed(2));
+          const hasTryCross = txCrossCurr === defaultCurr || descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:');
+          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * (crossRate > 0 ? crossRate : rate)).toFixed(2));
           enrichedExcelTxs.push({
             ...tx,
             statementCurr: selectedCurrency,
@@ -659,8 +782,10 @@ export const useCompanyExport = (
             fxAmt: tryAmt,
             fxRate: crossRate > 0 ? crossRate : rate,
             baseAmt: tryAmt,
+            targetBalCurr: selectedCurrency,
+            targetBalAmt: rawAmt,
             isCross: hasTryCross,
-            crossNote: hasTryCross ? `${tryAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ Karşılığı` : undefined
+            crossNote: hasTryCross ? `${tryAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${(crossRate > 0 ? crossRate : rate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
           });
           return;
         }
@@ -676,6 +801,8 @@ export const useCompanyExport = (
             fxAmt: rawAmt,
             fxRate: crossRate,
             baseAmt: Number((rawAmt * (txCurr === defaultCurr ? 1 : rate)).toFixed(2)),
+            targetBalCurr: selectedCurrency,
+            targetBalAmt: fxAmt,
             isCross: true,
             crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${txCurr} Karşılığı`
           });
@@ -751,17 +878,32 @@ export const useCompanyExport = (
       const rate = Number(t_item.statementRate || resolveRate(curr, t_item.exchange_rate));
       const baseAmt = Number(t_item.baseAmt || (amt * (curr === defaultCurr ? 1 : rate)).toFixed(2));
 
-      if (runningBalancesByCurr[curr] === undefined) {
-        runningBalancesByCurr[curr] = Number(openingBalances[curr] || 0);
+      const isDebt = t_item.type === 'debt';
+      if (t_item.targetBalCurr && t_item.targetBalCurr !== curr) {
+        if (runningBalancesByCurr[t_item.targetBalCurr] === undefined) {
+          runningBalancesByCurr[t_item.targetBalCurr] = Number(openingBalances[t_item.targetBalCurr] || 0);
+        }
+        const tAmt = Number(t_item.targetBalAmt || t_item.fxAmt || 0);
+        if (isDebt) {
+          runningBalancesByCurr[t_item.targetBalCurr] = Number((runningBalancesByCurr[t_item.targetBalCurr] + tAmt).toFixed(2));
+        } else {
+          runningBalancesByCurr[t_item.targetBalCurr] = Number((runningBalancesByCurr[t_item.targetBalCurr] - tAmt).toFixed(2));
+        }
+      } else {
+        if (runningBalancesByCurr[curr] === undefined) {
+          runningBalancesByCurr[curr] = Number(openingBalances[curr] || 0);
+        }
+        if (isDebt) {
+          runningBalancesByCurr[curr] = Number((runningBalancesByCurr[curr] + amt).toFixed(2));
+        } else {
+          runningBalancesByCurr[curr] = Number((runningBalancesByCurr[curr] - amt).toFixed(2));
+        }
       }
 
-      const isDebt = t_item.type === 'debt';
       if (isDebt) {
-        runningBalancesByCurr[curr] = Number((runningBalancesByCurr[curr] + amt).toFixed(2));
         runningStatementBal = Number((runningStatementBal + amt).toFixed(2));
         runningBaseBalance = Number((runningBaseBalance + baseAmt).toFixed(2));
       } else {
-        runningBalancesByCurr[curr] = Number((runningBalancesByCurr[curr] - amt).toFixed(2));
         runningStatementBal = Number((runningStatementBal - amt).toFixed(2));
         runningBaseBalance = Number((runningBaseBalance - baseAmt).toFixed(2));
       }
@@ -776,7 +918,7 @@ export const useCompanyExport = (
       totalBaseDebit = Number((totalBaseDebit + baseDebit).toFixed(2));
       totalBaseCredit = Number((totalBaseCredit + baseCredit).toFixed(2));
 
-      const currRunBal = selectedCurrency === 'ALL' ? Number(runningBalancesByCurr[curr].toFixed(2)) : Number(runningStatementBal.toFixed(2));
+      const currRunBal = selectedCurrency === 'ALL' ? Number((t_item.targetBalCurr ? runningBalancesByCurr[t_item.targetBalCurr] : runningBalancesByCurr[curr]).toFixed(2)) : Number(runningStatementBal.toFixed(2));
       const fxStr = t_item.fxAmt ? `${Number(t_item.fxAmt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${t_item.fxCurr}` : '-';
 
       data.push({

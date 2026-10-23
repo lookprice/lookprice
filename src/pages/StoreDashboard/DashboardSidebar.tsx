@@ -78,6 +78,8 @@ export const DashboardSidebar = ({
     sales: true,
     operations: true,
     real_estate: true,
+    finance_operations: true,
+    team: true,
     integrations: false,
     settings: false
   });
@@ -164,21 +166,21 @@ export const DashboardSidebar = ({
                                 });
                                 setSidebarOpen(false);
                               }}
-                              className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
+                              className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
                                 activeTab === item.id 
-                                  ? 'bg-indigo-600 text-white shadow-xs' 
+                                  ? 'bg-slate-800 text-white shadow-xs border border-slate-700/80 font-bold' 
                                   : 'text-slate-400 hover:bg-white/5 hover:text-white'
                               }`}
                             >
                               <div className="flex items-center space-x-2.5 min-w-0">
-                                <item.icon className={`h-4 w-4 shrink-0 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
+                                <item.icon className={`h-4 w-4 shrink-0 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`} />
                                 <span className="truncate tracking-tight">{item.label}</span>
                               </div>
                               {item.badge > 0 && (
-                                <span className={`flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[9px] font-black shrink-0 ${
-                                  item.badgeType === 'error' 
-                                    ? (activeTab === item.id ? 'bg-white text-rose-600' : 'bg-rose-600 text-white animate-pulse')
-                                    : (activeTab === item.id ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white animate-pulse')
+                                <span className={`flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[9px] font-mono font-medium shrink-0 ${
+                                  activeTab === item.id 
+                                    ? 'bg-white/20 text-white' 
+                                    : (item.badgeType === 'error' ? 'bg-slate-700 text-slate-100 border border-slate-600' : 'bg-slate-800 text-slate-300 border border-slate-700')
                                 }`}>
                                   {item.badge}
                                 </span>
@@ -200,21 +202,21 @@ export const DashboardSidebar = ({
                       });
                       setSidebarOpen(false);
                     }}
-                    className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
+                    className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
                       activeTab === navItem.id 
-                        ? 'bg-indigo-600 text-white shadow-xs' 
+                        ? 'bg-slate-800 text-white shadow-xs border border-slate-700/80 font-bold' 
                         : 'text-slate-400 hover:bg-white/5 hover:text-white'
                     }`}
                   >
                     <div className="flex items-center space-x-2.5 min-w-0">
-                      <navItem.icon className={`h-4 w-4 shrink-0 transition-colors ${activeTab === navItem.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
+                      <navItem.icon className={`h-4 w-4 shrink-0 transition-colors ${activeTab === navItem.id ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`} />
                       <span className="truncate tracking-tight">{navItem.label}</span>
                     </div>
                     {navItem.badge > 0 && (
-                      <span className={`flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[9px] font-black shrink-0 ${
-                        navItem.badgeType === 'error' 
-                          ? (activeTab === navItem.id ? 'bg-white text-rose-600' : 'bg-rose-600 text-white animate-pulse')
-                          : (activeTab === navItem.id ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white animate-pulse')
+                      <span className={`flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[9px] font-mono font-medium shrink-0 ${
+                        activeTab === navItem.id 
+                          ? 'bg-white/20 text-white' 
+                          : (navItem.badgeType === 'error' ? 'bg-slate-700 text-slate-100 border border-slate-600' : 'bg-slate-800 text-slate-300 border border-slate-700')
                       }`}>
                         {navItem.badge}
                       </span>

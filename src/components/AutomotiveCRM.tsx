@@ -60,6 +60,7 @@ export const AutomotiveCRM = ({
   const [dealCards, setDealCards] = useState<any[]>([]);
   const [internalSearchQuery, setInternalSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<'all' | 'active_pipeline'>('active_pipeline');
+  const [mobileStageFilter, setMobileStageFilter] = useState<string>('all');
   const [activeVehicle, setActiveVehicle] = useState<any>(null);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
@@ -145,7 +146,7 @@ export const AutomotiveCRM = ({
         });
       }
       if (activeVehicle) {
-        await api.updateVehicle(activeVehicle.id, { status: 'inspection' });
+        await api.updateVehicle(activeVehicle.id, { ...activeVehicle, status: 'inspection', store_id: storeId });
       }
 
       toast.success("Ekspertiz analizi kaydedildi ve aşama güncellendi.");
@@ -190,7 +191,7 @@ export const AutomotiveCRM = ({
       else if (targetStage === 'analysis') newStatus = 'inspection';
       else if (targetStage === 'planned') newStatus = 'active';
 
-      await api.updateVehicle(vehicle.id, { status: newStatus });
+      await api.updateVehicle(vehicle.id, { ...vehicle, status: newStatus, store_id: storeId });
       toast.success(`Araç durumu güncellendi: ${newStatus}`);
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -219,6 +220,8 @@ export const AutomotiveCRM = ({
     }
     return { name: description.split('-')[0]?.trim() || 'Müşteri', phone: '' };
   };
+
+  const visibleStages = STAGES;
 
   return (
     <div className="flex flex-col gap-2.5 w-full min-w-0">
@@ -295,17 +298,54 @@ export const AutomotiveCRM = ({
         </div>
       </div>
 
+      {/* MOBILE STAGE QUICK FILTER PILLS */}
+      <div className="flex sm:hidden items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+        <button
+          type="button"
+          onClick={() => setMobileStageFilter('all')}
+          className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border transition-all cursor-pointer ${
+            mobileStageFilter === 'all'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+              : 'bg-white text-slate-600 border-slate-200'
+          }`}
+        >
+          Tümü ({filteredDeals.length})
+        </button>
+        {STAGES.map(stage => {
+          const count = filteredDeals.filter(d => d.stage === stage.id).length;
+          const isSelected = mobileStageFilter === stage.id;
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => setMobileStageFilter(stage.id)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tight shrink-0 border transition-all flex items-center gap-1 cursor-pointer ${
+                isSelected
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                  : 'bg-white text-slate-700 border-slate-200'
+              }`}
+            >
+              <span>{stage.title}</span>
+              <span className={`px-1 py-0.2 rounded text-[9px] font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* 4-COLUMN RESPONSIVE PIPELINE GRID */}
       <div className="w-full min-w-0">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 w-full min-w-0 items-start">
-          {STAGES.map(stage => {
+          {visibleStages.map(stage => {
             const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
             const StageIcon = stage.icon;
+            const hiddenOnMobile = mobileStageFilter !== 'all' && mobileStageFilter !== stage.id;
 
             return (
               <div 
                 key={stage.id} 
-                className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-2 flex flex-col gap-2 min-w-0 shadow-2xs"
+                className={`${hiddenOnMobile ? 'hidden sm:flex' : 'flex'} bg-slate-50/70 border border-slate-200/80 rounded-xl p-2 flex-col gap-2 min-w-0 shadow-2xs`}
               >
                 {/* Stage Header */}
                 <div className="flex items-center justify-between px-1 py-0.5 border-b border-slate-200/70 pb-1.5">

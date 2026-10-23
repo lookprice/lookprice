@@ -208,7 +208,32 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     return "RETAIL";
   }
 
-  // 2. Real Estate (Emlak) Tespiti
+  // 2. Automotive (Otomotiv / Galeri / Araç Portföy) Tespiti
+  if (
+    rawStoreType === "motor_vehicle" ||
+    rawStoreType === "automotive" ||
+    rawStoreType === "auto" ||
+    rawStoreType === "autolp" ||
+    rawStoreType === "oto" ||
+    rawStoreType === "galeri" ||
+    rawStoreType === "gallery" ||
+    rawStoreType === "car_dealer" ||
+    rawSector === "motor_vehicle" ||
+    rawSector === "automotive" ||
+    rawSector === "auto" ||
+    rawSector === "autolp" ||
+    rawSector === "oto" ||
+    rawSector === "galeri" ||
+    rawSubSector === "automotive" ||
+    rawSubSector === "motor_vehicle" ||
+    rawSubSector === "auto" ||
+    slug === "autolp-demo" ||
+    slug.startsWith("autolp-")
+  ) {
+    return "AUTOMOTIVE";
+  }
+
+  // 3. Real Estate (Emlak / Gayrimenkul Portföy) Tespiti
   if (
     rawStoreType === "real_estate" ||
     rawStoreType === "portfolio" ||
@@ -216,23 +241,11 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     rawSector === "real_estate" ||
     rawSector === "portfolio" ||
     rawSector === "emlak" ||
-    rawSubSector === "real_estate"
+    rawSubSector === "real_estate" ||
+    slug === "restatelp-demo" ||
+    slug.startsWith("restatelp-")
   ) {
     return "REAL_ESTATE";
-  }
-
-  // 3. Automotive (Otomotiv / Galeri) Tespiti
-  if (
-    rawStoreType === "motor_vehicle" ||
-    rawStoreType === "automotive" ||
-    rawStoreType === "oto" ||
-    rawStoreType === "galeri" ||
-    rawSector === "motor_vehicle" ||
-    rawSector === "automotive" ||
-    rawSubSector === "automotive" ||
-    rawSubSector === "motor_vehicle"
-  ) {
-    return "AUTOMOTIVE";
   }
 
   // 4. HotelLP (Otel / Rezervasyon) Tespiti

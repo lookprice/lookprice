@@ -58,7 +58,7 @@ interface BookstoreNetflixLayoutProps {
 
 export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   store,
-  products,
+  products: rawProducts,
   onViewProduct,
   addToBasket,
   basket,
@@ -77,6 +77,22 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   setShowAuthModal
 }) => {
   const isTr = lang === "tr";
+
+  // Deduplicate products across main store & branch stores by ISBN/barcode or normalized name
+  const products = useMemo(() => {
+    const seen = new Set<string>();
+    const result: Product[] = [];
+    for (const p of rawProducts || []) {
+      const dedupKey = (p.barcode && p.barcode.trim())
+        ? `bc:${p.barcode.trim()}`
+        : `id:${p.id}`;
+      if (!seen.has(dedupKey)) {
+        seen.add(dedupKey);
+        result.push(p);
+      }
+    }
+    return result;
+  }, [rawProducts]);
   
   // Load initial states from URL search params to preserve operator workflow on refresh (Rule 7)
   const [searchQuery, setSearchQuery] = useState(() => {

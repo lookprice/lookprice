@@ -29,6 +29,7 @@ interface VehicleFormModalProps {
   generatingVehicleDesc: boolean;
   handleGenerateVehicleDesc: () => void;
   vehicleAiNotice: string | null;
+  isDemoStore?: boolean;
 }
 
 export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
@@ -43,7 +44,8 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   handleSubmit,
   generatingVehicleDesc,
   handleGenerateVehicleDesc,
-  vehicleAiNotice
+  vehicleAiNotice,
+  isDemoStore
 }) => {
   if (!isOpen) return null;
 
@@ -243,9 +245,25 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                     <input type="checkbox" checked={formData.is_on_website !== undefined ? !!formData.is_on_website : true} onChange={(e) => setFormData({ ...formData, is_on_website: e.target.checked })} className="w-3 h-3 text-indigo-600 rounded" />
                     Web
                   </label>
-                  <label className="inline-flex items-center gap-1 px-1 py-0.5 bg-indigo-50 border border-indigo-100 rounded cursor-pointer text-[8px] font-medium text-indigo-950 uppercase tracking-tighter">
-                    <input type="checkbox" checked={formData.is_on_enrakipsiz !== undefined ? !!formData.is_on_enrakipsiz : true} onChange={(e) => setFormData({ ...formData, is_on_enrakipsiz: e.target.checked })} className="w-3 h-3 text-indigo-600 rounded" />
-                    EnR
+                  <label 
+                    title={isDemoStore ? "Demo mağazalarda enrakipsiz.com portal yayını güvenlik sebebiyle kilitlidir." : "enrakipsiz.com portalında yayınla"}
+                    className={`inline-flex items-center gap-1 px-1 py-0.5 rounded text-[8px] font-medium uppercase tracking-tighter ${
+                      isDemoStore 
+                        ? 'bg-amber-50/80 border border-amber-200/80 text-amber-900 cursor-not-allowed opacity-90' 
+                        : 'bg-indigo-50 border border-indigo-100 text-indigo-950 cursor-pointer'
+                    }`}
+                  >
+                    <input 
+                      type="checkbox" 
+                      disabled={isDemoStore}
+                      checked={isDemoStore ? false : (formData.is_on_enrakipsiz !== undefined ? !!formData.is_on_enrakipsiz : true)} 
+                      onChange={(e) => {
+                        if (isDemoStore) return;
+                        setFormData({ ...formData, is_on_enrakipsiz: e.target.checked });
+                      }} 
+                      className="w-3 h-3 text-indigo-600 rounded disabled:opacity-50" 
+                    />
+                    <span>{isDemoStore ? 'EnR (Demo Korumalı)' : 'EnR'}</span>
                   </label>
                 </div>
               </div>

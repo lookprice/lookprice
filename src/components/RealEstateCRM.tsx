@@ -62,6 +62,7 @@ export const RealEstateCRM = ({
 }: RealEstateCRMProps) => {
   const [dealCards, setDealCards] = useState<any[]>([]);
   const [internalSearchQuery, setInternalSearchQuery] = useState("");
+  const [mobileStageFilter, setMobileStageFilter] = useState<string>('all');
   const [activeProperty, setActiveProperty] = useState<any>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
 
@@ -377,10 +378,10 @@ export const RealEstateCRM = ({
   });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] min-h-[500px] gap-2.5">
+    <div className="flex flex-col lg:h-[calc(100vh-180px)] min-h-[500px] gap-2.5">
       {/* High-Tech Trigger & Status Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/90 border border-slate-200/80 p-2 rounded-xl shadow-2xs">
-        <div className="flex items-center gap-2 flex-wrap text-[11px] font-bold">
+        <div className="hidden sm:flex items-center gap-2 flex-wrap text-[11px] font-bold">
           <span className="text-slate-500 uppercase tracking-widest text-[9px] font-black mr-1">Satış Hunisi:</span>
           
           <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/80 rounded-md flex items-center gap-1">
@@ -450,14 +451,51 @@ export const RealEstateCRM = ({
         </div>
       </div>
 
+      {/* MOBILE STAGE QUICK FILTER PILLS */}
+      <div className="flex sm:hidden items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+        <button
+          type="button"
+          onClick={() => setMobileStageFilter('all')}
+          className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border transition-all cursor-pointer ${
+            mobileStageFilter === 'all'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+              : 'bg-white text-slate-600 border-slate-200'
+          }`}
+        >
+          Tümü ({filteredDeals.length})
+        </button>
+        {STAGES.map(stage => {
+          const count = filteredDeals.filter(d => d.stage === stage.id).length;
+          const isSelected = mobileStageFilter === stage.id;
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => setMobileStageFilter(stage.id)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tight shrink-0 border transition-all flex items-center gap-1 cursor-pointer ${
+                isSelected
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                  : 'bg-white text-slate-700 border-slate-200'
+              }`}
+            >
+              <span>{stage.title}</span>
+              <span className={`px-1 py-0.2 rounded text-[9px] font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Kanban Board - 5 Stages */}
       <div className="flex-1 overflow-x-auto pb-2 custom-scrollbar">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 h-full w-full min-w-0">
           {STAGES.map(stage => {
             const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
+            const hiddenOnMobile = mobileStageFilter !== 'all' && mobileStageFilter !== stage.id;
 
             return (
-              <div key={stage.id} className="flex flex-col gap-2 min-w-0 bg-slate-50/70 border border-slate-200/80 rounded-xl p-2">
+              <div key={stage.id} className={`${hiddenOnMobile ? 'hidden sm:flex' : 'flex'} flex-col gap-2 min-w-0 bg-slate-50/70 border border-slate-200/80 rounded-xl p-2`}>
                 {/* Stage Column Header */}
                 <div className="flex items-center justify-between px-1.5 py-1 border-b border-slate-200/70 pb-1.5">
                   <div className="flex items-center gap-2 min-w-0">

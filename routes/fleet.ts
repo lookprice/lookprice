@@ -243,8 +243,10 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
             await InstagramService.postToInstagram(storeId, newVehicle.images, caption, meta).catch(err => console.warn("Store IG post failed:", err.message));
           }
           
-          // Scenario 1: Post to enrakipsiz global account (ALWAYS)
-          await InstagramService.postToInstagram('global', newVehicle.images, caption, meta).catch(err => console.warn("Global IG post failed:", err.message));
+          // Scenario 1: Post to enrakipsiz global account (Skip for demo stores)
+          if (!isDemoStore) {
+            await InstagramService.postToInstagram('global', newVehicle.images, caption, meta).catch(err => console.warn("Global IG post failed:", err.message));
+          }
         } catch (e) {
           console.error("Background Instagram posting task error:", e);
         }
@@ -262,14 +264,22 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
 // Update a vehicle
 router.put('/vehicles/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { 
-    plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
-    package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-    description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, is_on_website, buying_currency, category
-  } = req.body;
 
   try {
-    const storeId = req.body.store_id || req.user.store_id;
+    const existingRes = await pool.query("SELECT * FROM vehicles WHERE id = $1", [id]);
+    if (existingRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
+    const existing = existingRes.rows[0];
+
+    const merged = { ...existing, ...req.body };
+    const { 
+      plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
+      package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
+      description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, is_on_website, buying_currency, category
+    } = merged;
+
+    const storeId = req.body.store_id || existing.store_id || req.user.store_id;
     const storeDemoCheck = await pool.query("SELECT slug, branding FROM stores WHERE id = $1", [storeId]);
     const isDemoStore = storeDemoCheck.rows[0]?.slug?.includes('demo') || storeDemoCheck.rows[0]?.branding?.is_demo === true || storeDemoCheck.rows[0]?.branding?.is_demo === 'true';
     const effectiveIsOnEnrakipsiz = isDemoStore ? false : (is_on_enrakipsiz !== undefined ? !!is_on_enrakipsiz : true);
@@ -288,9 +298,9 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
         plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
         package_name, transmission, fuel_type, color, body_type, 
         typeof paint_report === 'string' ? paint_report : JSON.stringify(paint_report || {}), 
-        tramer_amount || 0, tramer_currency || 'TRY', buying_price || 0, 
+        tramer_amount ?? 0, tramer_currency || 'TRY', buying_price ?? 0, 
         typeof expenses === 'string' ? expenses : JSON.stringify(expenses || []), 
-        target_profit_margin || 0,
+        target_profit_margin ?? 0,
         description || '',
         market_story || '',
         technical_description || '',
@@ -304,14 +314,11 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
         effectiveIsOnEnrakipsiz,
         is_on_website !== undefined ? !!is_on_website : true,
         buying_currency || 'TRY',
-        !!req.body.auto_post_instagram,
+        !!merged.auto_post_instagram,
         category || 'otomobil',
         id
       ]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Vehicle not found' });
-    }
     const updatedVehicle = result.rows[0];
     res.json(updatedVehicle);
 
@@ -381,8 +388,10 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
             await InstagramService.postToInstagram(storeId, updatedVehicle.images, caption, meta).catch(err => console.warn("Store IG post failed:", err.message));
           }
           
-          // Scenario 1: Post to enrakipsiz global account (ALWAYS)
-          await InstagramService.postToInstagram('global', updatedVehicle.images, caption, meta).catch(err => console.warn("Global IG post failed:", err.message));
+          // Scenario 1: Post to enrakipsiz global account (Skip for demo stores)
+          if (!isDemoStore) {
+            await InstagramService.postToInstagram('global', updatedVehicle.images, caption, meta).catch(err => console.warn("Global IG post failed:", err.message));
+          }
         } catch (e) {
           console.error("Background Instagram posting task error on update:", e);
         }

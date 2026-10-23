@@ -149,9 +149,9 @@ export const NetflixBookRow: React.FC<NetflixBookRowProps> = ({
         onScroll={checkScroll}
         className="flex items-stretch gap-4 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth px-4 sm:px-8 md:px-12 pr-12 sm:pr-16"
       >
-        {visibleProducts.map((product) => (
+        {visibleProducts.map((product, idx) => (
           <BookCardNetflix
-            key={`netflix-book-${product.id}-${product.barcode || ""}`}
+            key={`netflix-book-${product.id}-${product.barcode || ""}-${idx}`}
             product={product}
             store={store}
             lang={lang}
