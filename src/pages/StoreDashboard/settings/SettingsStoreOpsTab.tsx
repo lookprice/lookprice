@@ -76,7 +76,17 @@ export const SettingsStoreOpsTab = ({
   const [isHotelUpgradeModalOpen, setIsHotelUpgradeModalOpen] = useState(false);
   const [manualCategoryInput, setManualCategoryInput] = useState(false);
   const [wifiModalOpen, setWifiModalOpen] = useState(false);
-  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+  const isCorporateWebsite = Boolean(
+    branding?.store_type === 'corporate_website' ||
+    branding?.store_type === 'corporate' ||
+    branding?.store_type === 'website' ||
+    branding?.store_type === 'weblp' ||
+    branding?.page_layout_settings?.sector === 'corporate_website' ||
+    branding?.page_layout_settings?.sector === 'corporate' ||
+    branding?.page_layout_settings?.sector === 'weblp' ||
+    branding?.sector === 'corporate_website'
+  );
+  const isCafeRestaurant = !isCorporateWebsite && (branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant');
   const t = translations || {};
   const txt = (tr: string, en: string, el: string) => {
     if (lang === 'tr') return tr;
@@ -179,7 +189,7 @@ export const SettingsStoreOpsTab = ({
       id: 'currency', 
       label: lang === 'tr' ? 'Para & Dil' : 'Currency', 
       icon: Globe, 
-      show: true 
+      show: !isCorporateWebsite 
     },
     { 
       id: 'legal_tax', 
@@ -191,7 +201,7 @@ export const SettingsStoreOpsTab = ({
       id: 'shipping', 
       label: lang === 'tr' ? 'Kargo' : 'Shipping', 
       icon: Truck, 
-      show: !isPortfolio && !isCafeRestaurant 
+      show: !isPortfolio && !isCafeRestaurant && !isCorporateWebsite 
     },
     { 
       id: 'locations', 
@@ -209,7 +219,7 @@ export const SettingsStoreOpsTab = ({
       id: 'bulk_price', 
       label: lang === 'tr' ? 'Toplu Fiyat' : 'Bulk Price', 
       icon: Percent, 
-      show: !isPortfolio 
+      show: !isPortfolio && !isCorporateWebsite 
     },
     { 
       id: 'wifi', 

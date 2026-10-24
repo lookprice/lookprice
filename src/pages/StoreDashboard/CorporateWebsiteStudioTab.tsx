@@ -118,6 +118,55 @@ export const CorporateWebsiteStudioTab: React.FC<
     return {
       ...defaults,
       ...parsed,
+      header_tagline:
+        parsed.header_tagline !== undefined
+          ? parsed.header_tagline
+          : defaults.header_tagline ?? "Kurumsal Hizmet & Tanıtım",
+      typography: {
+        font_family:
+          parsed.typography?.font_family ||
+          defaults.typography?.font_family ||
+          "Inter",
+        heading_weight:
+          parsed.typography?.heading_weight ||
+          defaults.typography?.heading_weight ||
+          "bold",
+        body_weight:
+          parsed.typography?.body_weight ||
+          defaults.typography?.body_weight ||
+          "normal",
+        hero_title_size:
+          parsed.typography?.hero_title_size ||
+          defaults.typography?.hero_title_size ||
+          "lg",
+        section_title_size:
+          parsed.typography?.section_title_size ||
+          defaults.typography?.section_title_size ||
+          "md",
+        highlight_underline:
+          parsed.typography?.highlight_underline ||
+          defaults.typography?.highlight_underline ||
+          "solid",
+      },
+      custom_colors: {
+        enabled: Boolean(parsed.custom_colors?.enabled),
+        primary_color:
+          parsed.custom_colors?.primary_color ||
+          defaults.custom_colors?.primary_color ||
+          "#059669",
+        accent_color:
+          parsed.custom_colors?.accent_color ||
+          defaults.custom_colors?.accent_color ||
+          "#10b981",
+        hero_text_color:
+          parsed.custom_colors?.hero_text_color ||
+          defaults.custom_colors?.hero_text_color ||
+          "#ffffff",
+        hero_highlight_color:
+          parsed.custom_colors?.hero_highlight_color ||
+          defaults.custom_colors?.hero_highlight_color ||
+          "#6ee7b7",
+      },
       announcement: {
         enabled: parsed.announcement?.enabled !== undefined
           ? parsed.announcement.enabled
@@ -127,12 +176,30 @@ export const CorporateWebsiteStudioTab: React.FC<
       hero: {
         ...defaults.hero,
         ...(parsed.hero || {}),
-        badge: parsed.hero?.badge || parsed.hero?.badge_text || defaults.hero?.badge || "KURUMSAL GÜVEN & PROFESYONEL HİZMET",
-        highlight_word: parsed.hero?.highlight_word || defaults.hero?.highlight_word || "Güvenilir Hizmet",
+        badge:
+          parsed.hero?.badge !== undefined
+            ? parsed.hero.badge
+            : parsed.hero?.badge_text !== undefined
+            ? parsed.hero.badge_text
+            : defaults.hero?.badge || "KURUMSAL GÜVEN & PROFESYONEL HİZMET",
+        badge_text:
+          parsed.hero?.badge !== undefined
+            ? parsed.hero.badge
+            : parsed.hero?.badge_text !== undefined
+            ? parsed.hero.badge_text
+            : defaults.hero?.badge || "KURUMSAL GÜVEN & PROFESYONEL HİZMET",
+        highlight_word:
+          parsed.hero?.highlight_word !== undefined
+            ? parsed.hero.highlight_word
+            : defaults.hero?.highlight_word || "Güvenilir Hizmet",
         title: parsed.hero?.title || defaults.hero?.title || "",
         subtitle: parsed.hero?.subtitle || defaults.hero?.subtitle || "",
         primary_cta_text: parsed.hero?.primary_cta_text || defaults.hero?.primary_cta_text || "Hizmetlerimizi İnceleyin",
         secondary_cta_text: parsed.hero?.secondary_cta_text || defaults.hero?.secondary_cta_text || "WhatsApp İletişim Hattı",
+        overlay_opacity:
+          typeof parsed.hero?.overlay_opacity === "number"
+            ? parsed.hero.overlay_opacity
+            : defaults.hero?.overlay_opacity ?? 15,
         background_images: heroImages,
         hero_images: heroImages,
         stats: heroStats,
@@ -180,7 +247,7 @@ export const CorporateWebsiteStudioTab: React.FC<
         ...defaults.contact,
         ...(parsed.contact || {}),
         phone_primary: parsed.contact?.phone_primary || b?.phone || defaults.contact?.phone_primary || "",
-        phone_secondary: parsed.contact?.phone_secondary || "",
+        phone_secondary: parsed.contact?.phone_secondary || (Array.isArray(b?.phones) && b.phones.length > 1 ? b.phones[1] : "") || "",
         whatsapp: parsed.contact?.whatsapp || b?.whatsapp_number || b?.phone || defaults.contact?.whatsapp || "",
         email: parsed.contact?.email || b?.email || defaults.contact?.email || "",
         address: parsed.contact?.address || b?.address || defaults.contact?.address || "",
@@ -237,6 +304,18 @@ export const CorporateWebsiteStudioTab: React.FC<
 
       const updatedCorporateConfig: CorporateWebsiteConfig = {
         ...config,
+        header_tagline: config.header_tagline ?? "",
+        typography: config.typography,
+        custom_colors: config.custom_colors,
+        hero: {
+          ...config.hero,
+          badge: config.hero.badge,
+          badge_text: config.hero.badge,
+          overlay_opacity:
+            typeof config.hero.overlay_opacity === "number"
+              ? config.hero.overlay_opacity
+              : 15,
+        },
         services: servicesList,
         services_section: {
           ...config.services_section,
@@ -283,6 +362,13 @@ export const CorporateWebsiteStudioTab: React.FC<
         theme_palette: config.theme_palette || config.theme_preset || "emerald_gold",
       };
 
+      const mergedPhones = [
+        config.contact.phone_primary,
+        config.contact.phone_secondary,
+      ]
+        .map((p) => (p || "").trim())
+        .filter(Boolean);
+
       const updatedBranding = {
         ...branding,
         store_name: branding?.store_name || branding?.name || "Kurumsal Hizmet Merkezi",
@@ -290,6 +376,7 @@ export const CorporateWebsiteStudioTab: React.FC<
         hero_subtitle: config.hero.subtitle,
         about_text: config.about.content,
         phone: config.contact.phone_primary || branding?.phone || "",
+        phones: mergedPhones.length > 0 ? mergedPhones : branding?.phones || [],
         whatsapp_number: config.contact.whatsapp || branding?.whatsapp_number || "",
         email: config.contact.email || branding?.email || "",
         address: config.contact.address || branding?.address || "",
@@ -472,7 +559,7 @@ export const CorporateWebsiteStudioTab: React.FC<
   const publicSiteUrl = branding?.custom_domain
     ? `https://${branding.custom_domain}`
     : branding?.slug
-      ? `/${branding.slug}`
+      ? `/s/${branding.slug}`
       : "/";
 
   return (
@@ -539,34 +626,34 @@ export const CorporateWebsiteStudioTab: React.FC<
         </div>
       )}
 
-      {/* Sub-Navigation Pills */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl p-1.5 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-1 overflow-x-auto no-scrollbar">
+      {/* Sub-Navigation Tabs: 7 Fixed Grid Items (Single Line, Never Overflows) */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-1.5 border border-slate-200 dark:border-slate-800 shadow-xs grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5 w-full">
         {[
-          { id: "hero", label: "1. Vitrin & Ana Ekran", icon: Sparkles },
+          { id: "hero", label: "1. Hero & Vitrin", icon: Sparkles },
           {
             id: "services",
-            label: `2. Hizmetlerimiz (${(config.services || []).length})`,
+            label: `2. Hizmet (${(config.services || []).length})`,
             icon: Layers,
           },
-          { id: "about", label: "3. Hakkımızda & Değerler", icon: Award },
+          { id: "about", label: "3. Hakkımızda", icon: Award },
           {
             id: "pages",
-            label: `4. Ek Sayfalar (${(config.custom_pages || []).length})`,
+            label: `4. Sayfalar (${(config.custom_pages || []).length})`,
             icon: FileText,
           },
           {
             id: "gallery",
-            label: `5. Fotoğraf Galerisi (${(config.gallery || []).length})`,
+            label: `5. Galeri (${(config.gallery || []).length})`,
             icon: ImageIcon,
           },
           {
             id: "contact",
-            label: "6. İletişim & Google Harita",
+            label: "6. İletişim",
             icon: MapPin,
           },
           {
             id: "theme_seo",
-            label: "7. Tema, Logo & Google/Meta",
+            label: "7. Tema & SEO",
             icon: Palette,
           },
         ].map((tab) => {
@@ -577,14 +664,19 @@ export const CorporateWebsiteStudioTab: React.FC<
               key={tab.id}
               type="button"
               onClick={() => setActiveSubTab(tab.id as StudioSubTab)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl text-[11px] xl:text-xs font-bold text-center transition-all cursor-pointer w-full truncate ${
                 active
                   ? "bg-slate-900 text-white dark:bg-emerald-600 dark:text-white shadow-xs"
                   : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
+              title={tab.label}
             >
-              <Icon className="w-4 h-4" />
-              {tab.label}
+              <Icon
+                className={`w-3.5 h-3.5 shrink-0 ${
+                  active ? "text-emerald-400 dark:text-white" : "text-slate-400"
+                }`}
+              />
+              <span className="truncate">{tab.label}</span>
             </button>
           );
         })}
@@ -598,6 +690,44 @@ export const CorporateWebsiteStudioTab: React.FC<
               <Sparkles className="w-5 h-5 text-emerald-600" />
               Ana Karşılama Ekranı (Hero) ve Üst Duyuru Bandı
             </h2>
+
+            {/* Logo Altı Kurumsal Slogan & Üst Duyuru Bandı */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center bg-emerald-50/60 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-200/80 dark:border-emerald-800/60">
+              <div className="sm:col-span-4">
+                <label className="block text-xs font-black text-emerald-900 dark:text-emerald-300">
+                  Logo Altı Slogan (Header Alt Başlık)
+                </label>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                  Firma adının hemen altında görünür (Boş bırakılırsa gizlenir)
+                </span>
+              </div>
+              <div className="sm:col-span-8 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={config.header_tagline ?? ""}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      header_tagline: e.target.value,
+                    }))
+                  }
+                  placeholder="Örn: Kurumsal Hizmet & Tanıtım (Gizlemek için silin)"
+                  className="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm font-semibold"
+                />
+                {config.header_tagline && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfig((prev) => ({ ...prev, header_tagline: "" }))
+                    }
+                    className="px-2.5 py-2 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-xs font-bold hover:bg-rose-200 cursor-pointer shrink-0"
+                    title="Sloganı Gizle / Temizle"
+                  >
+                    Gizle
+                  </button>
+                )}
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700">
               <div className="sm:col-span-3">
@@ -640,19 +770,39 @@ export const CorporateWebsiteStudioTab: React.FC<
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Üst Rozet Metni (Badge)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Banner Üstü Rozet Metni (Badge)
+                  </label>
+                  {config.hero.badge && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          hero: { ...prev.hero, badge: "", badge_text: "" },
+                        }))
+                      }
+                      className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer"
+                    >
+                      Rozeti Gizle / Sil
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={config.hero.badge}
                   onChange={(e) =>
                     setConfig((prev) => ({
                       ...prev,
-                      hero: { ...prev.hero, badge: e.target.value },
+                      hero: {
+                        ...prev.hero,
+                        badge: e.target.value,
+                        badge_text: e.target.value,
+                      },
                     }))
                   }
-                  placeholder="Örn: %100 Güvenilir & Hijyenik Hizmet"
+                  placeholder="Örn: KURUMSAL GÜVEN & PROFESYONEL HİZMET (Boş bırakılırsa gizlenir)"
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-sm"
                 />
               </div>
@@ -745,6 +895,189 @@ export const CorporateWebsiteStudioTab: React.FC<
                   }
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-sm"
                 />
+              </div>
+            </div>
+
+            {/* Quick Banner Typography & Brightness Bar */}
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                  <Palette className="w-4 h-4 text-emerald-600" />
+                  Banner Yazı Karakteristiği (Font, Kalınlık / Bold Kontrolü & Görsel Parlaklığı)
+                </span>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  Canlı Senkronize
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                    Yazı Fontu (Font Ailesi)
+                  </label>
+                  <select
+                    value={config.typography?.font_family || "Inter"}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        typography: {
+                          ...(prev.typography || {
+                            font_family: "Inter",
+                            heading_weight: "bold",
+                            body_weight: "normal",
+                            hero_title_size: "lg",
+                            section_title_size: "md",
+                            highlight_underline: "solid",
+                          }),
+                          font_family: e.target.value as any,
+                        },
+                      }))
+                    }
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="Inter">Inter (Modern Kurumsal)</option>
+                    <option value="Poppins">Poppins (Yumuşak & Dinamik)</option>
+                    <option value="Montserrat">Montserrat (Geometrik)</option>
+                    <option value="Plus Jakarta Sans">Plus Jakarta (Teknoloji)</option>
+                    <option value="Playfair Display">Playfair Display (Klasik Serif)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                    Başlık Kalınlığı (Bold Seçimi)
+                  </label>
+                  <select
+                    value={config.typography?.heading_weight || "bold"}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        typography: {
+                          ...(prev.typography || {
+                            font_family: "Inter",
+                            heading_weight: "bold",
+                            body_weight: "normal",
+                            hero_title_size: "lg",
+                            section_title_size: "md",
+                            highlight_underline: "solid",
+                          }),
+                          heading_weight: e.target.value as any,
+                        },
+                      }))
+                    }
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="normal">İnce / Normal (400 - Bold Yok)</option>
+                    <option value="medium">Orta / Medium (500 - Zarif)</option>
+                    <option value="semibold">Yarı Kalın / SemiBold (600)</option>
+                    <option value="bold">Kalın / Bold (700 - Standart)</option>
+                    <option value="black">Ekstra Kalın / Black (900)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                    Manşet Yazı Ölçüsü
+                  </label>
+                  <select
+                    value={config.typography?.hero_title_size || "lg"}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        typography: {
+                          ...(prev.typography || {
+                            font_family: "Inter",
+                            heading_weight: "bold",
+                            body_weight: "normal",
+                            hero_title_size: "lg",
+                            section_title_size: "md",
+                            highlight_underline: "solid",
+                          }),
+                          hero_title_size: e.target.value as any,
+                        },
+                      }))
+                    }
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="sm">Küçük & Kibar (SM)</option>
+                    <option value="md">Orta & Dengeli (MD)</option>
+                    <option value="lg">Büyük Standart (LG)</option>
+                    <option value="xl">Dev Vitrin (XL)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                    Vurgulu Kelime Alt Çizgisi
+                  </label>
+                  <select
+                    value={config.typography?.highlight_underline || "solid"}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        typography: {
+                          ...(prev.typography || {
+                            font_family: "Inter",
+                            heading_weight: "bold",
+                            body_weight: "normal",
+                            hero_title_size: "lg",
+                            section_title_size: "md",
+                            highlight_underline: "solid",
+                          }),
+                          highlight_underline: e.target.value as any,
+                        },
+                      }))
+                    }
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="none">Alt Çizgi Yok (Temiz)</option>
+                    <option value="solid">Düz Kurumsal Çizgi</option>
+                    <option value="wavy">Estetik Kavisli Çizgi</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Banner Image Brightness / Overlay Opacity Control */}
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Banner Resmi Karartma / Kontrast Perdesi: %{config.hero.overlay_opacity ?? 15}
+                  </label>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                    %0-15 arası banner resmini tam parlak ve canlı gösterir; yazılar gölgeli okunur.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 sm:w-64">
+                  <input
+                    type="range"
+                    min={0}
+                    max={75}
+                    step={5}
+                    value={config.hero.overlay_opacity ?? 15}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        hero: {
+                          ...prev.hero,
+                          overlay_opacity: Number(e.target.value),
+                        },
+                      }))
+                    }
+                    className="flex-1 accent-emerald-600 cursor-pointer"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        hero: { ...prev.hero, overlay_opacity: 0 },
+                      }))
+                    }
+                    className="px-2 py-1 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] font-bold hover:bg-amber-200 cursor-pointer shrink-0"
+                  >
+                    %100 Tam Parlak
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2226,6 +2559,192 @@ export const CorporateWebsiteStudioTab: React.FC<
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Custom Color Pickers (Kişiselleştirilebilir Renk Kombinasyonu) */}
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="flex items-center gap-2 text-xs font-black text-slate-900 dark:text-white cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(config.custom_colors?.enabled)}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          custom_colors: {
+                            ...(prev.custom_colors || {
+                              enabled: false,
+                              primary_color: "#059669",
+                              accent_color: "#10b981",
+                              hero_text_color: "#ffffff",
+                              hero_highlight_color: "#6ee7b7",
+                            }),
+                            enabled: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    Özel Renk Kombinasyonu Kullan (Serbest Renk Seçici)
+                  </label>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Hazır temalar yerine buton, vurgu ve başlık renklerini dilediğiniz renk koduyla kişiselleştirin.
+                  </p>
+                </div>
+              </div>
+
+              {config.custom_colors?.enabled && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      Ana Kurumsal Renk
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="color"
+                        value={config.custom_colors.primary_color || "#059669"}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            custom_colors: {
+                              ...prev.custom_colors!,
+                              primary_color: e.target.value,
+                            },
+                          }))
+                        }
+                        className="w-8 h-8 rounded cursor-pointer border border-slate-300"
+                      />
+                      <input
+                        type="text"
+                        value={config.custom_colors.primary_color || "#059669"}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            custom_colors: {
+                              ...prev.custom_colors!,
+                              primary_color: e.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      İkincil Vurgu Rengi
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="color"
+                        value={config.custom_colors.accent_color || "#10b981"}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            custom_colors: {
+                              ...prev.custom_colors!,
+                              accent_color: e.target.value,
+                            },
+                          }))
+                        }
+                        className="w-8 h-8 rounded cursor-pointer border border-slate-300"
+                      />
+                      <input
+                        type="text"
+                        value={config.custom_colors.accent_color || "#10b981"}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            custom_colors: {
+                              ...prev.custom_colors!,
+                              accent_color: e.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      Manşet Başlık Rengi
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="color"
+                        value={config.custom_colors.hero_text_color || "#ffffff"}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            custom_colors: {
+                              ...prev.custom_colors!,
+                              hero_text_color: e.target.value,
+                            },
+                          }))
+                        }
+                        className="w-8 h-8 rounded cursor-pointer border border-slate-300"
+                      />
+                      <input
+                        type="text"
+                        value={config.custom_colors.hero_text_color || "#ffffff"}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            custom_colors: {
+                              ...prev.custom_colors!,
+                              hero_text_color: e.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      Vurgulu Kelime Rengi
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="color"
+                        value={
+                          config.custom_colors.hero_highlight_color || "#6ee7b7"
+                        }
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            custom_colors: {
+                              ...prev.custom_colors!,
+                              hero_highlight_color: e.target.value,
+                            },
+                          }))
+                        }
+                        className="w-8 h-8 rounded cursor-pointer border border-slate-300"
+                      />
+                      <input
+                        type="text"
+                        value={
+                          config.custom_colors.hero_highlight_color || "#6ee7b7"
+                        }
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            custom_colors: {
+                              ...prev.custom_colors!,
+                              hero_highlight_color: e.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

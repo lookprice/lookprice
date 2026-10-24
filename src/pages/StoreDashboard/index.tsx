@@ -1406,7 +1406,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onFaviconUpload={(e) => handleFileUpload(e, 'favicon')}
                 />
               )}
-              {activeTab === "faq" && (isCafeRestaurant || isCorporateWebsite || isShopLp) && permittedTabIds.has("faq") && <FaqTab />}
+              {activeTab === "faq" && (isCafeRestaurant || isCorporateWebsite || isShopLp) && permittedTabIds.has("faq") && <FaqTab branding={branding} />}
               {activeTab === "products" && permittedTabIds.has("products") && (
                 <ProductsTab 
                   products={products}

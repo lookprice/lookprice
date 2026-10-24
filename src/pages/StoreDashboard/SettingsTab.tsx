@@ -235,8 +235,10 @@ const SettingsTab = ({
     branding?.store_type === 'corporate_website' || 
     branding?.store_type === 'corporate' || 
     branding?.store_type === 'website' || 
+    branding?.store_type === 'weblp' || 
     branding?.page_layout_settings?.sector === 'corporate_website' || 
     branding?.page_layout_settings?.sector === 'corporate' || 
+    branding?.page_layout_settings?.sector === 'weblp' || 
     branding?.sector === 'corporate_website';
 
   const isPortfolio = !isGapStore && !isCorporateWebsite && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
@@ -244,7 +246,7 @@ const SettingsTab = ({
   const isCafeRestaurant = !isCorporateWebsite && (branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant');
 
   React.useEffect(() => {
-    if (isCorporateWebsite && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice' || activeSubTab === 'financing')) {
+    if (isCorporateWebsite && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice' || activeSubTab === 'financing' || activeSubTab === 'layout' || activeSubTab === 'menu')) {
       setActiveSubTab('web');
     } else if (isPortfolio && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice')) {
       setActiveSubTab('financing');
@@ -583,7 +585,7 @@ const SettingsTab = ({
         />
       )}
 
-      {activeSubTab === 'layout' && (
+      {activeSubTab === 'layout' && !isCorporateWebsite && (
         <SettingsLayoutTab 
           branding={branding} 
           onBrandingChange={onBrandingChange} 
@@ -591,7 +593,7 @@ const SettingsTab = ({
         />
       )}
 
-      {activeSubTab === 'menu' && (
+      {activeSubTab === 'menu' && !isCorporateWebsite && (
         <SettingsMenuTab 
           branding={branding} 
           onBrandingChange={onBrandingChange} 

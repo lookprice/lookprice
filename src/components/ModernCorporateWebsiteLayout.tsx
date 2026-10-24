@@ -310,6 +310,22 @@ export const getDefaultCorporateConfig = (store?: Partial<StoreInfo> | any): Cor
     theme_preset: "emerald_gold",
     theme_palette: "emerald_gold",
     default_color_mode: "light",
+    header_tagline: store?.branding?.tagline || "Kurumsal Hizmet & Tanıtım",
+    typography: {
+      font_family: "inter",
+      heading_weight: "bold",
+      body_weight: "normal",
+      hero_title_size: "lg",
+      section_title_size: "md",
+      highlight_underline: "wavy",
+    },
+    custom_colors: {
+      enabled: false,
+      primary_color: "#059669",
+      accent_color: "#f59e0b",
+      hero_text_color: "#ffffff",
+      hero_highlight_color: "#fbbf24",
+    },
     announcement: {
       enabled: true,
       text: announcementText,
@@ -329,6 +345,7 @@ export const getDefaultCorporateConfig = (store?: Partial<StoreInfo> | any): Cor
     hero: {
       badge: "KURUMSAL GÜVEN & PROFESYONEL HİZMET",
       badge_text: "KURUMSAL GÜVEN & PROFESYONEL HİZMET",
+      overlay_opacity: 15,
       title: `${storeName} İle Kaliteli ve Güvenilir Hizmet Deneyimi`,
       highlight_word: "Güvenilir Hizmet",
       subtitle:
@@ -451,7 +468,7 @@ const THEME_PALETTES = {
     accentBg: "bg-amber-500 hover:bg-amber-600 text-slate-950",
     accentText: "text-amber-500",
     badgeBg: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
-    gradientHero: "from-emerald-950/90 via-slate-950/80 to-slate-950/90",
+    gradientHero: "from-slate-950/45 via-slate-950/15 to-transparent",
     gradientAccent: "from-emerald-600 to-teal-700",
     ringColor: "focus:ring-emerald-500",
   },
@@ -463,7 +480,7 @@ const THEME_PALETTES = {
     accentBg: "bg-sky-500 hover:bg-sky-600 text-white",
     accentText: "text-sky-400",
     badgeBg: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/25",
-    gradientHero: "from-slate-950/95 via-blue-950/80 to-slate-950/90",
+    gradientHero: "from-slate-950/45 via-blue-950/15 to-transparent",
     gradientAccent: "from-blue-600 to-indigo-700",
     ringColor: "focus:ring-blue-500",
   },
@@ -475,7 +492,7 @@ const THEME_PALETTES = {
     accentBg: "bg-amber-500 hover:bg-amber-400 text-slate-950",
     accentText: "text-amber-400",
     badgeBg: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25",
-    gradientHero: "from-neutral-950/95 via-stone-950/85 to-neutral-950/95",
+    gradientHero: "from-neutral-950/45 via-stone-950/15 to-transparent",
     gradientAccent: "from-amber-600 to-yellow-600",
     ringColor: "focus:ring-amber-500",
   },
@@ -487,7 +504,7 @@ const THEME_PALETTES = {
     accentBg: "bg-amber-500 hover:bg-amber-600 text-slate-950",
     accentText: "text-amber-400",
     badgeBg: "bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/25",
-    gradientHero: "from-stone-950/90 via-orange-950/75 to-stone-950/90",
+    gradientHero: "from-stone-950/45 via-orange-950/15 to-transparent",
     gradientAccent: "from-orange-600 to-amber-700",
     ringColor: "focus:ring-orange-500",
   },
@@ -499,7 +516,7 @@ const THEME_PALETTES = {
     accentBg: "bg-rose-600 hover:bg-rose-700 text-white",
     accentText: "text-rose-400",
     badgeBg: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/25",
-    gradientHero: "from-slate-950/95 via-rose-950/80 to-slate-950/95",
+    gradientHero: "from-slate-950/45 via-rose-950/15 to-transparent",
     gradientAccent: "from-rose-600 to-red-700",
     ringColor: "focus:ring-rose-500",
   },
@@ -520,64 +537,249 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
     const rawCorp = store?.corporate_config || store?.branding?.corporate_config || {};
     const parsedCorp = typeof rawCorp === "string" ? (() => { try { return JSON.parse(rawCorp); } catch { return {}; } })() : rawCorp;
 
+    const heroImagesList =
+      Array.isArray(parsedCorp?.hero?.hero_images) && parsedCorp.hero.hero_images.filter(Boolean).length > 0
+        ? parsedCorp.hero.hero_images.filter(Boolean)
+        : Array.isArray(parsedCorp?.hero?.background_images) && parsedCorp.hero.background_images.filter(Boolean).length > 0
+        ? parsedCorp.hero.background_images.filter(Boolean)
+        : defaults.hero?.hero_images || [];
+
+    const heroStatsList =
+      Array.isArray(parsedCorp?.hero?.stats) && parsedCorp.hero.stats.length > 0
+        ? parsedCorp.hero.stats
+        : defaults.hero?.stats || [];
+
+    const servicesList =
+      Array.isArray(parsedCorp?.services) && parsedCorp.services.length > 0
+        ? parsedCorp.services
+        : Array.isArray(parsedCorp?.services_section?.items) && parsedCorp.services_section.items.length > 0
+        ? parsedCorp.services_section.items
+        : defaults.services_section?.items || [];
+
+    const galleryImagesList =
+      Array.isArray(parsedCorp?.gallery) && parsedCorp.gallery.length > 0
+        ? parsedCorp.gallery
+        : Array.isArray(parsedCorp?.gallery_section?.images) && parsedCorp.gallery_section.images.length > 0
+        ? parsedCorp.gallery_section.images
+        : defaults.gallery_section?.images || [];
+
+    const aboutHighlightsList =
+      Array.isArray(parsedCorp?.about?.highlights) && parsedCorp.about.highlights.length > 0
+        ? parsedCorp.about.highlights
+        : Array.isArray(parsedCorp?.about_section?.highlights) && parsedCorp.about_section.highlights.length > 0
+        ? parsedCorp.about_section.highlights
+        : defaults.about_section?.highlights || [];
+
+    const resolvedHeroBadge =
+      parsedCorp?.hero?.badge !== undefined
+        ? parsedCorp.hero.badge
+        : parsedCorp?.hero?.badge_text !== undefined
+        ? parsedCorp.hero.badge_text
+        : defaults.hero?.badge;
+
     return {
       ...defaults,
       ...parsedCorp,
+      header_tagline:
+        parsedCorp?.header_tagline !== undefined
+          ? parsedCorp.header_tagline
+          : store?.branding?.tagline !== undefined
+          ? store.branding.tagline
+          : defaults.header_tagline,
+      typography: {
+        ...defaults.typography,
+        ...(parsedCorp?.typography || {}),
+      },
+      custom_colors: {
+        ...defaults.custom_colors,
+        ...(parsedCorp?.custom_colors || {}),
+      },
       nav_labels: { ...defaults.nav_labels, ...(parsedCorp?.nav_labels || {}) },
       hero: {
         ...defaults.hero,
         ...(parsedCorp?.hero || {}),
-        hero_images:
-          Array.isArray(parsedCorp?.hero?.hero_images) && parsedCorp.hero.hero_images.filter(Boolean).length > 0
-            ? parsedCorp.hero.hero_images.filter(Boolean)
-            : defaults.hero?.hero_images || [],
-        stats:
-          Array.isArray(parsedCorp?.hero?.stats) && parsedCorp.hero.stats.length > 0
-            ? parsedCorp.hero.stats
-            : defaults.hero?.stats || [],
+        badge: resolvedHeroBadge,
+        badge_text: resolvedHeroBadge,
+        overlay_opacity:
+          parsedCorp?.hero?.overlay_opacity !== undefined
+            ? Number(parsedCorp.hero.overlay_opacity)
+            : defaults.hero?.overlay_opacity ?? 15,
+        title: parsedCorp?.hero?.title !== undefined ? parsedCorp.hero.title : defaults.hero?.title,
+        highlight_word: parsedCorp?.hero?.highlight_word !== undefined ? parsedCorp.hero.highlight_word : defaults.hero?.highlight_word,
+        subtitle: parsedCorp?.hero?.subtitle !== undefined ? parsedCorp.hero.subtitle : defaults.hero?.subtitle,
+        primary_cta_text: parsedCorp?.hero?.primary_cta_text || defaults.hero?.primary_cta_text,
+        secondary_cta_text: parsedCorp?.hero?.secondary_cta_text || defaults.hero?.secondary_cta_text,
+        hero_images: heroImagesList,
+        background_images: heroImagesList,
+        stats: heroStatsList,
       },
       services_section: {
         ...defaults.services_section,
         ...(parsedCorp?.services_section || {}),
-        items:
-          Array.isArray(parsedCorp?.services_section?.items)
-            ? parsedCorp.services_section.items
-            : defaults.services_section?.items || [],
+        badge: parsedCorp?.services_section?.badge || defaults.services_section?.badge,
+        title: parsedCorp?.services_section?.title || defaults.services_section?.title,
+        subtitle: parsedCorp?.services_section?.subtitle || defaults.services_section?.subtitle,
+        items: servicesList,
       },
       about_section: {
         ...defaults.about_section,
         ...(parsedCorp?.about_section || {}),
+        badge: parsedCorp?.about?.badge || parsedCorp?.about_section?.badge || defaults.about_section?.badge,
+        title: parsedCorp?.about?.title || parsedCorp?.about_section?.title || defaults.about_section?.title,
+        subtitle: parsedCorp?.about?.subtitle || parsedCorp?.about_section?.subtitle || defaults.about_section?.subtitle,
         content:
+          parsedCorp?.about?.content ||
           parsedCorp?.about_section?.content ||
           store?.about_text ||
           store?.branding?.about_text ||
           defaults.about_section?.content,
-        highlights:
-          Array.isArray(parsedCorp?.about_section?.highlights) && parsedCorp.about_section.highlights.length > 0
-            ? parsedCorp.about_section.highlights
-            : defaults.about_section?.highlights || [],
+        mission_text:
+          parsedCorp?.about?.mission ||
+          parsedCorp?.about_section?.mission_text ||
+          defaults.about_section?.mission_text,
+        vision_text:
+          parsedCorp?.about?.vision ||
+          parsedCorp?.about_section?.vision_text ||
+          defaults.about_section?.vision_text,
+        image_url:
+          parsedCorp?.about?.image_url ||
+          parsedCorp?.about_section?.image_url ||
+          defaults.about_section?.image_url,
+        secondary_image_url:
+          parsedCorp?.about?.secondary_image_url ||
+          parsedCorp?.about_section?.secondary_image_url ||
+          defaults.about_section?.secondary_image_url,
+        experience_badge_value:
+          parsedCorp?.about?.experience_years ||
+          parsedCorp?.about_section?.experience_badge_value ||
+          defaults.about_section?.experience_badge_value,
+        experience_badge_label:
+          parsedCorp?.about?.experience_text ||
+          parsedCorp?.about_section?.experience_badge_label ||
+          defaults.about_section?.experience_badge_label,
+        highlights: aboutHighlightsList,
       },
-      custom_pages: Array.isArray(parsedCorp?.custom_pages) ? parsedCorp.custom_pages : [],
+      custom_pages: Array.isArray(parsedCorp?.custom_pages) ? parsedCorp.custom_pages : defaults.custom_pages || [],
       gallery_section: {
         ...defaults.gallery_section,
         ...(parsedCorp?.gallery_section || {}),
-        images:
-          Array.isArray(parsedCorp?.gallery_section?.images)
-            ? parsedCorp.gallery_section.images
-            : defaults.gallery_section?.images || [],
+        enabled: parsedCorp?.gallery_section?.enabled !== undefined ? parsedCorp.gallery_section.enabled : true,
+        title: parsedCorp?.gallery_section?.title || defaults.gallery_section?.title,
+        subtitle: parsedCorp?.gallery_section?.subtitle || defaults.gallery_section?.subtitle,
+        images: galleryImagesList,
       },
       contact_section: {
         ...defaults.contact_section,
         ...(parsedCorp?.contact_section || {}),
+        working_hours:
+          parsedCorp?.contact?.working_hours ||
+          parsedCorp?.contact_section?.working_hours ||
+          store?.working_hours_text ||
+          store?.branding?.working_hours_text ||
+          defaults.contact_section?.working_hours,
+        map_embed_url:
+          parsedCorp?.contact?.map_embed_url ||
+          parsedCorp?.contact_section?.map_embed_url ||
+          defaults.contact_section?.map_embed_url,
+        latitude:
+          parsedCorp?.contact?.latitude ||
+          parsedCorp?.contact_section?.latitude ||
+          store?.latitude ||
+          store?.branding?.latitude ||
+          defaults.contact_section?.latitude,
+        longitude:
+          parsedCorp?.contact?.longitude ||
+          parsedCorp?.contact_section?.longitude ||
+          store?.longitude ||
+          store?.branding?.longitude ||
+          defaults.contact_section?.longitude,
       },
       floating_actions: {
         ...defaults.floating_actions,
         ...(parsedCorp?.floating_actions || {}),
       },
+      theme_preset: parsedCorp?.theme_palette || parsedCorp?.theme_preset || defaults.theme_preset || "emerald_gold",
+      theme_palette: parsedCorp?.theme_palette || parsedCorp?.theme_preset || defaults.theme_palette || "emerald_gold",
+      announcement_enabled:
+        parsedCorp?.announcement?.enabled !== undefined
+          ? parsedCorp.announcement.enabled
+          : (parsedCorp?.announcement_enabled !== undefined ? parsedCorp.announcement_enabled : defaults.announcement_enabled),
+      announcement_text:
+        parsedCorp?.announcement?.text ||
+        parsedCorp?.announcement_text ||
+        defaults.announcement_text,
+      seo_marketing: {
+        ...defaults.seo_marketing,
+        ...(parsedCorp?.seo_marketing || {}),
+      },
     };
   }, [store]);
 
-  const palette = THEME_PALETTES[config.theme_preset || "emerald_gold"] || THEME_PALETTES.emerald_gold;
+  const palette = THEME_PALETTES[config.theme_preset || (config as any).theme_palette || "emerald_gold"] || THEME_PALETTES.emerald_gold;
+
+  // Typography & Custom Color Dynamic Helpers
+  const fontFamilyStyle = useMemo(() => {
+    const f = config.typography?.font_family || "inter";
+    switch (f) {
+      case "poppins":
+        return "'Poppins', sans-serif";
+      case "montserrat":
+        return "'Montserrat', sans-serif";
+      case "playfair":
+        return "'Playfair Display', serif";
+      case "jakarta":
+        return "'Plus Jakarta Sans', sans-serif";
+      default:
+        return "'Inter', system-ui, sans-serif";
+    }
+  }, [config.typography?.font_family]);
+
+  const headingWeightClass = useMemo(() => {
+    const w = config.typography?.heading_weight || "bold";
+    switch (w) {
+      case "normal":
+        return "font-normal";
+      case "medium":
+        return "font-medium";
+      case "semibold":
+        return "font-semibold";
+      case "bold":
+        return "font-bold";
+      case "black":
+        return "font-black";
+      default:
+        return "font-bold";
+    }
+  }, [config.typography?.heading_weight]);
+
+  const bodyWeightClass = useMemo(() => {
+    const w = config.typography?.body_weight || "normal";
+    switch (w) {
+      case "light":
+        return "font-light";
+      case "medium":
+        return "font-medium";
+      default:
+        return "font-normal";
+    }
+  }, [config.typography?.body_weight]);
+
+  const heroTitleSizeClass = useMemo(() => {
+    const s = config.typography?.hero_title_size || "lg";
+    switch (s) {
+      case "sm":
+        return "text-2xl sm:text-3xl lg:text-4xl";
+      case "md":
+        return "text-2xl sm:text-4xl lg:text-5xl";
+      case "xl":
+        return "text-4xl sm:text-6xl lg:text-7xl";
+      default:
+        return "text-3xl sm:text-5xl lg:text-6xl";
+    }
+  }, [config.typography?.hero_title_size]);
+
+  const customColors = config.custom_colors;
+  const hasCustomColors = Boolean(customColors?.enabled);
 
   // Color Mode (Light/Dark)
   const [colorMode, setColorMode] = useState<"light" | "dark">(() => {
@@ -604,37 +806,58 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
   const logoUrl = store?.logo_url || store?.branding?.logo_url || store?.branding?.logo || "";
   const faviconUrl = store?.favicon_url || store?.branding?.favicon_url || logoUrl;
 
-  // Contact numbers & WhatsApp
+  // Contact numbers & WhatsApp (Includes both Primary and Secondary / Backup phones)
   const primaryPhone = useMemo(() => {
+    const corpPrimary = (config as any).contact?.phone_primary;
+    if (corpPrimary && String(corpPrimary).trim()) return String(corpPrimary).trim();
     const phones = store?.phones || store?.branding?.phones;
     if (Array.isArray(phones) && phones.filter(Boolean).length > 0) return phones.filter(Boolean)[0];
-    return store?.phone || store?.branding?.phone || "+90 548 890 23 09";
-  }, [store]);
+    return store?.phone || store?.branding?.phone || "";
+  }, [store, config]);
+
+  const secondaryPhone = useMemo(() => {
+    const corpSecondary = (config as any).contact?.phone_secondary;
+    if (corpSecondary && String(corpSecondary).trim()) return String(corpSecondary).trim();
+    const phones = store?.phones || store?.branding?.phones;
+    if (Array.isArray(phones) && phones.filter(Boolean).length > 1) return phones.filter(Boolean)[1];
+    return "";
+  }, [store, config]);
 
   const allPhones: string[] = useMemo(() => {
+    const list: string[] = [];
+    if (primaryPhone) list.push(primaryPhone);
+    if (secondaryPhone && !list.includes(secondaryPhone)) list.push(secondaryPhone);
     const phones = store?.phones || store?.branding?.phones;
-    if (Array.isArray(phones) && phones.filter(Boolean).length > 0) return phones.filter(Boolean);
-    return primaryPhone ? [primaryPhone] : [];
-  }, [store, primaryPhone]);
+    if (Array.isArray(phones)) {
+      phones.filter(Boolean).forEach((p: string) => {
+        const trimmed = String(p).trim();
+        if (trimmed && !list.includes(trimmed)) list.push(trimmed);
+      });
+    }
+    return list;
+  }, [store, primaryPhone, secondaryPhone]);
 
   const whatsappNumber = useMemo(() => {
     const raw =
+      (config as any).contact?.whatsapp ||
       store?.whatsapp_number ||
       store?.branding?.whatsapp_number ||
       primaryPhone ||
       "";
     return String(raw).replace(/[^0-9]/g, "");
-  }, [store, primaryPhone]);
+  }, [store, config, primaryPhone]);
 
   const primaryEmail = useMemo(() => {
+    const corpEmail = (config as any).contact?.email;
+    if (corpEmail && String(corpEmail).trim()) return String(corpEmail).trim();
     const emails = store?.emails || store?.branding?.emails;
     if (Array.isArray(emails) && emails.filter(Boolean).length > 0) return emails.filter(Boolean)[0];
     return store?.email || store?.branding?.email || "";
-  }, [store]);
+  }, [store, config]);
 
   const storeAddress = useMemo(() => {
-    return store?.address || store?.branding?.address || "";
-  }, [store]);
+    return (config as any).contact?.address || store?.address || store?.branding?.address || "";
+  }, [store, config]);
 
   const getWhatsAppUrl = (customMsg?: string) => {
     const msg =
@@ -781,25 +1004,44 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
     return ms || {};
   }, [store]);
 
-  const gaMeasurementId = metaSettings?.ga_measurement_id || "";
-  const gtmId = metaSettings?.gtm_id || "";
-  const gscId = metaSettings?.gsc_id || "";
-  const metaPixelId = metaSettings?.pixel_id || "";
+  const gaMeasurementId = (config as any).seo_marketing?.google_analytics_id || metaSettings?.ga_measurement_id || "";
+  const gtmId = (config as any).seo_marketing?.google_tag_manager_id || metaSettings?.gtm_id || "";
+  const gscId = (config as any).seo_marketing?.google_search_console_code || metaSettings?.gsc_id || "";
+  const metaPixelId = (config as any).seo_marketing?.meta_pixel_id || metaSettings?.pixel_id || "";
 
-  const seoTitle = activeCustomPage
-    ? `${activeCustomPage.title} | ${displayStoreName}`
-    : `${displayStoreName} | ${config.hero?.title || "Kurumsal Tanıtım ve Hizmet Web Sitesi"}`;
-  const seoDescription = activeCustomPage
-    ? activeCustomPage.subtitle || activeCustomPage.content?.slice(0, 160)
-    : config.hero?.subtitle || `${displayStoreName} resmi web sitesi. Hizmetlerimiz, hakkımızda ve iletişim bilgilerimiz.`;
+  const seoTitle = (config as any).seo_marketing?.meta_title
+    ? (config as any).seo_marketing.meta_title
+    : (activeCustomPage
+      ? `${activeCustomPage.title} | ${displayStoreName}`
+      : `${displayStoreName} | ${config.hero?.title || "Kurumsal Tanıtım ve Hizmet Web Sitesi"}`);
+
+  const seoDescription = (config as any).seo_marketing?.meta_description
+    ? (config as any).seo_marketing.meta_description
+    : (activeCustomPage
+      ? activeCustomPage.subtitle || activeCustomPage.content?.slice(0, 160)
+      : config.hero?.subtitle || `${displayStoreName} resmi web sitesi. Hizmetlerimiz, hakkımızda ve iletişim bilgilerimiz.`);
 
   const renderHighlightedTitle = (title: string = "", highlight?: string) => {
     if (!highlight || !title.includes(highlight)) return title;
     const parts = title.split(highlight);
+    const underlinePref = config.typography?.highlight_underline || "wavy";
+    const underlineClass =
+      underlinePref === "none"
+        ? ""
+        : underlinePref === "solid"
+        ? "underline decoration-amber-400/70 decoration-2 underline-offset-8"
+        : "underline decoration-amber-400/50 decoration-wavy underline-offset-8";
+    const customHighlightColor = hasCustomColors && customColors?.hero_highlight_color
+      ? customColors.hero_highlight_color
+      : undefined;
+
     return (
       <>
         {parts[0]}
-        <span className="text-amber-400 underline decoration-amber-400/40 decoration-wavy underline-offset-8">
+        <span
+          className={`text-amber-400 ${underlineClass}`}
+          style={customHighlightColor ? { color: customHighlightColor, textDecorationColor: customHighlightColor } : undefined}
+        >
           {highlight}
         </span>
         {parts.slice(1).join(highlight)}
@@ -809,7 +1051,8 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
 
   return (
     <div
-      className={`min-h-screen transition-colors duration-300 selection:bg-emerald-600 selection:text-white ${
+      style={{ fontFamily: fontFamilyStyle }}
+      className={`min-h-screen transition-colors duration-300 selection:bg-emerald-600 selection:text-white ${bodyWeightClass} ${
         isDark ? "bg-slate-950 text-slate-100" : "bg-stone-50 text-slate-900"
       }`}
     >
@@ -819,6 +1062,10 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
         <meta name="description" content={seoDescription} />
         <meta property="og:title" content={seoTitle} />
         <meta property="og:description" content={seoDescription} />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Montserrat:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800;900&display=swap"
+        />
         {heroImages[0] && <meta property="og:image" content={heroImages[0]} />}
         {faviconUrl && <link rel="icon" href={faviconUrl} />}
         {gscId && <meta name="google-site-verification" content={gscId} />}
@@ -954,16 +1201,18 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
               </div>
             )}
             <div>
-              <span className="block text-base sm:text-lg font-black tracking-tight leading-none">
+              <span className={`block text-base sm:text-lg ${headingWeightClass} tracking-tight leading-none`}>
                 {displayStoreName}
               </span>
-              <span
-                className={`block text-[10px] font-bold uppercase tracking-widest mt-1 ${
-                  isDark ? "text-slate-400" : "text-slate-500"
-                }`}
-              >
-                Kurumsal Hizmet & Tanıtım
-              </span>
+              {config.header_tagline !== "" && (
+                <span
+                  className={`block text-[10px] font-semibold uppercase tracking-widest mt-1 ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}
+                >
+                  {config.header_tagline ?? "Kurumsal Hizmet & Tanıtım"}
+                </span>
+              )}
             </div>
           </button>
 
@@ -1354,7 +1603,7 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
         <main>
           {/* 1. KINETIC HERO SECTION */}
           <section id="hero" className="relative min-h-[82vh] flex items-center overflow-hidden">
-            {/* Animated Background Image Slider */}
+            {/* Animated Background Image Slider - High Brightness & Clarity */}
             <div className="absolute inset-0 z-0">
               <AnimatePresence mode="wait">
                 <motion.img
@@ -1364,15 +1613,20 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                     "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1800&q=85"
                   }
                   alt={displayStoreName}
-                  initial={{ opacity: 0, scale: 1.08 }}
+                  initial={{ opacity: 0, scale: 1.05 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 1.1, ease: "easeOut" }}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover brightness-105 contrast-105"
                 />
               </AnimatePresence>
-              <div className={`absolute inset-0 bg-gradient-to-r ${palette.gradientHero}`} />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/35 to-transparent" />
+              {/* Configurable light contrast veil so banner photo remains bright & crystal clear */}
+              <div
+                className="absolute inset-0 bg-slate-950 pointer-events-none transition-opacity duration-300"
+                style={{ opacity: Math.min(Math.max(Number(config.hero?.overlay_opacity ?? 15), 0), 85) / 100 }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/55 via-slate-950/20 to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950/70 to-transparent pointer-events-none" />
             </div>
 
             {/* Hero Content Container */}
@@ -1384,26 +1638,37 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                   transition={{ duration: 0.7 }}
                   className="lg:col-span-8 space-y-6 text-white"
                 >
-                  {config.hero?.badge_text && (
+                  {Boolean(config.hero?.badge_text && config.hero.badge_text.trim() !== "") && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.15 }}
-                      className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-amber-300 text-xs font-black uppercase tracking-widest shadow-lg"
+                      className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-950/55 backdrop-blur-md border border-white/25 text-amber-300 text-xs font-bold uppercase tracking-widest shadow-lg"
+                      style={
+                        hasCustomColors && customColors?.accent_color
+                          ? { color: customColors.accent_color, borderColor: `${customColors.accent_color}66` }
+                          : undefined
+                      }
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <Sparkles
+                        className="w-3.5 h-3.5 text-amber-400"
+                        style={hasCustomColors && customColors?.accent_color ? { color: customColors.accent_color } : undefined}
+                      />
                       <span>{config.hero.badge_text}</span>
                     </motion.div>
                   )}
 
-                  <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.08] text-white drop-shadow-sm">
+                  <h1
+                    className={`${heroTitleSizeClass} ${headingWeightClass} tracking-tight leading-[1.12] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.75)]`}
+                    style={hasCustomColors && customColors?.hero_text_color ? { color: customColors.hero_text_color } : undefined}
+                  >
                     {renderHighlightedTitle(
                       config.hero?.title || `${displayStoreName} — Kurumsal Hizmet Merkezi`,
                       config.hero?.highlight_word
                     )}
                   </h1>
 
-                  <p className="text-base sm:text-lg lg:text-xl text-slate-200 font-medium leading-relaxed max-w-2xl">
+                  <p className={`text-base sm:text-lg lg:text-xl text-white/95 ${bodyWeightClass} leading-relaxed max-w-2xl drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]`}>
                     {config.hero?.subtitle}
                   </p>
 
@@ -1414,7 +1679,12 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                       whileTap={{ scale: 0.98 }}
                       type="button"
                       onClick={() => scrollToSection("hizmetlerimiz")}
-                      className={`px-7 py-4 rounded-2xl font-black text-sm sm:text-base shadow-xl flex items-center gap-2.5 cursor-pointer transition-all ${palette.accentBg}`}
+                      style={
+                        hasCustomColors && customColors?.primary_color
+                          ? { backgroundColor: customColors.primary_color, color: "#ffffff" }
+                          : undefined
+                      }
+                      className={`px-7 py-4 rounded-2xl ${headingWeightClass} text-sm sm:text-base shadow-xl flex items-center gap-2.5 cursor-pointer transition-all ${palette.accentBg}`}
                     >
                       <span>{config.hero?.primary_cta_text || "Hizmetlerimizi İnceleyin"}</span>
                       <ChevronRight className="w-5 h-5" />
@@ -2536,13 +2806,39 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
           </div>
 
           <div className="md:col-span-4 space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-widest text-white">İletişim Bilgilerimiz</h4>
-            <div className="space-y-2 text-xs">
-              {primaryPhone && (
-                <p className="flex items-center gap-2 text-slate-300 font-bold">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-white">İletişim Bilgilerimiz</h4>
+            <div className="space-y-2.5 text-xs">
+              {allPhones.map((ph, idx) => (
+                <p key={idx} className="flex items-center gap-2 text-slate-200 font-bold">
                   <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                  <a href={`tel:${primaryPhone}`} className="hover:text-white">
-                    {primaryPhone}
+                  <a href={`tel:${ph}`} className="hover:text-white transition-colors">
+                    {ph}
+                    {idx > 0 && (
+                      <span className="ml-1.5 text-[10px] font-medium text-slate-400">
+                        ({idx === 1 ? "2. Yedek / Sabit Hat" : `Hat #${idx + 1}`})
+                      </span>
+                    )}
+                  </a>
+                </p>
+              ))}
+              {whatsappNumber && (
+                <p className="flex items-center gap-2 text-slate-200 font-bold">
+                  <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <a
+                    href={getWhatsAppUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-white transition-colors"
+                  >
+                    WhatsApp: +90 {whatsappNumber.replace(/^90/, "")}
+                  </a>
+                </p>
+              )}
+              {primaryEmail && (
+                <p className="flex items-center gap-2 text-slate-300">
+                  <Mail className="w-4 h-4 text-purple-400 shrink-0" />
+                  <a href={`mailto:${primaryEmail}`} className="hover:text-white transition-colors">
+                    {primaryEmail}
                   </a>
                 </p>
               )}
