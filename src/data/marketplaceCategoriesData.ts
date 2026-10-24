@@ -69,6 +69,13 @@ export const MARKETPLACE_SECTORS: MarketplaceSectorOption[] = [
     iconName: 'Wrench',
     description: 'Otomotiv Aksesuarları, El Aletleri, Hırdavat & Yapı',
     keywords: ['oto', 'araba', 'motosiklet', 'aksesuar', 'paspas', 'koltuk kılıfı', 'matkap', 'hırdavat', 'el aletleri', 'vidalama', 'yapı market']
+  },
+  {
+    id: 'petshop',
+    name: 'Pet Shop & Evcil Hayvan',
+    iconName: 'Dog',
+    description: 'Kedi & Köpek Mamaları, Kedi Kumu, Tuvalet, Tırmalama, Oyuncak ve Pet Aksesuarları',
+    keywords: ['pet shop', 'petshop', 'evcil hayvan', 'kedi', 'kediler', 'köpek', 'mama', 'kuru mama', 'yaş mama', 'kedi kumu', 'kedi tuvaleti', 'tırmalama', 'catnip', 'bentonit', 'tasma', 'kedi yatağı', 'taşıma çantası']
   }
 ];
 
@@ -1598,6 +1605,147 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     available: true,
     status: "ACTIVE",
     sector: "home"
+  },
+  // --- PET SHOP & KEDİLER (HEPSİBURADA KEDİ ÜRÜNLERİ, MAMALARI, KUMLARI & AKSESUARLARI) ---
+  {
+    id: 9000100,
+    name: "Pet Shop",
+    displayName: "Pet Shop",
+    paths: ["Pet Shop"],
+    leaf: false,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000110,
+    name: "Kediler",
+    displayName: "Pet Shop > Kediler",
+    paths: ["Pet Shop", "Kediler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000111,
+    name: "Kuru Kedi Maması",
+    displayName: "Pet Shop > Kediler > Kuru Kedi Maması",
+    paths: ["Pet Shop", "Kediler", "Kuru Kedi Maması"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000112,
+    name: "Yaş & Konserve Kedi Maması",
+    displayName: "Pet Shop > Kediler > Yaş & Konserve Kedi Maması",
+    paths: ["Pet Shop", "Kediler", "Yaş & Konserve Kedi Maması"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000113,
+    name: "Kedi Ödül Maması & Macunlar",
+    displayName: "Pet Shop > Kediler > Kedi Ödül Maması & Macunlar",
+    paths: ["Pet Shop", "Kediler", "Kedi Ödül Maması & Macunlar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000114,
+    name: "Kedi Kumu",
+    displayName: "Pet Shop > Kediler > Kedi Kumu",
+    paths: ["Pet Shop", "Kediler", "Kedi Kumu"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000115,
+    name: "Kedi Tuvaleti & Kürekleri",
+    displayName: "Pet Shop > Kediler > Kedi Tuvaleti & Kürekleri",
+    paths: ["Pet Shop", "Kediler", "Kedi Tuvaleti"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000116,
+    name: "Kedi Yatakları, Yuva & Çadırlar",
+    displayName: "Pet Shop > Kediler > Kedi Yatakları, Yuva & Çadırlar",
+    paths: ["Pet Shop", "Kediler", "Kedi Yatağı"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000117,
+    name: "Kedi Tırmalamaları & Ağaçları",
+    displayName: "Pet Shop > Kediler > Kedi Tırmalamaları & Ağaçları",
+    paths: ["Pet Shop", "Kediler", "Kedi Tırmalaması"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000118,
+    name: "Kedi Taşıma Çantaları & Box",
+    displayName: "Pet Shop > Kediler > Kedi Taşıma Çantaları & Box",
+    paths: ["Pet Shop", "Kediler", "Taşıma Çantası"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000119,
+    name: "Kedi Oyuncakları",
+    displayName: "Pet Shop > Kediler > Kedi Oyuncakları",
+    paths: ["Pet Shop", "Kediler", "Kedi Oyuncakları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000120,
+    name: "Kedi Sağlık, Bakım & Hijyen",
+    displayName: "Pet Shop > Kediler > Kedi Sağlık, Bakım & Hijyen",
+    paths: ["Pet Shop", "Kediler", "Sağlık & Bakım"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000121,
+    name: "Kedi Tasmaları & Gezdirme Kayışları",
+    displayName: "Pet Shop > Kediler > Kedi Tasmaları & Gezdirme Kayışları",
+    paths: ["Pet Shop", "Kediler", "Kedi Tasması"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
+  },
+  {
+    id: 9000122,
+    name: "Kedi Mama & Su Kapları",
+    displayName: "Pet Shop > Kediler > Kedi Mama & Su Kapları",
+    paths: ["Pet Shop", "Kediler", "Mama & Su Kabı"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "petshop"
   }
 ];
 
@@ -1672,7 +1820,14 @@ export const TRENDYOL_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   { id: 80103, name: "Saklama Ürünleri", displayName: "Ev & Yaşam > Ev Düzenleme & Saklama > Saklama Ürünleri", paths: ["Ev & Yaşam", "Saklama Ürünleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 80104, name: "Organizerler", displayName: "Ev & Yaşam > Ev Düzenleme & Saklama > Organizerler", paths: ["Ev & Yaşam", "Organizerler"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 802, name: "Küçük Ev Aletleri, Blender & Mutfak Gereçleri", displayName: "Ev & Yaşam > Küçük Ev Aletleri & Mutfak", paths: ["Ev & Yaşam", "Mutfak", "Blender"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
-  { id: 901, name: "Oto Aksesuar & Bakım", displayName: "Otomotiv > Oto Aksesuar", paths: ["Otomotiv", "Aksesuar"], leaf: true, available: true, status: "ACTIVE", sector: "auto" }
+  { id: 901, name: "Oto Aksesuar & Bakım", displayName: "Otomotiv > Oto Aksesuar", paths: ["Otomotiv", "Aksesuar"], leaf: true, available: true, status: "ACTIVE", sector: "auto" },
+  // --- PET SHOP & EVCİL HAYVAN (KEDİLER & KEDİ ÜRÜNLERİ) ---
+  { id: 90101, name: "Pet Shop", displayName: "Ev & Yaşam > Pet Shop", paths: ["Pet Shop"], leaf: false, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 90102, name: "Kediler", displayName: "Ev & Yaşam > Pet Shop > Kediler", paths: ["Pet Shop", "Kediler"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 90103, name: "Kuru Kedi Maması", displayName: "Pet Shop > Kedi > Kuru Kedi Maması", paths: ["Pet Shop", "Kedi", "Kuru Mama"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 90104, name: "Yaş Kedi Maması", displayName: "Pet Shop > Kedi > Yaş Kedi Maması", paths: ["Pet Shop", "Kedi", "Yaş Mama"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 90105, name: "Kedi Kumu & Tuvaleti", displayName: "Pet Shop > Kedi > Kedi Kumu & Tuvaleti", paths: ["Pet Shop", "Kedi", "Kedi Kumu"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 90106, name: "Kedi Tırmalamaları & Yatakları", displayName: "Pet Shop > Kedi > Kedi Tırmalama & Yatak", paths: ["Pet Shop", "Kedi", "Tırmalama"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" }
 ];
 
 // 3. Standard Amazon Categories
@@ -1741,7 +1896,12 @@ export const AMAZON_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
 
   // --- OTO & YAPI MARKET (AUTO & TOOLS) ---
   { id: 7000601, name: "Oto Aksesuar & Araç İçi Donanım", displayName: "Oto & Yapı Market > Oto Aksesuar", paths: ["Otomotiv", "Aksesuar"], leaf: true, available: true, status: "ACTIVE", sector: "auto" },
-  { id: 7000602, name: "Şarjlı Matkap & El Aletleri", displayName: "Oto & Yapı Market > Yapı Market > El Aletleri", paths: ["Yapı Market", "El Aletleri"], leaf: true, available: true, status: "ACTIVE", sector: "auto" }
+  { id: 7000602, name: "Şarjlı Matkap & El Aletleri", displayName: "Oto & Yapı Market > Yapı Market > El Aletleri", paths: ["Yapı Market", "El Aletleri"], leaf: true, available: true, status: "ACTIVE", sector: "auto" },
+
+  // --- PET SHOP & EVCİL HAYVAN (KEDİLER) ---
+  { id: 7000801, name: "Kuru Kedi Mamaları", displayName: "Pet Shop > Kedi Ürünleri > Kedi Mamaları > Kuru Kedi Maması", paths: ["Pet Shop", "Kedi", "Kuru Kedi Maması"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 7000802, name: "Kedi Kumları & Kedi Tuvaletleri", displayName: "Pet Shop > Kedi Ürünleri > Kedi Kumu & Hijyen", paths: ["Pet Shop", "Kedi", "Kedi Kumu"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 7000803, name: "Kedi Tırmalamaları, Yatakları & Aksesuarları", displayName: "Pet Shop > Kedi Ürünleri > Aksesuarlar", paths: ["Pet Shop", "Kedi", "Aksesuarlar"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" }
 ];
 
 // 4. Standard Pazarama Categories
@@ -1758,7 +1918,9 @@ export const PAZARAMA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   { id: 107, name: "Ev Tekstili", displayName: "Ev & Yaşam > Ev Tekstili", paths: ["Ev & Yaşam", "Ev Tekstili"], leaf: true, sector: "home" },
   { id: 113, name: "Saklama Ürünleri & Organizerler", displayName: "Ev & Yaşam > Saklama & Organizer", paths: ["Ev & Yaşam", "Saklama", "Organizer"], leaf: true, sector: "home" },
   { id: 104, name: "Kozmetik, Kişisel Bakım & Medikal", displayName: "Kozmetik & Sağlık > Bakım & Medikal", paths: ["Kozmetik", "Medikal"], leaf: true, sector: "home" },
-  { id: 105, name: "Oto Aksesuar", displayName: "Oto & Bahçe > Araç Bakım & Aksesuar", paths: ["Oto & Bahçe"], leaf: true, sector: "auto" }
+  { id: 105, name: "Oto Aksesuar", displayName: "Oto & Bahçe > Araç Bakım & Aksesuar", paths: ["Oto & Bahçe"], leaf: true, sector: "auto" },
+  { id: 114, name: "Pet Shop & Kediler", displayName: "Pet Shop > Kedi Ürünleri", paths: ["Pet Shop", "Kediler"], leaf: true, sector: "petshop" },
+  { id: 115, name: "Kedi Maması & Kedi Kumu", displayName: "Pet Shop > Kedi > Mama & Kum", paths: ["Pet Shop", "Kedi", "Mama & Kum"], leaf: true, sector: "petshop" }
 ];
 
 // 5. Standard N11.com Leaf Categories
@@ -1809,7 +1971,12 @@ export const N11_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   { id: 1000632, name: "Ev Dekorasyon Ürünleri", displayName: "Ev & Yaşam > Ev Dekorasyon > Ev Dekorasyon Ürünleri", paths: ["Ev Yaşam", "Ev Dekorasyon", "Ev Dekorasyon Ürünleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 1000633, name: "Saklama Ürünleri", displayName: "Ev & Yaşam > Saklama Ürünleri", paths: ["Ev Yaşam", "Saklama Ürünleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 1000634, name: "Organizerler", displayName: "Ev & Yaşam > Organizerler & Düzenleyiciler", paths: ["Ev Yaşam", "Organizerler"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
-  { id: 1000701, name: "Oto Aksesuar & Araç İçi Donanım", displayName: "Otomotiv & Motosiklet > Oto Aksesuar", paths: ["Otomotiv", "Aksesuar"], leaf: true, available: true, status: "ACTIVE", sector: "auto" }
+  { id: 1000701, name: "Oto Aksesuar & Araç İçi Donanım", displayName: "Otomotiv & Motosiklet > Oto Aksesuar", paths: ["Otomotiv", "Aksesuar"], leaf: true, available: true, status: "ACTIVE", sector: "auto" },
+  { id: 1000801, name: "Pet Shop", displayName: "Ev & Yaşam > Evcil Hayvan Ürünleri > Pet Shop", paths: ["Pet Shop"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 1000802, name: "Kediler", displayName: "Pet Shop > Kedi Malzemeleri > Kediler", paths: ["Pet Shop", "Kediler"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 1000803, name: "Kedi Maması (Kuru & Yaş)", displayName: "Pet Shop > Kedi > Kedi Maması", paths: ["Pet Shop", "Kedi", "Kedi Maması"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 1000804, name: "Kedi Kumu & Kedi Tuvaleti", displayName: "Pet Shop > Kedi > Kedi Kumu", paths: ["Pet Shop", "Kedi", "Kedi Kumu"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" },
+  { id: 1000805, name: "Kedi Tırmalama, Yatak & Aksesuarlar", displayName: "Pet Shop > Kedi > Aksesuarlar", paths: ["Pet Shop", "Kedi", "Aksesuarlar"], leaf: true, available: true, status: "ACTIVE", sector: "petshop" }
 ];
 
 // Country list for Origin / Menşei
@@ -2298,6 +2465,40 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
     { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24"], defaultValue: "24" },
     { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["10", "20"], defaultValue: "20" }
   ],
+  pet_cat_food: [
+    { id: "Marka", name: "Marka (Brand)", description: "Kedi maması üretici markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "MamaTuru", name: "Mama / Besin Türü", description: "Kuru mama, yaş mama, ödül veya macun", mandatory: true, type: "select", values: ["Kuru Kedi Maması", "Yaş & Konserve Mama (Pouch / Konserve)", "Ödül Maması (Snack / Stick)", "Kedi Macunu (Malt / Vitamin Pasta)", "Sıvı Ödül Maması (Creamy Treat)"], defaultValue: "Kuru Kedi Maması" },
+    { id: "YasEvresi", name: "Yaş Evresi", description: "Kedinin yaşam dönemi", mandatory: true, type: "select", values: ["Yetişkin (Adult 1+ Yaş)", "Yavru (Kitten 0-12 Ay)", "Kısırlaştırılmış (Sterilised)", "Yaşlı / Kıdemli (Senior 7+ Yaş)", "Tüm Yaşam Evreleri (All Life Stages)"], defaultValue: "Yetişkin (Adult 1+ Yaş)" },
+    { id: "OzelIhtiyac", name: "Özel İhtiyaç / Diyet", description: "Sağlık ve diyet gereksinimi", mandatory: false, type: "select", values: ["Kısırlaştırılmış (Sterilised)", "Tüy Yumağı Önleyici (Hairball)", "Hassas Sindirim & Mide (Sensitive)", "Deri & Tüy Sağlığı (Skin & Coat)", "Üriner Sistem (Urinary)", "Kilo Kontrolü (Light / Weight)", "Tahılsız (Grain Free)", "Hipoalerjenik", "Standart / Genel"], defaultValue: "Kısırlaştırılmış (Sterilised)" },
+    { id: "AromaLezzet", name: "Aroma / Lezzet", description: "Ana et veya aroma kaynağı", mandatory: true, type: "select", values: ["Somonlu & Balıklı", "Tavuklu & Hindi", "Kuzulu & Dana Etli", "Ördek & Tavşan", "Ton Balıklı", "Karışık Etli", "Peynirli & Sebzeli"], defaultValue: "Somonlu & Balıklı" },
+    { id: "TahilDurumu", name: "Tahıl Durumu", description: "Tahıl içeriği", mandatory: false, type: "select", values: ["Tahıllı (Standart)", "Tahılsız (Grain Free)", "Düşük Tahıllı (Low Grain)"], defaultValue: "Tahıllı (Standart)" },
+    { id: "PaketAgirligi", name: "Paket Ağırlığı / Gramaj", description: "Net ürün ağırlığı", mandatory: true, type: "select", values: ["85 gr", "100 gr", "300 gr", "400 gr", "1.5 kg", "2 kg", "3 kg", "7 kg", "10 kg", "15 kg", "Çoklu Paket (12x85gr / 24x85gr)"], defaultValue: "1.5 kg" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Son Kullanma / Raf Ömrü (Ay)", description: "Raf ömrü süresi", mandatory: true, type: "select", values: ["12", "18", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Mama vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "10" }
+  ],
+  pet_cat_litter: [
+    { id: "Marka", name: "Marka (Brand)", description: "Kedi kumu üretici markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "KumTuru", name: "Kum Türü / Materyali", description: "Bentonit, silika, pelet veya tofu", mandatory: true, type: "select", values: ["Bentonit Kedi Kumu (Doğal Kil)", "Silika / Kristal Kedi Kumu", "Pelet / Doğal Çam Kedi Kumu", "Tofu / Soya Kedi Kumu", "Aktif Karbonlu Bentonit Kumu"], defaultValue: "Bentonit Kedi Kumu (Doğal Kil)" },
+    { id: "TaneYapisi", name: "Tane Yapısı", description: "Kum granül boyutu", mandatory: true, type: "select", values: ["İnce Taneli (0.5 - 2 mm / Compact)", "Kalın Taneli (2 - 5 mm)", "Karışık Tane", "Silindirik Pelet"], defaultValue: "İnce Taneli (0.5 - 2 mm / Compact)" },
+    { id: "KokuParfum", name: "Koku / Parfüm Özelliği", description: "Kum esansı", mandatory: true, type: "select", values: ["Bebek Pudralı", "Marsilya Sabunlu", "Lavanta Kokulu", "Kokusuz / Doğal", "Aktif Karbon (Kokusuz Nötrleştirici)", "Portakal & Narenciye", "Çam Kokulu"], defaultValue: "Bebek Pudralı" },
+    { id: "Topaklanma", name: "Topaklanma Özelliği", description: "Sıvı hapsedici topaklaşma gücü", mandatory: true, type: "select", values: ["Yüksek Topaklaşan (Ultra Clumping)", "Normal Topaklaşan", "Topaklaşmayan (Emici Kristal/Pelet)"], defaultValue: "Yüksek Topaklaşan (Ultra Clumping)" },
+    { id: "PaketHacmi", name: "Paket Hacmi / Litre", description: "Net hacim veya ağırlık", mandatory: true, type: "select", values: ["5 Litre (yakl. 4.2 kg)", "10 Litre (yakl. 8.5 kg)", "20 Litre (Mega Paket)", "2 x 10 Litre Avantaj Seti", "3.8 Litre (Silika)"], defaultValue: "10 Litre (yakl. 8.5 kg)" },
+    { id: "Tozsuzluk", name: "Tozsuzluk Oranı", description: "Tozdan arındırılma derecesi", mandatory: false, type: "select", values: ["%99.5 Tozsuz (Dust Free)", "Düşük Tozlu", "Standart"], defaultValue: "%99.5 Tozsuz (Dust Free)" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["10", "20"], defaultValue: "20" }
+  ],
+  pet_cat_accessories: [
+    { id: "Marka", name: "Marka (Brand)", description: "Aksesuar markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "UrunTipi", name: "Aksesuar & Ekipman Türü", description: "Tırmalama, yatak, tuvalet, taşıma vb.", mandatory: true, type: "select", values: ["Kedi Tırmalaması & Kedi Ağacı", "Kedi Yatağı, Minder & Yuva", "Kedi Taşıma Çantası & Astronot Box", "Kapalı Kedi Tuvaleti", "Açık Kedi Tuvaleti & Elekli Kürek", "Otomatik Mama & Su Pınarı (Dispenser)", "Çelik / Seramik Mama & Su Kabı", "Kedi Tasması (Zilli / Emniyetli)", "Kedi Tarağı & Furminator Tüy Toplayıcı", "Kedi Oyuncağı (Catnip / Lazer / Tünel)"], defaultValue: "Kedi Tırmalaması & Kedi Ağacı" },
+    { id: "Materyal", name: "Materyal / Malzeme", description: "Gövde ve kumaş malzemesi", mandatory: false, type: "select", values: ["Sisal İp & Peluş", "Ahşap / Masif Gövde", "Plastik (BPA Free)", "Paslanmaz Çelik & Seramik", "Kumaş / Pamuklu Polar", "Oxford Su Geçirmez Kumaş"], defaultValue: "Sisal İp & Peluş" },
+    { id: "Renk", name: "Renk (Color)", description: "Ana renk", mandatory: true, type: "select", values: ["Gri / Antrasit", "Bej / Krem", "Siyah", "Mavi / Lacivert", "Pembe / Pudra", "Beyaz", "Kahverengi / Ahşap Tonu", "Çok Renkli"], defaultValue: "Gri / Antrasit" },
+    { id: "BoyutEbat", name: "Boyut / Ebat", description: "Ürün ölçüleri (En x Boy x Yükseklik)", mandatory: false, type: "text", placeholder: "Örn: 40x40x60 cm veya Çap: 50 cm" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["10", "20"], defaultValue: "20" }
+  ],
   general: [
     { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
     { id: "Mensei", name: "Menşei Ülke (Origin Country)", description: "Üretim yeri", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
@@ -2648,7 +2849,39 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "8000148": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
   "80104": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
   "7000408": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
-  "1000634": COMMON_MARKETPLACE_ATTRIBUTES.organizers
+  "1000634": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+
+  // Pet Shop & Kediler (Hepsiburada, Trendyol, Amazon, Pazarama, N11)
+  "9000100": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "9000110": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "9000111": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "9000112": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "9000113": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "9000114": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_litter,
+  "9000115": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "9000116": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "9000117": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "9000118": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "9000119": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "9000120": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "9000121": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "9000122": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "90101": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "90102": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "90103": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_litter,
+  "90104": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "90105": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "90106": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories,
+  "7000801": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "7000802": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "7000803": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_litter,
+  "114": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "115": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_litter,
+  "1000801": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "1000802": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "1000803": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food,
+  "1000804": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_litter,
+  "1000805": COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories
 };
 
 // Returns relevant attributes based on Child Category Name/Path first, then Category ID
@@ -3439,6 +3672,67 @@ export function getAttributesForCategory(catName: string, paths: string[] = [], 
     text.includes("beauty")
   ) {
     return COMMON_MARKETPLACE_ATTRIBUTES.cosmetics;
+  }
+
+  // 13b. Pet Shop & Kediler: Kedi Kumu (Must match before general pet/accessories)
+  if (
+    text.includes("kedi kumu") ||
+    text.includes("kedi kum") ||
+    text.includes("bentonit") ||
+    text.includes("tofu kum") ||
+    text.includes("silika kum") ||
+    text.includes("kristal kum") ||
+    (text.includes("kum") && (text.includes("kedi") || text.includes("pet")))
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_litter;
+  }
+
+  // 13c. Pet Shop & Kediler: Aksesuarlar, Tırmalama, Tuvalet, Yatak & Taşıma
+  if (
+    text.includes("tırmalama") ||
+    text.includes("tirmalama") ||
+    text.includes("kedi tuvalet") ||
+    text.includes("tuvalet kabı") ||
+    text.includes("kum küreği") ||
+    text.includes("kedi yatak") ||
+    text.includes("kedi yuva") ||
+    text.includes("kedi çadır") ||
+    text.includes("kedi cadir") ||
+    text.includes("kedi taşıma") ||
+    text.includes("kedi tasima") ||
+    text.includes("kedi tasma") ||
+    text.includes("kedi oyuncak") ||
+    text.includes("kedi su pınarı") ||
+    text.includes("su pınarı") ||
+    text.includes("kedi mama kabı") ||
+    text.includes("furminator") ||
+    text.includes("kedi tarağı") ||
+    text.includes("kedi tarak")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_accessories;
+  }
+
+  // 13d. Pet Shop & Kediler: Kuru/Yaş Mama, Ödül & Macunlar
+  if (
+    text.includes("kuru kedi") ||
+    text.includes("yaş kedi") ||
+    text.includes("yas kedi") ||
+    text.includes("kedi mama") ||
+    text.includes("konserve kedi") ||
+    text.includes("kedi ödül") ||
+    text.includes("kedi odul") ||
+    text.includes("kedi macun") ||
+    text.includes("malt macun") ||
+    text.includes("malt pasta") ||
+    text.includes("catnip") ||
+    text.includes("kedi püre") ||
+    text.includes("kedi çorba") ||
+    text.includes("kediler") ||
+    text.includes("pet shop") ||
+    text.includes("petshop") ||
+    text.includes("evcil hayvan")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.pet_cat_food;
   }
 
   // 14. Genel Elektronik & Çevre Birimleri

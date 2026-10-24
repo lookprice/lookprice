@@ -159,11 +159,163 @@ export const getDefaultCorporateConfig = (store?: Partial<StoreInfo> | any): Cor
       ? store.name
       : "Seçkin Kurumsal Hizmetler";
 
+  const defaultServices: CorporateServiceItem[] = [
+    {
+      id: "srv-1",
+      title: "Adak, Akika & Şükür Kurbanı Hizmeti",
+      subtitle: "İslami Usullere Tam Uygun & Veteriner Kontrollü",
+      description:
+        "Tesisimizde veteriner hekim kontrolünde yetiştirilen sağlıklı kurbanlıklarımız, İslami usullere ve hijyen kurallarına tam riayet edilerek uzman kasaplarımız tarafından hazırlanır.",
+      image_url:
+        "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=1000&q=80",
+      badge: "En Çok Tercih Edilen",
+      features: [
+        "Veteriner Hekim Onaylı Sağlıklı Seçenekler",
+        "Hijyenik Kesimhane & İslami Usullere Tam Uygunluk",
+        "Eşit Paylama, Parçalama ve Özel Paketleme",
+        "Yerinde Görerek Seçim veya Görüntülü Vekalet İmkanı",
+      ],
+      cta_text: "Detaylı Bilgi & Fiyat Al",
+      whatsapp_message: "Merhaba, Adak ve Akika hizmetleriniz hakkında detaylı bilgi almak istiyorum.",
+    },
+    {
+      id: "srv-2",
+      title: "Görüntülü Vekalet & Canlı Video Teslimat",
+      subtitle: "Yurt İçi ve Yurt Dışı Uzaktan Güvenli Süreç",
+      description:
+        "Tesisimize gelemeyen misafirlerimiz için görüntülü görüşme veya isme özel kesim videosu ile vekalet sürecini şeffaf biçimde tamamlıyor, dilediğiniz adrese veya hayır kurumlarına ulaştırıyoruz.",
+      image_url:
+        "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1000&q=80",
+      badge: "Video Kanıtlı Hizmet",
+      features: [
+        "WhatsApp Üzerinden Canlı Bağlantı veya Video Gönderimi",
+        "İsme Özel Okuma ve Şeffaf Süreç Yönetimi",
+        "İsteğe Göre Adrese Teslim veya Aşevi/Kurum Dağıtımı",
+        "Aynı Gün İçerisinde Hızlı Organizasyon",
+      ],
+      cta_text: "Vekalet Sürecini Sorun",
+      whatsapp_message: "Merhaba, görüntülü vekalet ve video gönderimli hizmetiniz hakkında bilgi almak istiyorum.",
+    },
+    {
+      id: "srv-3",
+      title: "Hijyenik Paketleme & Soğuk Zincir Dağıtım",
+      subtitle: "Özel Muhafazalı Teslimat & Paylama Desteği",
+      description:
+        "Hazırlanan tüm paylar modern soğuk hava standartlarında dinlendirilir, özel gıda ambalajlarıyla hijyenik olarak paketlenir ve zamanında teslim edilir.",
+      image_url:
+        "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=80",
+      badge: "%100 Hijyen Standardı",
+      features: [
+        "Gıda Kodeksine Uygun Steril Kesim ve Paketleme",
+        "İsteğe Göre Yemeklik veya Porsiyonluk Hazırlık",
+        "Randevulu Sıra Beklemeden Hızlı Teslimat",
+        "Misafir Ağırlama Alanı ve Ücretsiz İkramlar",
+      ],
+      cta_text: "Randevu & Bilgi Al",
+      whatsapp_message: "Merhaba, tesisinizden randevu ve paketleme hizmetiniz hakkında bilgi almak istiyorum.",
+    },
+  ];
+
+  const defaultGallery: CorporateGalleryImage[] = [
+    {
+      id: "gal-1",
+      url: "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1000&q=80",
+      title: "Modern ve Doğal Tesis Alanımız",
+      category: "Tesisimiz",
+    },
+    {
+      id: "gal-2",
+      url: "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=1000&q=80",
+      title: "Veteriner Kontrollü Sağlıklı Seçenekler",
+      category: "Hizmetlerimiz",
+    },
+    {
+      id: "gal-3",
+      url: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=80",
+      title: "Hijyenik Hazırlık ve Paketleme Standartlarımız",
+      category: "Hijyen & Paketleme",
+    },
+  ];
+
+  const heroImages = [
+    store?.hero_image_url ||
+      store?.branding?.hero_image_url ||
+      "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1800&q=85",
+    "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=1800&q=85",
+    "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1800&q=85",
+  ];
+
+  const heroStats = [
+    { value: "15+ Yıl", label: "Sektörel Tecrübe", sublabel: "Köklü ve güvenilir geçmiş" },
+    { value: "%100", label: "Müşteri Memnuniyeti", sublabel: "Şeffaf ve garantili süreç" },
+    { value: "7/24", label: "Canlı Destek & İletişim", sublabel: "Her an ulaşılabilir uzman ekip" },
+    { value: "10.000+", label: "Mutlu Müşteri", sublabel: "Türkiye genelinde referans" },
+  ];
+
+  const aboutContent =
+    store?.about_text ||
+    store?.branding?.about_text ||
+    `${storeName} olarak kurulduğumuz ilk günden bu yana temel önceliğimiz; müşterilerimize güvene dayalı, şeffaf, sağlıklı ve kusursuz bir hizmet sunmaktır.\n\nModern tesislerimizde uzman kadromuz ile tüm süreçleri titizlikle yürütüyor, hijyen ve kalite standartlarından ödün vermeden beklentilerinizin ötesinde bir deneyim sağlıyoruz. Bizi tercih eden binlerce ailemizin memnuniyeti ve referansı en büyük motivasyon kaynağımızdır.`;
+
+  const aboutHighlights = [
+    {
+      title: "Resmî & Denetimli Tesis",
+      description: "Tüm süreçlerimiz veteriner hekim ve ilgili kurum standartlarına uygun yürütülür.",
+    },
+    {
+      title: "Şeffaf ve Güvenilir Süreç",
+      description: "Başlangıçtan teslimata kadar her aşamada bilgilendirme ve tam şeffaflık.",
+    },
+    {
+      title: "Uzman & Güler Yüzlü Kadro",
+      description: "Alanında deneyimli profesyonellerle hızlı, temiz ve eksiksiz hizmet.",
+    },
+    {
+      title: "Kolay Ulaşım & Harita Konumu",
+      description: "Merkezi lokasyonumuz ve geniş otopark alanımızla rahat ziyaret imkanı.",
+    },
+  ];
+
+  const announcementText = `${storeName} — Profesyonel Hizmet, %100 Güven ve Kurumsal Çözüm Merkezi • 7/24 İletişim Hattımız Aktiftir`;
+
+  const primaryPhone =
+    store?.phone ||
+    store?.branding?.phone ||
+    "+90 548 890 23 09";
+
+  const whatsappPhone =
+    store?.whatsapp_number ||
+    store?.branding?.whatsapp_number ||
+    primaryPhone;
+
+  const emailAddr =
+    store?.email ||
+    store?.branding?.email ||
+    "info@kurumsal.com";
+
+  const addressText =
+    store?.address ||
+    store?.branding?.address ||
+    "Merkez Mah. Atatürk Cad. No: 12";
+
+  const workingHours =
+    store?.working_hours_text ||
+    store?.branding?.working_hours_text ||
+    "Pazartesi - Pazar: 07:30 - 22:00 (Haftanın 7 Günü Açık)";
+
+  const latitudeVal = store?.latitude || store?.branding?.latitude || "";
+  const longitudeVal = store?.longitude || store?.branding?.longitude || "";
+
   return {
     theme_preset: "emerald_gold",
+    theme_palette: "emerald_gold",
     default_color_mode: "light",
+    announcement: {
+      enabled: true,
+      text: announcementText,
+    },
     announcement_enabled: true,
-    announcement_text: `${storeName} — Profesyonel Hizmet, %100 Güven ve Kurumsal Çözüm Merkezi • 7/24 İletişim Hattımız Aktiftir`,
+    announcement_text: announcementText,
     nav_labels: {
       home: "Ana Sayfa",
       services: "Hizmetlerimiz",
@@ -175,6 +327,7 @@ export const getDefaultCorporateConfig = (store?: Partial<StoreInfo> | any): Cor
       cta_button: "Hemen Bize Ulaşın",
     },
     hero: {
+      badge: "KURUMSAL GÜVEN & PROFESYONEL HİZMET",
       badge_text: "KURUMSAL GÜVEN & PROFESYONEL HİZMET",
       title: `${storeName} İle Kaliteli ve Güvenilir Hizmet Deneyimi`,
       highlight_word: "Güvenilir Hizmet",
@@ -184,19 +337,9 @@ export const getDefaultCorporateConfig = (store?: Partial<StoreInfo> | any): Cor
         "Alanında uzman ekibimiz, modern tesislerimiz ve şeffaf hizmet anlayışımızla ihtiyaçlarınıza en hızlı, hijyenik ve güvenilir çözümleri sunuyoruz.",
       primary_cta_text: "Hizmetlerimizi İnceleyin",
       secondary_cta_text: "WhatsApp İletişim Hattı",
-      hero_images: [
-        store?.hero_image_url ||
-          store?.branding?.hero_image_url ||
-          "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1800&q=85",
-        "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=1800&q=85",
-        "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1800&q=85",
-      ],
-      stats: [
-        { value: "15+ Yıl", label: "Sektörel Tecrübe", sublabel: "Köklü ve güvenilir geçmiş" },
-        { value: "%100", label: "Müşteri Memnuniyeti", sublabel: "Şeffaf ve garantili süreç" },
-        { value: "7/24", label: "Canlı Destek & İletişim", sublabel: "Her an ulaşılabilir uzman ekip" },
-        { value: "10.000+", label: "Mutlu Müşteri", sublabel: "Türkiye genelinde referans" },
-      ],
+      hero_images: heroImages,
+      background_images: heroImages,
+      stats: heroStats,
     },
     services_section: {
       enabled: true,
@@ -204,72 +347,32 @@ export const getDefaultCorporateConfig = (store?: Partial<StoreInfo> | any): Cor
       title: "Hizmetlerimiz",
       subtitle:
         "Size özel sunduğumuz tüm profesyonel hizmetlerimizde en yüksek kalite, hijyen ve güven standartlarını uyguluyoruz.",
-      items: [
-        {
-          id: "srv-1",
-          title: "Adak, Akika & Şükür Kurbanı Hizmeti",
-          subtitle: "İslami Usullere Tam Uygun & Veteriner Контроllü",
-          description:
-            "Tesisimizde veteriner hekim kontrolünde yetiştirilen sağlıklı kurbanlıklarımız, İslami usullere ve hijyen kurallarına tam riayet edilerek uzman kasaplarımız tarafından hazırlanır.",
-          image_url:
-            "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=1000&q=80",
-          badge: "En Çok Tercih Edilen",
-          features: [
-            "Veteriner Hekim Onaylı Sağlıklı Seçenekler",
-            "Hijyenik Kesimhane & İslami Usullere Tam Uygunluk",
-            "Eşit Paylama, Parçalama ve Özel Paketleme",
-            "Yerinde Görerek Seçim veya Görüntülü Vekalet İmkanı",
-          ],
-          cta_text: "Detaylı Bilgi & Fiyat Al",
-          whatsapp_message: "Merhaba, Adak ve Akika hizmetleriniz hakkında detaylı bilgi almak istiyorum.",
-        },
-        {
-          id: "srv-2",
-          title: "Görüntülü Vekalet & Canlı Video Teslimat",
-          subtitle: "Yurt İçi ve Yurt Dışı Uzaktan Güvenli Süreç",
-          description:
-            "Tesisimize gelemeyen misafirlerimiz için görüntülü görüşme veya isme özel kesim videosu ile vekalet sürecini şeffaf biçimde tamamlıyor, dilediğiniz adrese veya hayır kurumlarına ulaştırıyoruz.",
-          image_url:
-            "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1000&q=80",
-          badge: "Video Kanıtlı Hizmet",
-          features: [
-            "WhatsApp Üzerinden Canlı Bağlantı veya Video Gönderimi",
-            "İsme Özel Okuma ve Şeffaf Süreç Yönetimi",
-            "İsteğe Göre Adrese Teslim veya Aşevi/Kurum Dağıtımı",
-            "Aynı Gün İçerisinde Hızlı Organizasyon",
-          ],
-          cta_text: "Vekalet Sürecini Sorun",
-          whatsapp_message: "Merhaba, görüntülü vekalet ve video gönderimli hizmetiniz hakkında bilgi almak istiyorum.",
-        },
-        {
-          id: "srv-3",
-          title: "Hijyenik Paketleme & Soğuk Zincir Dağıtım",
-          subtitle: "Özel Muhafazalı Teslimat & Paylama Desteği",
-          description:
-            "Hazırlanan tüm paylar modern soğuk hava standartlarında dinlendirilir, özel gıda ambalajlarıyla hijyenik olarak paketlenir ve zamanında teslim edilir.",
-          image_url:
-            "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=80",
-          badge: "%100 Hijyen Standardı",
-          features: [
-            "Gıda Kodeksine Uygun Steril Kesim ve Paketleme",
-            "İsteğe Göre Yemeklik veya Porsiyonluk Hazırlık",
-            "Randevulu Sıra Beklemeden Hızlı Teslimat",
-            "Misafir Ağırlama Alanı ve Ücretsiz İkramlar",
-          ],
-          cta_text: "Randevu & Bilgi Al",
-          whatsapp_message: "Merhaba, tesisinizden randevu ve paketleme hizmetiniz hakkında bilgi almak istiyorum.",
-        },
-      ],
+      items: defaultServices,
+    },
+    services: defaultServices,
+    about: {
+      badge: "KURUMSAL KİMLİĞİMİZ",
+      title: "Hakkımızda",
+      subtitle: "Yılların verdiği tecrübe, dürüstlük ilkesi ve modern tesis altyapımızla yanınızdayız.",
+      content: aboutContent,
+      mission:
+        "Etik değerlere, hijyen kurallarına ve müşteri memnuniyetine tam bağlılıkla; her zaman ulaşılabilir, şeffaf ve birinci sınıf hizmet sunmak.",
+      vision:
+        "Sektörümüzde yenilikçi uygulamalarımız, modern tesis yapımız ve sarsılmaz güven anlayışımızla bölgenin en çok tercih edilen öncü kurumu olmak.",
+      image_url:
+        "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=85",
+      secondary_image_url:
+        "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=800&q=80",
+      experience_years: "15+",
+      experience_text: "Yıllık Güven & Tecrübe",
+      highlights: aboutHighlights,
     },
     about_section: {
       enabled: true,
       badge: "KURUMSAL KİMLİĞİMİZ",
       title: "Hakkımızda",
       subtitle: "Yılların verdiği tecrübe, dürüstlük ilkesi ve modern tesis altyapımızla yanınızdayız.",
-      content:
-        store?.about_text ||
-        store?.branding?.about_text ||
-        `${storeName} olarak kurulduğumuz ilk günden bu yana temel önceliğimiz; müşterilerimize güvene dayalı, şeffaf, sağlıklı ve kusursuz bir hizmet sunmaktır.\n\nModern tesislerimizde uzman kadromuz ile tüm süreçleri titizlikle yürütüyor, hijyen ve kalite standartlarından ödün vermeden beklentilerinizin ötesinde bir deneyim sağlıyoruz. Bizi tercih eden binlerce ailemizin memnuniyeti ve referansı en büyük motivasyon kaynağımızdır.`,
+      content: aboutContent,
       mission_title: "Misyonumuz",
       mission_text:
         "Etik değerlere, hijyen kurallarına ve müşteri memnuniyetine tam bağlılıkla; her zaman ulaşılabilir, şeffaf ve birinci sınıf hizmet sunmak.",
@@ -282,24 +385,7 @@ export const getDefaultCorporateConfig = (store?: Partial<StoreInfo> | any): Cor
         "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=800&q=80",
       experience_badge_value: "15+",
       experience_badge_label: "Yıllık Güven & Tecrübe",
-      highlights: [
-        {
-          title: "Resmî & Denetimli Tesis",
-          description: "Tüm süreçlerimiz veteriner hekim ve ilgili kurum standartlarına uygun yürütülür.",
-        },
-        {
-          title: "Şeffaf ve Güvenilir Süreç",
-          description: "Başlangıçtan teslimata kadar her aşamada bilgilendirme ve tam şeffaflık.",
-        },
-        {
-          title: "Uzman & Güler Yüzlü Kadro",
-          description: "Alanında deneyimli profesyonellerle hızlı, temiz ve eksiksiz hizmet.",
-        },
-        {
-          title: "Kolay Ulaşım & Harita Konumu",
-          description: "Merkezi lokasyonumuz ve geniş otopark alanımızla rahat ziyaret imkanı.",
-        },
-      ],
+      highlights: aboutHighlights,
     },
     custom_pages: [],
     gallery_section: {
@@ -307,37 +393,46 @@ export const getDefaultCorporateConfig = (store?: Partial<StoreInfo> | any): Cor
       badge: "TESİSİMİZ & ÇALIŞMALARIMIZ",
       title: "Fotoğraf Galerisi",
       subtitle: "Tesisimizden, hizmet süreçlerimizden ve çalışmalarımızdan güncel kareler.",
-      images: [
-        {
-          id: "gal-1",
-          url: "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1000&q=80",
-          title: "Modern ve Doğal Tesis Alanımız",
-          category: "Tesisimiz",
-        },
-        {
-          id: "gal-2",
-          url: "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=1000&q=80",
-          title: "Veteriner Kontrollü Sağlıklı Seçenekler",
-          category: "Hizmetlerimiz",
-        },
-        {
-          id: "gal-3",
-          url: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=80",
-          title: "Hijyenik Hazırlık ve Paketleme Standartlarımız",
-          category: "Hijyen & Paketleme",
-        },
-      ],
+      images: defaultGallery,
+    },
+    gallery: defaultGallery,
+    contact: {
+      badge: "BİZE ULAŞIN",
+      title: "İletişim & Harita Konumumuz",
+      subtitle:
+        "Sorularınız, randevu talepleriniz veya tesisimizi ziyaret etmek için aşağıdaki iletişim kanallarımızdan bize 7/24 ulaşabilirsiniz.",
+      phone_primary: primaryPhone,
+      phone_secondary: "",
+      whatsapp: whatsappPhone,
+      email: emailAddr,
+      address: addressText,
+      working_hours: workingHours,
+      instagram_url: store?.instagram_url || store?.branding?.instagram_url || "",
+      facebook_url: store?.facebook_url || store?.branding?.facebook_url || "",
+      youtube_url: store?.youtube_url || store?.branding?.youtube_url || "",
+      latitude: latitudeVal,
+      longitude: longitudeVal,
+      map_embed_url: "",
     },
     contact_section: {
       badge: "BİZE ULAŞIN",
       title: "İletişim & Harita Konumumuz",
       subtitle:
         "Sorularınız, randevu talepleriniz veya tesisimizi ziyaret etmek için aşağıdaki iletişim kanallarımızdan bize 7/24 ulaşabilirsiniz.",
-      working_hours: "Pazartesi - Pazar: 07:30 - 22:00 (Haftanın 7 Günü Açık)",
+      working_hours: workingHours,
       map_embed_url: "",
-      latitude: store?.latitude || store?.branding?.latitude || "",
-      longitude: store?.longitude || store?.branding?.longitude || "",
+      latitude: latitudeVal,
+      longitude: longitudeVal,
       show_contact_form: true,
+    },
+    seo_marketing: {
+      meta_title: `${storeName} | Profesyonel Kurumsal Hizmet ve Çözüm Merkezi`,
+      meta_description: `${storeName} kurumsal web sitesi; hizmetlerimiz, referanslarımız, kurumsal bilgilerimiz ve 7/24 iletişim kanallarımız.`,
+      meta_keywords: "kurumsal web sitesi, profesyonel hizmet, güvenilir hizmet, iletişim, danışmanlık",
+      google_analytics_id: store?.branding?.meta_settings?.ga_measurement_id || "",
+      google_tag_manager_id: store?.branding?.meta_settings?.gtm_id || "",
+      google_search_console_code: store?.branding?.meta_settings?.gsc_id || "",
+      meta_pixel_id: store?.branding?.meta_settings?.pixel_id || "",
     },
     floating_actions: {
       show_whatsapp: true,

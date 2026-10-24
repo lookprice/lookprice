@@ -14,7 +14,8 @@ import {
   ShieldCheck, 
   ExternalLink,
   ChevronRight,
-  FolderTree
+  FolderTree,
+  Cat
 } from "lucide-react";
 import { api } from "../services/api";
 import { toast } from "sonner";
@@ -47,7 +48,7 @@ export const SectorTaxonomyModal: React.FC<SectorTaxonomyModalProps> = ({
   storeName
 }) => {
   const [packages, setPackages] = useState<SectorPackage[]>([]);
-  const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>(["tech_computer", "small_appliances", "consumer_electronics", "photography_camera"]);
+  const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>(["tech_computer", "small_appliances", "consumer_electronics", "photography_camera", "pet_shop"]);
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [expandedPkg, setExpandedPkg] = useState<string | null>("tech_computer");
@@ -131,6 +132,7 @@ export const SectorTaxonomyModal: React.FC<SectorTaxonomyModalProps> = ({
       case "Camera": return <Camera className="w-5 h-5 text-emerald-600" />;
       case "Coffee": return <Coffee className="w-5 h-5 text-amber-600" />;
       case "Tv": return <Tv className="w-5 h-5 text-cyan-600" />;
+      case "Cat": return <Cat className="w-5 h-5 text-rose-500" />;
       default: return <Package className="w-5 h-5 text-indigo-600" />;
     }
   };

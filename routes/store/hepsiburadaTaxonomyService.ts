@@ -196,6 +196,32 @@ export const SECTOR_TAXONOMY_PACKAGES: SectorTaxonomyPackage[] = [
         hb_category_id: 8000140
       }
     ]
+  },
+  {
+    id: "pet_shop",
+    name: "Pet Shop & Evcil Hayvan",
+    description: "Kedi & Köpek Mamaları, Kedi Kumu, Tuvalet, Tırmalama, Oyuncak ve Pet Aksesuarları",
+    icon: "Cat",
+    categories: [
+      {
+        category: "Kediler",
+        sub_categories: [
+          "Kuru Kedi Maması",
+          "Yaş & Konserve Kedi Maması",
+          "Kedi Ödül Maması & Macunlar",
+          "Kedi Kumu",
+          "Kedi Tuvaleti & Kürekleri",
+          "Kedi Yatakları, Yuva & Çadırlar",
+          "Kedi Tırmalamaları & Ağaçları",
+          "Kedi Taşıma Çantaları & Box",
+          "Kedi Oyuncakları",
+          "Kedi Sağlık, Bakım & Hijyen",
+          "Kedi Tasmaları & Gezdirme Kayışları",
+          "Kedi Mama & Su Kapları"
+        ],
+        hb_category_id: 9000110
+      }
+    ]
   }
 ];
 
@@ -204,6 +230,21 @@ export function resolveSubCategoryLeafHbId(subName: string, fallbackParentId?: n
     .replace(/İ/g, "i")
     .replace(/I/g, "ı")
     .toLowerCase();
+
+  // Pet Shop & Kediler
+  if (s.includes("kuru kedi")) return "9000111";
+  if (s.includes("yaş & konserve") || s.includes("yas & konserve") || s.includes("konserve kedi") || s.includes("yaş kedi") || s.includes("yas kedi")) return "9000112";
+  if (s.includes("ödül") || s.includes("odul") || s.includes("macun") || s.includes("malt")) return "9000113";
+  if (s.includes("kedi kumu") || s.includes("bentonit") || s.includes("kedi kum")) return "9000114";
+  if (s.includes("tuvalet") || s.includes("kürek") || s.includes("kurek")) return "9000115";
+  if (s.includes("yatak") || s.includes("yuva") || s.includes("çadır") || s.includes("cadir")) return "9000116";
+  if (s.includes("tırmalama") || s.includes("tirmalama") || s.includes("ağaç") || s.includes("agac")) return "9000117";
+  if (s.includes("taşıma") || s.includes("tasima") || s.includes("box") || s.includes("astronot")) return "9000118";
+  if (s.includes("oyuncak")) return "9000119";
+  if (s.includes("sağlık") || s.includes("saglik") || s.includes("bakım") || s.includes("bakim") || s.includes("hijyen")) return "9000120";
+  if (s.includes("tasma") || s.includes("kayış") || s.includes("kayis")) return "9000121";
+  if (s.includes("kap") || s.includes("su pınarı") || s.includes("su pinari") || s.includes("dispenser")) return "9000122";
+  if (s.includes("kedi") || s.includes("pet")) return "9000110";
 
   // Organizerler
   if (s.includes("çekmece") || s.includes("cekmece")) return "8000141";
@@ -505,7 +546,20 @@ export async function autoBridgeStoreCategories(storeId: number): Promise<{
     { pattern: /\b(fotoğraf makinesi|kamera|tripod|hafıza|aksiyon kamera|gopro|insta360|gimbal|lens|objektif|softbox|ring light)\b/i, category: "Fotoğraf & Kamera", subCategory: "Aksiyon Kamera & Drone", hbId: "2000203", amzId: "7000111" },
     { pattern: /\b(güvenlik kamerası|ip kamera|nvr|dvr|alarm|akıllı priz|akıllı ampul|bebek kamerası|tapo)\b/i, category: "Akıllı Ev & Güvenlik", subCategory: "Güvenlik Kamerası (IP/CCTV)", hbId: "2000103", amzId: "7000304" },
     { pattern: /\b(hoparlör|speaker|soundbar|bluetooth hoparlör|ses sistemi|projeksiyon|tv askı|tv kutusu|android box|kumanda)\b/i, category: "TV, Ses & Görüntü Sistemleri", subCategory: "Bluetooth Hoparlör & Ses Sistemi", hbId: "29010123", amzId: "7000303" },
-    { pattern: /\b(kahve makinesi|çay makinesi|blender|mikser|airfryer|tost makinesi|su ısıtıcı|kettle|süpürge|ütü|tıraş makinesi|saç kurutma|tartı|baskül|vantilatör|ısıtıcı)\b/i, category: "Küçük Ev Aletleri", subCategory: "Mutfak Aletleri", hbId: "1000130", amzId: "7000204" }
+    { pattern: /\b(kahve makinesi|çay makinesi|blender|mikser|airfryer|tost makinesi|su ısıtıcı|kettle|süpürge|ütü|tıraş makinesi|saç kurutma|tartı|baskül|vantilatör|ısıtıcı)\b/i, category: "Küçük Ev Aletleri", subCategory: "Mutfak Aletleri", hbId: "1000130", amzId: "7000204" },
+    { pattern: /(kedi\s*kumu|bentonit|tofu\s*kum|kedi\s*kum)/i, category: "Kediler", subCategory: "Kedi Kumu", hbId: "9000114", amzId: "7000803" },
+    { pattern: /(kuru\s*kedi\s*mama|kedi\s*kuru\s*mama)/i, category: "Kediler", subCategory: "Kuru Kedi Maması", hbId: "9000111", amzId: "7000801" },
+    { pattern: /(yaş\s*kedi\s*mama|yas\s*kedi|konserve\s*kedi|kedi\s*pouch|kedi\s*konserve)/i, category: "Kediler", subCategory: "Yaş & Konserve Kedi Maması", hbId: "9000112", amzId: "7000802" },
+    { pattern: /(kedi\s*ödül|kedi\s*odul|malt\s*macun|malt\s*pasta|kedi\s*macun|kedi\s*snack)/i, category: "Kediler", subCategory: "Kedi Ödül Maması & Macunlar", hbId: "9000113", amzId: "7000801" },
+    { pattern: /(kedi\s*tuvalet|elekli\s*tuvalet|kum\s*küreği|kum\s*kuregi)/i, category: "Kediler", subCategory: "Kedi Tuvaleti & Kürekleri", hbId: "9000115", amzId: "7000803" },
+    { pattern: /(kedi\s*tırmalama|kedi\s*tirmalama|tırmalama\s*tahtası|tırmalama\s*ağacı)/i, category: "Kediler", subCategory: "Kedi Tırmalamaları & Ağaçları", hbId: "9000117", amzId: "7000803" },
+    { pattern: /(kedi\s*yatağı|kedi\s*yatagi|kedi\s*yuva|kedi\s*minder|kedi\s*çadır)/i, category: "Kediler", subCategory: "Kedi Yatakları, Yuva & Çadırlar", hbId: "9000116", amzId: "7000803" },
+    { pattern: /(kedi\s*taşıma|kedi\s*tasima|kedi\s*box|astronot\s*çanta)/i, category: "Kediler", subCategory: "Kedi Taşıma Çantaları & Box", hbId: "9000118", amzId: "7000803" },
+    { pattern: /(kedi\s*oyuncak|catnip|tüy\s*olta|kedi\s*lazer)/i, category: "Kediler", subCategory: "Kedi Oyuncakları", hbId: "9000119", amzId: "7000803" },
+    { pattern: /(kedi\s*sağlık|kedi\s*bakım|kedi\s*tarak|furminator|kedi\s*şampuan)/i, category: "Kediler", subCategory: "Kedi Sağlık, Bakım & Hijyen", hbId: "9000120", amzId: "7000803" },
+    { pattern: /(kedi\s*tasma|kedi\s*göğüs|gezdirme\s*kayış)/i, category: "Kediler", subCategory: "Kedi Tasmaları & Gezdirme Kayışları", hbId: "9000121", amzId: "7000803" },
+    { pattern: /(kedi\s*mama\s*kabı|kedi\s*su\s*kabı|otomatik\s*su\s*pınarı|su\s*pınarı)/i, category: "Kediler", subCategory: "Kedi Mama & Su Kapları", hbId: "9000122", amzId: "7000803" },
+    { pattern: /\b(kedi\s*maması|kedi\s*mama|kediler|pet\s*shop|petshop|evcil\s*hayvan)\b/i, category: "Kediler", subCategory: "Kuru Kedi Maması", hbId: "9000111", amzId: "7000801" }
   ];
 
   let mappedCount = 0;

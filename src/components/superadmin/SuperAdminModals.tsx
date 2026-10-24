@@ -579,12 +579,13 @@ export const EditStoreModal: React.FC<{
                 { id: "photography_camera", label: "📷 Fotoğraf & Kamera", desc: "Kamera, Aksiyon Kamera, Lens, Stüdyo & Işık" },
                 { id: "small_appliances", label: "☕ Küçük Ev Aletleri", desc: "Mutfak, Süpürge, Ütü & Kişisel Bakım" },
                 { id: "consumer_electronics", label: "📺 Elektronik & Akıllı Ev", desc: "TV, Ses Sistemleri, Güvenlik Kamerası" },
+                { id: "pet_shop", label: "🐾 Pet Shop (Evcil Hayvan)", desc: "Kedi Maması, Kedi Kumu, Oyuncak & Bakım" },
               ].map((pkg) => {
                 const currentList: string[] = Array.isArray(store.sector_taxonomy_packages)
                   ? store.sector_taxonomy_packages
                   : (Array.isArray(store.branding?.sector_taxonomy_packages)
                       ? store.branding.sector_taxonomy_packages
-                      : ["tech_computer", "photography_camera", "small_appliances", "consumer_electronics"]);
+                      : ["tech_computer", "photography_camera", "small_appliances", "consumer_electronics", "pet_shop"]);
                 const isChecked = currentList.includes(pkg.id);
                 return (
                   <label

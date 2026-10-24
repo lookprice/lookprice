@@ -77,8 +77,143 @@ export const CorporateWebsiteStudioTab: React.FC<
     );
   }, [activeSubTab, currentStoreId]);
 
+  // Defensive normalizer that guarantees all arrays and sections are defined even if partial data exists in DB
+  const getNormalizedStudioConfig = (b: any): CorporateWebsiteConfig => {
+    const defaults = getDefaultCorporateConfig(b);
+    const raw = b?.corporate_config;
+    const parsed = typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch { return {}; } })() : (raw || {});
+
+    const services = Array.isArray(parsed.services)
+      ? parsed.services
+      : Array.isArray(parsed.services_section?.items)
+      ? parsed.services_section.items
+      : defaults.services || [];
+
+    const gallery = Array.isArray(parsed.gallery)
+      ? parsed.gallery
+      : Array.isArray(parsed.gallery_section?.images)
+      ? parsed.gallery_section.images
+      : defaults.gallery || [];
+
+    const custom_pages = Array.isArray(parsed.custom_pages)
+      ? parsed.custom_pages
+      : defaults.custom_pages || [];
+
+    const heroImages = Array.isArray(parsed.hero?.background_images) && parsed.hero.background_images.length > 0
+      ? parsed.hero.background_images
+      : Array.isArray(parsed.hero?.hero_images) && parsed.hero.hero_images.length > 0
+      ? parsed.hero.hero_images
+      : defaults.hero?.background_images || [];
+
+    const heroStats = Array.isArray(parsed.hero?.stats) && parsed.hero.stats.length > 0
+      ? parsed.hero.stats
+      : defaults.hero?.stats || [];
+
+    const aboutHighlights = Array.isArray(parsed.about?.highlights) && parsed.about.highlights.length > 0
+      ? parsed.about.highlights
+      : Array.isArray(parsed.about_section?.highlights) && parsed.about_section.highlights.length > 0
+      ? parsed.about_section.highlights
+      : defaults.about?.highlights || [];
+
+    return {
+      ...defaults,
+      ...parsed,
+      announcement: {
+        enabled: parsed.announcement?.enabled !== undefined
+          ? parsed.announcement.enabled
+          : (parsed.announcement_enabled !== undefined ? parsed.announcement_enabled : defaults.announcement?.enabled ?? true),
+        text: parsed.announcement?.text || parsed.announcement_text || defaults.announcement?.text || "",
+      },
+      hero: {
+        ...defaults.hero,
+        ...(parsed.hero || {}),
+        badge: parsed.hero?.badge || parsed.hero?.badge_text || defaults.hero?.badge || "KURUMSAL GÜVEN & PROFESYONEL HİZMET",
+        highlight_word: parsed.hero?.highlight_word || defaults.hero?.highlight_word || "Güvenilir Hizmet",
+        title: parsed.hero?.title || defaults.hero?.title || "",
+        subtitle: parsed.hero?.subtitle || defaults.hero?.subtitle || "",
+        primary_cta_text: parsed.hero?.primary_cta_text || defaults.hero?.primary_cta_text || "Hizmetlerimizi İnceleyin",
+        secondary_cta_text: parsed.hero?.secondary_cta_text || defaults.hero?.secondary_cta_text || "WhatsApp İletişim Hattı",
+        background_images: heroImages,
+        hero_images: heroImages,
+        stats: heroStats,
+      },
+      services_section: {
+        ...defaults.services_section,
+        ...(parsed.services_section || {}),
+        badge: parsed.services_section?.badge || defaults.services_section?.badge || "NELER YAPIYORUZ?",
+        title: parsed.services_section?.title || defaults.services_section?.title || "Hizmetlerimiz",
+        subtitle: parsed.services_section?.subtitle || defaults.services_section?.subtitle || "",
+        items: services,
+      },
+      services,
+      about: {
+        ...defaults.about,
+        ...(parsed.about || {}),
+        badge: parsed.about?.badge || parsed.about_section?.badge || defaults.about?.badge || "KURUMSAL KİMLİĞİMİZ",
+        title: parsed.about?.title || parsed.about_section?.title || defaults.about?.title || "Hakkımızda",
+        subtitle: parsed.about?.subtitle || parsed.about_section?.subtitle || defaults.about?.subtitle || "",
+        content: parsed.about?.content || parsed.about_section?.content || defaults.about?.content || "",
+        mission: parsed.about?.mission || parsed.about_section?.mission_text || defaults.about?.mission || "",
+        vision: parsed.about?.vision || parsed.about_section?.vision_text || defaults.about?.vision || "",
+        image_url: parsed.about?.image_url || parsed.about_section?.image_url || defaults.about?.image_url || "",
+        secondary_image_url: parsed.about?.secondary_image_url || parsed.about_section?.secondary_image_url || defaults.about?.secondary_image_url || "",
+        experience_years: parsed.about?.experience_years || parsed.about_section?.experience_badge_value || defaults.about?.experience_years || "15+",
+        experience_text: parsed.about?.experience_text || parsed.about_section?.experience_badge_label || defaults.about?.experience_text || "Yıllık Güven & Tecrübe",
+        highlights: aboutHighlights,
+      },
+      about_section: {
+        ...defaults.about_section,
+        ...(parsed.about_section || {}),
+        highlights: aboutHighlights,
+      },
+      custom_pages,
+      gallery_section: {
+        ...defaults.gallery_section,
+        ...(parsed.gallery_section || {}),
+        enabled: parsed.gallery_section?.enabled !== undefined ? parsed.gallery_section.enabled : true,
+        title: parsed.gallery_section?.title || defaults.gallery_section?.title || "Fotoğraf Galerisi",
+        subtitle: parsed.gallery_section?.subtitle || defaults.gallery_section?.subtitle || "",
+        images: gallery,
+      },
+      gallery,
+      contact: {
+        ...defaults.contact,
+        ...(parsed.contact || {}),
+        phone_primary: parsed.contact?.phone_primary || b?.phone || defaults.contact?.phone_primary || "",
+        phone_secondary: parsed.contact?.phone_secondary || "",
+        whatsapp: parsed.contact?.whatsapp || b?.whatsapp_number || b?.phone || defaults.contact?.whatsapp || "",
+        email: parsed.contact?.email || b?.email || defaults.contact?.email || "",
+        address: parsed.contact?.address || b?.address || defaults.contact?.address || "",
+        working_hours: parsed.contact?.working_hours || b?.working_hours_text || defaults.contact?.working_hours || "",
+        latitude: parsed.contact?.latitude || b?.latitude || defaults.contact?.latitude || "",
+        longitude: parsed.contact?.longitude || b?.longitude || defaults.contact?.longitude || "",
+        map_embed_url: parsed.contact?.map_embed_url || defaults.contact?.map_embed_url || "",
+        instagram_url: parsed.contact?.instagram_url || b?.instagram_url || "",
+        facebook_url: parsed.contact?.facebook_url || b?.facebook_url || "",
+        youtube_url: parsed.contact?.youtube_url || b?.youtube_url || "",
+      },
+      contact_section: {
+        ...defaults.contact_section,
+        ...(parsed.contact_section || {}),
+      },
+      seo_marketing: {
+        ...defaults.seo_marketing,
+        ...(parsed.seo_marketing || {}),
+        meta_title: parsed.seo_marketing?.meta_title || defaults.seo_marketing?.meta_title || "",
+        meta_description: parsed.seo_marketing?.meta_description || defaults.seo_marketing?.meta_description || "",
+        meta_keywords: parsed.seo_marketing?.meta_keywords || defaults.seo_marketing?.meta_keywords || "",
+        google_analytics_id: parsed.seo_marketing?.google_analytics_id || b?.meta_settings?.ga_measurement_id || "",
+        google_tag_manager_id: parsed.seo_marketing?.google_tag_manager_id || b?.meta_settings?.gtm_id || "",
+        google_search_console_code: parsed.seo_marketing?.google_search_console_code || b?.meta_settings?.gsc_id || "",
+        meta_pixel_id: parsed.seo_marketing?.meta_pixel_id || b?.meta_settings?.pixel_id || "",
+      },
+      theme_palette: parsed.theme_palette || parsed.theme_preset || defaults.theme_palette || "emerald_gold",
+      theme_preset: parsed.theme_preset || parsed.theme_palette || defaults.theme_preset || "emerald_gold",
+    };
+  };
+
   const [config, setConfig] = useState<CorporateWebsiteConfig>(() =>
-    getDefaultCorporateConfig(branding)
+    getNormalizedStudioConfig(branding)
   );
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{
@@ -89,15 +224,65 @@ export const CorporateWebsiteStudioTab: React.FC<
 
   // Sync when branding store loads initially
   useEffect(() => {
-    if (branding?.corporate_config) {
-      setConfig(getDefaultCorporateConfig(branding));
-    }
-  }, [branding?.slug]);
+    setConfig(getNormalizedStudioConfig(branding));
+  }, [branding?.slug, branding?.corporate_config]);
 
   const handleSaveAll = async () => {
     setSaving(true);
     setSaveMessage(null);
     try {
+      const servicesList = config.services || [];
+      const galleryList = config.gallery || [];
+      const customPagesList = config.custom_pages || [];
+
+      const updatedCorporateConfig: CorporateWebsiteConfig = {
+        ...config,
+        services: servicesList,
+        services_section: {
+          ...config.services_section,
+          items: servicesList,
+        },
+        gallery: galleryList,
+        gallery_section: {
+          ...config.gallery_section,
+          images: galleryList,
+        },
+        custom_pages: customPagesList,
+        about: {
+          ...config.about,
+        },
+        about_section: {
+          ...config.about_section,
+          content: config.about?.content || "",
+          badge: config.about?.badge || "",
+          title: config.about?.title || "",
+          subtitle: config.about?.subtitle || "",
+          mission_text: config.about?.mission || "",
+          vision_text: config.about?.vision || "",
+          image_url: config.about?.image_url || "",
+          experience_badge_value: config.about?.experience_years || "15+",
+          experience_badge_label: config.about?.experience_text || "Yıllık Güven & Tecrübe",
+          highlights: config.about?.highlights || [],
+        },
+        contact: {
+          ...config.contact,
+        },
+        contact_section: {
+          ...config.contact_section,
+          working_hours: config.contact?.working_hours || "",
+          latitude: config.contact?.latitude || "",
+          longitude: config.contact?.longitude || "",
+          map_embed_url: config.contact?.map_embed_url || "",
+        },
+        announcement: {
+          ...config.announcement,
+        },
+        announcement_enabled: config.announcement?.enabled ?? true,
+        announcement_text: config.announcement?.text || "",
+        theme_preset: config.theme_palette || config.theme_preset || "emerald_gold",
+        theme_palette: config.theme_palette || config.theme_preset || "emerald_gold",
+      };
+
       const updatedBranding = {
         ...branding,
         store_name: branding?.store_name || branding?.name || "Kurumsal Hizmet Merkezi",
@@ -124,7 +309,7 @@ export const CorporateWebsiteStudioTab: React.FC<
           meta_description: config.seo_marketing.meta_description,
           meta_keywords: config.seo_marketing.meta_keywords,
         },
-        corporate_config: config,
+        corporate_config: updatedCorporateConfig,
       };
 
       setBranding(updatedBranding);
@@ -360,18 +545,18 @@ export const CorporateWebsiteStudioTab: React.FC<
           { id: "hero", label: "1. Vitrin & Ana Ekran", icon: Sparkles },
           {
             id: "services",
-            label: `2. Hizmetlerimiz (${config.services.length})`,
+            label: `2. Hizmetlerimiz (${(config.services || []).length})`,
             icon: Layers,
           },
           { id: "about", label: "3. Hakkımızda & Değerler", icon: Award },
           {
             id: "pages",
-            label: `4. Ek Sayfalar (${config.custom_pages.length})`,
+            label: `4. Ek Sayfalar (${(config.custom_pages || []).length})`,
             icon: FileText,
           },
           {
             id: "gallery",
-            label: `5. Fotoğraf Galerisi (${config.gallery.length})`,
+            label: `5. Fotoğraf Galerisi (${(config.gallery || []).length})`,
             icon: ImageIcon,
           },
           {
@@ -600,7 +785,7 @@ export const CorporateWebsiteStudioTab: React.FC<
               </div>
 
               <div className="space-y-2">
-                {config.hero.background_images.map((imgUrl, idx) => (
+                {(config.hero?.background_images || []).map((imgUrl, idx) => (
                   <div
                     key={idx}
                     className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-200 dark:border-slate-700"
@@ -616,27 +801,27 @@ export const CorporateWebsiteStudioTab: React.FC<
                       onChange={(e) => {
                         const val = e.target.value;
                         setConfig((prev) => {
-                          const next = [...prev.hero.background_images];
+                          const next = [...(prev.hero?.background_images || [])];
                           next[idx] = val;
                           return {
                             ...prev,
-                            hero: { ...prev.hero, background_images: next },
+                            hero: { ...(prev.hero || {}), background_images: next },
                           };
                         });
                       }}
                       placeholder="Görsel URL..."
                       className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
                     />
-                    {config.hero.background_images.length > 1 && (
+                    {(config.hero?.background_images || []).length > 1 && (
                       <button
                         type="button"
                         onClick={() =>
                           setConfig((prev) => ({
                             ...prev,
                             hero: {
-                              ...prev.hero,
+                              ...(prev.hero || {}),
                               background_images:
-                                prev.hero.background_images.filter(
+                                (prev.hero?.background_images || []).filter(
                                   (_, i) => i !== idx
                                 ),
                             },
@@ -655,9 +840,9 @@ export const CorporateWebsiteStudioTab: React.FC<
                     setConfig((prev) => ({
                       ...prev,
                       hero: {
-                        ...prev.hero,
+                        ...(prev.hero || {}),
                         background_images: [
-                          ...prev.hero.background_images,
+                          ...(prev.hero?.background_images || []),
                           "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1920&q=80",
                         ],
                       },
@@ -682,7 +867,7 @@ export const CorporateWebsiteStudioTab: React.FC<
             </p>
 
             <div className="space-y-3">
-              {config.hero.stats.map((st, idx) => (
+              {(config.hero?.stats || []).map((st, idx) => (
                 <div
                   key={idx}
                   className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 grid grid-cols-12 gap-2.5 items-center"
@@ -697,11 +882,11 @@ export const CorporateWebsiteStudioTab: React.FC<
                       onChange={(e) => {
                         const val = e.target.value;
                         setConfig((prev) => {
-                          const next = [...prev.hero.stats];
+                          const next = [...(prev.hero?.stats || [])];
                           next[idx] = { ...next[idx], value: val };
                           return {
                             ...prev,
-                            hero: { ...prev.hero, stats: next },
+                            hero: { ...(prev.hero || {}), stats: next },
                           };
                         });
                       }}
@@ -824,7 +1009,7 @@ export const CorporateWebsiteStudioTab: React.FC<
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {config.services.map((srv, idx) => (
+            {(config.services || []).map((srv, idx) => (
               <div
                 key={srv.id || idx}
                 className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3"
@@ -851,7 +1036,7 @@ export const CorporateWebsiteStudioTab: React.FC<
                     <button
                       type="button"
                       onClick={() => moveService(idx, 1)}
-                      disabled={idx === config.services.length - 1}
+                      disabled={idx === (config.services || []).length - 1}
                       className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 cursor-pointer"
                       title="Aşağı Taşı"
                     >
@@ -1203,7 +1388,7 @@ export const CorporateWebsiteStudioTab: React.FC<
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 Öne Çıkan Kurumsal İlkeler (Neden Biz?)
               </label>
-              {config.about.highlights.map((hl, idx) => (
+              {(config.about?.highlights || []).map((hl, idx) => (
                 <div
                   key={idx}
                   className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1.5"
@@ -1214,11 +1399,11 @@ export const CorporateWebsiteStudioTab: React.FC<
                     onChange={(e) => {
                       const val = e.target.value;
                       setConfig((prev) => {
-                        const next = [...prev.about.highlights];
+                        const next = [...(prev.about?.highlights || [])];
                         next[idx] = { ...next[idx], title: val };
                         return {
                           ...prev,
-                          about: { ...prev.about, highlights: next },
+                          about: { ...(prev.about || {}), highlights: next },
                         };
                       });
                     }}
@@ -1272,7 +1457,7 @@ export const CorporateWebsiteStudioTab: React.FC<
             </button>
           </div>
 
-          {config.custom_pages.length === 0 ? (
+          {(config.custom_pages || []).length === 0 ? (
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-dashed border-slate-300 dark:border-slate-700 text-center space-y-3">
               <FileText className="w-10 h-10 text-slate-400 mx-auto" />
               <div className="text-sm font-bold text-slate-700 dark:text-slate-200">
@@ -1291,7 +1476,7 @@ export const CorporateWebsiteStudioTab: React.FC<
             </div>
           ) : (
             <div className="space-y-4">
-              {config.custom_pages.map((pg, idx) => (
+              {(config.custom_pages || []).map((pg, idx) => (
                 <div
                   key={pg.id || idx}
                   className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 space-y-3"
@@ -1551,7 +1736,7 @@ export const CorporateWebsiteStudioTab: React.FC<
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {config.gallery.map((item, idx) => (
+            {(config.gallery || []).map((item, idx) => (
               <div
                 key={item.id || idx}
                 className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200 dark:border-slate-800 space-y-2.5"
@@ -1567,7 +1752,7 @@ export const CorporateWebsiteStudioTab: React.FC<
                     onClick={() =>
                       setConfig((prev) => ({
                         ...prev,
-                        gallery: prev.gallery.filter((_, i) => i !== idx),
+                        gallery: (prev.gallery || []).filter((_, i) => i !== idx),
                       }))
                     }
                     className="absolute top-2 right-2 p-1.5 rounded-lg bg-rose-600 text-white shadow-sm cursor-pointer"
