@@ -20,7 +20,10 @@ const getSectorBadge = (type?: string) => {
     case 'real_estate':
       return { label: 'Emlak (REstateLP)', bg: 'bg-rose-50 text-rose-700 border-rose-200' };
     case 'restaurant':
+    case 'cafe_restaurant':
       return { label: 'HoReCa (HoReCaLP)', bg: 'bg-amber-50 text-amber-700 border-amber-200' };
+    case 'corporate_website':
+      return { label: 'Kurumsal Web Sitesi', bg: 'bg-violet-50 text-violet-700 border-violet-200' };
     case 'product':
     default:
       return { label: 'Perakende (ShopLP)', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' };

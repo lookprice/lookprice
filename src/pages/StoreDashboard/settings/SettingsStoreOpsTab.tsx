@@ -390,6 +390,7 @@ export const SettingsStoreOpsTab = ({
                       <option value="cafe_restaurant">horecaLP - Kafeterya, Restoran & Otel</option>
                       <option value="real_estate">Emlak Portföy Mağazası</option>
                       <option value="automotive">Oto Galeri / Araç İlan Mağazası</option>
+                      <option value="corporate_website">Kurumsal Web Sitesi (Tanıtım, Hizmet & İletişim)</option>
                     </select>
                   </div>
                 </div>

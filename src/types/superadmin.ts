@@ -14,7 +14,7 @@ export interface Store {
   default_currency?: string;
   language?: string;
   parent_id?: number | string | null;
-  store_type?: 'product' | 'real_estate' | 'motor_vehicle' | 'cafe_restaurant' | 'portfolio' | string;
+  store_type?: 'product' | 'real_estate' | 'motor_vehicle' | 'cafe_restaurant' | 'corporate_website' | 'portfolio' | string;
   sub_sector?: string;
   hotel_module_enabled?: boolean;
   bookstore_module_enabled?: boolean;

@@ -156,8 +156,14 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                               <span>{store.hotel_module_enabled ? 'Otel Konsepti (Aktif)' : 'Otel Pasif'}</span>
                             </button>
                           )}
+                          {store.store_type === 'corporate_website' && (
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tight flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              <span>🏢</span>
+                              <span>Kurumsal Web Sitesi</span>
+                            </span>
+                          )}
                           {(() => {
-                            const isRetailStore = !['cafe_restaurant', 'real_estate', 'motor_vehicle', 'portfolio'].includes(store.store_type || 'product');
+                            const isRetailStore = !['cafe_restaurant', 'real_estate', 'motor_vehicle', 'corporate_website', 'portfolio'].includes(store.store_type || 'product');
                             return isRetailStore ? (
                               <button
                                 type="button"
@@ -231,7 +237,7 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                           </button>
                         )}
                         {(() => {
-                          const isRetailStore = !['cafe_restaurant', 'real_estate', 'motor_vehicle', 'portfolio'].includes(store.store_type || 'product');
+                          const isRetailStore = !['cafe_restaurant', 'real_estate', 'motor_vehicle', 'corporate_website', 'portfolio'].includes(store.store_type || 'product');
                           return isRetailStore && onToggleBookstore ? (
                             <button 
                               onClick={() => onToggleBookstore(store)}

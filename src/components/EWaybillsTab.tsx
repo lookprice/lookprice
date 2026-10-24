@@ -349,18 +349,18 @@ export default function EWaybillsTab({ storeId: propStoreId, lang, api, branding
     setSelectedWaybill(waybill); setPreviewLoading(true); setPreviewContent(""); setShowHtmlModal(true);
     try {
       const token = localStorage.getItem("token");
-      const isDraft = waybill.status === 'draft' || waybill.status === 'error';
+      const statusLower = (waybill.status || "").toLowerCase();
+      const isDraft = statusLower === 'draft' || statusLower === 'error' || !waybill.ettn;
       const endpoint = isDraft ? 'preview-html' : 'html';
       const res = await fetch(`/api/independent-waybills/${waybill.id}/${endpoint}?storeId=${storeId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       if (res.ok) {
         const html = await res.text();
-        const styles = `
-          <style>@media print { @page { size: A4 portrait; margin: 10mm; } body { width: 100%; margin: 0; -webkit-print-color-adjust: exact; } } body { max-width: 800px; margin: 0 auto; padding: 20px; }</style>
-          <script>(function(){ function hp(){ const k=['fiyat','tutar','kdv','iskonto','matrah','toplam','price','total','tax','amount','currency','%']; const s=['miktarı','adeti','birimi','ürün','tarih','numara','plaka','adres','driver','plate']; document.querySelectorAll('table tr').forEach(r=>{ let toH=new Set(); r.querySelectorAll('th,td').forEach((c,i)=>{ const t=c.textContent.toLowerCase(); if(k.some(kw=>t.includes(kw))&&!s.some(sw=>t.includes(sw))) toH.add(i); }); r.querySelectorAll('th,td').forEach((c,i)=>{ if(toH.has(i)) c.style.display='none'; }); }); document.querySelectorAll('div,span,p,td,tr,li,strong,b').forEach(el=>{ const t=el.textContent.toLowerCase(); if(k.some(kw=>t.includes(kw))&&!s.some(sw=>t.includes(sw))&&t.length<100) el.style.display='none'; }); } hp(); setTimeout(hp,100); setTimeout(hp,1000); })();</script>
-        `;
-        setPreviewContent(html.replace("</head>", `${styles}</head>`));
+        setPreviewContent(html);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || (isTr ? "Görsel yüklenemedi." : "Failed to load preview."));
       }
     } catch (err: any) { toast.error(err.message); setShowHtmlModal(false); } finally { setPreviewLoading(false); }
   };

@@ -792,6 +792,20 @@ router.post("/stores/:id/clone-config", async (req: any, res) => {
           font_family: "Poppins",
           sector: "cafe_restaurant"
         }
+      },
+      corporate_executive: {
+        theme_color: "#4f46e5",
+        primary_color: "#4f46e5",
+        accent_color: "#6366f1",
+        active_preset: "corporate_executive",
+        page_layout_settings: {
+          active_preset: "corporate_executive",
+          hero_layout: "executive_hero",
+          section_style: "corporate_sections",
+          dark_mode: false,
+          font_family: "Plus Jakarta Sans",
+          sector: "corporate_website"
+        }
       }
     };
 

@@ -20,7 +20,8 @@ export type DomainId =
   | "HORECA" 
   | "HOTEL" 
   | "REAL_ESTATE" 
-  | "AUTOMOTIVE";
+  | "AUTOMOTIVE"
+  | "CORPORATE";
 
 export type SectorCapabilityKey =
   | "marketplaces"               // Pazaryerleri (Trendyol, Hepsiburada, N11, Amazon, Pazarama) -> SADECE Perakende & Kitap
@@ -184,12 +185,35 @@ export const SECTOR_CAPABILITY_MATRIX: Record<DomainId, Record<SectorCapabilityK
     tcmb_currency: true,
     multi_branch: true,
     sms_whatsapp: true,
+  },
+
+  // 7. Kurumsal Web Sitesi (Sadece Tanıtım, Hizmetler, Hakkımızda, İletişim & SEO - Satışsız / Sepetsiz Tam İzole)
+  CORPORATE: {
+    marketplaces: false,
+    einvoice_purchases_sales: false,
+    fast_pos: false,
+    variants_inventory: false,
+    google_merchant_xml: false,
+    book_metadata: false,
+    tables_kds_orders: false,
+    digital_qr_menu: false,
+    recipes_costing: false,
+    hotel_reservations: false,
+    real_estate_specs: false,
+    real_estate_map_idx: false,
+    real_estate_poster: false,
+    automotive_specs: false,
+    contracts_legal: false,
+    portfolio_showcase: false,
+    tcmb_currency: false,
+    multi_branch: true,
+    sms_whatsapp: true,
   }
 };
 
 /**
  * Deterministik Domain ID Çözücü (SSOT Domain Resolver)
- * Bir mağazanın veya branding objesinin hangi 6 sektörden birine ait olduğunu
+ * Bir mağazanın veya branding objesinin hangi 7 sektörden birine ait olduğunu
  * yanılmasız, deterministik ve geriye dönük tam uyumlu şekilde tespit eder.
  */
 export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
@@ -201,6 +225,20 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
   const rawSubSector = (s.sub_sector || s.branding?.sub_sector || "").toString().toLowerCase().trim();
   const slug = (s.slug || s.branding?.slug || "").toString().toLowerCase().trim();
   const name = (s.name || s.branding?.name || s.branding?.store_name || "").toString().toUpperCase();
+
+  // 0. Kurumsal Web Sitesi (Corporate Website - Satışsız/Sepetsiz Tanıtım Sitesi) Tespiti
+  if (
+    rawStoreType === "corporate_website" ||
+    rawStoreType === "corporate" ||
+    rawStoreType === "website" ||
+    rawSector === "corporate_website" ||
+    rawSector === "corporate" ||
+    rawSubSector === "corporate_website" ||
+    slug === "weblp-demo" ||
+    slug.startsWith("weblp-")
+  ) {
+    return "CORPORATE";
+  }
 
   // 1. GAP Bilişim / Genel Teknoloji Perakende Koruma Kuralı (Never misclassify as bookstore or portfolio)
   const isGapStore = slug === "gap" || name.includes("GAP BİLİŞİM") || name.includes("GAP BILISIM");
@@ -340,5 +378,7 @@ export const getDomainMeta = (domainId: DomainId) => {
       return { id: "REAL_ESTATE", name: "Emlak Portföy Mağazası", category: "Gayrimenkul & İlan", badgeColor: "sky" };
     case "AUTOMOTIVE":
       return { id: "AUTOMOTIVE", name: "Otomotiv Galeri Mağazası", category: "Vasıta & İlan", badgeColor: "emerald" };
+    case "CORPORATE":
+      return { id: "CORPORATE", name: "Kurumsal Web Sitesi", category: "Tanıtım & Hizmet Sitesi", badgeColor: "indigo" };
   }
 };

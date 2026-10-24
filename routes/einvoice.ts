@@ -2904,29 +2904,61 @@ router.post("/einvoice/waybill/save/:invoiceId", authenticate, async (req: any, 
   }
 });
 
-// Helper function to build MySoft Waybill JSON Payload
+// Helper function to build MySoft Waybill JSON Payload (DespatchOutboxModel - MySoft Swagger v8)
 async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: any, branding: any, pkAlias: string, isIndependent: boolean = false) {
-  const storeId = data.store_id;
-  
   // Recipient tax details
-  const taxNumber = (data.tax_number || data.company_tax_number || "").replace(/\D/g, '');
-  
+  const taxNumber = (data.tax_number || data.company_tax_number || "").replace(/\D/g, '') || "11111111111";
+
   // Driver / Plate details
   const isCargoShipment = !!data.is_cargo_shipment || !!data.waybill_is_cargo_shipment;
-  const driverName = (isIndependent ? data.driver_name : data.waybill_driver_name) || "Sürücü";
-  const driverSurname = (isIndependent ? data.driver_surname : data.waybill_driver_surname) || "Bey/Hanım";
-  const driverVkn = (isIndependent ? data.driver_vkn : data.waybill_driver_vkn) || "11111111111";
-  const plateNumber = ((isIndependent ? data.plate_number : data.waybill_plate_number) || "").replace(/\s/g, '').toUpperCase();
-  const actualDate = (isIndependent ? data.actual_date : data.waybill_actual_date) ? new Date(isIndependent ? data.actual_date : data.waybill_actual_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-  const actualTime = (isIndependent ? data.actual_time : data.waybill_actual_time) || new Date().toTimeString().split(' ')[0];
+  const rawDriverName = ((isIndependent ? data.driver_name : data.waybill_driver_name) || "Sürücü").trim();
+  const rawDriverSurname = ((isIndependent ? data.driver_surname : data.waybill_driver_surname) || "").trim();
+  // If driver_surname was left empty and full name was entered in driver_name, split it cleanly
+  let driverName = rawDriverName;
+  let driverSurname = rawDriverSurname;
+  if (!driverSurname && rawDriverName.includes(" ")) {
+    const parts = rawDriverName.split(/\s+/);
+    driverSurname = parts.pop() || "Soyad";
+    driverName = parts.join(" ") || "Sürücü";
+  } else if (!driverSurname) {
+    driverSurname = "Soyad";
+  }
 
-  const effectiveVkn = (storeSettings.ewaybill_test_mode && storeSettings.ewaybill_test_vkn)
-    ? storeSettings.ewaybill_test_vkn
-    : (storeSettings.vkn || storeSettings.tax_number || branding.tax_number || "");
-  const storeTaxNumber = effectiveVkn.replace(/\D/g, '');
+  const rawDriverVkn = ((isIndependent ? data.driver_vkn : data.waybill_driver_vkn) || "").replace(/\D/g, '');
+  const driverVkn = (rawDriverVkn.length === 11) ? rawDriverVkn : "11111111111";
+  const plateNumber = ((isIndependent ? data.plate_number : data.waybill_plate_number) || "34ABC000").replace(/\s/g, '').toUpperCase();
+
+  // Dates and Times (MySoft requires ISO-8601 with timezone offset, and actualReferalDate >= docDate)
+  const rawDocDateObj = (isIndependent ? data.waybill_date : data.invoice_date)
+    ? new Date(isIndependent ? data.waybill_date : data.invoice_date)
+    : new Date();
+  const rawActualDateObj = (isIndependent ? data.actual_date : data.waybill_actual_date)
+    ? new Date(isIndependent ? data.actual_date : data.waybill_actual_date)
+    : rawDocDateObj;
+
+  const docDateYmd = !isNaN(rawDocDateObj.getTime()) ? rawDocDateObj.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+  let actualDateYmd = !isNaN(rawActualDateObj.getTime()) ? rawActualDateObj.toISOString().split('T')[0] : docDateYmd;
+  if (actualDateYmd < docDateYmd) {
+    actualDateYmd = docDateYmd;
+  }
+
+  const normalizeTimeStr = (t: any, fallback: string) => {
+    if (!t || typeof t !== 'string') return fallback;
+    const clean = t.trim().split('.')[0];
+    if (/^\d{2}:\d{2}:\d{2}$/.test(clean)) return clean;
+    if (/^\d{2}:\d{2}$/.test(clean)) return `${clean}:00`;
+    return fallback;
+  };
+
+  const nowTimeStr = new Date().toTimeString().split(' ')[0];
+  const docTimeHms = normalizeTimeStr(isIndependent ? data.waybill_time : data.invoice_time, nowTimeStr);
+  let actualTimeHms = normalizeTimeStr(isIndependent ? data.actual_time : data.waybill_actual_time, docTimeHms);
+  if (actualDateYmd === docDateYmd && actualTimeHms < docTimeHms) {
+    actualTimeHms = docTimeHms;
+  }
 
   // Retrieve items
-  let lines = [];
+  let lines: any[] = [];
   if (isIndependent) {
     const itemsRes = await pool.query("SELECT * FROM e_waybill_items WHERE waybill_id = $1 ORDER BY id ASC", [data.id]);
     lines = itemsRes.rows;
@@ -2934,225 +2966,204 @@ async function buildMySoftWaybillPayload(pool: any, data: any, storeSettings: an
     const itemsRes = await pool.query("SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1 ORDER BY id ASC", [data.id]);
     lines = itemsRes.rows;
   }
-  
-  const DespatchLines = lines.map((item: any, index: number) => {
+
+  const currencyCode = ((data.currency || 'TRY').toUpperCase() === 'TL' ? 'TRY' : (data.currency || 'TRY').toUpperCase());
+
+  const despatchDetail = lines.map((item: any, index: number) => {
     const quantity = Number(item.quantity) || 1;
+    const unitPrice = Number(item.unit_price || item.price || 0);
+    const lineTotal = Number(item.total_price || item.line_total || (quantity * unitPrice) || 0);
+    const unitCode = (() => {
+      const rawUnit = (item.unit_code || item.unit || "").trim().toLowerCase();
+      const mapping: any = {
+        "adet": "C62", "ad": "C62", "pcs": "C62", "piece": "C62", "c62": "C62",
+        "kg": "KGM", "kilogram": "KGM", "kgm": "KGM",
+        "gr": "GRM", "gram": "GRM", "g": "GRM", "grm": "GRM",
+        "lt": "LTR", "litre": "LTR", "l": "LTR", "ltr": "LTR",
+        "paket": "PA", "kutu": "BX", "ton": "TNE", "m2": "MTK", "mt": "MTR", "metre": "MTR"
+      };
+      return mapping[rawUnit] || (rawUnit.length >= 2 && rawUnit.length <= 3 ? rawUnit.toUpperCase() : "C62");
+    })();
+
+    const prodName = (item.product_name || item.name || "Ürün").trim().substring(0, 200);
+    const prodCode = String(item.product_code || item.sku || item.product_id || (index + 1)).substring(0, 50);
+
     return {
-      lineIndex: index + 1,
-      id: String(index + 1),
-      lineId: String(index + 1),
-      name: (item.product_name || "Ürün").substring(0, 200),
-      item: {
-        name: (item.product_name || "Ürün").substring(0, 200),
-        sellersItemIdentification: { id: String(item.product_id || index + 1) }
+      product: {
+        productCode: prodCode,
+        productName: prodName,
+        serialIdList: null
       },
-      quantity: quantity,
-      deliveredQuantity: quantity,
-      unitCode: (() => {
-        const rawUnit = (item.unit_code || "").trim().toLowerCase();
-        const mapping: any = { 
-          "adet": "C62", "ad": "C62", "pcs": "C62", "piece": "C62",
-          "kg": "KGM", "kilogram": "KGM", 
-          "gr": "GRM", "gram": "GRM", "g": "GRM",
-          "lt": "LTR", "litre": "LTR", "l": "LTR",
-          "paket": "PA", "kutu": "BX", "ton": "TNE", "m2": "MTK", "mt": "MTR", "metre": "MTR"
-        };
-        return mapping[rawUnit] || (rawUnit.length >= 2 && rawUnit.length <= 3 ? rawUnit.toUpperCase() : "C62");
-      })()
+      unitCode,
+      qty: quantity,
+      unitPriceTra: unitPrice,
+      amtTra: lineTotal,
+      currencyCode,
+      note: item.description || item.note || ""
     };
   });
 
-  const customerTitle = data.company_title || data.company_name || data.customer_name || "Seçkin Müşteri";
-  const addrStr = (data.address || data.delivery_address || data.company_address || data.customer_address || "İstanbul Merkez").trim();
-  const addressTokens = addrStr.split(/\s+/);
-  const cityName = addressTokens[addressTokens.length - 1] || "İSTANBUL";
-  const districtName = addressTokens[addressTokens.length - 2] || "MERKEZ";
+  const customerTitle = (data.company_title || data.company_name || (data.customer_name ? `${data.customer_name} ${data.customer_surname || ''}`.trim() : "") || "Seçkin Müşteri").trim();
+  const addrStr = (data.address || data.company_address || data.customer_address || data.delivery_address || "İstanbul Merkez").trim();
+  const delivAddrStr = (data.delivery_address || data.company_delivery_address || addrStr || "İstanbul Merkez").trim();
 
-  // Delivery Account & Address object for MySoft DespatchOutbox
-  const deliveryAccountObj = {
-    identifierNumber: taxNumber,
-    IdentifierNumber: taxNumber,
-    vknTckn: taxNumber,
-    taxNumber: taxNumber,
-    accountName: customerTitle.substring(0, 100),
-    title: customerTitle.substring(0, 100),
-    name: customerTitle.substring(0, 100),
-    taxOfficeName: (data.tax_office || data.company_tax_office || "").trim(),
-    taxOffice: (data.tax_office || data.company_tax_office || "").trim(),
-    email: data.company_email || data.customer_email || data.email || "",
-    email1: data.company_email || data.customer_email || data.email || "",
-    countryName: "Türkiye",
-    cityName: cityName.toUpperCase(),
-    citySubdivision: districtName.toUpperCase(),
-    citySubdivisionName: districtName.toUpperCase(),
-    streetName: addrStr.substring(0, 250),
-    postalAddress: {
-      streetName: addrStr.substring(0, 250),
-      cityName: cityName.toUpperCase(),
-      citySubdivisionName: districtName.toUpperCase(),
-      countryName: "Türkiye"
-    }
+  const extractCityDistrict = (rawAddress: string) => {
+    const cleaned = rawAddress.replace(/[,/\\-]+/g, ' ').trim();
+    const tokens = cleaned.split(/\s+/).filter(Boolean);
+    const city = (tokens.length >= 1 ? tokens[tokens.length - 1] : "İSTANBUL").toLocaleUpperCase('tr-TR');
+    const district = (tokens.length >= 2 ? tokens[tokens.length - 2] : "MERKEZ").toLocaleUpperCase('tr-TR');
+    return { city, district };
   };
 
-  const supplierAccountObj = {
-    identifierNumber: storeTaxNumber,
-    IdentifierNumber: storeTaxNumber,
-    vknTckn: storeTaxNumber,
-    taxNumber: storeTaxNumber,
-    accountName: branding.store_name || "Seçkin Mağaza",
-    title: branding.store_name || "Seçkin Mağaza",
-    name: branding.store_name || "Seçkin Mağaza",
-    taxOfficeName: storeSettings.tax_office || "",
-    taxOffice: storeSettings.tax_office || "",
-    countryName: "Türkiye",
-    cityName: (storeSettings.city || "İSTANBUL").toUpperCase(),
-    citySubdivision: (storeSettings.district || "MERKEZ").toUpperCase(),
-    citySubdivisionName: (storeSettings.district || "MERKEZ").toUpperCase(),
-    streetName: storeSettings.address || "İstanbul",
-    postalAddress: {
-      streetName: storeSettings.address || "İstanbul",
-      cityName: (storeSettings.city || "İSTANBUL").toUpperCase(),
-      citySubdivisionName: (storeSettings.district || "MERKEZ").toUpperCase(),
-      countryName: "Türkiye"
-    }
-  };
+  const { city: accCity, district: accDistrict } = extractCityDistrict(addrStr);
+  const { city: delivCity, district: delivDistrict } = extractCityDistrict(delivAddrStr);
+  const taxOfficeName = (data.tax_office || data.company_tax_office || "MERKEZ").trim();
+  const customerPhone = (data.company_phone || data.customer_phone || data.phone || "").trim();
+  const customerEmail = (data.company_email || data.customer_email || data.email || "").trim();
 
-  return {
+  // Cargo / Carrier resolution
+  const cName = (isIndependent ? data.carrier_name : data.waybill_carrier_name) || "Aras Kargo";
+  const carrierVknMap: { [key: string]: string } = {
+    "yurtiçi kargo": "9830022295", "aras kargo": "0720039649", "mng kargo": "6220353119",
+    "ptt kargo": "7330135756", "sürat kargo": "7820257003", "ups kargo": "9130018597"
+  };
+  const cVknFromDb = (isIndependent ? data.carrier_vkn : data.waybill_carrier_vkn);
+  const cVkn = (cVknFromDb || carrierVknMap[cName.toLowerCase().trim()] || "0720039649").replace(/\D/g, '');
+
+  // Normalize profile ("TEMEL IRSALİYE" -> "TEMELIRSALIYE")
+  const rawScenario = (data.scenario || "TEMELIRSALIYE").toString().trim();
+  const normalizedProfile = rawScenario
+    .replace(/İ/g, 'I')
+    .replace(/ı/g, 'I')
+    .replace(/i/g, 'I')
+    .replace(/Ş/g, 'S')
+    .replace(/ş/g, 'S')
+    .replace(/Ğ/g, 'G')
+    .replace(/ğ/g, 'G')
+    .replace(/Ü/g, 'U')
+    .replace(/ü/g, 'U')
+    .replace(/Ö/g, 'O')
+    .replace(/ö/g, 'O')
+    .replace(/Ç/g, 'C')
+    .replace(/ç/g, 'C')
+    .replace(/\s+/g, '')
+    .toUpperCase() || "TEMELIRSALIYE";
+
+  const rawType = (data.waybill_type || "SEVK").toString().trim().toUpperCase();
+  const normalizedType = rawType === "MATBUDAN" ? "MATBUDAN" : "SEVK";
+
+  // Resolve valid docNo (if draft / TASLAK, leave null for preview/control or use 16-char official docNo for send)
+  const rawDocNo = isIndependent ? data.waybill_number : data.waybill_number;
+  const validDocNo = (rawDocNo && !rawDocNo.startsWith("TASLAK") && rawDocNo.length === 16) ? rawDocNo : null;
+
+  const orderNo = (data.order_number || data.waybill_order_number || "").toString().trim();
+  const orderDateRaw = data.order_date || data.waybill_order_date;
+  const orderDateIso = orderDateRaw && !isNaN(new Date(orderDateRaw).getTime())
+    ? `${new Date(orderDateRaw).toISOString().split('T')[0]}T00:00:00+03:00`
+    : `${docDateYmd}T00:00:00+03:00`;
+
+  const resolvedPkAlias = (pkAlias && pkAlias !== "urn:mail:defaultpk")
+    ? pkAlias
+    : "urn:mail:irsaliyepk@gib.gov.tr";
+
+  const rawNoteText = (data.notes || "").toString().trim();
+  const noteText = rawNoteText
+    .replace(/İrsaliye\s+Yerine\s+Geçer\.?/gi, "")
+    .replace(/İrsaliye\s+yerine\s+geçer\.?/gi, "")
+    .trim();
+
+  const payload: any = {
+    id: null,
+    connectorGuid: storeSettings.connector_guid || null,
+    eDespatchType: normalizedType,
+    profile: normalizedProfile,
+    docNo: validDocNo,
+    ettn: (isIndependent ? data.ettn : data.waybill_ettn) || undefined,
+    docDate: `${docDateYmd}T00:00:00+03:00`,
+    docTime: `${docDateYmd}T${docTimeHms}+03:00`,
+    actualReferalDate: `${actualDateYmd}T00:00:00+03:00`,
+    actualReferalTime: `${actualDateYmd}T${actualTimeHms}+03:00`,
+    pkAlias: resolvedPkAlias,
+    gbAlias: storeSettings.ewaybill_sender_alias || null,
+    orderNo: orderNo || null,
+    orderDate: orderNo ? orderDateIso : null,
+    currencyCode,
+    currencyRate: Number(data.exchange_rate || 1),
     isCalculateByApi: true,
     isManuelCalculation: false,
-    connectorGuid: storeSettings.connector_guid || undefined,
-    eDocumentType: "IRSALIYE",
-    profile: (data.scenario ? data.scenario.replace(/\s+/g, '') : "TEMELIRSALIYE"),
-    despatchAdviceType: data.waybill_type || "SEVK",
-    issueDate: (isIndependent ? data.waybill_date : actualDate) ? new Date(isIndependent ? data.waybill_date : actualDate).toISOString().split('T')[0] : actualDate,
-    issueTime: (isIndependent ? data.waybill_time : actualTime) || actualTime,
-    ettn: isIndependent ? data.ettn : data.waybill_ettn,
-    docNo: isIndependent ? data.waybill_number : data.waybill_number,
-    currencyCode: (data.currency || 'TRY').toUpperCase(),
-    tenantIdentifierNumber: storeTaxNumber,
-    note: (data.notes || "İrsaliye Yerine Geçer.").trim(),
-    notes: [{ note: (data.notes || "İrsaliye Yerine Geçer.").trim() }],
-    pkAlias: pkAlias,
+    note1: noteText || null,
 
-    orderReference: (data.order_number || data.waybill_order_number) ? {
-      id: data.order_number || data.waybill_order_number,
-      issueDate: (data.order_date || data.waybill_order_date) ? new Date(data.order_date || data.waybill_order_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
-    } : undefined,
-
-    despatchDocumentReference: (data.matbu_number) ? {
-      id: data.matbu_number,
-      issueDate: (data.matbu_date) ? new Date(data.matbu_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
-    } : undefined,
-
-    // MySoft Account objects
-    deliveryAccount: deliveryAccountObj,
-    DeliveryAccount: deliveryAccountObj,
-    supplierAccount: supplierAccountObj,
-    SupplierAccount: supplierAccountObj,
-    despatchAccount: supplierAccountObj,
-    DespatchAccount: supplierAccountObj,
-    buyerAccount: deliveryAccountObj,
-    BuyerAccount: deliveryAccountObj,
-
-    despatchSupplierParty: {
-      identifierNumber: storeTaxNumber,
-      vknTckn: storeTaxNumber,
-      accountName: branding.store_name || "Seçkin Mağaza",
-      taxOfficeName: storeSettings.tax_office || "",
-      postalAddress: {
-        streetName: storeSettings.address || "İstanbul",
-        cityName: (storeSettings.city || "İSTANBUL").toUpperCase(),
-        citySubdivisionName: (storeSettings.district || "MERKEZ").toUpperCase(),
-        countryName: "Türkiye"
-      }
-    },
-
-    deliveryCustomerParty: {
-      identifierNumber: taxNumber,
-      vknTckn: taxNumber,
+    deliveryAccount: {
       accountName: customerTitle.substring(0, 100),
-      taxOfficeName: data.tax_office || data.company_tax_office || "",
-      postalAddress: {
-        streetName: addrStr.substring(0, 250),
-        cityName: cityName.toUpperCase(),
-        citySubdivisionName: districtName.toUpperCase(),
-        countryName: "Türkiye"
-      }
-    },
-
-    buyerCustomerParty: {
       identifierNumber: taxNumber,
-      vknTckn: taxNumber,
-      accountName: customerTitle.substring(0, 100),
-      taxOfficeName: data.tax_office || data.company_tax_office || "",
-      postalAddress: {
-        streetName: addrStr.substring(0, 250),
-        cityName: cityName.toUpperCase(),
-        citySubdivisionName: districtName.toUpperCase(),
-        countryName: "Türkiye"
-      }
+      city: { name: accCity },
+      country: { code: "TR", name: "Türkiye" },
+      citySubdivision: accDistrict,
+      taxOffice: { name: taxOfficeName },
+      postalCode: "34000",
+      streetName: addrStr.substring(0, 250),
+      district: accDistrict,
+      telephone1: customerPhone,
+      email1: customerEmail
     },
 
-    despatchLines: DespatchLines,
-    despatchAdviceDetail: DespatchLines,
+    account: {
+      accountName: customerTitle.substring(0, 100),
+      identifierNumber: taxNumber,
+      city: { name: accCity },
+      country: { code: "TR", name: "Türkiye" },
+      citySubdivision: accDistrict,
+      taxOffice: { name: taxOfficeName },
+      postalCode: "34000",
+      streetName: addrStr.substring(0, 250),
+      district: accDistrict,
+      telephone1: customerPhone,
+      email1: customerEmail
+    },
 
-    shipment: (() => {
-      const cName = (isIndependent ? data.carrier_name : data.waybill_carrier_name) || "Aras Kargo";
-      const carrierVknMap: { [key: string]: string } = {
-        "yurtiçi kargo": "9830022295", "aras kargo": "0720039649", "mng kargo": "6220353119",
-        "ptt kargo": "7330135756", "sürat kargo": "7820257003", "ups kargo": "9130018597"
-      };
-      // Prefer carrier_vkn from database if available
-      const cVknFromDb = (isIndependent ? data.carrier_vkn : data.waybill_carrier_vkn);
-      const cVkn = cVknFromDb || carrierVknMap[cName.toLowerCase().trim()] || "3900383509";
+    deliveryAddress: {
+      deliveryPartyAccountName: customerTitle.substring(0, 100),
+      deliveryPartyIdentifierNumber: taxNumber,
+      deliveryPartyTaxOffice: taxOfficeName,
+      city: { name: delivCity },
+      country: { code: "TR", name: "Türkiye" },
+      citySubdivision: delivDistrict,
+      taxOffice: { name: taxOfficeName },
+      postalCode: "34000",
+      streetName: delivAddrStr.substring(0, 250),
+      buildingName: "",
+      buildingNumber: "",
+      room: "",
+      district: delivDistrict
+    },
 
-      const shipmentStage = {
-        transportModeCode: (isIndependent ? data.transport_mode : data.waybill_transport_mode) || "1",
-        carrierParty: {
-          vknTckn: isCargoShipment ? cVkn : storeTaxNumber,
-          accountName: isCargoShipment ? cName : (branding.store_name || "Seçkin Mağaza")
-        },
-        transportMeans: {
-          roadTransportMeans: {
-            plateId: plateNumber || "34ABC000"
-          }
-        }
-      };
+    ...(isCargoShipment ? {
+      shipmentCarrier: {
+        companyName: cName,
+        identifierNumber: cVkn,
+        city: { name: accCity },
+        country: { code: "TR", name: "Türkiye" },
+        citySubdivision: accDistrict,
+        postalCode: "34000"
+      },
+      driverIdentifierNumber: driverVkn,
+      driverName: driverName,
+      driverSurname: driverSurname,
+      lisancePlate: plateNumber || "34KARGO",
+      lisancePlateSchemaId: "PLAKA"
+    } : {
+      driverIdentifierNumber: driverVkn,
+      driverName: driverName,
+      driverSurname: driverSurname,
+      lisancePlate: plateNumber,
+      lisancePlateSchemaId: "PLAKA"
+    }),
 
-      return {
-        carrierParty: {
-          vknTckn: isCargoShipment ? cVkn : storeTaxNumber,
-          accountName: isCargoShipment ? cName : (branding.store_name || "Seçkin Mağaza")
-        },
-        ...(!isCargoShipment ? {
-          driverPerson: [{ 
-            firstName: driverName, 
-            familyName: driverSurname, 
-            id: driverVkn.replace(/\D/g, '') || "11111111111",
-            contact: data.driver_phone ? { telephone: data.driver_phone } : undefined
-          }]
-        } : {}),
-        delivery: {
-          actualDeliveryDate: actualDate,
-          actualDeliveryTime: actualTime,
-          deliveryAccount: deliveryAccountObj,
-          DeliveryAccount: deliveryAccountObj,
-          deliveryAddress: {
-            streetName: addrStr.substring(0, 250),
-            cityName: cityName.toUpperCase(),
-            citySubdivisionName: districtName.toUpperCase(),
-            countryName: "Türkiye"
-          }
-        },
-        transportMeans: {
-          roadTransportMeans: {
-            plateId: plateNumber || "34ABC000"
-          }
-        },
-        shipmentStage: [shipmentStage]
-      };
-    })()
+    despatchDetail,
+    notes: noteText ? [{ note: noteText }] : []
   };
+
+  return payload;
 }
 
 // 2. Send E-Waybill to Entegrator (MySoft)
@@ -3178,7 +3189,7 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
     const service = await getEWaybillService(storeId);
     const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
     const taxpayerCheck = await service.checkTaxpayer(taxNumber);
-    let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
+    let pkAlias = taxpayerCheck.waybillAlias || "urn:mail:irsaliyepk@gib.gov.tr";
 
     let waybillNumber = invoice.waybill_number;
     let waybillEttn = invoice.waybill_ettn || crypto.randomUUID();
@@ -3254,7 +3265,7 @@ router.get("/einvoice/waybill/preview-html/:invoiceId", authenticate, async (req
     // Determine PK Alias
     const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
     const taxpayerCheck = await service.checkTaxpayer(taxNumber);
-    let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
+    let pkAlias = taxpayerCheck.waybillAlias || "urn:mail:irsaliyepk@gib.gov.tr";
 
     // Build Payload
     const ublData = await buildMySoftWaybillPayload(pool, invoice, settings, branding, pkAlias);
@@ -3352,9 +3363,109 @@ router.get("/independent-waybills", authenticate, async (req: any, res) => {
   }
 });
 
+// 1.1 E-Waybill Series & Sequence Info (Must be defined BEFORE /:id)
+router.get("/independent-waybills/series-info", authenticate, async (req: any, res) => {
+  try {
+    const rawStoreId = req.query.storeId;
+    if (rawStoreId === 'undefined' || rawStoreId === 'null') {
+      const userStoreId = req.user?.store_id;
+      if (!userStoreId) {
+        return res.status(400).json({ error: "Geçerli bir mağaza ID'si belirtilmelidir." });
+      }
+    }
+    const storeId = getAuthorizedStoreId(req, req.query.storeId);
+    if (!storeId || storeId <= 0) {
+      return res.status(400).json({ error: "Geçerli bir mağaza seçilmelidir." });
+    }
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı." });
+
+    const settings = storeRes.rows[0].einvoice_settings || {};
+    const prefix = (settings.ewaybill_prefix || "IRS").toUpperCase().substring(0, 3);
+    const year = new Date().getFullYear().toString();
+    const prefixWithYear = `${prefix}${year}`;
+
+    let baseStartSeq = Number(settings.ewaybill_start_sequence || settings.waybill_start_sequence || settings.ewaybill_last_sequence || 0);
+    if (!baseStartSeq && settings.ewaybill_last_number && settings.ewaybill_last_number.startsWith(prefixWithYear)) {
+      const p = parseInt(settings.ewaybill_last_number.substring(7), 10);
+      if (!isNaN(p)) baseStartSeq = p;
+    }
+
+    // Get highest number in DB (only count successfully transmitted/queued waybills, not failed/draft ones)
+    const seqRes = await pool.query(
+      `SELECT waybill_number FROM e_waybills 
+       WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16
+         AND LOWER(COALESCE(status, '')) NOT IN ('error', 'draft', 'cancelled')
+       ORDER BY waybill_number DESC LIMIT 1`,
+      [storeId, `${prefixWithYear}%`]
+    );
+
+    let highestSeq = baseStartSeq;
+    let lastNumber = settings.ewaybill_last_number || (baseStartSeq > 0 ? `${prefixWithYear}${baseStartSeq.toString().padStart(9, '0')}` : null);
+    if (seqRes.rows.length > 0 && seqRes.rows[0].waybill_number) {
+      const docNum = seqRes.rows[0].waybill_number;
+      const parsed = parseInt(docNum.substring(7), 10);
+      if (!isNaN(parsed) && parsed > highestSeq) {
+        highestSeq = parsed;
+        lastNumber = docNum;
+      }
+    }
+
+    const nextSeq = highestSeq + 1;
+    const nextNumber = `${prefixWithYear}${nextSeq.toString().padStart(9, '0')}`;
+
+    res.json({
+      prefix,
+      year,
+      startSequence: baseStartSeq,
+      lastNumber: lastNumber || (baseStartSeq > 0 ? `${prefixWithYear}${baseStartSeq.toString().padStart(9, '0')}` : "-"),
+      nextSequence: nextSeq,
+      nextNumber,
+      provider: settings.provider || "none",
+      isActive: !!settings.is_ewaybill_active,
+      username: settings.username || "",
+      vkn: settings.vkn || ""
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Seri bilgisi alınamadı: " + err.message });
+  }
+});
+
+// 1.2 Update E-Waybill Start Sequence
+router.post("/independent-waybills/series-info", authenticate, async (req: any, res) => {
+  try {
+    const storeId = getAuthorizedStoreId(req, req.body.storeId);
+    const { startSequence, prefix } = req.body;
+
+    const storeRes = await pool.query("SELECT einvoice_settings FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı." });
+
+    const settings = storeRes.rows[0].einvoice_settings || {};
+    if (prefix) settings.ewaybill_prefix = prefix.toUpperCase().substring(0, 3);
+    if (startSequence !== undefined) {
+      const num = parseInt(startSequence, 10);
+      if (!isNaN(num) && num >= 0) {
+        settings.ewaybill_start_sequence = num;
+        const curPrefix = (settings.ewaybill_prefix || "IRS").toUpperCase().substring(0, 3);
+        const curYear = new Date().getFullYear().toString();
+        settings.ewaybill_last_number = `${curPrefix}${curYear}${num.toString().padStart(9, '0')}`;
+      }
+    }
+
+    await pool.query("UPDATE stores SET einvoice_settings = $1 WHERE id = $2", [JSON.stringify(settings), storeId]);
+    res.json({ success: true, message: "E-İrsaliye seri bilgisi güncellendi.", settings });
+  } catch (err: any) {
+    res.status(500).json({ error: "Güncelleme başarısız: " + err.message });
+  }
+});
+
 // 2. Clear Waybill/Details
 router.get("/independent-waybills/:id", authenticate, async (req: any, res) => {
   try {
+    const waybillId = Number(req.params.id);
+    if (isNaN(waybillId) || waybillId <= 0) {
+      return res.status(400).json({ error: "Geçersiz irsaliye ID." });
+    }
     const storeId = getAuthorizedStoreId(req, req.query.storeId);
     const waybillRes = await pool.query(
       `SELECT ew.*, 
@@ -3785,22 +3896,29 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
     const client = await pool.connect();
     let waybillNumber = waybill.waybill_number;
     let waybillEttn = waybill.ettn || crypto.randomUUID();
-
-    const currentSeqPart = (waybillNumber && waybillNumber.startsWith(prefixWithYear) && waybillNumber.length === 16)
-      ? parseInt(waybillNumber.substring(7), 10)
-      : 0;
+    const isFailedOrDraft = ['error', 'draft', 'cancelled'].includes((waybill.status || '').toLowerCase());
 
     try {
       await client.query("BEGIN");
 
-      // Assign or update sequence if draft, TASLAK prefix, wrong prefix, or if current number is <= baseStartSeq
-      if (!waybillNumber || waybillNumber.startsWith("TASLAK") || waybillNumber.substring(0,3) !== prefix || (baseStartSeq > 0 && currentSeqPart <= baseStartSeq && (waybill.status === 'ERROR' || waybill.status === 'error' || waybill.status === 'draft'))) {
-        // Query highest waybill number recorded in database for this store and prefix
+      // Release any official 16-char numbers stuck on failed/draft waybills for this store so sequence numbers are never skipped
+      await client.query(
+        `UPDATE e_waybills 
+         SET waybill_number = 'TASLAK-IRS-' || id::text
+         WHERE store_id = $1 AND LENGTH(waybill_number) = 16 AND LOWER(COALESCE(status, '')) IN ('error', 'draft', 'cancelled')`,
+        [storeId]
+      );
+
+      // Always recalculate next sequence if draft, TASLAK, wrong prefix, or retrying after ERROR
+      if (!waybillNumber || waybillNumber.startsWith("TASLAK") || waybillNumber.substring(0,3) !== prefix || isFailedOrDraft) {
+        // Query highest waybill number among successfully sent/queued waybills
         const seqRes = await client.query(
           `SELECT waybill_number FROM e_waybills 
-           WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16 
+           WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16
+             AND LOWER(COALESCE(status, '')) NOT IN ('error', 'draft', 'cancelled')
+             AND id != $3
            ORDER BY waybill_number DESC LIMIT 1 FOR UPDATE`,
-          [storeId, `${prefixWithYear}%`]
+          [storeId, `${prefixWithYear}%`, id]
         );
 
         let nextSequenceNumber = baseStartSeq + 1;
@@ -3835,10 +3953,10 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
 
     const service = await getEWaybillService(storeId);
     
-    // Taxpayer check for pkAlias
+    // Taxpayer check for pkAlias (always prefer waybillAlias or GİB virtual e-waybill alias)
     const taxNumber = (waybill.company_tax_number || "").replace(/\D/g, '');
     const taxpayerCheck = await service.checkTaxpayer(taxNumber);
-    let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
+    let pkAlias = taxpayerCheck.waybillAlias || "urn:mail:irsaliyepk@gib.gov.tr";
 
     const ublData = await buildMySoftWaybillPayload(pool, waybill, settings, branding, pkAlias, true);
     const result = await service.sendWaybill(ublData);
@@ -3851,7 +3969,11 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
     }
   } catch (err: any) {
     console.error("Waybill Send Error:", err);
-    await pool.query("UPDATE e_waybills SET status = 'ERROR', message = $1 WHERE id = $2", [err.message, id]);
+    // Revert waybill_number to TASLAK-IRS-{id} on failure so the official sequence number is not burned
+    await pool.query(
+      "UPDATE e_waybills SET status = 'ERROR', message = $1, waybill_number = 'TASLAK-IRS-' || id::text WHERE id = $2",
+      [err.message, id]
+    );
     res.status(500).json({ error: err.message });
   }
 });
@@ -3905,7 +4027,7 @@ router.get("/independent-waybills/:id/preview-html", authenticate, async (req: a
     // Determine PK Alias
     const taxNumber = (waybill.company_tax_number || "").replace(/\D/g, '');
     const taxpayerCheck = await service.checkTaxpayer(taxNumber);
-    let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
+    let pkAlias = taxpayerCheck.waybillAlias || "urn:mail:irsaliyepk@gib.gov.tr";
 
     // Build Payload
     const ublData = await buildMySoftWaybillPayload(pool, waybill, settings, branding, pkAlias, true);
@@ -3946,7 +4068,7 @@ router.get("/independent-waybills/:id/control", authenticate, async (req: any, r
     const service = await getEWaybillService(storeId);
     const taxNumber = (waybill.company_tax_number || "").replace(/\D/g, '');
     const taxpayerCheck = await service.checkTaxpayer(taxNumber);
-    let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
+    let pkAlias = taxpayerCheck.waybillAlias || "urn:mail:irsaliyepk@gib.gov.tr";
 
     const ublData = await buildMySoftWaybillPayload(pool, waybill, settings, branding, pkAlias, true);
     const result = await service.controlWaybill(ublData);
@@ -3954,101 +4076,6 @@ router.get("/independent-waybills/:id/control", authenticate, async (req: any, r
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: "Kontrol gerçekleştirilemedi: " + err.message });
-  }
-});
-
-// 8.1 E-Waybill Series & Sequence Info
-router.get("/independent-waybills/series-info", authenticate, async (req: any, res) => {
-  try {
-    const rawStoreId = req.query.storeId;
-    if (rawStoreId === 'undefined' || rawStoreId === 'null') {
-      const userStoreId = req.user?.store_id;
-      if (!userStoreId) {
-        return res.status(400).json({ error: "Geçerli bir mağaza ID'si belirtilmelidir." });
-      }
-    }
-    const storeId = getAuthorizedStoreId(req, req.query.storeId);
-    if (!storeId || storeId <= 0) {
-      return res.status(400).json({ error: "Geçerli bir mağaza seçilmelidir." });
-    }
-    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
-    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı." });
-
-    const settings = storeRes.rows[0].einvoice_settings || {};
-    const prefix = (settings.ewaybill_prefix || "IRS").toUpperCase().substring(0, 3);
-    const year = new Date().getFullYear().toString();
-    const prefixWithYear = `${prefix}${year}`;
-
-    let baseStartSeq = Number(settings.ewaybill_start_sequence || settings.waybill_start_sequence || settings.ewaybill_last_sequence || 0);
-    if (!baseStartSeq && settings.ewaybill_last_number && settings.ewaybill_last_number.startsWith(prefixWithYear)) {
-      const p = parseInt(settings.ewaybill_last_number.substring(7), 10);
-      if (!isNaN(p)) baseStartSeq = p;
-    }
-
-    // Get highest number in DB
-    const seqRes = await pool.query(
-      `SELECT waybill_number FROM e_waybills 
-       WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16 
-       ORDER BY waybill_number DESC LIMIT 1`,
-      [storeId, `${prefixWithYear}%`]
-    );
-
-    let highestSeq = baseStartSeq;
-    let lastNumber = settings.ewaybill_last_number || (baseStartSeq > 0 ? `${prefixWithYear}${baseStartSeq.toString().padStart(9, '0')}` : null);
-    if (seqRes.rows.length > 0 && seqRes.rows[0].waybill_number) {
-      const docNum = seqRes.rows[0].waybill_number;
-      const parsed = parseInt(docNum.substring(7), 10);
-      if (!isNaN(parsed) && parsed > highestSeq) {
-        highestSeq = parsed;
-        lastNumber = docNum;
-      }
-    }
-
-    const nextSeq = highestSeq + 1;
-    const nextNumber = `${prefixWithYear}${nextSeq.toString().padStart(9, '0')}`;
-
-    res.json({
-      prefix,
-      year,
-      startSequence: baseStartSeq,
-      lastNumber: lastNumber || (baseStartSeq > 0 ? `${prefixWithYear}${baseStartSeq.toString().padStart(9, '0')}` : "-"),
-      nextSequence: nextSeq,
-      nextNumber,
-      provider: settings.provider || "none",
-      isActive: !!settings.is_ewaybill_active,
-      username: settings.username || "",
-      vkn: settings.vkn || ""
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: "Seri bilgisi alınamadı: " + err.message });
-  }
-});
-
-// 8.2 Update E-Waybill Start Sequence
-router.post("/independent-waybills/series-info", authenticate, async (req: any, res) => {
-  try {
-    const storeId = getAuthorizedStoreId(req, req.body.storeId);
-    const { startSequence, prefix } = req.body;
-
-    const storeRes = await pool.query("SELECT einvoice_settings FROM stores WHERE id = $1", [storeId]);
-    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı." });
-
-    const settings = storeRes.rows[0].einvoice_settings || {};
-    if (prefix) settings.ewaybill_prefix = prefix.toUpperCase().substring(0, 3);
-    if (startSequence !== undefined) {
-      const num = parseInt(startSequence, 10);
-      if (!isNaN(num) && num >= 0) {
-        settings.ewaybill_start_sequence = num;
-        const curPrefix = (settings.ewaybill_prefix || "IRS").toUpperCase().substring(0, 3);
-        const curYear = new Date().getFullYear().toString();
-        settings.ewaybill_last_number = `${curPrefix}${curYear}${num.toString().padStart(9, '0')}`;
-      }
-    }
-
-    await pool.query("UPDATE stores SET einvoice_settings = $1 WHERE id = $2", [JSON.stringify(settings), storeId]);
-    res.json({ success: true, message: "E-İrsaliye seri bilgisi güncellendi.", settings });
-  } catch (err: any) {
-    res.status(500).json({ error: "Güncelleme başarısız: " + err.message });
   }
 });
 
@@ -4067,7 +4094,7 @@ router.get("/einvoice/waybill/control/:invoiceId", authenticate, async (req: any
     const service = await getEWaybillService(invoice.store_id);
     const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
     const taxpayerCheck = await service.checkTaxpayer(taxNumber);
-    let pkAlias = taxpayerCheck.waybillAlias || taxpayerCheck.alias || "urn:mail:defaultpk";
+    let pkAlias = taxpayerCheck.waybillAlias || "urn:mail:irsaliyepk@gib.gov.tr";
 
     const ublData = await buildMySoftWaybillPayload(pool, invoice, settings, branding, pkAlias, false);
     const result = await service.controlWaybill(ublData);
@@ -4103,19 +4130,24 @@ router.post("/independent-waybills/convert-to-invoice", authenticate, async (req
   const storeId = getAuthorizedStoreId(req, req.body.storeId || req.query.storeId);
   const { waybillIds, invoiceProfile, giInvoiceType, paymentMethod, notes, currency } = req.body;
 
-  if (!waybillIds || waybillIds.length === 0) {
+  if (!waybillIds || !Array.isArray(waybillIds) || waybillIds.length === 0) {
     return res.status(400).json({ error: "Faturaya dönüştürmek için en az bir irsaliye seçmelisiniz." });
+  }
+
+  const cleanWaybillIds = waybillIds.map((id: any) => Number(id)).filter((id: number) => !isNaN(id) && id > 0);
+  if (cleanWaybillIds.length === 0) {
+    return res.status(400).json({ error: "Geçerli bir irsaliye seçilmedi." });
   }
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    // Gather active waybills
-    const placeholders = waybillIds.map((_: any, idx: number) => `$${idx + 2}`).join(",");
+    // Gather active waybills (starts at $2 because $1 is storeId)
+    const selectPlaceholders = cleanWaybillIds.map((_: any, idx: number) => `$${idx + 2}`).join(",");
     const waybillsRes = await client.query(
-      `SELECT * FROM e_waybills WHERE store_id = $1 AND id IN (${placeholders})`,
-      [storeId, ...waybillIds]
+      `SELECT * FROM e_waybills WHERE store_id = $1 AND id IN (${selectPlaceholders})`,
+      [storeId, ...cleanWaybillIds]
     );
 
     if (waybillsRes.rows.length === 0) {
@@ -4136,10 +4168,11 @@ router.post("/independent-waybills/convert-to-invoice", authenticate, async (req
       }
     }
 
-    // Pull item entries for all selected waybills
+    // Pull item entries for all selected waybills (starts at $1)
+    const itemPlaceholders = cleanWaybillIds.map((_: any, idx: number) => `$${idx + 1}`).join(",");
     const itemsRes = await client.query(
-      `SELECT * FROM e_waybill_items WHERE waybill_id IN (${placeholders}) ORDER BY id ASC`,
-      [...waybillIds]
+      `SELECT * FROM e_waybill_items WHERE waybill_id IN (${itemPlaceholders}) ORDER BY id ASC`,
+      [...cleanWaybillIds]
     );
     const waybillItems = itemsRes.rows;
 
@@ -4160,9 +4193,9 @@ router.post("/independent-waybills/convert-to-invoice", authenticate, async (req
           quantity: Number(wi.quantity),
           unit_code: wi.unit_code,
           unit_price: Number(wi.unit_price),
-          tax_rate: Number(wi.tax_rate),
-          tax_amount: Number(wi.tax_amount),
-          total_price: Number(wi.total_price)
+          tax_rate: Number(wi.tax_rate ?? 20),
+          tax_amount: Number(wi.tax_amount || 0),
+          total_price: Number(wi.total_price || 0)
         });
       }
     }
@@ -4187,6 +4220,8 @@ router.post("/independent-waybills/convert-to-invoice", authenticate, async (req
     let taxOffice = "";
     let customerEmail = "";
     let address = "İstanbul Merkez";
+    let companyTitle = "";
+    let customerName = "";
 
     if (firstWaybill.company_id) {
       const compRes = await client.query("SELECT * FROM companies WHERE id = $1", [firstWaybill.company_id]);
@@ -4195,7 +4230,8 @@ router.post("/independent-waybills/convert-to-invoice", authenticate, async (req
         taxNumber = comp.tax_number || "11111111111";
         taxOffice = comp.tax_office || "";
         customerEmail = comp.email || "";
-        address = comp.address || "İstanbul Merkez";
+        address = comp.address || firstWaybill.delivery_address || "İstanbul Merkez";
+        companyTitle = comp.title || "";
       }
     } else if (firstWaybill.customer_id) {
       const custRes = await client.query("SELECT * FROM customers WHERE id = $1", [firstWaybill.customer_id]);
@@ -4203,7 +4239,8 @@ router.post("/independent-waybills/convert-to-invoice", authenticate, async (req
         const cust = custRes.rows[0];
         taxNumber = (cust.phone || "11111111111").replace(/\D/g, '').substring(0, 11);
         customerEmail = cust.email || "";
-        address = cust.address || "İstanbul Merkez";
+        address = cust.address || firstWaybill.delivery_address || "İstanbul Merkez";
+        customerName = `${cust.name || ""} ${cust.surname || ""}`.trim();
       }
     }
 
@@ -4222,27 +4259,42 @@ router.post("/independent-waybills/convert-to-invoice", authenticate, async (req
       totalGrand += lineTotal;
     }
 
+    const joinedWaybillNumbers = waybillsRes.rows.map(w => w.waybill_number).filter(Boolean).join(", ");
+    const invoiceNotes = notes
+      ? notes
+      : `İrsaliye No: ${joinedWaybillNumbers} (${waybillsRes.rows.map(w => new Date(w.waybill_date || Date.now()).toLocaleDateString('tr-TR')).join(", ")}) istinaden düzenlenmiştir.`;
+
     // Create sales invoice draft
     const invoiceRes = await client.query(
       `INSERT INTO sales_invoices (
-        store_id, company_id, customer_id, invoice_number, invoice_date, invoice_time,
+        store_id, company_id, customer_id, company_title, customer_name,
+        invoice_number, invoice_date, invoice_time,
         total_amount, tax_amount, grand_total, currency, exchange_rate,
         notes, payment_method, invoice_type, status, e_document_type,
         invoice_profile, is_tax_inclusive, tax_number, tax_office, address, customer_email,
-        gi_invoice_type
-      ) VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_TIME, $5, $6, $7, $8, $9, $10, $11, 'manual', 'draft', $12, $13, FALSE, $14, $15, $16, $17, $18)
+        gi_invoice_type, waybill_number, waybill_actual_date, waybill_ettn, waybill_status
+      ) VALUES (
+        $1, $2, $3, $4, $5,
+        $6, CURRENT_DATE, CURRENT_TIME,
+        $7, $8, $9, $10, $11,
+        $12, $13, 'manual', 'draft', $14,
+        $15, FALSE, $16, $17, $18, $19,
+        $20, $21, $22, $23, $24
+      )
       RETURNING id`,
       [
         storeId,
         firstWaybill.company_id || null,
         firstWaybill.customer_id || null,
+        companyTitle || null,
+        customerName || null,
         finalInvoiceNumber,
         totalNet,
         totalTax,
         totalGrand,
         currency || firstWaybill.currency || 'TRY',
         firstWaybill.exchange_rate || 1,
-        notes || `İrsaliyelerden otomatik birleştirildi: ${waybillsRes.rows.map(w => w.waybill_number).join(", ")}`,
+        invoiceNotes,
         paymentMethod || 'none',
         "EFATURA",
         invoiceProfile || "TICARIFATURA",
@@ -4250,7 +4302,11 @@ router.post("/independent-waybills/convert-to-invoice", authenticate, async (req
         taxOffice,
         address,
         customerEmail,
-        giInvoiceType || "SATIS"
+        giInvoiceType || "SATIS",
+        firstWaybill.waybill_number || null,
+        firstWaybill.actual_date || firstWaybill.waybill_date || null,
+        firstWaybill.ettn || null,
+        firstWaybill.status || null
       ]
     );
 
@@ -4281,12 +4337,13 @@ router.post("/independent-waybills/convert-to-invoice", authenticate, async (req
       );
     }
 
-    // Link waybills to invoice
+    // Link waybills to invoice ($1 = invoiceId, $2 = storeId, $3+ = cleanWaybillIds)
+    const updatePlaceholders = cleanWaybillIds.map((_: any, idx: number) => `$${idx + 3}`).join(",");
     await client.query(
       `UPDATE e_waybills 
-       SET is_invoiced = TRUE, invoice_id = $1, status = 'success' 
-       WHERE store_id = $2 AND id IN (${placeholders})`,
-      [invoiceId, storeId, ...waybillIds]
+       SET is_invoiced = TRUE, invoice_id = $1, status = CASE WHEN LOWER(COALESCE(status, '')) = 'success' THEN 'SUCCESS' ELSE status END
+       WHERE store_id = $2 AND id IN (${updatePlaceholders})`,
+      [invoiceId, storeId, ...cleanWaybillIds]
     );
 
     await client.query("COMMIT");

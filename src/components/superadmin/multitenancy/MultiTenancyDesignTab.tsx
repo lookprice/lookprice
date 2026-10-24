@@ -57,6 +57,12 @@ export const MultiTenancyDesignTab: React.FC<MultiTenancyDesignTabProps> = ({
               name: "Bistro & Menü (HoReCa)",
               desc: "QR dijital menü ve kategori kartları",
               color: "#ea580c"
+            },
+            {
+              id: "corporate_executive",
+              name: "Kurumsal Web & Ajans",
+              desc: "Tanıtım, hizmetler, referanslar & iletişim",
+              color: "#4f46e5"
             }
           ].map((preset) => (
             <div

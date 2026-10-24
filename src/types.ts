@@ -163,7 +163,7 @@ export interface Store {
   address: string;
   phone: string;
   email: string;
-  store_type?: 'product' | 'real_estate' | 'motor_vehicle';
+  store_type?: 'product' | 'real_estate' | 'motor_vehicle' | 'cafe_restaurant' | 'corporate_website';
   hotel_module_enabled?: boolean;
   bookstore_module_enabled?: boolean;
   sub_sector?: 'car' | 'motorcycle' | 'marine' | 'construction' | 'agricultural' | 'other';

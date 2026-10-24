@@ -72,6 +72,36 @@ export const MultiTenancyLicensesTab: React.FC<MultiTenancyLicensesTabProps> = (
             Sektörel Yetki & Lisans Anahtarları
           </h4>
 
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+              Ana Mağaza Sektörü / Türü
+            </label>
+            <select
+              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+              value={configForm.store_type || "product"}
+              onChange={(e) =>
+                setConfigForm({
+                  ...configForm,
+                  store_type: e.target.value,
+                  branding: {
+                    ...(configForm.branding || {}),
+                    store_type: e.target.value,
+                    page_layout_settings: {
+                      ...(configForm.branding?.page_layout_settings || {}),
+                      sector: e.target.value
+                    }
+                  }
+                })
+              }
+            >
+              <option value="product">shopLP - Perakende / Genel Ürün Mağazası</option>
+              <option value="cafe_restaurant">horecaLP - Kafeterya, Restoran & Otel</option>
+              <option value="real_estate">RestateLP - Emlak & Gayrimenkul Portföyü</option>
+              <option value="motor_vehicle">AutoLP - Oto Galeri & Motorlu Araçlar</option>
+              <option value="corporate_website">Kurumsal Web Sitesi (Tanıtım, Hizmet & İletişim)</option>
+            </select>
+          </div>
+
           <div className="space-y-2">
             <label className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">

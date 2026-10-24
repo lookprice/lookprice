@@ -20,6 +20,7 @@ import { ModernCafeRestaurantLayout } from "../components/ModernCafeRestaurantLa
 import { ModernShopRetailLayout } from "../components/ModernShopRetailLayout";
 import { BookstoreNetflixLayout } from "../components/BookstoreNetflixLayout";
 import { ShopNetflixLayout } from "../components/ShopNetflixLayout";
+import { ModernCorporateWebsiteLayout } from "../components/ModernCorporateWebsiteLayout";
 import ErrorBoundary from "../components/ErrorBoundary";
 
 // Types
@@ -822,6 +823,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const storeType = getStoreType(store);
   const isPortfolio = storeType === "real_estate" || storeType === "automotive";
   const isCafeRestaurant = storeType === "cafe_restaurant" || sector === "cafe_restaurant";
+  const isCorporateWebsite = storeType === "corporate_website" || sector === "corporate_website";
 
   const categories = React.useMemo(() => {
     const cats = new Map<string, Set<string>>();
@@ -958,6 +960,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       <script type="application/ld+json">{JSON.stringify(clientSchemaData)}</script>
     </Helmet>
   );
+
+  if (isCorporateWebsite) {
+    return (
+      <ErrorBoundary lang={lang}>
+        {seoHelmetNode}
+        <ModernCorporateWebsiteLayout store={store} lang={lang} />
+      </ErrorBoundary>
+    );
+  }
 
   if (isCafeRestaurant) {
     return (

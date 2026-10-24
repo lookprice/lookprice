@@ -67,8 +67,9 @@ const GoogleMerchantIntegration = () => {
 
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
+  const isCorporateWebsite = branding?.store_type === 'corporate_website' || branding?.page_layout_settings?.sector === 'corporate_website' || branding?.sector === 'corporate_website';
 
-  if (branding && (isCafeRestaurant || isPortfolio)) {
+  if (branding && (isCafeRestaurant || isPortfolio || isCorporateWebsite)) {
     return (
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 text-center">
         <p className="text-slate-500 font-bold text-sm">

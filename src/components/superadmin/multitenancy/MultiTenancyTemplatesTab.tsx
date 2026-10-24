@@ -69,6 +69,13 @@ export const MultiTenancyTemplatesTab: React.FC<MultiTenancyTemplatesTabProps> =
           >
             ⚡ Modern Tech Siber
           </button>
+          <button
+            type="button"
+            onClick={() => handleClonePreset("corporate_executive")}
+            className="p-2.5 text-xs font-bold bg-white dark:bg-slate-900 border rounded-xl hover:bg-slate-100 text-left"
+          >
+            🏢 Kurumsal Web & Ajans
+          </button>
         </div>
       </div>
 

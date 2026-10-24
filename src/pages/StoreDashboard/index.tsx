@@ -104,6 +104,7 @@ const SEOTab = React.lazy(() => import("./SEOTab"));
 const EWaybillsTab = React.lazy(() => import("../../components/EWaybillsTab"));
 const FaqTab = React.lazy(() => import("./FaqTab"));
 const HotelRoomManagement = React.lazy(() => import("../../components/horeca/HotelRoomManagement").then(m => ({ default: m.HotelRoomManagement })));
+const CorporateWebsiteStudioTab = React.lazy(() => import("./CorporateWebsiteStudioTab"));
 
 import ShippingSlip from "../../components/ShippingSlip";
 import { ChangePasswordModal } from "../../components/ChangePasswordModal";
@@ -153,6 +154,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const isHotelModuleActive = domainId === 'HOTEL';
   const isBookstoreModuleActive = domainId === 'BOOKSTORE';
   const isShopLp = domainId === 'RETAIL' || domainId === 'BOOKSTORE';
+  const isCorporateWebsite = domainId === 'CORPORATE';
 
   // Cafe/Restaurant Role-based authorization state
   const [activeStaffRole, setActiveStaffRole] = useState<'manager' | 'cashier' | 'waiter'>(() => {
@@ -855,7 +857,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     Number(notifications?.reconciliations_disputed || 0) > 0 ||
     Number(webOwnerLeadsCount || 0) > 0;
 
-  const rawNavItems = isPortfolio ? [
+  const rawNavItems = isCorporateWebsite ? [
+    { type: 'category', key: "website_cms", title: txt('Web Sitesi Yönetimi', 'Website Management', 'Διαχείριση Ιστοσελίδας'), items: [
+      { id: "corporate-website", label: txt('Web Tasarım & İçerik Stüdyosu', 'Website Design & Content Studio', 'Στούντιο Σχεδιασμού Ιστοσελίδας'), icon: Globe },
+      { id: "blog", label: txt('Blog & Duyurular', 'Blog & Announcements', 'Blog & Ανακοινώσεις'), icon: BookOpen },
+      { id: "faq", label: txt('S.S.S. (Sıkça Sorulanlar)', 'FAQ Management', 'Συχνές Ερωτήσεις'), icon: HelpCircle },
+      { id: "seo", label: txt('SEO & Sayfa Başlıkları', 'SEO & Page Titles', 'Σελίδες SEO'), icon: Globe },
+    ]},
+    { type: 'category', key: "integrations", title: txt('Google, Meta & İstatistik', 'Google, Meta & Analytics', 'Google, Meta & Στατιστικά'), items: [
+      { id: "meta", label: txt('Meta & Instagram Tanımları', 'Meta & Instagram Setup', 'Ρυθμίσεις Meta & Instagram'), icon: Facebook },
+      { id: "analytics", label: txt('Ziyaretçi İstatistikleri', 'Visitor Analytics', 'Στατιστικά Επισκεπτών'), icon: BarChart3 },
+    ]},
+    { type: 'item', id: "settings", label: txt('Domain & Site Ayarları', 'Domain & Site Settings', 'Ρυθμίσεις Domain & Ιστοσελίδας'), icon: SettingsIcon }
+  ] : isPortfolio ? [
     { type: 'category', key: "real_estate", title: txt('Portföy & İlan', 'Portfolios & Listings', 'Χαρτοφυλάκιο & Αγγελίες'), items: [
       ...(isRealEstate ? [{ id: "real_estate", label: txt('Gayrimenkul Portföyü', 'Real Estate Portfolio', 'Χαρτοφυλάκιο Ακινήτων'), icon: Home }] : []),
       ...(isAutomotive ? [{ id: "fleet", label: txt('Oto Galeri / Araçlar', 'Automotive / Vehicles', 'Αντιπροσωπεία / Οχήματα'), icon: Car, badge: notifications.fleet }] : []),
@@ -1026,6 +1040,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   // Bulletproof fallback redirection for unauthorized/unrelated tabs (Zero-Stale Tab Protocol)
   useEffect(() => {
     if (permittedTabIds.size > 0 && !permittedTabIds.has(activeTab)) {
+      if (isCorporateWebsite && permittedTabIds.has('corporate-website')) {
+        setActiveTab('corporate-website');
+        return;
+      }
+
       // If we are in portfolio, prefer real_estate/fleet over fast-pos or default
       if (isPortfolio) {
         if (isAutomotive && !isRealEstate && permittedTabIds.has('fleet')) {
@@ -1050,7 +1069,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         setActiveTab(firstTab);
       }
     }
-  }, [permittedTabIds, activeTab, setActiveTab, isPortfolio, isAutomotive, isRealEstate, isCafeRestaurant]);
+  }, [permittedTabIds, activeTab, setActiveTab, isCorporateWebsite, isPortfolio, isAutomotive, isRealEstate, isCafeRestaurant]);
 
   return (
     <DashboardLayout
@@ -1067,6 +1086,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         isRealEstate,
         isAutomotive,
         isCafeRestaurant,
+        isCorporateWebsite,
         currentStoreId,
         onLogout,
         setShowQrModal,
@@ -1143,7 +1163,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           translations={t}
         />
 
-        {!dismissedWebSales && activeTab !== "pos" && notifications?.web_sales > 0 && (
+        {!isCorporateWebsite && !dismissedWebSales && activeTab !== "pos" && notifications?.web_sales > 0 && (
           <div className="mb-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fadeIn relative pr-8 sm:pr-3.5">
             <button
               type="button"
@@ -1223,7 +1243,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           </div>
         )}
 
-        {!dismissedReconDispute && activeTab !== "companies" && Number(notifications?.reconciliations_disputed || 0) > 0 && (
+        {!isCorporateWebsite && !dismissedReconDispute && activeTab !== "companies" && Number(notifications?.reconciliations_disputed || 0) > 0 && (
           <div className="mb-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fadeIn relative pr-8 sm:pr-3.5">
             <button
               type="button"
@@ -1268,7 +1288,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           </div>
         )}
 
-        {!dismissedQuotationAlert && activeTab !== "quotations" && Number(notifications?.quotations_action || 0) > 0 && (
+        {!isCorporateWebsite && !dismissedQuotationAlert && activeTab !== "quotations" && Number(notifications?.quotations_action || 0) > 0 && (
           <div className="mb-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fadeIn relative pr-8 sm:pr-3.5">
             <button
               type="button"
@@ -1314,7 +1334,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           </div>
         )}
 
-        {!dismissedOwnerLeads && activeTab !== "real_estate_crm" && webOwnerLeadsCount > 0 && (
+        {!isCorporateWebsite && !dismissedOwnerLeads && activeTab !== "real_estate_crm" && webOwnerLeadsCount > 0 && (
           <div className="mb-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fadeIn relative pr-8 sm:pr-3.5">
             <button
               type="button"
@@ -1375,7 +1395,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             className={`transition-opacity duration-200 max-w-full overflow-x-clip ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
           >
             <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-              {activeTab === "faq" && isCafeRestaurant && permittedTabIds.has("faq") && <FaqTab />}
+              {activeTab === "corporate-website" && permittedTabIds.has("corporate-website") && (
+                <CorporateWebsiteStudioTab
+                  branding={branding}
+                  setBranding={setBranding}
+                  currentStoreId={currentStoreId}
+                  onSaveBranding={handleSaveBranding}
+                  savingBranding={savingBranding}
+                  onLogoUpload={(e) => handleFileUpload(e, 'logo')}
+                  onFaviconUpload={(e) => handleFileUpload(e, 'favicon')}
+                />
+              )}
+              {activeTab === "faq" && (isCafeRestaurant || isCorporateWebsite || isShopLp) && permittedTabIds.has("faq") && <FaqTab />}
               {activeTab === "products" && permittedTabIds.has("products") && (
                 <ProductsTab 
                   products={products}

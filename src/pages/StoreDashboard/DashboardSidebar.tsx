@@ -36,6 +36,7 @@ interface SidebarProps {
   isRealEstate: boolean;
   isAutomotive: boolean;
   isCafeRestaurant?: boolean;
+  isCorporateWebsite?: boolean;
   currentStoreId?: number;
   onLogout: () => void;
   setShowQrModal: (show: boolean) => void;
@@ -60,6 +61,7 @@ export const DashboardSidebar = ({
   isRealEstate,
   isAutomotive,
   isCafeRestaurant,
+  isCorporateWebsite,
   currentStoreId,
   onLogout,
   setShowQrModal,
@@ -74,13 +76,14 @@ export const DashboardSidebar = ({
 }: SidebarProps) => {
   const { lang } = useLanguage();
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
+    website_cms: true,
     dashboard: true,
     sales: true,
     operations: true,
     real_estate: true,
     finance_operations: true,
     team: true,
-    integrations: false,
+    integrations: true,
     settings: false
   });
 
@@ -239,7 +242,7 @@ export const DashboardSidebar = ({
                 <Globe className="h-4 w-4 text-slate-500" />
                 <span className="truncate tracking-tight">{t.storeWebsite}</span>
               </a>
-              {!isPortfolio && !isCafeRestaurant && (
+              {!isPortfolio && !isCafeRestaurant && !isCorporateWebsite && (
                 <a
                   href={scanUrl}
                   target="_blank"
@@ -256,7 +259,9 @@ export const DashboardSidebar = ({
                 onClick={() => setShowQrModal(true)}
                 className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all cursor-pointer group shadow-xs mt-1"
                 title={
-                  !isPortfolio && !isCafeRestaurant
+                  isCorporateWebsite
+                    ? (lang === 'tr' ? "Kurumsal Web Sitesi QR Kodu" : "Corporate Website QR Code")
+                    : !isPortfolio && !isCafeRestaurant
                     ? (lang === 'tr' ? "Mağaza İçi 'Fiyat Gör' Barkod QR Kodu & Yazdırılabilir Afiş" : "In-Store Price Check QR & Printable Poster")
                     : isCafeRestaurant
                     ? (lang === 'tr' ? "Dijital Menü & Web QR Kodu" : "Digital Menu & Web QR Code")
@@ -266,7 +271,9 @@ export const DashboardSidebar = ({
                 <div className="flex items-center space-x-2.5 min-w-0">
                   <QrCode className="h-4 w-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
                   <span className="truncate tracking-tight font-black">
-                    {!isPortfolio && !isCafeRestaurant 
+                    {isCorporateWebsite
+                      ? (lang === 'tr' ? 'Web Sitesi QR Kodu' : 'Website QR Code')
+                      : !isPortfolio && !isCafeRestaurant 
                       ? (lang === 'tr' ? 'Fiyat Gör QR & Afiş' : 'Price Check QR & Poster') 
                       : isCafeRestaurant
                       ? (lang === 'tr' ? 'Menü & Vitrin QR' : 'Menu & Web QR')
@@ -274,7 +281,7 @@ export const DashboardSidebar = ({
                   </span>
                 </div>
                 <span className="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
-                  {!isPortfolio && !isCafeRestaurant ? 'Afiş' : 'QR'}
+                  {!isPortfolio && !isCafeRestaurant && !isCorporateWebsite ? 'Afiş' : 'QR'}
                 </span>
               </button>
               {isCafeRestaurant && currentStoreId && (

@@ -245,6 +245,7 @@ export const MultiTenancyDashboard: React.FC<MultiTenancyDashboardProps> = ({
       (sectorFilter === "horeca" && s.store_type === "cafe_restaurant") ||
       (sectorFilter === "real_estate" && s.store_type === "real_estate") ||
       (sectorFilter === "automotive" && s.store_type === "motor_vehicle") ||
+      (sectorFilter === "corporate_website" && s.store_type === "corporate_website") ||
       (sectorFilter === "bookstore" &&
         (s.bookstore_module_enabled || (s.branding as any)?.bookstore_module_enabled));
 
@@ -289,6 +290,12 @@ export const MultiTenancyDashboard: React.FC<MultiTenancyDashboardProps> = ({
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
             <Car className="h-3 w-3" /> Otomotiv
+          </span>
+        );
+      case "corporate_website":
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+            <Building2 className="h-3 w-3" /> Kurumsal Web
           </span>
         );
       default:
@@ -394,6 +401,17 @@ export const MultiTenancyDashboard: React.FC<MultiTenancyDashboardProps> = ({
               }`}
             >
               <BookOpen className="h-3.5 w-3.5" /> BookLP
+            </button>
+            <button
+              type="button"
+              onClick={() => setSectorFilter("corporate_website")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                sectorFilter === "corporate_website"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+              }`}
+            >
+              <Building2 className="h-3.5 w-3.5" /> Kurumsal Web
             </button>
           </div>
         </div>

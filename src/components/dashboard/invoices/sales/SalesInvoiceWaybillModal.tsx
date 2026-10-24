@@ -174,15 +174,17 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-2xl w-full overflow-hidden transition-all duration-300">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+      <div className={`bg-white rounded-2xl border border-slate-100 shadow-2xl w-full overflow-hidden transition-all duration-300 ${
+        (viewHtml || viewPreview) ? 'max-w-6xl' : 'max-w-2xl'
+      }`}>
         
         {/* Modal Header */}
-        <div className="px-6 py-5 bg-gradient-to-r from-slate-900 to-indigo-950 flex items-center justify-between text-white">
+        <div className="px-6 py-4 bg-gradient-to-r from-slate-900 to-indigo-950 flex items-center justify-between text-white">
           <div className="flex items-center gap-3">
             <Truck className="h-6 w-6 text-indigo-400 animate-pulse" />
             <div>
-              <h3 className="font-sans font-medium text-lg tracking-tight">
+              <h3 className="font-sans font-medium text-base tracking-tight text-white">
                 {isTr ? 'MySoft e-İrsaliye Entegrasyonu' : 'MySoft e-Waybill Module'}
               </h3>
               <h4 className="text-xs text-indigo-200/80 font-medium tracking-widest uppercase">
@@ -214,19 +216,19 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
 
         {/* Main Body */}
         {(viewHtml || viewPreview) ? (
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-widest">
+          <div className="p-4 bg-slate-100">
+            <div className="flex justify-between items-center mb-3 px-2">
+              <span className="text-xs font-semibold text-slate-700 uppercase tracking-widest">
                 {viewPreview ? (isTr ? 'GİB e-İrsaliye CANLI ÖNİZLEME' : 'Live e-Waybill Preview') : (isTr ? 'GİB e-İrsaliye RESMİ BELGE' : 'Official e-Waybill Document')}
               </span>
               <button 
                 onClick={() => { setViewHtml(false); setViewPreview(false); }}
-                className="text-xs font-medium text-indigo-600 hover:underline"
+                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition cursor-pointer"
               >
                 {isTr ? 'Detaylara / Form Girişine Dön' : 'Return to Inputs Form'}
               </button>
             </div>
-            <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 h-[450px]">
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white h-[78vh] shadow-inner">
               <iframe 
                 src={viewPreview ? `/api/einvoice/waybill/preview-html/${invoice.id}` : `/api/einvoice/waybill/html/${invoice.id}`} 
                 className="w-full h-full border-0" 

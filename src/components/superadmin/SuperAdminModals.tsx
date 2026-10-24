@@ -531,7 +531,22 @@ export const EditStoreModal: React.FC<{
           <option value="real_estate">Emlak (Gayrimenkul)</option>
           <option value="motor_vehicle">Motorlu Taşıtlar (Oto, Moto, Deniz, İş, Tarım)</option>
           <option value="cafe_restaurant">Cafe & Restaurant</option>
+          <option value="corporate_website">Kurumsal Web Sitesi (Tanıtım, Hizmet & İletişim)</option>
         </select>
+
+        {store.store_type === 'corporate_website' && (
+          <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200/80 mt-2">
+            <div className="flex items-start gap-2.5">
+              <span className="text-base leading-none mt-0.5">🏢</span>
+              <div>
+                <span className="text-xs font-black text-indigo-950 block">Kurumsal Web Sitesi & Dijital Ajans Vitrini</span>
+                <span className="text-[10px] text-indigo-800 font-medium block">
+                  Hakkımızda, Hizmetler, Projeler/Referanslar, İletişim, İK/Kariyer ve Teklif Formu modüllerini aktif eder. POS, E-Fatura ve Pazaryeri modülleri izole edilir.
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {store.store_type === 'cafe_restaurant' && (
           <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/80 mt-2">
@@ -870,7 +885,21 @@ export const AddStoreModal: React.FC<{
                     <option value="real_estate">Emlak (Gayrimenkul)</option>
                     <option value="motor_vehicle">Motorlu Taşıtlar (Oto, Moto, Deniz, İş, Tarım)</option>
                     <option value="cafe_restaurant">Cafe & Restaurant</option>
+                    <option value="corporate_website">Kurumsal Web Sitesi (Tanıtım, Hizmet & İletişim)</option>
                   </select>
+                  {newStore.store_type === 'corporate_website' && (
+                    <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200/80 mt-2">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-base leading-none mt-0.5">🏢</span>
+                        <div>
+                          <span className="text-xs font-black text-indigo-950 block">Kurumsal Web Sitesi & Dijital Ajans Vitrini</span>
+                          <span className="text-[10px] text-indigo-800 font-medium block">
+                            Kurumsal tanıtım, hizmetler, projeler, referanslar ve iletişim odaklı web sitesi şablonuyla başlatılır. POS ve pazaryeri modülleri kapalıdır.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {newStore.store_type === 'cafe_restaurant' && (
                     <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/80 mt-2">
                       <label className="flex items-center gap-2.5 cursor-pointer">

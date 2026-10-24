@@ -115,10 +115,12 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     (branding?.store_type !== 'cafe_restaurant' &&
      branding?.store_type !== 'real_estate' &&
      branding?.store_type !== 'motor_vehicle' &&
+     branding?.store_type !== 'corporate_website' &&
      branding?.store_type !== 'portfolio' &&
      branding?.page_layout_settings?.sector !== 'cafe_restaurant' &&
      branding?.page_layout_settings?.sector !== 'real_estate' &&
-     branding?.page_layout_settings?.sector !== 'automotive')
+     branding?.page_layout_settings?.sector !== 'automotive' &&
+     branding?.page_layout_settings?.sector !== 'corporate_website')
   );
   const showMarketplaceFilter = isShopLpStore && connectedMarketplaces.hasAnyConnected;
 

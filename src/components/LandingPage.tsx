@@ -59,7 +59,7 @@ export const LandingPage = () => {
     storeName: "",
     username: "",
     password: "",
-    storeType: "product" as "product" | "real_estate" | "motor_vehicle",
+    storeType: "product" as "product" | "real_estate" | "motor_vehicle" | "cafe_restaurant" | "corporate_website",
     companyTitle: "",
     address: "",
     phone: "",
@@ -78,7 +78,7 @@ export const LandingPage = () => {
   const [registerStatus, setRegisterStatus] = useState({ type: "", text: "" });
   const [currentSlide, setCurrentSlide] = useState(0);
   const [liveActivity, setLiveActivity] = useState<{name: string, location: string} | null>(null);
-  const [demoForm, setDemoForm] = useState({ name: "", storeName: "", phone: "", email: "", notes: "", storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" });
+  const [demoForm, setDemoForm] = useState({ name: "", storeName: "", phone: "", email: "", notes: "", storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" | "cafe_restaurant" | "corporate_website" });
   const [demoStatus, setDemoStatus] = useState({ type: "", text: "" });
   const [isMuted, setIsMuted] = useState(true);
   const [showStickyCta, setShowStickyCta] = useState(false);
@@ -1428,11 +1428,12 @@ export const LandingPage = () => {
                   )}
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'Sektörünüz' : 'Your Sector'}</label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
                         { id: 'real_estate', label: lang === 'tr' ? 'Emlak' : 'Real Estate', icon: Building2 },
                         { id: 'motor_vehicle', label: lang === 'tr' ? 'Otomotiv' : 'Automotive', icon: Car },
-                        { id: 'product', label: lang === 'tr' ? 'Perakende' : 'Retail', icon: Package }
+                        { id: 'product', label: lang === 'tr' ? 'Perakende' : 'Retail', icon: Package },
+                        { id: 'corporate_website', label: lang === 'tr' ? 'Kurumsal Web' : 'Corporate Web', icon: Building2 }
                       ].map((s) => (
                         <button
                           key={s.id}
@@ -1578,11 +1579,12 @@ export const LandingPage = () => {
                 <div className="space-y-5">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-500 ml-1">{lang === 'tr' ? 'İşletme Türü / Sektör' : 'Business Type / Sector'}</label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
                         { id: 'real_estate', label: lang === 'tr' ? 'Emlak' : 'Real Estate', icon: () => <Scan className="h-4 w-4" /> },
                         { id: 'motor_vehicle', label: lang === 'tr' ? 'Otomotiv' : 'Automotive', icon: () => <Barcode className="h-4 w-4" /> },
-                        { id: 'product', label: lang === 'tr' ? 'Perakende' : 'Retail', icon: () => <Tag className="h-4 w-4" /> }
+                        { id: 'product', label: lang === 'tr' ? 'Perakende' : 'Retail', icon: () => <Tag className="h-4 w-4" /> },
+                        { id: 'corporate_website', label: lang === 'tr' ? 'Kurumsal Web' : 'Corporate Web', icon: () => <Building2 className="h-4 w-4" /> }
                       ].map((s) => (
                         <button
                           key={s.id}

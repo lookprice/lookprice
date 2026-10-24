@@ -1089,11 +1089,21 @@ export class MySoftService {
                       const zip = new AdmZip(decoded);
                       for (const entry of zip.getEntries()) {
                         const content = entry.getData().toString('utf8');
-                        if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
+                        if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                          return content
+                            .replace(/charset=utf-16/gi, 'charset=utf-8')
+                            .replace(/<b>\s*(?:&nbsp;|\u00a0|\s)*Not:\s*<\/b>\s*İrsaliye\s+Yerine\s+Geçer\.?(?:<br\s*\/?>)*/gi, '')
+                            .replace(/İrsaliye\s+Yerine\s+Geçer\.?/gi, '');
+                        }
                       }
                     } else {
                       const content = decoded.toString('utf8');
-                      if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
+                      if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                        return content
+                          .replace(/charset=utf-16/gi, 'charset=utf-8')
+                          .replace(/<b>\s*(?:&nbsp;|\u00a0|\s)*Not:\s*<\/b>\s*İrsaliye\s+Yerine\s+Geçer\.?(?:<br\s*\/?>)*/gi, '')
+                          .replace(/İrsaliye\s+Yerine\s+Geçer\.?/gi, '');
+                      }
                     }
                   }
                 }
@@ -1106,13 +1116,23 @@ export class MySoftService {
                 const zip = new AdmZip(buffer);
                 for (const entry of zip.getEntries()) {
                   const content = entry.getData().toString('utf8');
-                  if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
+                  if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                    return content
+                      .replace(/charset=utf-16/gi, 'charset=utf-8')
+                      .replace(/<b>\s*(?:&nbsp;|\u00a0|\s)*Not:\s*<\/b>\s*İrsaliye\s+Yerine\s+Geçer\.?(?:<br\s*\/?>)*/gi, '')
+                      .replace(/İrsaliye\s+Yerine\s+Geçer\.?/gi, '');
+                  }
                 }
               }
 
               // Handle direct HTML
               const content = buffer.toString('utf8');
-              if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
+              if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                return content
+                  .replace(/charset=utf-16/gi, 'charset=utf-8')
+                  .replace(/<b>\s*(?:&nbsp;|\u00a0|\s)*Not:\s*<\/b>\s*İrsaliye\s+Yerine\s+Geçer\.?(?:<br\s*\/?>)*/gi, '')
+                  .replace(/İrsaliye\s+Yerine\s+Geçer\.?/gi, '');
+              }
             }
           } catch (e) { /* continue */ }
         }
@@ -1125,7 +1145,7 @@ export class MySoftService {
     }
   }
 
-  // 7. Get Waybill Preview HTML
+  // 7. Get Waybill Preview HTML (MySoft Swagger v8: /DespatchOutbox/getDespatchOutboxDraftHTMLAsZip)
   async getWaybillPreviewHtml(ublData: any): Promise<string> {
     try {
       const token = await this.authenticate();
@@ -1133,30 +1153,47 @@ export class MySoftService {
         headers: { 
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
-        },
-        responseType: 'arraybuffer'
+        }
       };
 
-      console.log(`[MySoft] Fetching Waybill Preview HTML...`);
-      const response = await axios.post(`${this.baseUrl}/DespatchOutbox/getPreviewDespatchAdviceHTML`, ublData, config);
-      
-      if (response.status === 200 && response.data) {
-        const buffer = Buffer.from(response.data);
-        // Handle JSON response which might contain Base64 HTML
-        if (buffer.length > 0 && buffer[0] === 123) {
-          const jsonObj = JSON.parse(buffer.toString('utf8'));
-          const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
-          if (base64Data) return Buffer.from(base64Data, 'base64').toString('utf8');
+      console.log(`[MySoft] Fetching Waybill Draft Preview HTML as Zip...`);
+      const response = await axios.post(`${this.baseUrl}/DespatchOutbox/getDespatchOutboxDraftHTMLAsZip`, ublData, config);
+      const data = response.data;
+      const isSucceed = data?.succeed ?? data?.Succeed ?? false;
+      const base64Zip = data?.data || data?.Data;
+
+      if (isSucceed && base64Zip) {
+        const zipBuffer = Buffer.from(base64Zip, 'base64');
+        // Check if ZIP magic bytes (PK = 0x50, 0x4b)
+        if (zipBuffer.length > 2 && zipBuffer[0] === 0x50 && zipBuffer[1] === 0x4b) {
+          const AdmZip = (await import('adm-zip')).default;
+          const zip = new AdmZip(zipBuffer);
+          const entries = zip.getEntries();
+          for (const entry of entries) {
+            if (!entry.isDirectory) {
+              const htmlContent = entry.getData().toString('utf8');
+              return htmlContent
+                .replace(/charset=utf-16/gi, 'charset=utf-8')
+                .replace(/<b>\s*(?:&nbsp;|\u00a0|\s)*Not:\s*<\/b>\s*İrsaliye\s+Yerine\s+Geçer\.?(?:<br\s*\/?>)*/gi, '')
+                .replace(/İrsaliye\s+Yerine\s+Geçer\.?/gi, '');
+            }
+          }
         }
-        return buffer.toString('utf8');
+        return zipBuffer.toString('utf8')
+          .replace(/charset=utf-16/gi, 'charset=utf-8')
+          .replace(/<b>\s*(?:&nbsp;|\u00a0|\s)*Not:\s*<\/b>\s*İrsaliye\s+Yerine\s+Geçer\.?(?:<br\s*\/?>)*/gi, '')
+          .replace(/İrsaliye\s+Yerine\s+Geçer\.?/gi, '');
       }
-      throw new Error("Önizleme oluşturulamadı.");
+
+      throw new Error(data?.message || data?.Message || "Önizleme oluşturulamadı.");
     } catch (error: any) {
-      console.error("MySoft Waybill Preview Error:", error.response?.data?.toString() || error.message);
+      const errMsg = error.response?.data?.message || error.response?.data?.Message || error.message;
+      console.error("MySoft Waybill Preview Error:", errMsg);
+      throw new Error(errMsg);
     }
   }
 
-  // 8. Control Waybill (Şema/Şematron Kontrolü)
+  // 8. Control Waybill (Şema/Şematron Kontrolü - MySoft Swagger v8)
   async controlWaybill(ublData: any): Promise<{ isSuccess: boolean; message: string; details?: any }> {
     try {
       const token = await this.authenticate();
@@ -1167,17 +1204,31 @@ export class MySoftService {
         }
       };
 
-      console.log(`[MySoft] Controlling Waybill Schema/Schematron...`);
-      // Most integrators use /controlDespatchOutbox or /validateDespatchAdvice
-      const response = await axios.post(`${this.baseUrl}/DespatchOutbox/controlDespatchOutbox`, ublData, config);
-      
-      const data = response.data;
-      const isSucceed = data.Succeed ?? data.succeed ?? data.IsSuccess ?? data.isSuccess ?? true;
+      console.log(`[MySoft] Generating Draft XML for Waybill Schema/Schematron Check...`);
+      const xmlRes = await axios.post(`${this.baseUrl}/DespatchOutbox/getDespatchOutboxDraftXMLAsZip`, ublData, config);
+      const xmlData = xmlRes.data;
+      const xmlSucceed = xmlData?.succeed ?? xmlData?.Succeed ?? false;
+      const base64Zip = xmlData?.data || xmlData?.Data;
+
+      if (!xmlSucceed || !base64Zip) {
+        return {
+          isSuccess: false,
+          message: xmlData?.message || xmlData?.Message || "Taslak UBL XML oluşturulamadı."
+        };
+      }
+
+      console.log(`[MySoft] Validating Waybill UBL via checkSchemaSchematronForDespatchUBL...`);
+      const checkRes = await axios.post(`${this.baseUrl}/DespatchOutbox/checkSchemaSchematronForDespatchUBL`, {
+        despatchAdviceTypeUblString: base64Zip
+      }, config);
+
+      const checkData = checkRes.data;
+      const isSucceed = (checkData?.succeed ?? checkData?.Succeed ?? false) && (checkData?.data !== false && checkData?.Data !== false);
 
       return {
         isSuccess: isSucceed,
-        message: data.Message || data.message || (isSucceed ? "Şema/Şematron kontrolü başarılı." : "Kontrol başarısız."),
-        details: data.Data || data.data
+        message: checkData?.message || checkData?.Message || (isSucceed ? "GİB Şema ve Şematron kontrolü başarıyla geçti. İrsaliye gönderime hazır." : "Şema/Şematron kontrolü başarısız."),
+        details: checkData?.data ?? checkData?.Data
       };
     } catch (error: any) {
       console.error("MySoft Waybill Control Error:", error.response?.data || error.message);
