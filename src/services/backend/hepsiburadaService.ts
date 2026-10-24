@@ -1448,7 +1448,14 @@ export class HepsiburadaService {
         .replace(/[^a-z0-9]/g, "");
     }
 
-    for (const listing of listings) {
+    const activeMatchedIds = new Set<number>();
+    const sortedListings = [...listings].sort((a, b) => {
+      const aLive = a.status === "ACTIVE" && a.isSalable !== false && Number(a.availableStock || 0) > 0 ? 1 : 0;
+      const bLive = b.status === "ACTIVE" && b.isSalable !== false && Number(b.availableStock || 0) > 0 ? 1 : 0;
+      return bLive - aLive;
+    });
+
+    for (const listing of sortedListings) {
       const hbSku = (listing.hepsiburadaSku || "").trim();
       const mSku = (listing.merchantSku || "").trim();
       const barcode = (listing.barcode || "").trim();
@@ -1534,6 +1541,8 @@ export class HepsiburadaService {
       });
 
       if (matchedProd) {
+        if (activeMatchedIds.has(matchedProd.id)) continue;
+
         // Update matched product in database
         let mpData: any = matchedProd.marketplace_data;
         if (typeof mpData === "string") {
@@ -1547,11 +1556,14 @@ export class HepsiburadaService {
           ? `https://www.hepsiburada.com/${pSlug || 'urun'}-pm-${String(resolvedPid).trim().toLowerCase()}` 
           : (matchedProd.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.name || '')}`);
 
-        const isManuallyUnpublished = mpData.hepsiburada?.manuallyUnpublished === true;
         const pPrice = Number(matchedProd.price || listing.price || 0);
         const pStock = Number(matchedProd.stock_quantity !== undefined ? matchedProd.stock_quantity : (listing.availableStock || 0));
-        const isLiveOnHb = listing.status === 'ACTIVE' && listing.isSalable !== false;
-        const isValidForListing = !isManuallyUnpublished && (isLiveOnHb || (pPrice > 0 && pStock > 0 && listing.status !== 'PENDING_APPROVAL'));
+        const isLiveOnHb = listing.status === 'ACTIVE' && listing.isSalable !== false && Number(listing.availableStock ?? pStock) > 0;
+        const isManuallyUnpublished = mpData.hepsiburada?.manuallyUnpublished === true && !isLiveOnHb;
+        const isValidForListing = !isManuallyUnpublished && pPrice > 0 && pStock > 0 && isLiveOnHb;
+        if (isValidForListing) {
+          activeMatchedIds.add(matchedProd.id);
+        }
 
         mpData.hepsiburada = {
           ...(mpData.hepsiburada || {}),
@@ -1561,9 +1573,11 @@ export class HepsiburadaService {
           productUrl: resolvedUrl,
           matchedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
-          status: isManuallyUnpublished ? 'INACTIVE' : (listing.status || (isValidForListing ? 'ACTIVE' : 'INACTIVE'))
+          status: isValidForListing ? 'ACTIVE' : (listing.status === 'PENDING_APPROVAL' ? 'PENDING_APPROVAL' : 'INACTIVE')
         };
-        if (isManuallyUnpublished) {
+        if (isValidForListing) {
+          delete mpData.hepsiburada.manuallyUnpublished;
+        } else if (isManuallyUnpublished) {
           mpData.hepsiburada.manuallyUnpublished = true;
         }
 

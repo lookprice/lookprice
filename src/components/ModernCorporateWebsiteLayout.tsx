@@ -2813,11 +2813,6 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                   <Phone className="w-4 h-4 text-amber-400 shrink-0" />
                   <a href={`tel:${ph}`} className="hover:text-white transition-colors">
                     {ph}
-                    {idx > 0 && (
-                      <span className="ml-1.5 text-[10px] font-medium text-slate-400">
-                        ({idx === 1 ? "2. Yedek / Sabit Hat" : `Hat #${idx + 1}`})
-                      </span>
-                    )}
                   </a>
                 </p>
               ))}
@@ -2867,33 +2862,33 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
         </div>
       </footer>
 
-      {/* FLOATING CALL & WHATSAPP ACTION BUTTONS */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
+      {/* FLOATING CALL & WHATSAPP ACTION BUTTONS (ICON-ONLY, SIDE-BY-SIDE) */}
+      <div className="fixed bottom-5 right-5 z-50 flex flex-row items-center gap-2.5">
         {config.floating_actions?.show_call_button !== false && primaryPhone && (
           <motion.a
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
             href={`tel:${primaryPhone}`}
-            className="flex items-center gap-2.5 px-4 py-3 rounded-full bg-slate-900 hover:bg-slate-800 text-white border border-white/15 shadow-2xl text-xs font-black"
+            title={`Hemen Ara: ${primaryPhone}`}
+            aria-label="Hemen Ara"
+            className="w-12 h-12 rounded-full bg-slate-900 hover:bg-slate-800 text-amber-400 border border-white/15 shadow-2xl flex items-center justify-center transition-colors"
           >
-            <div className="w-7 h-7 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center">
-              <Phone className="w-4 h-4" />
-            </div>
-            <span className="hidden sm:inline">Hemen Ara</span>
+            <Phone className="w-5 h-5" />
           </motion.a>
         )}
 
         {config.floating_actions?.show_whatsapp !== false && whatsappNumber && (
           <motion.a
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
             href={getWhatsAppUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2.5 px-4 py-3 rounded-full bg-[#25D366] hover:bg-[#1ebe5d] text-white shadow-2xl shadow-emerald-600/40 text-xs font-black"
+            title="WhatsApp İletişim"
+            aria-label="WhatsApp İletişim"
+            className="w-12 h-12 rounded-full bg-[#25D366] hover:bg-[#1ebe5d] text-white shadow-2xl shadow-emerald-600/40 flex items-center justify-center transition-colors"
           >
-            <MessageCircle className="w-5 h-5" />
-            <span>WhatsApp İletişim</span>
+            <MessageCircle className="w-6 h-6" />
           </motion.a>
         )}
       </div>

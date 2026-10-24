@@ -487,67 +487,357 @@ export class AmazonService {
         console.warn("[AmazonService] SP-API Reports fetch warn:", err.message);
       }
 
-      // Known verified pilot listing for GAP Bilişim
-      const pilotListings = [
-        {
-          asin: "B07QJ32SJR",
-          sku: "DIGITUS-DA-90368",
-          title: "DIGITUS Dizüstü Bilgisayar Standı Ayarlanabilir (DA-90368)",
-          price: 649.00,
-          quantity: 15,
-          barcode: "4016032456063",
-          status: "ACTIVE"
-        }
-      ];
-
+      // 2. Real-time SP-API Listings Items search (overrides stale report status with live BUYABLE / quantity / issues)
+      const liveItemsBySku = new Map<string, any>();
       if (sellerId) {
-        // Clean up accidental ASIN assignments on other cables
-        await pool.query(
-          "UPDATE products SET amazon_asin = NULL, amazon_sku = NULL, is_amazon_active = false WHERE store_id = $1 AND barcode != '4016032456063' AND amazon_asin = 'B07QJ32SJR'",
-          [this.storeId]
-        );
-        // Correctly assign verified pilot ASIN to only the Notebook Stand (4016032456063)
-        await pool.query(
-          "UPDATE products SET amazon_asin = 'B07QJ32SJR', amazon_sku = 'DIGITUS-DA-90368', is_amazon_active = true WHERE store_id = $1 AND (barcode = '4016032456063' OR (name ILIKE '%Digitus%' AND name ILIKE '%Notebook Stand%'))",
-          [this.storeId]
-        );
+        try {
+          let pageToken: string | undefined = undefined;
+          let pageCount = 0;
+          do {
+            const searchUrl = new URL(`${endpoint}/listings/2021-08-01/items/${sellerId}`);
+            searchUrl.searchParams.set("marketplaceIds", this.settings.marketplace_id || AMAZON_TR_MARKETPLACE_ID);
+            searchUrl.searchParams.set("includedData", "summaries,offers,fulfillmentAvailability,issues");
+            searchUrl.searchParams.set("pageSize", "20");
+            if (pageToken) searchUrl.searchParams.set("pageToken", pageToken);
 
-        // Fetch products from local DB that have ASIN/SKU
-        const res = await pool.query(
-          "SELECT amazon_asin as asin, amazon_sku as sku, barcode, name as title, price, stock_quantity as quantity FROM products WHERE store_id = $1 AND amazon_asin IS NOT NULL AND amazon_asin != 'null' AND amazon_asin != '' AND amazon_asin NOT LIKE 'http%' AND amazon_asin != 'B08N5WRWNW' AND is_amazon_active = true",
-          [this.storeId]
-        );
-        const dbListings = res.rows.map(r => ({ ...r, status: "ACTIVE" }));
-        
-        // Merge report listings + pilot listings + DB listings without duplicates
-        const combined = [...liveReportListings];
-        for (const p of pilotListings) {
-          if (!combined.some(c => c.asin === p.asin || (c.barcode && c.barcode === p.barcode))) {
-            combined.push(p);
-          }
+            const searchRes = await axios.get(searchUrl.toString(), {
+              headers: { "x-amz-access-token": accessToken },
+              timeout: 12000,
+            });
+            const items = searchRes.data?.items || [];
+            for (const it of items) {
+              const sku = String(it.sku || "").trim();
+              if (!sku) continue;
+              const summary = Array.isArray(it.summaries) ? it.summaries[0] : null;
+              const offer = Array.isArray(it.offers) ? it.offers[0] : null;
+              const fa = Array.isArray(it.fulfillmentAvailability) ? it.fulfillmentAvailability[0] : null;
+              const issues = Array.isArray(it.issues) ? it.issues : [];
+              const statusArr: string[] = Array.isArray(summary?.status) ? summary.status : [];
+              const isBuyable = statusArr.includes("BUYABLE");
+              const isDiscoverable = statusArr.includes("DISCOVERABLE");
+              const has13013 = issues.some((iss: any) => iss.code === "13013");
+              const qty = typeof fa?.quantity === "number" ? fa.quantity : 0;
+              const price = parseFloat(offer?.price?.amount || "0") || 0;
+              const asin = summary?.asin || "";
+              const title = summary?.itemName || "";
+              const productType = summary?.productType || "";
+              const isActiveListing = (isBuyable || (isDiscoverable && !has13013)) && qty > 0;
+
+              liveItemsBySku.set(sku, {
+                asin,
+                sku,
+                title,
+                productType,
+                price,
+                quantity: qty,
+                barcode: sku && /^\d{8,14}$/.test(sku) ? sku : null,
+                status: isActiveListing ? "ACTIVE" : "INACTIVE",
+                isBuyable: isBuyable || (isDiscoverable && !has13013 && qty > 0),
+                summaryStatus: statusArr,
+                issues: has13013 ? issues : [],
+                raw: it,
+              });
+            }
+            pageToken = searchRes.data?.pagination?.nextToken;
+            pageCount++;
+          } while (pageToken && pageCount < 10);
+        } catch (liveErr: any) {
+          console.warn("[AmazonService] Live searchListingsItems warn:", liveErr.message);
         }
-        for (const d of dbListings) {
-          if (d.asin === "B08N5WRWNW") continue;
-          if (!combined.some(c => c.asin === d.asin || (c.barcode && c.barcode === d.barcode))) {
-            combined.push(d);
-          }
-        }
-        return combined;
       }
-      return liveReportListings.length > 0 ? liveReportListings : pilotListings;
+
+      // Merge liveItemsBySku with liveReportListings (preferring live SP-API status/quantity/issues)
+      const mergedMap = new Map<string, any>();
+      for (const rep of liveReportListings) {
+        const key = String(rep.sku || rep.asin || "").trim();
+        if (key) mergedMap.set(key, rep);
+      }
+      for (const [sku, liveItem] of liveItemsBySku.entries()) {
+        const existing = mergedMap.get(sku);
+        mergedMap.set(sku, {
+          ...(existing || {}),
+          ...liveItem,
+          asin: liveItem.asin || existing?.asin || "",
+          title: liveItem.title || existing?.title || "",
+          price: liveItem.price > 0 ? liveItem.price : (existing?.price || 0),
+          barcode: liveItem.barcode || existing?.barcode || null,
+        });
+      }
+
+      const combined = Array.from(mergedMap.values());
+      return combined;
     } catch (err: any) {
       console.warn("[AmazonService] Fetch listings error:", err.message);
-      return [
-        {
-          asin: "B07QJ32SJR",
-          sku: "DIGITUS-DA-90368",
-          title: "DIGITUS Dizüstü Bilgisayar Standı Ayarlanabilir (DA-90368)",
-          price: 649.00,
-          quantity: 15,
-          barcode: "4016032456063",
-          status: "ACTIVE"
+      return [];
+    }
+  }
+
+  /**
+   * Resolve Amazon ASIN & Catalog ProductType from Amazon SP-API Catalog Items (2022-04-01)
+   * Supports lookup by ASIN, EAN/GTIN barcode, or product title keywords.
+   */
+  async resolveCatalogItem(params: {
+    asin?: string | null;
+    barcode?: string | null;
+    title?: string | null;
+  }): Promise<{
+    found: boolean;
+    asin?: string;
+    productType?: string;
+    itemName?: string;
+    brand?: string;
+  }> {
+    const accessToken = await this.getAccessToken();
+    if (accessToken === "AMAZON_UNAUTHORIZED_MOCK_TOKEN") {
+      return { found: false };
+    }
+    const endpoint = this.getApiEndpoint();
+    const mpId = this.settings.marketplace_id || AMAZON_TR_MARKETPLACE_ID;
+    const headers = { "x-amz-access-token": accessToken };
+
+    const cleanAsin = params.asin && String(params.asin).trim().toLowerCase() !== "null" && !String(params.asin).startsWith("http")
+      ? String(params.asin).trim().toUpperCase()
+      : "";
+    const cleanBarcode = params.barcode ? String(params.barcode).trim() : "";
+    const cleanTitle = params.title ? String(params.title).trim() : "";
+
+    // 1. Direct ASIN lookup
+    if (cleanAsin && /^B[0-9A-Z]{9}$/.test(cleanAsin)) {
+      try {
+        const res = await axios.get(
+          `${endpoint}/catalog/2022-04-01/items/${encodeURIComponent(cleanAsin)}?marketplaceIds=${mpId}&includedData=summaries,productTypes`,
+          { headers, timeout: 10000 }
+        );
+        const summary = res.data?.summaries?.[0];
+        const pt = res.data?.productTypes?.[0]?.productType || summary?.productType || "PRODUCT";
+        return {
+          found: true,
+          asin: cleanAsin,
+          productType: pt,
+          itemName: summary?.itemName || "",
+          brand: summary?.brand || "",
+        };
+      } catch (e: any) {
+        // Continue to barcode/keyword search if ASIN lookup fails
+      }
+    }
+
+    // 2. Barcode (EAN / GTIN / UPC) lookup
+    if (cleanBarcode && /^\d{8,14}$/.test(cleanBarcode)) {
+      const idTypes = cleanBarcode.length === 12 ? ["UPC", "EAN", "GTIN"] : ["EAN", "GTIN", "UPC"];
+      for (const idType of idTypes) {
+        try {
+          const res = await axios.get(
+            `${endpoint}/catalog/2022-04-01/items?marketplaceIds=${mpId}&identifiers=${encodeURIComponent(cleanBarcode)}&identifiersType=${idType}&includedData=summaries,productTypes`,
+            { headers, timeout: 10000 }
+          );
+          const item = res.data?.items?.[0];
+          if (item?.asin) {
+            const summary = item.summaries?.[0];
+            const pt = item.productTypes?.[0]?.productType || summary?.productType || "PRODUCT";
+            return {
+              found: true,
+              asin: String(item.asin).trim().toUpperCase(),
+              productType: pt,
+              itemName: summary?.itemName || "",
+              brand: summary?.brand || "",
+            };
+          }
+        } catch (e: any) {
+          // Ignore and try next identifier type
         }
-      ];
+      }
+    }
+
+    // 3. Keyword search by barcode or product title
+    const keywordQueries: string[] = [];
+    if (cleanBarcode && cleanBarcode.length >= 5) keywordQueries.push(cleanBarcode);
+    if (cleanTitle && cleanTitle.length >= 4) keywordQueries.push(cleanTitle);
+
+    for (const kw of keywordQueries) {
+      try {
+        const res = await axios.get(
+          `${endpoint}/catalog/2022-04-01/items?marketplaceIds=${mpId}&keywords=${encodeURIComponent(kw)}&includedData=summaries,productTypes&pageSize=5`,
+          { headers, timeout: 10000 }
+        );
+        const items = res.data?.items || [];
+        if (items.length > 0) {
+          // Pick best match based on brand/model tokens in title
+          const normTitle = cleanTitle.toLowerCase().replace(/[^a-z0-9]/g, "");
+          let bestItem = items[0];
+          if (normTitle) {
+            const titleWords = cleanTitle
+              .split(/\s+/)
+              .map(w => w.replace(/[^a-zA-Z0-9.-]/g, "").toLowerCase())
+              .filter(w => w.length >= 3);
+            let bestScore = -1;
+            for (const candidate of items) {
+              const candName = String(candidate.summaries?.[0]?.itemName || "").toLowerCase();
+              let score = 0;
+              for (const w of titleWords) {
+                if (candName.includes(w)) score++;
+              }
+              if (score > bestScore) {
+                bestScore = score;
+                bestItem = candidate;
+              }
+            }
+          }
+          if (bestItem?.asin) {
+            const summary = bestItem.summaries?.[0];
+            const pt = bestItem.productTypes?.[0]?.productType || summary?.productType || "PRODUCT";
+            return {
+              found: true,
+              asin: String(bestItem.asin).trim().toUpperCase(),
+              productType: pt,
+              itemName: summary?.itemName || "",
+              brand: summary?.brand || "",
+            };
+          }
+        }
+      } catch (e: any) {
+        // Ignore keyword search error
+      }
+    }
+
+    return { found: false };
+  }
+
+  /**
+   * Create or repair an Amazon Offer on an existing Catalog ASIN using LISTING_OFFER_ONLY.
+   * Ensures `merchant_suggested_asin`, `condition_type`, `skip_offer`, `purchasable_offer`, and `fulfillment_availability`
+   * are bound with the exact catalog `productType` so the SKU never falls into error 13013 (LISTING_SUPPRESSED).
+   */
+  async upsertListingOffer(params: {
+    sku: string;
+    asin: string;
+    price: number;
+    quantity: number;
+    productType?: string;
+  }): Promise<{
+    success: boolean;
+    sku: string;
+    asin: string;
+    productType: string;
+    status?: string;
+    isBuyable?: boolean;
+    issues?: any[];
+    message?: string;
+  }> {
+    const accessToken = await this.getAccessToken();
+    if (accessToken === "AMAZON_UNAUTHORIZED_MOCK_TOKEN") {
+      return { success: false, sku: params.sku, asin: params.asin, productType: "PRODUCT", message: "Amazon LWA yetkisi bekliyor." };
+    }
+    const sellerId = this.settings.sellerId;
+    if (!sellerId) {
+      throw new Error("Amazon Seller ID (Merchant ID) girilmelidir.");
+    }
+
+    const cleanSku = String(params.sku || "").trim();
+    const cleanAsin = String(params.asin || "").trim().toUpperCase();
+    const mpId = this.settings.marketplace_id || AMAZON_TR_MARKETPLACE_ID;
+    const endpoint = this.getApiEndpoint();
+    const headers = {
+      "x-amz-access-token": accessToken,
+      "Content-Type": "application/json",
+    };
+
+    // 1. Resolve exact catalog productType for this ASIN
+    let resolvedProductType = params.productType || "";
+    if (!resolvedProductType || resolvedProductType === "PRODUCT") {
+      const catInfo = await this.resolveCatalogItem({ asin: cleanAsin });
+      resolvedProductType = catInfo.productType || "PRODUCT";
+    }
+
+    const safePrice = Number(Number(params.price || 0).toFixed(2));
+    const safeQty = Math.max(0, Math.floor(Number(params.quantity || 0)));
+
+    // 2. PUT LISTING_OFFER_ONLY to bind the SKU to the catalog ASIN with condition_type = new_new
+    const putUrl = `${endpoint}/listings/2021-08-01/items/${sellerId}/${encodeURIComponent(cleanSku)}?marketplaceIds=${mpId}`;
+    const putBody = {
+      productType: resolvedProductType,
+      requirements: "LISTING_OFFER_ONLY",
+      attributes: {
+        merchant_suggested_asin: [{ value: cleanAsin, marketplace_id: mpId }],
+        condition_type: [{ value: "new_new", marketplace_id: mpId }],
+        skip_offer: [{ value: false, marketplace_id: mpId }],
+        purchasable_offer: [
+          {
+            currency: "TRY",
+            audience: "ALL",
+            our_price: [{ schedule: [{ value_with_tax: safePrice }] }],
+            marketplace_id: mpId,
+          },
+        ],
+        fulfillment_availability: [
+          {
+            fulfillment_channel_code: "DEFAULT",
+            quantity: safeQty,
+          },
+        ],
+      },
+    };
+
+    try {
+      const putRes = await axios.put(putUrl, putBody, { headers, timeout: 15000 });
+      const putStatus = putRes.data?.status || "ACCEPTED";
+      const putIssues = putRes.data?.issues || [];
+
+      // Also apply PATCH for immediate price & quantity update if listing already exists
+      try {
+        await axios.patch(
+          putUrl,
+          {
+            productType: resolvedProductType,
+            patches: [
+              {
+                op: "replace",
+                path: "/attributes/purchasable_offer",
+                value: [
+                  {
+                    currency: "TRY",
+                    audience: "ALL",
+                    our_price: [{ schedule: [{ value_with_tax: safePrice }] }],
+                    marketplace_id: mpId,
+                  },
+                ],
+              },
+              {
+                op: "replace",
+                path: "/attributes/fulfillment_availability",
+                value: [
+                  {
+                    fulfillment_channel_code: "DEFAULT",
+                    quantity: safeQty,
+                  },
+                ],
+              },
+            ],
+          },
+          { headers, timeout: 12000 }
+        );
+      } catch (patchErr) {
+        // Non-blocking if PUT already succeeded
+      }
+
+      return {
+        success: putStatus === "ACCEPTED" || putStatus === "VALID",
+        sku: cleanSku,
+        asin: cleanAsin,
+        productType: resolvedProductType,
+        status: putStatus,
+        issues: putIssues,
+        message: putStatus === "ACCEPTED" ? "Amazon teklifi (Offer) başarıyla oluşturuldu/güncellendi." : `Amazon yanıtı: ${putStatus}`,
+      };
+    } catch (err: any) {
+      const errMsg = err.response?.data?.errors?.[0]?.message || err.response?.data?.message || err.message;
+      return {
+        success: false,
+        sku: cleanSku,
+        asin: cleanAsin,
+        productType: resolvedProductType,
+        message: errMsg,
+      };
     }
   }
 
@@ -563,7 +853,6 @@ export class AmazonService {
     details: any[];
     message?: string;
   }> {
-    const importMissing = Boolean(options.importMissing);
     const listings = await this.fetchListings();
 
     const storeProductsRes = await pool.query(
@@ -575,14 +864,22 @@ export class AmazonService {
     const storeProducts = storeProductsRes.rows;
 
     let matchedCount = 0;
-    let importedCount = 0;
+    const importedCount = 0;
     let updatedCount = 0;
     const details: any[] = [];
+    const activeMatchedIds = new Set<number>();
 
     const normalizeStr = (s: string | null | undefined) =>
       (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-    for (const listing of listings) {
+    // Sort listings so ACTIVE / BUYABLE ones are processed first
+    const sortedListings = [...listings].sort((a, b) => {
+      const aAct = a.status === "ACTIVE" || a.isBuyable ? 1 : 0;
+      const bAct = b.status === "ACTIVE" || b.isBuyable ? 1 : 0;
+      return bAct - aAct;
+    });
+
+    for (const listing of sortedListings) {
       const asin = listing.asin;
       const sku = listing.sku;
       const barcode = listing.barcode;
@@ -592,7 +889,7 @@ export class AmazonService {
       const normBarcode = normalizeStr(barcode);
       const normTitle = normalizeStr(title);
 
-      let matchedProd = storeProducts.find((p: any) => {
+      const matchedProd = storeProducts.find((p: any) => {
         const pBarcode = normalizeStr(p.barcode);
         const pSku = normalizeStr(p.sku);
         const pAmzAsin = normalizeStr(p.amazon_asin);
@@ -601,7 +898,7 @@ export class AmazonService {
 
         if (normBarcode && pBarcode && pBarcode === normBarcode) return true;
         if (normAsin && pAmzAsin && pAmzAsin === normAsin) return true;
-        if (normSku && (pAmzSku === normSku || pSku === normSku)) return true;
+        if (normSku && (pAmzSku === normSku || pSku === normSku || pBarcode === normSku)) return true;
         if (normBarcode && pSku && pSku === normBarcode) return true;
         if (normTitle && pName && normTitle.length > 15 && pName.length > 15 && (normTitle.includes(pName) || pName.includes(normTitle))) return true;
 
@@ -609,40 +906,48 @@ export class AmazonService {
       });
 
       if (matchedProd) {
+        // Do not overwrite an already-active matched product with a secondary inactive SKU
+        if (activeMatchedIds.has(matchedProd.id)) continue;
+
         let mpData: any = matchedProd.marketplace_data;
         if (typeof mpData === "string") {
           try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
         }
         mpData = mpData || {};
 
-        const cleanAsin = (asin || matchedProd.amazon_asin) && String(asin || matchedProd.amazon_asin).trim().toLowerCase() !== 'null' && !String(asin || matchedProd.amazon_asin).startsWith('http')
+        const cleanAsin = (asin || matchedProd.amazon_asin) && String(asin || matchedProd.amazon_asin).trim().toLowerCase() !== "null" && !String(asin || matchedProd.amazon_asin).startsWith("http")
           ? String(asin || matchedProd.amazon_asin).trim().toUpperCase()
           : null;
         const hasValidAsin = Boolean(cleanAsin && cleanAsin.length >= 9);
 
-        // PERSISTENCE PROTOCOL: Respect operator's manual unpublish!
-        const isManuallyUnpublished = mpData.amazon?.manuallyUnpublished === true || mpData.amazon?.status === 'INACTIVE' || matchedProd.is_amazon_active === false;
         const pPrice = Number(matchedProd.price || 0);
         const pStock = Number(matchedProd.stock_quantity || 0);
-        const isListingActiveOnAmz = String(listing.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
+        const isListingActiveOnAmz = String(listing.status || "ACTIVE").toUpperCase() === "ACTIVE";
+        const isBuyableOnAmz = listing.isBuyable === true || (isListingActiveOnAmz && Number(listing.quantity ?? pStock) > 0);
 
-        // An Amazon product CANNOT be active if:
-        // 1) It has no valid ASIN
-        // 2) Operator manually unpublished it (manuallyUnpublished === true or status === 'INACTIVE')
-        // 3) Price or stock <= 0
-        // 4) Listing on Amazon report is INACTIVE
-        const finalIsActive = !isManuallyUnpublished && hasValidAsin && pPrice > 0 && pStock > 0 && isListingActiveOnAmz;
+        // Only respect manual unpublish if the listing is NOT actively BUYABLE on Amazon right now
+        const isExplicitlyUnpublished = mpData.amazon?.manuallyUnpublished === true && !isBuyableOnAmz;
+
+        const finalIsActive = !isExplicitlyUnpublished && hasValidAsin && pPrice > 0 && pStock > 0 && isListingActiveOnAmz;
+        if (finalIsActive) {
+          activeMatchedIds.add(matchedProd.id);
+        }
+
+        const issueError = Array.isArray(listing.issues) && listing.issues.length > 0
+          ? listing.issues.filter((i: any) => i.severity === "ERROR").map((i: any) => i.message).join(" | ")
+          : null;
 
         mpData.amazon = {
           ...(mpData.amazon || {}),
           asin: cleanAsin || mpData.amazon?.asin,
           sku: sku || mpData.amazon?.sku,
+          productType: listing.productType || mpData.amazon?.productType,
           matchedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
-          status: isManuallyUnpublished ? 'INACTIVE' : (finalIsActive ? 'ACTIVE' : (listing.status || 'INACTIVE'))
+          status: finalIsActive ? "ACTIVE" : "INACTIVE",
         };
-        if (isManuallyUnpublished) {
-          mpData.amazon.manuallyUnpublished = true;
+        if (finalIsActive) {
+          delete mpData.amazon.manuallyUnpublished;
         }
 
         await pool.query(
@@ -658,24 +963,25 @@ export class AmazonService {
             finalIsActive,
             cleanAsin || null,
             sku || matchedProd.amazon_sku || null,
-            !hasValidAsin ? "ASIN kodu bulunamadığı için Amazon'da satışa açılamaz." : null,
+            !hasValidAsin ? "ASIN kodu bulunamadığı için Amazon'da satışa açılamaz." : (issueError || null),
             JSON.stringify(mpData),
             matchedProd.id,
-            this.storeId
+            this.storeId,
           ]
         );
 
         matchedCount++;
         updatedCount++;
         details.push({
-          action: 'matched',
+          action: "matched",
           productId: matchedProd.id,
           productName: matchedProd.name,
           barcode: matchedProd.barcode,
           amazonAsin: cleanAsin,
           amazonSku: sku,
           price: listing.price,
-          stock: listing.quantity
+          stock: listing.quantity,
+          isActive: finalIsActive,
         });
       }
     }
@@ -684,10 +990,10 @@ export class AmazonService {
       success: true,
       totalListings: listings.length,
       matchedCount,
-      importedCount: 0,
+      importedCount,
       updatedCount,
       details,
-      message: `Amazon İlan Eşleştirme Tamamlandı. ${matchedCount} ürün eşleşti.`
+      message: `Amazon İlan Eşleştirme Tamamlandı. ${matchedCount} ürün canlı Amazon verileriyle eşleşti.`,
     };
   }
 
@@ -753,9 +1059,16 @@ export class AmazonService {
   }
 
   /**
-   * Update Price & Stock for a single SKU via Listings Items API
+   * Update Price & Stock for a single SKU via Listings Items API.
+   * Automatically resolves the SKU's actual productType or uses upsertListingOffer if the SKU is missing catalog binding (error 13013).
    */
-  async updateListingsItem(sku: string, price: number, quantity: number, maxRetries = 3): Promise<{ success: boolean; sku: string; message?: string }> {
+  async updateListingsItem(
+    sku: string,
+    price: number,
+    quantity: number,
+    maxRetries = 3,
+    options?: { asin?: string; productType?: string }
+  ): Promise<{ success: boolean; sku: string; message?: string }> {
     const accessToken = await this.getAccessToken();
     if (accessToken === "AMAZON_UNAUTHORIZED_MOCK_TOKEN") {
       return { success: false, sku, message: "Amazon LWA yetkisi bekliyor." };
@@ -767,10 +1080,58 @@ export class AmazonService {
     }
 
     const cleanSku = encodeURIComponent(sku.trim());
-    const url = `${this.getApiEndpoint()}/listings/2021-08-01/items/${sellerId}/${cleanSku}?marketplaceIds=${AMAZON_TR_MARKETPLACE_ID}`;
+    const mpId = this.settings.marketplace_id || AMAZON_TR_MARKETPLACE_ID;
+    const url = `${this.getApiEndpoint()}/listings/2021-08-01/items/${sellerId}/${cleanSku}?marketplaceIds=${mpId}`;
+
+    // Check existing SKU on Amazon to get its real productType and see if summaries are bound
+    let resolvedProductType = options?.productType || "";
+    let needsOfferUpsert = false;
+    try {
+      const checkRes = await axios.get(`${url}&includedData=summaries,issues`, {
+        headers: { "x-amz-access-token": accessToken },
+        timeout: 10000,
+      });
+      const summaries = checkRes.data?.summaries || [];
+      const issues = checkRes.data?.issues || [];
+      if (summaries.length > 0 && summaries[0]?.productType) {
+        resolvedProductType = summaries[0].productType;
+      }
+      const has13013 = issues.some((i: any) => i.code === "13013" || i.severity === "ERROR");
+      if (summaries.length === 0 || has13013) {
+        needsOfferUpsert = true;
+      }
+    } catch (checkErr: any) {
+      if (checkErr.response?.status === 404) {
+        needsOfferUpsert = true;
+      }
+    }
+
+    if (needsOfferUpsert && options?.asin) {
+      const upsertRes = await this.upsertListingOffer({
+        sku: sku.trim(),
+        asin: options.asin,
+        price,
+        quantity,
+        productType: resolvedProductType || undefined,
+      });
+      return {
+        success: upsertRes.success,
+        sku,
+        message: upsertRes.message,
+      };
+    }
+
+    if (!resolvedProductType) {
+      if (options?.asin) {
+        const cat = await this.resolveCatalogItem({ asin: options.asin });
+        resolvedProductType = cat.productType || "PRODUCT";
+      } else {
+        resolvedProductType = "PRODUCT";
+      }
+    }
 
     const patchBody = {
-      productType: "PRODUCT",
+      productType: resolvedProductType,
       patches: [
         {
           op: "replace",
@@ -778,12 +1139,13 @@ export class AmazonService {
           value: [
             {
               currency: "TRY",
+              audience: "ALL",
               our_price: [
                 {
-                  schedule: [{ value_with_tax: price }],
+                  schedule: [{ value_with_tax: Number(Number(price).toFixed(2)) }],
                 },
               ],
-              marketplace_id: AMAZON_TR_MARKETPLACE_ID,
+              marketplace_id: mpId,
             },
           ],
         },
@@ -878,6 +1240,7 @@ export class AmazonService {
       }
       mpData = mpData || {};
       const sku = prod.amazon_sku || mpData?.amazon?.sku || prod.sku || prod.barcode;
+      let asin = prod.amazon_asin || mpData?.amazon?.asin;
       let rawPrice = parseFloat(prod.price || prod.sale_price || 0);
       const curr = String(prod.currency || 'TRY').toUpperCase();
       if (curr === 'USD' && rates.USD) rawPrice *= Number(rates.USD);
@@ -889,10 +1252,22 @@ export class AmazonService {
 
       if (!sku || effectivePrice <= 0) continue;
 
+      // Auto-resolve ASIN if missing
+      if (!asin || String(asin).trim().length < 9) {
+        const resolved = await this.resolveCatalogItem({ barcode: prod.barcode, title: prod.name });
+        if (resolved.found && resolved.asin) {
+          asin = resolved.asin;
+          mpData.amazon = { ...(mpData.amazon || {}), asin: resolved.asin, productType: resolved.productType };
+        }
+      }
+
       // Add pacing delay to respect Amazon SP-API 5 req/sec quota
       await new Promise(resolve => setTimeout(resolve, 250));
 
-      const res = await this.updateListingsItem(String(sku).trim(), effectivePrice, stock);
+      const res = await this.updateListingsItem(String(sku).trim(), effectivePrice, stock, 3, {
+        asin: asin ? String(asin).trim() : undefined,
+        productType: mpData?.amazon?.productType,
+      });
       
       if (!mpData.amazon) mpData.amazon = {};
       if (!mpData.amazon.attributes) mpData.amazon.attributes = {};
@@ -902,8 +1277,8 @@ export class AmazonService {
       if (res.success) {
         syncedCount++;
         await pool.query(
-          "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = NULL, marketplace_data = $1 WHERE id = $2",
-          [JSON.stringify(mpData), prod.id]
+          "UPDATE products SET amazon_asin = COALESCE($1, amazon_asin), amazon_sku = COALESCE($2, amazon_sku), amazon_last_sync = NOW(), amazon_last_error = NULL, marketplace_data = $3 WHERE id = $4",
+          [asin || null, String(sku).trim(), JSON.stringify(mpData), prod.id]
         );
       } else {
         errorsCount++;

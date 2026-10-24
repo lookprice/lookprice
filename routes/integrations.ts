@@ -580,7 +580,7 @@ router.post("/amazon/disconnect", authenticate, async (req: any, res) => {
   }
 });
 
-// 6. Publish Product to Amazon TR
+// 6. Publish Product to Amazon TR (Auto-resolves ASIN by Barcode/Title via Catalog API & Pushes Offer via SP-API)
 router.post("/amazon/publish", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   const productId = req.body.productId;
@@ -601,36 +601,180 @@ router.post("/amazon/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `"${p.name}" ürününün ${reasons.join(" ve ")} olduğu için Amazon'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
-    // Strict ASIN Guard: An Amazon listing CANNOT exist without a valid 10-char ASIN (e.g. B0...)
-    const cleanAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') 
-      ? String(p.amazon_asin).trim().toUpperCase() 
-      : null;
-
-    if (!cleanAsin || cleanAsin.length < 9) {
-      return res.status(400).json({ 
-        error: `"${p.name}" ürününün Amazon ASIN kodu tanımlı değildir. Amazon'da bir ürünün ASIN olmadan satışta olması teknik olarak imkansızdır. Lütfen önce ürün kartından geçerli bir ASIN (örn: B0...) giriniz.` 
-      });
+    // Load store Amazon settings & currency rates
+    const storeRes = await pool.query("SELECT amazon_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+    const storeRow = storeRes.rows[0] || {};
+    let branding = storeRow.branding || {};
+    if (typeof branding === "string") {
+      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
     }
+    const rawAmzSettings = storeRow.amazon_settings || branding?.amazon_settings || {};
+    const central = await getCentralAmazonCredentials();
+    const amzSettings = {
+      ...rawAmzSettings,
+      clientId: rawAmzSettings.clientId || central.clientId,
+      clientSecret: rawAmzSettings.clientSecret || central.clientSecret,
+      appId: rawAmzSettings.appId || central.appId,
+      sellerId: rawAmzSettings.sellerId || "A2M0PNCK7GMIY6",
+    };
+    const rates = storeRow.currency_rates || branding?.currency_rates || {};
+    const amazonService = new AmazonService(amzSettings, storeId);
 
     let mpData: any = p.marketplace_data;
     if (typeof mpData === "string") {
       try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
     }
     mpData = mpData || {};
+
+    // 1. Check existing ASIN or automatically resolve it from Amazon SP-API Catalog by Barcode (EAN/GTIN) or Product Name
+    let cleanAsin =
+      p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== "null" && !String(p.amazon_asin).startsWith("http")
+        ? String(p.amazon_asin).trim().toUpperCase()
+        : null;
+    let resolvedProductType = mpData.amazon?.productType || "";
+
+    if (!cleanAsin || cleanAsin.length < 9) {
+      const catalogLookup = await amazonService.resolveCatalogItem({
+        barcode: p.barcode,
+        title: p.name,
+      });
+      if (catalogLookup.found && catalogLookup.asin) {
+        cleanAsin = catalogLookup.asin;
+        resolvedProductType = catalogLookup.productType || "PRODUCT";
+      }
+    }
+
+    if (!cleanAsin || cleanAsin.length < 9) {
+      return res.status(400).json({
+        error: `"${p.name}" ürünü için Amazon TR kataloğunda barkod (${p.barcode || "yok"}) veya ürün adıyla eşleşen bir ASIN bulunamadı. Lütfen ürün barkodunu kontrol edin veya geçerli bir ASIN (örn: B0...) giriniz.`,
+      });
+    }
+
+    // 2. Calculate TRY Marketplace Price
+    let rawPrice = parseFloat(p.price || "0");
+    const curr = String(p.currency || "TRY").toUpperCase();
+    if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+    else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+    else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+
+    const effectivePrice = amazonService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+    const resolvedSku = String(p.amazon_sku || mpData.amazon?.sku || p.sku || p.barcode || `SKU-${p.id}`).trim();
+    const stockQty = Math.max(0, parseInt(p.stock_quantity || "0", 10));
+
+    // 3. Push real Offer (LISTING_OFFER_ONLY) to Amazon SP-API so the seller appears on the Amazon product page
+    let spApiMessage = "";
+    if (amzSettings.refresh_token) {
+      const offerRes = await amazonService.upsertListingOffer({
+        sku: resolvedSku,
+        asin: cleanAsin,
+        price: effectivePrice,
+        quantity: stockQty,
+        productType: resolvedProductType || undefined,
+      });
+
+      if (!offerRes.success) {
+        await pool.query(
+          "UPDATE products SET amazon_asin = $1, amazon_sku = $2, amazon_last_error = $3 WHERE id = $4 AND store_id = $5",
+          [cleanAsin, resolvedSku, offerRes.message || "Amazon SP-API teklif gönderimi başarısız.", productId, storeId]
+        );
+        return res.status(400).json({
+          error: `Amazon SP-API Hatası (${cleanAsin}): ${offerRes.message || "Teklif oluşturulamadı."}`,
+        });
+      }
+      resolvedProductType = offerRes.productType || resolvedProductType;
+      spApiMessage = ` (ASIN: ${cleanAsin}, SKU: ${resolvedSku}, Fiyat: ₺${effectivePrice.toFixed(2)})`;
+    }
+
     mpData.amazon = {
       ...(mpData.amazon || {}),
-      status: 'ACTIVE',
+      status: "ACTIVE",
       asin: cleanAsin,
-      lastSync: new Date().toISOString()
+      sku: resolvedSku,
+      productType: resolvedProductType || mpData.amazon?.productType || "PRODUCT",
+      attributes: {
+        ...(mpData.amazon?.attributes || {}),
+        price: String(effectivePrice),
+      },
+      lastSync: new Date().toISOString(),
     };
     delete mpData.amazon.manuallyUnpublished;
 
     await pool.query(
-      "UPDATE products SET is_amazon_active = true, amazon_asin = $1, amazon_last_sync = NOW(), amazon_last_error = NULL, marketplace_data = $2 WHERE id = $3 AND store_id = $4",
-      [cleanAsin, JSON.stringify(mpData), productId, storeId]
+      "UPDATE products SET is_amazon_active = true, amazon_asin = $1, amazon_sku = $2, amazon_last_sync = NOW(), amazon_last_error = NULL, marketplace_data = $3 WHERE id = $4 AND store_id = $5",
+      [cleanAsin, resolvedSku, JSON.stringify(mpData), productId, storeId]
     );
 
-    res.json({ success: true, message: `"${p.name}" Amazon TR ilanına aktarıldı ve satışa açıldı.` });
+    res.json({
+      success: true,
+      asin: cleanAsin,
+      sku: resolvedSku,
+      effectivePrice,
+      message: `"${p.name}" Amazon TR kataloğunda eşleştirildi ve canlı satışa açıldı!${spApiMessage}`,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 6b. Resolve Amazon ASIN by Barcode or Product Name from SP-API Catalog
+router.post("/amazon/resolve-asin", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId, barcode, title } = req.body;
+
+  try {
+    const storeRes = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const storeRow = storeRes.rows[0] || {};
+    let branding = storeRow.branding || {};
+    if (typeof branding === "string") {
+      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+    }
+    const rawAmzSettings = storeRow.amazon_settings || branding?.amazon_settings || {};
+    const central = await getCentralAmazonCredentials();
+    const amzSettings = {
+      ...rawAmzSettings,
+      clientId: rawAmzSettings.clientId || central.clientId,
+      clientSecret: rawAmzSettings.clientSecret || central.clientSecret,
+      appId: rawAmzSettings.appId || central.appId,
+      sellerId: rawAmzSettings.sellerId || "A2M0PNCK7GMIY6",
+    };
+
+    let targetBarcode = barcode;
+    let targetTitle = title;
+    if (productId && (!targetBarcode || !targetTitle)) {
+      const pRes = await pool.query("SELECT name, barcode FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+      if (pRes.rows[0]) {
+        targetBarcode = targetBarcode || pRes.rows[0].barcode;
+        targetTitle = targetTitle || pRes.rows[0].name;
+      }
+    }
+
+    const amazonService = new AmazonService(amzSettings, storeId);
+    const resolved = await amazonService.resolveCatalogItem({
+      barcode: targetBarcode,
+      title: targetTitle,
+    });
+
+    if (!resolved.found || !resolved.asin) {
+      return res.status(404).json({
+        success: false,
+        error: "Amazon TR kataloğunda bu barkod veya ürün adıyla eşleşen ASIN bulunamadı.",
+      });
+    }
+
+    if (productId) {
+      await pool.query(
+        "UPDATE products SET amazon_asin = $1 WHERE id = $2 AND store_id = $3",
+        [resolved.asin, productId, storeId]
+      );
+    }
+
+    res.json({
+      success: true,
+      asin: resolved.asin,
+      productType: resolved.productType,
+      itemName: resolved.itemName,
+      brand: resolved.brand,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -2300,45 +2444,95 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
         "";
     }
     
-    // 3. Normalize deprecated/virtual category IDs or infer fallback ONLY if categoryId is completely absent
+    // 3. Normalize all virtual/synthetic category IDs (1000xxx, 2000xxx, 3719xx) to verified live Hepsiburada leaf category IDs
     const catSearchStr = `${p.name} ${p.category || ""} ${p.sub_category || ""}`.toLowerCase();
-    const catIdStr = String(categoryId || "");
-    if (catIdStr === "1000101") {
-      categoryId = 970; // Usb Bellek
-    } else if (catIdStr === "1000102") {
-      categoryId = 698; // Kart Okuyucular
-    } else if (catIdStr === "1000103") {
-      categoryId = 1100011; // Sd Kartlar
-    } else if (catIdStr === "1000124") {
-      categoryId = 106861; // Notebook Standları
-    } else if (catIdStr === "1000108") {
-      categoryId = 47; // Bellek (Ram)
-    } else if (catIdStr === "1000118") {
-      if (catSearchStr.includes("set")) categoryId = 3007055; // Klavye & Mouse Setler
-      else if (catSearchStr.includes("mouse pad") || catSearchStr.includes("mousepad")) categoryId = 29; // Mouse Pad
-      else if (catSearchStr.includes("mouse") || catSearchStr.includes("fare")) categoryId = 52; // Mouse
-      else categoryId = 51; // Klavye
-    } else if (catIdStr === "1000126" || catIdStr === "1000127") {
-      categoryId = catSearchStr.includes("router") ? 60001272 : 103939; // Wireless Adaptör / Router / USB Wi-Fi Adaptör
-    } else if (catIdStr === "1000139") {
-      categoryId = 52; // Mouse / Sunum Kumandası
-    } else if (catIdStr === "1000115") {
-      categoryId = 111001; // Mini Masaüstü
-    } else if (catIdStr === "1000123" || catIdStr === "1000136") {
-      categoryId = 676; // Notebook Çantaları
-    } else if (catIdStr === "371966") {
-      categoryId = 16113; // Şarj Cihazları (Leaf)
-    } else if (catIdStr === "371969") {
-      categoryId = 29010123; // Şarj Kabloları (Leaf)
+    const catIdStr = String(categoryId || "").trim();
+    const VIRTUAL_TO_LIVE_HB_CATEGORY_MAP: Record<string, number> = {
+      "1000101": 970,      // Usb Bellek
+      "1000102": 698,      // Kart Okuyucular
+      "1000103": 1100011,  // Sd Kartlar
+      "1000104": 80081047, // Taşınabilir SSD
+      "1000105": 100225,   // Taşınabilir Disk (External HDD)
+      "1000106": 114814,   // SSD Solid State Drive (Dahili SSD)
+      "1000107": 100221,   // Hard Diskler (Dahili HDD)
+      "1000108": 47,       // Bellek (Ram)
+      "1000109": 152,      // Anakartlar
+      "1000110": 46,       // İşlemciler
+      "1000111": 204,      // Ekran Kartları
+      "1000112": catSearchStr.includes("psu") || catSearchStr.includes("güç kaynağı") ? 1012 : 1013, // Kasa / PSU
+      "1000113": 1125,     // Soğutucular / Overclock
+      "1000114": 98,       // Dizüstü Bilgisayar Laptop
+      "1000115": 111001,   // Mini Masaüstü
+      "1000116": 80561022, // Hazır Oyuncu Sistemleri
+      "1000117": 3002879,  // Led Monitörler
+      "1000118": catSearchStr.includes("set") ? 3007055 : (catSearchStr.includes("mouse pad") || catSearchStr.includes("mousepad") ? 29 : (catSearchStr.includes("mouse") || catSearchStr.includes("fare") ? 52 : 51)),
+      "1000119": catSearchStr.includes("kulaklık") ? 60004548 : (catSearchStr.includes("mouse") || catSearchStr.includes("fare") ? 52 : 51),
+      "1000120": catSearchStr.includes("mikrofon") ? 60001543 : 60004548, // Kulak Üstü Kulaklık / Mikrofon
+      "1000121": 1065,     // Webcam
+      "1000122": 189,      // Switch Box Ve Çoklayıcılar (USB Hub & Type-C Çoklayıcı)
+      "1000123": 676,      // Notebook Çantaları
+      "1000124": catSearchStr.includes("soğutucu") ? 106859 : 106861, // Notebook Standları / Soğutucuları
+      "1000125": catSearchStr.includes("modem") ? 45 : 60001272, // Modemler / Router
+      "1000126": catSearchStr.includes("router") ? 60001272 : (catSearchStr.includes("menzil") || catSearchStr.includes("extender") || catSearchStr.includes("access point") ? 410 : 103939),
+      "1000127": 103939,   // Wireless Adaptör (USB Wi-Fi Adaptör & Ağ Kartı)
+      "1000128": 121,      // Switch (Ethernet Ağ Anahtarları)
+      "1000129": catSearchStr.includes("tarayıcı") || catSearchStr.includes("scanner") ? 39 : 6, // Yazıcılar / Tarayıcılar
+      "1000130": 80857383, // Toner & Kartuş
+      "1000131": catSearchStr.includes("yazıcı") ? 106502 : (catSearchStr.includes("terminal") ? 95088 : 106503), // Barkod Okuyucu / Barkod Yazıcı / El Terminali
+      "1000132": 813,      // Dvd/Hdd Kasaları (HDD Kutusu & Caddy)
+      "1000133": catSearchStr.includes("macun") ? 1125 : 60005734, // Temizleme Spreyi / Termal Macun
+      "1000134": 13006537, // Uzatma Kablosu & Grup Priz (Akım Korumalı Priz)
+      "1000135": 676,      // Notebook Sırt Çantaları
+      "1000136": 676,      // Notebook El & Evrak Çantaları
+      "1000137": 676,      // Laptop Kılıf & Sleeve
+      "1000138": 52,       // Sunum Kumandası / Mouse
+      "1000139": catSearchStr.includes("projeksiyon") ? 15530 : 52, // Projeksiyon / Sunum Kumandası
+      "1000140": 60001183, // Tablet Kalemleri (Stylus)
+      "1000181": 189,      // Switch Box Ve Çoklayıcılar
+      "1000182": 105307,   // Çevirici ve Adaptörler (Kablo ve Dönüştürücüler)
+      "1000183": 84120,    // Ses ve Görüntü Kabloları (HDMI, DisplayPort & VGA)
+      "1000184": 505,      // Network Kabloları (Ağ & Ethernet Kabloları Cat6/Cat7)
+      "1000185": 1250,     // Usb/Seri/Paralel Kablolar
+      "1000186": catSearchStr.includes("sata") ? 105306 : 105325, // Güç Kabloları / Disk Kabloları
+      "1000187": 84120,    // Ses ve Görüntü Kabloları (Aux / RCA / Optik)
+      "1000188": 114325,   // Usb Aksesuar (Genel Bilgisayar Aksesuarları)
+      "1000189": 114325,   // Çevre Birimi Aksesuarları
+      "1000190": 106858,   // Notebook Adaptörleri
+      "1000191": 106858,   // Dell Notebook Adaptörleri
+      "1000192": 106858,   // Asus Notebook Adaptörleri
+      "1000193": 106858,   // HP Notebook Adaptörleri
+      "1000194": 106858,   // Lenovo Notebook Adaptörleri
+      "1000195": 106858,   // Acer Notebook Adaptörleri
+      "1000196": 106858,   // Apple Macbook Adaptörleri
+      "1000197": 106858,   // Muadil Notebook Adaptörleri
+      "1000198": 106854,   // Notebook Pilleri & Bataryaları
+      "2000105": 256,      // Speaker / Hoparlör
+      "371960": 371965,    // Cep Telefonu / Aksesuar
+      "371966": 16113,     // Şarj Cihazları (Leaf)
+      "371969": 29010123, // Şarj Kabloları (Leaf)
+    };
+
+    if (catIdStr && VIRTUAL_TO_LIVE_HB_CATEGORY_MAP[catIdStr]) {
+      categoryId = VIRTUAL_TO_LIVE_HB_CATEGORY_MAP[catIdStr];
     } else if (!categoryId) {
-      if (catSearchStr.includes("usb flash") || catSearchStr.includes("flash bellek") || (catSearchStr.includes("usb") && catSearchStr.includes("bellek"))) {
+      if (catSearchStr.includes("priz") || catSearchStr.includes("akım korumalı") || catSearchStr.includes("uzatma kablo")) {
+        categoryId = 13006537; // Active HB Leaf: Uzatma Kablosu & Grup Priz
+      } else if (catSearchStr.includes("usb flash") || catSearchStr.includes("flash bellek") || (catSearchStr.includes("usb") && catSearchStr.includes("bellek"))) {
         categoryId = 970; // Active HB Leaf: Usb Bellek
       } else if (catSearchStr.includes("kart okuyucu")) {
         categoryId = 698; // Active HB Leaf: Kart Okuyucular
       } else if (catSearchStr.includes("sd kart")) {
         categoryId = 1100011; // Active HB Leaf: Sd Kartlar
+      } else if (catSearchStr.includes("ssd") || catSearchStr.includes("nvme") || catSearchStr.includes("m.2")) {
+        categoryId = catSearchStr.includes("taşınabilir") || catSearchStr.includes("harici") ? 80081047 : 114814; // SSD
       } else if (catSearchStr.includes("wi-fi") || catSearchStr.includes("wifi") || catSearchStr.includes("kablosuz adaptör") || catSearchStr.includes("ağ kart")) {
         categoryId = 103939; // Active HB Leaf: Wireless Adaptörler
+      } else if (catSearchStr.includes("switch") && (catSearchStr.includes("port") || catSearchStr.includes("gigabit") || catSearchStr.includes("ethernet"))) {
+        categoryId = 121; // Active HB Leaf: Switch
+      } else if (catSearchStr.includes("hdmi") || catSearchStr.includes("displayport") || catSearchStr.includes("vga")) {
+        categoryId = 84120; // Active HB Leaf: Ses ve Görüntü Kabloları
+      } else if (catSearchStr.includes("cat6") || catSearchStr.includes("cat7") || catSearchStr.includes("patch") || catSearchStr.includes("ethernet kablo")) {
+        categoryId = 505; // Active HB Leaf: Network Kabloları
       } else if (catSearchStr.includes("notebook stand") || catSearchStr.includes("laptop stand")) {
         categoryId = 106861; // Active HB Leaf: Notebook Standları
       } else if (catSearchStr.includes("klavye") && catSearchStr.includes("mouse")) {
