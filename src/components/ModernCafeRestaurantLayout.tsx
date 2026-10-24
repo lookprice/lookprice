@@ -1113,15 +1113,15 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       </header>
 
       {/* Atmospheric High-Vibrancy Hero Section */}
-      <section className="relative overflow-hidden bg-slate-950 text-white min-h-[50vh] md:min-h-[60vh] flex items-center px-4 sm:px-6 lg:px-8 py-10 border-b border-slate-900 group">
+      <section className="relative overflow-hidden bg-slate-950 text-white min-h-[300px] sm:min-h-[420px] md:min-h-[58vh] flex items-center px-4 sm:px-6 lg:px-8 py-7 sm:py-10 border-b border-slate-900 group">
         <div className="absolute inset-0 z-0">
           <img
             key={resolvedHeroImageUrl}
             src={resolvedHeroImageUrl}
             alt={currentHeroBanner?.title || "Hero Background"}
-            className="w-full h-full object-cover opacity-75 md:opacity-85 filter brightness-105 contrast-110 saturate-110 transition-all duration-1000"
+            className="w-full h-full object-cover object-center opacity-90 filter brightness-105 contrast-105 saturate-110 transition-all duration-1000"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-slate-950/20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-slate-950/10" />
         </div>
 
         {/* MULTI-BANNER SLIDER CONTROLS & INDICATORS */}
@@ -1130,32 +1130,32 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             <button
               type="button"
               onClick={() => setActiveHeroBannerIndex((prev) => (prev - 1 + currentActiveBanners.length) % currentActiveBanners.length)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-950/70 hover:bg-slate-900 text-white border border-slate-700/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xl backdrop-blur-xs"
+              className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-950/70 hover:bg-slate-900 text-white border border-slate-700/80 flex items-center justify-center opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer shadow-xl backdrop-blur-xs"
               title="Önceki Banner"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             <button
               type="button"
               onClick={() => setActiveHeroBannerIndex((prev) => (prev + 1) % currentActiveBanners.length)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-950/70 hover:bg-slate-900 text-white border border-slate-700/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xl backdrop-blur-xs"
+              className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-950/70 hover:bg-slate-900 text-white border border-slate-700/80 flex items-center justify-center opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer shadow-xl backdrop-blur-xs"
               title="Sonraki Banner"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {/* DOT INDICATORS */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-slate-950/60 backdrop-blur-xs px-2.5 py-1 rounded-full border border-slate-800/80">
+            <div className="absolute bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-slate-950/60 backdrop-blur-xs px-2.5 py-1 rounded-full border border-slate-800/80">
               {currentActiveBanners.map((_, dotIdx) => (
                 <button
                   key={dotIdx}
                   type="button"
                   onClick={() => setActiveHeroBannerIndex(dotIdx)}
-                  className={`h-2 rounded-full transition-all cursor-pointer ${
+                  className={`h-1.5 sm:h-2 rounded-full transition-all cursor-pointer ${
                     activeHeroBannerIndex % currentActiveBanners.length === dotIdx
-                      ? "w-6 bg-emerald-400 shadow-xs"
-                      : "w-2 bg-white/40 hover:bg-white/70"
+                      ? "w-5 sm:w-6 bg-emerald-400 shadow-xs"
+                      : "w-1.5 sm:w-2 bg-white/40 hover:bg-white/70"
                   }`}
                   title={`Banner ${dotIdx + 1}`}
                 />
@@ -1164,14 +1164,14 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           </>
         )}
 
-        <div className="relative z-10 max-w-4xl mx-auto text-center space-y-4 md:space-y-6 w-full">
+        <div className="relative z-10 max-w-4xl mx-auto text-center space-y-2.5 sm:space-y-4 md:space-y-6 w-full px-6 sm:px-0">
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-3 py-1 bg-slate-900/90 border border-slate-800 rounded-full text-slate-300 text-[10px] font-extrabold uppercase tracking-widest"
+            className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-full text-slate-200 text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest shadow-md"
           >
-            <Sparkles className="w-3 h-3 text-emerald-400" />
+            <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />
             {activeMode === 'hotel' 
               ? (isTr ? "LookPrice VIP Konaklama Güvencesi" : "LookPrice VIP Hotel Experience")
               : (isTr ? "Eşsiz Gurme Lezzet Deneyimi" : "An Exquisite Culinary Experience")
@@ -1182,7 +1182,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight max-w-3xl mx-auto font-sans"
+            className="text-xl sm:text-3xl md:text-5xl font-black text-white tracking-tight leading-tight max-w-3xl mx-auto font-sans drop-shadow-lg line-clamp-2 sm:line-clamp-none"
           >
             {currentHeroBanner?.title ? currentHeroBanner.title : (
               activeMode === 'hotel'
@@ -1195,7 +1195,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-xs sm:text-sm text-slate-300 font-medium max-w-xl mx-auto leading-relaxed"
+            className="text-[11px] sm:text-sm text-slate-200 font-medium max-w-xl mx-auto leading-relaxed line-clamp-2 sm:line-clamp-3 drop-shadow"
           >
             {currentHeroBanner?.subtitle ? currentHeroBanner.subtitle : (
               activeMode === 'hotel'

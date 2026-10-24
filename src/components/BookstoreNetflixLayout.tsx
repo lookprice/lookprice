@@ -563,39 +563,39 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               </div>
 
               {/* Hero Main Content Box */}
-              <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 md:px-12 pt-6 sm:pt-8 md:pt-10 pb-8 sm:pb-12">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+              <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 md:px-12 pt-5 sm:pt-8 md:pt-10 pb-6 sm:pb-12">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8 items-center">
                   
                   {/* Left Column: Book Details & Action Controls */}
-                  <div className="lg:col-span-7 xl:col-span-8 space-y-3.5 sm:space-y-4">
+                  <div className="lg:col-span-7 xl:col-span-8 space-y-2.5 sm:space-y-4">
                     
                     {/* Header Badges & Switcher Pill */}
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
                       <div 
-                        className="inline-flex items-center gap-1.5 px-3 py-1 text-white text-[11px] font-black uppercase tracking-widest rounded-full shadow-lg"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 text-white text-[10px] sm:text-[11px] font-black uppercase tracking-widest rounded-full shadow-lg"
                         style={{
                           backgroundColor: themeConfig.primary_color || "#ef4444"
                         }}
                       >
-                        <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                        <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-pulse" />
                         <span>{themeConfig.hero_badge_text || (isTr ? "HAFTANIN ESERLERİ" : "WEEKLY PICKS")}</span>
                       </div>
 
                       {weeklyBooks.length > 1 && (
-                        <span className="px-2.5 py-0.5 bg-slate-900/90 border border-slate-700 text-slate-300 text-[11px] font-black rounded-full backdrop-blur-md">
+                        <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 bg-slate-900/90 border border-slate-700 text-slate-300 text-[10px] sm:text-[11px] font-black rounded-full backdrop-blur-md">
                           {String(currentHeroIdx + 1).padStart(2, "0")} / {String(weeklyBooks.length).padStart(2, "0")}
                         </span>
                       )}
 
                       {themeConfig.show_hero_meta_badges !== false && (
                         <>
-                          <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-bold bg-black/60 border border-amber-500/30 px-2.5 py-0.5 rounded-full backdrop-blur-sm">
-                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          <span className="inline-flex items-center gap-1 text-amber-400 text-[11px] sm:text-xs font-bold bg-black/60 border border-amber-500/30 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full backdrop-blur-sm">
+                            <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-amber-400 text-amber-400" />
                             <span>{(heroBook as any).sector_data?.rating || "4.9"} / 5.0</span>
                           </span>
 
                           {((heroBook as any).sector_data?.page_count || (heroBook as any).page_count) && (
-                            <span className="text-[11px] font-bold text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded-md border border-slate-800">
+                            <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded-md border border-slate-800">
                               {((heroBook as any).sector_data?.page_count || (heroBook as any).page_count)} {isTr ? "Sayfa" : "Pages"}
                             </span>
                           )}
@@ -611,9 +611,9 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.3 }}
-                        className="space-y-2"
+                        className="space-y-1.5 sm:space-y-2"
                       >
-                        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                        <h1 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight line-clamp-2">
                           {heroBook.name}
                         </h1>
 
@@ -637,8 +637,8 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                           const heroQuote = (heroBook as any).sector_data?.spot_quote || (heroBook as any).sector_data?.featured_quote || (heroBook as any).sector_data?.quote || (heroBook as any).spot_quote || (heroBook as any).featured_quote || (heroBook as any).quote || (heroBook as any).spot;
                           if (themeConfig.show_hero_quote === false || !heroQuote) return null;
                           return (
-                            <div className="p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90 text-amber-300/90 text-xs sm:text-sm italic flex items-start gap-2 max-w-xl backdrop-blur-md shadow-lg">
-                              <Quote className="w-4 h-4 shrink-0 mt-0.5 text-amber-400 opacity-85" />
+                            <div className="p-2 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90 text-amber-300/90 text-[11px] sm:text-sm italic flex items-start gap-2 max-w-xl backdrop-blur-md shadow-lg">
+                              <Quote className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 mt-0.5 text-amber-400 opacity-85" />
                               <p className="line-clamp-2 font-serif">
                                 &ldquo;{heroQuote}&rdquo;
                               </p>
@@ -647,7 +647,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                         })()}
 
                         {/* Short Description */}
-                        <p className="text-xs sm:text-sm text-slate-300 line-clamp-3 leading-relaxed max-w-2xl font-normal">
+                        <p className="text-[11px] sm:text-sm text-slate-300 line-clamp-2 sm:line-clamp-3 leading-relaxed max-w-2xl font-normal">
                           {heroBook.description || (isTr 
                             ? "Sayfaları çevirdikçe sizi içine çeken, kurgusu ve güçlü anlatımıyla edebiyat dünyasında derin yankı uyandıran eşsiz bir başyapıt." 
                             : "An extraordinary novel with captivating storytelling and profound character development.")}
@@ -656,13 +656,13 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                     </AnimatePresence>
 
                     {/* Action Buttons */}
-                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1 sm:pt-2">
                       <button
                         type="button"
                         onClick={() => onViewProduct(heroBook, weeklyBooks)}
-                        className="px-5 sm:px-6 py-2.5 bg-white hover:bg-slate-200 text-slate-950 font-black text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-xl cursor-pointer"
+                        className="px-4 sm:px-6 py-2 sm:py-2.5 bg-white hover:bg-slate-200 text-slate-950 font-black text-xs sm:text-sm rounded-xl flex items-center gap-1.5 sm:gap-2 transition-all active:scale-95 shadow-xl cursor-pointer"
                       >
-                        <Info className="w-4 h-4" />
+                        <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         <span>{isTr ? "Kitabı İncele" : "Explore Details"}</span>
                       </button>
 
@@ -672,9 +672,9 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                         style={{
                           backgroundColor: themeConfig.primary_color || "#ef4444"
                         }}
-                        className="px-5 sm:px-6 py-2.5 text-white font-black text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-xl cursor-pointer hover:opacity-90"
+                        className="px-4 sm:px-6 py-2 sm:py-2.5 text-white font-black text-xs sm:text-sm rounded-xl flex items-center gap-1.5 sm:gap-2 transition-all active:scale-95 shadow-xl cursor-pointer hover:opacity-90"
                       >
-                        <ShoppingBag className="w-4 h-4" />
+                        <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         <span>{isTr ? "Sepete Ekle" : "Add to Cart"}</span>
                       </button>
                     </div>
@@ -694,7 +694,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                           onClick={() => onViewProduct(heroBook, weeklyBooks)}
                         >
                           {/* 3D Book Cover Frame */}
-                          <div className="relative w-44 sm:w-52 md:w-60 aspect-[2/3] rounded-xl overflow-hidden shadow-2xl shadow-black/80 border-2 border-slate-700/80 bg-slate-900 transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300">
+                          <div className="relative w-36 sm:w-52 md:w-60 aspect-[2/3] rounded-xl overflow-hidden shadow-2xl shadow-black/80 border-2 border-slate-700/80 bg-slate-900 transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300">
                             <img
                               src={heroBook.image_url || getBookCoverFallbackSvg(heroBook.name, heroBook.author)}
                               alt={heroBook.name}

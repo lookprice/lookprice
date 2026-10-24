@@ -379,12 +379,18 @@ This file outlines strict engineering, performance, and naming directives that m
   - `YYYY-MM-DD` (ISO), `MM/DD/YYYY` (Amerikan) veya noktalı 4 haneli `dd.mm.yyyy` formatları çıktı ve gösterim alanlarında KULLANILAMAZ (yalnızca HTML `<input type="date">` elemanlarının `value` niteliği HTML5 standardı gereği `YYYY-MM-DD` alır).
   - Tüm tarih biçimlendirmelerinde merkezi `formatDateTR` ve `formatDateTimeTR` (`/src/utils/formatUtils.ts`) yardımcı fonksiyonları kullanılmalıdır.
 
+---
 
+## 28. Web Sitesi Temalarında Mobil Duyarlı (Responsive) Banner Görsel Görünürlüğü ve Optimum Mobil Tipografi Anayasa Kuralı (Mobile-First Hero & Banner Visibility Protocol)
 
+- **Banner Görsellerinin Mobil Görünümde Optimum Görünürlük Standardı**:
+  - Banner içeren tüm web sitesi temalarında (`ModernCorporateWebsiteLayout`, `ModernShopRetailLayout`, `ModernCafeRestaurantLayout`, `ModernRealEstateLayout`, `ModernAutomotiveLayout`, `ShopNetflixLayout`, `BookstoreNetflixLayout`, `showcase/HeroSection`) mobil ekranlarda (`< 640px` / `< 768px`) banner görselleri KESİNLİKLE aşırı karartılamaz, tüm ekranı kaplayan ağır siyah gradyanlarla (`from-slate-950 via-slate-950/70` vb.) kapatılamaz ve düşük opaklığa (`opacity-75` vb.) düşürülemez.
+  - Mobil görünümde banner fotoğrafları yüksek parlaklık ve netlikte (`object-cover object-center brightness-105 contrast-105`, `opacity-90` - `opacity-100`) sunulmalı; metin okunabilirliğini sağlayan karartma katmanı (overlay) yalnızca metnin bulunduğu alt/ilgili bölgeyle sınırlandırılmış hafif gradyan (`bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent`) olarak uygulanmalıdır.
+  - Mobil ekranlarda banner yüksekliği ve en-boy oranı (`min-h-[280px]` ila `min-h-[420px]`), görselin dar bir şeride sıkışmasını veya devasa dikey kırpılmaya uğramasını önleyecek şekilde dengelenmelidir. Yan/yüzer bilgi kartları (örn. hızlı erişim kartı, ürün vitrin görseli) mobilde kompakt ölçülerde tutularak ana banner fotoğrafının görünürlüğünü kapatmamalıdır.
+  - Çoklu banner (slider/carousel) kullanılan temalarda ileri/geri okları ve slayt noktaları (dots) sadece masaüstü `group-hover` veya `hidden sm:flex` ile gizlenmemeli, dokunmatik mobil ekranlarda da erişilebilir ve görünür (`opacity-90 sm:opacity-0 sm:group-hover:opacity-100`) olmalıdır.
 
-
-
-
-
-
-
+- **Banner Üzerindeki Metinlerin ve Butonların Mobil Duyarlı (Optimum Boyut) Standardı**:
+  - Mobil görünümde banner üzerindeki başlıklar (`h1`), alt başlıklar (`p`), rozetler (badge) ve aksiyon butonları (CTA), masaüstü font boyutlarıyla (`text-4xl`, `text-5xl` vb.) doğrudan mobil ekrana basılarak görseli boğmamalıdır.
+  - **Ana Başlık (`h1`)**: Mobil ekranlarda optimum `text-lg` / `text-xl` / `text-2xl` seviyesinden başlayıp masaüstünde kademeli büyümelidir (`text-xl sm:text-3xl md:text-5xl lg:text-6xl` ve `leading-tight line-clamp-2 sm:line-clamp-3`).
+  - **Alt Başlık / Açıklama (`p`)**: Mobil ekranlarda `text-[11px]` veya `text-xs` (`sm:text-sm md:text-base`) boyutunda olmalı ve çok uzun açıklamaların banner fotoğrafını örtmesini engellemek için mobilde `line-clamp-2 sm:line-clamp-3` ile sınırlandırılmalıdır.
+  - **Üst Rozet (Badge) ve CTA Butonları**: Rozetler mobilde `px-2.5 py-0.5 text-[10px] sm:text-xs`, aksiyon butonları ise `px-4 py-2 sm:px-7 sm:py-3.5 text-[11px] sm:text-sm` ölçülerinde kompakt ve taşma yapmayacak şekilde dizilmelidir.

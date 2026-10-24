@@ -768,13 +768,13 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
     const s = config.typography?.hero_title_size || "lg";
     switch (s) {
       case "sm":
-        return "text-2xl sm:text-3xl lg:text-4xl";
+        return "text-lg sm:text-3xl lg:text-4xl";
       case "md":
-        return "text-2xl sm:text-4xl lg:text-5xl";
+        return "text-xl sm:text-4xl lg:text-5xl";
       case "xl":
-        return "text-4xl sm:text-6xl lg:text-7xl";
+        return "text-2xl sm:text-5xl lg:text-7xl";
       default:
-        return "text-3xl sm:text-5xl lg:text-6xl";
+        return "text-xl sm:text-4xl md:text-5xl lg:text-6xl";
     }
   }, [config.typography?.hero_title_size]);
 
@@ -1499,24 +1499,24 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
               }`}
             >
               {activeCustomPage.image_url && (
-                <div className="relative h-64 sm:h-96 w-full overflow-hidden">
+                <div className="relative h-56 sm:h-80 md:h-96 w-full overflow-hidden">
                   <img
                     src={activeCustomPage.image_url}
                     alt={activeCustomPage.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover object-center brightness-105 contrast-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent" />
-                  <div className="absolute bottom-6 left-6 right-6 text-white">
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 text-white">
                     {activeCustomPage.badge && (
-                      <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-amber-500 text-slate-950 mb-3">
+                      <span className="inline-block px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest bg-amber-500 text-slate-950 mb-2 sm:mb-3">
                         {activeCustomPage.badge}
                       </span>
                     )}
-                    <h1 className="text-2xl sm:text-4xl font-black tracking-tight">
+                    <h1 className="text-lg sm:text-3xl md:text-4xl font-black tracking-tight leading-snug">
                       {activeCustomPage.title}
                     </h1>
                     {activeCustomPage.subtitle && (
-                      <p className="text-sm sm:text-base text-slate-200 mt-2 max-w-3xl">
+                      <p className="text-xs sm:text-base text-slate-200 mt-1 sm:mt-2 max-w-3xl line-clamp-2 sm:line-clamp-none">
                         {activeCustomPage.subtitle}
                       </p>
                     )}
@@ -1602,8 +1602,8 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
         /* MAIN LANDING PAGE VIEW */
         <main>
           {/* 1. KINETIC HERO SECTION */}
-          <section id="hero" className="relative min-h-[82vh] flex items-center overflow-hidden">
-            {/* Animated Background Image Slider - High Brightness & Clarity */}
+          <section id="hero" className="relative min-h-[420px] sm:min-h-[600px] lg:min-h-[82vh] flex items-center overflow-hidden">
+            {/* Animated Background Image Slider - High Brightness & Clarity on Mobile & Desktop */}
             <div className="absolute inset-0 z-0">
               <AnimatePresence mode="wait">
                 <motion.img
@@ -1613,11 +1613,11 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                     "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1800&q=85"
                   }
                   alt={displayStoreName}
-                  initial={{ opacity: 0, scale: 1.05 }}
+                  initial={{ opacity: 0, scale: 1.04 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 1.1, ease: "easeOut" }}
-                  className="w-full h-full object-cover brightness-105 contrast-105"
+                  className="w-full h-full object-cover object-center brightness-105 contrast-105"
                 />
               </AnimatePresence>
               {/* Configurable light contrast veil so banner photo remains bright & crystal clear */}
@@ -1625,25 +1625,25 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                 className="absolute inset-0 bg-slate-950 pointer-events-none transition-opacity duration-300"
                 style={{ opacity: Math.min(Math.max(Number(config.hero?.overlay_opacity ?? 15), 0), 85) / 100 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/55 via-slate-950/20 to-transparent pointer-events-none" />
-              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950/70 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/25 to-transparent sm:bg-gradient-to-r sm:from-slate-950/55 sm:via-slate-950/20 sm:to-transparent pointer-events-none" />
+              <div className="hidden sm:block absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950/70 to-transparent pointer-events-none" />
             </div>
 
             {/* Hero Content Container */}
-            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 w-full">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16 lg:py-28 w-full">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-10 lg:gap-12 items-center">
                 <motion.div
-                  initial={{ opacity: 0, y: 28 }}
+                  initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.7 }}
-                  className="lg:col-span-8 space-y-6 text-white"
+                  className="lg:col-span-8 space-y-3 sm:space-y-6 text-white pt-10 sm:pt-0"
                 >
                   {Boolean(config.hero?.badge_text && config.hero.badge_text.trim() !== "") && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.15 }}
-                      className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-950/55 backdrop-blur-md border border-white/25 text-amber-300 text-xs font-bold uppercase tracking-widest shadow-lg"
+                      className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-4 sm:py-1.5 rounded-full bg-slate-950/55 backdrop-blur-md border border-white/25 text-amber-300 text-[10px] sm:text-xs font-bold uppercase tracking-widest shadow-lg"
                       style={
                         hasCustomColors && customColors?.accent_color
                           ? { color: customColors.accent_color, borderColor: `${customColors.accent_color}66` }
@@ -1651,7 +1651,7 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                       }
                     >
                       <Sparkles
-                        className="w-3.5 h-3.5 text-amber-400"
+                        className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 shrink-0"
                         style={hasCustomColors && customColors?.accent_color ? { color: customColors.accent_color } : undefined}
                       />
                       <span>{config.hero.badge_text}</span>
@@ -1659,7 +1659,7 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                   )}
 
                   <h1
-                    className={`${heroTitleSizeClass} ${headingWeightClass} tracking-tight leading-[1.12] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.75)]`}
+                    className={`${heroTitleSizeClass} ${headingWeightClass} tracking-tight leading-[1.15] sm:leading-[1.12] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.75)]`}
                     style={hasCustomColors && customColors?.hero_text_color ? { color: customColors.hero_text_color } : undefined}
                   >
                     {renderHighlightedTitle(
@@ -1668,12 +1668,12 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                     )}
                   </h1>
 
-                  <p className={`text-base sm:text-lg lg:text-xl text-white/95 ${bodyWeightClass} leading-relaxed max-w-2xl drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]`}>
+                  <p className={`text-xs sm:text-lg lg:text-xl text-white/95 ${bodyWeightClass} leading-relaxed max-w-2xl line-clamp-3 sm:line-clamp-none drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]`}>
                     {config.hero?.subtitle}
                   </p>
 
                   {/* Hero CTA Buttons */}
-                  <div className="pt-2 flex flex-wrap items-center gap-3.5">
+                  <div className="pt-1 sm:pt-2 flex flex-wrap items-center gap-2 sm:gap-3.5">
                     <motion.button
                       whileHover={{ scale: 1.03, y: -2 }}
                       whileTap={{ scale: 0.98 }}
@@ -1684,10 +1684,10 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                           ? { backgroundColor: customColors.primary_color, color: "#ffffff" }
                           : undefined
                       }
-                      className={`px-7 py-4 rounded-2xl ${headingWeightClass} text-sm sm:text-base shadow-xl flex items-center gap-2.5 cursor-pointer transition-all ${palette.accentBg}`}
+                      className={`px-4 py-2.5 sm:px-7 sm:py-4 rounded-xl sm:rounded-2xl ${headingWeightClass} text-xs sm:text-base shadow-xl flex items-center gap-1.5 sm:gap-2.5 cursor-pointer transition-all ${palette.accentBg}`}
                     >
                       <span>{config.hero?.primary_cta_text || "Hizmetlerimizi İnceleyin"}</span>
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </motion.button>
 
                     {whatsappNumber && (
@@ -1697,9 +1697,9 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                         href={getWhatsAppUrl()}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-7 py-4 rounded-2xl font-black text-sm sm:text-base bg-[#25D366] hover:bg-[#1ebe5d] text-white shadow-xl shadow-emerald-600/25 flex items-center gap-2.5 transition-all"
+                        className="px-4 py-2.5 sm:px-7 sm:py-4 rounded-xl sm:rounded-2xl font-black text-xs sm:text-base bg-[#25D366] hover:bg-[#1ebe5d] text-white shadow-xl shadow-emerald-600/25 flex items-center gap-1.5 sm:gap-2.5 transition-all"
                       >
-                        <MessageCircle className="w-5 h-5" />
+                        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                         <span>{config.hero?.secondary_cta_text || "WhatsApp İletişim"}</span>
                       </motion.a>
                     )}
@@ -1709,38 +1709,38 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                         whileHover={{ scale: 1.03, y: -2 }}
                         whileTap={{ scale: 0.98 }}
                         href={`tel:${primaryPhone}`}
-                        className="px-6 py-4 rounded-2xl font-black text-sm sm:text-base bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 flex items-center gap-2.5 transition-all"
+                        className="px-3.5 py-2.5 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl font-black text-xs sm:text-base bg-white/15 hover:bg-white/25 text-white backdrop-blur-md border border-white/25 flex items-center gap-1.5 sm:gap-2.5 transition-all"
                       >
-                        <Phone className="w-4 h-4 text-amber-400" />
+                        <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
                         <span>{primaryPhone}</span>
                       </motion.a>
                     )}
                   </div>
                 </motion.div>
 
-                {/* Right Floating Interactive Contact & Quick Info Card */}
+                {/* Right Floating Interactive Contact & Quick Info Card (Desktop lg+, compact on mobile so banner image stays visible) */}
                 <motion.div
                   initial={{ opacity: 0, x: 30 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.8, delay: 0.2 }}
                   className="lg:col-span-4"
                 >
-                  <div className="bg-slate-900/80 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 sm:p-7 text-white shadow-2xl space-y-5">
-                    <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <div className="bg-slate-900/75 sm:bg-slate-900/80 backdrop-blur-xl border border-white/15 rounded-2xl sm:rounded-3xl p-4 sm:p-7 text-white shadow-2xl space-y-3 sm:space-y-5">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-2.5 sm:pb-4">
                       <div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block">
+                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-amber-400 block">
                           HIZLI ERİŞİM & RANDEVU
                         </span>
-                        <h3 className="text-lg font-black text-white mt-0.5">{displayStoreName}</h3>
+                        <h3 className="text-sm sm:text-lg font-black text-white mt-0.5">{displayStoreName}</h3>
                       </div>
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                        <ShieldCheck className="w-5 h-5" />
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                        <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                       </div>
                     </div>
 
-                    <div className="space-y-3 text-xs">
-                      <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
-                        <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="grid grid-cols-1 sm:grid-cols-1 gap-2 sm:gap-3 text-[11px] sm:text-xs">
+                      <div className="flex items-start gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10">
+                        <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0 mt-0.5" />
                         <div>
                           <span className="text-slate-400 block font-semibold">Çalışma Saatlerimiz</span>
                           <span className="text-white font-bold mt-0.5 block">
@@ -1750,7 +1750,7 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                       </div>
 
                       {storeAddress && (
-                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+                        <div className="hidden sm:flex items-start gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
                           <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                           <div>
                             <span className="text-slate-400 block font-semibold">Adres & Konum</span>
@@ -1762,23 +1762,23 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
                       )}
                     </div>
 
-                    <div className="space-y-2.5 pt-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-1 gap-2 pt-0.5 sm:pt-1">
                       {primaryPhone && (
                         <a
                           href={`tel:${primaryPhone}`}
-                          className="w-full py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all"
+                          className="w-full py-2.5 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] sm:text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg transition-all"
                         >
-                          <Phone className="w-4 h-4" />
-                          <span>Hemen Ara: {primaryPhone}</span>
+                          <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                          <span className="truncate">Hemen Ara</span>
                         </a>
                       )}
                       <button
                         type="button"
                         onClick={() => scrollToSection("iletisim")}
-                        className="w-full py-3 px-4 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center justify-center gap-2 border border-white/15 transition-all cursor-pointer"
+                        className="w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl sm:rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2 border border-white/15 transition-all cursor-pointer"
                       >
-                        <Navigation className="w-4 h-4 text-emerald-400" />
-                        <span>Google Haritada Yol Tarifi Al</span>
+                        <Navigation className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+                        <span className="truncate">Yol Tarifi Al</span>
                       </button>
                     </div>
                   </div>
@@ -1787,14 +1787,14 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
 
               {/* Hero Slider Controls (if multiple images) */}
               {heroImages.length > 1 && (
-                <div className="mt-10 flex items-center gap-2">
+                <div className="mt-5 sm:mt-10 flex items-center gap-2">
                   {heroImages.map((_, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setCurrentHeroIdx(idx)}
                       className={`h-2 rounded-full transition-all cursor-pointer ${
-                        currentHeroIdx === idx ? "w-10 bg-amber-400" : "w-2.5 bg-white/40 hover:bg-white/70"
+                        currentHeroIdx === idx ? "w-8 sm:w-10 bg-amber-400" : "w-2 sm:w-2.5 bg-white/40 hover:bg-white/70"
                       }`}
                       aria-label={`Slayt ${idx + 1}`}
                     />
@@ -1805,23 +1805,23 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
               {/* Quantitative Trust Metrics Bar */}
               {Array.isArray(config.hero?.stats) && config.hero.stats.length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 24 }}
+                  initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: 0.25 }}
-                  className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5"
+                  className="mt-6 sm:mt-12 grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-5"
                 >
                   {config.hero.stats.map((st, i) => (
                     <div
                       key={i}
-                      className="p-4 sm:p-5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/15 text-white hover:bg-white/15 transition-all"
+                      className="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-950/50 sm:bg-white/10 backdrop-blur-xl border border-white/15 text-white hover:bg-white/15 transition-all"
                     >
-                      <div className="text-2xl sm:text-3xl font-black text-amber-400 tracking-tight">
+                      <div className="text-lg sm:text-3xl font-black text-amber-400 tracking-tight">
                         {st.value}
                       </div>
-                      <div className="text-xs sm:text-sm font-extrabold text-white mt-1">{st.label}</div>
+                      <div className="text-[11px] sm:text-sm font-extrabold text-white mt-0.5 sm:mt-1">{st.label}</div>
                       {st.sublabel && (
-                        <div className="text-[11px] text-slate-300 mt-0.5">{st.sublabel}</div>
+                        <div className="text-[10px] sm:text-[11px] text-slate-300 mt-0.5 line-clamp-1">{st.sublabel}</div>
                       )}
                     </div>
                   ))}

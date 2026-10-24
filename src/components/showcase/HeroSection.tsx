@@ -55,7 +55,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ store, isLuxury = true
   }, [banners]);
 
   return (
-    <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center rounded-3xl overflow-hidden shadow-2xl border border-white/10 group">
+    <section className="relative min-h-[300px] h-[360px] sm:h-[500px] md:h-[78vh] md:min-h-[560px] flex items-center justify-center rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-white/10 group">
       {banners.map((slide: any, index: number) => {
         const isActive = index === currentSlideIdx;
         return (
@@ -69,14 +69,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ store, isLuxury = true
           >
             <img
               src={slide.image_url || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80"}
-              className="absolute inset-0 w-full h-full object-cover brightness-[0.85]"
+              className="absolute inset-0 w-full h-full object-cover object-center brightness-100 sm:brightness-95 contrast-105"
               alt={slide.title || "Hero Banner"}
             />
             {/* Subtle overlay only at the bottom for text readability */}
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/50 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-2/3 sm:h-1/2 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
             {/* Slide Content with Text Alignment */}
-            <div className={`absolute inset-0 flex items-end px-8 md:px-16 py-20 ${
+            <div className={`absolute inset-0 flex items-end px-4 sm:px-8 md:px-16 py-6 sm:py-14 md:py-20 ${
               slide.text_position === 'left' 
                 ? 'justify-start text-left' 
                 : slide.text_position === 'right' 
@@ -96,12 +96,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ store, isLuxury = true
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : -10 }}
                     transition={{ duration: 0.8, delay: 0.2 }}
-                    className="flex items-center gap-3 mb-4"
+                    className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4"
                   >
-                    <span className={`text-[11px] font-bold uppercase tracking-[0.3em] ${isLuxury ? "text-amber-300" : "text-sky-300"}`}>
+                    <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.25em] sm:tracking-[0.3em] ${isLuxury ? "text-amber-300" : "text-sky-300"}`}>
                       {displayName}
                     </span>
-                    <div className="h-[1px] w-8 bg-white/30" />
+                    <div className="h-[1px] w-6 sm:w-8 bg-white/30" />
                   </motion.div>
                 )}
 
@@ -109,7 +109,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ store, isLuxury = true
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 15 }}
                   transition={{ duration: 0.8, delay: 0.4 }}
-                  className="text-4xl md:text-5xl xl:text-6xl font-display font-bold tracking-tighter text-white mb-6 leading-[1.1] drop-shadow-sm"
+                  className="text-xl sm:text-3xl md:text-5xl xl:text-6xl font-display font-bold tracking-tight sm:tracking-tighter text-white mb-2.5 sm:mb-6 leading-tight sm:leading-[1.1] drop-shadow-md line-clamp-2 sm:line-clamp-none"
                 >
                   {slide.title || "Keşfetmeye Başlayın"}
                 </motion.h1>
@@ -119,7 +119,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ store, isLuxury = true
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 15 }}
                     transition={{ duration: 0.8, delay: 0.6 }}
-                    className="text-base md:text-lg text-slate-300 font-medium leading-relaxed max-w-xl mb-8"
+                    className="text-xs sm:text-base md:text-lg text-slate-200 sm:text-slate-300 font-medium leading-relaxed max-w-xl mb-4 sm:mb-8 line-clamp-2 sm:line-clamp-3 drop-shadow"
                   >
                     {slide.subtitle}
                   </motion.p>
@@ -134,7 +134,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ store, isLuxury = true
                   >
                     <a
                       href={slide.button_link || "#portfolio"}
-                      className="inline-flex items-center gap-2 px-8 py-3 bg-white text-slate-950 font-bold rounded-full hover:bg-slate-100 transition-all text-xs uppercase tracking-widest"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-8 sm:py-3 bg-white text-slate-950 font-bold rounded-full hover:bg-slate-100 transition-all text-[11px] sm:text-xs uppercase tracking-widest shadow-lg"
                     >
                       {slide.button_text}
                     </a>
@@ -148,12 +148,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ store, isLuxury = true
 
       {/* Slide dots indicators */}
       {banners.length > 1 && (
-        <div className="absolute bottom-8 right-8 z-20 flex gap-2">
+        <div className="absolute bottom-3 right-4 sm:bottom-8 sm:right-8 z-20 flex gap-1.5 sm:gap-2">
           {banners.map((slide: any, index: number) => (
             <button
               key={`${slide.id || index}`}
               onClick={() => setCurrentSlideIdx(index)}
-              className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
                 index === currentSlideIdx ? "bg-white scale-125" : "bg-white/40 hover:bg-white/60"
               }`}
             />
@@ -162,7 +162,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ store, isLuxury = true
       )}
 
       {/* Decorative scroll arrow */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce text-white/50 z-20">
+      <div className="hidden sm:flex absolute bottom-8 left-1/2 -translate-x-1/2 flex-col items-center gap-2 animate-bounce text-white/50 z-20">
         <div className="w-[1px] h-12 bg-gradient-to-b from-white/50 to-transparent" />
       </div>
     </section>

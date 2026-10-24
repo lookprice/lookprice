@@ -779,16 +779,16 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
           {/* MINIMALIST ILLUMINATED HERO SHOWCASE BANNER */}
           {showHero && currentHero && (
             <div className="max-w-7xl mx-auto px-3 sm:px-8 pt-3 sm:pt-6">
-              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50/90 via-indigo-50/30 to-white dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border border-slate-200/90 dark:border-slate-800 shadow-lg dark:shadow-2xl p-3.5 sm:p-7 md:p-9 min-h-0 sm:min-h-[280px] flex flex-row items-center justify-between gap-3.5 sm:gap-6 group transition-colors duration-200">
+              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50/90 via-indigo-50/30 to-white dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border border-slate-200/90 dark:border-slate-800 shadow-lg dark:shadow-2xl p-3.5 sm:p-7 md:p-9 pb-7 sm:pb-9 min-h-[168px] sm:min-h-[280px] flex flex-row items-center justify-between gap-3 sm:gap-6 group transition-colors duration-200">
                 {/* Luminous Ambient Background Glow & Atmospheric Blurred Photo Backdrop */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-2xl sm:rounded-3xl">
                   <img 
                     src={getProductImageUrl(currentHero)} 
                     alt="" 
-                    className="absolute -right-16 -bottom-16 w-[320px] sm:w-[420px] h-[320px] sm:h-[420px] object-cover opacity-20 dark:opacity-25 blur-3xl filter saturate-200 transform scale-125"
+                    className="absolute -right-12 -bottom-12 w-[260px] sm:w-[420px] h-[260px] sm:h-[420px] object-cover opacity-25 dark:opacity-30 blur-3xl filter saturate-200 transform scale-125"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-60 sm:w-80 h-60 sm:h-80 bg-blue-300/20 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-52 sm:w-80 h-52 sm:h-80 bg-blue-300/20 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
                   <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 to-transparent dark:from-slate-950/95 dark:via-slate-900/80 dark:to-transparent" />
                 </div>
 
@@ -801,7 +801,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                         {isTr ? "Öne Çıkan" : "Featured"}
                       </span>
                       {currentHero.brand && (
-                        <span className="px-2 py-0.5 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 rounded-md font-bold text-[9px] border border-slate-200 dark:border-slate-700">
+                        <span className="px-2 py-0.5 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 rounded-md font-bold text-[9px] border border-slate-200 dark:border-slate-700 truncate max-w-[110px] sm:max-w-none">
                           {currentHero.brand}
                         </span>
                       )}
@@ -827,7 +827,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                     
                     if (displayDesc) {
                       return (
-                        <p className="hidden sm:block text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-2 max-w-xl font-normal leading-relaxed">
+                        <p className="text-[11px] sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-1 sm:line-clamp-2 max-w-xl font-normal leading-relaxed">
                           {displayDesc}
                         </p>
                       );
@@ -835,7 +835,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
                     if (currentHero.brand || currentHero.category) {
                       return (
-                        <p className="hidden sm:block text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-1 max-w-xl font-medium">
+                        <p className="text-[11px] sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-1 max-w-xl font-medium">
                           {[currentHero.brand, currentHero.category, (currentHero as any).sub_category].filter(Boolean).join(' · ')}
                         </p>
                       );
@@ -844,7 +844,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                     return null;
                   })()}
 
-                  <div className="flex items-center gap-2 sm:gap-3 pt-1 flex-wrap">
+                  <div className="flex items-center gap-2 sm:gap-3 pt-0.5 sm:pt-1 flex-wrap">
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-base sm:text-2xl font-black text-blue-600 dark:text-blue-400 tabular-nums">
                         ₺{(currentHero.price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -860,7 +860,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                       <button
                         type="button"
                         onClick={() => onViewProduct(currentHero, products)}
-                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1 shadow-sm shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
+                        className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1 shadow-sm shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
                       >
                         <span>{isTr ? "İncele" : "View"}</span>
                         <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -869,7 +869,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                       <button
                         type="button"
                         onClick={() => addToBasket(currentHero)}
-                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-2xs"
+                        className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-2xs"
                       >
                         <ShoppingBag className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                         <span>{isTr ? "Sepete Ekle" : "Add"}</span>
@@ -878,12 +878,12 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                   </div>
                 </div>
 
-                {/* RIGHT CRISP PRODUCT IMAGE SHOWCASE */}
+                {/* RIGHT CRISP PRODUCT IMAGE SHOWCASE (Optimally sized on mobile & desktop) */}
                 <div 
                   onClick={() => onViewProduct(currentHero, products)}
-                  className="relative z-10 shrink-0 w-24 h-24 sm:w-56 sm:h-48 md:w-72 md:h-60 flex items-center justify-center cursor-pointer"
+                  className="relative z-10 shrink-0 w-28 h-28 sm:w-56 sm:h-48 md:w-72 md:h-60 flex items-center justify-center cursor-pointer"
                 >
-                  <div className="w-full h-full rounded-xl sm:rounded-3xl bg-white border border-slate-200/90 dark:border-slate-700/80 flex items-center justify-center p-2 sm:p-4 shadow-md sm:shadow-xl overflow-hidden group/img transition-all duration-300">
+                  <div className="w-full h-full rounded-2xl sm:rounded-3xl bg-white border border-slate-200/90 dark:border-slate-700/80 flex items-center justify-center p-2 sm:p-4 shadow-md sm:shadow-xl overflow-hidden group/img transition-all duration-300">
                     <img 
                       src={getProductImageUrl(currentHero)} 
                       alt={currentHero.name}
@@ -913,9 +913,9 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                   </div>
                 </div>
 
-                {/* HERO SLIDER DOTS */}
+                {/* HERO SLIDER DOTS (Visible on both mobile & desktop) */}
                 {heroProducts.length > 1 && (
-                  <div className="hidden sm:flex absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 items-center gap-1.5 bg-slate-950/70 backdrop-blur-xs px-2 py-0.5 rounded-full border border-slate-800">
+                  <div className="flex absolute bottom-2 sm:bottom-2.5 left-1/2 -translate-x-1/2 z-20 items-center gap-1.5 bg-slate-950/70 backdrop-blur-xs px-2 py-0.5 rounded-full border border-slate-800">
                     {heroProducts.map((_, hIdx) => (
                       <button
                         key={hIdx}

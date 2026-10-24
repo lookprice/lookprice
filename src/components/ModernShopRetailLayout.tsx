@@ -786,26 +786,26 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
       {/* 4. High-Impact Hero Showcase */}
       {themeConfig.show_hero_banner && activeBanners.length > 0 && (
         themeConfig.hero_layout === "split" ? (
-          <section className="relative bg-slate-900 text-white overflow-hidden py-12 lg:py-16">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-7 space-y-6">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-black tracking-widest uppercase text-white border border-white/15">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <section className="relative bg-slate-900 text-white overflow-hidden py-7 sm:py-12 lg:py-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-center">
+              <div className="lg:col-span-7 space-y-3 sm:space-y-6 order-2 lg:order-1">
+                <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1 bg-white/10 backdrop-blur-md rounded-full text-[10px] sm:text-xs font-black tracking-widest uppercase text-white border border-white/15">
+                  <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
                   <span>{lang === "tr" ? `${resolvedStoreName.toUpperCase()} ÖZEL SEÇKİ` : "EXCLUSIVE CAPSULE"}</span>
                 </div>
-                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
+                <h1 className="text-xl sm:text-4xl lg:text-6xl font-black tracking-tight text-white leading-tight">
                   {heroTitle}
                 </h1>
-                <p className="text-sm sm:text-base text-slate-300 max-w-xl font-medium leading-relaxed">
+                <p className="text-xs sm:text-base text-slate-300 max-w-xl font-medium leading-relaxed line-clamp-2 sm:line-clamp-none">
                   {heroSubtitle}
                 </p>
-                <div className="flex flex-wrap items-center gap-4 pt-2">
+                <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 pt-1 sm:pt-2">
                   <a
                     href={currentBanner?.button_link || "#catalog"}
-                    className="px-8 py-4 bg-white text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-2xl hover:bg-slate-100 transition-all flex items-center gap-2 active:scale-95"
+                    className="px-4 py-2.5 sm:px-8 sm:py-4 bg-white text-slate-950 font-black text-[11px] sm:text-xs uppercase tracking-wider rounded-xl sm:rounded-2xl shadow-2xl hover:bg-slate-100 transition-all flex items-center gap-1.5 sm:gap-2 active:scale-95"
                   >
                     <span>{currentBanner?.button_text || (lang === "tr" ? "Koleksiyonu İncele" : "Explore Collection")}</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </a>
                   <button
                     type="button"
@@ -814,38 +814,38 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
                       const el = document.getElementById("catalog");
                       if (el) el.scrollIntoView({ behavior: "smooth" });
                     }}
-                    className="px-6 py-4 bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider rounded-2xl backdrop-blur-md border border-white/20 transition-all"
+                    className="px-4 py-2.5 sm:px-6 sm:py-4 bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] sm:text-xs uppercase tracking-wider rounded-xl sm:rounded-2xl backdrop-blur-md border border-white/20 transition-all"
                   >
                     {lang === "tr" ? "Fırsat Ürünleri" : "Special Deals"}
                   </button>
                 </div>
               </div>
-              <div className="lg:col-span-5 relative h-[360px] sm:h-[440px] rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+              <div className="lg:col-span-5 relative h-[220px] sm:h-[380px] lg:h-[440px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-white/10 order-1 lg:order-2">
                 <img
                   src={heroImage}
                   alt={heroTitle}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover object-center brightness-105 contrast-105"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/35 via-transparent to-transparent" />
               </div>
             </div>
           </section>
         ) : themeConfig.hero_layout === "editorial" ? (
-          <section className="relative bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 py-16 sm:py-24 overflow-hidden">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-6">
-              <span className="text-[11px] font-black tracking-[0.3em] uppercase text-indigo-600 dark:text-indigo-400">
+          <section className="relative bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 py-8 sm:py-16 md:py-24 overflow-hidden">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-3 sm:space-y-6">
+              <span className="text-[10px] sm:text-[11px] font-black tracking-[0.25em] sm:tracking-[0.3em] uppercase text-indigo-600 dark:text-indigo-400">
                 {lang === "tr" ? "EDİTÖRÜN SEÇİMİ • YENİ SEZON" : "EDITORIAL CHOICE • NEW SEASON"}
               </span>
-              <h1 className="text-4xl sm:text-6xl font-serif tracking-tight text-slate-950 dark:text-white leading-none">
+              <h1 className="text-2xl sm:text-5xl md:text-6xl font-serif tracking-tight text-slate-950 dark:text-white leading-tight sm:leading-none">
                 {heroTitle}
               </h1>
-              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed">
+              <p className="text-xs sm:text-base text-slate-600 dark:text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed line-clamp-2 sm:line-clamp-none">
                 {heroSubtitle}
               </p>
-              <div className="pt-4 flex justify-center gap-4">
+              <div className="pt-2 sm:pt-4 flex justify-center gap-3 sm:gap-4">
                 <a
                   href={currentBanner?.button_link || "#catalog"}
-                  className="px-8 py-3.5 bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-bold text-xs uppercase tracking-widest rounded-full shadow-lg hover:opacity-90 transition-opacity"
+                  className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-bold text-[11px] sm:text-xs uppercase tracking-widest rounded-full shadow-lg hover:opacity-90 transition-opacity"
                 >
                   {currentBanner?.button_text || (lang === "tr" ? "Kataloğu Aç" : "View Catalog")}
                 </a>
@@ -853,26 +853,26 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
             </div>
           </section>
         ) : (
-          <section className="relative overflow-hidden bg-slate-900 text-white min-h-[460px] sm:min-h-[520px] flex items-center">
-            {/* Background Image with Ambient Gradient */}
+          <section className="relative overflow-hidden bg-slate-900 text-white min-h-[280px] sm:min-h-[420px] md:min-h-[520px] flex items-end sm:items-center">
+            {/* Background Image with High Mobile Visibility & Localized Gradient */}
             <div className="absolute inset-0 z-0">
               <img
                 src={heroImage}
                 alt={heroTitle}
-                className="w-full h-full object-cover object-center opacity-80 scale-105 filter brightness-105 contrast-110 saturate-110 transition-all duration-700"
+                className="w-full h-full object-cover object-center opacity-95 sm:opacity-85 filter brightness-105 contrast-105 saturate-110 transition-all duration-700"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/70 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/35 to-transparent sm:bg-gradient-to-r sm:from-slate-950/90 sm:via-slate-950/55 sm:to-transparent" />
             </div>
 
             {/* Multiple Slides Indicator Controls */}
             {activeBanners.length > 1 && (
-              <div className="absolute bottom-6 right-8 z-20 flex items-center gap-2 bg-slate-900/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+              <div className="absolute bottom-3 right-4 sm:bottom-6 sm:right-8 z-20 flex items-center gap-1.5 sm:gap-2 bg-slate-900/60 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-white/10">
                 {activeBanners.map((_, sIdx) => (
                   <button
                     key={`banner-dot-${sIdx}`}
                     onClick={() => setActiveSlide(sIdx)}
-                    className={`w-2.5 h-2.5 rounded-full transition-all ${
-                      sIdx === activeSlide ? "w-6 bg-white" : "bg-white/40 hover:bg-white/70"
+                    className={`h-2 sm:h-2.5 rounded-full transition-all ${
+                      sIdx === activeSlide ? "w-5 sm:w-6 bg-white" : "w-2 sm:w-2.5 bg-white/40 hover:bg-white/70"
                     }`}
                     aria-label={`Slide ${sIdx + 1}`}
                   />
@@ -880,28 +880,28 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
               </div>
             )}
 
-            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 w-full">
-              <div className={`max-w-2xl space-y-6 ${currentBanner?.text_position === "right" ? "ml-auto text-right" : currentBanner?.text_position === "center" ? "mx-auto text-center" : ""}`}>
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-black tracking-widest uppercase text-white border border-white/15">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-16 md:py-24 w-full">
+              <div className={`max-w-2xl space-y-2.5 sm:space-y-6 ${currentBanner?.text_position === "right" ? "ml-auto text-right" : currentBanner?.text_position === "center" ? "mx-auto text-center" : ""}`}>
+                <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1 bg-slate-950/55 sm:bg-white/10 backdrop-blur-md rounded-full text-[10px] sm:text-xs font-black tracking-widest uppercase text-white border border-white/20">
+                  <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
                   <span>{lang === "tr" ? `${resolvedStoreName.toUpperCase()} ÖZEL SEÇKİ` : "EXCLUSIVE CAPSULE"}</span>
                 </div>
 
-                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-none">
+                <h1 className="text-xl sm:text-4xl lg:text-6xl font-black tracking-tight text-white leading-tight sm:leading-none drop-shadow-lg line-clamp-2 sm:line-clamp-none">
                   {heroTitle}
                 </h1>
 
-                <p className="text-sm sm:text-base text-slate-300 max-w-xl font-medium leading-relaxed">
+                <p className="text-xs sm:text-base text-slate-200 sm:text-slate-300 max-w-xl font-medium leading-relaxed line-clamp-2 sm:line-clamp-3 drop-shadow">
                   {heroSubtitle}
                 </p>
 
-                <div className={`flex flex-wrap items-center gap-4 pt-2 ${currentBanner?.text_position === "center" ? "justify-center" : currentBanner?.text_position === "right" ? "justify-end" : ""}`}>
+                <div className={`flex flex-wrap items-center gap-2 sm:gap-4 pt-1 sm:pt-2 ${currentBanner?.text_position === "center" ? "justify-center" : currentBanner?.text_position === "right" ? "justify-end" : ""}`}>
                   <a
                     href={currentBanner?.button_link || "#catalog"}
-                    className="px-8 py-4 bg-white text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-2xl hover:bg-slate-100 transition-all flex items-center gap-2 active:scale-95"
+                    className="px-4 py-2.5 sm:px-8 sm:py-4 bg-white text-slate-950 font-black text-[11px] sm:text-xs uppercase tracking-wider rounded-xl sm:rounded-2xl shadow-2xl hover:bg-slate-100 transition-all flex items-center gap-1.5 sm:gap-2 active:scale-95"
                   >
                     <span>{currentBanner?.button_text || (lang === "tr" ? "Koleksiyonu İncele" : "Explore Collection")}</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </a>
 
                   <button
@@ -911,7 +911,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
                       const el = document.getElementById("catalog");
                       if (el) el.scrollIntoView({ behavior: "smooth" });
                     }}
-                    className="px-6 py-4 bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider rounded-2xl backdrop-blur-md border border-white/20 transition-all"
+                    className="px-4 py-2.5 sm:px-6 sm:py-4 bg-slate-950/50 sm:bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] sm:text-xs uppercase tracking-wider rounded-xl sm:rounded-2xl backdrop-blur-md border border-white/25 transition-all"
                   >
                     {lang === "tr" ? "Fırsat Ürünleri" : "Special Deals"}
                   </button>

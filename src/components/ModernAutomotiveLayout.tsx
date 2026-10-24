@@ -441,7 +441,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
 
       {/* Hero Container */}
       {isSectionEnabled("hero") && (
-        <div className="h-[480px] relative flex flex-col items-center justify-center w-full overflow-hidden rounded-3xl shadow-xl border border-white/5">
+        <div className="min-h-[280px] h-[330px] sm:h-[420px] md:h-[480px] relative flex flex-col items-center justify-center w-full overflow-hidden rounded-b-2xl sm:rounded-3xl shadow-xl border border-white/5">
           {banners.map((slide: any, idx: number) => {
             const isActive = activeBannerIndex === idx;
             return (
@@ -452,13 +452,13 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                   backgroundImage: `url(${slide.image_url})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
-                  filter: "brightness(1.05) contrast(1.1) saturate(1.1)",
+                  filter: "brightness(1.05) contrast(1.08) saturate(1.1)",
                   zIndex: isActive ? 1 : 0
                 }}
               ></div>
             );
           })}
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/35 to-slate-950/90" style={{ zIndex: 2 }}></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-slate-950/15 sm:bg-gradient-to-b sm:from-slate-950/65 sm:via-slate-950/30 sm:to-slate-950/85" style={{ zIndex: 2 }}></div>
 
           {/* Active slide details overlay */}
           {(() => {
@@ -475,7 +475,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
 
             return (
               <div 
-                className={`relative w-full h-full flex items-center px-8 md:px-16 py-12 ${
+                className={`relative w-full h-full flex items-end sm:items-center px-4 sm:px-8 md:px-16 pb-14 pt-16 sm:py-12 ${
                   activeSlide.text_position === 'left' 
                     ? 'justify-start text-left' 
                     : activeSlide.text_position === 'right' 
@@ -484,7 +484,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                 }`}
                 style={{ zIndex: 10 }}
               >
-                <div className={`max-w-2xl flex flex-col space-y-4 ${
+                <div className={`max-w-2xl flex flex-col space-y-2.5 sm:space-y-4 ${
                   activeSlide.text_position === 'left' 
                     ? 'items-start' 
                     : activeSlide.text_position === 'right' 
@@ -492,23 +492,23 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                       : 'items-center'
                 }`}>
                   {activeSlide.show_store_name !== false && (
-                    <div className="inline-flex items-center gap-2 bg-indigo-600/20 backdrop-blur-xl px-4 py-1.5 rounded-full border border-indigo-400/30">
-                      <Check className="h-4 w-4 text-emerald-400" />
-                      <span className="text-[12px] font-black text-emerald-300 uppercase tracking-widest">
+                    <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-slate-950/55 sm:bg-indigo-600/20 backdrop-blur-xl px-2.5 py-1 sm:px-4 sm:py-1.5 rounded-full border border-indigo-400/35">
+                      <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400" />
+                      <span className="text-[10px] sm:text-[12px] font-black text-emerald-300 uppercase tracking-widest">
                         {displayName}
                       </span>
                     </div>
                   )}
-                  <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter leading-[0.95] drop-shadow-2xl">
+                  <h1 className="text-xl sm:text-3xl md:text-5xl font-black text-white uppercase tracking-tight sm:tracking-tighter leading-tight sm:leading-[0.95] drop-shadow-2xl line-clamp-2 sm:line-clamp-3">
                     {activeSlide.title || content.hero.title}
                   </h1>
-                  <p className="text-slate-300 text-sm md:text-base font-medium max-w-lg leading-relaxed italic drop-shadow-sm">
+                  <p className="text-slate-100 sm:text-slate-200 text-xs sm:text-sm md:text-base font-medium max-w-lg leading-relaxed italic drop-shadow line-clamp-2 sm:line-clamp-3">
                     "{activeSlide.subtitle || content.hero.subtitle}"
                   </p>
                   {(activeSlide as any).button_text && (
                     <a
                       href={(activeSlide as any).button_link || "#portfolio"}
-                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg transition-all hover:scale-105"
+                      className="px-4 py-2 sm:px-6 sm:py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider shadow-lg transition-all hover:scale-105"
                     >
                       {(activeSlide as any).button_text}
                     </a>
@@ -520,7 +520,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
 
           {/* Slide dots indicators */}
           {banners.length > 1 && (
-            <div className="absolute bottom-6 right-6 z-20 flex gap-2">
+            <div className="absolute bottom-10 sm:bottom-6 right-4 sm:right-6 z-20 flex gap-1.5 sm:gap-2">
               {banners.map((_: any, idx: number) => (
                 <button
                   key={idx}
