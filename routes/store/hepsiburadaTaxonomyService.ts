@@ -163,6 +163,39 @@ export const SECTOR_TAXONOMY_PACKAGES: SectorTaxonomyPackage[] = [
         hb_category_id: 2147483652
       }
     ]
+  },
+  {
+    id: "home_decor_textile",
+    name: "Ev Dekorasyon, Tekstil, Saklama & Organizer",
+    description: "Ev Tekstili, Tablo & Duvar Saatleri, Saklama Kutuları, Vakumlu Hurçlar ve Çekmece Organizerleri",
+    icon: "Home",
+    categories: [
+      {
+        category: "Ev Dekorasyon",
+        sub_categories: ["Tablo, Duvar Panosu & Poster", "Duvar Saatleri", "Vazo, Saksı & Yapay Çiçek", "Biblo, Heykel & Figür", "Mumluk, Şamdan & Fener", "Oda Kokusu, Difüzör & Mum", "Dekoratif Ayna & Çerçeve", "Dekoratif Objeler & Aksesuarlar"],
+        hb_category_id: 8000100
+      },
+      {
+        category: "Ev Tekstili",
+        sub_categories: ["Nevresim Takımları & Çarşaf", "Yastık, Yorgan & Battaniye", "Havlu & Bornoz", "Perde, Tül & Güneşlik", "Halı, Kilim & Paspas", "Yatak Örtüsü & Pike", "Kırlent, Minder & Koltuk Örtüsü"],
+        hb_category_id: 8000110
+      },
+      {
+        category: "Ev Dekorasyon Ürünleri",
+        sub_categories: ["Tablo, Duvar Panosu & Poster", "Duvar Saatleri", "Vazo, Saksı & Yapay Çiçek", "Biblo, Heykel & Figür", "Mumluk, Şamdan & Fener", "Oda Kokusu, Difüzör & Mum", "Dekoratif Objeler & Aksesuarlar"],
+        hb_category_id: 8000120
+      },
+      {
+        category: "Saklama Ürünleri",
+        sub_categories: ["Saklama Kutuları & Sepetler", "Vakumlu Hurç & Saklama Poşetleri", "Erzak & Kuru Gıda Saklama Kapları", "Elbise Askıları & Giysi Kılıfları", "Çamaşır Sepetleri & Düzenleyiciler"],
+        hb_category_id: 8000130
+      },
+      {
+        category: "Organizerler",
+        sub_categories: ["Çekmece İçi Organizer", "Dolap İçi Düzenleyici & Raf", "Makyaj & Kozmetik Organizeri", "Ayakkabı Organizeri & Kutusu", "Masaüstü & Ofis Organizeri", "Buzdolabı & Mutfak Dolap İçi Organizer", "Takı & Mücevher Organizeri", "Askılı & Kapı Arkası Organizer"],
+        hb_category_id: 8000140
+      }
+    ]
   }
 ];
 
@@ -171,6 +204,48 @@ export function resolveSubCategoryLeafHbId(subName: string, fallbackParentId?: n
     .replace(/İ/g, "i")
     .replace(/I/g, "ı")
     .toLowerCase();
+
+  // Organizerler
+  if (s.includes("çekmece") || s.includes("cekmece")) return "8000141";
+  if (s.includes("dolap içi") || s.includes("dolap ici")) return "8000142";
+  if (s.includes("makyaj") || s.includes("kozmetik organizer")) return "8000143";
+  if (s.includes("ayakkabı organizer") || s.includes("ayakkabi organizer")) return "8000144";
+  if (s.includes("masaüstü organizer") || s.includes("masaustu organizer")) return "8000145";
+  if (s.includes("buzdolabı") || s.includes("buzdolabi")) return "8000146";
+  if (s.includes("takı organizer") || s.includes("taki organizer") || s.includes("mücevher")) return "8000147";
+  if (s.includes("kapı arkası") || s.includes("kapi arkasi") || s.includes("askılı organizer")) return "8000148";
+  if (s.includes("organizer") || s.includes("düzenleyici") || s.includes("duzenleyici")) return "8000140";
+
+  // Saklama Ürünleri
+  if (s.includes("saklama kutu") || s.includes("saklama sepet")) return "8000131";
+  if (s.includes("hurç") || s.includes("hurc") || s.includes("vakumlu")) return "8000132";
+  if (s.includes("erzak") || s.includes("gıda saklama") || s.includes("kavanoz")) return "8000133";
+  if (s.includes("askı") || s.includes("aski") || s.includes("giysi kılıf")) return "8000134";
+  if (s.includes("çamaşır sepet") || s.includes("camasir sepet")) return "8000135";
+  if (s.includes("saklama")) return "8000130";
+
+  // Ev Tekstili
+  if (s.includes("nevresim") || s.includes("çarşaf") || s.includes("carsaf")) return "8000111";
+  if (s.includes("yastık") || s.includes("yastik") || s.includes("yorgan") || s.includes("battaniye")) return "8000112";
+  if (s.includes("havlu") || s.includes("bornoz")) return "8000113";
+  if (s.includes("perde") || s.includes("tül") || s.includes("tul")) return "8000114";
+  if (s.includes("halı") || s.includes("hali") || s.includes("kilim") || s.includes("paspas")) return "8000115";
+  if (s.includes("yatak örtü") || s.includes("yatak ortu") || s.includes("pike")) return "8000116";
+  if (s.includes("kırlent") || s.includes("kirlent") || s.includes("koltuk örtü")) return "8000117";
+  if (s.includes("ev tekstil") || s.includes("tekstil")) return "8000110";
+
+  // Ev Dekorasyon Ürünleri
+  if (s.includes("tablo") || s.includes("poster") || s.includes("pano")) return "8000121";
+  if (s.includes("saat") || s.includes("duvar saati")) return "8000122";
+  if (s.includes("vazo") || s.includes("saksı") || s.includes("saksi") || s.includes("yapay çiçek")) return "8000123";
+  if (s.includes("biblo") || s.includes("heykel") || s.includes("figür")) return "8000124";
+  if (s.includes("mumluk") || s.includes("şamdan") || s.includes("samdan") || s.includes("fener")) return "8000125";
+  if (s.includes("oda koku") || s.includes("difüzör") || s.includes("difuzor") || s.includes("mum")) return "8000126";
+  if (s.includes("ayna") || s.includes("çerçeve") || s.includes("cerceve")) return "8000127";
+  if (s.includes("dekoratif obje") || s.includes("dekoratif")) return "8000128";
+  if (s.includes("ev dekorasyon")) return "8000100";
+
+  // Existing tech / IT / appliances mappings
   if (s.includes("çanta") || s.includes("canta") || s.includes("kılıf") || s.includes("kilif") || s.includes("sleeve")) return "676";
   if (s.includes("soğutucu") || s.includes("sogutucu") || s.includes("stand") || s.includes("altlık")) return "106861";
   if (s.includes("mousepad") || s.includes("mouse pad")) return "29";

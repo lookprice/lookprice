@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Filter, Download, Database, Users, ChevronRight, Edit2, Trash2, Building2, Layers } from "lucide-react";
+import { Search, Filter, Download, Database, Users, ChevronRight, Edit2, Trash2, Building2, Layers, Globe, ExternalLink, LayoutDashboard } from "lucide-react";
 import { Store } from "../../types/superadmin";
 import StoreLogo from "../StoreLogo";
 import { formatDateTR } from "../../utils/formatUtils";
@@ -8,8 +8,8 @@ interface SuperAdminStoresTableProps {
   stores: Store[];
   storeSearchTerm: string;
   setStoreSearchTerm: (term: string) => void;
-  storeFilter: 'all' | 'active' | 'expired';
-  setStoreFilter: (filter: 'all' | 'active' | 'expired') => void;
+  storeFilter: string;
+  setStoreFilter: (filter: any) => void;
   exportStoresToExcel: () => void;
   st: any;
   setSelectedStore: (store: Store) => void;
@@ -42,9 +42,20 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
       s.slug.toLowerCase().includes(term) ||
       s.email?.toLowerCase().includes(term)
     );
+
+    const isCorporate = s.store_type === 'corporate_website' || 
+      (s.branding as any)?.store_type === 'corporate_website' ||
+      (s.branding as any)?.page_layout_settings?.sector === 'corporate_website';
+
     const matchesFilter = storeFilter === 'all' || 
       (storeFilter === 'active' && new Date(s.subscription_end) > new Date()) ||
-      (storeFilter === 'expired' && new Date(s.subscription_end) <= new Date());
+      (storeFilter === 'expired' && new Date(s.subscription_end) <= new Date()) ||
+      (storeFilter === 'corporate_website' && isCorporate) ||
+      (storeFilter === 'product' && (s.store_type === 'product' || !s.store_type) && !isCorporate) ||
+      (storeFilter === 'real_estate' && s.store_type === 'real_estate') ||
+      (storeFilter === 'motor_vehicle' && s.store_type === 'motor_vehicle') ||
+      (storeFilter === 'cafe_restaurant' && s.store_type === 'cafe_restaurant');
+
     return matchesSearch && matchesFilter;
   });
 
@@ -79,6 +90,11 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
             <option value="all">Filtrele: Tümü</option>
             <option value="active">Sadece Aktifler</option>
             <option value="expired">Süresi Dolanlar</option>
+            <option value="corporate_website">🏢 Kurumsal Web Siteleri</option>
+            <option value="product">🛍️ shopLP (Perakende / Ürün)</option>
+            <option value="real_estate">🏠 Gayrimenkul (Emlak)</option>
+            <option value="motor_vehicle">🚗 Otomotiv (Taşıtlar)</option>
+            <option value="cafe_restaurant">☕ horecaLP (Restoran / Kafe)</option>
           </select>
           <button 
             onClick={exportStoresToExcel}
@@ -117,11 +133,28 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                       <div className="flex items-center gap-3">
                         <StoreLogo logoUrl={store.logo_url} storeName={store.name} size="sm" />
                         <div>
-                          <p className="text-sm font-black text-gray-900 leading-tight flex items-center gap-1.5">
+                          <a 
+                            href={`/dashboard/${store.slug}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-sm font-black text-gray-900 hover:text-indigo-600 transition-colors leading-tight flex items-center gap-1.5"
+                            title="Mağaza Yönetim Paneline Git"
+                          >
                             {store.name}
                             {store.parent_id && <span className="bg-slate-100 text-slate-500 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">ŞUBE</span>}
-                          </p>
-                          <p className="text-[10px] text-gray-400 font-mono">@{store.slug}</p>
+                          </a>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <a 
+                              href={`/s/${store.slug}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-[10px] text-gray-400 hover:text-indigo-600 font-mono flex items-center gap-1"
+                              title="Web Sitesi / Vitrini Aç"
+                            >
+                              @{store.slug}
+                              <Globe className="h-2.5 w-2.5 text-indigo-500 opacity-70" />
+                            </a>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -156,7 +189,7 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                               <span>{store.hotel_module_enabled ? 'Otel Konsepti (Aktif)' : 'Otel Pasif'}</span>
                             </button>
                           )}
-                          {store.store_type === 'corporate_website' && (
+                          {(store.store_type === 'corporate_website' || (store.branding as any)?.store_type === 'corporate_website' || (store.branding as any)?.page_layout_settings?.sector === 'corporate_website') && (
                             <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tight flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200">
                               <span>🏢</span>
                               <span>Kurumsal Web Sitesi</span>
@@ -252,6 +285,24 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                             </button>
                           ) : null;
                         })()}
+                        <a 
+                          href={`/s/${store.slug}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="p-2 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 rounded-lg transition-all flex items-center justify-center"
+                          title="Web Sitesi / Vitrini Aç (Yeni Sekme)"
+                        >
+                          <Globe className="h-4 w-4" />
+                        </a>
+                        <a 
+                          href={`/dashboard/${store.slug}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="p-2 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 rounded-lg transition-all flex items-center justify-center"
+                          title="Mağaza Yönetim Paneline Git"
+                        >
+                          <LayoutDashboard className="h-4 w-4" />
+                        </a>
                         {onNavigateToMultiTenancy && (
                           <button 
                             onClick={() => onNavigateToMultiTenancy(store)}

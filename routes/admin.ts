@@ -322,9 +322,41 @@ router.post("/stores", async (req: any, res) => {
     admin_email, admin_password, default_currency, language, plan, parent_id, store_type, sub_sector, hotel_module_enabled,
     status, is_approved, max_products, max_properties, max_vehicles, max_users, max_customers 
   } = req.body;
+
+  const cleanSlug = (slug || "").trim().toLowerCase();
+  const cleanAdminEmail = (admin_email || "").trim().toLowerCase();
+
+  if (!name || !cleanSlug) {
+    return res.status(400).json({ error: "Mağaza adı ve benzersiz slug alanı zorunludur." });
+  }
+
   try {
+    // 1. Pre-flight checks before transaction
+    const existingSlug = await pool.query("SELECT id, name FROM stores WHERE LOWER(slug) = $1", [cleanSlug]);
+    if (existingSlug.rows.length > 0) {
+      return res.status(400).json({ error: `"${cleanSlug}" alan adı (slug) zaten "${existingSlug.rows[0].name}" mağazası tarafından kullanılıyor. Lütfen farklı bir slug belirleyiniz.` });
+    }
+
+    if (cleanAdminEmail) {
+      const existingUser = await pool.query("SELECT id FROM users WHERE LOWER(email) = $1", [cleanAdminEmail]);
+      if (existingUser.rows.length > 0) {
+        return res.status(400).json({ error: `"${cleanAdminEmail}" e-posta adresi sistemde zaten kayıtlı. Lütfen farklı bir yönetici e-postası giriniz.` });
+      }
+    }
+
+    // 2. Ensure serial sequences are safely aligned with MAX(id)
+    try {
+      await pool.query("SELECT setval(pg_get_serial_sequence('stores', 'id'), COALESCE((SELECT MAX(id) FROM stores), 1) + 1, false);");
+      await pool.query("SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1) + 1, false);");
+    } catch (seqErr) {
+      console.warn("[Admin/Stores] Sequence alignment notice:", seqErr);
+    }
+
     await pool.query("BEGIN");
     // Initialize branding based on store_type & store info
+    const isCorporate = store_type === 'corporate_website';
+    const isBookstore = !!(req.body.store_concept === 'bookstore' || (Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.includes('bookstore')));
+    
     const defaultBranding = {
       store_name: name,
       name: name,
@@ -336,14 +368,14 @@ router.post("/stores", async (req: any, res) => {
       default_currency: default_currency || 'TRY',
       language: language || 'tr',
       store_type: store_type || 'product',
-      sub_sector: sub_sector || null,
+      sub_sector: sub_sector || (isCorporate ? 'corporate_website' : null),
       hotel_module_enabled: !!hotel_module_enabled,
       hotel_license_enabled: !!hotel_module_enabled,
-      bookstore_module_enabled: !!(req.body.store_concept === 'bookstore' || (Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.includes('bookstore'))),
-      store_concept: (req.body.store_concept === 'bookstore' || (Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.includes('bookstore'))) ? 'bookstore' : 'product',
+      bookstore_module_enabled: isBookstore,
+      store_concept: isCorporate ? 'corporate_website' : (isBookstore ? 'bookstore' : 'product'),
       page_layout_settings: {
         sector: store_type || 'product',
-        is_book_store: !!(req.body.store_concept === 'bookstore' || (Array.isArray(req.body.sector_taxonomy_packages) && req.body.sector_taxonomy_packages.includes('bookstore')))
+        is_book_store: isBookstore
       }
     };
 
@@ -354,8 +386,8 @@ router.post("/stores", async (req: any, res) => {
         status, is_approved, max_products, max_properties, max_vehicles, max_users, max_customers, branding
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING id`,
       [
-        name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, 
-        default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null, store_type || 'product', sub_sector || null, !!hotel_module_enabled,
+        name, cleanSlug, address, contact_person, phone, country || 'TR', email, subscription_end, 
+        default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null, store_type || 'product', sub_sector || (isCorporate ? 'corporate_website' : null), !!hotel_module_enabled,
         status !== undefined ? status : 'approved',
         is_approved !== undefined ? is_approved : true,
         max_products !== undefined ? Number(max_products) : 100,
@@ -367,8 +399,10 @@ router.post("/stores", async (req: any, res) => {
       ]
     );
     const storeId = storeRes.rows[0].id;
-    const hashedPassword = bcrypt.hashSync(admin_password, 10);
-    await pool.query("INSERT INTO users (store_id, email, password, role) VALUES ($1, $2, $3, $4)", [storeId, admin_email, hashedPassword, "storeadmin"]);
+    
+    const finalPassword = admin_password || "Admin123!";
+    const hashedPassword = bcrypt.hashSync(finalPassword, 10);
+    await pool.query("INSERT INTO users (store_id, email, password, role) VALUES ($1, $2, $3, $4)", [storeId, cleanAdminEmail || `admin@${cleanSlug}.com`, hashedPassword, "storeadmin"]);
     await pool.query("COMMIT");
 
     // Sector Taxonomy Packages: Only seed if the operator EXPLICITLY selected packages.
@@ -386,10 +420,19 @@ router.post("/stores", async (req: any, res) => {
       }
     }
 
-    res.json({ success: true, storeId });
+    res.json({ success: true, storeId, slug: cleanSlug });
   } catch (e: any) {
     await pool.query("ROLLBACK");
-    res.status(400).json({ error: e.message });
+    console.error("[Admin/Stores] Store creation failed:", e);
+    let errorMsg = e.message || "Mağaza kaydedilirken beklenmeyen bir hata oluştu.";
+    if (e.message?.includes("stores_slug_key")) {
+      errorMsg = `"${cleanSlug}" alan adı (slug) zaten başka bir mağaza tarafından kullanılıyor.`;
+    } else if (e.message?.includes("users_email_key")) {
+      errorMsg = `"${cleanAdminEmail}" e-posta adresi zaten kullanımda.`;
+    } else if (e.message?.includes("stores_pkey")) {
+      errorMsg = "Veritabanı sıra numarası güncellendi. Lütfen formu tekrar kaydediniz.";
+    }
+    res.status(400).json({ error: errorMsg });
   }
 });
 

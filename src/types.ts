@@ -133,6 +133,7 @@ export interface BlogPost {
   id: string;
   title: string;
   excerpt: string;
+  summary?: string;
   content: string;
   image_url?: string;
   date: string;

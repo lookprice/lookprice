@@ -60,8 +60,8 @@ export const MARKETPLACE_SECTORS: MarketplaceSectorOption[] = [
     id: 'home',
     name: 'Ev, Yaşam & Mutfak',
     iconName: 'Home',
-    description: 'Küçük Ev Aletleri, Mutfak, Ev Tekstili, Banyo & Dekorasyon',
-    keywords: ['ev', 'yaşam', 'mutfak', 'kahve makinesi', 'çay', 'nevresim', 'banyo', 'batarya', 'musluk', 'süpürge', 'robot süpürge', 'tencere', 'tava']
+    description: 'Ev Dekorasyon, Ev Tekstili, Saklama & Organizerler, Mutfak ve Küçük Ev Aletleri',
+    keywords: ['ev', 'yaşam', 'mutfak', 'dekorasyon', 'ev dekorasyon', 'ev tekstili', 'saklama', 'organizer', 'düzenleyici', 'duzenleyici', 'hurç', 'hurc', 'nevresim', 'çarşaf', 'yastık', 'yorgan', 'battaniye', 'havlu', 'perde', 'kırlent', 'yatak örtüsü', 'pike', 'halı', 'kilim', 'tablo', 'duvar saati', 'vazo', 'saksı', 'biblo', 'mumluk', 'şamdan', 'oda kokusu', 'çekmece organizeri', 'saklama kutusu', 'kahve makinesi', 'çay', 'banyo', 'batarya', 'musluk', 'süpürge', 'robot süpürge', 'tencere', 'tava']
   },
   {
     id: 'auto',
@@ -1266,6 +1266,338 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     available: true,
     status: "ACTIVE",
     sector: "home"
+  },
+
+  // --- EV DEKORASYON, EV TEKSTİLİ, SAKLAMA & ORGANİZERLER ---
+  {
+    id: 8000100,
+    name: "Ev Dekorasyon",
+    displayName: "Ev & Yaşam > Ev Dekorasyon",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000110,
+    name: "Ev Tekstili",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Ev Tekstili",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Ev Tekstili"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000111,
+    name: "Nevresim Takımları & Çarşaf",
+    displayName: "Ev & Yaşam > Ev Tekstili > Nevresim Takımları & Çarşaf",
+    paths: ["Ev & Yaşam", "Ev Tekstili", "Nevresim"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000112,
+    name: "Yastık, Yorgan & Battaniye",
+    displayName: "Ev & Yaşam > Ev Tekstili > Yastık & Yorgan",
+    paths: ["Ev & Yaşam", "Ev Tekstili", "Yastık & Yorgan"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000113,
+    name: "Havlu & Bornoz",
+    displayName: "Ev & Yaşam > Ev Tekstili > Havlu & Bornoz",
+    paths: ["Ev & Yaşam", "Ev Tekstili", "Havlu"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000114,
+    name: "Perde, Tül & Güneşlik",
+    displayName: "Ev & Yaşam > Ev Tekstili > Perde & Tül",
+    paths: ["Ev & Yaşam", "Ev Tekstili", "Perde"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000115,
+    name: "Halı, Kilim & Paspas",
+    displayName: "Ev & Yaşam > Ev Tekstili > Halı & Kilim",
+    paths: ["Ev & Yaşam", "Ev Tekstili", "Halı & Kilim"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000116,
+    name: "Yatak Örtüsü & Pike",
+    displayName: "Ev & Yaşam > Ev Tekstili > Yatak Örtüsü & Pike",
+    paths: ["Ev & Yaşam", "Ev Tekstili", "Yatak Örtüsü"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000117,
+    name: "Kırlent, Minder & Koltuk Örtüsü",
+    displayName: "Ev & Yaşam > Ev Tekstili > Kırlent & Koltuk Örtüsü",
+    paths: ["Ev & Yaşam", "Ev Tekstili", "Kırlent"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000120,
+    name: "Ev Dekorasyon Ürünleri",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Ev Dekorasyon Ürünleri",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Ev Dekorasyon Ürünleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000121,
+    name: "Tablo, Duvar Panosu & Poster",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Tablo & Duvar Panosu",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Tablo & Poster"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000122,
+    name: "Duvar Saatleri",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Duvar Saatleri",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Duvar Saatleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000123,
+    name: "Vazo, Saksı & Yapay Çiçek",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Vazo & Saksı",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Vazo & Saksı"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000124,
+    name: "Biblo, Heykel & Figür",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Biblo & Heykel",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Biblo"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000125,
+    name: "Mumluk, Şamdan & Fener",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Mumluk & Şamdan",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Mumluk"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000126,
+    name: "Oda Kokusu, Difüzör & Mum",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Oda Kokusu & Mum",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Oda Kokusu"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000127,
+    name: "Dekoratif Ayna & Çerçeve",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Dekoratif Ayna & Çerçeve",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Ayna & Çerçeve"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000128,
+    name: "Dekoratif Objeler & Aksesuarlar",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Dekoratif Objeler",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Dekoratif Objeler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000130,
+    name: "Saklama Ürünleri",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Saklama Ürünleri",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Saklama Ürünleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000131,
+    name: "Saklama Kutuları & Sepetler",
+    displayName: "Ev & Yaşam > Saklama Ürünleri > Saklama Kutusu & Sepet",
+    paths: ["Ev & Yaşam", "Saklama Ürünleri", "Saklama Kutusu"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000132,
+    name: "Vakumlu Hurç & Saklama Poşetleri",
+    displayName: "Ev & Yaşam > Saklama Ürünleri > Vakumlu Hurç & Poşet",
+    paths: ["Ev & Yaşam", "Saklama Ürünleri", "Hurç"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000133,
+    name: "Erzak & Kuru Gıda Saklama Kapları",
+    displayName: "Ev & Yaşam > Mutfak > Erzak & Saklama Kapları",
+    paths: ["Ev & Yaşam", "Mutfak", "Saklama Kapları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000134,
+    name: "Elbise Askıları & Giysi Kılıfları",
+    displayName: "Ev & Yaşam > Saklama Ürünleri > Askı & Giysi Kılıfı",
+    paths: ["Ev & Yaşam", "Saklama Ürünleri", "Askı"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000135,
+    name: "Çamaşır Sepetleri & Düzenleyiciler",
+    displayName: "Ev & Yaşam > Banyo & Ev > Çamaşır Sepetleri",
+    paths: ["Ev & Yaşam", "Banyo", "Çamaşır Sepeti"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000140,
+    name: "Organizerler",
+    displayName: "Ev & Yaşam > Ev Dekorasyon > Organizerler & Düzenleyiciler",
+    paths: ["Ev & Yaşam", "Ev Dekorasyon", "Organizerler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000141,
+    name: "Çekmece İçi Organizer",
+    displayName: "Ev & Yaşam > Organizerler > Çekmece İçi Düzenleyici & Organizer",
+    paths: ["Ev & Yaşam", "Organizerler", "Çekmece İçi Organizer"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000142,
+    name: "Dolap İçi Düzenleyici & Raf",
+    displayName: "Ev & Yaşam > Organizerler > Dolap İçi Düzenleyici & Raf",
+    paths: ["Ev & Yaşam", "Organizerler", "Dolap İçi Düzenleyici"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000143,
+    name: "Makyaj & Kozmetik Organizeri",
+    displayName: "Ev & Yaşam > Organizerler > Makyaj & Kozmetik Düzenleyici",
+    paths: ["Ev & Yaşam", "Organizerler", "Makyaj Organizeri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000144,
+    name: "Ayakkabı Organizeri & Kutusu",
+    displayName: "Ev & Yaşam > Organizerler > Ayakkabı Düzenleyici & Organizer",
+    paths: ["Ev & Yaşam", "Organizerler", "Ayakkabı Organizeri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000145,
+    name: "Masaüstü & Ofis Organizeri",
+    displayName: "Ev & Yaşam > Organizerler > Masaüstü & Evrak Düzenleyici",
+    paths: ["Ev & Yaşam", "Organizerler", "Masaüstü Organizer"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000146,
+    name: "Buzdolabı & Mutfak Dolap İçi Organizer",
+    displayName: "Ev & Yaşam > Organizerler > Buzdolabı & Mutfak Düzenleyici",
+    paths: ["Ev & Yaşam", "Organizerler", "Buzdolabı Organizeri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000147,
+    name: "Takı & Mücevher Organizeri",
+    displayName: "Ev & Yaşam > Organizerler > Takı & Mücevher Kutusu",
+    paths: ["Ev & Yaşam", "Organizerler", "Takı Organizeri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
+  },
+  {
+    id: 8000148,
+    name: "Askılı & Kapı Arkası Organizer",
+    displayName: "Ev & Yaşam > Organizerler > Kapı Arkası & Askılı Düzenleyici",
+    paths: ["Ev & Yaşam", "Organizerler", "Kapı Arkası Organizer"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "home"
   }
 ];
 
@@ -1335,6 +1667,10 @@ export const TRENDYOL_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   { id: 702, name: "Parfüm & Deodorant", displayName: "Kozmetik > Parfüm", paths: ["Kozmetik", "Parfüm"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 703, name: "Medikal Cihazlar, Tansiyon Aleti & Hasta Bakım Ürünleri", displayName: "Sağlık & Medikal > Medikal Cihaz & Hasta Bakım", paths: ["Sağlık", "Medikal", "Hasta Bakım"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 801, name: "Ev Tekstili", displayName: "Ev & Yaşam > Ev Tekstili", paths: ["Ev & Yaşam", "Tekstil"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 80101, name: "Ev Dekorasyon", displayName: "Ev & Yaşam > Ev Dekorasyon", paths: ["Ev & Yaşam", "Ev Dekorasyon"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 80102, name: "Ev Dekorasyon Ürünleri", displayName: "Ev & Yaşam > Ev Dekorasyon > Ev Dekorasyon Ürünleri", paths: ["Ev & Yaşam", "Ev Dekorasyon", "Ev Dekorasyon Ürünleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 80103, name: "Saklama Ürünleri", displayName: "Ev & Yaşam > Ev Düzenleme & Saklama > Saklama Ürünleri", paths: ["Ev & Yaşam", "Saklama Ürünleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 80104, name: "Organizerler", displayName: "Ev & Yaşam > Ev Düzenleme & Saklama > Organizerler", paths: ["Ev & Yaşam", "Organizerler"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 802, name: "Küçük Ev Aletleri, Blender & Mutfak Gereçleri", displayName: "Ev & Yaşam > Küçük Ev Aletleri & Mutfak", paths: ["Ev & Yaşam", "Mutfak", "Blender"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 901, name: "Oto Aksesuar & Bakım", displayName: "Otomotiv > Oto Aksesuar", paths: ["Otomotiv", "Aksesuar"], leaf: true, available: true, status: "ACTIVE", sector: "auto" }
 ];
@@ -1393,6 +1729,10 @@ export const AMAZON_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   { id: 7000402, name: "Robot Süpürgeler & Dikey Süpürgeler", displayName: "Ev, Yaşam & Mutfak > Küçük Ev Aletleri > Süpürgeler", paths: ["Ev & Mutfak", "Süpürgeler"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 7000403, name: "Tencere, Tava & Mutfak Gereçleri", displayName: "Ev, Yaşam & Mutfak > Mutfak Gereçleri", paths: ["Ev & Mutfak", "Mutfak"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 7000404, name: "Medikal Cihazlar, Tansiyon Aleti & Hasta Bakım", displayName: "Sağlık & Bakım > Medikal Cihazlar & Hasta Bakım", paths: ["Sağlık", "Medikal", "Hasta Bakım"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 7000405, name: "Ev Dekorasyon & Ev Dekorasyon Ürünleri", displayName: "Ev, Yaşam & Mutfak > Ev Dekorasyon > Dekoratif Objeler & Tablo", paths: ["Ev & Mutfak", "Ev Dekorasyon"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 7000406, name: "Ev Tekstili (Nevresim, Yorgan, Havlu)", displayName: "Ev, Yaşam & Mutfak > Ev Tekstili", paths: ["Ev & Mutfak", "Ev Tekstili"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 7000407, name: "Saklama Ürünleri & Saklama Kapları", displayName: "Ev, Yaşam & Mutfak > Saklama & Düzenleme > Saklama Ürünleri", paths: ["Ev & Mutfak", "Saklama Ürünleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 7000408, name: "Organizerler & Çekmece/Dolap Düzenleyiciler", displayName: "Ev, Yaşam & Mutfak > Saklama & Düzenleme > Organizerler", paths: ["Ev & Mutfak", "Organizerler"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
 
   // --- MODA & TEKSTİL (FASHION) ---
   { id: 7000501, name: "Erkek Giyim & Tişörtler", displayName: "Moda & Tekstil > Erkek Giyim", paths: ["Moda", "Erkek Giyim"], leaf: true, available: true, status: "ACTIVE", sector: "fashion" },
@@ -1414,6 +1754,9 @@ export const PAZARAMA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   { id: 111, name: "Çevre Birimleri (Monitör, Klavye, Mouse, Kablo)", displayName: "Elektronik > Bilgisayar > Çevre Birimleri", paths: ["Elektronik", "Bilgisayar", "Çevre Birimleri"], leaf: true, sector: "computer" },
   { id: 112, name: "Yazıcı, Toner, Kartuş & Barkod Okuyucu", displayName: "Elektronik > Ofis > Yazıcı & Sarf Malzeme", paths: ["Elektronik", "Yazıcı", "Toner"], leaf: true, sector: "computer" },
   { id: 103, name: "Ev, Yaşam & Küçük Ev Aletleri", displayName: "Ev & Yaşam > Küçük Ev Aletleri & Mutfak", paths: ["Ev & Yaşam"], leaf: true, sector: "home" },
+  { id: 106, name: "Ev Dekorasyon & Dekorasyon Ürünleri", displayName: "Ev & Yaşam > Ev Dekorasyon", paths: ["Ev & Yaşam", "Ev Dekorasyon"], leaf: true, sector: "home" },
+  { id: 107, name: "Ev Tekstili", displayName: "Ev & Yaşam > Ev Tekstili", paths: ["Ev & Yaşam", "Ev Tekstili"], leaf: true, sector: "home" },
+  { id: 113, name: "Saklama Ürünleri & Organizerler", displayName: "Ev & Yaşam > Saklama & Organizer", paths: ["Ev & Yaşam", "Saklama", "Organizer"], leaf: true, sector: "home" },
   { id: 104, name: "Kozmetik, Kişisel Bakım & Medikal", displayName: "Kozmetik & Sağlık > Bakım & Medikal", paths: ["Kozmetik", "Medikal"], leaf: true, sector: "home" },
   { id: 105, name: "Oto Aksesuar", displayName: "Oto & Bahçe > Araç Bakım & Aksesuar", paths: ["Oto & Bahçe"], leaf: true, sector: "auto" }
 ];
@@ -1461,6 +1804,11 @@ export const N11_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   { id: 1000601, name: "Küçük Ev Aletleri, Blender & Süpürge", displayName: "Ev & Yaşam > Küçük Ev Aletleri", paths: ["Ev Yaşam", "Küçük Ev Aletleri", "Blender"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 1000610, name: "Mutfak Gereçleri & Tencere", displayName: "Ev & Yaşam > Mutfak Gereçleri", paths: ["Ev Yaşam", "Mutfak"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 1000620, name: "Medikal Cihazlar, Tansiyon Aleti & Hasta Bakım (Boru Tipi Yatak / Hasta Önlüğü)", displayName: "Kozmetik & Kişisel Bakım > Sağlık & Medikal Cihazlar", paths: ["Sağlık", "Medikal", "Hasta Bakım", "Boru Tipi Yatak", "Hasta Önlüğü"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 1000630, name: "Ev Dekorasyon", displayName: "Ev & Yaşam > Ev Dekorasyon", paths: ["Ev Yaşam", "Ev Dekorasyon"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 1000631, name: "Ev Tekstili", displayName: "Ev & Yaşam > Ev Tekstili", paths: ["Ev Yaşam", "Ev Tekstili"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 1000632, name: "Ev Dekorasyon Ürünleri", displayName: "Ev & Yaşam > Ev Dekorasyon > Ev Dekorasyon Ürünleri", paths: ["Ev Yaşam", "Ev Dekorasyon", "Ev Dekorasyon Ürünleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 1000633, name: "Saklama Ürünleri", displayName: "Ev & Yaşam > Saklama Ürünleri", paths: ["Ev Yaşam", "Saklama Ürünleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 1000634, name: "Organizerler", displayName: "Ev & Yaşam > Organizerler & Düzenleyiciler", paths: ["Ev Yaşam", "Organizerler"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
   { id: 1000701, name: "Oto Aksesuar & Araç İçi Donanım", displayName: "Otomotiv & Motosiklet > Oto Aksesuar", paths: ["Otomotiv", "Aksesuar"], leaf: true, available: true, status: "ACTIVE", sector: "auto" }
 ];
 
@@ -1905,6 +2253,51 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
     { id: "GarantiSuresi", name: "Garanti / Raf Ömrü (Ay)", description: "Raf ömrü", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
     { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["10", "20"], defaultValue: "20" }
   ],
+  home_decoration: [
+    { id: "Marka", name: "Marka (Brand)", description: "Dekorasyon ürünü markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "UrunTipi", name: "Dekorasyon Ürün Türü", description: "Tablo, saat, vazo, biblo veya dekoratif obje türü", mandatory: true, type: "select", values: ["Duvar Tablosu & Kanvas Tablo", "Duvar Saati", "Vazo & Saksı", "Biblo & Heykel", "Mumluk, Şamdan & Fener", "Dekoratif Duvar & Masa Aynası", "Dekoratif Fotoğraf Çerçevesi", "Oda Kokusu & Kokulu Mum", "Dekoratif Obje & Heykelcik", "Yapay Çiçek & Sukulent"], defaultValue: "Duvar Tablosu & Kanvas Tablo" },
+    { id: "Materyal", name: "Materyal / Malzeme", description: "Gövde ve yüzey malzemesi", mandatory: true, type: "select", values: ["Ahşap / Masif Ahşap", "Metal / Ferforje", "Cam", "Seramik & Porselen", "Polyester / Reçine", "Mermer / Doğal Taş", "Pleksi / Akrilik", "Bambu / Doğal Hasır"], defaultValue: "Ahşap / Masif Ahşap" },
+    { id: "Renk", name: "Renk (Color)", description: "Ana gövde rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Altın / Gold", "Gümüş", "Gri / Antrasit", "Ceviz / Ahşap Tonu", "Bej / Krem", "Çok Renkli / Desenli", "Kahverengi"], defaultValue: "Siyah" },
+    { id: "BoyutEbat", name: "Boyut / Ebat / Çap", description: "Ürün ebatları veya çapı (En x Boy)", mandatory: true, type: "text", placeholder: "Örn: 50x70 cm veya Çap: 35 cm" },
+    { id: "Tema", name: "Stil & Tema", description: "Dekorasyon tarzı", mandatory: false, type: "select", values: ["Modern", "Minimalist", "Klasik", "İskandinav", "Rustik / Doğal", "Bohem", "Vintage / Retro"], defaultValue: "Modern" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["10", "20"], defaultValue: "20" }
+  ],
+  home_textile: [
+    { id: "Marka", name: "Marka (Brand)", description: "Ev tekstili markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "TekstilTipi", name: "Ev Tekstili Ürün Türü", description: "Nevresim, yorgan, havlu, perde vb.", mandatory: true, type: "select", values: ["Nevresim Takımı", "Yatak Örtüsü & Pike", "Çarşaf & Yastık Kılıfı Seti", "Yorgan & Battaniye", "Havlu & Bornoz", "Tül & Fon Perde", "Halı, Kilim & Paspas", "Kırlent, Minder & Koltuk Örtüsü", "Masa Örtüsü & Runner"], defaultValue: "Nevresim Takımı" },
+    { id: "KumasTuru", name: "Kumaş / Materyal Türü", description: "Kumaş dokusu ve materyali", mandatory: true, type: "select", values: ["%100 Pamuk (Ranforce)", "Pamuk Saten", "Keten Dokuma", "Mikrofiber", "Kadife", "Doğal Bambu", "Polar / Peluş", "Polyester Karışımlı"], defaultValue: "%100 Pamuk (Ranforce)" },
+    { id: "EbatBoyut", name: "Ebat / Boyut", description: "Tekstil ölçüsü", mandatory: true, type: "select", values: ["Tek Kişilik (160x220 cm)", "Çift Kişilik (200x220 cm)", "King Size / Battal (220x240 cm)", "50x70 cm (Standart Yastık)", "50x90 cm (El & Yüz Havlusu)", "70x140 cm (Banyo Havlusu)", "43x43 cm (Kırlent)", "160x230 cm (Standart Halı)", "Standart Ebat"], defaultValue: "Çift Kişilik (200x220 cm)" },
+    { id: "Renk", name: "Renk (Color)", description: "Ana renk veya desen", mandatory: true, type: "select", values: ["Beyaz", "Gri / Antrasit", "Bej / Krem", "Pudra / Gül Kurusu", "Mavi / Lacivert", "Yeşil / Haki", "Siyah", "Çok Renkli / Desenli"], defaultValue: "Beyaz" },
+    { id: "PaketIcerigi", name: "Paket İçeriği", description: "Takım veya tek parça bilgisi", mandatory: false, type: "select", values: ["4 Parça Çift Kişilik Takım", "3 Parça Tek Kişilik Takım", "Tek Parça", "2'li Set", "6 Parça Aile Seti"], defaultValue: "4 Parça Çift Kişilik Takım" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Tekstil vergi oranı", mandatory: true, type: "select", values: ["10", "20"], defaultValue: "10" }
+  ],
+  storage_products: [
+    { id: "Marka", name: "Marka (Brand)", description: "Saklama ürünü markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "SaklamaTipi", name: "Saklama Ürün Türü", description: "Kutu, hurç, kap vb.", mandatory: true, type: "select", values: ["Kapaklı Saklama Kutusu", "Vakumlu Hurç & Saklama Poşeti", "Erzak & Kuru Gıda Saklama Kabı", "Kumaş / Tela Hurç", "Elbise Askısı & Giysi Kılıfı", "Çamaşır Sepeti & Çamaşır Torbası", "Çok Amaçlı Düzenleyici Kutu"], defaultValue: "Kapaklı Saklama Kutusu" },
+    { id: "Materyal", name: "Materyal / Malzeme", description: "Üretim malzemesi", mandatory: true, type: "select", values: ["Plastik (BPA Free)", "Kumaş (Dokusuz Tela)", "Cam (Borosilikat / Dayanıklı)", "Ahşap / Doğal Bambu", "Metal / Tel Sepet", "Karton & Kumaş Kaplama"], defaultValue: "Plastik (BPA Free)" },
+    { id: "HacimKapasite", name: "Hacim / Kapasite", description: "Litre veya boyut kapasitesi", mandatory: true, type: "select", values: ["500 ml - 1 Litre", "1.5 - 3 Litre", "5 - 10 Litre", "15 - 25 Litre", "30 - 50 Litre (Büyük Boy)", "60+ Litre (Mega Hurç / Kutu)", "Çoklu Set"], defaultValue: "15 - 25 Litre" },
+    { id: "Renk", name: "Renk (Color)", description: "Gövde ve kapak rengi", mandatory: true, type: "select", values: ["Şeffaf / Saydam", "Beyaz", "Gri / Antrasit", "Bej / Krem", "Siyah", "Desenli / Çok Renkli"], defaultValue: "Şeffaf / Saydam" },
+    { id: "KapakOzelligi", name: "Kapak / Kilit Türü", description: "Kapatma mekanizması", mandatory: false, type: "select", values: ["Kilitli / Klipsli Kapak", "Vakumlu Kapak", "Geçmeli Kapak", "Fermuarlı", "Kapaksız / Açık Kutu"], defaultValue: "Kilitli / Klipsli Kapak" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["10", "20"], defaultValue: "20" }
+  ],
+  organizers: [
+    { id: "Marka", name: "Marka (Brand)", description: "Organizer markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "OrganizerTipi", name: "Organizer / Düzenleyici Türü", description: "Kullanım türü", mandatory: true, type: "select", values: ["Çekmece İçi Organizer", "Dolap İçi Düzenleyici & Raf", "Makyaj & Kozmetik Organizeri", "Ayakkabı Düzenleyici & Rampası", "Masaüstü & Ofis Organizeri", "Buzdolabı & Mutfak Dolap İçi Organizer", "Çorap & İç Giyim Organizeri", "Takı & Mücevher Organizeri", "Kapı Arkası & Askılı Organizer"], defaultValue: "Çekmece İçi Organizer" },
+    { id: "BolmeSayisi", name: "Bölme / Göz Sayısı", description: "Göz veya kat adedi", mandatory: true, type: "select", values: ["Tek Gözlü / Açık Bölme", "2 - 3 Bölmeli", "4 - 6 Bölmeli", "8 - 12 Bölmeli", "16+ Bölmeli (Çorap/Aksesuar)", "Çekmeceli / Çok Katlı"], defaultValue: "4 - 6 Bölmeli" },
+    { id: "Materyal", name: "Materyal / Malzeme", description: "Gövde materyali", mandatory: true, type: "select", values: ["Akrilik / Şeffaf Pleksi", "Plastik (BPA Free)", "Kumaş (Dokusuz Tela)", "Ahşap / Doğal Bambu", "Metal Tel / Ferforje"], defaultValue: "Akrilik / Şeffaf Pleksi" },
+    { id: "Renk", name: "Renk (Color)", description: "Ürün rengi", mandatory: true, type: "select", values: ["Şeffaf / Saydam", "Beyaz", "Gri / Antrasit", "Siyah", "Krem / Bej", "Pudra / Pembe"], defaultValue: "Şeffaf / Saydam" },
+    { id: "BoyutEbat", name: "Boyut / Ölçü", description: "En x Boy x Yükseklik cm", mandatory: true, type: "text", placeholder: "Örn: 30x15x10 cm" },
+    { id: "KullanimAlani", name: "Kullanım Alanı", description: "Evdeki kullanım yeri", mandatory: false, type: "select", values: ["Dolap & Gardırop", "Çekmece İçi", "Makyaj Masası & Banyo", "Mutfak & Buzdolabı", "Çalışma Masası & Ofis"], defaultValue: "Dolap & Gardırop" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["10", "20"], defaultValue: "20" }
+  ],
   general: [
     { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
     { id: "Mensei", name: "Menşei Ülke (Origin Country)", description: "Üretim yeri", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
@@ -2196,7 +2589,66 @@ export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> =
   "7000208": COMMON_MARKETPLACE_ATTRIBUTES.dect_landline_phone,
   "1000302": COMMON_MARKETPLACE_ATTRIBUTES.dect_landline_phone,
   "7000126": COMMON_MARKETPLACE_ATTRIBUTES.tech_chemicals,
-  "1000295": COMMON_MARKETPLACE_ATTRIBUTES.tech_chemicals
+  "1000295": COMMON_MARKETPLACE_ATTRIBUTES.tech_chemicals,
+
+  // Home Decoration & Home Decoration Products
+  "8000100": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "8000120": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "8000121": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "8000122": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "8000123": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "8000124": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "8000125": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "8000126": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "8000127": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "8000128": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "80101": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "80102": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "7000405": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "106": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "1000630": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+  "1000632": COMMON_MARKETPLACE_ATTRIBUTES.home_decoration,
+
+  // Home Textile
+  "8000110": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "8000111": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "8000112": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "8000113": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "8000114": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "8000115": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "8000116": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "8000117": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "18021949": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "801": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "7000406": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "107": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+  "1000631": COMMON_MARKETPLACE_ATTRIBUTES.home_textile,
+
+  // Storage Products
+  "8000130": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "8000131": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "8000132": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "8000133": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "8000134": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "8000135": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "80103": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "7000407": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "113": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+  "1000633": COMMON_MARKETPLACE_ATTRIBUTES.storage_products,
+
+  // Organizers
+  "8000140": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "8000141": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "8000142": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "8000143": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "8000144": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "8000145": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "8000146": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "8000147": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "8000148": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "80104": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "7000408": COMMON_MARKETPLACE_ATTRIBUTES.organizers,
+  "1000634": COMMON_MARKETPLACE_ATTRIBUTES.organizers
 };
 
 // Returns relevant attributes based on Child Category Name/Path first, then Category ID
@@ -2850,6 +3302,97 @@ export function getAttributesForCategory(catName: string, paths: string[] = [], 
     return COMMON_MARKETPLACE_ATTRIBUTES.smartwatch;
   }
 
+  // 9a. Organizerler & Düzenleyiciler
+  if (
+    text.includes("organizer") ||
+    text.includes("organizerler") ||
+    text.includes("düzenleyici") ||
+    text.includes("duzenleyici") ||
+    text.includes("çekmece içi") ||
+    text.includes("cekmece ici") ||
+    text.includes("dolap içi düzenleyici") ||
+    text.includes("makyaj organizer") ||
+    text.includes("ayakkabı organizer") ||
+    text.includes("masaüstü organizer") ||
+    text.includes("buzdolabı organizer") ||
+    text.includes("takı organizer")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.organizers;
+  }
+
+  // 9b. Saklama Ürünleri & Hurçlar
+  if (
+    text.includes("saklama") ||
+    text.includes("saklama ürünleri") ||
+    text.includes("saklama urunleri") ||
+    text.includes("saklama kutu") ||
+    text.includes("hurç") ||
+    text.includes("hurc") ||
+    text.includes("vakumlu poşet") ||
+    text.includes("vakumlu poset") ||
+    text.includes("erzak kabı") ||
+    text.includes("erzak kabi") ||
+    text.includes("kuru gıda saklama") ||
+    text.includes("giysi kılıf") ||
+    text.includes("elbise kılıf") ||
+    text.includes("çamaşır sepeti") ||
+    text.includes("camasir sepeti")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.storage_products;
+  }
+
+  // 9c. Ev Tekstili
+  if (
+    text.includes("ev tekstil") ||
+    text.includes("nevresim") ||
+    text.includes("çarşaf") ||
+    text.includes("carsaf") ||
+    text.includes("yorgan") ||
+    text.includes("battaniye") ||
+    text.includes("havlu") ||
+    text.includes("bornoz") ||
+    text.includes("perde") ||
+    text.includes("tül") ||
+    text.includes("tul") ||
+    text.includes("kırlent") ||
+    text.includes("kirlent") ||
+    text.includes("yatak örtü") ||
+    text.includes("yatak ortu") ||
+    text.includes("pike") ||
+    text.includes("halı") ||
+    text.includes("hali") ||
+    text.includes("kilim") ||
+    text.includes("koltuk örtü") ||
+    text.includes("masa örtü")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.home_textile;
+  }
+
+  // 9d. Ev Dekorasyon & Ev Dekorasyon Ürünleri
+  if (
+    text.includes("dekorasyon") ||
+    text.includes("dekoratif") ||
+    text.includes("tablo") ||
+    text.includes("duvar saati") ||
+    text.includes("vazo") ||
+    text.includes("saksı") ||
+    text.includes("saksi") ||
+    text.includes("biblo") ||
+    text.includes("heykel") ||
+    text.includes("mumluk") ||
+    text.includes("şamdan") ||
+    text.includes("samdan") ||
+    text.includes("oda koku") ||
+    text.includes("difüzör") ||
+    text.includes("difuzor") ||
+    text.includes("yapay çiçek") ||
+    text.includes("yapay cicek") ||
+    (text.includes("ayna") && !text.includes("araba") && !text.includes("oto")) ||
+    (text.includes("çerçeve") && !text.includes("gözlük"))
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.home_decoration;
+  }
+
   // 10. Giyim & Ayakkabı
   if (
     text.includes("ayakkabı") ||
@@ -2859,7 +3402,6 @@ export function getAttributesForCategory(catName: string, paths: string[] = [], 
     text.includes("elbise") ||
     text.includes("kaban") ||
     text.includes("mont") ||
-    text.includes("tekstil") ||
     text.includes("apparel") ||
     text.includes("shoes")
   ) {

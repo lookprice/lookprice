@@ -461,7 +461,11 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         ...newStore, 
         parent_id: newStore.parent_id === "" ? null : Number(newStore.parent_id) 
       };
-      await api.addStore(payload);
+      const res = await api.addStore(payload);
+      if (res && res.error) {
+        alert(res.error);
+        return;
+      }
       setShowAdd(false);
       setNewStore({
         name: "",
@@ -488,9 +492,10 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         max_users: 5,
         max_customers: 50
       });
-      fetchData();
-    } catch (error) {
-      alert("Hata oluştu");
+      await fetchData();
+      alert(`"${payload.name}" mağazası başarıyla oluşturuldu ve sisteme kaydedildi!`);
+    } catch (error: any) {
+      alert(error?.message || "Mağaza oluşturulurken bir hata meydana geldi.");
     }
   };
 
@@ -501,11 +506,16 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         ...editingStore, 
         parent_id: editingStore.parent_id === "" ? null : Number(editingStore.parent_id) 
       };
-      await api.updateStore(editingStore.id, payload);
+      const res = await api.updateStore(editingStore.id, payload);
+      if (res && res.error) {
+        alert(res.error);
+        return;
+      }
       setEditingStore(null);
-      fetchData();
-    } catch (error) {
-      alert("Hata oluştu");
+      await fetchData();
+      alert("Mağaza bilgileri başarıyla güncellendi.");
+    } catch (error: any) {
+      alert(error?.message || "Güncelleme sırasında hata oluştu.");
     }
   };
 

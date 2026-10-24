@@ -292,6 +292,7 @@ export default function App() {
             <Route path="/s/:slug/p/:barcode" element={<StoreShowcase />} />
             <Route path="/store/:slug" element={<StoreShowcase />} />
             <Route path="/store/:slug/p/:barcode" element={<StoreShowcase />} />
+            <Route path="/magaza/:slug" element={<StoreShowcase />} />
             <Route path="/p/:barcode" element={<Marketplace />} />
             <Route path="/checkout/success" element={<CheckoutStatus />} />
             <Route path="/checkout/cancel" element={<CheckoutStatus />} />

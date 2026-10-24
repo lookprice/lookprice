@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, ExternalLink, BookOpen, Hotel, Utensils, Home, Car, Store as StoreIcon, ShieldCheck, Sparkles } from "lucide-react";
+import { Search, ExternalLink, BookOpen, Hotel, Utensils, Home, Car, Store as StoreIcon, ShieldCheck, Sparkles, Globe, LayoutDashboard } from "lucide-react";
 import StoreLogo from "../../StoreLogo";
 import { Store } from "../../../types/superadmin";
 
@@ -169,23 +169,35 @@ export const MultiTenancyStoreList: React.FC<MultiTenancyStoreListProps> = ({
                 {/* Meta details footer */}
                 <div className="mt-2.5 pt-2 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-[10px] text-slate-400">
                   <div className="flex items-center gap-2">
-                    {getSectorBadge(store.store_type, isHotel, isBook)}
+                    {getSectorBadge(store.store_type || (store.branding as any)?.store_type || (store.branding as any)?.page_layout_settings?.sector, isHotel, isBook)}
                     {(store as any).custom_domain && (
                       <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold truncate max-w-[120px]">
                         {(store as any).custom_domain}
                       </span>
                     )}
                   </div>
-                  <a
-                    href={`/magaza/${store.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                    title="Vitrine Git"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <div className="flex items-center gap-1.5">
+                    <a
+                      href={`/s/${store.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                      title="Web Sitesi / Vitrini Aç"
+                    >
+                      <Globe className="h-3.5 w-3.5" />
+                    </a>
+                    <a
+                      href={`/dashboard/${store.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                      title="Mağaza Paneline Git"
+                    >
+                      <LayoutDashboard className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
                 </div>
               </div>
             );

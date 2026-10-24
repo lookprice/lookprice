@@ -244,8 +244,11 @@ export const MultiTenancyDashboard: React.FC<MultiTenancyDashboardProps> = ({
       (sectorFilter === "product" && (s.store_type === "product" || !s.store_type)) ||
       (sectorFilter === "horeca" && s.store_type === "cafe_restaurant") ||
       (sectorFilter === "real_estate" && s.store_type === "real_estate") ||
-      (sectorFilter === "automotive" && s.store_type === "motor_vehicle") ||
-      (sectorFilter === "corporate_website" && s.store_type === "corporate_website") ||
+      (sectorFilter === "corporate_website" && (
+        s.store_type === "corporate_website" || 
+        (s.branding as any)?.store_type === "corporate_website" || 
+        (s.branding as any)?.page_layout_settings?.sector === "corporate_website"
+      )) ||
       (sectorFilter === "bookstore" &&
         (s.bookstore_module_enabled || (s.branding as any)?.bookstore_module_enabled));
 

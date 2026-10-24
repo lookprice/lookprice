@@ -93,7 +93,36 @@ const CANONICAL_ATTRIBUTE_ALIASES: Record<string, string> = {
   "gecegorus": "night_vision",
   "hareketalgilama": "motion_detection",
   "sesozelligi": "audio_support",
-  "depolamadestegi": "storage_support"
+  "depolamadestegi": "storage_support",
+
+  // Home Decoration & Textile & Storage & Organizers
+  "uruntipi": "product_type",
+  "urun_tipi": "product_type",
+  "tekstiltipi": "textile_type",
+  "tekstil_tipi": "textile_type",
+  "kumasturu": "fabric_type",
+  "kumas_turu": "fabric_type",
+  "kumastipi": "fabric_type",
+  "kumas": "fabric_type",
+  "ebatboyut": "dimensions",
+  "ebat_boyut": "dimensions",
+  "ebat": "dimensions",
+  "boyut": "dimensions",
+  "boyutebat": "dimensions",
+  "boyut_ebat": "dimensions",
+  "organizertipi": "organizer_type",
+  "organizer_tipi": "organizer_type",
+  "bolmesayisi": "compartments_count",
+  "bolme_sayisi": "compartments_count",
+  "saklamatipi": "storage_type",
+  "saklama_tipi": "storage_type",
+  "hacimkapasite": "capacity_volume",
+  "hacim_kapasite": "capacity_volume",
+  "kapakozelligi": "lid_type",
+  "kapak_ozelligi": "lid_type",
+  "malzeme": "material",
+  "tema": "theme_style",
+  "stil": "theme_style"
 };
 
 /**

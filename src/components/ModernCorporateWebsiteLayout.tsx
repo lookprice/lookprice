@@ -75,6 +75,7 @@ export interface CorporateGalleryImage {
 }
 
 export interface CorporateWebsiteConfig {
+  [key: string]: any;
   theme_preset?: "emerald_gold" | "royal_cobalt" | "obsidian_luxury" | "terracotta_warm" | "crimson_trust";
   default_color_mode?: "light" | "dark";
   announcement_enabled?: boolean;
@@ -90,13 +91,16 @@ export interface CorporateWebsiteConfig {
     cta_button?: string;
   };
   hero?: {
+    [key: string]: any;
     badge_text?: string;
+    badge?: string;
     title?: string;
     highlight_word?: string;
     subtitle?: string;
     primary_cta_text?: string;
     secondary_cta_text?: string;
     hero_images?: string[];
+    background_images?: string[];
     stats?: Array<{ value: string; label: string; sublabel?: string }>;
   };
   services_section?: {

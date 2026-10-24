@@ -37,7 +37,7 @@ import {
 interface CorporateWebsiteStudioTabProps {
   branding: any;
   setBranding: (branding: any) => void;
-  currentStoreId?: string;
+  currentStoreId?: string | number;
   onSaveBranding?: (e: React.FormEvent) => void;
   savingBranding?: boolean;
   onLogoUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -128,7 +128,7 @@ export const CorporateWebsiteStudioTab: React.FC<
       };
 
       setBranding(updatedBranding);
-      await api.updateBranding(updatedBranding, currentStoreId);
+      await api.updateBranding(updatedBranding, currentStoreId ? Number(currentStoreId) : undefined);
       setSaveMessage({
         type: "success",
         text: "Web sitesi tasarım ve içerik ayarları başarıyla kaydedildi ve yayına alındı!",
@@ -154,7 +154,15 @@ export const CorporateWebsiteStudioTab: React.FC<
     if (!file) return;
     setUploadingField(fieldKey);
     try {
-      const uploadedUrl = await api.uploadImage(file);
+      let uploadedUrl = "";
+      if (typeof (api as any).uploadImage === "function") {
+        uploadedUrl = await (api as any).uploadImage(file);
+      } else {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await api.uploadFile(formData);
+        uploadedUrl = res?.url || res?.data?.url || "";
+      }
       if (uploadedUrl) {
         onUploaded(uploadedUrl);
       }

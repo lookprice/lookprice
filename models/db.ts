@@ -2187,7 +2187,8 @@ export async function initDb() {
       { id: 43, name: "autoLP Girne Prestij & Spor Araçlar Şubesi (Demo)", slug: "autolp-girne-demo", code: "LP-AUTO01", type: "auto", parent_id: 3, is_demo: true, branch_name: "Girne Prestij & Spor Araçlar Şubesi" },
       { id: 44, name: "autoLP Gazimağusa SUV & Ticari Şubesi (Demo)", slug: "autolp-magusa-demo", code: "LP-AUTO02", type: "auto", parent_id: 3, is_demo: true, branch_name: "Gazimağusa SUV & Ticari Şubesi" },
       { id: 45, name: "bookLP Kültür, Sanat & Kitabevi (Demo)", slug: "booklp-demo", code: "LP-BOOK00", type: "product", is_demo: true, bookstore_module_enabled: true, branch_name: "Merkez Kitabevi & Kültür Salonu (Lefkoşa)" },
-      { id: 46, name: "bookLP Girne Liman & Sahaf Şubesi (Demo)", slug: "booklp-girne-demo", code: "LP-BOOK01", type: "product", parent_id: 45, is_demo: true, bookstore_module_enabled: true, branch_name: "Girne Liman & Sahaf Şubesi" }
+      { id: 46, name: "bookLP Girne Liman & Sahaf Şubesi (Demo)", slug: "booklp-girne-demo", code: "LP-BOOK01", type: "product", parent_id: 45, is_demo: true, bookstore_module_enabled: true, branch_name: "Girne Liman & Sahaf Şubesi" },
+      { id: 47, name: "weblp Kurumsal Çözümler & Dijital Ajans (Demo)", slug: "weblp-demo", code: "LP-WEB00", type: "corporate_website", is_demo: true, branch_name: "Merkez Ajans & Danışmanlık" }
     ];
 
     for (const s of defaultStores) {
@@ -2203,7 +2204,20 @@ export async function initDb() {
           s.slug, 
           s.code, 
           s.type, 
-          JSON.stringify({ store_name: s.name, store_type: s.type, sub_sector: s.type, is_demo: Boolean((s as any).is_demo), hotel_module_enabled: Boolean((s as any).hotel_module_enabled), bookstore_module_enabled: Boolean((s as any).bookstore_module_enabled), store_concept: (s as any).bookstore_module_enabled ? 'bookstore' : undefined }),
+          JSON.stringify({ 
+            store_name: s.name, 
+            name: s.name,
+            store_type: s.type, 
+            sub_sector: s.type, 
+            is_demo: Boolean((s as any).is_demo), 
+            hotel_module_enabled: Boolean((s as any).hotel_module_enabled), 
+            bookstore_module_enabled: Boolean((s as any).bookstore_module_enabled), 
+            store_concept: s.type === 'corporate_website' ? 'corporate_website' : ((s as any).bookstore_module_enabled ? 'bookstore' : undefined),
+            page_layout_settings: {
+              sector: s.type,
+              is_book_store: Boolean((s as any).bookstore_module_enabled)
+            }
+          }),
           (s as any).parent_id || null,
           (s as any).branch_name || null,
           Boolean((s as any).hotel_module_enabled),
@@ -2219,7 +2233,8 @@ export async function initDb() {
       { email: "demo@restatelp.com", store_id: 2 },
       { email: "demo@autolp.com", store_id: 3 },
       { email: "demo@horecalp.com", store_id: 4 },
-      { email: "demo@booklp.com", store_id: 45 }
+      { email: "demo@booklp.com", store_id: 45 },
+      { email: "demo@weblp.com", store_id: 47 }
     ];
 
     for (const sa of storeAdmins) {
@@ -2231,6 +2246,14 @@ export async function initDb() {
           ON CONFLICT (email) DO UPDATE SET store_id = EXCLUDED.store_id
         `, [sa.email, hashedPassword, sa.store_id]);
       }
+    }
+
+    // Ensure serial sequences are safely aligned with MAX(id)
+    try {
+      await client.query("SELECT setval(pg_get_serial_sequence('stores', 'id'), COALESCE((SELECT MAX(id) FROM stores), 1) + 1, false);");
+      await client.query("SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1) + 1, false);");
+    } catch (seqErr) {
+      console.warn("[DB Init] Sequence alignment notice:", seqErr);
     }
 
     console.log("Super admin, stores, and demo accounts verified/seeded.");

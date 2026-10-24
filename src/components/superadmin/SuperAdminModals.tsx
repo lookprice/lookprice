@@ -1,5 +1,5 @@
 import React from "react";
-import { X, AlertTriangle, LogOut, Phone, Mail, MessageCircle, User, Calendar, Building2 } from "lucide-react";
+import { X, AlertTriangle, LogOut, Phone, Mail, MessageCircle, User, Calendar, Building2, Globe, ExternalLink, LayoutDashboard } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Store, Lead, EnrakipsizSlide, EnrakipsizAd } from "../../types/superadmin";
 import { DEVELOPED_COUNTRIES } from "../../constants";
@@ -770,15 +770,23 @@ export const StoreDetailsModal: React.FC<{
           <p className="text-xs text-gray-900">{formatDateTR(store.subscription_end)}</p>
         </div>
         
-        <div className="pt-2">
-          <button 
-            onClick={() => {
-              window.open(`${window.location.origin}/dashboard/${store.slug}`, '_blank');
-            }}
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm flex items-center justify-center"
+        <div className="pt-2 space-y-2">
+          <a 
+            href={`/s/${store.slug}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-full bg-slate-900 text-white py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-sm"
           >
-            <LogOut className="h-3.5 w-3.5 mr-2 rotate-180" /> {st.goToStorePanel}
-          </button>
+            <Globe className="h-3.5 w-3.5 text-indigo-400" /> Web Sitesi / Vitrini Aç (/s/{store.slug})
+          </a>
+          <a 
+            href={`/dashboard/${store.slug}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-full bg-indigo-600 text-white py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-sm"
+          >
+            <LayoutDashboard className="h-3.5 w-3.5" /> {st.goToStorePanel} (/dashboard/{store.slug})
+          </a>
         </div>
       </div>
     </div>
