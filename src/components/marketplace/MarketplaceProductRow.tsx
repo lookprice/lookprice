@@ -65,6 +65,27 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
   const displayError = getProductError(p, selectedMarketplace);
   const hasAnyError = Boolean(displayError);
 
+  const isPriceErrorStr = (err: string | null | undefined): boolean => {
+    if (!err) return false;
+    return /yüksek fiyat|fiyat limiti|fahiş|high pricing|tavan fiyat|aralığın dışında|invalid_price/i.test(err);
+  };
+
+  const getShortErrorLabel = (err: string | null | undefined): string => {
+    if (!err) return isTr ? "Hatalı" : "Error";
+    const clean = err.replace(/^\[(HB|AMZ|TY|N11|PZR)\]\s*/i, '').trim();
+    if (isPriceErrorStr(clean)) return isTr ? "Yüksek Fiyat" : "High Price";
+    if (/marka onay|brand|5886/i.test(clean)) return isTr ? "Marka Onayı" : "Brand Auth";
+    if (/kısıtlı asin|18299/i.test(clean)) return isTr ? "Kısıtlı ASIN" : "Restricted ASIN";
+    if (/belge kısıt|counterfeit/i.test(clean)) return isTr ? "Belge Kısıtı" : "Doc Required";
+    if (/ihlal|designviolation/i.test(clean)) return isTr ? "İhlal Kısıtı" : "Policy Lock";
+    if (/satış kısıt|salesrestriction/i.test(clean)) return isTr ? "Satış Kısıtı" : "Sales Lock";
+    if (/hb kilitli|byhbadmin/i.test(clean)) return isTr ? "HB Kilitli" : "HB Locked";
+    if (/asin kodu tanımlı değil|asin eksik|13013/i.test(clean)) return isTr ? "ASIN Eksik" : "Missing ASIN";
+    if (/yetkilendirme|401|403/i.test(clean)) return isTr ? "Yetki Hatası" : "Auth Error";
+    if (clean.length <= 18) return clean;
+    return isTr ? "Katalog Kısıtı" : "Catalog Error";
+  };
+
   return (
     <tr 
       className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors ${
@@ -192,17 +213,6 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                 );
               })()}
             </div>
-
-            {/* Error Box if any error occurred */}
-            {hasAnyError && (
-              <div className="mt-1.5 p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-[10px] text-rose-700 dark:text-rose-300 flex items-start gap-1 max-w-sm">
-                <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0 mt-0.5" />
-                <div className="flex-1 truncate" title={displayError || undefined}>
-                  <span className="font-semibold">{isTr ? "Hata:" : "Error:"} </span>
-                  {displayError}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </td>
@@ -263,6 +273,17 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
             : (mpData?.amazon?.attributes?.price || mpData?.hepsiburada?.attributes?.price || mpData?.attributes?.price);
 
           const mpSpecificPrice = computedPolicyPrice > 0 ? computedPolicyPrice : cachedMpPrice;
+
+          let refPrice = selectedMarketplace !== 'all'
+            ? mpData?.[selectedMarketplace]?.referencePrice
+            : (mpData?.amazon?.referencePrice || mpData?.hepsiburada?.referencePrice);
+
+          if (!refPrice && displayError) {
+            const m = displayError.match(/Ref:\s*([0-9.,]+)/i);
+            if (m && m[1]) {
+              refPrice = Number(m[1].replace(/\./g, '').replace(',', '.'));
+            }
+          }
           
           return (
             <div>
@@ -272,6 +293,11 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
               {mpSpecificPrice && Number(mpSpecificPrice) > 0 && (
                 <div className="text-[10px] font-bold text-orange-600 dark:text-orange-400 font-mono" title={isTr ? "E-Market Satış Fiyatı" : "Marketplace Selling Price"}>
                   PZ: {Number(mpSpecificPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                </div>
+              )}
+              {refPrice && Number(refPrice) > 0 && (
+                <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400 font-mono" title={isTr ? "Pazaryeri Referans / Rekabetçi Tavan Fiyatı" : "Marketplace Reference Price"}>
+                  Ref: {Number(refPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                 </div>
               )}
               <div className="text-[10px] font-medium text-slate-400 mt-0.5 font-mono">
@@ -317,11 +343,15 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                   </button>
                 ) : hbError ? (
                   <span
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
-                    title={hbError}
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                      isPriceErrorStr(hbError)
+                        ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800'
+                        : 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                    }`}
+                    title={`Hepsiburada: ${hbError}`}
                   >
-                    <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
-                    HB
+                    <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                    HB: {getShortErrorLabel(hbError)}
                   </span>
                 ) : (
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800" title="HB Pasif">
@@ -344,11 +374,15 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                   </a>
                 ) : amzError ? (
                   <span
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
-                    title={amzError}
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                      isPriceErrorStr(amzError)
+                        ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800'
+                        : 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                    }`}
+                    title={`Amazon: ${amzError}`}
                   >
-                    <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
-                    AMZ
+                    <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                    AMZ: {getShortErrorLabel(amzError)}
                   </span>
                 ) : null}
 
@@ -396,6 +430,7 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
               const isTargetActive = isProductActive(p, selectedMarketplace);
               const isTargetPending = isProductPending(p, selectedMarketplace);
               const targetError = getProductError(p, selectedMarketplace);
+              const isPriceErr = isPriceErrorStr(targetError);
 
               return (
                 <>
@@ -410,15 +445,19 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                       title={isTr ? "Katalog ve barkod onay incelemesinde" : "Catalog review in progress"}
                     >
                       <Clock className="w-3 h-3 text-amber-600 animate-spin" />
-                      {isTr ? "Onay Bekliyor" : "Pending Review"}
+                      {isTr ? "Onayda" : "Pending"}
                     </span>
                   ) : targetError ? (
                     <span
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                        isPriceErr
+                          ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800'
+                          : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                      }`}
                       title={targetError}
                     >
-                      <AlertTriangle className="w-3 h-3 text-rose-600" />
-                      {isTr ? "Hatalı" : "Error"}
+                      <AlertTriangle className={`w-3 h-3 ${isPriceErr ? 'text-orange-600' : 'text-rose-600'}`} />
+                      {getShortErrorLabel(targetError)}
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">

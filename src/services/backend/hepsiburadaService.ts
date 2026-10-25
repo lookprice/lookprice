@@ -915,6 +915,50 @@ export class HepsiburadaService {
             response.data?.taskId ||
             response.data?.data?.trackingId;
 
+          let priceValidations: any[] = Array.isArray(response.data?.priceValidations) ? response.data.priceValidations : [];
+          let uploadErrors: any[] = Array.isArray(response.data?.errors) ? response.data.errors : [];
+
+          if (trackingId && items.length <= 10) {
+            try {
+              await new Promise((r) => setTimeout(r, 1200));
+              const taskStatus = await this.checkTaskStatus(String(trackingId));
+              if (Array.isArray(taskStatus?.priceValidations) && taskStatus.priceValidations.length > 0) {
+                priceValidations = taskStatus.priceValidations;
+              }
+              if (Array.isArray(taskStatus?.errors) && taskStatus.errors.length > 0) {
+                uploadErrors = taskStatus.errors;
+              }
+            } catch {
+              // ignore status check delay error
+            }
+          }
+
+          if (priceValidations.length > 0) {
+            for (const pv of priceValidations) {
+              const sku = pv?.merchantSku || pv?.MerchantSku || pv?.hepsiburadaSku || pv?.HepsiburadaSku || items[0]?.MerchantSku;
+              if (sku) {
+                await pool.query(
+                  `UPDATE products 
+                   SET is_hepsiburada_active = false, 
+                       hepsiburada_last_error = 'Yüksek Fiyat',
+                       marketplace_data = jsonb_set(COALESCE(marketplace_data::jsonb, '{}'::jsonb), '{hepsiburada,priceAlert}', 'true'::jsonb, true)
+                   WHERE store_id = $1 AND (barcode = $2 OR sku = $2 OR hepsiburada_sku = $2)`,
+                  [this.storeId, String(sku)]
+                ).catch(() => {});
+              }
+            }
+            if (items.length === 1) {
+              throw new Error("Yüksek Fiyat");
+            }
+          }
+
+          if (uploadErrors.length > 0 && items.length === 1) {
+            const firstErr = uploadErrors[0]?.message || uploadErrors[0]?.error || JSON.stringify(uploadErrors[0]);
+            if (/fiyat|price|aralığın|fahiş|tavan|taban/i.test(String(firstErr))) {
+              throw new Error("Yüksek Fiyat");
+            }
+          }
+
           return {
             success: true,
             trackingId,
@@ -1125,9 +1169,18 @@ export class HepsiburadaService {
    */
   async checkTaskStatus(taskId: string): Promise<any> {
     const headers = this.getHeaders();
-    const url = `${this.listingBaseUrl}/inventory/import/status/${this.config.merchantId}/task/${taskId}`;
-    const response = await axios.get(url, { headers, timeout: 15000 });
-    return response.data;
+    const listingDirectUrl = this.config.isTestMode
+      ? "https://listing-external-sit.hepsiburada.com"
+      : "https://listing-external.hepsiburada.com";
+    try {
+      const directUrl = `${listingDirectUrl}/listings/merchantid/${this.config.merchantId}/inventory-uploads/id/${taskId}`;
+      const resDirect = await axios.get(directUrl, { headers, timeout: 15000 });
+      return resDirect.data;
+    } catch {
+      const url = `${this.listingBaseUrl}/inventory/import/status/${this.config.merchantId}/task/${taskId}`;
+      const response = await axios.get(url, { headers, timeout: 15000 });
+      return response.data;
+    }
   }
 
   /**
@@ -1377,6 +1430,11 @@ export class HepsiburadaService {
                 status: item.status || (item.isSalable ? "ACTIVE" : (item.isSuspended ? "SUSPENDED" : "LOCKED")),
                 isSalable: Boolean(item.isSalable),
                 isSuspended: Boolean(item.isSuspended),
+                isLocked: Boolean(item.isLocked),
+                lockReasons: Array.isArray(item.lockReasons) ? item.lockReasons : [],
+                deactivationReasons: Array.isArray(item.deactivationReasons) ? item.deactivationReasons : [],
+                freezeReasons: Array.isArray(item.freezeReasons) ? item.freezeReasons : [],
+                priceIncreaseDisabled: Boolean(item.priceIncreaseDisabled),
                 raw: item
               });
             }
@@ -1441,7 +1499,7 @@ export class HepsiburadaService {
     };
 
     const prodRes = await pool.query(
-      "SELECT id, name, barcode, sku, product_code, brand, price, currency, category, sub_category, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data, sector_data FROM products WHERE store_id = $1",
+      "SELECT id, name, barcode, sku, product_code, brand, price, currency, category, sub_category, stock_quantity, hepsiburada_sku, is_hepsiburada_active, hepsiburada_last_error, marketplace_data, sector_data FROM products WHERE store_id = $1",
       [this.storeId]
     );
     const storeProducts = prodRes.rows;
@@ -1593,6 +1651,48 @@ export class HepsiburadaService {
           ? this.calculateMarketplacePrice(rawPriceTry, matchedProd.category, matchedProd.sub_category)
           : Number(listing.price || 0);
 
+        const allReasons: string[] = [
+          ...(Array.isArray(listing.lockReasons) ? listing.lockReasons : []),
+          ...(Array.isArray(listing.deactivationReasons) ? listing.deactivationReasons : []),
+          ...(Array.isArray(listing.freezeReasons) ? listing.freezeReasons : []),
+        ].map(String);
+
+        let hbErrorMsg: string | null = null;
+        let hbPriceAlert = false;
+        let hbErrorType: string | null = null;
+
+        if (!isValidForListing && !isManuallyUnpublished && pPrice > 0 && pStock > 0 && listing.status !== 'PENDING_APPROVAL') {
+          const hasPriceReason = allReasons.some((r) =>
+            /price|fiyat|exorbitant|overpriced|maxprice|pricelimit|pricerange/i.test(r)
+          );
+          const prevErr = String(matchedProd.hepsiburada_last_error || "");
+          const hadPriceErr = /yüksek fiyat|fiyat limiti|fahiş|aralığın dışında|tavan fiyat|pricevalidation/i.test(prevErr);
+
+          if (hasPriceReason || hadPriceErr || (listing.priceIncreaseDisabled && allReasons.length === 0)) {
+            hbErrorMsg = "Yüksek Fiyat";
+            hbPriceAlert = true;
+            hbErrorType = "HIGH_PRICE";
+          } else if (allReasons.includes("BrandError")) {
+            hbErrorMsg = "Marka Onayı";
+            hbErrorType = "BRAND_ERROR";
+          } else if (allReasons.includes("DesignViolation")) {
+            hbErrorMsg = "İhlal Kısıtı";
+            hbErrorType = "DESIGN_VIOLATION";
+          } else if (allReasons.includes("ProvidedCounterfeitProduct")) {
+            hbErrorMsg = "Belge Kısıtı";
+            hbErrorType = "COUNTERFEIT_CHECK";
+          } else if (allReasons.includes("SalesRestriction")) {
+            hbErrorMsg = "Satış Kısıtı";
+            hbErrorType = "SALES_RESTRICTION";
+          } else if (allReasons.includes("ByHbAdmin")) {
+            hbErrorMsg = "HB Kilitli";
+            hbErrorType = "ADMIN_LOCKED";
+          } else if (allReasons.length > 0) {
+            hbErrorMsg = "Kilitli İlan";
+            hbErrorType = "LOCKED";
+          }
+        }
+
         mpData.hepsiburada = {
           ...(mpData.hepsiburada || {}),
           hepsiburadaSku: hbSku || mpData.hepsiburada?.hepsiburadaSku,
@@ -1600,6 +1700,9 @@ export class HepsiburadaService {
           productId: resolvedPid,
           productUrl: resolvedUrl,
           price: policyPrice,
+          priceAlert: hbPriceAlert,
+          errorType: hbErrorType,
+          lockReasons: allReasons,
           attributes: {
             ...(mpData.hepsiburada?.attributes || {}),
             price: String(policyPrice),
@@ -1629,12 +1732,13 @@ export class HepsiburadaService {
                    SET is_hepsiburada_active = $1,
                        hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
                        hepsiburada_last_sync = NOW(),
-                       hepsiburada_last_error = NULL,
-                       marketplace_data = $3
-                   WHERE id = $4 AND store_id = $5`,
+                       hepsiburada_last_error = $3,
+                       marketplace_data = $4
+                   WHERE id = $5 AND store_id = $6`,
             values: [
               isValidForListing,
               hbSku || null,
+              hbErrorMsg,
               JSON.stringify(mpData),
               matchedProd.id,
               this.storeId

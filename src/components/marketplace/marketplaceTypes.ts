@@ -2,7 +2,7 @@ import React from 'react';
 import { getMarketplaceListingUrl, getMarketplaceMerchantPortalUrl } from '../../utils/marketplaceUrls';
 
 export type MarketplaceKey = 'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama';
-export type ListingStatus = 'all' | 'active' | 'error' | 'inactive' | 'pending';
+export type ListingStatus = 'all' | 'active' | 'price_error' | 'error' | 'inactive' | 'pending';
 
 export interface MarketplaceConfig {
   key: MarketplaceKey;
@@ -113,6 +113,7 @@ export const MARKETPLACES: MarketplaceConfig[] = [
 export interface MarketplaceMetrics {
   total: number;
   active: number;
+  priceErrors: number;
   errors: number;
   inactive: number;
   pending: number;

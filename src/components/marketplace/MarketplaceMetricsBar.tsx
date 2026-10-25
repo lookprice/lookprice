@@ -90,9 +90,28 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
             }`}
           >
             <Clock className="w-3.5 h-3.5 text-amber-600" />
-            {isTr ? "Onay Bekliyor" : "Pending"}
+            {isTr ? "Onayda" : "Pending"}
             <span className="bg-amber-200/60 dark:bg-amber-800/60 text-amber-900 dark:text-amber-100 text-[10px] px-1.5 py-0.2 rounded-full font-black">
               {metrics.pending}
+            </span>
+          </button>
+        )}
+
+        {(metrics.priceErrors > 0 || selectedStatus === 'price_error') && (
+          <button
+            type="button"
+            onClick={() => setSelectedStatus('price_error')}
+            title={isTr ? "Yüksek Fiyat / Tavan Fiyat Uyarısı Alan Ürünler" : "High Pricing / Price Limit Alerts"}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+              selectedStatus === 'price_error'
+                ? 'bg-orange-50 border-orange-300 text-orange-700 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-300 shadow-xs'
+                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-orange-600 hover:bg-orange-50/50'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
+            {isTr ? "Fiyat Uyarısı" : "Price Alert"}
+            <span className="bg-orange-200/60 dark:bg-orange-800/60 text-orange-900 dark:text-orange-100 text-[10px] px-1.5 py-0.2 rounded-full font-black">
+              {metrics.priceErrors}
             </span>
           </button>
         )}
@@ -127,7 +146,7 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
       </div>
 
       {/* Quick Actions for Selected Marketplace */}
-      <div className="flex items-center gap-2 flex-wrap ml-auto">
+      <div className="flex items-center gap-1.5 flex-wrap ml-auto">
         {(selectedMarketplace === 'hepsiburada' || selectedMarketplace === 'all') && (
           <>
             <button
@@ -138,7 +157,7 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
               title={isTr ? "Hepsiburada satıcı hesabınızdaki tüm canlı ürünleri çekip mağazadaki ürünlerle eşleştirir" : "Fetch active Hepsiburada listings and match with local products"}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
-              <span>{isMatchingListings ? (isTr ? "Eşleştiriliyor..." : "Matching...") : (isTr ? "HB Eşleştir" : "Match HB")}</span>
+              <span>{isMatchingListings ? (isTr ? "Eşleşiyor..." : "Matching...") : (isTr ? "HB Eşleştir" : "Match HB")}</span>
             </button>
 
             <button
@@ -149,7 +168,7 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
               title={isTr ? "Onay bekleyen tüm ürünleri Hepsiburada ile canlı sorgulayıp eşleştirir" : "Check and resolve all pending products with Hepsiburada"}
             >
               <Clock className={`w-3.5 h-3.5 ${isCheckingBulkPending ? 'animate-spin' : ''}`} />
-              <span>{isCheckingBulkPending ? (isTr ? "Sorgulanıyor..." : "Checking...") : (isTr ? "Onayları Canlı Sorgula" : "Check Pending")}</span>
+              <span>{isCheckingBulkPending ? (isTr ? "Sorgulanıyor..." : "Checking...") : (isTr ? "Onay Sorgula" : "Check Pending")}</span>
             </button>
 
             <button
@@ -160,7 +179,7 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
               title={isTr ? "Canlı Hepsiburada siparişlerini çek" : "Sync recent Hepsiburada orders"}
             >
               <Package className={`w-3.5 h-3.5 ${isSyncingOrders ? 'animate-spin' : ''}`} />
-              <span>{isSyncingOrders ? (isTr ? "Çekiliyor..." : "Syncing...") : (isTr ? "HB Sipariş Çek" : "Sync Orders")}</span>
+              <span>{isSyncingOrders ? (isTr ? "Çekiliyor..." : "Syncing...") : (isTr ? "Sipariş Çek" : "Orders")}</span>
             </button>
           </>
         )}
@@ -174,7 +193,7 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
             title={isTr ? "Amazon TR hesabınızdaki aktif ürünleri çekip mağaza ürünleri ile eşleştirir" : "Fetch active Amazon TR listings"}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
-            <span>{isMatchingListings ? (isTr ? "Çekiliyor..." : "Syncing...") : (isTr ? "Amazon Eşleştir" : "Sync Amazon")}</span>
+            <span>{isMatchingListings ? (isTr ? "Eşleşiyor..." : "Syncing...") : (isTr ? "AMZ Eşleştir" : "Sync AMZ")}</span>
           </button>
         )}
 
@@ -204,7 +223,7 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
                 title={isTr ? `Seçilen ürünleri ${mpName}'da yayından kaldır / satışa kapat` : `Unpublish selected from ${mpName}`}
               >
                 <StopCircle className="w-3.5 h-3.5" />
-                <span>{isTr ? `Yayından Kaldır (${selectedIds.length})` : `Unpublish (${selectedIds.length})`}</span>
+                <span>{isTr ? `Kapat (${selectedIds.length})` : `Stop (${selectedIds.length})`}</span>
               </button>
             </>
           );

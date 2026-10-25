@@ -489,13 +489,15 @@ export class AmazonService {
 
       // 2. Real-time SP-API Listings Items search (overrides stale report status with live BUYABLE / quantity / issues)
       const liveItemsBySku = new Map<string, any>();
+      const buyableAsins = new Set<string>();
+      const mpId = this.settings.marketplace_id || AMAZON_TR_MARKETPLACE_ID;
       if (sellerId) {
         try {
           let pageToken: string | undefined = undefined;
           let pageCount = 0;
           do {
             const searchUrl = new URL(`${endpoint}/listings/2021-08-01/items/${sellerId}`);
-            searchUrl.searchParams.set("marketplaceIds", this.settings.marketplace_id || AMAZON_TR_MARKETPLACE_ID);
+            searchUrl.searchParams.set("marketplaceIds", mpId);
             searchUrl.searchParams.set("includedData", "summaries,offers,fulfillmentAvailability,issues");
             searchUrl.searchParams.set("pageSize", "20");
             if (pageToken) searchUrl.searchParams.set("pageToken", pageToken);
@@ -514,14 +516,51 @@ export class AmazonService {
               const issues = Array.isArray(it.issues) ? it.issues : [];
               const statusArr: string[] = Array.isArray(summary?.status) ? summary.status : [];
               const isBuyable = statusArr.includes("BUYABLE");
-              const isDiscoverable = statusArr.includes("DISCOVERABLE");
-              const has13013 = issues.some((iss: any) => iss.code === "13013");
               const qty = typeof fa?.quantity === "number" ? fa.quantity : 0;
               const price = parseFloat(offer?.price?.amount || "0") || 0;
-              const asin = summary?.asin || "";
+              const asin = String(summary?.asin || "").trim();
               const title = summary?.itemName || "";
               const productType = summary?.productType || "";
-              const isActiveListing = (isBuyable || (isDiscoverable && !has13013)) && qty > 0;
+              const isActiveListing = isBuyable && qty > 0;
+              if (isActiveListing && asin) {
+                buyableAsins.add(asin);
+              }
+
+              // Filter blocking issues (ignore non-blocking attribute quality warnings 90244, 99022, 18448, 100858, 100859, 100916, 101265)
+              const blockingErrors = issues.filter(
+                (iss: any) =>
+                  iss.severity === "ERROR" &&
+                  !["90244", "99022", "18448", "100858", "100859", "100916", "101265"].includes(String(iss.code))
+              );
+              const hasPriceIssue = issues.some(
+                (iss: any) =>
+                  (Array.isArray(iss.categories) && iss.categories.includes("INVALID_PRICE")) ||
+                  /fiyat|price|pricing|fahiş/i.test(String(iss.message || ""))
+              );
+
+              let errorCode: string | null = null;
+              let errorMessage: string | null = null;
+              let priceAlert = false;
+
+              if (!isActiveListing && qty > 0) {
+                if (hasPriceIssue || blockingErrors.length === 0) {
+                  errorCode = "HIGH_PRICE";
+                  errorMessage = "Yüksek Fiyat";
+                  priceAlert = true;
+                } else if (blockingErrors.some((e: any) => String(e.code) === "18299")) {
+                  errorCode = "BRAND_APPROVAL";
+                  errorMessage = "Marka Onayı";
+                } else if (blockingErrors.some((e: any) => String(e.code) === "5886")) {
+                  errorCode = "RESTRICTED_ASIN";
+                  errorMessage = "Kısıtlı ASIN";
+                } else if (blockingErrors.some((e: any) => String(e.code) === "13013")) {
+                  errorCode = "CATALOG_ERROR";
+                  errorMessage = "Katalog Hatası";
+                } else {
+                  errorCode = "LISTING_ERROR";
+                  errorMessage = blockingErrors[0]?.message || "İlan Kısıtlı";
+                }
+              }
 
               liveItemsBySku.set(sku, {
                 asin,
@@ -532,9 +571,12 @@ export class AmazonService {
                 quantity: qty,
                 barcode: sku && /^\d{8,14}$/.test(sku) ? sku : null,
                 status: isActiveListing ? "ACTIVE" : "INACTIVE",
-                isBuyable: isBuyable || (isDiscoverable && !has13013 && qty > 0),
+                isBuyable: isActiveListing,
                 summaryStatus: statusArr,
-                issues: has13013 ? issues : [],
+                issues: blockingErrors,
+                errorCode,
+                errorMessage,
+                priceAlert,
                 raw: it,
               });
             }
@@ -550,21 +592,77 @@ export class AmazonService {
       const mergedMap = new Map<string, any>();
       for (const rep of liveReportListings) {
         const key = String(rep.sku || rep.asin || "").trim();
-        if (key) mergedMap.set(key, rep);
+        if (!key) continue;
+        const repAsin = String(rep.asin || "").trim();
+        const isRepInactiveWithStock = rep.status !== "ACTIVE" && Number(rep.quantity || 0) > 0 && !buyableAsins.has(repAsin);
+        mergedMap.set(key, {
+          ...rep,
+          isBuyable: rep.status === "ACTIVE" && Number(rep.quantity || 0) > 0,
+          priceAlert: isRepInactiveWithStock,
+          errorCode: isRepInactiveWithStock ? "HIGH_PRICE" : null,
+          errorMessage: isRepInactiveWithStock ? "Yüksek Fiyat" : null,
+        });
       }
       for (const [sku, liveItem] of liveItemsBySku.entries()) {
         const existing = mergedMap.get(sku);
+        const resolvedAsin = liveItem.asin || existing?.asin || "";
+        // If another SKU for the same ASIN is already BUYABLE, don't flag old duplicate SKU as price alert
+        const suppressedByPrice = liveItem.priceAlert && !buyableAsins.has(resolvedAsin);
         mergedMap.set(sku, {
           ...(existing || {}),
           ...liveItem,
-          asin: liveItem.asin || existing?.asin || "",
+          asin: resolvedAsin,
           title: liveItem.title || existing?.title || "",
           price: liveItem.price > 0 ? liveItem.price : (existing?.price || 0),
           barcode: liveItem.barcode || existing?.barcode || null,
+          priceAlert: suppressedByPrice,
+          errorCode: suppressedByPrice ? "HIGH_PRICE" : (liveItem.priceAlert ? null : liveItem.errorCode),
+          errorMessage: suppressedByPrice ? "Yüksek Fiyat" : (liveItem.priceAlert ? null : liveItem.errorMessage),
         });
       }
 
       const combined = Array.from(mergedMap.values());
+
+      // 3. Batch query competitive reference prices for High Pricing Error items (max 20 ASINs per call)
+      const priceAlertAsins = Array.from(
+        new Set(
+          combined
+            .filter((item) => item.priceAlert && item.asin && /^B[0-9A-Z]{9}$/i.test(String(item.asin)))
+            .map((item) => String(item.asin).trim().toUpperCase())
+        )
+      ).slice(0, 20);
+
+      if (priceAlertAsins.length > 0) {
+        try {
+          const compUrl = `${endpoint}/products/pricing/v0/competitivePrice?MarketplaceId=${mpId}&Asins=${priceAlertAsins.join(",")}&ItemType=Asin`;
+          const compRes = await axios.get(compUrl, {
+            headers: { "x-amz-access-token": accessToken },
+            timeout: 8000,
+          });
+          const compList = Array.isArray(compRes.data?.payload) ? compRes.data.payload : [];
+          const refPriceByAsin = new Map<string, number>();
+          for (const entry of compList) {
+            const cAsin = String(entry?.ASIN || "").trim().toUpperCase();
+            const compPrices = entry?.Product?.CompetitivePricing?.CompetitivePrices || [];
+            const landed = Number(compPrices[0]?.Price?.LandedPrice?.Amount || compPrices[0]?.Price?.ListingPrice?.Amount || 0);
+            if (cAsin && landed > 0) {
+              refPriceByAsin.set(cAsin, landed);
+            }
+          }
+          for (const item of combined) {
+            if (item.priceAlert && item.asin) {
+              const refP = refPriceByAsin.get(String(item.asin).trim().toUpperCase());
+              if (refP && refP > 0) {
+                item.referencePrice = refP;
+                item.errorMessage = `Yüksek Fiyat (Ref: ${refP.toLocaleString("tr-TR")} TL)`;
+              }
+            }
+          }
+        } catch (compErr: any) {
+          // Non-blocking if competitive pricing endpoint is rate-limited
+        }
+      }
+
       return combined;
     } catch (err: any) {
       console.warn("[AmazonService] Fetch listings error:", err.message);
@@ -941,18 +1039,21 @@ export class AmazonService {
         const pPrice = Number(matchedProd.price || 0);
         const pStock = Number(matchedProd.stock_quantity || 0);
         const isListingActiveOnAmz = String(listing.status || "ACTIVE").toUpperCase() === "ACTIVE";
-        const isBuyableOnAmz = listing.isBuyable === true || (isListingActiveOnAmz && Number(listing.quantity ?? pStock) > 0);
+        const isBuyableOnAmz = listing.isBuyable === true;
 
         // Only respect manual unpublish if the listing is NOT actively BUYABLE on Amazon right now
         const isExplicitlyUnpublished = mpData.amazon?.manuallyUnpublished === true && !isBuyableOnAmz;
 
-        const finalIsActive = !isExplicitlyUnpublished && hasValidAsin && pPrice > 0 && pStock > 0 && isListingActiveOnAmz;
+        const finalIsActive = !isExplicitlyUnpublished && hasValidAsin && pPrice > 0 && pStock > 0 && isListingActiveOnAmz && isBuyableOnAmz;
         if (finalIsActive) {
           activeMatchedIds.add(matchedProd.id);
         }
 
-        const issueError = Array.isArray(listing.issues) && listing.issues.length > 0
-          ? listing.issues.filter((i: any) => i.severity === "ERROR").map((i: any) => i.message).join(" | ")
+        const issueError = !finalIsActive
+          ? (listing.errorMessage ||
+              (Array.isArray(listing.issues) && listing.issues.length > 0
+                ? listing.issues.filter((i: any) => i.severity === "ERROR").map((i: any) => i.message).join(" | ")
+                : null))
           : null;
 
         let rawPriceTry = pPrice;
@@ -971,16 +1072,22 @@ export class AmazonService {
           sku: sku || mpData.amazon?.sku,
           productType: listing.productType || mpData.amazon?.productType,
           price: policyPrice,
+          priceAlert: !finalIsActive && Boolean(listing.priceAlert),
+          errorType: !finalIsActive ? (listing.errorCode || null) : null,
+          referencePrice: !finalIsActive && listing.referencePrice ? Number(listing.referencePrice) : null,
           attributes: {
             ...(mpData.amazon?.attributes || {}),
             price: String(policyPrice),
           },
           matchedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
-          status: finalIsActive ? "ACTIVE" : "INACTIVE",
+          status: finalIsActive ? "ACTIVE" : (listing.priceAlert ? "PRICE_ERROR" : "INACTIVE"),
         };
         if (finalIsActive) {
           delete mpData.amazon.manuallyUnpublished;
+          delete mpData.amazon.priceAlert;
+          delete mpData.amazon.errorType;
+          delete mpData.amazon.referencePrice;
         }
 
         await pool.query(
@@ -996,7 +1103,7 @@ export class AmazonService {
             finalIsActive,
             cleanAsin || null,
             sku || matchedProd.amazon_sku || null,
-            !hasValidAsin ? "ASIN kodu bulunamadığı için Amazon'da satışa açılamaz." : (issueError || null),
+            !hasValidAsin ? "ASIN Eksik" : (issueError || null),
             JSON.stringify(mpData),
             matchedProd.id,
             this.storeId,

@@ -493,10 +493,34 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     return Number(p?.stock_quantity ?? p?.stock ?? 0) || 0;
   };
 
+  // Helper to check if a product has a high-price / price-limit alert
+  const isProductPriceError = (p: any, mpKey: MarketplaceKey): boolean => {
+    const err = getProductError(p, mpKey);
+    if (err && /yüksek fiyat|fiyat limiti|fahiş|high pricing|tavan fiyat|aralığın dışında|invalid_price/i.test(err)) {
+      return true;
+    }
+    const priceVal = parseFloat(p.price || 0);
+    const stockVal = parseInt(p.stock_quantity ?? 0, 10);
+    if (priceVal <= 0 || stockVal <= 0) return false;
+    if (mpKey !== 'all' && isProductActive(p, mpKey)) return false;
+
+    let mpData = p.marketplace_data;
+    if (typeof mpData === 'string') {
+      try { mpData = JSON.parse(mpData); } catch { mpData = {}; }
+    }
+    if (mpKey === 'all') {
+      const amzAlert = !isProductActive(p, 'amazon') && (mpData?.amazon?.priceAlert === true || mpData?.amazon?.errorType === 'HIGH_PRICE');
+      const hbAlert = !isProductActive(p, 'hepsiburada') && (mpData?.hepsiburada?.priceAlert === true || mpData?.hepsiburada?.errorType === 'HIGH_PRICE');
+      return Boolean(amzAlert || hbAlert);
+    }
+    return Boolean(mpData?.[mpKey]?.priceAlert === true || mpData?.[mpKey]?.errorType === 'HIGH_PRICE');
+  };
+
   // Global counts for metrics
   const metrics = useMemo<MarketplaceMetrics>(() => {
     const total = cleanedLocalProducts.length;
     let active = 0;
+    let priceErrors = 0;
     let errors = 0;
     let pending = 0;
     let inactive = 0;
@@ -504,16 +528,23 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     cleanedLocalProducts.forEach(p => {
       if (isProductActive(p, selectedMarketplace)) {
         active++;
-      } else if (getProductError(p, selectedMarketplace)) {
-        errors++;
-      } else if (isProductPending(p, selectedMarketplace)) {
-        pending++;
-      } else if (getEffectiveStock(p) > 0) {
-        inactive++;
+      } else {
+        const isPriceErr = isProductPriceError(p, selectedMarketplace);
+        const hasErr = Boolean(getProductError(p, selectedMarketplace));
+        if (isPriceErr) {
+          priceErrors++;
+        }
+        if (hasErr || isPriceErr) {
+          errors++;
+        } else if (isProductPending(p, selectedMarketplace)) {
+          pending++;
+        } else if (getEffectiveStock(p) > 0) {
+          inactive++;
+        }
       }
     });
 
-    return { total, active, errors, pending, inactive };
+    return { total, active, priceErrors, errors, pending, inactive };
   }, [cleanedLocalProducts, selectedMarketplace]);
 
   // Filtered Products
@@ -532,6 +563,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       }
 
       const active = isProductActive(p, selectedMarketplace);
+      const priceErr = isProductPriceError(p, selectedMarketplace);
       const error = getProductError(p, selectedMarketplace);
       const pending = isProductPending(p, selectedMarketplace);
 
@@ -541,11 +573,14 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       if (selectedStatus === 'pending') {
         return pending && !active;
       }
+      if (selectedStatus === 'price_error') {
+        return priceErr && !active;
+      }
       if (selectedStatus === 'error') {
-        return Boolean(error) && !active;
+        return (Boolean(error) || priceErr) && !active;
       }
       if (selectedStatus === 'inactive') {
-        return !active && !error && !pending && getEffectiveStock(p) > 0;
+        return !active && !error && !priceErr && !pending && getEffectiveStock(p) > 0;
       }
 
       return true;
