@@ -1422,8 +1422,26 @@ export class HepsiburadaService {
       };
     }
 
+    const storeRateRes = await pool.query(
+      "SELECT currency_rates, branding FROM stores WHERE id = $1",
+      [this.storeId]
+    );
+    const storeRow = storeRateRes.rows[0] || {};
+    let storeBranding: any = storeRow.branding || {};
+    if (typeof storeBranding === "string") {
+      try { storeBranding = JSON.parse(storeBranding); } catch (e) { storeBranding = {}; }
+    }
+    let dbRates: any = storeRow.currency_rates || {};
+    if (typeof dbRates === "string") {
+      try { dbRates = JSON.parse(dbRates); } catch (e) { dbRates = {}; }
+    }
+    const effectiveRates: Record<string, number> = {
+      ...(storeBranding?.currency_rates || {}),
+      ...(dbRates || {})
+    };
+
     const prodRes = await pool.query(
-      "SELECT id, name, barcode, sku, product_code, brand, price, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data, sector_data FROM products WHERE store_id = $1",
+      "SELECT id, name, barcode, sku, product_code, brand, price, currency, category, sub_category, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data, sector_data FROM products WHERE store_id = $1",
       [this.storeId]
     );
     const storeProducts = prodRes.rows;
@@ -1565,12 +1583,27 @@ export class HepsiburadaService {
           activeMatchedIds.add(matchedProd.id);
         }
 
+        let rawPriceTry = Number(matchedProd.price || 0);
+        const curr = String(matchedProd.currency || "TRY").toUpperCase();
+        if (curr === "USD" && effectiveRates.USD) rawPriceTry *= Number(effectiveRates.USD);
+        else if (curr === "EUR" && effectiveRates.EUR) rawPriceTry *= Number(effectiveRates.EUR);
+        else if (curr === "GBP" && effectiveRates.GBP) rawPriceTry *= Number(effectiveRates.GBP);
+
+        const policyPrice = rawPriceTry > 0
+          ? this.calculateMarketplacePrice(rawPriceTry, matchedProd.category, matchedProd.sub_category)
+          : Number(listing.price || 0);
+
         mpData.hepsiburada = {
           ...(mpData.hepsiburada || {}),
           hepsiburadaSku: hbSku || mpData.hepsiburada?.hepsiburadaSku,
           merchantSku: mSku || mpData.hepsiburada?.merchantSku,
           productId: resolvedPid,
           productUrl: resolvedUrl,
+          price: policyPrice,
+          attributes: {
+            ...(mpData.hepsiburada?.attributes || {}),
+            price: String(policyPrice),
+          },
           matchedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
           status: isValidForListing ? 'ACTIVE' : (listing.status === 'PENDING_APPROVAL' ? 'PENDING_APPROVAL' : 'INACTIVE')
@@ -1589,7 +1622,7 @@ export class HepsiburadaService {
           productName: matchedProd.name,
           barcode: matchedProd.barcode,
           hepsiburadaSku: hbSku || matchedProd.hepsiburada_sku,
-          price: listing.price,
+          price: policyPrice || listing.price,
           stock: listing.availableStock,
           updateSql: {
             text: `UPDATE products 

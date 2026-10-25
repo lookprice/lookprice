@@ -9,6 +9,7 @@ interface MarketplaceListingsTableProps {
   onToggleSelect: (id: number) => void;
   onToggleSelectAll: () => void;
   selectedMarketplace: MarketplaceKey;
+  storeBranding?: any;
   isTr: boolean;
   copiedBarcode: string | null;
   onCopyBarcode: (bc: string) => void;
@@ -29,6 +30,7 @@ export const MarketplaceListingsTable: React.FC<MarketplaceListingsTableProps> =
   onToggleSelect,
   onToggleSelectAll,
   selectedMarketplace,
+  storeBranding,
   isTr,
   copiedBarcode,
   onCopyBarcode,
@@ -86,6 +88,7 @@ export const MarketplaceListingsTable: React.FC<MarketplaceListingsTableProps> =
               isSelected={selectedIds.includes(p.id)}
               onToggleSelect={onToggleSelect}
               selectedMarketplace={selectedMarketplace}
+              storeBranding={storeBranding}
               isTr={isTr}
               copiedBarcode={copiedBarcode}
               onCopyBarcode={onCopyBarcode}

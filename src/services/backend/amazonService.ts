@@ -855,8 +855,26 @@ export class AmazonService {
   }> {
     const listings = await this.fetchListings();
 
+    const storeRateRes = await pool.query(
+      "SELECT currency_rates, branding FROM stores WHERE id = $1",
+      [this.storeId]
+    );
+    const storeRow = storeRateRes.rows[0] || {};
+    let storeBranding: any = storeRow.branding || {};
+    if (typeof storeBranding === "string") {
+      try { storeBranding = JSON.parse(storeBranding); } catch (e) { storeBranding = {}; }
+    }
+    let dbRates: any = storeRow.currency_rates || {};
+    if (typeof dbRates === "string") {
+      try { dbRates = JSON.parse(dbRates); } catch (e) { dbRates = {}; }
+    }
+    const effectiveRates: Record<string, number> = {
+      ...(storeBranding?.currency_rates || {}),
+      ...(dbRates || {})
+    };
+
     const storeProductsRes = await pool.query(
-      `SELECT id, name, barcode, sku, price, stock_quantity, marketplace_data, amazon_asin, amazon_sku, is_amazon_active 
+      `SELECT id, name, barcode, sku, price, currency, category, sub_category, stock_quantity, marketplace_data, amazon_asin, amazon_sku, is_amazon_active 
        FROM products 
        WHERE store_id = $1`,
       [this.storeId]
@@ -937,11 +955,26 @@ export class AmazonService {
           ? listing.issues.filter((i: any) => i.severity === "ERROR").map((i: any) => i.message).join(" | ")
           : null;
 
+        let rawPriceTry = pPrice;
+        const curr = String(matchedProd.currency || "TRY").toUpperCase();
+        if (curr === "USD" && effectiveRates.USD) rawPriceTry *= Number(effectiveRates.USD);
+        else if (curr === "EUR" && effectiveRates.EUR) rawPriceTry *= Number(effectiveRates.EUR);
+        else if (curr === "GBP" && effectiveRates.GBP) rawPriceTry *= Number(effectiveRates.GBP);
+
+        const policyPrice = pPrice > 0
+          ? this.calculateMarketplacePrice(rawPriceTry, matchedProd.category, matchedProd.sub_category)
+          : Number(listing.price || 0);
+
         mpData.amazon = {
           ...(mpData.amazon || {}),
           asin: cleanAsin || mpData.amazon?.asin,
           sku: sku || mpData.amazon?.sku,
           productType: listing.productType || mpData.amazon?.productType,
+          price: policyPrice,
+          attributes: {
+            ...(mpData.amazon?.attributes || {}),
+            price: String(policyPrice),
+          },
           matchedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
           status: finalIsActive ? "ACTIVE" : "INACTIVE",
@@ -979,7 +1012,7 @@ export class AmazonService {
           barcode: matchedProd.barcode,
           amazonAsin: cleanAsin,
           amazonSku: sku,
-          price: listing.price,
+          price: policyPrice || listing.price,
           stock: listing.quantity,
           isActive: finalIsActive,
         });
@@ -999,7 +1032,7 @@ export class AmazonService {
 
   /**
    * Calculate effective Amazon price using commission & fixed fee markup:
-   * P_AMZ = (P_Web_TRY + FixedFee) / (1 - (CommissionRate / 100))
+   * P_AMZ = (P_Web_TRY * (1 + CommissionRate / 100)) + FixedFee
    */
   calculateMarketplacePrice(webPriceTry: number, category?: string, subCategory?: string): number {
     const rawPrice = Number(webPriceTry) || 0;
@@ -1096,7 +1129,7 @@ export class AmazonService {
       if (summaries.length > 0 && summaries[0]?.productType) {
         resolvedProductType = summaries[0].productType;
       }
-      const has13013 = issues.some((i: any) => i.code === "13013" || i.severity === "ERROR");
+      const has13013 = issues.some((i: any) => i.code === "13013");
       if (summaries.length === 0 || has13013) {
         needsOfferUpsert = true;
       }

@@ -257,12 +257,12 @@ export async function syncTCMBRates() {
   try {
     const { rates, tcmbDate } = await fetchTCMBRatesWithRetry();
     
-    if (Object.keys(rates).length > 0) {
+    if (Object.keys(rates).length > 0 && Number(rates.USD) > 0) {
       console.log(`[CRON] Extracted TCMB ForexBuying rates for date ${tcmbDate || 'Current'}:`, rates);
       
       try {
-        // Update all stores
-        const storesRes = await pool.query("SELECT id, currency_rates FROM stores");
+        // Update all stores (both currency_rates column and branding.currency_rates for complete consistency)
+        const storesRes = await pool.query("SELECT id, currency_rates, branding FROM stores");
         for (const store of storesRes.rows) {
           let currentRates = {};
           try {
@@ -275,14 +275,28 @@ export async function syncTCMBRates() {
             // Ignore parse errors, fallback to empty
           }
 
+          let branding: any = {};
+          try {
+            if (typeof store.branding === 'string') {
+              branding = JSON.parse(store.branding);
+            } else if (typeof store.branding === 'object' && store.branding !== null) {
+              branding = store.branding;
+            }
+          } catch (e) {
+            branding = {};
+          }
+
           const newRates = {
+            ...(branding?.currency_rates || {}),
             ...currentRates,
             ...rates
           };
 
+          branding.currency_rates = newRates;
+
           await pool.query(
-            "UPDATE stores SET currency_rates = $1 WHERE id = $2",
-            [JSON.stringify(newRates), store.id]
+            "UPDATE stores SET currency_rates = $1, branding = $2 WHERE id = $3",
+            [JSON.stringify(newRates), JSON.stringify(branding), store.id]
           );
 
           // Auto-sync revised prices for active marketplace products in foreign currencies
@@ -303,13 +317,13 @@ export async function syncTCMBRates() {
 }
 
 /**
- * Automatically recalculates and pushes updated prices to Hepsiburada and other marketplaces
- * when currency exchange rates change for products priced in foreign currencies (USD, EUR, GBP).
+ * Automatically recalculates and pushes updated prices to Hepsiburada, Amazon, N11, Trendyol, and Pazarama
+ * when currency exchange rates or marketplace commission/fixed-fee settings change.
  */
 export async function syncMarketplacePricesOnRateChange(storeId: number, rates?: Record<string, number>) {
   try {
     const storeRes = await pool.query(
-      "SELECT id, name, currency_rates, hepsiburada_settings, branding FROM stores WHERE id = $1",
+      "SELECT id, name, currency_rates, amazon_settings, hepsiburada_settings, n11_settings, trendyol_settings, pazarama_settings, branding FROM stores WHERE id = $1",
       [storeId]
     );
     if (storeRes.rows.length === 0) return;
@@ -318,28 +332,152 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
     if (typeof branding === 'string') {
       try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
     }
+    branding = branding || {};
     if (branding?.is_demo === true || branding?.is_demo === 'true') return;
 
-    let effectiveRates = rates;
-    if (!effectiveRates) {
-      try {
-        if (typeof store.currency_rates === 'string') {
-          effectiveRates = JSON.parse(store.currency_rates);
-        } else if (typeof store.currency_rates === 'object') {
-          effectiveRates = store.currency_rates;
-        }
-      } catch (e) {
-        effectiveRates = {};
+    let dbRates: Record<string, number> = {};
+    try {
+      if (typeof store.currency_rates === 'string') {
+        dbRates = JSON.parse(store.currency_rates);
+      } else if (typeof store.currency_rates === 'object' && store.currency_rates !== null) {
+        dbRates = store.currency_rates;
       }
+    } catch (e) {
+      dbRates = {};
     }
-    effectiveRates = effectiveRates || {};
+
+    const effectiveRates: Record<string, number> = {
+      ...(branding?.currency_rates || {}),
+      ...dbRates,
+      ...(rates || {})
+    };
+
+    // Keep branding.currency_rates in sync with stores.currency_rates if needed
+    if (
+      effectiveRates.USD &&
+      (!branding.currency_rates ||
+        Number(branding.currency_rates.USD) !== Number(effectiveRates.USD) ||
+        Number(branding.currency_rates.EUR) !== Number(effectiveRates.EUR) ||
+        Number(branding.currency_rates.GBP) !== Number(effectiveRates.GBP))
+    ) {
+      branding.currency_rates = effectiveRates;
+      await pool.query(
+        "UPDATE stores SET currency_rates = $1, branding = $2 WHERE id = $3",
+        [JSON.stringify(effectiveRates), JSON.stringify(branding), storeId]
+      );
+    }
 
     let hbSettings = store.hepsiburada_settings;
     if (typeof hbSettings === 'string') {
       try { hbSettings = JSON.parse(hbSettings); } catch (e) { hbSettings = {}; }
     }
-    if (!hbSettings?.merchantId) {
-      hbSettings = store.branding?.hepsiburada_settings || hbSettings || {};
+    hbSettings = { ...(branding?.hepsiburada_settings || {}), ...(hbSettings || {}) };
+
+    let amzSettings = store.amazon_settings;
+    if (typeof amzSettings === 'string') {
+      try { amzSettings = JSON.parse(amzSettings); } catch (e) { amzSettings = {}; }
+    }
+    amzSettings = { ...(branding?.amazon_settings || {}), ...(amzSettings || {}) };
+
+    let n11Settings = store.n11_settings;
+    if (typeof n11Settings === 'string') {
+      try { n11Settings = JSON.parse(n11Settings); } catch (e) { n11Settings = {}; }
+    }
+    n11Settings = { ...(branding?.n11_settings || {}), ...(n11Settings || {}) };
+
+    let tySettings = store.trendyol_settings;
+    if (typeof tySettings === 'string') {
+      try { tySettings = JSON.parse(tySettings); } catch (e) { tySettings = {}; }
+    }
+    tySettings = { ...(branding?.trendyol_settings || {}), ...(tySettings || {}) };
+
+    let pzSettings = store.pazarama_settings;
+    if (typeof pzSettings === 'string') {
+      try { pzSettings = JSON.parse(pzSettings); } catch (e) { pzSettings = {}; }
+    }
+    pzSettings = { ...(branding?.pazarama_settings || {}), ...(pzSettings || {}) };
+
+    const { N11Service } = await import("./backend/n11Service.js");
+    const hbHelper = new HepsiburadaService(hbSettings || {}, storeId);
+    const amzHelper = new AmazonService(amzSettings || {}, storeId);
+
+    // 0. Recalculate and persist channel-specific marketplace_data prices across all store products in fast batches
+    const allProductsRes = await pool.query(
+      `SELECT id, name, category, sub_category, price, currency, marketplace_data
+       FROM products
+       WHERE store_id = $1 AND price > 0`,
+      [storeId]
+    );
+
+    const pendingUpdates: Array<{ id: number; mpData: any }> = [];
+    for (const p of allProductsRes.rows) {
+      let rawPrice = parseFloat(p.price || "0");
+      if (rawPrice <= 0) continue;
+      const curr = (p.currency || "TRY").toUpperCase();
+      if (curr === "USD" && effectiveRates.USD) rawPrice *= Number(effectiveRates.USD);
+      else if (curr === "EUR" && effectiveRates.EUR) rawPrice *= Number(effectiveRates.EUR);
+      else if (curr === "GBP" && effectiveRates.GBP) rawPrice *= Number(effectiveRates.GBP);
+
+      const hbPrice = hbHelper.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+      const amzPrice = amzHelper.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+      const n11Price = N11Service.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, n11Settings);
+      const tyPrice = N11Service.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, tySettings);
+      const pzPrice = N11Service.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, pzSettings);
+
+      let mpData: any = p.marketplace_data;
+      if (typeof mpData === "string") {
+        try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+      }
+      mpData = mpData || {};
+
+      const changed =
+        mpData?.hepsiburada?.attributes?.price !== String(hbPrice) ||
+        mpData?.amazon?.attributes?.price !== String(amzPrice) ||
+        mpData?.n11?.attributes?.price !== String(n11Price) ||
+        mpData?.trendyol?.attributes?.price !== String(tyPrice) ||
+        mpData?.pazarama?.attributes?.price !== String(pzPrice);
+
+      if (changed) {
+        if (!mpData.hepsiburada) mpData.hepsiburada = {};
+        if (!mpData.hepsiburada.attributes) mpData.hepsiburada.attributes = {};
+        mpData.hepsiburada.attributes.price = String(hbPrice);
+        mpData.hepsiburada.price = hbPrice;
+
+        if (!mpData.amazon) mpData.amazon = {};
+        if (!mpData.amazon.attributes) mpData.amazon.attributes = {};
+        mpData.amazon.attributes.price = String(amzPrice);
+        mpData.amazon.price = amzPrice;
+
+        if (!mpData.n11) mpData.n11 = {};
+        if (!mpData.n11.attributes) mpData.n11.attributes = {};
+        mpData.n11.attributes.price = String(n11Price);
+        mpData.n11.price = n11Price;
+
+        if (!mpData.trendyol) mpData.trendyol = {};
+        if (!mpData.trendyol.attributes) mpData.trendyol.attributes = {};
+        mpData.trendyol.attributes.price = String(tyPrice);
+        mpData.trendyol.price = tyPrice;
+
+        if (!mpData.pazarama) mpData.pazarama = {};
+        if (!mpData.pazarama.attributes) mpData.pazarama.attributes = {};
+        mpData.pazarama.attributes.price = String(pzPrice);
+        mpData.pazarama.price = pzPrice;
+
+        if (!mpData.attributes) mpData.attributes = {};
+        mpData.attributes.price = String(hbPrice);
+
+        pendingUpdates.push({ id: p.id, mpData });
+      }
+    }
+
+    const CHUNK = 50;
+    for (let i = 0; i < pendingUpdates.length; i += CHUNK) {
+      const slice = pendingUpdates.slice(i, i + CHUNK);
+      await Promise.all(
+        slice.map((u) =>
+          pool.query("UPDATE products SET marketplace_data = $1 WHERE id = $2", [JSON.stringify(u.mpData), u.id])
+        )
+      );
     }
 
     // 1. Hepsiburada Price & Stock Push
@@ -363,12 +501,12 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
           const inventoryItems = hbProductsRes.rows.map((p) => {
             let rawPrice = parseFloat(p.price || "0");
             const curr = (p.currency || "TRY").toUpperCase();
-            if (curr === "USD" && effectiveRates!.USD) {
-              rawPrice = rawPrice * Number(effectiveRates!.USD);
-            } else if (curr === "EUR" && effectiveRates!.EUR) {
-              rawPrice = rawPrice * Number(effectiveRates!.EUR);
-            } else if (curr === "GBP" && effectiveRates!.GBP) {
-              rawPrice = rawPrice * Number(effectiveRates!.GBP);
+            if (curr === "USD" && effectiveRates.USD) {
+              rawPrice = rawPrice * Number(effectiveRates.USD);
+            } else if (curr === "EUR" && effectiveRates.EUR) {
+              rawPrice = rawPrice * Number(effectiveRates.EUR);
+            } else if (curr === "GBP" && effectiveRates.GBP) {
+              rawPrice = rawPrice * Number(effectiveRates.GBP);
             }
 
             const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
@@ -380,6 +518,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
             if (!mpData.hepsiburada) mpData.hepsiburada = {};
             if (!mpData.hepsiburada.attributes) mpData.hepsiburada.attributes = {};
             mpData.hepsiburada.attributes.price = String(effectivePrice);
+            mpData.hepsiburada.price = effectivePrice;
             mpData.hepsiburada.lastSync = new Date().toISOString();
             p.marketplace_data = mpData;
 
@@ -421,14 +560,6 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
     }
 
     // 2. Amazon TR Price & Stock Push
-    let amzSettings = store.amazon_settings;
-    if (typeof amzSettings === 'string') {
-      try { amzSettings = JSON.parse(amzSettings); } catch (e) { amzSettings = {}; }
-    }
-    if (!amzSettings?.sellerId) {
-      amzSettings = store.branding?.amazon_settings || amzSettings || {};
-    }
-
     if (amzSettings?.sellerId && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
       const amzService = new AmazonService(amzSettings, storeId);
       const amzProductsRes = await pool.query(
@@ -442,12 +573,12 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
         try {
           let rawPrice = parseFloat(p.price || "0");
           const curr = (p.currency || "TRY").toUpperCase();
-          if (curr === "USD" && effectiveRates!.USD) {
-            rawPrice = rawPrice * Number(effectiveRates!.USD);
-          } else if (curr === "EUR" && effectiveRates!.EUR) {
-            rawPrice = rawPrice * Number(effectiveRates!.EUR);
-          } else if (curr === "GBP" && effectiveRates!.GBP) {
-            rawPrice = rawPrice * Number(effectiveRates!.GBP);
+          if (curr === "USD" && effectiveRates.USD) {
+            rawPrice = rawPrice * Number(effectiveRates.USD);
+          } else if (curr === "EUR" && effectiveRates.EUR) {
+            rawPrice = rawPrice * Number(effectiveRates.EUR);
+          } else if (curr === "GBP" && effectiveRates.GBP) {
+            rawPrice = rawPrice * Number(effectiveRates.GBP);
           }
 
           let mpData: any = p.marketplace_data;
@@ -463,12 +594,14 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
           if (!mpData.amazon) mpData.amazon = {};
           if (!mpData.amazon.attributes) mpData.amazon.attributes = {};
           mpData.amazon.attributes.price = String(effectivePrice);
+          mpData.amazon.price = effectivePrice;
           mpData.amazon.lastSync = new Date().toISOString();
-          if (!mpData.attributes) mpData.attributes = {};
-          mpData.attributes.price = String(effectivePrice);
 
           if (sellerSku && effectivePrice > 0) {
-            const res = await amzService.updateListingsItem(sellerSku, effectivePrice, stock);
+            const res = await amzService.updateListingsItem(sellerSku, effectivePrice, stock, 3, {
+              asin: p.amazon_asin,
+              productType: mpData?.amazon?.productType
+            });
             await pool.query(
               "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = $1, marketplace_data = $2 WHERE id = $3",
               [res.success ? null : res.message, JSON.stringify(mpData), p.id]
@@ -482,21 +615,12 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
     }
 
     // 3. N11 Live Price & Stock Push
-    let n11Settings = store.n11_settings;
-    if (typeof n11Settings === 'string') {
-      try { n11Settings = JSON.parse(n11Settings); } catch(e) { n11Settings = {}; }
-    }
-    if (!n11Settings?.appKey) {
-      n11Settings = store.branding?.n11_settings || n11Settings || {};
-    }
-
     if (
       n11Settings?.appKey &&
       n11Settings?.appSecret &&
       (!n11AuthBackoffStores.get(storeId) || Date.now() >= n11AuthBackoffStores.get(storeId)!)
     ) {
       try {
-        const { N11Service } = await import("./backend/n11Service.js");
         const auth = { appKey: n11Settings.appKey.trim(), appSecret: n11Settings.appSecret.trim() };
         const n11ProductsRes = await pool.query(
           `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, marketplace_data 
@@ -509,9 +633,9 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
           try {
             let rawPrice = parseFloat(p.price || "0");
             const curr = (p.currency || "TRY").toUpperCase();
-            if (curr === "USD" && effectiveRates!.USD) rawPrice *= Number(effectiveRates!.USD);
-            else if (curr === "EUR" && effectiveRates!.EUR) rawPrice *= Number(effectiveRates!.EUR);
-            else if (curr === "GBP" && effectiveRates!.GBP) rawPrice *= Number(effectiveRates!.GBP);
+            if (curr === "USD" && effectiveRates.USD) rawPrice *= Number(effectiveRates.USD);
+            else if (curr === "EUR" && effectiveRates.EUR) rawPrice *= Number(effectiveRates.EUR);
+            else if (curr === "GBP" && effectiveRates.GBP) rawPrice *= Number(effectiveRates.GBP);
 
             const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, n11Settings);
             let mpData: any = p.marketplace_data;
@@ -534,6 +658,7 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
             if (!mpData.n11) mpData.n11 = {};
             if (!mpData.n11.attributes) mpData.n11.attributes = {};
             mpData.n11.attributes.price = String(effectivePrice);
+            mpData.n11.price = effectivePrice;
             mpData.n11.lastSync = new Date().toISOString();
 
             if (sellerCode && effectivePrice > 0) {
@@ -564,47 +689,6 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
         console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): N11 ${n11ProductsRes.rows.length} ürünün fiyat ve stoğu güncellendi.`);
       } catch (n11InitErr: any) {
         // Ignore N11 init warning in background cron
-      }
-    }
-
-    // 4. Update marketplace_data prices for other active channels (Trendyol, N11, Pazarama)
-    const otherProductsRes = await pool.query(
-      `SELECT id, name, category, sub_category, price, currency, marketplace_data 
-       FROM products 
-       WHERE store_id = $1 AND currency IN ('USD', 'EUR', 'GBP')`,
-      [storeId]
-    );
-
-    const hbHelper = new HepsiburadaService(hbSettings || {}, storeId);
-    for (const p of otherProductsRes.rows) {
-      let rawPrice = parseFloat(p.price || "0");
-      const curr = (p.currency || "TRY").toUpperCase();
-      if (curr === "USD" && effectiveRates!.USD) rawPrice *= Number(effectiveRates!.USD);
-      else if (curr === "EUR" && effectiveRates!.EUR) rawPrice *= Number(effectiveRates!.EUR);
-      else if (curr === "GBP" && effectiveRates!.GBP) rawPrice *= Number(effectiveRates!.GBP);
-
-      const calculatedPrice = hbHelper.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
-      if (calculatedPrice > 0) {
-        let mpData: any = p.marketplace_data;
-        if (typeof mpData === "string") {
-          try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
-        }
-        mpData = mpData || {};
-        
-        ['trendyol', 'n11', 'pazarama', 'attributes'].forEach((ch) => {
-          if (!mpData[ch]) mpData[ch] = {};
-          if (ch === 'attributes') {
-            mpData.attributes.price = String(calculatedPrice);
-          } else {
-            if (!mpData[ch].attributes) mpData[ch].attributes = {};
-            mpData[ch].attributes.price = String(calculatedPrice);
-          }
-        });
-
-        await pool.query(
-          "UPDATE products SET marketplace_data = $1 WHERE id = $2",
-          [JSON.stringify(mpData), p.id]
-        );
       }
     }
   } catch (err: any) {

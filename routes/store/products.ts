@@ -1573,6 +1573,47 @@ router.put("/:id", async (req: any, res) => {
       finalMarketplaceData.amazon.productUrl = finalAmzUrl;
     }
 
+    // Recalculate channel-specific marketplace prices whenever product price, currency, or category is saved
+    if (finalPrice > 0) {
+      try {
+        const storeSettingsRes = await pool.query(
+          "SELECT currency_rates, amazon_settings, hepsiburada_settings, n11_settings, trendyol_settings, pazarama_settings, branding FROM stores WHERE id = $1",
+          [storeId]
+        );
+        const stRow = storeSettingsRes.rows[0] || {};
+        let stBr: any = stRow.branding || {};
+        if (typeof stBr === 'string') { try { stBr = JSON.parse(stBr); } catch (e) { stBr = {}; } }
+        let stRates: any = stRow.currency_rates || {};
+        if (typeof stRates === 'string') { try { stRates = JSON.parse(stRates); } catch (e) { stRates = {}; } }
+        const effectiveRates = { ...(stBr?.currency_rates || {}), ...(stRates || {}) };
+
+        let webPriceTry = finalPrice;
+        const currUpper = String(currency || 'TRY').toUpperCase();
+        if (currUpper === 'USD' && effectiveRates.USD) webPriceTry *= Number(effectiveRates.USD);
+        else if (currUpper === 'EUR' && effectiveRates.EUR) webPriceTry *= Number(effectiveRates.EUR);
+        else if (currUpper === 'GBP' && effectiveRates.GBP) webPriceTry *= Number(effectiveRates.GBP);
+
+        const { N11Service } = await import("../../src/services/backend/n11Service.js");
+        const channelConfigs: Array<{ key: string; settings: any }> = [
+          { key: 'hepsiburada', settings: { ...(stBr?.hepsiburada_settings || {}), ...(stRow.hepsiburada_settings || {}) } },
+          { key: 'amazon', settings: { ...(stBr?.amazon_settings || {}), ...(stRow.amazon_settings || {}) } },
+          { key: 'n11', settings: { ...(stBr?.n11_settings || {}), ...(stRow.n11_settings || {}) } },
+          { key: 'trendyol', settings: { ...(stBr?.trendyol_settings || {}), ...(stRow.trendyol_settings || {}) } },
+          { key: 'pazarama', settings: { ...(stBr?.pazarama_settings || {}), ...(stRow.pazarama_settings || {}) } },
+        ];
+
+        for (const ch of channelConfigs) {
+          const chPrice = N11Service.calculateMarketplacePrice(webPriceTry, category, sub_category, ch.settings);
+          if (!finalMarketplaceData[ch.key]) finalMarketplaceData[ch.key] = {};
+          if (!finalMarketplaceData[ch.key].attributes) finalMarketplaceData[ch.key].attributes = {};
+          finalMarketplaceData[ch.key].attributes.price = String(chPrice);
+          finalMarketplaceData[ch.key].price = chPrice;
+        }
+      } catch (calcErr) {
+        // Non-blocking fallback
+      }
+    }
+
     await pool.query(`
       UPDATE products SET 
         barcode = $1, product_code = $2, sku = $2, name = $3, price = $4, currency = $5, 

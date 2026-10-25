@@ -988,6 +988,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
             selectedMarketplace={selectedMarketplace}
+            storeBranding={storeBranding}
             isTr={isTr}
             copiedBarcode={copiedBarcode}
             onCopyBarcode={copyToClipboard}

@@ -90,14 +90,9 @@ export async function fetchTCMBRatesWithRetry(maxRetriesPerUrl = 3): Promise<{ r
     }
   }
 
-  console.error("[TCMB-FETCHER] All TCMB URL retries failed. Falling back to default baseline rates:", lastError?.message || lastError);
-  // Fallback rates so the system never breaks or crashes on TCMB network resets
+  console.error("[TCMB-FETCHER] All TCMB URL retries failed. Keeping existing database rates:", lastError?.message || lastError);
   return {
-    rates: {
-      USD: 38.50,
-      EUR: 42.10,
-      GBP: 49.80
-    },
-    tcmbDate: "Fallback-Cache"
+    rates: {},
+    tcmbDate: undefined
   };
 }

@@ -19,6 +19,7 @@ interface MarketplaceProductRowProps {
   isSelected: boolean;
   onToggleSelect: (id: number) => void;
   selectedMarketplace: MarketplaceKey;
+  storeBranding?: any;
   isTr: boolean;
   copiedBarcode: string | null;
   onCopyBarcode: (bc: string) => void;
@@ -38,6 +39,7 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
   isSelected,
   onToggleSelect,
   selectedMarketplace,
+  storeBranding,
   isTr,
   copiedBarcode,
   onCopyBarcode,
@@ -212,9 +214,55 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
           if (typeof mpData === 'string') {
             try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
           }
-          const mpSpecificPrice = selectedMarketplace !== 'all' 
+
+          const targetMp = selectedMarketplace !== 'all' ? selectedMarketplace : (p.is_amazon_active ? 'amazon' : 'hepsiburada');
+          const rawPrice = parseFloat(p.price || 0);
+          let computedPolicyPrice = 0;
+
+          if (rawPrice > 0 && storeBranding) {
+            const rates = storeBranding.currency_rates || {};
+            const curr = String(p.currency || 'TRY').toUpperCase().trim();
+            let webPriceTry = rawPrice;
+            if ((curr === 'USD' || curr === '$') && Number(rates.USD) > 0) webPriceTry = rawPrice * Number(rates.USD);
+            else if ((curr === 'EUR' || curr === '€') && Number(rates.EUR) > 0) webPriceTry = rawPrice * Number(rates.EUR);
+            else if ((curr === 'GBP' || curr === '£') && Number(rates.GBP) > 0) webPriceTry = rawPrice * Number(rates.GBP);
+
+            const mpSettings = storeBranding[`${targetMp}_settings`] || {};
+            const categoryMarkups = mpSettings.categoryMarkups || {};
+            let commRate = mpSettings.defaultCommissionRate !== undefined && mpSettings.defaultCommissionRate !== null
+              ? Number(mpSettings.defaultCommissionRate)
+              : (mpSettings.commissionRate !== undefined ? Number(mpSettings.commissionRate) : 0);
+            let fixedFee = mpSettings.defaultFixedFee !== undefined && mpSettings.defaultFixedFee !== null
+              ? Number(mpSettings.defaultFixedFee)
+              : 0;
+
+            const cat1 = p.category ? String(p.category).trim() : '';
+            const sub1 = p.sub_category ? String(p.sub_category).trim() : '';
+            const subKey = cat1 && sub1 ? `${cat1} > ${sub1}` : '';
+
+            if (subKey && categoryMarkups[subKey]) {
+              const cm = categoryMarkups[subKey];
+              if (cm.commissionRate !== undefined && cm.commissionRate !== null && cm.commissionRate !== '') commRate = Number(cm.commissionRate);
+              if (cm.fixedFee !== undefined && cm.fixedFee !== null && cm.fixedFee !== '') fixedFee = Number(cm.fixedFee);
+            } else if (cat1 && categoryMarkups[cat1]) {
+              const cm = categoryMarkups[cat1];
+              if (cm.commissionRate !== undefined && cm.commissionRate !== null && cm.commissionRate !== '') commRate = Number(cm.commissionRate);
+              if (cm.fixedFee !== undefined && cm.fixedFee !== null && cm.fixedFee !== '') fixedFee = Number(cm.fixedFee);
+            }
+
+            const method = mpSettings.priceCalculationMethod || mpSettings.priceCalculation || 'markup';
+            if (method === 'margin' && commRate < 100) {
+              computedPolicyPrice = Number(((webPriceTry + fixedFee) / (1 - commRate / 100)).toFixed(2));
+            } else {
+              computedPolicyPrice = Number(((webPriceTry * (1 + commRate / 100)) + fixedFee).toFixed(2));
+            }
+          }
+
+          const cachedMpPrice = selectedMarketplace !== 'all' 
             ? (mpData?.[selectedMarketplace]?.attributes?.price || mpData?.[selectedMarketplace]?.price)
             : (mpData?.amazon?.attributes?.price || mpData?.hepsiburada?.attributes?.price || mpData?.attributes?.price);
+
+          const mpSpecificPrice = computedPolicyPrice > 0 ? computedPolicyPrice : cachedMpPrice;
           
           return (
             <div>

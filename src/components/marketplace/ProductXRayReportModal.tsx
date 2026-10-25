@@ -94,15 +94,41 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
     const costCurr = String(p.cost_currency || (p.currency || 'TRY')).toUpperCase().trim();
     const costPriceTry = convertToTry(costPrice, costCurr);
 
+    const calcChannelTarget = (mpSettings: any, defaultComm = 15) => {
+      const s = mpSettings || {};
+      const catMarkups = s.categoryMarkups || {};
+      let commRate = s.defaultCommissionRate !== undefined && s.defaultCommissionRate !== null
+        ? Number(s.defaultCommissionRate)
+        : (s.commissionRate !== undefined ? Number(s.commissionRate) : defaultComm);
+      let fixedFee = s.defaultFixedFee !== undefined && s.defaultFixedFee !== null
+        ? Number(s.defaultFixedFee)
+        : 0;
+
+      const cat1 = p.category ? String(p.category).trim() : '';
+      const sub1 = p.sub_category ? String(p.sub_category).trim() : '';
+      const subKey = cat1 && sub1 ? `${cat1} > ${sub1}` : '';
+
+      if (subKey && catMarkups[subKey]) {
+        const cm = catMarkups[subKey];
+        if (cm.commissionRate !== undefined && cm.commissionRate !== null && cm.commissionRate !== '') commRate = Number(cm.commissionRate);
+        if (cm.fixedFee !== undefined && cm.fixedFee !== null && cm.fixedFee !== '') fixedFee = Number(cm.fixedFee);
+      } else if (cat1 && catMarkups[cat1]) {
+        const cm = catMarkups[cat1];
+        if (cm.commissionRate !== undefined && cm.commissionRate !== null && cm.commissionRate !== '') commRate = Number(cm.commissionRate);
+        if (cm.fixedFee !== undefined && cm.fixedFee !== null && cm.fixedFee !== '') fixedFee = Number(cm.fixedFee);
+      }
+
+      const method = s.priceCalculationMethod || s.priceCalculation || 'markup';
+      const divisor = 1 - (commRate / 100);
+      const targetPrice = method === 'margin'
+        ? (divisor > 0 ? Math.round(((webPriceTry + fixedFee) / divisor) * 100) / 100 : Math.round(webPriceTry * 100) / 100)
+        : Math.round(((webPriceTry * (1 + (commRate / 100))) + fixedFee) * 100) / 100;
+
+      return { targetPrice, commRate, fixedFee };
+    };
+
     // 1. Hepsiburada Strategy & Live Price
-    const hbSettings = branding?.hepsiburada_settings || {};
-    const hbCommRate = Number(hbSettings.defaultCommissionRate ?? 18);
-    const hbFixedFee = Number(hbSettings.defaultFixedFee ?? 0);
-    const hbMethod = hbSettings.priceCalculationMethod || hbSettings.priceCalculation || 'markup';
-    const hbDivisor = 1 - (hbCommRate / 100);
-    const hbTargetPrice = hbMethod === 'margin'
-      ? (hbDivisor > 0 ? Math.round(((webPriceTry + hbFixedFee) / hbDivisor) * 100) / 100 : Math.round(webPriceTry * 100) / 100)
-      : Math.round(((webPriceTry * (1 + (hbCommRate / 100))) + hbFixedFee) * 100) / 100;
+    const { targetPrice: hbTargetPrice, commRate: hbCommRate, fixedFee: hbFixedFee } = calcChannelTarget(branding?.hepsiburada_settings, 18);
 
     let hbLivePrice = 0;
     let isHbExplicit = false;
@@ -121,14 +147,7 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
     const hbUrl = getMarketplaceListingUrl(p, 'hepsiburada');
 
     // 2. Amazon TR Strategy & Live Price
-    const amzSettings = branding?.amazon_settings || {};
-    const amzCommRate = Number(amzSettings.defaultCommissionRate ?? 15);
-    const amzFixedFee = Number(amzSettings.defaultFixedFee ?? 0);
-    const amzMethod = amzSettings.priceCalculationMethod || amzSettings.priceCalculation || 'markup';
-    const amzDivisor = 1 - (amzCommRate / 100);
-    const amzTargetPrice = amzMethod === 'margin'
-      ? (amzDivisor > 0 ? Math.round(((webPriceTry + amzFixedFee) / amzDivisor) * 100) / 100 : Math.round(webPriceTry * 100) / 100)
-      : Math.round(((webPriceTry * (1 + (amzCommRate / 100))) + amzFixedFee) * 100) / 100;
+    const { targetPrice: amzTargetPrice, commRate: amzCommRate, fixedFee: amzFixedFee } = calcChannelTarget(branding?.amazon_settings, 15);
 
     const cleanAmzAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim() : null;
     const isAmzLive = Boolean(p.is_amazon_active && cleanAmzAsin);
@@ -137,6 +156,9 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
     let isAmzExplicit = false;
     if (mpData?.amazon?.price && Number(mpData.amazon.price) > 0) {
       amzLivePrice = Number(mpData.amazon.price);
+      isAmzExplicit = true;
+    } else if (mpData?.amazon?.attributes?.price && Number(mpData.amazon.attributes.price) > 0) {
+      amzLivePrice = Number(mpData.amazon.attributes.price);
       isAmzExplicit = true;
     } else if (isAmzLive) {
       amzLivePrice = amzTargetPrice;
@@ -147,37 +169,37 @@ export const ProductXRayReportModal: React.FC<ProductXRayReportModalProps> = ({
     const amzUrl = getMarketplaceListingUrl(p, 'amazon');
 
     // 3. Trendyol Strategy & Live Price
-    const tySettings = branding?.trendyol_settings || {};
-    const tyCommRate = Number(tySettings.defaultCommissionRate ?? 15);
-    const tyFixedFee = Number(tySettings.defaultFixedFee ?? 0);
-    const tyDivisor = 1 - (tyCommRate / 100);
-    const tyTargetPrice = tyDivisor > 0
-      ? Math.round(((webPriceTry + tyFixedFee) / tyDivisor) * 100) / 100
-      : Math.round(webPriceTry * 100) / 100;
+    const { targetPrice: tyTargetPrice, commRate: tyCommRate, fixedFee: tyFixedFee } = calcChannelTarget(branding?.trendyol_settings, 15);
 
     let tyLivePrice = 0;
     if (mpData?.trendyol?.price && Number(mpData.trendyol.price) > 0) {
       tyLivePrice = Number(mpData.trendyol.price);
+    } else if (mpData?.trendyol?.attributes?.price && Number(mpData.trendyol.attributes.price) > 0) {
+      tyLivePrice = Number(mpData.trendyol.attributes.price);
     } else if (p.is_trendyol_active) {
       tyLivePrice = tyTargetPrice;
     }
     const tyIsUnderpriced = Boolean(p.is_trendyol_active && tyLivePrice > 0 && tyLivePrice < tyTargetPrice - 1.0);
 
     // 4. N11 Strategy & Live Price
-    const n11TargetPrice = Math.round(webPriceTry * 100) / 100;
+    const { targetPrice: n11TargetPrice } = calcChannelTarget(branding?.n11_settings, 15);
     let n11LivePrice = 0;
     if (mpData?.n11?.price && Number(mpData.n11.price) > 0) {
       n11LivePrice = Number(mpData.n11.price);
+    } else if (mpData?.n11?.attributes?.price && Number(mpData.n11.attributes.price) > 0) {
+      n11LivePrice = Number(mpData.n11.attributes.price);
     } else if (p.is_n11_active) {
       n11LivePrice = n11TargetPrice;
     }
     const n11IsUnderpriced = Boolean(p.is_n11_active && n11LivePrice > 0 && n11LivePrice < n11TargetPrice - 1.0);
 
     // 5. Pazarama Strategy & Live Price
-    const pzrTargetPrice = Math.round(webPriceTry * 100) / 100;
+    const { targetPrice: pzrTargetPrice } = calcChannelTarget(branding?.pazarama_settings, 0);
     let pzrLivePrice = 0;
     if (mpData?.pazarama?.price && Number(mpData.pazarama.price) > 0) {
       pzrLivePrice = Number(mpData.pazarama.price);
+    } else if (mpData?.pazarama?.attributes?.price && Number(mpData.pazarama.attributes.price) > 0) {
+      pzrLivePrice = Number(mpData.pazarama.attributes.price);
     } else if (p.is_pazarama_active) {
       pzrLivePrice = pzrTargetPrice;
     }

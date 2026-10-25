@@ -132,6 +132,9 @@ router.post("/amazon/settings", authenticate, async (req: any, res) => {
 
     br.amazon_settings = settings;
     await pool.query("UPDATE stores SET amazon_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
+    import("../src/services/cronJobs").then(({ syncMarketplacePricesOnRateChange }) => {
+      syncMarketplacePricesOnRateChange(Number(storeId)).catch(() => {});
+    }).catch(() => {});
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -964,6 +967,9 @@ router.post("/n11/settings", authenticate, async (req: any, res) => {
       JSON.stringify(branding),
       storeId
     ]);
+    import("../src/services/cronJobs").then(({ syncMarketplacePricesOnRateChange }) => {
+      syncMarketplacePricesOnRateChange(Number(storeId)).catch(() => {});
+    }).catch(() => {});
 
     res.json({ success: true, settings: updatedSettings });
   } catch (error: any) {
@@ -1550,7 +1556,7 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
   const { productId, categoryId, attributes } = req.body;
 
   try {
-    const storeRes = await pool.query("SELECT n11_settings, branding, default_currency FROM stores WHERE id = $1", [storeId]);
+    const storeRes = await pool.query("SELECT n11_settings, currency_rates, branding, default_currency FROM stores WHERE id = $1", [storeId]);
     const storeRow = storeRes.rows[0] || {};
     let settings = storeRow.n11_settings || {};
     if (typeof settings === "string") {
@@ -1588,28 +1594,23 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
     }
     mpData = mpData || {};
 
-    // Resolve price in TL (with currency conversion + N11 commission/fixedFee markup or custom N11 price)
+    // Resolve price in TL (with currency conversion + N11 commission/fixedFee markup)
     const { N11Service } = await import("../src/services/backend/n11Service");
-    const customN11Price = Number(mpData?.n11?.attributes?.price || mpData?.n11?.price || 0);
-    let finalN11Price = customN11Price;
-
-    if (finalN11Price <= 0) {
-      let webPriceTry = rawPrice;
-      const prodCurrency = String(product.currency || storeRow.default_currency || "TRY").toUpperCase();
-      if (prodCurrency !== "TRY" && prodCurrency !== "TL") {
-        const rates = branding?.currency_rates || {};
-        const rate = Number(rates[prodCurrency] || (prodCurrency === "USD" ? 38.5 : prodCurrency === "EUR" ? 41.5 : 1));
-        if (rate > 1) {
-          webPriceTry = rawPrice * rate;
-        }
+    let webPriceTry = rawPrice;
+    const prodCurrency = String(product.currency || storeRow.default_currency || "TRY").toUpperCase();
+    if (prodCurrency !== "TRY" && prodCurrency !== "TL") {
+      const rates = { ...(branding?.currency_rates || {}), ...(storeRow.currency_rates || {}) };
+      const rate = Number(rates[prodCurrency] || (prodCurrency === "USD" ? 49.5647 : prodCurrency === "EUR" ? 55.4997 : 1));
+      if (rate > 1) {
+        webPriceTry = rawPrice * rate;
       }
-      finalN11Price = N11Service.calculateMarketplacePrice(
-        webPriceTry,
-        product.category,
-        product.sub_category,
-        settings
-      );
     }
+    const finalN11Price = N11Service.calculateMarketplacePrice(
+      webPriceTry,
+      product.category,
+      product.sub_category,
+      settings
+    );
 
     const sellerCode = String(product.sku || product.barcode || `PRD-${product.id}`).trim();
     const baseOrigin = process.env.APP_URL || "https://lookprice.net";
@@ -1857,6 +1858,9 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
 
     br.hepsiburada_settings = settings;
     await pool.query("UPDATE stores SET hepsiburada_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
+    import("../src/services/cronJobs").then(({ syncMarketplacePricesOnRateChange }) => {
+      syncMarketplacePricesOnRateChange(Number(storeId)).catch(() => {});
+    }).catch(() => {});
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -3682,6 +3686,9 @@ router.post("/trendyol/settings", authenticate, async (req: any, res) => {
 
     br.trendyol_settings = settings;
     await pool.query("UPDATE stores SET trendyol_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
+    import("../src/services/cronJobs").then(({ syncMarketplacePricesOnRateChange }) => {
+      syncMarketplacePricesOnRateChange(Number(storeId)).catch(() => {});
+    }).catch(() => {});
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -3871,8 +3878,9 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
   const productId = req.body.productId;
 
   try {
-    const storeRes = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.trendyol_settings || storeRes.rows[0]?.branding?.trendyol_settings;
+    const storeRes = await pool.query("SELECT trendyol_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+    const storeRow = storeRes.rows[0] || {};
+    const settings = storeRow?.trendyol_settings || storeRow?.branding?.trendyol_settings;
     if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
       return res.status(400).json({ error: "Trendyol API bilgileri (Satıcı ID, API Key, API Secret) eksik." });
     }
@@ -3899,20 +3907,23 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
       "Content-Type": "application/json"
     };
 
-    // 1. Calculate TRY Sale Price
+    // 1. Calculate TRY Sale Price using live currency_rates and Trendyol markup policy
     let mpData: any = p.marketplace_data;
     if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; } }
     mpData = mpData || {};
 
-    const customPriceTRY = Number(mpData?.trendyol?.attributes?.price || mpData?.trendyol?.price);
-    let finalPriceTRY = customPriceTRY > 0 ? customPriceTRY : Number(p.price || 0);
-
-    if (!customPriceTRY && p.currency && p.currency !== "TRY") {
-      const rates = storeRes.rows[0]?.branding?.currency_rates || {};
-      const rate = Number(rates[p.currency] || 1);
-      finalPriceTRY = finalPriceTRY * rate;
+    let webPriceTRY = Number(p.price || 0);
+    const prodCurr = String(p.currency || "TRY").toUpperCase();
+    if (prodCurr !== "TRY" && prodCurr !== "TL") {
+      const rates = { ...(storeRow?.branding?.currency_rates || {}), ...(storeRow?.currency_rates || {}) };
+      const rate = Number(rates[prodCurr] || 1);
+      if (rate > 1) {
+        webPriceTRY = webPriceTRY * rate;
+      }
     }
 
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const finalPriceTRY = N11Service.calculateMarketplacePrice(webPriceTRY, p.category, p.sub_category, settings);
     const roundedPrice = Math.round(finalPriceTRY * 100) / 100;
     const stockQty = parseInt(p.stock_quantity) || 0;
     const cleanBarcode = String(p.barcode || p.sku || "").trim();
@@ -4332,6 +4343,9 @@ router.post("/pazarama/settings", authenticate, async (req: any, res) => {
 
     br.pazarama_settings = settings;
     await pool.query("UPDATE stores SET pazarama_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
+    import("../src/services/cronJobs").then(({ syncMarketplacePricesOnRateChange }) => {
+      syncMarketplacePricesOnRateChange(Number(storeId)).catch(() => {});
+    }).catch(() => {});
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -4524,9 +4538,10 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
 
   try {
     // 1. Get Integration Settings and Store Branding
-    const storeRes = await pool.query("SELECT pazarama_settings, branding FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.pazarama_settings;
-    const branding = storeRes.rows[0]?.branding || {};
+    const storeRes = await pool.query("SELECT pazarama_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+    const storeRow = storeRes.rows[0] || {};
+    const settings = storeRow?.pazarama_settings || storeRow?.branding?.pazarama_settings;
+    const branding = storeRow?.branding || {};
 
     if (!settings || !settings.apiKey || !settings.apiSecret) {
       return res.status(400).json({ error: "Pazarama API bilgileri yapılandırılmamış. Lütfen Ayarlar > Entegrasyonlar sekmesinden ayarlayınız." });
@@ -4551,27 +4566,23 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `"${product.name}" ürününün ${reasons.join(" ve ")} olduğu için Pazarama'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
-    // --- Price Calculation Logic ---
-    // 1. Base Price
-    let basePrice = parseFloat(product.price);
-    const currency = product.currency || 'TRY';
-    const commissionRate = settings.commissionRate || 0;
-
-    // 2. Add Commission
-    // Formula: (Price * (1 + Commission/100))
-    const priceWithCommission = basePrice * (1 + commissionRate / 100);
-
-    // 3. Convert to TRY
-    let finalPriceTRY = priceWithCommission;
-    if (currency !== 'TRY') {
-      const rates = branding.currency_rates || {};
-      const rate = rates[currency] || 1;
-      finalPriceTRY = priceWithCommission * rate;
+    // --- Price Calculation Logic (Currency Conversion + Pazarama Commission & Fixed Fee Markup) ---
+    let webPriceTRY = parseFloat(product.price || "0");
+    const currency = String(product.currency || 'TRY').toUpperCase();
+    if (currency !== 'TRY' && currency !== 'TL') {
+      const rates = { ...(branding.currency_rates || {}), ...(storeRow.currency_rates || {}) };
+      const rate = Number(rates[currency] || 1);
+      if (rate > 1) {
+        webPriceTRY = webPriceTRY * rate;
+      }
     }
+
+    const { N11Service } = await import("../src/services/backend/n11Service");
+    const finalPriceTRY = N11Service.calculateMarketplacePrice(webPriceTRY, product.category, product.sub_category, settings);
 
     // Round to 2 decimal places
     const listPrice = Math.round(finalPriceTRY * 100) / 100;
-    const salePrice = listPrice; // In this demo, list and sale are same
+    const salePrice = listPrice;
 
     // 3. Prepare standard Pazarama POST structure
     const mappings = settings.categoryMappings || {};
