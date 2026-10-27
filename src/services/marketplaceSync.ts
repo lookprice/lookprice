@@ -1070,11 +1070,12 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
               const cleanBarcode = String(p.barcode || p.sku || "").trim();
               if (cleanBarcode) {
                 const auth = { username: tySettings.apiKey.trim(), password: tySettings.apiSecret.trim() };
+                const storeFrontCode = (tySettings.storeFrontCode && String(tySettings.storeFrontCode).trim() !== "1" ? String(tySettings.storeFrontCode).trim() : "TR").toUpperCase();
                 const headers = {
                   "User-Agent": `${tySettings.merchantId.trim()} - SelfIntegration`,
                   "Accept": "application/json",
                   "Content-Type": "application/json",
-                  "storeFrontCode": "1"
+                  "storeFrontCode": storeFrontCode
                 };
                 await axios.post(
                   `https://apigw.trendyol.com/integration/inventory/sellers/${tySettings.merchantId.trim()}/products/price-and-inventory`,
@@ -1266,11 +1267,12 @@ export async function syncProductStockToMarketplaces(
       if (tyProducts.length > 0) {
         try {
           const auth = { username: tySettings.apiKey.trim(), password: tySettings.apiSecret.trim() };
+          const storeFrontCode = (tySettings.storeFrontCode && String(tySettings.storeFrontCode).trim() !== "1" ? String(tySettings.storeFrontCode).trim() : "TR").toUpperCase();
           const headers = {
             "User-Agent": `${tySettings.merchantId.trim()} - SelfIntegration`,
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "storeFrontCode": "1"
+            "storeFrontCode": storeFrontCode
           };
           const { N11Service } = await import("./backend/n11Service.js");
           const tyItems = tyProducts.map(p => {

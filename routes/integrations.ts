@@ -585,8 +585,13 @@ router.post("/amazon/disconnect", authenticate, async (req: any, res) => {
 
 // 6. Publish Product to Amazon TR (Auto-resolves ASIN by Barcode/Title via Catalog API & Pushes Offer via SP-API)
 router.post("/amazon/publish", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const productId = req.body.productId;
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.headers?.["x-store-id"] || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user?.store_id || 1) : Number(req.user?.store_id || rawStoreId);
+  const productId = Number(req.body?.productId || req.query?.productId);
+
+  if (!productId || isNaN(productId)) {
+    return res.status(400).json({ error: "Geçersiz veya eksik ürün ID." });
+  }
 
   try {
     const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
@@ -1552,8 +1557,14 @@ router.post("/n11/shipment-templates/create-or-update", authenticate, async (req
 });
 
 router.post("/n11/publish", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { productId, categoryId, attributes } = req.body;
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.headers?.["x-store-id"] || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user?.store_id || 1) : Number(req.user?.store_id || rawStoreId);
+  const productId = Number(req.body?.productId || req.query?.productId);
+  const { categoryId, attributes } = req.body || {};
+
+  if (!productId || isNaN(productId)) {
+    return res.status(400).json({ error: "Geçersiz veya eksik ürün ID." });
+  }
 
   try {
     const storeRes = await pool.query("SELECT n11_settings, currency_rates, branding, default_currency FROM stores WHERE id = $1", [storeId]);
@@ -2654,10 +2665,11 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     }
 
     // 2. Send to Listing Price & Stock Inventory Update
+    const hbEffectiveMerchantSku = hbData.merchantSku || hbData.hepsiburadaSku || p.barcode.trim();
     const result = await hbService.updatePriceAndStock([
       {
         HepsiburadaSku: p.hepsiburada_sku || hbData.hepsiburadaSku || "",
-        MerchantSku: p.barcode.trim(),
+        MerchantSku: hbEffectiveMerchantSku,
         Price: effectivePrice,
         AvailableStock: parseInt(p.stock_quantity || "0", 10),
         DispatchTime: settings.defaultDispatchTime || 1,
@@ -2669,7 +2681,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     let inputHbSku = req.body.hepsiburadaSku || req.body.hepsiburada_sku;
 
     if (inputHbUrl && String(inputHbUrl).startsWith('http')) {
-      const match = String(inputHbUrl).match(/(?:pm-|p-|\/|\bq=)(HBC[V0-9A-Z]+|HBV[0-9A-Z]+)/i);
+      const match = String(inputHbUrl).match(/(?:pm-|p-|\/|\bq=)(HBC[V0-9A-Z]+|HBV[0-9A-Z]+|HB[0-9A-Z]+|BS[0-9A-Z]+)/i);
       if (match && !inputHbSku) {
         inputHbSku = match[1].toUpperCase();
       }
@@ -2681,10 +2693,14 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
         const listings = await hbService.fetchMerchantListings({ limit: 100 });
         const matched = listings.find((l: any) => 
           (l.merchantSku && l.merchantSku.toLowerCase() === p.barcode.trim().toLowerCase()) ||
-          (l.barcode && l.barcode.toLowerCase() === p.barcode.trim().toLowerCase())
+          (l.barcode && l.barcode.toLowerCase() === p.barcode.trim().toLowerCase()) ||
+          (l.hepsiburadaSku && hbData.hepsiburadaSku && l.hepsiburadaSku.toLowerCase() === hbData.hepsiburadaSku.toLowerCase())
         );
-        if (matched && matched.hepsiburadaSku) {
-          resolvedHbSku = matched.hepsiburadaSku;
+        if (matched) {
+          resolvedHbSku = matched.hepsiburadaSku || matched.merchantSku;
+          if (matched.merchantSku && !hbData.merchantSku) {
+            hbData.merchantSku = matched.merchantSku;
+          }
         }
       } catch (lErr) {
         // non-blocking
@@ -2692,8 +2708,33 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     }
 
     const isLive = Boolean(resolvedHbSku);
+    const upperHbSku = String(resolvedHbSku || '').toUpperCase();
+    const isMasterHbSku = Boolean(
+      resolvedHbSku && 
+      (upperHbSku.startsWith('HBC') || upperHbSku.startsWith('HB0') || upperHbSku.startsWith('HB') || upperHbSku.startsWith('BS')) && 
+      !upperHbSku.startsWith('HBCV') && 
+      !upperHbSku.startsWith('HBV')
+    );
+    const isVariantHbSku = Boolean(
+      resolvedHbSku && 
+      (upperHbSku.startsWith('HBCV') || upperHbSku.startsWith('HBV'))
+    );
 
-    const isMasterHbSku = Boolean(resolvedHbSku && resolvedHbSku.toUpperCase().startsWith('HBC') && !resolvedHbSku.toUpperCase().startsWith('HBCV') && !resolvedHbSku.toUpperCase().startsWith('HBV'));
+    const hbSlug = slugifyText(p.name || 'urun');
+    let resolvedHbProductUrl: string | undefined = undefined;
+    if (isLive) {
+      if (inputHbUrl && !inputHbUrl.includes('/ara?')) {
+        resolvedHbProductUrl = inputHbUrl.includes('magaza=') ? inputHbUrl : (inputHbUrl.includes('?') ? `${inputHbUrl}&magaza=Enrakipsiz` : `${inputHbUrl}?magaza=Enrakipsiz`);
+      } else if (isMasterHbSku) {
+        resolvedHbProductUrl = `https://www.hepsiburada.com/${hbSlug}-pm-${String(resolvedHbSku).trim().toLowerCase()}?magaza=Enrakipsiz`;
+      } else if (isVariantHbSku) {
+        resolvedHbProductUrl = `https://www.hepsiburada.com/${hbSlug}-p-${String(resolvedHbSku).trim().toUpperCase()}?magaza=Enrakipsiz`;
+      } else if (p.barcode) {
+        resolvedHbProductUrl = `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode)}`;
+      } else {
+        resolvedHbProductUrl = `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.name)}`;
+      }
+    }
 
     // Update product marketplace metadata
     mpData.hepsiburada = {
@@ -2703,7 +2744,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       hepsiburadaSku: resolvedHbSku || hbData.hepsiburadaSku || null,
       productId: hbData.productId || (isMasterHbSku ? resolvedHbSku : null),
       status: isLive ? 'ACTIVE' : 'PENDING_APPROVAL',
-      productUrl: isLive ? (inputHbUrl && !inputHbUrl.includes('HBCV') ? inputHbUrl : (isMasterHbSku ? `https://www.hepsiburada.com/${slugifyText(p.name || 'urun')}-pm-${String(resolvedHbSku).trim().toLowerCase()}` : (p.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.name)}`))) : undefined,
+      productUrl: resolvedHbProductUrl,
       catalogTrackingId: catalogTrackingId || hbData.catalogTrackingId,
       listingTrackingId: result.trackingId || hbData.listingTrackingId,
       lastSync: new Date().toISOString()
@@ -3158,7 +3199,7 @@ router.post("/trendyol/unpublish", authenticate, async (req: any, res) => {
                 "User-Agent": `${settings.merchantId.trim()} - SelfIntegration`,
                 "Accept": "application/json",
                 "Content-Type": "application/json",
-                "storeFrontCode": "1"
+                "storeFrontCode": (settings.storeFrontCode && String(settings.storeFrontCode).trim() !== "1" ? String(settings.storeFrontCode).trim() : "TR").toUpperCase()
               },
               timeout: 8000
             }
@@ -3916,15 +3957,23 @@ router.post("/trendyol/disconnect", authenticate, async (req: any, res) => {
 
 // 5. Publish / Update Product on Trendyol (Migrated to Official Trendyol Product v2 API)
 router.post("/trendyol/publish", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const productId = req.body.productId;
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.headers?.["x-store-id"] || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user?.store_id || 1) : Number(req.user?.store_id || rawStoreId);
+  const productId = Number(req.body?.productId || req.query?.productId);
+
+  if (!productId || isNaN(productId)) {
+    return res.status(400).json({ error: "Geçersiz veya eksik ürün ID." });
+  }
 
   try {
     const storeRes = await pool.query("SELECT trendyol_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
     const storeRow = storeRes.rows[0] || {};
-    const settings = storeRow?.trendyol_settings || storeRow?.branding?.trendyol_settings;
+    let settings = storeRow?.trendyol_settings || storeRow?.branding?.trendyol_settings;
+    if (typeof settings === "string") {
+      try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+    }
     if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
-      return res.status(400).json({ error: "Trendyol API bilgileri (Satıcı ID, API Key, API Secret) eksik." });
+      return res.status(400).json({ error: "Trendyol API bilgileri (Satıcı ID, API Key, API Secret) eksik veya yapılandırılmamış." });
     }
 
     const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
@@ -3942,12 +3991,13 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `"${p.name}" ürününün ${reasons.join(" ve ")} olduğu için Trendyol'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
-    const auth = { username: settings.apiKey.trim(), password: settings.apiSecret.trim() };
+    const storeFrontCode = (settings.storeFrontCode && String(settings.storeFrontCode).trim() !== "1" ? String(settings.storeFrontCode).trim() : "TR").toUpperCase();
+    const auth = { username: String(settings.apiKey).trim(), password: String(settings.apiSecret).trim() };
     const headers = {
-      "User-Agent": `${settings.merchantId.trim()} - SelfIntegration`,
+      "User-Agent": `${String(settings.merchantId).trim()} - SelfIntegration`,
       "Accept": "application/json",
       "Content-Type": "application/json",
-      "storeFrontCode": "1",
+      "storeFrontCode": storeFrontCode,
       "Accept-Language": "tr"
     };
 
@@ -4219,51 +4269,67 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ success: false, error: `Trendyol Hatası: ${batchError}` });
     }
 
+    const isActuallyApproved = batchPassed && Boolean(p.trendyol_id && p.trendyol_url);
     mpData.trendyol = {
       ...(mpData.trendyol || {}),
       barcode: cleanBarcode,
       batchRequestId,
-      status: batchPassed ? "ACTIVE" : (inProgress ? "PENDING_APPROVAL" : "INACTIVE"),
+      status: isActuallyApproved ? "ACTIVE" : "PENDING_APPROVAL",
       lastSync: new Date().toISOString(),
-      lastError: batchPassed ? null : (inProgress ? "Trendyol katalog onay kuyruğunda inceleniyor." : null)
+      lastError: isActuallyApproved ? null : "Trendyol katalog onay kuyruğunda inceleniyor."
     };
 
-    const displayMsg = batchPassed
+    const displayMsg = isActuallyApproved
       ? "Ürün Trendyol V2 kataloğuna onaylandı ve başarıyla satışa açıldı."
-      : "Ürün Trendyol V2 sistemine iletildi. Katalog doğrulama kuyruğunda inceleniyor.";
+      : "Ürün Trendyol V2 sistemine iletildi. Katalog doğrulama kuyruğunda inceleniyor (TY ONAY).";
 
     await pool.query(
       "UPDATE products SET is_trendyol_active = $1, trendyol_last_error = $2, marketplace_data = $3 WHERE id = $4",
-      [batchPassed, batchPassed ? null : "Trendyol katalog onay kuyruğunda inceleniyor.", JSON.stringify(mpData), productId]
+      [isActuallyApproved, isActuallyApproved ? null : "Trendyol katalog onay kuyruğunda inceleniyor.", JSON.stringify(mpData), productId]
     );
 
     res.json({
       success: true,
-      isLive: batchPassed,
-      inReview: inProgress,
+      isLive: isActuallyApproved,
+      inReview: !isActuallyApproved,
       batchRequestId,
       message: displayMsg
     });
   } catch (error: any) {
-    const rawErr = error.response?.data?.errors?.[0]?.message || error.response?.data?.message || error.message;
-    await pool.query("UPDATE products SET trendyol_last_error = $1 WHERE id = $2", [rawErr, productId]);
+    const rawErr = 
+      error.response?.data?.errors?.map((e: any) => e.message || e).join(" | ") ||
+      error.response?.data?.message ||
+      error.response?.data?.errorMessage ||
+      (typeof error.response?.data === "string" ? error.response?.data : null) ||
+      error.message ||
+      "Bilinmeyen hata";
+    if (productId && !isNaN(productId)) {
+      try {
+        await pool.query("UPDATE products SET trendyol_last_error = $1 WHERE id = $2", [rawErr, productId]);
+      } catch (dbErr) {
+        console.warn("[Trendyol Publish DB Error Save Failed]:", dbErr);
+      }
+    }
     res.status(500).json({ error: `Trendyol V2 aktarım hatası: ${rawErr}` });
   }
 });
 
 // 5a. Check Live Product Status from Trendyol V2 (Catalog & Batch Queues)
 router.post("/trendyol/check-product-status", authenticate, async (req: any, res) => {
-  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.headers?.["x-store-id"] || req.user?.store_id;
   const storeId = req.user.role === "superadmin"
     ? Number(rawStoreId || req.user.store_id || 1)
     : Number(req.user.store_id || rawStoreId);
-  const productId = req.body?.productId;
+  const productId = Number(req.body?.productId);
 
-  if (!productId) return res.status(400).json({ error: "Ürün ID gereklidir." });
+  if (!productId || isNaN(productId)) return res.status(400).json({ error: "Ürün ID gereklidir." });
 
   try {
     const storeRes = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.trendyol_settings || storeRes.rows[0]?.branding?.trendyol_settings;
+    let settings = storeRes.rows[0]?.trendyol_settings || storeRes.rows[0]?.branding?.trendyol_settings;
+    if (typeof settings === "string") {
+      try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+    }
     if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
       return res.status(400).json({ error: "Trendyol API bilgileri eksik." });
     }
@@ -4272,11 +4338,12 @@ router.post("/trendyol/check-product-status", authenticate, async (req: any, res
     const p = prodRes.rows[0];
     if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
 
-    const auth = { username: settings.apiKey.trim(), password: settings.apiSecret.trim() };
+    const storeFrontCode = (settings.storeFrontCode && String(settings.storeFrontCode).trim() !== "1" ? String(settings.storeFrontCode).trim() : "TR").toUpperCase();
+    const auth = { username: String(settings.apiKey).trim(), password: String(settings.apiSecret).trim() };
     const headers = {
-      "User-Agent": `${settings.merchantId.trim()} - SelfIntegration`,
+      "User-Agent": `${String(settings.merchantId).trim()} - SelfIntegration`,
       "Accept": "application/json",
-      "storeFrontCode": "1"
+      "storeFrontCode": storeFrontCode
     };
 
     let mpData: any = p.marketplace_data;
@@ -4385,79 +4452,96 @@ router.post("/trendyol/match-listings", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "Trendyol API bilgileri (Satıcı ID, API Key, API Secret) eksik." });
     }
 
-    let remoteProducts: any[] = [];
+    const storeFrontCode = (settings.storeFrontCode && String(settings.storeFrontCode).trim() !== "1" ? String(settings.storeFrontCode).trim() : "TR").toUpperCase();
     const authHeaders = {
-      "User-Agent": `${settings.merchantId.trim()} - SelfIntegration`,
+      "User-Agent": `${String(settings.merchantId).trim()} - SelfIntegration`,
       "Accept": "application/json",
-      "storeFrontCode": "1"
+      "storeFrontCode": storeFrontCode
     };
 
+    let remoteProducts: any[] = [];
+
     try {
-      const tyRes = await axios.get(
-        `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products/approved?size=500`,
-        {
-          auth: { username: settings.apiKey.trim(), password: settings.apiSecret.trim() },
-          headers: authHeaders,
-          timeout: 10000
-        }
-      );
-      remoteProducts = tyRes.data?.content || [];
-    } catch (apprErr) {
-      const tyRes2 = await axios.get(
-        `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products?size=500`,
-        {
-          auth: { username: settings.apiKey.trim(), password: settings.apiSecret.trim() },
-          headers: authHeaders,
-          timeout: 10000
-        }
-      );
-      remoteProducts = tyRes2.data?.content || [];
+      let page = 0;
+      let totalPages = 1;
+      while (page < totalPages && page < 20) {
+        const tyRes = await axios.get(
+          `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products/approved?page=${page}&size=100`,
+          {
+            auth: { username: settings.apiKey.trim(), password: settings.apiSecret.trim() },
+            headers: authHeaders,
+            timeout: 10000
+          }
+        );
+        const content = tyRes.data?.content || [];
+        remoteProducts.push(...content);
+        totalPages = tyRes.data?.totalPages || 1;
+        page++;
+        if (content.length === 0) break;
+      }
+    } catch (apprErr: any) {
+      console.warn("[Trendyol Approved Products Fetch Warning]:", apprErr?.response?.data || apprErr?.message);
+      try {
+        const tyRes2 = await axios.get(
+          `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products?page=0&size=100`,
+          {
+            auth: { username: settings.apiKey.trim(), password: settings.apiSecret.trim() },
+            headers: authHeaders,
+            timeout: 10000
+          }
+        );
+        remoteProducts = tyRes2.data?.content || [];
+      } catch (e2) {}
     }
+
     const localProdRes = await pool.query("SELECT * FROM products WHERE store_id = $1", [storeId]);
     const localProducts = localProdRes.rows || [];
 
-    const norm = (s: string) => String(s || "").toLowerCase().replace(/İ/g, "i").replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c").replace(/[^a-z0-9]/g, "");
-
     let matchedCount = 0;
     const matchedLocalIds = new Set<number>();
+    const merchantId = String(settings.merchantId).trim();
 
     for (const rp of remoteProducts) {
-      const rBc = String(rp.barcode || "").trim().toLowerCase().replace(/^0+/, "");
+      const v = rp.variants?.[0] || rp;
+      const rBc = String(v.barcode || rp.barcode || "").trim().toLowerCase().replace(/^0+/, "");
       const rMain = String(rp.productMainId || "").trim().toLowerCase().replace(/^0+/, "");
-      const rStock = String(rp.stockCode || "").trim().toLowerCase().replace(/^0+/, "");
-      const rTitle = String(rp.title || "").trim();
-      const rContentId = String(rp.productContentId || rp.productCode || rp.id || "");
-      const isSaleActive = Boolean(rp.onSale) && Number(rp.quantity || 0) > 0 && Number(rp.salePrice || 0) > 0;
+      const rStock = String(v.stockCode || rp.stockCode || "").trim().toLowerCase().replace(/^0+/, "");
+      const rContentId = String(rp.contentId || rp.productContentId || rp.productCode || rp.id || "");
+      
+      let rawUrl = v.productUrl || rp.productUrl;
+      if (!rawUrl && rContentId) {
+        rawUrl = `https://www.trendyol.com/-p-${rContentId}?merchantId=${merchantId}&filterOverPriceListings=false`;
+      } else if (rawUrl && !rawUrl.includes("merchantId=") && merchantId) {
+        rawUrl = rawUrl.includes("?") ? `${rawUrl}&merchantId=${merchantId}&filterOverPriceListings=false` : `${rawUrl}?merchantId=${merchantId}&filterOverPriceListings=false`;
+      }
+
+      const isRemoteOnSale = Boolean(v.onSale ?? rp.onSale) && Number(v.stock?.quantity ?? v.quantity ?? rp.quantity ?? 0) > 0;
 
       let matchedLocal: any = null;
 
-      // 1. Direct Barcode, MainId, or SKU Match
+      // 1. Exact Barcode Match
       for (const lp of localProducts) {
         if (matchedLocalIds.has(lp.id)) continue;
         const lBc = String(lp.barcode || "").trim().toLowerCase().replace(/^0+/, "");
-        const lSku = String(lp.sku || lp.product_code || "").trim().toLowerCase().replace(/^0+/, "");
-
-        if (lBc && (lBc === rBc || lBc === rMain || lBc === rStock || rBc.includes(lBc))) {
-          matchedLocal = lp; break;
-        }
-        if (lSku && lSku.length >= 4 && (lSku === rBc || lSku === rMain || lSku === rStock)) {
-          matchedLocal = lp; break;
+        if (lBc && lBc.length >= 6) {
+          if (lBc === rBc || lBc === rMain || lBc === rStock) {
+            matchedLocal = lp;
+            break;
+          }
         }
       }
 
-      // 2. Model & Token Match for products with generated TYB barcodes
+      // 2. Exact StockCode / SKU / MainId Match
       if (!matchedLocal) {
-        const rNorm = norm(rTitle + " " + rp.stockCode + " " + rp.productMainId);
-        const models = ["mcc007", "citygear", "c100240", "c100480", "c100960", "desirep", "e100", "mk540", "mk470", "dxbp11", "dxbp12", "k0b38aa", "ms5120w", "h310mkr2", "uc232a", "21604", "la65nm170", "zc350", "800077742", "zd220", "wpd900", "fk146", "evolve65", "c270", "21935"];
         for (const lp of localProducts) {
           if (matchedLocalIds.has(lp.id)) continue;
-          const lNameNorm = norm(lp.name);
-          for (const m of models) {
-            if (rNorm.includes(m) && lNameNorm.includes(m)) {
-              matchedLocal = lp; break;
+          const lSku = String(lp.sku || lp.product_code || "").trim().toLowerCase().replace(/^0+/, "");
+          if (lSku && lSku.length >= 3) {
+            if (lSku === rStock || lSku === rMain || lSku === rBc) {
+              matchedLocal = lp;
+              break;
             }
           }
-          if (matchedLocal) break;
         }
       }
 
@@ -4469,39 +4553,68 @@ router.post("/trendyol/match-listings", authenticate, async (req: any, res) => {
 
         const pPrice = Number(matchedLocal.price || 0);
         const pStock = Number(matchedLocal.stock_quantity || 0);
-        const finalActive = isSaleActive && pPrice > 0 && pStock > 0;
+        const finalActive = isRemoteOnSale && pPrice > 0 && pStock > 0;
+        const lastErr = finalActive ? null : (!isRemoteOnSale ? "Trendyol tarafında ürün satışta değil (stok 0 veya pasif)." : "Yerel mağazada stok veya fiyat 0.");
 
         mpData.trendyol = {
           ...(mpData.trendyol || {}),
           contentId: rContentId,
-          productCode: rp.productCode,
-          barcode: rp.barcode,
+          productCode: rp.productCode || rContentId,
+          barcode: v.barcode || rp.barcode,
           title: rp.title,
-          onSale: Boolean(rp.onSale),
-          status: finalActive ? "ACTIVE" : "INACTIVE",
-          productUrl: rp.productUrl || `https://www.trendyol.com/-p-${rContentId}`,
+          onSale: Boolean(v.onSale ?? rp.onSale),
+          status: finalActive ? "ACTIVE" : (Boolean(v.onSale ?? rp.onSale) ? "INACTIVE" : "OFF_SALE"),
+          productUrl: rawUrl,
           lastSync: new Date().toISOString(),
-          lastError: null
+          lastError: lastErr
         };
 
         await pool.query(
-          "UPDATE products SET trendyol_id = $1, is_trendyol_active = $2, trendyol_last_error = NULL, marketplace_data = $3 WHERE id = $4 AND store_id = $5",
-          [rContentId, finalActive, JSON.stringify(mpData), matchedLocal.id, storeId]
+          "UPDATE products SET trendyol_id = $1, trendyol_url = $2, is_trendyol_active = $3, trendyol_last_error = $4, marketplace_data = $5 WHERE id = $6 AND store_id = $7",
+          [rContentId, rawUrl, finalActive, lastErr, JSON.stringify(mpData), matchedLocal.id, storeId]
         );
         matchedCount++;
       }
     }
 
-    // Clear stale batchRequestIds that failed onboarding
-    await pool.query(
-      "UPDATE products SET is_trendyol_active = false, trendyol_id = NULL, trendyol_last_error = $1 WHERE store_id = $2 AND trendyol_id LIKE '%-%'",
-      ["Trendyol katalog doğrulaması bekleniyor.", storeId]
-    );
-
+    // Defensive Reset: Ensure unverified products do not remain marked active
     const matchedIdsArray = Array.from(matchedLocalIds);
     if (matchedIdsArray.length > 0) {
       await pool.query(
         "UPDATE products SET is_trendyol_active = false WHERE store_id = $1 AND is_trendyol_active = true AND NOT (id = ANY($2::int[]))",
+        [storeId, matchedIdsArray]
+      );
+    } else {
+      await pool.query(
+        "UPDATE products SET is_trendyol_active = false WHERE store_id = $1 AND is_trendyol_active = true",
+        [storeId]
+      );
+    }
+
+    // Products that were queued for onboarding but not yet approved in catalog:
+    // Mark as PENDING_APPROVAL and set last error to show TY ONAY badge
+    await pool.query(
+      `UPDATE products 
+       SET is_trendyol_active = false,
+           trendyol_id = NULL,
+           trendyol_url = NULL,
+           trendyol_last_error = 'Trendyol katalog onay kuyruğunda inceleniyor.'
+       WHERE store_id = $1 
+         AND (trendyol_id IS NULL OR trendyol_id LIKE '%-%')
+         AND (marketplace_data->'trendyol'->>'batchRequestId' IS NOT NULL)`,
+      [storeId]
+    );
+
+    // Products not matched and not in onboarding: clear stale fields
+    if (matchedIdsArray.length > 0) {
+      await pool.query(
+        `UPDATE products 
+         SET is_trendyol_active = false,
+             trendyol_id = NULL,
+             trendyol_url = NULL
+         WHERE store_id = $1 
+           AND NOT (id = ANY($2::int[]))
+           AND (marketplace_data->'trendyol'->>'batchRequestId' IS NULL)`,
         [storeId, matchedIdsArray]
       );
     }
@@ -4796,11 +4909,12 @@ router.post("/pazarama/disconnect", authenticate, async (req: any, res) => {
 
 // 5. Publish Product to Pazarama
 router.post("/pazarama/publish", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { productId } = req.body;
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.headers?.["x-store-id"] || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user?.store_id || 1) : Number(req.user?.store_id || rawStoreId);
+  const productId = Number(req.body?.productId || req.query?.productId);
 
-  if (!productId) {
-    return res.status(400).json({ error: "Ürün ID eksik." });
+  if (!productId || isNaN(productId)) {
+    return res.status(400).json({ error: "Geçersiz veya eksik ürün ID." });
   }
 
   try {

@@ -1625,12 +1625,24 @@ export class HepsiburadaService {
           try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
         }
         mpData = mpData || {};
-        const resolvedPid = listing.productId || listing.raw?.productId || mpData.hepsiburada?.productId;
-        const isMasterPid = Boolean(resolvedPid && String(resolvedPid).toUpperCase().startsWith('HBC') && !String(resolvedPid).toUpperCase().startsWith('HBCV') && !String(resolvedPid).toUpperCase().startsWith('HBV'));
+        const resolvedPid = (listing as any).productId || hbSku || mpData?.hepsiburada?.productId || matchedProd.hepsiburada_sku || '';
+        const upperPid = String(resolvedPid || '').toUpperCase();
+        const isMasterPid = Boolean(
+          resolvedPid && 
+          (upperPid.startsWith('HBC') || upperPid.startsWith('HB0') || upperPid.startsWith('HB') || upperPid.startsWith('BS')) && 
+          !upperPid.startsWith('HBCV') && 
+          !upperPid.startsWith('HBV')
+        );
+        const isVariantPid = Boolean(
+          resolvedPid && 
+          (upperPid.startsWith('HBCV') || upperPid.startsWith('HBV'))
+        );
         const pSlug = matchedProd.name ? matchedProd.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') : 'urun';
         const resolvedUrl = isMasterPid 
-          ? `https://www.hepsiburada.com/${pSlug || 'urun'}-pm-${String(resolvedPid).trim().toLowerCase()}` 
-          : (matchedProd.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.name || '')}`);
+          ? `https://www.hepsiburada.com/${pSlug || 'urun'}-pm-${String(resolvedPid).trim().toLowerCase()}?magaza=Enrakipsiz` 
+          : (isVariantPid 
+            ? `https://www.hepsiburada.com/${pSlug || 'urun'}-p-${String(resolvedPid).trim().toUpperCase()}?magaza=Enrakipsiz`
+            : (matchedProd.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.name || '')}`));
 
         const pPrice = Number(matchedProd.price || listing.price || 0);
         const pStock = Number(matchedProd.stock_quantity !== undefined ? matchedProd.stock_quantity : (listing.availableStock || 0));

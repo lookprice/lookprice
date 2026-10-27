@@ -54,7 +54,7 @@ export const MARKETPLACES: MarketplaceConfig[] = [
     lastSyncField: 'trendyol_last_sync',
     skuField: 'trendyol_id',
     merchantPortalUrl: 'https://partner.trendyol.com/',
-    getListingUrl: (p: any) => getMarketplaceListingUrl('trendyol', p),
+    getListingUrl: (p: any) => getMarketplaceListingUrl('trendyol', p, { fallbackToSearch: false }),
     getMerchantUrl: (p: any) => getMarketplaceMerchantPortalUrl('trendyol', p)
   },
   {

@@ -189,14 +189,8 @@ export function getMarketplaceListingUrl(
           : `https://www.trendyol.com/-p-${cleanId}`;
       }
 
-      if (!fallbackToSearch) return null;
-
-      if (barcode) {
-        return `https://www.trendyol.com/sr?q=${encodeURIComponent(barcode)}`;
-      }
-      if (name) {
-        return `https://www.trendyol.com/sr?q=${encodeURIComponent(name)}`;
-      }
+      // Never fallback to generic search queries for Trendyol in merchant dashboard
+      // (prevents landing on unrelated search pages or third-party listings)
       return null;
     }
 

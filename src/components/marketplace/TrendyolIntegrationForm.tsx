@@ -69,7 +69,12 @@ export const TrendyolIntegrationForm: React.FC<TrendyolIntegrationFormProps> = (
             TY
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">{t.trendyolIntegration || "Trendyol Entegrasyonu"}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-900">{t.trendyolIntegration || "Trendyol Entegrasyonu"}</h3>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-750 border border-amber-200">
+                API V2 (storeFront: TR)
+              </span>
+            </div>
             <p className="text-xs text-slate-500">{t.trendyolIntegrationDesc || "Trendyol Marketplace API sipariş ve ürün yönetimi"}</p>
           </div>
         </div>

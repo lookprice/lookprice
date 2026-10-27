@@ -339,7 +339,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
 
   const getTrendyolUrl = (p: any): string | null => {
     if (!p) return null;
-    return getMarketplaceListingUrl('trendyol', p);
+    return getMarketplaceListingUrl('trendyol', p, { fallbackToSearch: false });
   };
 
   const getN11Url = (p: any): string | null => {

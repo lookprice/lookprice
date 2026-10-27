@@ -375,9 +375,9 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       HB Hatalı
                     </button>
                   )}
-                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.trendyol && p.is_trendyol_active && (
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.trendyol && p.is_trendyol_active && getTrendyolUrl(p) && (
                     <a
-                      href={getTrendyolUrl(p) || undefined}
+                      href={getTrendyolUrl(p)!}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
@@ -388,7 +388,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       TY ↗
                     </a>
                   )}
-                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.trendyol && !p.is_trendyol_active && (String(p.trendyol_last_error || '').includes('incele') || String(p.trendyol_last_error || '').includes('bekleniyor') || String(p.trendyol_last_error || '').includes('kuyruğunda')) && (
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.trendyol && !p.is_trendyol_active && (String(p.trendyol_last_error || '').includes('incele') || String(p.trendyol_last_error || '').includes('bekleniyor') || String(p.trendyol_last_error || '').includes('kuyruğunda') || (!p.trendyol_last_error && p.marketplace_data?.trendyol?.batchRequestId)) && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -938,9 +938,9 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       HB ONAY
                     </button>
                   )}
-                  {connectedMarketplaces.trendyol && p.is_trendyol_active && (
+                  {connectedMarketplaces.trendyol && p.is_trendyol_active && getTrendyolUrl(p) && (
                     <a
-                      href={getTrendyolUrl(p) || undefined}
+                      href={getTrendyolUrl(p)!}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
@@ -951,7 +951,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       TY ↗
                     </a>
                   )}
-                  {connectedMarketplaces.trendyol && !p.is_trendyol_active && (String(p.trendyol_last_error || '').includes('incele') || String(p.trendyol_last_error || '').includes('bekleniyor') || String(p.trendyol_last_error || '').includes('kuyruğunda')) && (
+                  {connectedMarketplaces.trendyol && !p.is_trendyol_active && (String(p.trendyol_last_error || '').includes('incele') || String(p.trendyol_last_error || '').includes('bekleniyor') || String(p.trendyol_last_error || '').includes('kuyruğunda') || (!p.trendyol_last_error && p.marketplace_data?.trendyol?.batchRequestId)) && (
                     <button
                       type="button"
                       onClick={(e) => {
