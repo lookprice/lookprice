@@ -8,22 +8,17 @@ import { PassThrough } from "stream";
 
 const router = express.Router();
 
-const DEFAULT_GOOGLE_CLIENT_ID =
-  "673055725547-dn7hr7lc144el33uervrn5v17m5qsgkt.apps.googleusercontent.com";
-const DEFAULT_GOOGLE_CLIENT_SECRET =
-  "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";
-
 function getOAuth2Client(req: express.Request, customClientId?: string, customClientSecret?: string) {
   const oauthClientId =
     customClientId ||
     process.env.GOOGLE_CLIENT_ID ||
     process.env.CLIENT_ID ||
-    DEFAULT_GOOGLE_CLIENT_ID;
+    "";
   const oauthClientSecret =
     customClientSecret ||
     process.env.GOOGLE_CLIENT_SECRET ||
     process.env.CLIENT_SECRET ||
-    DEFAULT_GOOGLE_CLIENT_SECRET;
+    "";
 
   let protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
   if (typeof protocol === "string" && protocol.includes(",")) {
