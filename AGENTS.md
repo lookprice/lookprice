@@ -394,3 +394,22 @@ This file outlines strict engineering, performance, and naming directives that m
   - **Ana Başlık (`h1`)**: Mobil ekranlarda optimum `text-lg` / `text-xl` / `text-2xl` seviyesinden başlayıp masaüstünde kademeli büyümelidir (`text-xl sm:text-3xl md:text-5xl lg:text-6xl` ve `leading-tight line-clamp-2 sm:line-clamp-3`).
   - **Alt Başlık / Açıklama (`p`)**: Mobil ekranlarda `text-[11px]` veya `text-xs` (`sm:text-sm md:text-base`) boyutunda olmalı ve çok uzun açıklamaların banner fotoğrafını örtmesini engellemek için mobilde `line-clamp-2 sm:line-clamp-3` ile sınırlandırılmalıdır.
   - **Üst Rozet (Badge) ve CTA Butonları**: Rozetler mobilde `px-2.5 py-0.5 text-[10px] sm:text-xs`, aksiyon butonları ise `px-4 py-2 sm:px-7 sm:py-3.5 text-[11px] sm:text-sm` ölçülerinde kompakt ve taşma yapmayacak şekilde dizilmelidir.
+
+---
+
+## 29. Veri Giriş, Revizyon ve Kayıt Güvencesi Anayasa Kuralı (Zero Data Loss & Ironclad Persistence Protocol - #1 En Önemli Kural)
+
+- **Operatör Emeğinin ve Veri Girişlerinin %100 Kayıt Güvencesi (Bilgisayar Mantığının 1. Kuralı)**:
+  - Sistemdeki hiçbir veri giriş alanı, form, modal veya ayar ekranı; operatörün girdiği, değiştirdiği veya revize ettiği bir veriyi (döviz kuru, fiyat, miktar, cari bilgisi, API anahtarı, fatura detayı vb.) sessizce yutamaz, varsayılan değere (`1`, `0`, `null`, `""`) sıfırlayamaz veya veritabanına yazmadan "Başarıyla kaydedildi" bildirimi veremez.
+  - **"Veriyi giriş alanına yazar, kaydeder ve bu verilerden mantıklı sonuçlar üretmek için faydalanırsın"** ilkesi tüm geliştirici ajanlar için en üst mühendislik yasasıdır. Veri giriş alanları veriyi eksiksiz kaydetmiyorsa yapılan hiçbir görsel veya ek özelliğin önemi yoktur.
+
+- **Türkçe Ondalık Virgül (`,`) ve Nokta (`.`) Evrensel Sayısal Ayrıştırma Zorunluluğu (`parseLocalizedNumber`)**:
+  - Türkiye'deki operatörler ve e-Fatura HTML/UBL belgeleri ondalık ayraç olarak virgül (`,`) kullanır (örn. `48,9938`, `34,50`, `18,8233`).
+  - JavaScript'in ham `Number("48,9938")` fonksiyonu virgüllü dizeleri `NaN` olarak değerlendirir ve `Number(exchangeRate) || 1` gibi hatalı ifadeler operatörün girdiği kuru sessizce `1.0000` değerine dönüştürür!
+  - Sistem genelindeki TÜM sayısal girişlerde (Alış Faturaları, Satış Faturaları, e-İrsaliye, Teklifler, Cari Hareketler, Ürün Fiyat/Maliyet alanları) hem istemci (frontend payload) hem de sunucu (backend route) katmanında virgül/nokta ayrıştırması (`parseLocalizedNumber` / `replace(',', '.')`) ZORUNLUDUR.
+
+- **Alış/Satış Faturaları, Cari Ekstre ve E-Fatura Senkronizasyonunda Döviz Kuru Koruma Kuralı**:
+  - **1. Otomatik Kur Çıkarımı (`currencyRateInfo.pricingExchangeRate`)**: E-Fatura gelen kutusu (`importIncomingInvoicesForStore`) senkronizasyonunda, yabancı para birimli (`USD`, `EUR`, `GBP`) faturaların UBL/Model verisindeki `currencyRateInfo.pricingExchangeRate` (veya `noteList` içindeki kur bilgisi) otomatik olarak okunmalı ve hem `purchase_invoices.exchange_rate` hem de `current_account_transactions.exchange_rate` alanlarına ilk anda eksiksiz kaydedilmelidir.
+  - **2. Operatör Revizyonlarının Ezilmezliği (Non-Destructive Sync)**: Arka plan veya manuel e-Fatura senkronizasyonu (`sync-inbox`), veritabanında halihazırda mevcut olan bir faturanın operatör tarafından girilmiş/revize edilmiş `exchange_rate`, `currency`, `payment_method`, `is_expense` veya `company_id` değerlerini ASLA `1` veya varsayılan değerlerle ezemez (`CASE WHEN COALESCE(exchange_rate, 1) > 1 THEN exchange_rate ELSE ... END`).
+  - **3. Fatura ve Cari Hareket Çift Yönlü Kur Eşgüdümü**: Alış/Satış faturası güncellendiğinde bağlı cari hareketlerin (`current_account_transactions` borç ve alacak kayıtları) döviz kuru anında güncellenmeli; cari hareket ekranından (`transactions.ts`) bir faturaya bağlı hareketin döviz kuru güncellendiğinde de ilgili alış/satış faturasının `exchange_rate` alanı otomatik olarak senkronize edilmelidir.
+

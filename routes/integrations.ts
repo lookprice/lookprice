@@ -4860,23 +4860,56 @@ router.get("/pazarama/brands", authenticate, async (req: any, res) => {
   }
 });
 
-// --- Meta (Facebook/Instagram) Integration ---
+// Helper to resolve target storeId across SuperAdmin, StoreAdmin, and slug header
+async function resolveIntegrationStoreId(req: any): Promise<number | null> {
+  const rawStoreId = req.query?.storeId || req.body?.storeId;
+  const parsedStoreId = rawStoreId ? parseInt(String(rawStoreId), 10) : undefined;
+  const authorizedId = await getAuthorizedStoreId(req, !isNaN(parsedStoreId as number) ? parsedStoreId : undefined);
+  if (authorizedId) return authorizedId;
 
-// 1. Save Meta Settings
+  // Fallback to x-store-slug header for SuperAdmin when storeId query param was omitted
+  const slugHeader = req.headers?.["x-store-slug"];
+  if (slugHeader && req.user?.role === "superadmin") {
+    const slugRes = await pool.query("SELECT id FROM stores WHERE LOWER(slug) = LOWER($1) LIMIT 1", [String(slugHeader)]);
+    if (slugRes.rows[0]?.id) return slugRes.rows[0].id;
+  }
+  return req.user?.store_id || null;
+}
+
+// --- Meta (Facebook/Instagram) & SEO Meta Integration ---
+
+// 1. Save Meta Settings (Defensively merges with existing meta_settings & branding.meta_settings)
 router.post("/meta/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { enabled, pixel_id, catalog_id, catalog_currency } = req.body;
-
   try {
-    const settings = {
-      enabled: !!enabled,
-      pixel_id: pixel_id || "",
-      catalog_id: catalog_id || "",
-      catalog_currency: catalog_currency || "TRY"
+    const storeId = await resolveIntegrationStoreId(req);
+    if (!storeId) return res.status(400).json({ error: "Store ID bulunamadı" });
+
+    const { enabled, pixel_id, catalog_id, catalog_currency, ga_measurement_id, gtm_id, gsc_id } = req.body;
+
+    const existingRes = await pool.query("SELECT meta_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = existingRes.rows[0] || {};
+    const colMeta = (row.meta_settings && typeof row.meta_settings === "object") ? row.meta_settings : {};
+    const brObj = (row.branding && typeof row.branding === "object") ? row.branding : {};
+    const brMeta = (brObj.meta_settings && typeof brObj.meta_settings === "object") ? brObj.meta_settings : {};
+
+    const mergedMeta: any = {
+      ...brMeta,
+      ...colMeta,
+      enabled: enabled !== undefined ? !!enabled : Boolean(colMeta.enabled ?? brMeta.enabled),
+      pixel_id: pixel_id !== undefined ? String(pixel_id).trim() : (colMeta.pixel_id || brMeta.pixel_id || ""),
+      catalog_id: catalog_id !== undefined ? String(catalog_id).trim() : (colMeta.catalog_id || brMeta.catalog_id || ""),
+      catalog_currency: catalog_currency || colMeta.catalog_currency || brMeta.catalog_currency || "TRY",
+      ga_measurement_id: ga_measurement_id !== undefined ? String(ga_measurement_id).trim() : (colMeta.ga_measurement_id || brMeta.ga_measurement_id || ""),
+      gtm_id: gtm_id !== undefined ? String(gtm_id).trim() : (colMeta.gtm_id || brMeta.gtm_id || ""),
+      gsc_id: gsc_id !== undefined ? String(gsc_id).trim() : (colMeta.gsc_id || brMeta.gsc_id || ""),
     };
 
-    await pool.query("UPDATE stores SET meta_settings = $1 WHERE id = $2", [settings, storeId]);
-    res.json({ success: true, settings });
+    const updatedBranding = { ...brObj, meta_settings: mergedMeta };
+    await pool.query(
+      "UPDATE stores SET meta_settings = $1, branding = $2 WHERE id = $3",
+      [JSON.stringify(mergedMeta), JSON.stringify(updatedBranding), storeId]
+    );
+    res.json({ success: true, settings: mergedMeta });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -4884,10 +4917,35 @@ router.post("/meta/settings", authenticate, async (req: any, res) => {
 
 // 2. Get Meta Settings
 router.get("/meta/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
-    const result = await pool.query("SELECT meta_settings FROM stores WHERE id = $1", [storeId]);
-    res.json(result.rows[0]?.meta_settings || { enabled: false, pixel_id: "", catalog_id: "" });
+    const storeId = await resolveIntegrationStoreId(req);
+    if (!storeId) return res.json({ enabled: false, pixel_id: "", catalog_id: "" });
+
+    const result = await pool.query("SELECT meta_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = result.rows[0] || {};
+    const colMeta = (row.meta_settings && typeof row.meta_settings === "object") ? row.meta_settings : {};
+    const brMeta = (row.branding?.meta_settings && typeof row.branding.meta_settings === "object") ? row.branding.meta_settings : {};
+
+    const merged: any = {
+      enabled: false,
+      pixel_id: "",
+      catalog_id: "",
+      catalog_currency: "TRY",
+      ...brMeta,
+      ...colMeta,
+    };
+    for (const k of ["pixel_id", "catalog_id", "ga_measurement_id", "gtm_id", "gsc_id"]) {
+      if (!merged[k] && (colMeta[k] || brMeta[k])) {
+        merged[k] = colMeta[k] || brMeta[k];
+      }
+    }
+    if (colMeta.enabled === true || brMeta.enabled === true || Boolean(merged.pixel_id || merged.catalog_id)) {
+      if (colMeta.enabled !== false) {
+        merged.enabled = Boolean(colMeta.enabled ?? brMeta.enabled ?? (merged.pixel_id || merged.catalog_id));
+      }
+    }
+
+    res.json(merged);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -4897,17 +4955,31 @@ router.get("/meta/settings", authenticate, async (req: any, res) => {
 
 // 1. Save Google Merchant Settings
 router.post("/google-merchant/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { enabled, merchant_id, catalog_currency } = req.body;
-
   try {
+    const storeId = await resolveIntegrationStoreId(req);
+    if (!storeId) return res.status(400).json({ error: "Store ID bulunamadı" });
+
+    const { enabled, merchant_id, catalog_currency } = req.body;
+
+    const existingRes = await pool.query("SELECT google_merchant_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = existingRes.rows[0] || {};
+    const colGm = (row.google_merchant_settings && typeof row.google_merchant_settings === "object") ? row.google_merchant_settings : {};
+    const brObj = (row.branding && typeof row.branding === "object") ? row.branding : {};
+    const brGm = (brObj.google_merchant_settings && typeof brObj.google_merchant_settings === "object") ? brObj.google_merchant_settings : {};
+
     const settings = {
-      enabled: !!enabled,
-      merchant_id: merchant_id || "",
-      catalog_currency: catalog_currency || "TRY"
+      ...brGm,
+      ...colGm,
+      enabled: enabled !== undefined ? !!enabled : Boolean(colGm.enabled ?? brGm.enabled),
+      merchant_id: merchant_id !== undefined ? String(merchant_id).trim() : (colGm.merchant_id || brGm.merchant_id || ""),
+      catalog_currency: catalog_currency || colGm.catalog_currency || brGm.catalog_currency || "TRY"
     };
 
-    await pool.query("UPDATE stores SET google_merchant_settings = $1 WHERE id = $2", [settings, storeId]);
+    const updatedBranding = { ...brObj, google_merchant_settings: settings };
+    await pool.query(
+      "UPDATE stores SET google_merchant_settings = $1, branding = $2 WHERE id = $3",
+      [JSON.stringify(settings), JSON.stringify(updatedBranding), storeId]
+    );
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -4916,10 +4988,30 @@ router.post("/google-merchant/settings", authenticate, async (req: any, res) => 
 
 // 2. Get Google Merchant Settings
 router.get("/google-merchant/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
-    const result = await pool.query("SELECT google_merchant_settings FROM stores WHERE id = $1", [storeId]);
-    res.json(result.rows[0]?.google_merchant_settings || { enabled: false, merchant_id: "" });
+    const storeId = await resolveIntegrationStoreId(req);
+    if (!storeId) return res.json({ enabled: false, merchant_id: "" });
+
+    const result = await pool.query("SELECT google_merchant_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = result.rows[0] || {};
+    const colGm = (row.google_merchant_settings && typeof row.google_merchant_settings === "object") ? row.google_merchant_settings : {};
+    const brGm = (row.branding?.google_merchant_settings && typeof row.branding.google_merchant_settings === "object") ? row.branding.google_merchant_settings : {};
+
+    const merged: any = {
+      enabled: false,
+      merchant_id: "",
+      catalog_currency: "TRY",
+      ...brGm,
+      ...colGm,
+    };
+    if (!merged.merchant_id && (colGm.merchant_id || brGm.merchant_id)) {
+      merged.merchant_id = colGm.merchant_id || brGm.merchant_id;
+    }
+    if (colGm.enabled === true || brGm.enabled === true) {
+      merged.enabled = true;
+    }
+
+    res.json(merged);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -4929,24 +5021,36 @@ router.get("/google-merchant/settings", authenticate, async (req: any, res) => {
 
 // 1. Save Instagram Settings
 router.post("/instagram/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { enabled, auto_post, account_id, access_token } = req.body;
-
   try {
+    const storeId = await resolveIntegrationStoreId(req);
+    if (!storeId) return res.status(400).json({ error: "Store ID bulunamadı" });
+
+    const { enabled, auto_post, account_id, access_token } = req.body;
+
+    const existingRes = await pool.query("SELECT instagram_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = existingRes.rows[0] || {};
+    const colIg = (row.instagram_settings && typeof row.instagram_settings === "object") ? row.instagram_settings : {};
+    const brObj = (row.branding && typeof row.branding === "object") ? row.branding : {};
+    const brIg = (brObj.instagram_settings && typeof brObj.instagram_settings === "object") ? brObj.instagram_settings : {};
+
     const settings = {
+      ...brIg,
+      ...colIg,
       enabled: !!enabled,
       auto_post: !!auto_post,
-      account_id: account_id || "",
-      access_token: access_token || ""
+      account_id: account_id !== undefined ? String(account_id).trim() : (colIg.account_id || brIg.account_id || ""),
+      access_token: access_token !== undefined ? String(access_token).trim() : (colIg.access_token || brIg.access_token || "")
     };
 
+    const updatedBranding = { ...brObj, instagram_settings: settings };
     await pool.query(
       `UPDATE stores SET 
         instagram_settings = $1,
         instagram_access_token = $2,
-        instagram_business_account_id = $3
-      WHERE id = $4`,
-      [settings, settings.access_token, settings.account_id, storeId]
+        instagram_business_account_id = $3,
+        branding = $4
+      WHERE id = $5`,
+      [JSON.stringify(settings), settings.access_token, settings.account_id, JSON.stringify(updatedBranding), storeId]
     );
     res.json({ success: true, settings });
   } catch (error: any) {
@@ -4956,20 +5060,31 @@ router.post("/instagram/settings", authenticate, async (req: any, res) => {
 
 // 2. Get Instagram Settings
 router.get("/instagram/settings", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
+    const storeId = await resolveIntegrationStoreId(req);
+    if (!storeId) return res.json({ enabled: false, auto_post: false, account_id: "", access_token: "" });
+
     const result = await pool.query(
-      "SELECT instagram_settings, instagram_access_token, instagram_business_account_id FROM stores WHERE id = $1", 
+      "SELECT instagram_settings, instagram_access_token, instagram_business_account_id, branding FROM stores WHERE id = $1", 
       [storeId]
     );
     const row = result.rows[0] || {};
-    const settings = row.instagram_settings || { enabled: false, auto_post: false, account_id: "", access_token: "" };
+    const colIg = (row.instagram_settings && typeof row.instagram_settings === "object") ? row.instagram_settings : {};
+    const brIg = (row.branding?.instagram_settings && typeof row.branding.instagram_settings === "object") ? row.branding.instagram_settings : {};
+    const settings: any = {
+      enabled: false,
+      auto_post: false,
+      account_id: "",
+      access_token: "",
+      ...brIg,
+      ...colIg
+    };
     
     // Merge database columns if they exist
-    if (row.instagram_access_token) {
+    if (row.instagram_access_token && !settings.access_token) {
       settings.access_token = row.instagram_access_token;
     }
-    if (row.instagram_business_account_id) {
+    if (row.instagram_business_account_id && !settings.account_id) {
       settings.account_id = row.instagram_business_account_id;
     }
     if (settings.access_token && settings.account_id) {

@@ -47,7 +47,66 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   vehicleAiNotice,
   isDemoStore
 }) => {
+  const [scanningDoc, setScanningDoc] = React.useState(false);
+
   if (!isOpen) return null;
+
+  const handleScanVehicleDoc = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setScanningDoc(true);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const imageBase64 = reader.result as string;
+          const token = localStorage.getItem("token");
+          const res = await fetch("/api/store/ai/parse-vehicle-document", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ imageBase64, lang })
+          });
+          const data = await res.json();
+          if (data?.success && data?.data) {
+            const d = data.data;
+            setFormData({
+              ...formData,
+              plate: d.plate || formData.plate || "",
+              brand: d.brand || formData.brand || "",
+              model: d.model || formData.model || "",
+              package_name: d.package_name || formData.package_name || "",
+              year: d.year ? Number(d.year) : formData.year,
+              color: d.color || formData.color || "",
+              fuel_type: d.fuel_type || formData.fuel_type || "gasoline",
+              transmission: d.transmission || formData.transmission || "automatic",
+              body_type: d.body_type || formData.body_type || "sedan",
+              chassis_number: d.chassis_number || formData.chassis_number || "",
+              engine_number: d.engine_number || formData.engine_number || "",
+              current_mileage: d.current_mileage ? Number(d.current_mileage) : formData.current_mileage,
+              technical_description: d.summary_notes
+                ? `${formData.technical_description ? formData.technical_description + "\n\n" : ""}${d.summary_notes}`
+                : formData.technical_description
+            });
+          } else {
+            alert(data?.error || (isTr ? "Belge okunamadı." : "Could not parse document."));
+          }
+        } catch (innerErr) {
+          console.error("Vehicle doc scan error:", innerErr);
+          alert(isTr ? "Ruhsat/Ekspertiz taranırken hata oluştu." : "Error scanning document.");
+        } finally {
+          setScanningDoc(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setScanningDoc(false);
+    } finally {
+      e.target.value = "";
+    }
+  };
 
   const paintReportData = (() => {
     try {
@@ -117,11 +176,30 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar bg-slate-50/50">
             {/* 1. Ruhsat ve Kayıt Bilgileri */}
             <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-1 px-0.5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1 px-0.5 gap-2 flex-wrap">
                 <h4 className="text-[9px] font-medium text-blue-700 tracking-widest uppercase flex items-center gap-1.5">
                   <span className="w-1 h-1 rounded-full bg-blue-600" />
                   1. RUHSAT VE KAYIT BİLGİLERİ
                 </h4>
+                <label className="text-[9px] font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-2 py-0.5 rounded flex items-center gap-1 cursor-pointer shadow-2xs transition-all">
+                  {scanningDoc ? (
+                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                  ) : (
+                    <Camera className="w-2.5 h-2.5" />
+                  )}
+                  <span>
+                    {scanningDoc
+                      ? (isTr ? "Ruhsat/Ekspertiz Okunuyor..." : "Scanning Document...")
+                      : (isTr ? "📸 Ruhsat / Ekspertizden Otomatik Doldur (AI)" : "📸 Scan Registration / Appraisal (AI)")}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleScanVehicleDoc}
+                    disabled={scanningDoc}
+                    className="hidden"
+                  />
+                </label>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">

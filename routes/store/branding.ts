@@ -22,7 +22,8 @@ router.post("/", async (req: any, res) => {
         phone, address, email, page_layout, menu_links, footer_links, store_type, sub_sector,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number,
         branding, payment_settings, meta_settings, einvoice_settings,
-        hepsiburada_settings, trendyol_settings, amazon_settings, pazarama_settings, n11_settings
+        hepsiburada_settings, trendyol_settings, amazon_settings, pazarama_settings, n11_settings,
+        google_merchant_settings, instagram_settings
       FROM stores 
       WHERE id = $1
     `, [targetStoreId]);
@@ -36,6 +37,10 @@ router.post("/", async (req: any, res) => {
     if (typeof existingBranding === 'string') {
       try { existingBranding = JSON.parse(existingBranding); } catch (e) { existingBranding = {}; }
     }
+    // Remove accidental recursive branding.branding bloat while preserving any inner settings
+    if (existingBranding.branding && typeof existingBranding.branding === 'object') {
+      delete existingBranding.branding;
+    }
 
     let existingPaymentSettings = existingStore.payment_settings || {};
     if (typeof existingPaymentSettings === 'string') {
@@ -45,6 +50,16 @@ router.post("/", async (req: any, res) => {
     let existingMetaSettings = existingStore.meta_settings || {};
     if (typeof existingMetaSettings === 'string') {
       try { existingMetaSettings = JSON.parse(existingMetaSettings); } catch (e) { existingMetaSettings = {}; }
+    }
+
+    let existingGoogleMerchantSettings = existingStore.google_merchant_settings || {};
+    if (typeof existingGoogleMerchantSettings === 'string') {
+      try { existingGoogleMerchantSettings = JSON.parse(existingGoogleMerchantSettings); } catch (e) { existingGoogleMerchantSettings = {}; }
+    }
+
+    let existingInstagramSettings = existingStore.instagram_settings || {};
+    if (typeof existingInstagramSettings === 'string') {
+      try { existingInstagramSettings = JSON.parse(existingInstagramSettings); } catch (e) { existingInstagramSettings = {}; }
     }
 
     let existingEinvoiceSettings = existingStore.einvoice_settings || {};
@@ -61,43 +76,58 @@ router.post("/", async (req: any, res) => {
 
     // Clean base64 data in incoming body
     const cleanedBody = await cleanDeepBase64(req.body, `store_${targetStoreId}_branding`);
+    if (cleanedBody.branding && typeof cleanedBody.branding === 'object') {
+      delete cleanedBody.branding;
+    }
 
     // Merge incoming cleaned body with existing branding
     const updatedBranding = await cleanDeepBase64({ ...existingBranding, ...cleanedBody }, `store_${targetStoreId}_branding`);
 
-    // Helper to safely merge marketplace settings without wiping out existing credentials
-    const mergeMarketplaceSettings = (existing: any, incoming: any) => {
-      const ex = (existing && typeof existing === 'object') ? existing : {};
-      const inc = (incoming && typeof incoming === 'object') ? incoming : {};
-      
+    // Helper to safely merge marketplace & integration settings without wiping out existing credentials
+    const mergeProtectedSettings = (existingCol: any, existingBr: any, incoming: any, credKeys: string[]) => {
+      const exBr = (existingBr && typeof existingBr === 'object' && !Array.isArray(existingBr)) ? existingBr : {};
+      const exCol = (existingCol && typeof existingCol === 'object' && !Array.isArray(existingCol)) ? existingCol : {};
+      const ex: any = { ...exBr, ...exCol };
+      for (const [k, v] of Object.entries(exBr)) {
+        if ((ex[k] === '' || ex[k] === null || ex[k] === undefined) && v !== '' && v !== null && v !== undefined) {
+          ex[k] = v;
+        }
+      }
+
+      const inc = (incoming && typeof incoming === 'object' && !Array.isArray(incoming)) ? incoming : {};
       if (Object.keys(inc).length === 0) {
         return ex;
       }
 
-      const merged = { ...ex, ...inc };
+      const merged: any = { ...ex, ...inc };
 
-      // Defensive guard: Never replace non-empty existing credentials with empty/blank strings
-      const credKeys = ['merchantId', 'apiSecret', 'apiKey', 'appKey', 'appSecret', 'sellerId', 'refresh_token', 'clientId', 'clientSecret'];
+      // Defensive guard: Never replace non-empty existing credentials with empty/blank strings during general branding save
       for (const k of credKeys) {
-        if (!inc[k] && ex[k]) {
+        if ((inc[k] === '' || inc[k] === null || inc[k] === undefined) && ex[k]) {
           merged[k] = ex[k];
         }
       }
 
-      // Preserve connected state if credentials remain intact
       if (ex.connected && (merged.merchantId || merged.apiSecret || merged.appKey || merged.refresh_token)) {
         merged.connected = true;
+      }
+      if (ex.enabled && (merged.merchant_id || merged.pixel_id || merged.catalog_id || merged.access_token)) {
+        if (inc.enabled === undefined) {
+          merged.enabled = true;
+        }
       }
 
       return merged;
     };
 
+    const mpCredKeys = ['merchantId', 'apiSecret', 'apiKey', 'appKey', 'appSecret', 'sellerId', 'refresh_token', 'clientId', 'clientSecret'];
+
     // Ensure marketplace settings are preserved and synchronized
-    const mergedHb = mergeMarketplaceSettings(existingHb, cleanedBody.hepsiburada_settings || updatedBranding.hepsiburada_settings);
-    const mergedTy = mergeMarketplaceSettings(existingTy, cleanedBody.trendyol_settings || updatedBranding.trendyol_settings);
-    const mergedAmz = mergeMarketplaceSettings(existingAmz, cleanedBody.amazon_settings || updatedBranding.amazon_settings);
-    const mergedPz = mergeMarketplaceSettings(existingPz, cleanedBody.pazarama_settings || updatedBranding.pazarama_settings);
-    const mergedN11 = mergeMarketplaceSettings(existingN11, cleanedBody.n11_settings || updatedBranding.n11_settings);
+    const mergedHb = mergeProtectedSettings(existingHb, existingBranding.hepsiburada_settings, cleanedBody.hepsiburada_settings || updatedBranding.hepsiburada_settings, mpCredKeys);
+    const mergedTy = mergeProtectedSettings(existingTy, existingBranding.trendyol_settings, cleanedBody.trendyol_settings || updatedBranding.trendyol_settings, mpCredKeys);
+    const mergedAmz = mergeProtectedSettings(existingAmz, existingBranding.amazon_settings, cleanedBody.amazon_settings || updatedBranding.amazon_settings, mpCredKeys);
+    const mergedPz = mergeProtectedSettings(existingPz, existingBranding.pazarama_settings, cleanedBody.pazarama_settings || updatedBranding.pazarama_settings, mpCredKeys);
+    const mergedN11 = mergeProtectedSettings(existingN11, existingBranding.n11_settings, cleanedBody.n11_settings || updatedBranding.n11_settings, mpCredKeys);
 
     updatedBranding.hepsiburada_settings = mergedHb;
     updatedBranding.trendyol_settings = mergedTy;
@@ -113,15 +143,48 @@ router.post("/", async (req: any, res) => {
     }
 
     // Ensure payment_settings are merged and kept consistent across branding and payment_settings column
-    const mergedPaymentSettings = { ...existingPaymentSettings, ...(existingBranding.payment_settings || {}), ...(updatedBranding.payment_settings || {}) };
+    const mergedPaymentSettings = mergeProtectedSettings(
+      existingPaymentSettings,
+      existingBranding.payment_settings,
+      cleanedBody.payment_settings || updatedBranding.payment_settings,
+      ['iyzico_api_key', 'iyzico_secret_key', 'bank_details', 'paytr_merchant_id', 'paytr_merchant_key', 'paytr_merchant_salt']
+    );
     updatedBranding.payment_settings = mergedPaymentSettings;
 
-    // Ensure meta_settings are merged and kept consistent across branding and meta_settings column
-    const mergedMetaSettings = { ...existingMetaSettings, ...(existingBranding.meta_settings || {}), ...(updatedBranding.meta_settings || {}) };
+    // Ensure meta_settings (both Meta Pixel/Catalog AND Google Analytics/GTM/GSC) are merged and never overwrite each other
+    const mergedMetaSettings = mergeProtectedSettings(
+      existingMetaSettings,
+      existingBranding.meta_settings,
+      cleanedBody.meta_settings || updatedBranding.meta_settings,
+      ['pixel_id', 'catalog_id', 'catalog_currency', 'gsc_id', 'gtm_id', 'ga_measurement_id', 'meta_title', 'meta_description', 'meta_keywords']
+    );
     updatedBranding.meta_settings = mergedMetaSettings;
 
+    // Ensure google_merchant_settings are merged and kept consistent across branding and google_merchant_settings column
+    const mergedGoogleMerchantSettings = mergeProtectedSettings(
+      existingGoogleMerchantSettings,
+      existingBranding.google_merchant_settings,
+      cleanedBody.google_merchant_settings || updatedBranding.google_merchant_settings,
+      ['merchant_id', 'catalog_currency']
+    );
+    updatedBranding.google_merchant_settings = mergedGoogleMerchantSettings;
+
+    // Ensure instagram_settings are merged and kept consistent across branding and instagram_settings column
+    const mergedInstagramSettings = mergeProtectedSettings(
+      existingInstagramSettings,
+      existingBranding.instagram_settings,
+      cleanedBody.instagram_settings || updatedBranding.instagram_settings,
+      ['account_id', 'access_token']
+    );
+    updatedBranding.instagram_settings = mergedInstagramSettings;
+
     // Ensure einvoice_settings are merged and kept consistent across branding and einvoice_settings column
-    const mergedEinvoiceSettings = { ...existingEinvoiceSettings, ...(existingBranding.einvoice_settings || {}), ...(updatedBranding.einvoice_settings || {}) };
+    const mergedEinvoiceSettings = mergeProtectedSettings(
+      existingEinvoiceSettings,
+      existingBranding.einvoice_settings,
+      cleanedBody.einvoice_settings || updatedBranding.einvoice_settings,
+      ['vkn', 'username', 'password', 'api_token', 'tenant_id', 'sender_alias', 'receiver_alias', 'earchive_uuid']
+    );
     updatedBranding.einvoice_settings = mergedEinvoiceSettings;
 
     // Resolve column values (prefer cleanedBody, then existingStore)
@@ -239,7 +302,9 @@ router.post("/", async (req: any, res) => {
         default_currency = $34,
         language = $35,
         hotel_module_enabled = $36,
-        country = $37
+        country = $37,
+        google_merchant_settings = $38,
+        instagram_settings = $39
       WHERE id = $24
     `, [
       name,
@@ -278,7 +343,9 @@ router.post("/", async (req: any, res) => {
       default_currency,
       language,
       storeHotelLicense,
-      country
+      country,
+      JSON.stringify(mergedGoogleMerchantSettings),
+      JSON.stringify(mergedInstagramSettings)
     ]);
 
     // Audit Log: Record that a user updated store settings/API keys

@@ -558,7 +558,7 @@ async function tryGeminiLookup(cleanBarcode: string): Promise<Partial<BookLookup
     });
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.8-flash",
       contents: `Lütfen "${cleanBarcode}" nolu ISBN numarasına sahip kitabın Türkiye'deki adını, yazarını, yayınevini, tür/kategorisini ve arka kapak özetini bul.
       Yanıtı SADECE geçerli bir JSON olarak ver:
       {

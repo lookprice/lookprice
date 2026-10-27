@@ -126,7 +126,76 @@ export const ProductModal = ({
 
   const [isPublishingToHb, setIsPublishingToHb] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
+  const [generatingAiDesc, setGeneratingAiDesc] = useState(false);
   const [marketPrices, setMarketPrices] = useState<any>(null);
+
+  const handleGenerateProductAiDesc = async () => {
+    const nameInput = document.querySelector('form input[name="name"]') as HTMLInputElement;
+    const brandInput = document.querySelector('form input[name="brand"]') as HTMLInputElement;
+    const barcodeInput = document.querySelector('form input[name="barcode"]') as HTMLInputElement;
+    const descArea = document.querySelector('form textarea[name="description"]') as HTMLTextAreaElement;
+
+    const productName = nameInput?.value?.trim() || editingProduct?.name || "";
+    if (!productName) {
+      alert(isTr ? "Lütfen önce ürün adını giriniz!" : "Please enter the product name first!");
+      return;
+    }
+
+    try {
+      setGeneratingAiDesc(true);
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/store/ai/generate-description", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          name: productName,
+          category: selectedCategory || editingProduct?.category || "",
+          sub_category: selectedSubCategory || editingProduct?.sub_category || "",
+          brand: brandInput?.value?.trim() || editingProduct?.brand || "",
+          barcode: barcodeInput?.value?.trim() || editingProduct?.barcode || "",
+          sector: isCafeRestaurant ? "horeca" : "retail",
+          lang: isTr ? "tr" : "en"
+        })
+      });
+      const data = await res.json();
+      if (data?.description) {
+        if (descArea) {
+          descArea.value = data.description;
+          descArea.dispatchEvent(new Event("input", { bubbles: true }));
+          descArea.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        if (editingProduct) {
+          setEditingProduct((prev: any) => ({
+            ...prev,
+            description: data.description,
+            brand: (!prev?.brand && data.brand) ? data.brand : prev?.brand
+          }));
+        }
+        if (!isCafeRestaurant && data.brand && brandInput && !brandInput.value.trim()) {
+          brandInput.value = data.brand;
+          brandInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        if (isCafeRestaurant) {
+          if (data.calories !== undefined && data.calories !== null) setCalories(data.calories);
+          if (data.prep_time_min !== undefined && data.prep_time_min !== null) setPrepTimeMin(data.prep_time_min);
+          if (data.portion_size) setPortionSize(data.portion_size);
+          if (data.protein !== undefined && data.protein !== null) setProtein(data.protein);
+          if (data.carbs !== undefined && data.carbs !== null) setCarbs(data.carbs);
+          if (data.fat !== undefined && data.fat !== null) setFat(data.fat);
+        }
+      } else {
+        alert(data?.error || (isTr ? "Açıklama üretilemedi." : "Could not generate description."));
+      }
+    } catch (err: any) {
+      console.error("AI product description error:", err);
+      alert(isTr ? "Yapay zeka açıklaması oluşturulurken hata oluştu." : "Failed to generate AI description.");
+    } finally {
+      setGeneratingAiDesc(false);
+    }
+  };
 
   const handleAutoLookup = async () => {
     // Find barcode input from modal form
@@ -848,29 +917,51 @@ export const ProductModal = ({
 
                 {/* 3. AÇIKLAMA / ARKA KAPAK YAZISI */}
                 <div className="order-7 lg:order-none p-2.5 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-1">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-1 gap-2 flex-wrap">
                     <label className="text-[10px] font-medium text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                       <span>{isBookstore ? (isTr ? "Arka Kapak Tanıtım Yazısı" : "Book Synopsis") : (isTr ? "Ürün Açıklaması" : "Product Description")}</span>
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                      className="text-[10px] font-normal text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-indigo-50 transition-colors cursor-pointer"
-                      title={isDescriptionExpanded ? (isTr ? "Alanı Küçült" : "Collapse") : (isTr ? "Alanı Genişlet" : "Expand")}
-                    >
-                      {isDescriptionExpanded ? (
-                        <>
-                          <Minimize2 className="w-3 h-3" />
-                          <span>{isTr ? "Daralt" : "Collapse"}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Maximize2 className="w-3 h-3" />
-                          <span>{isTr ? "Genişlet" : "Expand"}</span>
-                        </>
-                      )}
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={generatingAiDesc}
+                        onClick={handleGenerateProductAiDesc}
+                        className="text-[10px] font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white flex items-center gap-1 px-2 py-0.5 rounded-md shadow-2xs transition-all cursor-pointer disabled:opacity-60"
+                        title={isCafeRestaurant ? (isTr ? "Gemini ile menü açıklaması ve kalori/besin değerlerini otomatik tahmin et" : "Auto-generate menu description & nutrition") : (isTr ? "Gemini ile SEO ve Pazaryeri uyumlu profesyonel ürün açıklaması üret" : "Auto-generate SEO & marketplace description")}
+                      >
+                        {generatingAiDesc ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3 h-3" />
+                        )}
+                        <span>
+                          {generatingAiDesc
+                            ? (isTr ? "Üretiliyor..." : "Generating...")
+                            : isCafeRestaurant
+                              ? (isTr ? "✨ Menü & Besin Değeri Üret (AI)" : "✨ Menu & Nutrition (AI)")
+                              : (isTr ? "✨ Gemini ile Otomatik Yaz" : "✨ Auto-Write with AI")}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                        className="text-[10px] font-normal text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-indigo-50 transition-colors cursor-pointer"
+                        title={isDescriptionExpanded ? (isTr ? "Alanı Küçült" : "Collapse") : (isTr ? "Alanı Genişlet" : "Expand")}
+                      >
+                        {isDescriptionExpanded ? (
+                          <>
+                            <Minimize2 className="w-3 h-3" />
+                            <span>{isTr ? "Daralt" : "Collapse"}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Maximize2 className="w-3 h-3" />
+                            <span>{isTr ? "Genişlet" : "Expand"}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     name="description"

@@ -65,6 +65,7 @@ router.use("/hotel-rooms", hotelRoomsRouter);
 router.use("/seo", seoRouter);
 router.use("/blog", blogRouter);
 router.use("/ai", aiRouter);
+router.use("/", aiRouter);
 router.use("/domain", domainRouter);
 router.use("/branches", branchRouter);
 router.use("/stock-transfers", stockTransferRouter);

@@ -483,7 +483,14 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           payment_method: paymentMethod,
           payment_status: paymentMethod !== 'term' ? 'paid' : paymentStatus,
           currency,
-          exchange_rate: Number(exchangeRate) || 1,
+          exchange_rate: (() => {
+            const parsed = parseFloat(String(exchangeRate).replace(',', '.').trim());
+            return (!isNaN(parsed) && parsed > 0) ? parsed : 1;
+          })(),
+          exchangeRate: (() => {
+            const parsed = parseFloat(String(exchangeRate).replace(',', '.').trim());
+            return (!isNaN(parsed) && parsed > 0) ? parsed : 1;
+          })(),
           is_tax_inclusive: isTaxInclusive,
           is_expense: isExpense,
           expense_category: expenseCategory,

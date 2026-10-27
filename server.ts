@@ -829,6 +829,7 @@ function sanitizeFilename(originalName: string): string {
     // 0. Check in-memory RAM cache first (0 disk I/O, 0 network, 0 db query)
     const cachedItem = storageRamCache.get(filePath);
     if (cachedItem) {
+      res.setHeader("X-LookPrice-Storage-Source", "RAM-CACHE");
       if (req.headers["if-none-match"] === cachedItem.etag) {
         return res.status(304).end();
       }
@@ -868,6 +869,7 @@ function sanitizeFilename(originalName: string): string {
         try {
           const stats = fs.statSync(resolved);
           const etag = `"${stats.size}-${stats.mtimeMs}"`;
+          res.setHeader("X-LookPrice-Storage-Source", "LOCAL-DISK");
           if (req.headers["if-none-match"] === etag) {
             return res.status(304).end();
           }
@@ -880,12 +882,13 @@ function sanitizeFilename(originalName: string): string {
       }
     }
 
-    // 2. Check PostgreSQL database (app_storage_files) with a SINGLE batched query and negative cache
+    // 2. Check PostgreSQL database (app_storage_files) & 5 TB Google Drive Vault ('LookPrice_5TB_Media')
     try {
       const { getFileFromDatabase } = await import("./routes/utils/imageStorage");
       const dbFile = await getFileFromDatabase(fileVariants);
       if (dbFile) {
         const etag = `"${dbFile.buffer.length}-db"`;
+        res.setHeader("X-LookPrice-Storage-Source", "5TB-DRIVE-VAULT");
         if (req.headers["if-none-match"] === etag) {
           return res.status(304).end();
         }
@@ -903,7 +906,7 @@ function sanitizeFilename(originalName: string): string {
           timestamp: Date.now(),
         });
 
-        // Cache on local disk so subsequent requests never hit PostgreSQL
+        // Cache on local disk so subsequent requests never hit PostgreSQL or Google Drive
         try {
           const destPath = path.join(lookdocuDir, filePath);
           fs.promises.writeFile(destPath, dbFile.buffer).catch(() => {});

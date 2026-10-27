@@ -1725,10 +1725,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <SEOTab storeId={currentStoreId!} />
               )}
               {activeTab === "meta" && permittedTabIds.has("meta") && (
-                <MetaIntegrationTab />
+                <MetaIntegrationTab storeId={currentStoreId!} />
               )}
               {activeTab === "google-merchant" && permittedTabIds.has("google-merchant") && (
-                <GoogleMerchantTab />
+                <GoogleMerchantTab storeId={currentStoreId!} />
               )}
               {activeTab === "hotel-rooms" && isHotelModuleActive && permittedTabIds.has("hotel-rooms") && (
                 <HotelRoomManagement 

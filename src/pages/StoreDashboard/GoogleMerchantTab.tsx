@@ -26,7 +26,11 @@ interface MerchantSettings {
   catalog_currency?: string;
 }
 
-const GoogleMerchantIntegration = () => {
+interface GoogleMerchantProps {
+  storeId?: number;
+}
+
+const GoogleMerchantIntegration: React.FC<GoogleMerchantProps> = ({ storeId }) => {
   const { lang } = useLanguage();
   const { slug: urlSlug } = useParams();
   const t = translations[lang].dashboard;
@@ -36,6 +40,11 @@ const GoogleMerchantIntegration = () => {
     enabled: false,
     merchant_id: '',
     catalog_currency: 'TRY'
+  });
+  const [googleMetaKeys, setGoogleMetaKeys] = useState({
+    ga_measurement_id: '',
+    gtm_id: '',
+    gsc_id: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,15 +56,27 @@ const GoogleMerchantIntegration = () => {
 
   useEffect(() => {
     fetchSettings();
-  }, []);
+  }, [storeId]);
 
   const fetchSettings = async () => {
     try {
-      const [settingsRes, storeRes] = await Promise.all([
-        api.getGoogleMerchantSettings(),
-        api.getBranding()
+      const [settingsRes, storeRes, metaRes] = await Promise.all([
+        api.getGoogleMerchantSettings(storeId),
+        api.getBranding(storeId),
+        api.getMetaSettings(storeId)
       ]);
-      setSettings(settingsRes || { enabled: false, merchant_id: '', catalog_currency: 'TRY' });
+      const brGm = storeRes?.google_merchant_settings || storeRes?.branding?.google_merchant_settings || {};
+      const brMeta = storeRes?.meta_settings || storeRes?.branding?.meta_settings || {};
+      setSettings({
+        enabled: Boolean(settingsRes?.enabled ?? brGm?.enabled ?? false),
+        merchant_id: settingsRes?.merchant_id || brGm?.merchant_id || '',
+        catalog_currency: settingsRes?.catalog_currency || brGm?.catalog_currency || 'TRY'
+      });
+      setGoogleMetaKeys({
+        ga_measurement_id: metaRes?.ga_measurement_id || brMeta?.ga_measurement_id || '',
+        gtm_id: metaRes?.gtm_id || brMeta?.gtm_id || '',
+        gsc_id: metaRes?.gsc_id || brMeta?.gsc_id || ''
+      });
       setBranding(storeRes);
       setStoreSlug(storeRes?.slug || '');
     } catch (err: any) {
@@ -86,7 +107,15 @@ const GoogleMerchantIntegration = () => {
     setError(null);
     setSuccess(false);
     try {
-      await api.saveGoogleMerchantSettings(settings);
+      await Promise.all([
+        api.saveGoogleMerchantSettings({ ...settings, storeId }),
+        api.saveMetaSettings({
+          ga_measurement_id: googleMetaKeys.ga_measurement_id,
+          gtm_id: googleMetaKeys.gtm_id,
+          gsc_id: googleMetaKeys.gsc_id,
+          storeId
+        } as any)
+      ]);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
@@ -178,10 +207,13 @@ const GoogleMerchantIntegration = () => {
                   </label>
                   <input
                     type="text"
+                    name="google_merchant_id_field"
+                    autoComplete="off"
+                    data-lpignore="true"
                     value={settings.merchant_id}
                     onChange={(e) => setSettings({ ...settings, merchant_id: e.target.value })}
-                    placeholder="Örn: 508612345"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Örn: 128900110"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono font-bold text-gray-900"
                   />
                   <p className="text-xs text-gray-500">
                     Merchant Center hesabınızın sağ üst köşesinde yazar.
@@ -200,6 +232,62 @@ const GoogleMerchantIntegration = () => {
                     <option value="USD">USD - Amerikan Doları</option>
                     <option value="EUR">EUR - Euro</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Google Analytics, GTM & Search Console Verification Keys */}
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    Google İzleme & Site Doğrulama Anahtarları (GA4 / GTM / Search Console)
+                  </h3>
+                  {(googleMetaKeys.ga_measurement_id || googleMetaKeys.gtm_id || googleMetaKeys.gsc_id) && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Tanımlı & Aktif
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-700">Google Analytics ID (GA4)</label>
+                    <input
+                      type="text"
+                      name="gm_ga_measurement_id"
+                      autoComplete="off"
+                      data-lpignore="true"
+                      value={googleMetaKeys.ga_measurement_id}
+                      onChange={(e) => setGoogleMetaKeys({ ...googleMetaKeys, ga_measurement_id: e.target.value })}
+                      placeholder="G-XXXXXXXXXX"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-700">Google Tag Manager (GTM)</label>
+                    <input
+                      type="text"
+                      name="gm_gtm_id"
+                      autoComplete="off"
+                      data-lpignore="true"
+                      value={googleMetaKeys.gtm_id}
+                      onChange={(e) => setGoogleMetaKeys({ ...googleMetaKeys, gtm_id: e.target.value })}
+                      placeholder="GTM-XXXXXXX"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-700">Search Console Doğrulama</label>
+                    <input
+                      type="text"
+                      name="gm_gsc_id"
+                      autoComplete="off"
+                      data-lpignore="true"
+                      value={googleMetaKeys.gsc_id}
+                      onChange={(e) => setGoogleMetaKeys({ ...googleMetaKeys, gsc_id: e.target.value })}
+                      placeholder="google-site-verification=..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
                 </div>
               </div>
 

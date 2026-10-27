@@ -2058,6 +2058,16 @@ router.post("/purchase", async (req: any, res) => {
       calculatedGrandTotal = Number((subtotal + taxTotal).toFixed(2));
     }
 
+    const rawRate = req.body.exchange_rate ?? req.body.exchangeRate;
+    let cleanExchangeRate = 1;
+    if (rawRate !== undefined && rawRate !== null) {
+      const parsed = parseFloat(String(rawRate).replace(',', '.').trim());
+      if (!isNaN(parsed) && parsed > 0) {
+        cleanExchangeRate = parsed;
+      }
+    }
+    const finalCurrency = (currency || 'TRY').toUpperCase();
+
     const invoiceRes = await pool.query(
       `INSERT INTO purchase_invoices 
        (store_id, company_id, invoice_number, waybill_number, tax_number, tax_office, address, 
@@ -2067,7 +2077,7 @@ router.post("/purchase", async (req: any, res) => {
       [
         storeId, company_id || null, invoice_number || `P-${Date.now()}`, waybill_number || null,
         tax_number || null, tax_office || null, address || null, invoice_date || new Date(),
-        calculatedTotalAmount, calculatedTaxAmount, calculatedGrandTotal, currency || 'TRY', exchange_rate || 1,
+        calculatedTotalAmount, calculatedTaxAmount, calculatedGrandTotal, finalCurrency, cleanExchangeRate,
         notes || null, supplier_name || null, finalIsExpense, finalExpenseCategory, finalExpenseCenter, status || 'pending',
         finalIsTaxInclusive, payment_method || null, payment_status || 'unpaid'
       ]
@@ -2101,7 +2111,7 @@ router.post("/purchase", async (req: any, res) => {
         `INSERT INTO current_account_transactions 
           (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [storeId, finalCompanyId, invoice.id, 'credit', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
+        [storeId, finalCompanyId, invoice.id, 'credit', calculatedGrandTotal, finalCurrency, cleanExchangeRate, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
       );
 
       const isPaid = payment_status === 'paid' || (payment_method && payment_method !== 'term');
@@ -2111,7 +2121,7 @@ router.post("/purchase", async (req: any, res) => {
             (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
           [
-            storeId, finalCompanyId, invoice.id, 'debt', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1,
+            storeId, finalCompanyId, invoice.id, 'debt', calculatedGrandTotal, finalCurrency, cleanExchangeRate,
             `Alış Faturası Ödemesi: ${invoice_number}${payment_method ? ` (${payment_method})` : ''}`, payment_method || 'nakit', invoice_date || new Date()
           ]
         );
@@ -2296,9 +2306,24 @@ router.put("/purchase/:id", async (req: any, res) => {
       payment_method, payment_status
     } = req.body;
 
-    const checkRes = await pool.query("SELECT id, is_expense FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const isSuperAdmin = req.user?.role === "superadmin";
+    const checkRes = await pool.query(
+      "SELECT id, store_id, is_expense, currency, exchange_rate FROM purchase_invoices WHERE id = $1 AND (store_id = $2 OR $3 = TRUE)",
+      [id, storeId, isSuperAdmin]
+    );
     if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    const targetStoreId = checkRes.rows[0].store_id || storeId;
     const wasExpense = checkRes.rows[0]?.is_expense === true;
+
+    const rawRate = req.body.exchange_rate ?? req.body.exchangeRate;
+    let cleanExchangeRate = checkRes.rows[0]?.exchange_rate ? Number(checkRes.rows[0].exchange_rate) : 1;
+    if (rawRate !== undefined && rawRate !== null) {
+      const parsed = parseFloat(String(rawRate).replace(',', '.').trim());
+      if (!isNaN(parsed) && parsed > 0) {
+        cleanExchangeRate = parsed;
+      }
+    }
+    const finalCurrency = (currency || checkRes.rows[0]?.currency || 'TRY').toUpperCase();
 
     let finalIsExpense: boolean;
     let finalExpenseCategory = expense_category || null;
@@ -2476,10 +2501,10 @@ router.put("/purchase/:id", async (req: any, res) => {
        WHERE id = $22 AND store_id = $23 RETURNING *`,
       [
         company_id || null, invoice_number, waybill_number || null, tax_number || null, tax_office || null, address || null,
-        invoice_date, calculatedTotalAmount, calculatedTaxAmount, calculatedGrandTotal, currency || 'TRY', exchange_rate || 1,
+        invoice_date, calculatedTotalAmount, calculatedTaxAmount, calculatedGrandTotal, finalCurrency, cleanExchangeRate,
         notes || null, supplier_name || null, finalIsExpense, finalExpenseCategory, finalExpenseCenter, status || 'pending',
         finalIsTaxInclusive, payment_method || null, payment_status || 'unpaid',
-        id, storeId
+        id, targetStoreId
       ]
     );
 
@@ -2488,11 +2513,11 @@ router.put("/purchase/:id", async (req: any, res) => {
     // Delete old transaction and add new one
     let finalCompanyId = company_id || null;
     if (!finalCompanyId && tax_number) {
-      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2 LIMIT 1", [storeId, String(tax_number).trim()]);
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2 LIMIT 1", [targetStoreId, String(tax_number).trim()]);
       if (compRes.rows.length > 0) finalCompanyId = compRes.rows[0].id;
     }
     if (!finalCompanyId && supplier_name) {
-      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1", [storeId, String(supplier_name).trim()]);
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1", [targetStoreId, String(supplier_name).trim()]);
       if (compRes.rows.length > 0) finalCompanyId = compRes.rows[0].id;
     }
 
@@ -2503,16 +2528,11 @@ router.put("/purchase/:id", async (req: any, res) => {
     await pool.query("DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1", [id]);
     
     if (finalCompanyId) {
-      const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
-      const store = storeRes.rows[0];
-      const branding = store?.branding || {};
-      const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
-
       await pool.query(
         `INSERT INTO current_account_transactions 
           (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [storeId, finalCompanyId, invoice.id, 'credit', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
+        [targetStoreId, finalCompanyId, invoice.id, 'credit', calculatedGrandTotal, finalCurrency, cleanExchangeRate, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
       );
 
       const isPaid = payment_status === 'paid' || (payment_method && payment_method !== 'term');
@@ -2522,7 +2542,7 @@ router.put("/purchase/:id", async (req: any, res) => {
             (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
           [
-            storeId, finalCompanyId, invoice.id, 'debt', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1,
+            targetStoreId, finalCompanyId, invoice.id, 'debt', calculatedGrandTotal, finalCurrency, cleanExchangeRate,
             `Alış Faturası Ödemesi: ${invoice_number}${payment_method ? ` (${payment_method})` : ''}`, payment_method || 'nakit', invoice_date || new Date()
           ]
         );

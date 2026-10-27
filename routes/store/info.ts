@@ -33,7 +33,8 @@ router.get("/", async (req: any, res) => {
         custom_domain, custom_domain_status, page_layout, menu_links, shipping_profiles, emails, phones,
         description, einvoice_settings, footer_links, parent_id, store_type, sub_sector, store_code, hotel_module_enabled,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number, about_text,
-        hepsiburada_settings, trendyol_settings, amazon_settings, pazarama_settings, n11_settings
+        hepsiburada_settings, trendyol_settings, amazon_settings, pazarama_settings, n11_settings,
+        google_merchant_settings, instagram_settings, instagram_access_token, instagram_business_account_id
       FROM stores 
       WHERE id = $1
     `, [targetStoreId]);
@@ -55,7 +56,8 @@ router.get("/", async (req: any, res) => {
     const jsonFields = [
       'emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 
       'payment_settings', 'meta_settings', 'page_layout', 'menu_links', 'currency_rates', 'einvoice_settings',
-      'hepsiburada_settings', 'trendyol_settings', 'amazon_settings', 'pazarama_settings', 'n11_settings'
+      'hepsiburada_settings', 'trendyol_settings', 'amazon_settings', 'pazarama_settings', 'n11_settings',
+      'google_merchant_settings', 'instagram_settings'
     ];
     jsonFields.forEach(field => {
       if (typeof store[field] === 'string') {
@@ -106,10 +108,29 @@ router.get("/", async (req: any, res) => {
       store.branding.hotel_module_enabled = opEnabled;
     }
 
+    const mergeNonEmpty = (brObj: any, colObj: any) => {
+      const a = (brObj && typeof brObj === 'object' && !Array.isArray(brObj)) ? brObj : {};
+      const b = (colObj && typeof colObj === 'object' && !Array.isArray(colObj)) ? colObj : {};
+      const out: any = { ...a, ...b };
+      for (const [k, v] of Object.entries(a)) {
+        if ((out[k] === '' || out[k] === null || out[k] === undefined) && v !== '' && v !== null && v !== undefined) {
+          out[k] = v;
+        }
+      }
+      if (a.enabled === true || b.enabled === true) {
+        out.enabled = true;
+      }
+      return out;
+    };
+
     const psFromCol = store.payment_settings || {};
     const psFromBr = store.branding.payment_settings || {};
     const msFromCol = store.meta_settings || {};
     const msFromBr = store.branding.meta_settings || {};
+    const gmFromCol = store.google_merchant_settings || {};
+    const gmFromBr = store.branding.google_merchant_settings || {};
+    const igFromCol = store.instagram_settings || {};
+    const igFromBr = store.branding.instagram_settings || {};
     const esFromCol = store.einvoice_settings || {};
     const esFromBr = store.branding.einvoice_settings || {};
 
@@ -125,17 +146,28 @@ router.get("/", async (req: any, res) => {
     const n11FromBr = store.branding.n11_settings || {};
 
     Object.assign(store, store.branding);
-    store.payment_settings = { ...psFromCol, ...psFromBr };
-    store.meta_settings = { ...msFromCol, ...msFromBr };
-    store.einvoice_settings = { ...esFromCol, ...esFromBr };
+    store.payment_settings = mergeNonEmpty(psFromBr, psFromCol);
+    store.meta_settings = mergeNonEmpty(msFromBr, msFromCol);
+    store.google_merchant_settings = mergeNonEmpty(gmFromBr, gmFromCol);
+    store.instagram_settings = mergeNonEmpty(igFromBr, igFromCol);
+    if (store.instagram_access_token && !store.instagram_settings.access_token) {
+      store.instagram_settings.access_token = store.instagram_access_token;
+    }
+    if (store.instagram_business_account_id && !store.instagram_settings.account_id) {
+      store.instagram_settings.account_id = store.instagram_business_account_id;
+    }
+    store.einvoice_settings = mergeNonEmpty(esFromBr, esFromCol);
 
-    store.hepsiburada_settings = { ...hbFromBr, ...hbFromCol };
-    store.trendyol_settings = { ...tyFromBr, ...tyFromCol };
-    store.amazon_settings = { ...amzFromBr, ...amzFromCol };
-    store.pazarama_settings = { ...pzFromBr, ...pzFromCol };
-    store.n11_settings = { ...n11FromBr, ...n11FromCol };
+    store.hepsiburada_settings = mergeNonEmpty(hbFromBr, hbFromCol);
+    store.trendyol_settings = mergeNonEmpty(tyFromBr, tyFromCol);
+    store.amazon_settings = mergeNonEmpty(amzFromBr, amzFromCol);
+    store.pazarama_settings = mergeNonEmpty(pzFromBr, pzFromCol);
+    store.n11_settings = mergeNonEmpty(n11FromBr, n11FromCol);
 
+    store.branding.payment_settings = store.payment_settings;
     store.branding.meta_settings = store.meta_settings;
+    store.branding.google_merchant_settings = store.google_merchant_settings;
+    store.branding.instagram_settings = store.instagram_settings;
     store.branding.einvoice_settings = store.einvoice_settings;
     store.branding.hepsiburada_settings = store.hepsiburada_settings;
     store.branding.trendyol_settings = store.trendyol_settings;

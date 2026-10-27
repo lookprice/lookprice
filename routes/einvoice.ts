@@ -1931,24 +1931,47 @@ export async function importIncomingInvoicesForStore(
       const baseAmt = Number(details.legalMonetaryTotal?.taxExclusiveAmount || details.TaxExclusiveAmount || (grandAmt - taxAmt) || 0);
       const issueDate = normalizeDate(details.docDate || details.IssueDate || inv.issueDate);
 
+      const docCurrency = (details.documentCurrencyCode || details.DocumentCurrencyCode || inv.currency || 'TRY').toUpperCase();
+      const rawExchangeRate = Number(
+        details.pricingExchangeRate?.calculationRate ||
+        details.PricingExchangeRate?.CalculationRate ||
+        details.pricingExchangeRate?.CalculationRate ||
+        details.ExchangeRate ||
+        details.exchangeRate ||
+        inv.exchangeRate ||
+        1
+      );
+      const importedRate = (!isNaN(rawExchangeRate) && rawExchangeRate > 0) ? rawExchangeRate : 1;
+
       let invoiceId: number;
       if (existing) {
+        // PRESERVE OPERATOR REVISION: If operator already set a specific exchange_rate > 1, do not overwrite it with 1
         await pool.query(
           `UPDATE purchase_invoices SET 
             invoice_number = $1, document_number = $2, ettn = $3, supplier_name = $4, tax_number = $5, 
             invoice_date = $6, total_amount = $7, tax_amount = $8, grand_total = $9, 
-            currency = $10, company_id = COALESCE($11, company_id), is_expense = $12, expense_category = $13, expense_center = $14
-          WHERE id = $15`,
-          [finalDocNo, finalDocNo, ettn, senderTitle, senderVkn, issueDate, baseAmt, taxAmt, grandAmt, details.documentCurrencyCode || 'TRY', companyId, expenseCheck.isExpense, expenseCheck.expenseCategory, expenseCheck.expenseCenter, existing.id]
+            currency = CASE WHEN COALESCE(currency, 'TRY') != 'TRY' THEN currency ELSE $10 END,
+            exchange_rate = CASE WHEN COALESCE(exchange_rate, 1) > 1 AND $11 = 1 THEN exchange_rate ELSE $11 END,
+            company_id = COALESCE($12, company_id), is_expense = $13, expense_category = $14, expense_center = $15
+          WHERE id = $16`,
+          [
+            finalDocNo, finalDocNo, ettn, senderTitle, senderVkn, issueDate, baseAmt, taxAmt, grandAmt,
+            docCurrency, importedRate, companyId, expenseCheck.isExpense, expenseCheck.expenseCategory,
+            expenseCheck.expenseCenter, existing.id
+          ]
         );
         invoiceId = existing.id;
         updatedCount++;
       } else {
         const ins = await pool.query(
           `INSERT INTO purchase_invoices 
-            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, status, integration_status, payment_method, payment_status, is_expense, expense_category, expense_center)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`,
-          [storeId, companyId, finalDocNo, finalDocNo, ettn, 'EFATURA', senderTitle, senderVkn, issueDate, baseAmt, taxAmt, grandAmt, details.documentCurrencyCode || 'TRY', 'approved', 'RECEIVED', 'term', 'unpaid', expenseCheck.isExpense, expenseCheck.expenseCategory, expenseCheck.expenseCenter]
+            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_expense, expense_category, expense_center)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
+          [
+            storeId, companyId, finalDocNo, finalDocNo, ettn, 'EFATURA', senderTitle, senderVkn, issueDate,
+            baseAmt, taxAmt, grandAmt, docCurrency, importedRate, 'approved', 'RECEIVED', 'term', 'unpaid',
+            expenseCheck.isExpense, expenseCheck.expenseCategory, expenseCheck.expenseCenter
+          ]
         );
         invoiceId = ins.rows[0].id;
         importedCount++;

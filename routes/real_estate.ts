@@ -182,7 +182,7 @@ router.post('/properties/analyze', authenticate, async (req: any, res) => {
         const prompt = `Aktif emlak portföyü için danışmanlara yönelik stratejik içgörüler üret. Portföy verileri: ${JSON.stringify(properties.rows.slice(0, 50))}. Sadece JSON formatında yanıt ver: { "insights": [ { "id": "property_id_or_null", "title": "...", "description": "...", "type": "warning" | "info" | "success" } ] }`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-3.8-flash",
           contents: prompt,
           config: { responseMimeType: "application/json" }
         });
@@ -891,7 +891,7 @@ router.post('/news', authenticate, async (req: any, res) => {
     Give me exactly 3-5 real, grounded news items.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.8-flash",
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -974,7 +974,7 @@ router.post('/acquisition-radar', authenticate, async (req: any, res) => {
     let result = [];
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash", 
+        model: "gemini-3.8-flash", 
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }],

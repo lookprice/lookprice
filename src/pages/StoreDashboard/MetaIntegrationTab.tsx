@@ -25,9 +25,16 @@ interface MetaSettings {
   pixel_id: string;
   catalog_id: string;
   catalog_currency?: string;
+  ga_measurement_id?: string;
+  gtm_id?: string;
+  gsc_id?: string;
 }
 
-const MetaIntegration = () => {
+interface MetaIntegrationProps {
+  storeId?: number;
+}
+
+const MetaIntegration: React.FC<MetaIntegrationProps> = ({ storeId }) => {
   const { lang } = useLanguage();
   const txt = (tr: string, en: string, el: string) => {
     if (lang === 'tr') return tr;
@@ -39,7 +46,11 @@ const MetaIntegration = () => {
   const [settings, setSettings] = useState<MetaSettings>({
     enabled: false,
     pixel_id: '',
-    catalog_id: ''
+    catalog_id: '',
+    catalog_currency: 'TRY',
+    ga_measurement_id: '',
+    gtm_id: '',
+    gsc_id: ''
   });
   const [instagramSettings, setInstagramSettings] = useState({
     enabled: false,
@@ -68,16 +79,26 @@ const MetaIntegration = () => {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [storeId]);
 
   const fetchSettings = async () => {
     try {
       const [settingsRes, storeRes, igRes] = await Promise.all([
-        api.getMetaSettings(),
-        api.getBranding(),
-        api.getInstagramSettings()
+        api.getMetaSettings(storeId),
+        api.getBranding(storeId),
+        api.getInstagramSettings(storeId)
       ]);
-      setSettings(settingsRes || { enabled: false, pixel_id: '', catalog_id: '' });
+      const brMeta = storeRes?.meta_settings || storeRes?.branding?.meta_settings || {};
+      const mergedMeta: MetaSettings = {
+        enabled: Boolean(settingsRes?.enabled ?? brMeta?.enabled ?? false),
+        pixel_id: settingsRes?.pixel_id || brMeta?.pixel_id || '',
+        catalog_id: settingsRes?.catalog_id || brMeta?.catalog_id || '',
+        catalog_currency: settingsRes?.catalog_currency || brMeta?.catalog_currency || 'TRY',
+        ga_measurement_id: settingsRes?.ga_measurement_id || brMeta?.ga_measurement_id || '',
+        gtm_id: settingsRes?.gtm_id || brMeta?.gtm_id || '',
+        gsc_id: settingsRes?.gsc_id || brMeta?.gsc_id || ''
+      };
+      setSettings(mergedMeta);
       setStoreSlug(storeRes?.slug || '');
       setCustomDomain(storeRes?.custom_domain || '');
       setInstagramSettings(igRes || { enabled: false, auto_post: false, account_id: '', access_token: '' });
@@ -93,8 +114,9 @@ const MetaIntegration = () => {
     setError(null);
     setSuccess(false);
     try {
-      await api.saveMetaSettings(settings);
+      await api.saveMetaSettings({ ...settings, storeId } as any);
       setSuccess(true);
+      toast.success("Meta ve Dijital İzleme ayarları başarıyla kaydedildi.");
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
       setError(err.message || t.metaIntegration.error);
@@ -108,7 +130,7 @@ const MetaIntegration = () => {
     setSuccessIg(false);
     try {
       const targetSettings = updatedSettings || instagramSettings;
-      await api.saveInstagramSettings(targetSettings);
+      await api.saveInstagramSettings({ ...targetSettings, storeId }, storeId);
       setSuccessIg(true);
       toast.success("Instagram ayarları başarıyla kaydedildi.");
       setTimeout(() => setSuccessIg(false), 3000);
@@ -128,10 +150,11 @@ const MetaIntegration = () => {
         enabled: false,
         auto_post: false,
         account_id: '',
-        access_token: ''
+        access_token: '',
+        storeId
       };
-      await api.saveInstagramSettings(resetSettings);
-      setInstagramSettings(resetSettings);
+      await api.saveInstagramSettings(resetSettings, storeId);
+      setInstagramSettings({ enabled: false, auto_post: false, account_id: '', access_token: '' });
       toast.success("Instagram bağlantısı kesildi.");
       fetchSettings();
     } catch (err: any) {
@@ -386,10 +409,13 @@ const MetaIntegration = () => {
                   </label>
                   <input
                     type="text"
+                    name="meta_pixel_id_field"
+                    autoComplete="off"
+                    data-lpignore="true"
                     value={settings.pixel_id}
                     onChange={(e) => setSettings({ ...settings, pixel_id: e.target.value })}
                     placeholder="Örn: 123456789012345"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                   />
                   <p className="text-xs text-gray-500">
                     {t.metaIntegration.pixelIdDesc}
@@ -401,10 +427,13 @@ const MetaIntegration = () => {
                   </label>
                   <input
                     type="text"
+                    name="meta_catalog_id_field"
+                    autoComplete="off"
+                    data-lpignore="true"
                     value={settings.catalog_id}
                     onChange={(e) => setSettings({ ...settings, catalog_id: e.target.value })}
                     placeholder="Örn: 987654321098765"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                   />
                   <p className="text-xs text-gray-500">
                     {t.metaIntegration.catalogIdDesc}
@@ -427,6 +456,62 @@ const MetaIntegration = () => {
                   <p className="text-xs text-red-500 mt-1">
                     Önemli: Facebook Mağazanızın para birimi ne ise onu seçin. Aksi takdirde "Para Birimi Uyuşmazlığı" hatası alırsınız!
                   </p>
+                </div>
+              </div>
+
+              {/* Google Analytics, GTM & Search Console Meta Keys (Stored in meta_settings) */}
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    Google Analytics (GA4), Tag Manager (GTM) & Search Console Anahtarları
+                  </h3>
+                  {(settings.ga_measurement_id || settings.gtm_id || settings.gsc_id) && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Tanımlı & Aktif
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-700">Google Analytics ID (GA4)</label>
+                    <input
+                      type="text"
+                      name="ga_measurement_id_field"
+                      autoComplete="off"
+                      data-lpignore="true"
+                      value={settings.ga_measurement_id || ''}
+                      onChange={(e) => setSettings({ ...settings, ga_measurement_id: e.target.value })}
+                      placeholder="G-XXXXXXXXXX"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-700">Google Tag Manager (GTM)</label>
+                    <input
+                      type="text"
+                      name="gtm_id_field"
+                      autoComplete="off"
+                      data-lpignore="true"
+                      value={settings.gtm_id || ''}
+                      onChange={(e) => setSettings({ ...settings, gtm_id: e.target.value })}
+                      placeholder="GTM-XXXXXXX"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-700">Google Search Console Kodu</label>
+                    <input
+                      type="text"
+                      name="gsc_id_field"
+                      autoComplete="off"
+                      data-lpignore="true"
+                      value={settings.gsc_id || ''}
+                      onChange={(e) => setSettings({ ...settings, gsc_id: e.target.value })}
+                      placeholder="google-site-verification=..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
                 </div>
               </div>
 

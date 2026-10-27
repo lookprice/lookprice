@@ -229,6 +229,16 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                        <span className="text-xs font-medium text-indigo-400 uppercase tracking-widest">{isTr ? "GENEL TOPLAM" : "TOTAL"}</span>
                        <span className="text-3xl font-semibold tracking-tighter">{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} <span className="text-sm font-medium text-slate-400 uppercase">{invoice.currency}</span></span>
                     </div>
+                    {invoice.currency !== 'TRY' && (
+                      <div className="pt-2 border-t border-slate-800/80 flex justify-between items-center text-emerald-400">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider">
+                          {isTr ? `TL Karşılığı (Kur: ${Number(invoice.exchange_rate || 1).toFixed(4)} ₺)` : `TRY Equiv (Rate: ${Number(invoice.exchange_rate || 1).toFixed(4)})`}
+                        </span>
+                        <span className="text-sm font-bold font-mono">
+                          ₺ {(Number(invoice.grand_total) * Number(invoice.exchange_rate || 1)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                </div>
 

@@ -149,6 +149,12 @@ router.get("/superadmin-status", authenticate, async (req: any, res) => {
       // Fallback to cached info if Drive about call only has drive.file scope
     }
 
+    let remainingMediaInDb = 0;
+    try {
+      const remRes = await pool.query("SELECT COUNT(*)::INT as cnt FROM app_storage_files WHERE data IS NOT NULL");
+      remainingMediaInDb = Number(remRes.rows[0]?.cnt || 0);
+    } catch {}
+
     return res.json({
       connected: true,
       email,
@@ -165,7 +171,9 @@ router.get("/superadmin-status", authenticate, async (req: any, res) => {
       lastArchiveAt: cfg.lastArchiveAt || null,
       lastArchivedMediaCount: cfg.lastArchivedMediaCount || 0,
       lastArchivedInvoicesCount: cfg.lastArchivedInvoicesCount || 0,
-      lastFreedKB: cfg.lastFreedKB || 0
+      lastFreedKB: cfg.lastFreedKB || 0,
+      remainingMediaInDb,
+      batchProgress: archiveBatchProgress
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
@@ -445,7 +453,16 @@ router.post("/superadmin-backup", authenticate, async (req: any, res) => {
   }
 });
 
-// Step 2: E-Invoice Ledger Archiving + Binary Media Offloading & PostgreSQL Slimming to 5 TB Google Drive
+const archiveBatchProgress = {
+  inProgress: false,
+  batchSize: 25,
+  processedInRun: 0,
+  totalInRun: 0,
+  percentage: 0,
+  stepLabel: ""
+};
+
+// Step 2 & Faz 3: E-Invoice Ledger Archiving + 25-Item Checkpointed Batch Media Offloading & PostgreSQL Slimming
 export async function runSuperAdminArchiveAndSlimDB(req?: express.Request) {
   const record = await getSuperAdminDriveConfig();
   const cfg = record?.config || {};
@@ -453,191 +470,299 @@ export async function runSuperAdminArchiveAndSlimDB(req?: express.Request) {
     throw new Error("Önce '5 TB Drive Bağla' butonu ile Google Drive hesabınızı bağlayın.");
   }
 
-  const oauth2Client = req
-    ? getOAuth2Client(req, record?.client_id, record?.client_secret)
-    : getStandaloneSuperAdminOAuth2Client(record?.client_id, record?.client_secret);
+  archiveBatchProgress.inProgress = true;
+  archiveBatchProgress.processedInRun = 0;
+  archiveBatchProgress.percentage = 10;
+  archiveBatchProgress.stepLabel = "Fatura & Mutabakat Kasası Arşivleniyor...";
 
-  oauth2Client.setCredentials({
-    access_token: cfg.access_token,
-    refresh_token: cfg.refresh_token,
-    expiry_date: cfg.expiry_date
-  });
-
-  const drive = google.drive({ version: "v3", auth: oauth2Client });
-
-  // Measure DB size before slimming
-  let dbSizeBeforeBytes = 0;
   try {
-    const sizeBeforeRes = await pool.query("SELECT pg_database_size(current_database())::BIGINT as size");
-    dbSizeBeforeBytes = parseInt(sizeBeforeRes.rows[0]?.size || "0", 10);
-  } catch {}
+    const oauth2Client = req
+      ? getOAuth2Client(req, record?.client_id, record?.client_secret)
+      : getStandaloneSuperAdminOAuth2Client(record?.client_id, record?.client_secret);
 
-  // 1. Find or create 'LookPrice_5TB_Invoices' folder on 5 TB Google Drive
-  let invoicesFolderId = cfg.invoicesFolderId || null;
-  if (!invoicesFolderId) {
-    try {
-      const folderSearch = await drive.files.list({
-        q: "mimeType='application/vnd.google-apps.folder' and name='LookPrice_5TB_Invoices' and trashed=false",
-        fields: "files(id, name)"
-      });
-      if (folderSearch.data.files && folderSearch.data.files.length > 0) {
-        invoicesFolderId = folderSearch.data.files[0].id || null;
-      } else {
-        const createdFolder = await drive.files.create({
-          requestBody: {
-            name: "LookPrice_5TB_Invoices",
-            mimeType: "application/vnd.google-apps.folder"
-          },
-          fields: "id"
-        });
-        invoicesFolderId = createdFolder.data.id || null;
-      }
-    } catch {
-      invoicesFolderId = null;
-    }
-  }
-
-  // 2. Export complete E-Invoice, Purchase Invoice, Sales Invoice & Reconciliation Archive to 'LookPrice_5TB_Invoices'
-  let archivedInvoicesCount = 0;
-  let invoiceArchiveFileName = "";
-  try {
-    const [salesInvRes, salesItemsRes, purchInvRes, purchItemsRes, reconRes] = await Promise.allSettled([
-      pool.query("SELECT * FROM sales_invoices ORDER BY id DESC LIMIT 10000"),
-      pool.query("SELECT * FROM sales_invoice_items ORDER BY id DESC LIMIT 30000"),
-      pool.query("SELECT * FROM purchase_invoices ORDER BY id DESC LIMIT 10000"),
-      pool.query("SELECT * FROM purchase_invoice_items ORDER BY id DESC LIMIT 30000"),
-      pool.query("SELECT * FROM company_reconciliations ORDER BY id DESC LIMIT 5000")
-    ]);
-
-    const salesInvoices = salesInvRes.status === "fulfilled" ? salesInvRes.value.rows : [];
-    const salesInvoiceItems = salesItemsRes.status === "fulfilled" ? salesItemsRes.value.rows : [];
-    const purchaseInvoices = purchInvRes.status === "fulfilled" ? purchInvRes.value.rows : [];
-    const purchaseInvoiceItems = purchItemsRes.status === "fulfilled" ? purchItemsRes.value.rows : [];
-    const reconciliations = reconRes.status === "fulfilled" ? reconRes.value.rows : [];
-
-    archivedInvoicesCount = salesInvoices.length + purchaseInvoices.length;
-
-    const invoicePayload = {
-      meta: {
-        archivedAt: new Date().toISOString(),
-        vault: "LookPrice 5TB E-Invoice & Ledger Vault",
-        counts: {
-          salesInvoices: salesInvoices.length,
-          salesInvoiceItems: salesInvoiceItems.length,
-          purchaseInvoices: purchaseInvoices.length,
-          purchaseInvoiceItems: purchaseInvoiceItems.length,
-          reconciliations: reconciliations.length
-        }
-      },
-      sales_invoices: salesInvoices,
-      sales_invoice_items: salesInvoiceItems,
-      purchase_invoices: purchaseInvoices,
-      purchase_invoice_items: purchaseInvoiceItems,
-      company_reconciliations: reconciliations
-    };
-
-    const invBuffer = Buffer.from(JSON.stringify(invoicePayload, null, 2), "utf-8");
-    const dateStamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    invoiceArchiveFileName = `LookPrice_EInvoice_Ledger_Archive_${dateStamp}.json`;
-
-    const invStream = new PassThrough();
-    invStream.end(invBuffer);
-
-    await drive.files.create({
-      requestBody: {
-        name: invoiceArchiveFileName,
-        mimeType: "application/json",
-        ...(invoicesFolderId ? { parents: [invoicesFolderId] } : {})
-      },
-      media: {
-        mimeType: "application/json",
-        body: invStream
-      },
-      fields: "id, name"
+    oauth2Client.setCredentials({
+      access_token: cfg.access_token,
+      refresh_token: cfg.refresh_token,
+      expiry_date: cfg.expiry_date
     });
-  } catch (invErr: any) {
-    console.warn("[5TB Archive] Invoice ledger archive warning:", invErr?.message || invErr);
-  }
 
-  // 3. Offload heavy binary files from PostgreSQL 'app_storage_files' into Local Disk + 5 TB Google Drive 'LookPrice_5TB_Media'
-  let archivedMediaCount = 0;
-  let freedMediaBytes = 0;
-  const localLookdocuDir = path.join(process.cwd(), "uploads", "lookdocu");
-  if (!fs.existsSync(localLookdocuDir)) {
-    fs.mkdirSync(localLookdocuDir, { recursive: true });
-  }
+    const drive = google.drive({ version: "v3", auth: oauth2Client });
 
-  try {
-    const dbFilesRes = await pool.query(
-      "SELECT filename, mimetype, data, COALESCE(size, OCTET_LENGTH(data)) as file_size FROM app_storage_files WHERE data IS NOT NULL ORDER BY COALESCE(size, OCTET_LENGTH(data)) DESC LIMIT 80"
-    );
+    // Measure DB size before slimming
+    let dbSizeBeforeBytes = 0;
+    try {
+      const sizeBeforeRes = await pool.query("SELECT pg_database_size(current_database())::BIGINT as size");
+      dbSizeBeforeBytes = parseInt(sizeBeforeRes.rows[0]?.size || "0", 10);
+    } catch {}
 
-    for (const row of dbFilesRes.rows) {
-      if (!row.filename || !row.data) continue;
-      const buf = Buffer.isBuffer(row.data) ? row.data : Buffer.from(row.data);
-
-      // Ensure local disk cache copy exists for 0ms serving
+    // 1. Find or create 'LookPrice_5TB_Invoices' folder on 5 TB Google Drive
+    let invoicesFolderId = cfg.invoicesFolderId || null;
+    if (!invoicesFolderId) {
       try {
-        const localFilePath = path.join(localLookdocuDir, row.filename);
-        if (!fs.existsSync(localFilePath)) {
-          await fs.promises.writeFile(localFilePath, buf);
+        const folderSearch = await drive.files.list({
+          q: "mimeType='application/vnd.google-apps.folder' and name='LookPrice_5TB_Invoices' and trashed=false",
+          fields: "files(id, name)"
+        });
+        if (folderSearch.data.files && folderSearch.data.files.length > 0) {
+          invoicesFolderId = folderSearch.data.files[0].id || null;
+        } else {
+          const createdFolder = await drive.files.create({
+            requestBody: {
+              name: "LookPrice_5TB_Invoices",
+              mimeType: "application/vnd.google-apps.folder"
+            },
+            fields: "id"
+          });
+          invoicesFolderId = createdFolder.data.id || null;
         }
-      } catch {}
-
-      // Mirror to 5 TB Google Drive ('LookPrice_5TB_Media')
-      const driveFileId = await mirrorMediaTo5TBDrive(row.filename, row.mimetype || "image/png", buf);
-      if (driveFileId) {
-        await pool.query("DELETE FROM app_storage_files WHERE filename = $1", [row.filename]);
-        archivedMediaCount++;
-        freedMediaBytes += Number(row.file_size || buf.length || 0);
+      } catch {
+        invoicesFolderId = null;
       }
     }
-  } catch (mediaErr: any) {
-    console.warn("[5TB Archive] Media offload warning:", mediaErr?.message || mediaErr);
+
+    // 2. Export complete E-Invoice, Purchase Invoice, Sales Invoice & Reconciliation Archive to 'LookPrice_5TB_Invoices'
+    let archivedInvoicesCount = 0;
+    let invoiceArchiveFileName = "";
+    try {
+      const [salesInvRes, salesItemsRes, purchInvRes, purchItemsRes, reconRes] = await Promise.allSettled([
+        pool.query("SELECT * FROM sales_invoices ORDER BY id DESC LIMIT 10000"),
+        pool.query("SELECT * FROM sales_invoice_items ORDER BY id DESC LIMIT 30000"),
+        pool.query("SELECT * FROM purchase_invoices ORDER BY id DESC LIMIT 10000"),
+        pool.query("SELECT * FROM purchase_invoice_items ORDER BY id DESC LIMIT 30000"),
+        pool.query("SELECT * FROM company_reconciliations ORDER BY id DESC LIMIT 5000")
+      ]);
+
+      const salesInvoices = salesInvRes.status === "fulfilled" ? salesInvRes.value.rows : [];
+      const salesInvoiceItems = salesItemsRes.status === "fulfilled" ? salesItemsRes.value.rows : [];
+      const purchaseInvoices = purchInvRes.status === "fulfilled" ? purchInvRes.value.rows : [];
+      const purchaseInvoiceItems = purchItemsRes.status === "fulfilled" ? purchItemsRes.value.rows : [];
+      const reconciliations = reconRes.status === "fulfilled" ? reconRes.value.rows : [];
+
+      archivedInvoicesCount = salesInvoices.length + purchaseInvoices.length;
+
+      const invoicePayload = {
+        meta: {
+          archivedAt: new Date().toISOString(),
+          vault: "LookPrice 5TB E-Invoice & Ledger Vault",
+          counts: {
+            salesInvoices: salesInvoices.length,
+            salesInvoiceItems: salesInvoiceItems.length,
+            purchaseInvoices: purchaseInvoices.length,
+            purchaseInvoiceItems: purchaseInvoiceItems.length,
+            reconciliations: reconciliations.length
+          }
+        },
+        sales_invoices: salesInvoices,
+        sales_invoice_items: salesInvoiceItems,
+        purchase_invoices: purchaseInvoices,
+        purchase_invoice_items: purchaseInvoiceItems,
+        company_reconciliations: reconciliations
+      };
+
+      const invBuffer = Buffer.from(JSON.stringify(invoicePayload, null, 2), "utf-8");
+      const dateStamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      invoiceArchiveFileName = `LookPrice_EInvoice_Ledger_Archive_${dateStamp}.json`;
+
+      const invStream = new PassThrough();
+      invStream.end(invBuffer);
+
+      await drive.files.create({
+        requestBody: {
+          name: invoiceArchiveFileName,
+          mimeType: "application/json",
+          ...(invoicesFolderId ? { parents: [invoicesFolderId] } : {})
+        },
+        media: {
+          mimeType: "application/json",
+          body: invStream
+        },
+        fields: "id, name"
+      });
+    } catch (invErr: any) {
+      console.warn("[5TB Archive] Invoice ledger archive warning:", invErr?.message || invErr);
+    }
+
+    // 3. Checkpointed 25-Item Batch Worker: Offload heavy binary files from 'app_storage_files' AND sync '/uploads/lookdocu' into 5 TB Google Drive 'LookPrice_5TB_Media'
+    let archivedMediaCount = 0;
+    let totalDriveMediaFiles = Number(cfg.lastArchivedMediaCount || 0);
+    let freedMediaBytes = 0;
+    const localLookdocuDir = path.join(process.cwd(), "uploads", "lookdocu");
+    if (!fs.existsSync(localLookdocuDir)) {
+      fs.mkdirSync(localLookdocuDir, { recursive: true });
+    }
+
+    try {
+      // Ensure LookPrice_5TB_Media folder exists and get existing file names to avoid duplicates
+      let mediaFolderId = cachedMediaFolderId || cfg.mediaFolderId || null;
+      if (!mediaFolderId) {
+        const folderSearch = await drive.files.list({
+          q: "mimeType='application/vnd.google-apps.folder' and name='LookPrice_5TB_Media' and trashed=false",
+          fields: "files(id, name)"
+        });
+        if (folderSearch.data.files && folderSearch.data.files.length > 0) {
+          mediaFolderId = folderSearch.data.files[0].id || null;
+        } else {
+          const createdFolder = await drive.files.create({
+            requestBody: {
+              name: "LookPrice_5TB_Media",
+              mimeType: "application/vnd.google-apps.folder"
+            },
+            fields: "id"
+          });
+          mediaFolderId = createdFolder.data.id || null;
+        }
+        if (mediaFolderId) {
+          cachedMediaFolderId = mediaFolderId;
+        }
+      }
+
+      const existingDriveNames = new Set<string>();
+      if (mediaFolderId) {
+        try {
+          const existingList = await drive.files.list({
+            q: `'${mediaFolderId}' in parents and trashed=false`,
+            fields: "files(name)",
+            pageSize: 1000
+          });
+          for (const f of existingList.data.files || []) {
+            if (f.name) existingDriveNames.add(f.name);
+          }
+        } catch {}
+      }
+
+      // 3A. First offload binary blobs from PostgreSQL 'app_storage_files' (up to 25)
+      const dbFilesRes = await pool.query(
+        "SELECT filename, mimetype, data, COALESCE(size, OCTET_LENGTH(data)) as file_size FROM app_storage_files WHERE data IS NOT NULL ORDER BY COALESCE(size, OCTET_LENGTH(data)) DESC LIMIT 25"
+      );
+
+      for (let i = 0; i < dbFilesRes.rows.length; i++) {
+        const row = dbFilesRes.rows[i];
+        if (!row.filename || !row.data) continue;
+        const buf = Buffer.isBuffer(row.data) ? row.data : Buffer.from(row.data);
+
+        try {
+          const localFilePath = path.join(localLookdocuDir, row.filename);
+          if (!fs.existsSync(localFilePath)) {
+            await fs.promises.writeFile(localFilePath, buf);
+          }
+        } catch {}
+
+        let mirroredOk = existingDriveNames.has(row.filename);
+        if (!mirroredOk) {
+          const driveFileId = await mirrorMediaTo5TBDrive(row.filename, row.mimetype || "image/png", buf);
+          if (driveFileId) {
+            mirroredOk = true;
+            existingDriveNames.add(row.filename);
+            archivedMediaCount++;
+          }
+        }
+
+        if (mirroredOk) {
+          await pool.query("DELETE FROM app_storage_files WHERE filename = $1", [row.filename]);
+          freedMediaBytes += Number(row.file_size || buf.length || 0);
+        }
+      }
+
+      // 3B. Fill remaining slots of the 25-item batch from Local Disk (/uploads/lookdocu) not yet in 5 TB Google Drive
+      const remainingSlots = Math.max(0, 25 - archivedMediaCount);
+      if (remainingSlots > 0 && fs.existsSync(localLookdocuDir)) {
+        const diskFiles = (await fs.promises.readdir(localLookdocuDir)).filter(
+          (fn) => !fn.startsWith(".") && !existingDriveNames.has(fn)
+        );
+        const batchDiskFiles = diskFiles.slice(0, remainingSlots);
+        archiveBatchProgress.totalInRun = archivedMediaCount + batchDiskFiles.length;
+
+        for (let j = 0; j < batchDiskFiles.length; j++) {
+          const fn = batchDiskFiles[j];
+          try {
+            const fullPath = path.join(localLookdocuDir, fn);
+            const stat = await fs.promises.stat(fullPath);
+            if (!stat.isFile()) continue;
+            const buf = await fs.promises.readFile(fullPath);
+            const ext = path.extname(fn).toLowerCase();
+            const mime =
+              ext === ".webp"
+                ? "image/webp"
+                : ext === ".png"
+                ? "image/png"
+                : ext === ".svg"
+                ? "image/svg+xml"
+                : "image/jpeg";
+            const driveFileId = await mirrorMediaTo5TBDrive(fn, mime, buf);
+            if (driveFileId) {
+              existingDriveNames.add(fn);
+              archivedMediaCount++;
+            }
+            archiveBatchProgress.processedInRun = archivedMediaCount;
+            archiveBatchProgress.stepLabel = `25'erli Paket Medya Aktarımı (${archivedMediaCount}/${archiveBatchProgress.totalInRun})...`;
+          } catch {}
+        }
+      }
+
+      totalDriveMediaFiles = Math.max(existingDriveNames.size, Number(cfg.lastArchivedMediaCount || 0) + archivedMediaCount);
+    } catch (mediaErr: any) {
+      console.warn("[5TB Archive] Media offload warning:", mediaErr?.message || mediaErr);
+    }
+
+    // 4. Prune old scan_logs (> 90 days) & run PostgreSQL VACUUM to reclaim space
+    archiveBatchProgress.stepLabel = "PostgreSQL VACUUM & Alan Temizliği...";
+    try {
+      await pool.query("DELETE FROM scan_logs WHERE created_at < NOW() - INTERVAL '90 days'");
+    } catch {}
+
+    try {
+      await pool.query("VACUUM ANALYZE app_storage_files");
+    } catch {}
+    try {
+      await pool.query("VACUUM ANALYZE scan_logs");
+    } catch {}
+
+    let dbSizeAfterBytes = dbSizeBeforeBytes;
+    try {
+      const sizeAfterRes = await pool.query("SELECT pg_database_size(current_database())::BIGINT as size");
+      dbSizeAfterBytes = parseInt(sizeAfterRes.rows[0]?.size || "0", 10);
+    } catch {}
+
+    let remainingMediaInDb = 0;
+    try {
+      const remRes = await pool.query("SELECT COUNT(*)::INT as cnt FROM app_storage_files WHERE data IS NOT NULL");
+      remainingMediaInDb = Number(remRes.rows[0]?.cnt || 0);
+    } catch {}
+
+    const rawFreedBytes = Math.max(freedMediaBytes, Math.max(0, dbSizeBeforeBytes - dbSizeAfterBytes));
+    const freedKB = Math.round(rawFreedBytes / 1024);
+    const dbSizeBeforeMB = parseFloat((dbSizeBeforeBytes / (1024 * 1024)).toFixed(2));
+    const dbSizeAfterMB = parseFloat((dbSizeAfterBytes / (1024 * 1024)).toFixed(2));
+
+    archiveBatchProgress.percentage = 100;
+    archiveBatchProgress.inProgress = false;
+    archiveBatchProgress.stepLabel = "Tamamlandı";
+
+    await saveSuperAdminDriveConfig({
+      invoicesFolderId,
+      ...(cachedMediaFolderId ? { mediaFolderId: cachedMediaFolderId } : {}),
+      lastArchiveAt: new Date().toISOString(),
+      lastArchivedMediaCount: totalDriveMediaFiles,
+      lastArchivedInvoicesCount: archivedInvoicesCount,
+      lastFreedKB: (Number(cfg.lastFreedKB || 0) + freedKB),
+      lastInvoiceArchiveFileName: invoiceArchiveFileName
+    });
+
+    return {
+      success: true,
+      archivedMediaCount,
+      totalDriveMediaFiles,
+      archivedInvoicesCount,
+      remainingMediaInDb,
+      freedKB,
+      dbSizeBeforeMB,
+      dbSizeAfterMB,
+      invoiceArchiveFileName,
+      message: `${archivedInvoicesCount} fatura/mutabakat kaydı ve ${archivedMediaCount} yeni medya dosyası (Toplam: ${totalDriveMediaFiles} görsel) 5 TB Google Drive'a arşivlendi.`
+    };
+  } finally {
+    archiveBatchProgress.inProgress = false;
   }
-
-  // 4. Prune old scan_logs (> 90 days) & run PostgreSQL VACUUM to reclaim space
-  try {
-    await pool.query("DELETE FROM scan_logs WHERE created_at < NOW() - INTERVAL '90 days'");
-  } catch {}
-
-  try {
-    await pool.query("VACUUM ANALYZE app_storage_files");
-  } catch {}
-  try {
-    await pool.query("VACUUM ANALYZE scan_logs");
-  } catch {}
-
-  let dbSizeAfterBytes = dbSizeBeforeBytes;
-  try {
-    const sizeAfterRes = await pool.query("SELECT pg_database_size(current_database())::BIGINT as size");
-    dbSizeAfterBytes = parseInt(sizeAfterRes.rows[0]?.size || "0", 10);
-  } catch {}
-
-  const rawFreedBytes = Math.max(freedMediaBytes, Math.max(0, dbSizeBeforeBytes - dbSizeAfterBytes));
-  const freedKB = Math.round(rawFreedBytes / 1024);
-  const dbSizeBeforeMB = parseFloat((dbSizeBeforeBytes / (1024 * 1024)).toFixed(2));
-  const dbSizeAfterMB = parseFloat((dbSizeAfterBytes / (1024 * 1024)).toFixed(2));
-
-  await saveSuperAdminDriveConfig({
-    invoicesFolderId,
-    lastArchiveAt: new Date().toISOString(),
-    lastArchivedMediaCount: (Number(cfg.lastArchivedMediaCount || 0) + archivedMediaCount),
-    lastArchivedInvoicesCount: archivedInvoicesCount,
-    lastFreedKB: (Number(cfg.lastFreedKB || 0) + freedKB),
-    lastInvoiceArchiveFileName: invoiceArchiveFileName
-  });
-
-  return {
-    success: true,
-    archivedMediaCount,
-    archivedInvoicesCount,
-    freedKB,
-    dbSizeBeforeMB,
-    dbSizeAfterMB,
-    invoiceArchiveFileName,
-    message: `${archivedInvoicesCount} fatura/mutabakat kaydı ve ${archivedMediaCount} medya dosyası 5 TB Google Drive'a arşivlendi (${freedKB} KB DB alanı boşaltıldı).`
-  };
 }
 
 router.post("/superadmin-archive-db", authenticate, async (req: any, res) => {

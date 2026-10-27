@@ -418,10 +418,28 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                         {Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-3 py-2.5 text-xs font-medium text-slate-900 text-right whitespace-nowrap">
-                        {Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                        <div>
+                          <span className="font-semibold">{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                          {invoice.currency !== 'TRY' && (
+                            <div className="text-[10px] text-emerald-700 font-semibold font-mono" title="TL Karşılığı">
+                              ₺ {(Number(invoice.grand_total) * Number(invoice.exchange_rate || 1)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-3 py-2.5 text-xs text-slate-500 text-center font-medium">
-                        {invoice.currency}
+                      <td className="px-3 py-2.5 text-xs text-center whitespace-nowrap">
+                        {invoice.currency !== 'TRY' ? (
+                          <div className="inline-flex flex-col items-center">
+                            <span className="font-bold text-indigo-700 px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-200 text-[10px]">
+                              {invoice.currency}
+                            </span>
+                            <span className="text-[9px] text-slate-600 font-mono font-medium mt-0.5" title="Kayıtlı Döviz Alış Kuru">
+                              {Number(invoice.exchange_rate || 1).toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ₺
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-500 font-medium">TRY</span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-center whitespace-nowrap">
                         {invoice.payment_method && invoice.payment_method !== 'term' && invoice.payment_method !== 'vadeli' ? (

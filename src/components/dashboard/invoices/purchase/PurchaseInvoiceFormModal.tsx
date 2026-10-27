@@ -602,14 +602,22 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     <option value="credit_card">{isTr ? "Kredi Kartı" : "Credit Card"}</option>
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                 <div className="grid grid-cols-2 gap-2">
                    <div className="space-y-1.5">
                     <label className="text-[10px] font-medium text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
                       {isTr ? "BİRİM" : "CURRENCY"}
                     </label>
                     <select
                       value={currency}
-                      onChange={(e) => setCurrency(e.target.value)}
+                      onChange={(e) => {
+                        const newCurr = e.target.value;
+                        setCurrency(newCurr);
+                        if (newCurr === 'TRY') {
+                          setExchangeRate("1");
+                        } else if (branding?.currency_rates?.[newCurr]) {
+                          setExchangeRate(String(branding.currency_rates[newCurr]));
+                        }
+                      }}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
                     >
                       <option value="TRY">TRY</option>
@@ -619,14 +627,27 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-medium text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                      {isTr ? "KUR" : "RATE"}
-                    </label>
+                    <div className="flex items-center justify-between ml-1">
+                      <label className="text-[10px] font-medium text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                        {isTr ? "KUR" : "RATE"}
+                      </label>
+                      {currency !== 'TRY' && branding?.currency_rates?.[currency] && (
+                        <button
+                          type="button"
+                          onClick={() => setExchangeRate(String(branding.currency_rates[currency]))}
+                          className="text-[9px] text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wider cursor-pointer"
+                          title="TCMB güncel ForexBuying kurunu ata"
+                        >
+                          TCMB: {Number(branding.currency_rates[currency]).toFixed(4)} ₺
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={exchangeRate}
                       disabled={currency === 'TRY'}
                       onChange={(e) => setExchangeRate(e.target.value)}
+                      placeholder={currency === 'TRY' ? '1.0000' : 'Örn: 49.6584'}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none disabled:opacity-50"
                     />
                   </div>
@@ -655,12 +676,28 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                   <span className="text-[10px] font-medium text-slate-400 uppercase tracking-[0.2em] group-hover:text-white transition-colors">{isTr ? "KDV TOPLAM" : "VAT TOTAL"}</span>
                   <span className="text-sm font-medium text-slate-200">{totals.taxTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {currency}</span>
                 </div>
-                <div className="pt-4 border-t border-slate-800 flex justify-between items-end">
-                  <div className="space-y-1">
-                    <span className="text-[11px] font-medium text-indigo-400 uppercase tracking-[0.3em] block">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</span>
-                    <span className="text-3xl font-medium tracking-tighter block">{totals.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                <div className="pt-4 border-t border-slate-800 space-y-2">
+                  <div className="flex justify-between items-end">
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-medium text-indigo-400 uppercase tracking-[0.3em] block">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</span>
+                      <span className="text-3xl font-medium tracking-tighter block">{totals.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <span className="text-lg font-medium text-slate-500 mb-1 ml-2">{currency}</span>
                   </div>
-                  <span className="text-lg font-medium text-slate-500 mb-1 ml-2">{currency}</span>
+                  {currency !== 'TRY' && (() => {
+                    const parsedR = parseFloat(String(exchangeRate).replace(',', '.').trim()) || 1;
+                    const tryEquivalent = totals.grandTotal * parsedR;
+                    return (
+                      <div className="bg-slate-800/80 rounded-xl p-2.5 border border-slate-700/60 flex justify-between items-center mt-2">
+                        <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
+                          {isTr ? "TL Karşılığı (Kur: " + parsedR.toFixed(4) + " ₺)" : "TRY Equiv (Rate: " + parsedR.toFixed(4) + ")"}
+                        </span>
+                        <span className="text-sm font-bold text-white font-mono">
+                          ₺ {tryEquivalent.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
