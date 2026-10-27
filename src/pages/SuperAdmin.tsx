@@ -63,6 +63,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const [checkingSupabase, setCheckingSupabase] = useState<boolean>(false);
   const [drive5TBStatus, setDrive5TBStatus] = useState<any>(null);
   const [backingUpDrive5TB, setBackingUpDrive5TB] = useState<boolean>(false);
+  const [archivingDrive5TB, setArchivingDrive5TB] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [editingStore, setEditingStore] = useState<any>(null);
@@ -411,11 +412,11 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     }
   };
 
-  const fetchSupabaseStatus = async () => {
+  const fetchSupabaseStatus = async (force = false) => {
     try {
       setCheckingSupabase(true);
       const [res] = await Promise.all([
-        api.getSupabaseStatus(),
+        api.getSupabaseStatus(force),
         fetchDrive5TBStatus()
       ]);
       if (res && res.success) {
@@ -458,6 +459,20 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
       console.error("Drive 5TB backup error:", err);
     } finally {
       setBackingUpDrive5TB(false);
+    }
+  };
+
+  const handleTriggerDrive5TBArchive = async () => {
+    try {
+      setArchivingDrive5TB(true);
+      const res = await api.triggerGoogleDrive5TBArchive();
+      if (res?.success) {
+        await fetchSupabaseStatus(true);
+      }
+    } catch (err: any) {
+      console.error("Drive 5TB archive error:", err);
+    } finally {
+      setArchivingDrive5TB(false);
     }
   };
 
@@ -814,11 +829,13 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
               stats={stats}
               supabaseStatus={supabaseStatus}
               checkingSupabase={checkingSupabase}
-              onRefreshSupabaseStatus={fetchSupabaseStatus}
+              onRefreshSupabaseStatus={() => fetchSupabaseStatus(true)}
               drive5TBStatus={drive5TBStatus}
               backingUpDrive5TB={backingUpDrive5TB}
+              archivingDrive5TB={archivingDrive5TB}
               onConnectDrive5TB={handleConnectDrive5TB}
               onTriggerDrive5TBBackup={handleTriggerDrive5TBBackup}
+              onTriggerDrive5TBArchive={handleTriggerDrive5TBArchive}
               st={st}
             />
             <SuperAdminLeads 

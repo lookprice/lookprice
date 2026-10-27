@@ -1,5 +1,5 @@
-import React from "react";
-import { Store, Activity, Scan, Users, Database, HardDrive, ShieldCheck, RefreshCw, AlertTriangle, CheckCircle2, CloudUpload, Link2 } from "lucide-react";
+import React, { useState } from "react";
+import { Store, Activity, Scan, Users, Database, HardDrive, ShieldCheck, RefreshCw, AlertTriangle, CheckCircle2, CloudUpload, Link2, Copy, Check, Archive } from "lucide-react";
 
 interface SuperAdminStatsProps {
   stats: {
@@ -38,13 +38,20 @@ interface SuperAdminStatsProps {
       limitTB: string;
       usageGB: string;
     } | null;
+    redirectUri?: string;
     lastBackupAt?: string | null;
     lastBackupFileName?: string | null;
     lastBackupWebViewLink?: string | null;
+    lastArchiveAt?: string | null;
+    lastArchivedMediaCount?: number;
+    lastArchivedInvoicesCount?: number;
+    lastFreedKB?: number;
   };
   backingUpDrive5TB?: boolean;
+  archivingDrive5TB?: boolean;
   onConnectDrive5TB?: () => void;
   onTriggerDrive5TBBackup?: () => void;
+  onTriggerDrive5TBArchive?: () => void;
   st: any;
 }
 
@@ -55,10 +62,24 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
   onRefreshSupabaseStatus,
   drive5TBStatus,
   backingUpDrive5TB,
+  archivingDrive5TB,
   onConnectDrive5TB,
   onTriggerDrive5TBBackup,
+  onTriggerDrive5TBArchive,
   st
 }) => {
+  const [copiedUri, setCopiedUri] = useState(false);
+  const expectedRedirectUri =
+    drive5TBStatus?.redirectUri ||
+    (typeof window !== "undefined" ? `${window.location.origin}/api/google-drive/callback` : "https://enrakipsiz.com/api/google-drive/callback");
+
+  const handleCopyRedirectUri = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(expectedRedirectUri);
+      setCopiedUri(true);
+      setTimeout(() => setCopiedUri(false), 2000);
+    }
+  };
   return (
     <div className="space-y-6 mb-8">
       {/* 4 Main Stat Cards - Apple/Mercedes Glassmorphic Style */}
@@ -312,32 +333,66 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
                         Son Yedek: {new Date(drive5TBStatus.lastBackupAt).toLocaleString("tr-TR")}
                       </p>
                     )}
+                    {drive5TBStatus.lastArchiveAt && (
+                      <p className="text-[10px] text-cyan-300 truncate">
+                        Arşiv: {drive5TBStatus.lastArchivedInvoicesCount || 0} Fatura • {drive5TBStatus.lastArchivedMediaCount || 0} Medya
+                      </p>
+                    )}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-slate-300 leading-snug mb-3">
-                    Google AI Pro <strong className="text-white">5 TB Drive</strong> hesabınızı bağlayarak tüm mağaza, ürün ve fatura veritabanını tek tıkla yedekleyin.
-                  </p>
+                  <div className="mb-2.5 space-y-1.5">
+                    <p className="text-[11px] text-slate-300 leading-snug">
+                      Google AI Pro <strong className="text-white">5 TB Drive</strong> hesabınızı bağlayarak tüm mağaza, ürün ve fatura veritabanını tek tıkla yedekleyin.
+                    </p>
+                    <div className="flex items-center justify-between gap-1.5 bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1">
+                      <span className="text-[10px] font-mono text-amber-300 truncate" title={expectedRedirectUri}>
+                        {expectedRedirectUri}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyRedirectUri}
+                        className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-200 border border-slate-600 transition-colors"
+                        title="Google Cloud Console Redirect URI Kopyala"
+                      >
+                        {copiedUri ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-amber-400" />}
+                        {copiedUri ? "Kopyalandı" : "URI"}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={onConnectDrive5TB}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[11px] font-bold transition-all border border-slate-600"
-                >
-                  <Link2 className="h-3.5 w-3.5 text-amber-400" />
-                  {drive5TBStatus?.connected ? "Hesap Değiştir" : "5 TB Drive Bağla"}
-                </button>
-                {drive5TBStatus?.connected && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={onTriggerDrive5TBBackup}
-                    disabled={backingUpDrive5TB}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-extrabold transition-all disabled:opacity-50"
+                    onClick={onConnectDrive5TB}
+                    className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[11px] font-bold transition-all border border-slate-600"
                   >
-                    <CloudUpload className={`h-3.5 w-3.5 ${backingUpDrive5TB ? "animate-bounce" : ""}`} />
-                    {backingUpDrive5TB ? "Yedekleniyor..." : "Şimdi Yedekle"}
+                    <Link2 className="h-3 w-3 text-amber-400 shrink-0" />
+                    <span className="truncate">{drive5TBStatus?.connected ? "Hesap" : "5 TB Drive Bağla"}</span>
+                  </button>
+                  {drive5TBStatus?.connected && (
+                    <button
+                      type="button"
+                      onClick={onTriggerDrive5TBBackup}
+                      disabled={backingUpDrive5TB || archivingDrive5TB}
+                      className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-extrabold transition-all disabled:opacity-50"
+                    >
+                      <CloudUpload className={`h-3 w-3 shrink-0 ${backingUpDrive5TB ? "animate-bounce" : ""}`} />
+                      <span className="truncate">{backingUpDrive5TB ? "Yedek..." : "Şimdi Yedekle"}</span>
+                    </button>
+                  )}
+                </div>
+                {drive5TBStatus?.connected && onTriggerDrive5TBArchive && (
+                  <button
+                    type="button"
+                    onClick={onTriggerDrive5TBArchive}
+                    disabled={archivingDrive5TB || backingUpDrive5TB}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[11px] font-extrabold transition-all disabled:opacity-50"
+                  >
+                    <Archive className={`h-3.5 w-3.5 text-cyan-400 ${archivingDrive5TB ? "animate-spin" : ""}`} />
+                    {archivingDrive5TB ? "Fatura & Medya Arşivleniyor..." : "Fatura Arşivle & DB Hafiflet"}
                   </button>
                 )}
               </div>

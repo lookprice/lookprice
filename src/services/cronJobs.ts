@@ -7,6 +7,7 @@ import { AmazonService } from './backend/amazonService';
 import { IntegrationService } from './IntegrationService';
 import { fetchTCMBRatesWithRetry } from '../utils/tcmbFetcher';
 import { syncStoreN11OrdersToDatabase } from './marketplaceSync';
+import { runAutomatedSuperAdminDriveBackup, runSuperAdminArchiveAndSlimDB } from '../../routes/googleDrive';
 
 export function startCronJobs() {
   console.log("Starting cron jobs...");
@@ -73,6 +74,28 @@ export function startCronJobs() {
   cron.schedule('0 18 * * *', async () => {
     console.log("[CRON] Running TCMB currency rate sync (Evening Close 18:00)...");
     await syncTCMBRates();
+  });
+
+  // Nightly Full Database Backup to 5 TB Google Drive Vault (03:30 AM)
+  cron.schedule('30 3 * * *', async () => {
+    console.log("[CRON] Running Nightly Full Database Backup to 5 TB Google Drive Vault (03:30)...");
+    try {
+      const res = await runAutomatedSuperAdminDriveBackup();
+      console.log(`[CRON-5TB-BACKUP] Success: ${res.fileName} (${res.sizeKB} KB)`);
+    } catch (err: any) {
+      console.warn("[CRON-5TB-BACKUP] Skipped or failed:", err?.message || err);
+    }
+  });
+
+  // Nightly E-Invoice Ledger Archiving & PostgreSQL DB Slimming to 5 TB Google Drive (03:45 AM)
+  cron.schedule('45 3 * * *', async () => {
+    console.log("[CRON] Running Nightly E-Invoice Archive & DB Slimming to 5 TB Google Drive (03:45)...");
+    try {
+      const res = await runSuperAdminArchiveAndSlimDB();
+      console.log(`[CRON-5TB-ARCHIVE] Success: ${res.message}`);
+    } catch (err: any) {
+      console.warn("[CRON-5TB-ARCHIVE] Skipped or failed:", err?.message || err);
+    }
   });
 
   console.log("Cron jobs started.");

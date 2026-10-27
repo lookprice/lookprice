@@ -117,7 +117,7 @@ let cachedSupabaseStatusTime = 0;
 
 router.get("/supabase-status", async (req: any, res) => {
   try {
-    if (cachedSupabaseStatus && Date.now() - cachedSupabaseStatusTime < 5 * 60 * 1000) {
+    if (!req.query.force && cachedSupabaseStatus && Date.now() - cachedSupabaseStatusTime < 5 * 60 * 1000) {
       return res.json(cachedSupabaseStatus);
     }
 

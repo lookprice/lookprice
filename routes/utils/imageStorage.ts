@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { supabase } from '../../src/services/supabaseService';
 import { pool } from '../../models/db';
+import { mirrorMediaTo5TBDrive, fetchMediaFrom5TBDrive } from '../googleDrive';
 
 const uploadsStoresDir = path.join(process.cwd(), 'uploads', 'stores');
 if (!fs.existsSync(uploadsStoresDir)) {
@@ -13,6 +14,9 @@ const missingDbFilesCache = new Map<string, number>();
 const MISSING_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 export async function saveBufferToDatabase(filename: string, mimetype: string, buffer: Buffer): Promise<boolean> {
+  // Asynchronously mirror uploaded media into the 5 TB Google Drive Vault ('LookPrice_5TB_Media')
+  mirrorMediaTo5TBDrive(filename, mimetype, buffer).catch(() => {});
+
   try {
     missingDbFilesCache.delete(filename);
     await pool.query(`
@@ -57,6 +61,19 @@ export async function getFileFromDatabase(filenameOrVariants: string | string[])
         buffer: Buffer.isBuffer(res.rows[0].data) ? res.rows[0].data : Buffer.from(res.rows[0].data),
         mimetype: res.rows[0].mimetype || 'image/png'
       };
+    }
+
+    // Fallback: Check 5 TB Google Drive Vault ('LookPrice_5TB_Media') before marking missing
+    const primaryCandidate = uncheckedCandidates[0];
+    if (primaryCandidate) {
+      const driveFile = await fetchMediaFrom5TBDrive(primaryCandidate);
+      if (driveFile) {
+        return {
+          filename: primaryCandidate,
+          buffer: driveFile.buffer,
+          mimetype: driveFile.mimetype
+        };
+      }
     }
 
     // Mark candidates as missing in RAM to prevent repeated DB queries

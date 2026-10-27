@@ -362,7 +362,7 @@ export const api = {
   getAdminProfile: () => api.get("/api/admin/profile"),
   updateAdminProfile: (data: any) => api.post("/api/admin/profile", data),
   getGlobalAuditLogs: () => api.get("/api/admin/audit-logs"),
-  getSupabaseStatus: () => api.get("/api/admin/supabase-status"),
+  getSupabaseStatus: (force?: boolean) => api.get(`/api/admin/supabase-status${force ? "?force=1" : ""}`),
   updateLead: (id: number, data: any) => api.put(`/api/admin/leads/${id}`, data),
   getStores: () => api.get("/api/admin/stores"),
   getStoreConfig: (id: number) => api.get(`/api/admin/stores/${id}/config`),
@@ -741,5 +741,6 @@ export const api = {
   getGoogleDrive5TBStatus: () => api.get("/api/google-drive/superadmin-status"),
   getGoogleDrive5TBAuthUrl: () => api.get("/api/google-drive/superadmin-auth-url"),
   triggerGoogleDrive5TBBackup: () => api.post("/api/google-drive/superadmin-backup", {}),
+  triggerGoogleDrive5TBArchive: () => api.post("/api/google-drive/superadmin-archive-db", {}),
 };
 
