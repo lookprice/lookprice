@@ -778,39 +778,13 @@ function sanitizeFilename(originalName: string): string {
       console.warn("Failed to write file locally:", localErr);
     }
 
-    // 2. Persist directly in PostgreSQL database (independent of Supabase quota and container reboots)
+    // 2. Persist directly in PostgreSQL database (survives container reboots without external Storage bucket egress)
     try {
       const { saveBufferToDatabase } = await import("./routes/utils/imageStorage");
       await saveBufferToDatabase(filename, req.file.mimetype || "image/png", req.file.buffer);
       localSaved = true;
     } catch (dbErr: any) {
       console.warn("Failed to write file to PostgreSQL database:", dbErr?.message || dbErr);
-    }
-
-    // 3. Try uploading to Supabase as non-blocking background backup if configured
-    try {
-      const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
-      const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
-      
-      if (supabaseUrl && supabaseKey) {
-        const { supabase } = await import("./src/services/supabaseService");
-        supabase.storage
-          .from("lookdocu")
-          .upload(filename, req.file.buffer, {
-            contentType: req.file.mimetype,
-            upsert: false,
-          })
-          .then(({ error }) => {
-            if (error) {
-              console.warn("[Upload] Supabase upload failed (quota/paused?):", error.message || error);
-            }
-          })
-          .catch((sbErr: any) => {
-            console.warn("[Upload] Supabase error during upload:", sbErr?.message || sbErr);
-          });
-      }
-    } catch (sbErr: any) {
-      console.warn("[Upload] Supabase background exception:", sbErr?.message || sbErr);
     }
 
     if (localSaved) {
@@ -820,8 +794,9 @@ function sanitizeFilename(originalName: string): string {
     res.status(500).json({ error: "Failed to save uploaded file." });
   });
 
-  // Storage Proxy with Multi-Tier PostgreSQL, Local Disk, RAM Cache & Resilient Store Fallback
+  // Storage Proxy with Multi-Tier PostgreSQL, Local Disk, RAM Cache & Negative/Monogram Caching
   const storageRamCache = new Map<string, { buffer: Buffer; contentType: string; contentLength: number; etag: string; timestamp: number }>();
+  const failedSupabaseStorageSet = new Map<string, number>();
 
   app.get("/api/storage/*", async (req, res) => {
     // Add CORS headers to prevent cross-origin blocks for custom domains
@@ -905,14 +880,10 @@ function sanitizeFilename(originalName: string): string {
       }
     }
 
-    // 2. Check PostgreSQL database (app_storage_files) with candidate extensions
+    // 2. Check PostgreSQL database (app_storage_files) with a SINGLE batched query and negative cache
     try {
       const { getFileFromDatabase } = await import("./routes/utils/imageStorage");
-      let dbFile = null;
-      for (const fv of fileVariants) {
-        dbFile = await getFileFromDatabase(fv);
-        if (dbFile) break;
-      }
+      const dbFile = await getFileFromDatabase(fileVariants);
       if (dbFile) {
         const etag = `"${dbFile.buffer.length}-db"`;
         if (req.headers["if-none-match"] === etag) {
@@ -920,7 +891,7 @@ function sanitizeFilename(originalName: string): string {
         }
 
         // Cache in RAM
-        if (storageRamCache.size > 300) {
+        if (storageRamCache.size > 500) {
           const firstKey = storageRamCache.keys().next().value;
           if (firstKey) storageRamCache.delete(firstKey);
         }
@@ -932,7 +903,7 @@ function sanitizeFilename(originalName: string): string {
           timestamp: Date.now(),
         });
 
-        // Cache on local disk
+        // Cache on local disk so subsequent requests never hit PostgreSQL
         try {
           const destPath = path.join(lookdocuDir, filePath);
           fs.promises.writeFile(destPath, dbFile.buffer).catch(() => {});
@@ -948,94 +919,112 @@ function sanitizeFilename(originalName: string): string {
       // Continue to Supabase / store fallback
     }
 
-    // 3. Fetch from Supabase as remote fallback
-    try {
-      const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
-      if (supabaseUrl) {
-        const url = `${supabaseUrl}/storage/v1/object/public/lookdocu/${filePath}`;
-        const response = await fetch(url);
-        
-        if (response.ok) {
-          const contentType = response.headers.get("content-type") || (isImage ? "image/jpeg" : "application/octet-stream");
-          const arrayBuffer = await response.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          const etag = `"${buffer.length}-${Date.now()}"`;
+    // 3. Fetch from Supabase as remote fallback ONLY if not already marked missing in negative cache
+    const sbMissUntil = failedSupabaseStorageSet.get(filePath);
+    if (!sbMissUntil || Date.now() >= sbMissUntil) {
+      try {
+        const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
+        if (supabaseUrl) {
+          const url = `${supabaseUrl}/storage/v1/object/public/lookdocu/${filePath}`;
+          const response = await fetch(url);
+          
+          if (response.ok) {
+            const contentType = response.headers.get("content-type") || (isImage ? "image/jpeg" : "application/octet-stream");
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const etag = `"${buffer.length}-${Date.now()}"`;
 
-          // Save to RAM cache
-          if (storageRamCache.size > 300) {
-            const firstKey = storageRamCache.keys().next().value;
-            if (firstKey) storageRamCache.delete(firstKey);
+            // Save to RAM cache
+            if (storageRamCache.size > 500) {
+              const firstKey = storageRamCache.keys().next().value;
+              if (firstKey) storageRamCache.delete(firstKey);
+            }
+            storageRamCache.set(filePath, {
+              buffer,
+              contentType,
+              contentLength: buffer.length,
+              etag,
+              timestamp: Date.now(),
+            });
+
+            // Save to local disk & PostgreSQL so it's permanently stored locally and never fetched from Supabase again
+            try {
+              const destPath = path.join(lookdocuDir, filePath);
+              fs.promises.writeFile(destPath, buffer).catch(() => {});
+              const { saveBufferToDatabase } = await import("./routes/utils/imageStorage");
+              saveBufferToDatabase(filePath, contentType, buffer).catch(() => {});
+            } catch (saveErr) {}
+
+            res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+            res.setHeader("ETag", etag);
+            res.setHeader("Content-Type", contentType);
+            res.setHeader("Content-Length", buffer.length);
+            return res.send(buffer);
+          } else {
+            if (failedSupabaseStorageSet.size > 5000) failedSupabaseStorageSet.clear();
+            failedSupabaseStorageSet.set(filePath, Date.now() + 60 * 60 * 1000); // Cache 400/402/404 for 1 hour
           }
-          storageRamCache.set(filePath, {
-            buffer,
-            contentType,
-            contentLength: buffer.length,
-            etag,
-            timestamp: Date.now(),
-          });
-
-          // Save to local disk & PostgreSQL so it's permanently stored locally
-          try {
-            const destPath = path.join(lookdocuDir, filePath);
-            fs.promises.writeFile(destPath, buffer).catch(() => {});
-            const { saveBufferToDatabase } = await import("./routes/utils/imageStorage");
-            saveBufferToDatabase(filePath, contentType, buffer).catch(() => {});
-          } catch (saveErr) {}
-
-          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-          res.setHeader("ETag", etag);
-          res.setHeader("Content-Type", contentType);
-          res.setHeader("Content-Length", buffer.length);
-          return res.send(buffer);
-        } else {
-          console.warn(`[Storage Proxy] Supabase returned status ${response.status} for file: ${filePath}`);
         }
+      } catch (sbErr: any) {
+        failedSupabaseStorageSet.set(filePath, Date.now() + 30 * 60 * 1000);
       }
-    } catch (sbErr: any) {
-      console.warn("[Storage Proxy] Supabase fetch error:", sbErr?.message || sbErr);
     }
 
-    // 4. Intelligent Dynamic Store Logo / Brand Monogram Fallback
+    // 4. Intelligent Dynamic Store Logo / Brand Monogram Fallback (Cached in RAM to prevent repeated DB queries)
     if (isImage) {
+      let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80" viewBox="0 0 240 80"><rect width="240" height="80" rx="8" fill="#1e293b"/><text x="120" y="46" font-family="system-ui,-apple-system,sans-serif" font-weight="600" font-size="18" fill="#ffffff" text-anchor="middle" letter-spacing="1">LOGO</text></svg>`;
       try {
-        // Find if this file belongs to a store
+        // Find if this file belongs to a store (lightweight projection: no full branding blob)
         const storeMatch = filePath.match(/^store_(\d+)_/);
         let storeInfo: any = null;
 
         if (storeMatch && storeMatch[1]) {
-          const sRes = await pool.query("SELECT id, name, primary_color, branding FROM stores WHERE id = $1 LIMIT 1", [parseInt(storeMatch[1], 10)]);
+          const sRes = await pool.query(
+            "SELECT id, name, primary_color, branding->>'store_name' as store_name FROM stores WHERE id = $1 LIMIT 1",
+            [parseInt(storeMatch[1], 10)]
+          );
           if (sRes.rows.length > 0) storeInfo = sRes.rows[0];
         }
 
         if (!storeInfo) {
           const sRes = await pool.query(
-            "SELECT id, name, primary_color, branding FROM stores WHERE logo_url LIKE $1 OR favicon_url LIKE $1 LIMIT 1",
+            "SELECT id, name, primary_color, branding->>'store_name' as store_name FROM stores WHERE logo_url LIKE $1 OR favicon_url LIKE $1 LIMIT 1",
             [`%${filePath}%`]
           );
           if (sRes.rows.length > 0) storeInfo = sRes.rows[0];
         }
 
         if (storeInfo) {
-          const brandName = (storeInfo.branding?.store_name || storeInfo.name || "LOOKPRICE").trim();
+          const brandName = (storeInfo.store_name || storeInfo.name || "SEÇKİN MAĞAZA").trim();
           const primaryColor = storeInfo.primary_color || "#0f172a";
           const isFavicon = filePath.includes("favicon");
           
-          const svgContent = isFavicon
+          svgContent = isFavicon
             ? `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${escapeXml(primaryColor)}"/><text x="32" y="41" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" fill="#ffffff" text-anchor="middle">${escapeXml(brandName.charAt(0).toUpperCase())}</text></svg>`
             : `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="96" viewBox="0 0 360 96"><defs><linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escapeXml(primaryColor)}"/><stop offset="100%" stop-color="#0f172a"/></linearGradient></defs><rect width="360" height="96" rx="14" fill="url(#brandGrad)"/><rect x="2" y="2" width="356" height="92" rx="12" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/><circle cx="50" cy="48" r="26" fill="rgba(255,255,255,0.12)"/><text x="50" y="57" font-family="system-ui, -apple-system, sans-serif" font-weight="950" font-size="24" fill="#ffffff" text-anchor="middle">${escapeXml(brandName.charAt(0).toUpperCase())}</text><text x="96" y="55" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="20" fill="#ffffff" letter-spacing="0.5">${escapeXml(brandName.toUpperCase())}</text></svg>`;
-
-          res.setHeader("Content-Type", "image/svg+xml");
-          res.setHeader("Cache-Control", "public, max-age=3600");
-          return res.status(200).send(svgContent);
         }
       } catch (genErr) {
         console.warn("Dynamic brand monogram generation error:", genErr);
       }
 
-      // Default clean SVG placeholder
+      const svgBuffer = Buffer.from(svgContent, "utf-8");
+      const etag = `"${svgBuffer.length}-svg-fallback"`;
+      if (storageRamCache.size > 500) {
+        const firstKey = storageRamCache.keys().next().value;
+        if (firstKey) storageRamCache.delete(firstKey);
+      }
+      storageRamCache.set(filePath, {
+        buffer: svgBuffer,
+        contentType: "image/svg+xml",
+        contentLength: svgBuffer.length,
+        etag,
+        timestamp: Date.now(),
+      });
+
       res.setHeader("Content-Type", "image/svg+xml");
-      res.setHeader("Cache-Control", "public, max-age=300");
-      return res.status(200).send(`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80" viewBox="0 0 240 80"><rect width="240" height="80" rx="8" fill="#1e293b"/><text x="120" y="46" font-family="system-ui,-apple-system,sans-serif" font-weight="600" font-size="18" fill="#ffffff" text-anchor="middle" letter-spacing="1">LOGO</text></svg>`);
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.setHeader("ETag", etag);
+      return res.status(200).send(svgBuffer);
     }
 
     res.status(404).json({ error: "Storage item unavailable" });

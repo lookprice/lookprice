@@ -16,7 +16,7 @@ export function startCronJobs() {
     console.warn("[CRON] Initial TCMB sync on startup failed:", err.message);
   });
 
-  // Run initial marketplace order syncs on startup (after 5 seconds delay)
+  // Run initial marketplace order syncs on startup (after 15 seconds delay, skip in non-production preview if desired or run lightweight)
   setTimeout(() => {
     syncHepsiburadaOrdersCron().catch(err => {
       console.warn("[CRON] Initial Hepsiburada order sync failed:", err.message);
@@ -27,33 +27,30 @@ export function startCronJobs() {
     syncAmazonOrdersCron().catch(err => {
       console.warn("[CRON] Initial Amazon order sync failed:", err.message);
     });
-    syncHepsiburadaPendingAndListingsCron().catch(err => {
-      console.warn("[CRON] Initial Hepsiburada listings sync failed:", err.message);
-    });
-  }, 5000);
+  }, 15000);
 
-  // High-frequency Hepsiburada & N11 Order Sync (Every 5 minutes)
-  cron.schedule('*/5 * * * *', async () => {
-    console.log("[CRON] Running Hepsiburada & N11 order sync (5-minute interval)...");
+  // Hepsiburada & N11 Order Sync (Every 10 minutes - optimized for low DB egress)
+  cron.schedule('*/10 * * * *', async () => {
+    console.log("[CRON] Running Hepsiburada & N11 order sync (10-minute interval)...");
     await syncHepsiburadaOrdersCron();
     await syncN11OrdersCron();
   });
 
-  // Hepsiburada Pending Approval & Listings Reconciliation (Every 15 minutes)
-  cron.schedule('*/15 * * * *', async () => {
+  // Hepsiburada Pending Approval & Listings Reconciliation (Every 30 minutes)
+  cron.schedule('*/30 * * * *', async () => {
     console.log("[CRON] Running Hepsiburada pending approvals & listings reconciliation...");
     await syncHepsiburadaPendingAndListingsCron();
   });
 
-  // Amazon Order Sync (Every 10 minutes)
-  cron.schedule('*/10 * * * *', async () => {
+  // Amazon Order Sync (Every 15 minutes)
+  cron.schedule('*/15 * * * *', async () => {
     console.log("[CRON] Running Amazon order sync...");
     await syncAmazonOrdersCron();
   });
 
-  // Comprehensive Marketplace Inventory & Price Reconciliation (Every 30 minutes)
-  cron.schedule('*/30 * * * *', async () => {
-    console.log("[CRON] Running 30-min Marketplace Price & Inventory Reconciliation...");
+  // Comprehensive Marketplace Inventory & Price Reconciliation (Every 2 hours)
+  cron.schedule('0 */2 * * *', async () => {
+    console.log("[CRON] Running 2-hour Marketplace Price & Inventory Reconciliation...");
     await reconcileMarketplaceInventoriesAndPrices();
   });
 
@@ -86,29 +83,26 @@ const hbAuthBackoffStores = new Map<number, number>();
 const HB_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Periodically syncs Hepsiburada orders for all configured stores
+ * Periodically syncs Hepsiburada orders for all configured stores (Zero-Egress projection: no full branding blob)
  */
 export async function syncHepsiburadaOrdersCron() {
   try {
-    const storesRes = await pool.query("SELECT id, name, hepsiburada_settings, branding FROM stores");
+    const storesRes = await pool.query(`
+      SELECT id, name,
+             COALESCE(hepsiburada_settings, branding->'hepsiburada_settings') as hepsiburada_settings
+      FROM stores
+      WHERE COALESCE(branding->>'is_demo', 'false') != 'true'
+        AND (hepsiburada_settings IS NOT NULL OR branding->'hepsiburada_settings' IS NOT NULL)
+    `);
     for (const store of storesRes.rows) {
       try {
         let settings = store.hepsiburada_settings;
         if (typeof settings === 'string') {
           try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
         }
-        let branding = store.branding;
-        if (typeof branding === 'string') {
-          try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
-        }
-        if (branding?.is_demo === true || branding?.is_demo === 'true') continue;
 
         const backoffUntil = hbAuthBackoffStores.get(store.id);
         if (backoffUntil && Date.now() < backoffUntil) continue;
-
-        if (!settings || !settings.merchantId) {
-          settings = branding?.hepsiburada_settings || settings || {};
-        }
 
         const merchantId = String(settings?.merchantId || "").trim();
         const apiSecret = String(settings?.apiSecret || "").trim();
@@ -143,29 +137,26 @@ export async function syncHepsiburadaOrdersCron() {
 }
 
 /**
- * Periodically syncs N11 orders for all configured stores
+ * Periodically syncs N11 orders for all configured stores (Zero-Egress projection: no full branding blob)
  */
 export async function syncN11OrdersCron() {
   try {
-    const storesRes = await pool.query("SELECT id, name, n11_settings, branding FROM stores");
+    const storesRes = await pool.query(`
+      SELECT id, name,
+             COALESCE(n11_settings, branding->'n11_settings') as n11_settings
+      FROM stores
+      WHERE COALESCE(branding->>'is_demo', 'false') != 'true'
+        AND (n11_settings IS NOT NULL OR branding->'n11_settings' IS NOT NULL)
+    `);
     for (const store of storesRes.rows) {
       try {
         let settings = store.n11_settings;
         if (typeof settings === 'string') {
           try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
         }
-        let branding = store.branding;
-        if (typeof branding === 'string') {
-          try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
-        }
-        if (branding?.is_demo === true || branding?.is_demo === 'true') continue;
 
         const backoffUntil = n11AuthBackoffStores.get(store.id);
         if (backoffUntil && Date.now() < backoffUntil) continue;
-
-        if (!settings || !settings.appKey || !settings.appSecret) {
-          settings = branding?.n11_settings || settings || {};
-        }
 
         const appKey = String(settings?.appKey || "").trim();
         const appSecret = String(settings?.appSecret || "").trim();
@@ -201,25 +192,22 @@ export async function syncN11OrdersCron() {
  */
 export async function syncHepsiburadaPendingAndListingsCron() {
   try {
-    const storesRes = await pool.query("SELECT id, name, hepsiburada_settings, branding FROM stores");
+    const storesRes = await pool.query(`
+      SELECT id, name,
+             COALESCE(hepsiburada_settings, branding->'hepsiburada_settings') as hepsiburada_settings
+      FROM stores
+      WHERE COALESCE(branding->>'is_demo', 'false') != 'true'
+        AND (hepsiburada_settings IS NOT NULL OR branding->'hepsiburada_settings' IS NOT NULL)
+    `);
     for (const store of storesRes.rows) {
       try {
         let settings = store.hepsiburada_settings;
         if (typeof settings === 'string') {
           try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
         }
-        let branding = store.branding;
-        if (typeof branding === 'string') {
-          try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
-        }
-        if (branding?.is_demo === true || branding?.is_demo === 'true') continue;
 
         const backoffUntil = hbAuthBackoffStores.get(store.id);
         if (backoffUntil && Date.now() < backoffUntil) continue;
-
-        if (!settings || !settings.merchantId) {
-          settings = branding?.hepsiburada_settings || settings || {};
-        }
 
         const merchantId = String(settings?.merchantId || "").trim();
         const apiSecret = String(settings?.apiSecret || "").trim();
@@ -261,10 +249,17 @@ export async function syncTCMBRates() {
       console.log(`[CRON] Extracted TCMB ForexBuying rates for date ${tcmbDate || 'Current'}:`, rates);
       
       try {
-        // Update all stores (both currency_rates column and branding.currency_rates for complete consistency)
-        const storesRes = await pool.query("SELECT id, currency_rates, branding FROM stores");
+        // Lightweight select: avoid pulling full branding JSONB over network
+        const storesRes = await pool.query(`
+          SELECT id, currency_rates,
+                 branding->'currency_rates' as branding_currency_rates,
+                 COALESCE(branding->>'is_demo', 'false') as is_demo
+          FROM stores
+        `);
+        let updatedStoreCount = 0;
+
         for (const store of storesRes.rows) {
-          let currentRates = {};
+          let currentRates: any = {};
           try {
             if (typeof store.currency_rates === 'string') {
               currentRates = JSON.parse(store.currency_rates);
@@ -272,39 +267,52 @@ export async function syncTCMBRates() {
               currentRates = store.currency_rates;
             }
           } catch (e) {
-            // Ignore parse errors, fallback to empty
+            currentRates = {};
           }
 
-          let branding: any = {};
+          let brRates: any = {};
           try {
-            if (typeof store.branding === 'string') {
-              branding = JSON.parse(store.branding);
-            } else if (typeof store.branding === 'object' && store.branding !== null) {
-              branding = store.branding;
+            if (typeof store.branding_currency_rates === 'string') {
+              brRates = JSON.parse(store.branding_currency_rates);
+            } else if (typeof store.branding_currency_rates === 'object' && store.branding_currency_rates !== null) {
+              brRates = store.branding_currency_rates;
             }
           } catch (e) {
-            branding = {};
+            brRates = {};
           }
 
-          const newRates = {
-            ...(branding?.currency_rates || {}),
+          const newRates: any = {
+            ...brRates,
             ...currentRates,
             ...rates
           };
 
-          branding.currency_rates = newRates;
+          const rateChanged =
+            Number(currentRates?.USD || 0) !== Number(newRates.USD || 0) ||
+            Number(currentRates?.EUR || 0) !== Number(newRates.EUR || 0) ||
+            Number(currentRates?.GBP || 0) !== Number(newRates.GBP || 0) ||
+            Number(brRates?.USD || 0) !== Number(newRates.USD || 0) ||
+            Number(brRates?.EUR || 0) !== Number(newRates.EUR || 0);
 
-          await pool.query(
-            "UPDATE stores SET currency_rates = $1, branding = $2 WHERE id = $3",
-            [JSON.stringify(newRates), JSON.stringify(branding), store.id]
-          );
+          if (rateChanged) {
+            const newRatesJson = JSON.stringify(newRates);
+            await pool.query(
+              `UPDATE stores 
+               SET currency_rates = $1::jsonb, 
+                   branding = jsonb_set(COALESCE(branding, '{}'::jsonb), '{currency_rates}', $1::jsonb, true)
+               WHERE id = $2`,
+              [newRatesJson, store.id]
+            );
+            updatedStoreCount++;
 
-          // Auto-sync revised prices for active marketplace products in foreign currencies
-          syncMarketplacePricesOnRateChange(store.id, newRates).catch((syncErr) => {
-            console.warn(`[CRON-CURRENCY] Store #${store.id} pazaryeri fiyat revizyonu hatası:`, syncErr.message || syncErr);
-          });
+            if (store.is_demo !== 'true' && store.is_demo !== true) {
+              syncMarketplacePricesOnRateChange(store.id, newRates).catch((syncErr) => {
+                console.warn(`[CRON-CURRENCY] Store #${store.id} pazaryeri fiyat revizyonu hatası:`, syncErr.message || syncErr);
+              });
+            }
+          }
         }
-        console.log(`[CRON] TCMB ForexBuying rates synced successfully for ${storesRes.rowCount} stores.`);
+        console.log(`[CRON] TCMB ForexBuying rates checked for ${storesRes.rowCount} stores (${updatedStoreCount} stores updated with new rates).`);
       } catch (e: any) {
         console.error("[CRON] TCMB sync db update failed:", e);
       }
@@ -323,17 +331,20 @@ export async function syncTCMBRates() {
 export async function syncMarketplacePricesOnRateChange(storeId: number, rates?: Record<string, number>) {
   try {
     const storeRes = await pool.query(
-      "SELECT id, name, currency_rates, amazon_settings, hepsiburada_settings, n11_settings, trendyol_settings, pazarama_settings, branding FROM stores WHERE id = $1",
+      `SELECT id, name, currency_rates,
+              branding->'currency_rates' as branding_currency_rates,
+              COALESCE(amazon_settings, branding->'amazon_settings') as amazon_settings,
+              COALESCE(hepsiburada_settings, branding->'hepsiburada_settings') as hepsiburada_settings,
+              COALESCE(n11_settings, branding->'n11_settings') as n11_settings,
+              COALESCE(trendyol_settings, branding->'trendyol_settings') as trendyol_settings,
+              COALESCE(pazarama_settings, branding->'pazarama_settings') as pazarama_settings,
+              COALESCE(branding->>'is_demo', 'false') as is_demo
+       FROM stores WHERE id = $1`,
       [storeId]
     );
     if (storeRes.rows.length === 0) return;
     const store = storeRes.rows[0];
-    let branding = store.branding;
-    if (typeof branding === 'string') {
-      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
-    }
-    branding = branding || {};
-    if (branding?.is_demo === true || branding?.is_demo === 'true') return;
+    if (store.is_demo === true || store.is_demo === 'true') return;
 
     let dbRates: Record<string, number> = {};
     try {
@@ -346,24 +357,37 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
       dbRates = {};
     }
 
+    let brRates: Record<string, number> = {};
+    try {
+      if (typeof store.branding_currency_rates === 'string') {
+        brRates = JSON.parse(store.branding_currency_rates);
+      } else if (typeof store.branding_currency_rates === 'object' && store.branding_currency_rates !== null) {
+        brRates = store.branding_currency_rates;
+      }
+    } catch (e) {
+      brRates = {};
+    }
+
     const effectiveRates: Record<string, number> = {
-      ...(branding?.currency_rates || {}),
+      ...brRates,
       ...dbRates,
       ...(rates || {})
     };
 
-    // Keep branding.currency_rates in sync with stores.currency_rates if needed
+    // Keep branding.currency_rates in sync with stores.currency_rates using in-database jsonb_set (zero network bloat)
     if (
       effectiveRates.USD &&
-      (!branding.currency_rates ||
-        Number(branding.currency_rates.USD) !== Number(effectiveRates.USD) ||
-        Number(branding.currency_rates.EUR) !== Number(effectiveRates.EUR) ||
-        Number(branding.currency_rates.GBP) !== Number(effectiveRates.GBP))
+      (Number(brRates.USD) !== Number(effectiveRates.USD) ||
+        Number(brRates.EUR) !== Number(effectiveRates.EUR) ||
+        Number(brRates.GBP) !== Number(effectiveRates.GBP))
     ) {
-      branding.currency_rates = effectiveRates;
+      const ratesJson = JSON.stringify(effectiveRates);
       await pool.query(
-        "UPDATE stores SET currency_rates = $1, branding = $2 WHERE id = $3",
-        [JSON.stringify(effectiveRates), JSON.stringify(branding), storeId]
+        `UPDATE stores 
+         SET currency_rates = $1::jsonb, 
+             branding = jsonb_set(COALESCE(branding, '{}'::jsonb), '{currency_rates}', $1::jsonb, true) 
+         WHERE id = $2`,
+        [ratesJson, storeId]
       );
     }
 
@@ -371,41 +395,50 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
     if (typeof hbSettings === 'string') {
       try { hbSettings = JSON.parse(hbSettings); } catch (e) { hbSettings = {}; }
     }
-    hbSettings = { ...(branding?.hepsiburada_settings || {}), ...(hbSettings || {}) };
+    hbSettings = hbSettings || {};
 
     let amzSettings = store.amazon_settings;
     if (typeof amzSettings === 'string') {
       try { amzSettings = JSON.parse(amzSettings); } catch (e) { amzSettings = {}; }
     }
-    amzSettings = { ...(branding?.amazon_settings || {}), ...(amzSettings || {}) };
+    amzSettings = amzSettings || {};
 
     let n11Settings = store.n11_settings;
     if (typeof n11Settings === 'string') {
       try { n11Settings = JSON.parse(n11Settings); } catch (e) { n11Settings = {}; }
     }
-    n11Settings = { ...(branding?.n11_settings || {}), ...(n11Settings || {}) };
+    n11Settings = n11Settings || {};
 
     let tySettings = store.trendyol_settings;
     if (typeof tySettings === 'string') {
       try { tySettings = JSON.parse(tySettings); } catch (e) { tySettings = {}; }
     }
-    tySettings = { ...(branding?.trendyol_settings || {}), ...(tySettings || {}) };
+    tySettings = tySettings || {};
 
     let pzSettings = store.pazarama_settings;
     if (typeof pzSettings === 'string') {
       try { pzSettings = JSON.parse(pzSettings); } catch (e) { pzSettings = {}; }
     }
-    pzSettings = { ...(branding?.pazarama_settings || {}), ...(pzSettings || {}) };
+    pzSettings = pzSettings || {};
 
     const { N11Service } = await import("./backend/n11Service.js");
     const hbHelper = new HepsiburadaService(hbSettings || {}, storeId);
     const amzHelper = new AmazonService(amzSettings || {}, storeId);
 
-    // 0. Recalculate and persist channel-specific marketplace_data prices across all store products in fast batches
+    // 0. Recalculate and persist channel-specific marketplace_data prices ONLY for marketplace-linked or foreign-currency products
     const allProductsRes = await pool.query(
       `SELECT id, name, category, sub_category, price, currency, marketplace_data
        FROM products
-       WHERE store_id = $1 AND price > 0`,
+       WHERE store_id = $1 AND price > 0
+         AND (
+           UPPER(COALESCE(currency, 'TRY')) != 'TRY'
+           OR is_hepsiburada_active = true
+           OR hepsiburada_sku IS NOT NULL
+           OR is_amazon_active = true
+           OR amazon_asin IS NOT NULL
+           OR is_n11_active = true
+           OR (marketplace_data IS NOT NULL AND marketplace_data::text != '{}' AND marketplace_data::text != 'null')
+         )`,
       [storeId]
     );
 
@@ -431,11 +464,11 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
       mpData = mpData || {};
 
       const changed =
-        mpData?.hepsiburada?.attributes?.price !== String(hbPrice) ||
-        mpData?.amazon?.attributes?.price !== String(amzPrice) ||
-        mpData?.n11?.attributes?.price !== String(n11Price) ||
-        mpData?.trendyol?.attributes?.price !== String(tyPrice) ||
-        mpData?.pazarama?.attributes?.price !== String(pzPrice);
+        Math.abs(Number(mpData?.hepsiburada?.attributes?.price || 0) - hbPrice) > 0.01 ||
+        Math.abs(Number(mpData?.amazon?.attributes?.price || 0) - amzPrice) > 0.01 ||
+        Math.abs(Number(mpData?.n11?.attributes?.price || 0) - n11Price) > 0.01 ||
+        Math.abs(Number(mpData?.trendyol?.attributes?.price || 0) - tyPrice) > 0.01 ||
+        Math.abs(Number(mpData?.pazarama?.attributes?.price || 0) - pzPrice) > 0.01;
 
       if (changed) {
         if (!mpData.hepsiburada) mpData.hepsiburada = {};
@@ -701,7 +734,18 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
  */
 export async function reconcileMarketplaceInventoriesAndPrices() {
   try {
-    const storesRes = await pool.query("SELECT id, name FROM stores");
+    const storesRes = await pool.query(`
+      SELECT id, name 
+      FROM stores 
+      WHERE COALESCE(branding->>'is_demo', 'false') != 'true'
+        AND (
+          hepsiburada_settings IS NOT NULL OR branding->'hepsiburada_settings' IS NOT NULL
+          OR amazon_settings IS NOT NULL OR branding->'amazon_settings' IS NOT NULL
+          OR n11_settings IS NOT NULL OR branding->'n11_settings' IS NOT NULL
+          OR trendyol_settings IS NOT NULL OR branding->'trendyol_settings' IS NOT NULL
+          OR pazarama_settings IS NOT NULL OR branding->'pazarama_settings' IS NOT NULL
+        )
+    `);
     for (const store of storesRes.rows) {
       await syncMarketplacePricesOnRateChange(store.id);
     }
@@ -711,26 +755,22 @@ export async function reconcileMarketplaceInventoriesAndPrices() {
 }
 
 /**
- * Periodically syncs Amazon orders for all configured stores
+ * Periodically syncs Amazon orders for all configured stores (Zero-Egress projection: no full branding blob)
  */
 export async function syncAmazonOrdersCron() {
   try {
-    const storesRes = await pool.query("SELECT id, name, amazon_settings, branding FROM stores");
+    const storesRes = await pool.query(`
+      SELECT id, name,
+             COALESCE(amazon_settings, branding->'amazon_settings') as amazon_settings
+      FROM stores
+      WHERE COALESCE(branding->>'is_demo', 'false') != 'true'
+        AND (amazon_settings IS NOT NULL OR branding->'amazon_settings' IS NOT NULL)
+    `);
     for (const store of storesRes.rows) {
       try {
         let settings = store.amazon_settings;
         if (typeof settings === 'string') {
           try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
-        }
-        let branding = store.branding;
-        if (typeof branding === 'string') {
-          try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
-        }
-
-        if (branding?.is_demo === true || branding?.is_demo === 'true') continue;
-
-        if (!settings || (!settings.refresh_token && !settings.refreshToken)) {
-          settings = branding?.amazon_settings || settings || {};
         }
 
         const refreshToken = (settings?.refresh_token || settings?.refreshToken || "").trim();
@@ -749,3 +789,4 @@ export async function syncAmazonOrdersCron() {
     console.error("[CRON-AMZ] Genel Amazon sipariş senkronizasyonu hatası:", err.message || err);
   }
 }
+

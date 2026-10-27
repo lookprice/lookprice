@@ -8,8 +8,13 @@ if (!fs.existsSync(uploadsStoresDir)) {
   fs.mkdirSync(uploadsStoresDir, { recursive: true });
 }
 
+// Negative cache to prevent repeated BYTEA queries for non-existent files
+const missingDbFilesCache = new Map<string, number>();
+const MISSING_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
 export async function saveBufferToDatabase(filename: string, mimetype: string, buffer: Buffer): Promise<boolean> {
   try {
+    missingDbFilesCache.delete(filename);
     await pool.query(`
       INSERT INTO app_storage_files (filename, mimetype, data, size, created_at)
       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
@@ -23,23 +28,47 @@ export async function saveBufferToDatabase(filename: string, mimetype: string, b
   }
 }
 
-export async function getFileFromDatabase(filename: string): Promise<{ buffer: Buffer; mimetype: string } | null> {
+export async function getFileFromDatabase(filenameOrVariants: string | string[]): Promise<{ buffer: Buffer; mimetype: string; filename?: string } | null> {
+  const candidates = (Array.isArray(filenameOrVariants) ? filenameOrVariants : [filenameOrVariants]).filter(Boolean);
+  if (candidates.length === 0) return null;
+
+  const now = Date.now();
+  const uncheckedCandidates = candidates.filter((fn) => {
+    const exp = missingDbFilesCache.get(fn);
+    if (exp && now < exp) return false;
+    if (exp && now >= exp) missingDbFilesCache.delete(fn);
+    return true;
+  });
+
+  if (uncheckedCandidates.length === 0) {
+    return null;
+  }
+
   try {
     const res = await pool.query(`
-      SELECT mimetype, data 
+      SELECT filename, mimetype, data 
       FROM app_storage_files 
-      WHERE filename = $1 
+      WHERE filename = ANY($1) 
       LIMIT 1
-    `, [filename]);
+    `, [uncheckedCandidates]);
     if (res.rows.length > 0 && res.rows[0].data) {
       return {
+        filename: res.rows[0].filename,
         buffer: Buffer.isBuffer(res.rows[0].data) ? res.rows[0].data : Buffer.from(res.rows[0].data),
         mimetype: res.rows[0].mimetype || 'image/png'
       };
     }
+
+    // Mark candidates as missing in RAM to prevent repeated DB queries
+    if (missingDbFilesCache.size > 5000) {
+      missingDbFilesCache.clear();
+    }
+    for (const fn of uncheckedCandidates) {
+      missingDbFilesCache.set(fn, now + MISSING_TTL_MS);
+    }
     return null;
   } catch (err: any) {
-    console.warn(`[Storage DB] Error fetching ${filename} from PostgreSQL:`, err?.message || err);
+    console.warn(`[Storage DB] Error fetching ${uncheckedCandidates[0]} from PostgreSQL:`, err?.message || err);
     return null;
   }
 }
@@ -74,27 +103,8 @@ export async function saveBase64Image(base64Data: string, prefix: string): Promi
     console.warn("Failed to write base64 image locally:", localErr);
   }
 
-  // 2. Persist directly in PostgreSQL database (never lost on container reboot, independent of Supabase)
+  // 2. Persist directly in PostgreSQL database (never lost on container reboot)
   await saveBufferToDatabase(filename, mimeType, buffer);
-
-  // 3. Try to save to Supabase as backup if keys are available
-  try {
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
-    const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
-    if (supabaseUrl && supabaseKey) {
-      const { error } = await supabase.storage
-        .from("lookdocu")
-        .upload(filename, buffer, {
-          contentType: mimeType,
-          upsert: false,
-        });
-      if (error) {
-        console.warn("[Storage] Supabase base64 upload failed:", error.message || error);
-      }
-    }
-  } catch (err) {
-    console.warn("Supabase upload exception:", err);
-  }
 
   return `/api/storage/${filename}`;
 }
@@ -143,25 +153,6 @@ export async function replaceAllBase64InString(str: string, prefix: string): Pro
 
       // 2. Persist in PostgreSQL database
       await saveBufferToDatabase(filename, mimeType, buffer);
-
-      // 3. Try to save to Supabase as backup if keys are available
-      try {
-        const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
-        const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
-        if (supabaseUrl && supabaseKey) {
-          const { error } = await supabase.storage
-            .from("lookdocu")
-            .upload(filename, buffer, {
-              contentType: mimeType,
-              upsert: false,
-            });
-          if (error) {
-            console.warn("[Storage] Supabase base64 upload failed:", error.message || error);
-          }
-        }
-      } catch (err) {
-        console.warn("Supabase upload exception:", err);
-      }
 
       const url = `/api/storage/${filename}`;
 

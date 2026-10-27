@@ -304,8 +304,8 @@ router.get("/enrakipsiz/portal", async (req, res) => {
       ads: ads.rows,
       featured_stores: featuredStores.rows
     };
-    publicApiCache.set(cacheKey, payload, 60);
-    res.setHeader('Cache-Control', 'public, max-age=60');
+    publicApiCache.set(cacheKey, payload, 300);
+    res.setHeader('Cache-Control', 'public, max-age=180');
     res.json(payload);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -560,8 +560,8 @@ router.get("/marketplace/listings", async (req, res) => {
       return dateB - dateA;
     });
 
-    publicApiCache.set(cacheKey, allListings, 45);
-    res.setHeader('Cache-Control', 'public, max-age=45');
+    publicApiCache.set(cacheKey, allListings, 300);
+    res.setHeader('Cache-Control', 'public, max-age=180');
     res.json(allListings);
   } catch (outerError: any) {
     console.error("Critical error in marketplace listings core:", outerError);
@@ -896,7 +896,7 @@ router.get("/store/:slug", async (req, res) => {
     store.blog_posts = blogRes.rows;
     store.consultants = consultantsRes2.rows;
 
-    publicApiCache.set(cacheKey, store, 60);
+    publicApiCache.set(cacheKey, store, 300);
     res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
     res.json(store);
   } catch (error: any) {
@@ -932,6 +932,13 @@ async function findStoreByIdentifier(identifier: string) {
 router.get("/digital-menu/:storeIdentifier/info", async (req, res) => {
   const { storeIdentifier } = req.params;
   try {
+    const cacheKey = `dm_info_${String(storeIdentifier).toLowerCase()}`;
+    const cached = publicApiCache.get(cacheKey);
+    if (cached) {
+      res.setHeader('Cache-Control', 'public, max-age=180');
+      return res.json(cached);
+    }
+
     const store = await findStoreByIdentifier(storeIdentifier);
     if (!store) return res.status(404).json({ error: "Store not found" });
 
@@ -940,7 +947,7 @@ router.get("/digital-menu/:storeIdentifier/info", async (req, res) => {
       try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
     }
 
-    res.json({
+    const payload = {
       id: store.id,
       name: store.name,
       slug: store.slug,
@@ -956,7 +963,10 @@ router.get("/digital-menu/:storeIdentifier/info", async (req, res) => {
       digital_menu_settings: branding?.digital_menu_settings || {},
       theme: branding?.digital_menu_settings?.theme || branding?.theme || 'modern_light',
       store_type: store.store_type
-    });
+    };
+    publicApiCache.set(cacheKey, payload, 300);
+    res.setHeader('Cache-Control', 'public, max-age=180');
+    res.json(payload);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -966,6 +976,13 @@ router.get("/digital-menu/:storeIdentifier/info", async (req, res) => {
 router.get("/digital-menu/:storeIdentifier/products", async (req, res) => {
   const { storeIdentifier } = req.params;
   try {
+    const cacheKey = `dm_products_${String(storeIdentifier).toLowerCase()}`;
+    const cached = publicApiCache.get(cacheKey);
+    if (cached) {
+      res.setHeader('Cache-Control', 'public, max-age=180');
+      return res.json(cached);
+    }
+
     const store = await findStoreByIdentifier(storeIdentifier);
     if (!store) return res.status(404).json({ error: "Store not found" });
 
@@ -994,6 +1011,8 @@ router.get("/digital-menu/:storeIdentifier/products", async (req, res) => {
       ORDER BY COALESCE(p.is_bestseller, false) DESC, p.category ASC, p.name ASC
     `, [store.id]);
 
+    publicApiCache.set(cacheKey, productsRes.rows, 300);
+    res.setHeader('Cache-Control', 'public, max-age=180');
     res.json(productsRes.rows);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -1329,7 +1348,7 @@ router.get("/store/:slug/products", async (req, res) => {
   });
 
   const finalProducts = Array.from(groupedProductsMap.values());
-  publicApiCache.set(cacheKey, finalProducts, 60);
+  publicApiCache.set(cacheKey, finalProducts, 300);
   res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
   res.json(finalProducts);
 });

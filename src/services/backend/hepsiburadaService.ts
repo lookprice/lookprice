@@ -1481,25 +1481,25 @@ export class HepsiburadaService {
     }
 
     const storeRateRes = await pool.query(
-      "SELECT currency_rates, branding FROM stores WHERE id = $1",
+      "SELECT currency_rates, branding->'currency_rates' as branding_currency_rates FROM stores WHERE id = $1",
       [this.storeId]
     );
     const storeRow = storeRateRes.rows[0] || {};
-    let storeBranding: any = storeRow.branding || {};
-    if (typeof storeBranding === "string") {
-      try { storeBranding = JSON.parse(storeBranding); } catch (e) { storeBranding = {}; }
+    let brRates: any = storeRow.branding_currency_rates || {};
+    if (typeof brRates === "string") {
+      try { brRates = JSON.parse(brRates); } catch (e) { brRates = {}; }
     }
     let dbRates: any = storeRow.currency_rates || {};
     if (typeof dbRates === "string") {
       try { dbRates = JSON.parse(dbRates); } catch (e) { dbRates = {}; }
     }
     const effectiveRates: Record<string, number> = {
-      ...(storeBranding?.currency_rates || {}),
+      ...(brRates || {}),
       ...(dbRates || {})
     };
 
     const prodRes = await pool.query(
-      "SELECT id, name, barcode, sku, product_code, brand, price, currency, category, sub_category, stock_quantity, hepsiburada_sku, is_hepsiburada_active, hepsiburada_last_error, marketplace_data, sector_data FROM products WHERE store_id = $1",
+      "SELECT id, name, barcode, sku, product_code, brand, price, currency, category, sub_category, stock_quantity, hepsiburada_sku, is_hepsiburada_active, hepsiburada_last_error, marketplace_data, sector_data->'alternate_barcodes' as alternate_barcodes FROM products WHERE store_id = $1",
       [this.storeId]
     );
     const storeProducts = prodRes.rows;
@@ -1548,9 +1548,9 @@ export class HepsiburadaService {
         const pHbSku = (p.hepsiburada_sku || "").trim();
         const pNameStr = (p.name || "").trim();
 
-        let sec = p.sector_data;
-        if (typeof sec === "string") { try { sec = JSON.parse(sec); } catch { sec = {}; } }
-        const altBc = Array.isArray(sec?.alternate_barcodes) ? sec.alternate_barcodes.map(String) : [];
+        let rawAltBc = p.alternate_barcodes;
+        if (typeof rawAltBc === "string") { try { rawAltBc = JSON.parse(rawAltBc); } catch { rawAltBc = []; } }
+        const altBc = Array.isArray(rawAltBc) ? rawAltBc.map(String) : [];
 
         let mpData = p.marketplace_data;
         if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch { mpData = {}; } }
@@ -1693,10 +1693,20 @@ export class HepsiburadaService {
           }
         }
 
+        const newStatus = isValidForListing ? 'ACTIVE' : (listing.status === 'PENDING_APPROVAL' ? 'PENDING_APPROVAL' : 'INACTIVE');
+        const prevHb = mpData.hepsiburada || {};
+        const needsDbWrite =
+          Boolean(matchedProd.is_hepsiburada_active) !== Boolean(isValidForListing) ||
+          (hbSku && matchedProd.hepsiburada_sku !== hbSku) ||
+          (matchedProd.hepsiburada_last_error || null) !== (hbErrorMsg || null) ||
+          prevHb.status !== newStatus ||
+          Boolean(prevHb.priceAlert) !== Boolean(hbPriceAlert) ||
+          Math.abs(Number(prevHb.price || 0) - Number(policyPrice || 0)) > 0.01;
+
         mpData.hepsiburada = {
-          ...(mpData.hepsiburada || {}),
-          hepsiburadaSku: hbSku || mpData.hepsiburada?.hepsiburadaSku,
-          merchantSku: mSku || mpData.hepsiburada?.merchantSku,
+          ...prevHb,
+          hepsiburadaSku: hbSku || prevHb.hepsiburadaSku,
+          merchantSku: mSku || prevHb.merchantSku,
           productId: resolvedPid,
           productUrl: resolvedUrl,
           price: policyPrice,
@@ -1704,12 +1714,12 @@ export class HepsiburadaService {
           errorType: hbErrorType,
           lockReasons: allReasons,
           attributes: {
-            ...(mpData.hepsiburada?.attributes || {}),
+            ...(prevHb.attributes || {}),
             price: String(policyPrice),
           },
-          matchedAt: new Date().toISOString(),
+          matchedAt: prevHb.matchedAt || new Date().toISOString(),
           lastSync: new Date().toISOString(),
-          status: isValidForListing ? 'ACTIVE' : (listing.status === 'PENDING_APPROVAL' ? 'PENDING_APPROVAL' : 'INACTIVE')
+          status: newStatus
         };
         if (isValidForListing) {
           delete mpData.hepsiburada.manuallyUnpublished;
@@ -1718,7 +1728,9 @@ export class HepsiburadaService {
         }
 
         matchedCount++;
-        updatedCount++;
+        if (needsDbWrite) {
+          updatedCount++;
+        }
         matchResults.push({
           action: 'matched',
           productId: matchedProd.id,
@@ -1727,7 +1739,7 @@ export class HepsiburadaService {
           hepsiburadaSku: hbSku || matchedProd.hepsiburada_sku,
           price: policyPrice || listing.price,
           stock: listing.availableStock,
-          updateSql: {
+          updateSql: needsDbWrite ? {
             text: `UPDATE products 
                    SET is_hepsiburada_active = $1,
                        hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
@@ -1743,15 +1755,16 @@ export class HepsiburadaService {
               matchedProd.id,
               this.storeId
             ]
-          }
+          } : null
         });
       }
     }
 
-    // Execute database operations in parallel batches
+    // Execute database operations in parallel batches ONLY for items that actually changed
+    const itemsToUpdate = matchResults.filter((item) => item.updateSql);
     const BATCH_SIZE = 25;
-    for (let i = 0; i < matchResults.length; i += BATCH_SIZE) {
-      const chunk = matchResults.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < itemsToUpdate.length; i += BATCH_SIZE) {
+      const chunk = itemsToUpdate.slice(i, i + BATCH_SIZE);
       await Promise.all(chunk.map(async (item) => {
         if (item.updateSql) {
           await pool.query(item.updateSql.text, item.updateSql.values);
