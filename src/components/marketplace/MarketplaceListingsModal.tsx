@@ -321,27 +321,37 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
   // Helper to check if a product is submitted and waiting for catalog/barcode review
   const isProductPending = (p: any, mpKey: MarketplaceKey): boolean => {
-    if (isProductActive(p, 'hepsiburada')) {
-      return false;
-    }
-
     let mpData = p.marketplace_data;
     if (typeof mpData === 'string') {
       try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
     }
+
     if (mpKey === 'hepsiburada' || mpKey === 'all') {
-      const hb = mpData?.hepsiburada || {};
-      const hasSku = Boolean(
-        p.hepsiburada_sku || 
-        (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined')) ||
-        (hb.productId && String(hb.productId).toUpperCase().startsWith('HBC'))
-      );
-      if (p.hepsiburada_last_error) return false;
-      if (hb.status === 'ACTIVE' || (Boolean(p.is_hepsiburada_active) && hasSku)) return false;
-      if (hb.status === 'PENDING_APPROVAL' || (!hasSku && (hb.catalogTrackingId || hb.listingTrackingId || p.is_hepsiburada_active))) {
-        return true;
+      if (!isProductActive(p, 'hepsiburada')) {
+        const hb = mpData?.hepsiburada || {};
+        const hasSku = Boolean(
+          p.hepsiburada_sku || 
+          (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined')) ||
+          (hb.productId && String(hb.productId).toUpperCase().startsWith('HBC'))
+        );
+        if (!p.hepsiburada_last_error) {
+          if (hb.status === 'PENDING_APPROVAL' || (!hasSku && (hb.catalogTrackingId || hb.listingTrackingId || p.is_hepsiburada_active))) {
+            return true;
+          }
+        }
       }
     }
+
+    if (mpKey === 'trendyol' || mpKey === 'all') {
+      if (!isProductActive(p, 'trendyol')) {
+        const ty = mpData?.trendyol || {};
+        const lastErr = String(p.trendyol_last_error || '');
+        if (ty.status === 'PENDING_APPROVAL' || ty.batchRequestId || lastErr.includes('kuyruğunda') || lastErr.includes('bekleniyor') || lastErr.includes('incele')) {
+          return true;
+        }
+      }
+    }
+
     return false;
   };
 
@@ -409,6 +419,60 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.error || err?.message || (isTr ? "Durum kontrol edilirken hata oluştu." : "Error checking status."), { duration: 5000 });
+    } finally {
+      setCheckingStatusId(null);
+    }
+  };
+
+  // Handle checking live catalog and batch queue status from Trendyol V2
+  const handleCheckTyStatus = async (productId: number) => {
+    if (checkingStatusId === productId) return;
+    try {
+      setCheckingStatusId(productId);
+      const res = await api.checkTrendyolProductStatus(productId, currentStoreId);
+      const data = res?.data || res;
+      if (data && data.success) {
+        if (data.isLive) {
+          toast.success(
+            data.message || (isTr ? "Trendyol eşleşmesi doğrulandı! Ürün canlı satışta." : "Product is live on Trendyol!"),
+            { duration: 5000 }
+          );
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === productId) {
+              return {
+                ...item,
+                is_trendyol_active: true,
+                trendyol_id: data.contentId || item.trendyol_id,
+                trendyol_url: data.productUrl || item.trendyol_url,
+                trendyol_last_error: null,
+                trendyol_last_sync: new Date().toISOString()
+              };
+            }
+            return item;
+          }));
+          if (onRefresh) onRefresh();
+        } else {
+          const pendingMsg = data.message || (isTr ? "Trendyol katalog incelemesi sürüyor." : "Catalog review in progress on Trendyol.");
+          toast.info(pendingMsg, { duration: 5000 });
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === productId) {
+              return {
+                ...item,
+                is_trendyol_active: false,
+                trendyol_id: data.contentId || item.trendyol_id,
+                trendyol_url: data.productUrl || item.trendyol_url,
+                trendyol_last_error: data.error || (pendingMsg.includes("Reddi") ? pendingMsg : "Trendyol katalog doğrulaması bekleniyor."),
+                trendyol_last_sync: new Date().toISOString()
+              };
+            }
+            return item;
+          }));
+        }
+      } else {
+        toast.error(data?.message || data?.error || (isTr ? "Trendyol durum kontrolü başarısız." : "Status check failed."));
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || err?.message || (isTr ? "Durum kontrol edilirken hata oluştu." : "Error checking status."));
     } finally {
       setCheckingStatusId(null);
     }
@@ -652,17 +716,28 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         }
       } else if (targetMp === 'trendyol') {
         const res = await api.publishTrendyolProduct(product.id, currentStoreId);
-        if (res && (res.data?.success || res?.success)) {
-          toast.success(isTr ? `"${product.name}" Trendyol'a gönderildi (Satışta)!` : "Published to Trendyol!");
-          setLocalProducts(prev => prev.map(item => {
-            if (item.id === product.id) {
-              return { ...item, is_trendyol_active: true, trendyol_last_error: null, trendyol_last_sync: new Date().toISOString() };
-            }
-            return item;
-          }));
+        const data = res?.data || res;
+        if (data && data.success) {
+          if (data.isLive) {
+            toast.success(isTr ? `"${product.name}" Trendyol V2 kataloğuna onaylandı (Satışta)!` : "Published to Trendyol (Live)!");
+            setLocalProducts(prev => prev.map(item => {
+              if (item.id === product.id) {
+                return { ...item, is_trendyol_active: true, trendyol_last_error: null, trendyol_last_sync: new Date().toISOString() };
+              }
+              return item;
+            }));
+          } else {
+            toast.info(data.message || (isTr ? `"${product.name}" Trendyol V2 sistemine iletildi. Katalog doğrulama kuyruğunda inceleniyor.` : "Submitted to Trendyol V2, pending catalog review."));
+            setLocalProducts(prev => prev.map(item => {
+              if (item.id === product.id) {
+                return { ...item, is_trendyol_active: false, trendyol_last_error: "Trendyol katalog incelemesinde", trendyol_last_sync: new Date().toISOString() };
+              }
+              return item;
+            }));
+          }
           if (onRefresh) onRefresh();
         } else {
-          const errMsg = res?.error || "Aktarım başarısız.";
+          const errMsg = data?.error || res?.error || "Aktarım başarısız.";
           toast.error(errMsg);
           setLocalProducts(prev => prev.map(item => {
             if (item.id === product.id) {
@@ -1028,6 +1103,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
             copiedBarcode={copiedBarcode}
             onCopyBarcode={copyToClipboard}
             onCheckHbStatus={handleCheckHbStatus}
+            onCheckTyStatus={handleCheckTyStatus}
             checkingStatusId={checkingStatusId}
             publishingId={publishingId}
             onPublishSingle={handlePublishSingle}

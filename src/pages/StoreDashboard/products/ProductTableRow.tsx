@@ -388,6 +388,38 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       TY ↗
                     </a>
                   )}
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.trendyol && !p.is_trendyol_active && (String(p.trendyol_last_error || '').includes('incele') || String(p.trendyol_last_error || '').includes('bekleniyor') || String(p.trendyol_last_error || '').includes('kuyruğunda')) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMarketplaceModalTab('trendyol');
+                        setMarketplaceModalStatus('pending');
+                        setShowMarketplaceListingsModal(true);
+                      }}
+                      className="text-[8px] font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors cursor-pointer"
+                      title={lang === 'tr' ? 'Trendyol katalog ve barkod onay incelemesinde (Tıkla ve İncele)' : 'Trendyol Catalog Pending Review'}
+                    >
+                      <Clock className="w-2.5 h-2.5 text-amber-600 animate-spin" />
+                      TY ONAY
+                    </button>
+                  )}
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.trendyol && !p.is_trendyol_active && p.trendyol_last_error && !String(p.trendyol_last_error).includes('incele') && !String(p.trendyol_last_error).includes('bekleniyor') && !String(p.trendyol_last_error).includes('kuyruğunda') && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMarketplaceModalTab('trendyol');
+                        setMarketplaceModalStatus('error');
+                        setShowMarketplaceListingsModal(true);
+                      }}
+                      className="text-[8px] font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5 cursor-pointer"
+                      title={`Trendyol Hatası: ${p.trendyol_last_error}`}
+                    >
+                      <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
+                      TY Hatalı
+                    </button>
+                  )}
                   {isShopLp && p.product_type !== 'service' && connectedMarketplaces.n11 && p.is_n11_active && p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED' && (
                     <a
                       href={getN11Url(p) || undefined}
@@ -918,6 +950,38 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                       TY ↗
                     </a>
+                  )}
+                  {connectedMarketplaces.trendyol && !p.is_trendyol_active && (String(p.trendyol_last_error || '').includes('incele') || String(p.trendyol_last_error || '').includes('bekleniyor') || String(p.trendyol_last_error || '').includes('kuyruğunda')) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMarketplaceModalTab('trendyol');
+                        setMarketplaceModalStatus('pending');
+                        setShowMarketplaceListingsModal(true);
+                      }}
+                      className="font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                      title={lang === 'tr' ? 'Trendyol katalog ve barkod onay incelemesinde' : 'Trendyol Catalog Pending Review'}
+                    >
+                      <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                      TY ONAY
+                    </button>
+                  )}
+                  {connectedMarketplaces.trendyol && !p.is_trendyol_active && p.trendyol_last_error && !String(p.trendyol_last_error).includes('incele') && !String(p.trendyol_last_error).includes('bekleniyor') && !String(p.trendyol_last_error).includes('kuyruğunda') && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMarketplaceModalTab('trendyol');
+                        setMarketplaceModalStatus('error');
+                        setShowMarketplaceListingsModal(true);
+                      }}
+                      className="font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                      title={`Trendyol Hatası: ${p.trendyol_last_error}`}
+                    >
+                      <AlertCircle className="w-3 h-3 text-rose-600" />
+                      TY Hatalı
+                    </button>
                   )}
                   {connectedMarketplaces.n11 && p.is_n11_active && (
                     <a

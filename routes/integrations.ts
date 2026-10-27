@@ -3140,8 +3140,50 @@ router.post("/trendyol/unpublish", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   const productId = req.body.productId;
   try {
-    await pool.query("UPDATE products SET is_trendyol_active = false WHERE id = $1 AND store_id = $2", [productId, storeId]);
-    res.json({ success: true, message: "Ürün Trendyol'da yayından kaldırıldı." });
+    const storeRes = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.trendyol_settings || storeRes.rows[0]?.branding?.trendyol_settings;
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    const p = prodRes.rows[0];
+
+    if (p && settings?.merchantId && settings?.apiKey && settings?.apiSecret) {
+      const cleanBarcode = String(p.barcode || p.sku || "").trim();
+      if (cleanBarcode) {
+        try {
+          await axios.post(
+            `https://apigw.trendyol.com/integration/inventory/sellers/${settings.merchantId.trim()}/products/price-and-inventory`,
+            { items: [{ barcode: cleanBarcode, quantity: 0, salePrice: Math.max(1, Number(p.price || 1)), listPrice: Math.max(1, Number(p.price || 1)) }] },
+            {
+              auth: { username: settings.apiKey.trim(), password: settings.apiSecret.trim() },
+              headers: {
+                "User-Agent": `${settings.merchantId.trim()} - SelfIntegration`,
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "storeFrontCode": "1"
+              },
+              timeout: 8000
+            }
+          );
+        } catch (apiErr: any) {
+          console.warn("[Trendyol Unpublish Warning]:", apiErr?.message);
+        }
+      }
+    }
+
+    let mpData: any = p?.marketplace_data;
+    if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; } }
+    mpData = mpData || {};
+    if (mpData.trendyol) {
+      mpData.trendyol.status = "INACTIVE";
+      mpData.trendyol.onSale = false;
+      mpData.trendyol.manuallyUnpublished = true;
+      mpData.trendyol.lastSync = new Date().toISOString();
+    }
+
+    await pool.query(
+      "UPDATE products SET is_trendyol_active = false, marketplace_data = $1 WHERE id = $2 AND store_id = $3",
+      [JSON.stringify(mpData), productId, storeId]
+    );
+    res.json({ success: true, message: "Ürün Trendyol'da yayından kaldırıldı (stok sıfırlandı)." });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
   }
@@ -3872,7 +3914,7 @@ router.post("/trendyol/disconnect", authenticate, async (req: any, res) => {
   }
 });
 
-// 5. Publish / Update Product on Trendyol
+// 5. Publish / Update Product on Trendyol (Migrated to Official Trendyol Product v2 API)
 router.post("/trendyol/publish", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   const productId = req.body.productId;
@@ -3904,7 +3946,9 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
     const headers = {
       "User-Agent": `${settings.merchantId.trim()} - SelfIntegration`,
       "Accept": "application/json",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "storeFrontCode": "1",
+      "Accept-Language": "tr"
     };
 
     // 1. Calculate TRY Sale Price using live currency_rates and Trendyol markup policy
@@ -3934,11 +3978,11 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
     let existingProductUrl: string | null = null;
 
     try {
-      const checkRes = await axios.get(`https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products?barcode=${encodeURIComponent(cleanBarcode)}`, {
-        auth,
-        headers,
-        timeout: 8000
-      });
+      // First check approved catalog
+      const checkRes = await axios.get(
+        `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products/approved?barcode=${encodeURIComponent(cleanBarcode)}`,
+        { auth, headers, timeout: 8000 }
+      );
       const foundItem = checkRes.data?.content?.[0];
       if (foundItem) {
         isExistingOnTrendyol = true;
@@ -3946,7 +3990,19 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
         existingProductUrl = foundItem.productUrl || `https://www.trendyol.com/-p-${existingContentId}`;
       }
     } catch (e: any) {
-      // ignore
+      // Fallback check standard products
+      try {
+        const checkRes2 = await axios.get(
+          `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products?barcode=${encodeURIComponent(cleanBarcode)}`,
+          { auth, headers, timeout: 8000 }
+        );
+        const foundItem2 = checkRes2.data?.content?.[0];
+        if (foundItem2) {
+          isExistingOnTrendyol = true;
+          existingContentId = String(foundItem2.productContentId || foundItem2.productCode || foundItem2.id || "");
+          existingProductUrl = foundItem2.productUrl || `https://www.trendyol.com/-p-${existingContentId}`;
+        }
+      } catch (e2) {}
     }
 
     if (isExistingOnTrendyol) {
@@ -3960,11 +4016,35 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
         }]
       };
 
-      const piRes = await axios.post(`https://apigw.trendyol.com/integration/inventory/sellers/${settings.merchantId.trim()}/products/price-and-inventory`, priceInvPayload, {
-        auth,
-        headers,
-        timeout: 10000
-      });
+      const piRes = await axios.post(
+        `https://apigw.trendyol.com/integration/inventory/sellers/${settings.merchantId.trim()}/products/price-and-inventory`,
+        priceInvPayload,
+        { auth, headers, timeout: 10000 }
+      );
+
+      const batchReqId = piRes.data?.batchRequestId;
+      let piPassed = true;
+      let piError: string | null = null;
+
+      if (batchReqId) {
+        await new Promise(r => setTimeout(r, 1500));
+        try {
+          const piCheck = await axios.get(
+            `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products/batch-requests/${batchReqId}`,
+            { auth, headers, timeout: 6000 }
+          );
+          const piItem = piCheck.data?.items?.[0];
+          if (piItem?.status === "FAILED") {
+            piPassed = false;
+            piError = piItem.failureReasons?.join(" | ") || "Fiyat/stok güncellemesi Trendyol tarafından reddedildi.";
+          }
+        } catch (e) {}
+      }
+
+      if (!piPassed && piError) {
+        await pool.query("UPDATE products SET trendyol_last_error = $1 WHERE id = $2", [piError, productId]);
+        return res.status(400).json({ success: false, error: `Trendyol Güncelleme Hatası: ${piError}` });
+      }
 
       mpData.trendyol = {
         ...(mpData.trendyol || {}),
@@ -3984,8 +4064,9 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
 
       return res.json({
         success: true,
+        isLive: true,
         message: "Trendyol fiyat ve stok bilgisi başarıyla güncellendi.",
-        batchRequestId: piRes.data?.batchRequestId,
+        batchRequestId: batchReqId,
         contentId: existingContentId,
         productUrl: existingProductUrl
       });
@@ -4015,6 +4096,28 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
       }
     }
 
+    // Resolve Attributes for Trendyol Product v2 API
+    const tyAttributes: Array<{ attributeId: number; attributeValueId?: number; customAttributeValue?: string }> = [];
+    const sourceAttrs = {
+      ...(settings.categoryAttributes?.[String(resolvedCatId)] || {}),
+      ...(mpData?.attributes || {}),
+      ...(mpData?.trendyol?.attributes || {})
+    };
+
+    for (const [key, val] of Object.entries(sourceAttrs)) {
+      if (val !== undefined && val !== null && String(val).trim() !== "") {
+        const numId = parseInt(key, 10);
+        if (!isNaN(numId) && numId > 0) {
+          const numVal = parseInt(String(val), 10);
+          if (!isNaN(numVal) && String(numVal) === String(val).trim()) {
+            tyAttributes.push({ attributeId: numId, attributeValueId: numVal });
+          } else {
+            tyAttributes.push({ attributeId: numId, customAttributeValue: String(val).trim() });
+          }
+        }
+      }
+    }
+
     // Resolve Absolute Image URL for Trendyol API (Must be a valid public http/https URL ending in .jpg/.jpeg/.png)
     let effectiveImageUrl: string | null = null;
     const rawImage = mpData?.attributes?.Image1 || p.image_url;
@@ -4026,11 +4129,9 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
         const protocol = req.protocol === "http" && !host.includes("localhost") ? "https" : req.protocol;
         candidate = `${protocol}://${host}${candidate}`;
       }
-      // Trendyol rejects .webp extensions and complex CDN query parameters with "Geçersiz Resim URL formatı"
       if (candidate.includes(".webp")) {
         candidate = candidate.replace(/\.webp($|\?)/i, ".jpg$1");
       }
-      // If image URL has query params that might violate format, strip them if it already ends in clean image extension
       if (candidate.includes("?") && /\.(jpe?g|png)/i.test(candidate.split("?")[0])) {
         candidate = candidate.split("?")[0];
       }
@@ -4038,6 +4139,11 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
         effectiveImageUrl = candidate;
       }
     }
+
+    // Enforce Trendyol v2 Rules: listPrice must be >= salePrice, dimensionalWeight >= 1
+    const listPrice = Math.max(roundedPrice, Math.round(Number(p.list_price || roundedPrice) * 100) / 100);
+    const cargoCompanyId = Number(settings.cargoCompanyId || 10);
+    const dimensionalWeight = Math.max(1, Math.round(Number(p.desi || p.dimensional_weight || 1)));
 
     const payload = {
       items: [{
@@ -4048,74 +4154,216 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
         categoryId: resolvedCatId,
         quantity: stockQty,
         stockCode: cleanBarcode,
-        dimensionalWeight: 1,
+        dimensionalWeight,
         description: p.description || p.name,
         currencyType: "TRY",
-        listPrice: roundedPrice,
+        listPrice,
         salePrice: roundedPrice,
         vatRate: parseInt(p.tax_rate) || 20,
-        cargoCompanyId: 10,
+        cargoCompanyId,
         images: effectiveImageUrl ? [{ url: effectiveImageUrl }] : [],
-        attributes: []
+        attributes: tyAttributes
       }]
     };
 
-    const response = await axios.post(`https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products`, payload, {
-      auth,
-      headers,
-      timeout: 12000
-    });
+    // Official Trendyol Product v2 API Endpoint
+    const response = await axios.post(
+      `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/v2/products`,
+      payload,
+      { auth, headers, timeout: 15000 }
+    );
 
     const batchRequestId = response.data?.batchRequestId;
-
-    // Check async batch status after short wait
     let batchPassed = false;
     let batchError: string | null = null;
+    let inProgress = false;
+
+    // Progressive Batch Status Polling (Attempts: 1500ms, 2000ms, 2500ms)
+    // Ensures real validation errors from Trendyol catalog queue are detected and returned immediately
     if (batchRequestId) {
-      await new Promise(r => setTimeout(r, 1200));
-      try {
-        const batchCheck = await axios.get(`https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products/batch-requests/${batchRequestId}`, {
-          auth,
-          headers,
-          timeout: 6000
-        });
-        const batchItem = batchCheck.data?.items?.[0];
-        if (batchItem?.status === "SUCCESS") {
-          batchPassed = true;
-        } else if (batchItem?.status === "FAILED") {
-          batchError = batchItem.failureReasons?.join(", ") || "Trendyol katalog doğrulamasından geçemedi.";
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        await new Promise(r => setTimeout(r, attempt === 1 ? 1500 : 2000));
+        try {
+          const batchCheck = await axios.get(
+            `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products/batch-requests/${batchRequestId}`,
+            { auth, headers, timeout: 6000 }
+          );
+          const bData = batchCheck.data;
+          const items = bData?.items || [];
+          const bItem = items[0];
+
+          if (bItem?.status === "SUCCESS" || (bData?.status === "COMPLETED" && (bData?.failedItemCount === 0 || Number(bData?.itemCount) > 0 && !bItem?.failureReasons?.length))) {
+            batchPassed = true;
+            batchError = null;
+            inProgress = false;
+            break;
+          } else if (bItem?.status === "FAILED" || (bData?.status === "COMPLETED" && (bItem?.failureReasons?.length > 0 || bData?.failedItemCount > 0))) {
+            batchPassed = false;
+            batchError = bItem?.failureReasons?.join(" | ") || bData?.failureReasons?.join(" | ") || "Trendyol katalog doğrulamasından geçemedi.";
+            inProgress = false;
+            break;
+          } else {
+            inProgress = true;
+          }
+        } catch (bcErr: any) {
+          console.warn("[Trendyol Batch Check Attempt Warning]:", bcErr?.message);
         }
-      } catch (bcErr) {
-        // ignore
       }
     }
 
     if (batchError) {
-      await pool.query("UPDATE products SET is_trendyol_active = false, trendyol_last_error = $1 WHERE id = $2", [batchError, productId]);
-      return res.status(400).json({ error: `Trendyol Hatası: ${batchError}` });
+      await pool.query(
+        "UPDATE products SET is_trendyol_active = false, trendyol_last_error = $1 WHERE id = $2",
+        [batchError, productId]
+      );
+      return res.status(400).json({ success: false, error: `Trendyol Hatası: ${batchError}` });
     }
 
     mpData.trendyol = {
       ...(mpData.trendyol || {}),
       barcode: cleanBarcode,
+      batchRequestId,
+      status: batchPassed ? "ACTIVE" : (inProgress ? "PENDING_APPROVAL" : "INACTIVE"),
       lastSync: new Date().toISOString(),
-      lastError: null
+      lastError: batchPassed ? null : (inProgress ? "Trendyol katalog onay kuyruğunda inceleniyor." : null)
     };
 
+    const displayMsg = batchPassed
+      ? "Ürün Trendyol V2 kataloğuna onaylandı ve başarıyla satışa açıldı."
+      : "Ürün Trendyol V2 sistemine iletildi. Katalog doğrulama kuyruğunda inceleniyor.";
+
     await pool.query(
-      "UPDATE products SET is_trendyol_active = $1, trendyol_last_error = NULL, marketplace_data = $2 WHERE id = $3",
-      [batchPassed, JSON.stringify(mpData), productId]
+      "UPDATE products SET is_trendyol_active = $1, trendyol_last_error = $2, marketplace_data = $3 WHERE id = $4",
+      [batchPassed, batchPassed ? null : "Trendyol katalog onay kuyruğunda inceleniyor.", JSON.stringify(mpData), productId]
     );
 
     res.json({
       success: true,
+      isLive: batchPassed,
+      inReview: inProgress,
       batchRequestId,
-      message: batchPassed ? "Ürün başarıyla Trendyol'da satışa açıldı." : "Ürün Trendyol'a iletildi, katalog incelemesi yapılıyor."
+      message: displayMsg
     });
   } catch (error: any) {
     const rawErr = error.response?.data?.errors?.[0]?.message || error.response?.data?.message || error.message;
     await pool.query("UPDATE products SET trendyol_last_error = $1 WHERE id = $2", [rawErr, productId]);
-    res.status(500).json({ error: `Trendyol aktarım hatası: ${rawErr}` });
+    res.status(500).json({ error: `Trendyol V2 aktarım hatası: ${rawErr}` });
+  }
+});
+
+// 5a. Check Live Product Status from Trendyol V2 (Catalog & Batch Queues)
+router.post("/trendyol/check-product-status", authenticate, async (req: any, res) => {
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin"
+    ? Number(rawStoreId || req.user.store_id || 1)
+    : Number(req.user.store_id || rawStoreId);
+  const productId = req.body?.productId;
+
+  if (!productId) return res.status(400).json({ error: "Ürün ID gereklidir." });
+
+  try {
+    const storeRes = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.trendyol_settings || storeRes.rows[0]?.branding?.trendyol_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Trendyol API bilgileri eksik." });
+    }
+
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    const p = prodRes.rows[0];
+    if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
+
+    const auth = { username: settings.apiKey.trim(), password: settings.apiSecret.trim() };
+    const headers = {
+      "User-Agent": `${settings.merchantId.trim()} - SelfIntegration`,
+      "Accept": "application/json",
+      "storeFrontCode": "1"
+    };
+
+    let mpData: any = p.marketplace_data;
+    if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; } }
+    mpData = mpData || {};
+
+    const cleanBarcode = String(p.barcode || p.sku || "").trim();
+    let isLive = false;
+    let message = "";
+    let contentId = p.trendyol_id || mpData?.trendyol?.contentId || null;
+    let productUrl = p.trendyol_url || mpData?.trendyol?.productUrl || null;
+
+    // 1. Check live approved products
+    try {
+      const checkRes = await axios.get(
+        `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products/approved?barcode=${encodeURIComponent(cleanBarcode)}`,
+        { auth, headers, timeout: 8000 }
+      );
+      const found = checkRes.data?.content?.[0];
+      if (found) {
+        contentId = String(found.productContentId || found.productCode || found.id || "");
+        productUrl = found.productUrl || `https://www.trendyol.com/-p-${contentId}`;
+        const onSale = Boolean(found.onSale) && Number(found.quantity || 0) > 0;
+        isLive = onSale;
+        message = isLive ? "Ürün Trendyol'da onaylı ve satışta!" : "Ürün onaylı ancak Trendyol'da satış dışı (stok 0 veya pasif).";
+      }
+    } catch (e) {
+      try {
+        const checkRes2 = await axios.get(
+          `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products?barcode=${encodeURIComponent(cleanBarcode)}`,
+          { auth, headers, timeout: 8000 }
+        );
+        const found2 = checkRes2.data?.content?.[0];
+        if (found2) {
+          contentId = String(found2.productContentId || found2.productCode || found2.id || "");
+          productUrl = found2.productUrl || `https://www.trendyol.com/-p-${contentId}`;
+          const onSale = Boolean(found2.onSale) && Number(found2.quantity || 0) > 0;
+          isLive = onSale;
+          message = isLive ? "Ürün Trendyol'da onaylı ve satışta!" : "Ürün Trendyol kataloğunda mevcut.";
+        }
+      } catch (e2) {}
+    }
+
+    // 2. If not live yet, check batchRequestId queue status if exists
+    const batchId = mpData?.trendyol?.batchRequestId;
+    if (!isLive && batchId) {
+      try {
+        const batchCheck = await axios.get(
+          `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products/batch-requests/${batchId}`,
+          { auth, headers, timeout: 6000 }
+        );
+        const bItem = batchCheck.data?.items?.[0];
+        if (bItem?.status === "SUCCESS") {
+          isLive = true;
+          message = "Trendyol katalog incelemesi onaylandı! Ürün satışa hazır.";
+        } else if (bItem?.status === "FAILED") {
+          const err = bItem.failureReasons?.join(" | ") || "Trendyol katalog doğrulamasından geçemedi.";
+          await pool.query("UPDATE products SET is_trendyol_active = false, trendyol_last_error = $1 WHERE id = $2", [err, productId]);
+          return res.json({ success: true, isLive: false, error: err, message: `Trendyol Reddi: ${err}` });
+        } else {
+          message = "Trendyol katalog doğrulama kuyruğunda inceleniyor.";
+        }
+      } catch (bErr) {}
+    }
+
+    mpData.trendyol = {
+      ...(mpData.trendyol || {}),
+      contentId,
+      productUrl,
+      status: isLive ? "ACTIVE" : (mpData.trendyol?.status === "PENDING_APPROVAL" ? "PENDING_APPROVAL" : "INACTIVE"),
+      lastChecked: new Date().toISOString()
+    };
+
+    await pool.query(
+      "UPDATE products SET is_trendyol_active = $1, trendyol_id = $2, trendyol_url = $3, trendyol_last_error = $4, marketplace_data = $5 WHERE id = $6",
+      [isLive, contentId, productUrl, isLive ? null : (message.includes("inceleniyor") ? "Trendyol katalog doğrulaması bekleniyor." : null), JSON.stringify(mpData), productId]
+    );
+
+    res.json({
+      success: true,
+      isLive,
+      contentId,
+      productUrl,
+      message: message || "Trendyol durum kontrolü tamamlandı."
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Trendyol durum sorgulanamadı." });
   }
 });
 
@@ -4137,15 +4385,34 @@ router.post("/trendyol/match-listings", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "Trendyol API bilgileri (Satıcı ID, API Key, API Secret) eksik." });
     }
 
-    const tyRes = await axios.get(`https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products?size=500`, {
-      auth: { username: settings.apiKey.trim(), password: settings.apiSecret.trim() },
-      headers: {
-        "User-Agent": `${settings.merchantId.trim()} - SelfIntegration`,
-        "Accept": "application/json"
-      }
-    });
+    let remoteProducts: any[] = [];
+    const authHeaders = {
+      "User-Agent": `${settings.merchantId.trim()} - SelfIntegration`,
+      "Accept": "application/json",
+      "storeFrontCode": "1"
+    };
 
-    const remoteProducts = tyRes.data?.content || [];
+    try {
+      const tyRes = await axios.get(
+        `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products/approved?size=500`,
+        {
+          auth: { username: settings.apiKey.trim(), password: settings.apiSecret.trim() },
+          headers: authHeaders,
+          timeout: 10000
+        }
+      );
+      remoteProducts = tyRes.data?.content || [];
+    } catch (apprErr) {
+      const tyRes2 = await axios.get(
+        `https://apigw.trendyol.com/integration/product/sellers/${settings.merchantId.trim()}/products?size=500`,
+        {
+          auth: { username: settings.apiKey.trim(), password: settings.apiSecret.trim() },
+          headers: authHeaders,
+          timeout: 10000
+        }
+      );
+      remoteProducts = tyRes2.data?.content || [];
+    }
     const localProdRes = await pool.query("SELECT * FROM products WHERE store_id = $1", [storeId]);
     const localProducts = localProdRes.rows || [];
 

@@ -1062,6 +1062,28 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
               }
             }
           }
+
+          // 4. Trendyol Stock 0
+          if (p.is_trendyol_active || p.barcode || p.sku) {
+            const tySettings = st?.trendyol_settings || st?.branding?.trendyol_settings;
+            if (tySettings?.merchantId && tySettings?.apiKey && tySettings?.apiSecret) {
+              const cleanBarcode = String(p.barcode || p.sku || "").trim();
+              if (cleanBarcode) {
+                const auth = { username: tySettings.apiKey.trim(), password: tySettings.apiSecret.trim() };
+                const headers = {
+                  "User-Agent": `${tySettings.merchantId.trim()} - SelfIntegration`,
+                  "Accept": "application/json",
+                  "Content-Type": "application/json",
+                  "storeFrontCode": "1"
+                };
+                await axios.post(
+                  `https://apigw.trendyol.com/integration/inventory/sellers/${tySettings.merchantId.trim()}/products/price-and-inventory`,
+                  { items: [{ barcode: cleanBarcode, quantity: 0, salePrice: Math.max(1, Number(p.price || 1)), listPrice: Math.max(1, Number(p.price || 1)) }] },
+                  { auth, headers, timeout: 8000 }
+                ).catch(e => console.warn(`[Auto-Unpublish Trendyol Warning]: ${e.message}`));
+              }
+            }
+          }
         } catch (e: any) {
           console.warn(`[Auto-Unpublish Marketplace Sync Error]: ${e.message}`);
         }
@@ -1233,6 +1255,54 @@ export async function syncProductStockToMarketplaces(
         } catch (amzErr: any) {
           errorsCount++;
           console.warn(`[Instant Marketplace Sync Amazon Error] Store ${storeId}:`, amzErr?.message || amzErr);
+        }
+      }
+    }
+
+    // 4. Trendyol Real-Time Sync
+    const tySettings = store.trendyol_settings || branding.trendyol_settings;
+    if (tySettings?.merchantId && tySettings?.apiKey && tySettings?.apiSecret) {
+      const tyProducts = products.filter(p => Boolean(p.is_trendyol_active) && Boolean(p.barcode || p.sku));
+      if (tyProducts.length > 0) {
+        try {
+          const auth = { username: tySettings.apiKey.trim(), password: tySettings.apiSecret.trim() };
+          const headers = {
+            "User-Agent": `${tySettings.merchantId.trim()} - SelfIntegration`,
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "storeFrontCode": "1"
+          };
+          const { N11Service } = await import("./backend/n11Service.js");
+          const tyItems = tyProducts.map(p => {
+            const priceInTry = getPriceInTry(p);
+            const finalPriceTRY = N11Service.calculateMarketplacePrice(priceInTry, p.category, p.sub_category, tySettings);
+            const roundedPrice = Math.round(finalPriceTRY * 100) / 100;
+            const currentStock = Math.max(0, parseInt(String(p.stock_quantity || 0), 10));
+            const cleanBarcode = String(p.barcode || p.sku || "").trim();
+            return {
+              barcode: cleanBarcode,
+              quantity: currentStock,
+              salePrice: roundedPrice,
+              listPrice: roundedPrice
+            };
+          });
+
+          await axios.post(
+            `https://apigw.trendyol.com/integration/inventory/sellers/${tySettings.merchantId.trim()}/products/price-and-inventory`,
+            { items: tyItems },
+            { auth, headers, timeout: 10000 }
+          );
+
+          const tyIds = tyProducts.map(p => p.id);
+          await pool.query(
+            "UPDATE products SET trendyol_last_error = NULL WHERE id = ANY($1)",
+            [tyIds]
+          );
+          syncedCount += tyItems.length;
+          console.log(`[Instant Marketplace Sync] Successfully pushed ${tyItems.length} products to Trendyol for store ${storeId} (Reason: ${options?.reason || "stock_change"}).`);
+        } catch (tyErr: any) {
+          errorsCount++;
+          console.warn(`[Instant Marketplace Sync Trendyol Error] Store ${storeId}:`, tyErr?.message || tyErr);
         }
       }
     }

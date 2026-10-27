@@ -14,6 +14,7 @@ interface MarketplaceListingsTableProps {
   copiedBarcode: string | null;
   onCopyBarcode: (bc: string) => void;
   onCheckHbStatus: (productId: number) => void;
+  onCheckTyStatus?: (productId: number) => void;
   checkingStatusId: number | null;
   publishingId: number | null;
   onPublishSingle: (product: any, mpKey: MarketplaceKey) => void;
@@ -35,6 +36,7 @@ export const MarketplaceListingsTable: React.FC<MarketplaceListingsTableProps> =
   copiedBarcode,
   onCopyBarcode,
   onCheckHbStatus,
+  onCheckTyStatus,
   checkingStatusId,
   publishingId,
   onPublishSingle,
@@ -93,6 +95,7 @@ export const MarketplaceListingsTable: React.FC<MarketplaceListingsTableProps> =
               copiedBarcode={copiedBarcode}
               onCopyBarcode={onCopyBarcode}
               onCheckHbStatus={onCheckHbStatus}
+              onCheckTyStatus={onCheckTyStatus}
               checkingStatusId={checkingStatusId}
               publishingId={publishingId}
               onPublishSingle={onPublishSingle}

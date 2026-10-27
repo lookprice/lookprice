@@ -602,6 +602,7 @@ export const api = {
   disconnectPazarama: (storeId?: number) => api.post("/api/integrations/pazarama/disconnect", { storeId }),
   publishPazaramaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/pazarama/publish", { productId, storeId }),
   publishTrendyolProduct: (productId: number, storeId?: number) => api.post("/api/integrations/trendyol/publish", { productId, storeId }),
+  checkTrendyolProductStatus: (productId: number, storeId?: number) => api.post("/api/integrations/trendyol/check-product-status", { productId, storeId }),
   publishN11Product: (productId: number, storeId?: number) => api.post("/api/integrations/n11/publish", { productId, storeId }),
   publishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/publish", { productId, storeId }),
   publishAmazonProduct: (productId: number, storeId?: number) => api.post("/api/integrations/amazon/publish", { productId, storeId }),

@@ -24,6 +24,7 @@ interface MarketplaceProductRowProps {
   copiedBarcode: string | null;
   onCopyBarcode: (bc: string) => void;
   onCheckHbStatus: (productId: number) => void;
+  onCheckTyStatus?: (productId: number) => void;
   checkingStatusId: number | null;
   publishingId: number | null;
   onPublishSingle: (product: any, mpKey: MarketplaceKey) => void;
@@ -44,6 +45,7 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
   copiedBarcode,
   onCopyBarcode,
   onCheckHbStatus,
+  onCheckTyStatus,
   checkingStatusId,
   publishingId,
   onPublishSingle,
@@ -530,6 +532,19 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                 </a>
               )}
 
+              {/* TY ONAY BEKLİYOR: HIZLI DURUM KONTROL BUTONU */}
+              {!isTyActive && isProductPending(p, 'trendyol') && onCheckTyStatus && (
+                <button
+                  type="button"
+                  onClick={() => onCheckTyStatus(p.id)}
+                  disabled={checkingStatusId === p.id}
+                  className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
+                  title={isTr ? "Trendyol V2 Katalog Onay Durumunu Canlı Sorgula" : "Check Trendyol Catalog Approval Status"}
+                >
+                  <Clock className={`w-3.5 h-3.5 text-amber-600 ${checkingStatusId === p.id ? 'animate-spin' : ''}`} />
+                </button>
+              )}
+
               {/* DOĞRUDAN N11 İLANINA GİT */}
               {isN11Active && (
                 <a
@@ -631,6 +646,19 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                     disabled={checkingStatusId === p.id}
                     className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
                     title={isTr ? "Hepsiburada Katalog Durumunu Canlı Sorgula" : "Check Live HB Status"}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-amber-700 ${checkingStatusId === p.id ? 'animate-spin' : ''}`} />
+                  </button>
+                )}
+
+                {/* Trendyol Pending Actions: Canlı Durum Sorgula */}
+                {selectedMarketplace === 'trendyol' && !isTargetActive && isProductPending(p, 'trendyol') && onCheckTyStatus && (
+                  <button
+                    type="button"
+                    onClick={() => onCheckTyStatus(p.id)}
+                    disabled={checkingStatusId === p.id}
+                    className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
+                    title={isTr ? "Trendyol V2 Katalog Durumunu Canlı Sorgula" : "Check Live Trendyol Status"}
                   >
                     <RefreshCw className={`w-3.5 h-3.5 text-amber-700 ${checkingStatusId === p.id ? 'animate-spin' : ''}`} />
                   </button>

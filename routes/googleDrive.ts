@@ -19,8 +19,9 @@ function getRedirectUri(req: express.Request): string {
     protocol = protocol.split(",")[0].trim();
   }
 
-  let host = req.headers["x-forwarded-host"] || req.get("host") || "enrakipsiz.com";
-  if (typeof host === "string" && host.includes(",")) {
+  const rawHost = req.headers["x-forwarded-host"] || req.get("host") || "enrakipsiz.com";
+  let host = Array.isArray(rawHost) ? rawHost[0] : String(rawHost);
+  if (host.includes(",")) {
     host = host.split(",")[0].trim();
   }
 
