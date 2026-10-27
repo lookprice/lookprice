@@ -1,5 +1,5 @@
 import React from "react";
-import { Store, Activity, Scan, Users, Database, HardDrive, ShieldCheck, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Store, Activity, Scan, Users, Database, HardDrive, ShieldCheck, RefreshCw, AlertTriangle, CheckCircle2, CloudUpload, Link2 } from "lucide-react";
 
 interface SuperAdminStatsProps {
   stats: {
@@ -31,6 +31,20 @@ interface SuperAdminStatsProps {
   };
   checkingSupabase?: boolean;
   onRefreshSupabaseStatus?: () => void;
+  drive5TBStatus?: {
+    connected: boolean;
+    email?: string | null;
+    quota?: {
+      limitTB: string;
+      usageGB: string;
+    } | null;
+    lastBackupAt?: string | null;
+    lastBackupFileName?: string | null;
+    lastBackupWebViewLink?: string | null;
+  };
+  backingUpDrive5TB?: boolean;
+  onConnectDrive5TB?: () => void;
+  onTriggerDrive5TBBackup?: () => void;
   st: any;
 }
 
@@ -39,6 +53,10 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
   supabaseStatus,
   checkingSupabase,
   onRefreshSupabaseStatus,
+  drive5TBStatus,
+  backingUpDrive5TB,
+  onConnectDrive5TB,
+  onTriggerDrive5TBBackup,
   st
 }) => {
   return (
@@ -122,7 +140,7 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-white">Supabase & Veritabanı Canlı Kota & Sağlık Monitörü</h3>
+                  <h3 className="text-base font-bold text-white">Supabase & 5 TB Google Drive Bulut Kota Monitörü</h3>
                   {supabaseStatus.overallStatus === "healthy" && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -143,7 +161,7 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
                   )}
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Anlık veritabanı boyutu, dosya depolama kullanımı ve bant genişliği güvenlik durumu
+                  Anlık veritabanı boyutu, dosya depolama kullanımı, sıfır egress kalkanı ve 5 TB Google Drive yedekleme kasası
                 </p>
               </div>
             </div>
@@ -160,12 +178,12 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
                 className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 active:scale-95 disabled:opacity-50"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${checkingSupabase ? "animate-spin text-indigo-400" : ""}`} />
-                {checkingSupabase ? "Kontrol Ediliyor..." : "Anlık Kontrol Et"}
+                {checkingSupabase ? "Kontrol..." : "Yenile"}
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 relative z-10">
             {/* Database Storage Card */}
             <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-700/60">
               <div className="flex items-center justify-between mb-2">
@@ -203,7 +221,7 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
                   <HardDrive className="h-4 w-4 text-emerald-400" />
-                  Depolama (lookdocu Bucket)
+                  Depolama (lookdocu)
                 </span>
                 <span className="text-xs font-mono font-bold text-emerald-300">
                   %{supabaseStatus.storage.percentage}
@@ -214,7 +232,7 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
                   {supabaseStatus.storage.sizeMB} <span className="text-xs font-medium text-slate-400">MB</span>
                 </span>
                 <span className="text-xs text-slate-400 font-medium">
-                  {supabaseStatus.storage.fileCount} Görsel / Belge
+                  {supabaseStatus.storage.fileCount} Görsel
                 </span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
@@ -228,7 +246,7 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
               <p className="text-[11px] text-slate-400 mt-2">
                 {supabaseStatus.storage.status === "active" ? (
                   <span className="text-emerald-400 font-medium flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3 inline" /> Depolama servisi tam kapasite erişilebilir.
+                    <CheckCircle2 className="h-3 w-3 inline" /> Depolama servisi erişilebilir.
                   </span>
                 ) : (
                   <span className="text-rose-400 font-medium">
@@ -243,18 +261,86 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-cyan-400" />
-                  Egress & Bant Genişliği Koruması
+                  Sıfır Egress Kalkanı
                 </span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   KORUMA AKTİF
                 </span>
               </div>
               <p className="text-xs font-extrabold text-white mb-1">
-                Sıfır Egress Harcaması (Server Proxy)
+                RAM & Yerel Disk Proxy
               </p>
               <p className="text-[11px] text-slate-300 leading-snug">
-                Tüm resim ve evrak indirmeleri doğrudan Supabase URL'i yerine sunucunun <code className="text-cyan-300 font-mono bg-slate-900 px-1 py-0.5 rounded">/api/storage/*</code> önbelleği üzerinden sunulduğu için Supabase indirme kotaları (Egress) tüketilmez.
+                Tüm görsel ve API istekleri sunucu RAM önbelleği (<code className="text-cyan-300 font-mono bg-slate-900 px-1 py-0.5 rounded">/api/storage/*</code>) üzerinden sunularak Supabase Egress kotasını korur.
               </p>
+            </div>
+
+            {/* 5 TB Google Drive Cloud Vault Card */}
+            <div className="bg-slate-800/80 rounded-xl p-4 border border-amber-500/40 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                    <CloudUpload className="h-4 w-4 text-amber-400" />
+                    5 TB Google Drive Kasa
+                  </span>
+                  {drive5TBStatus?.connected ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      BAĞLI
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      HAZIR
+                    </span>
+                  )}
+                </div>
+
+                {drive5TBStatus?.connected ? (
+                  <div className="space-y-1 mb-2">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-lg font-extrabold text-white">
+                        {drive5TBStatus.quota?.usageGB || "0.0"} <span className="text-xs font-medium text-slate-400">GB</span>
+                      </span>
+                      <span className="text-[11px] text-amber-300 font-semibold">
+                        Kapasite: {drive5TBStatus.quota?.limitTB || "5.00"} TB
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 truncate">
+                      Hesap: <span className="text-white font-semibold">{drive5TBStatus.email || "lookprice.me@gmail.com"}</span>
+                    </p>
+                    {drive5TBStatus.lastBackupAt && (
+                      <p className="text-[10px] text-emerald-400 truncate">
+                        Son Yedek: {new Date(drive5TBStatus.lastBackupAt).toLocaleString("tr-TR")}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-300 leading-snug mb-3">
+                    Google AI Pro <strong className="text-white">5 TB Drive</strong> hesabınızı bağlayarak tüm mağaza, ürün ve fatura veritabanını tek tıkla yedekleyin.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={onConnectDrive5TB}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[11px] font-bold transition-all border border-slate-600"
+                >
+                  <Link2 className="h-3.5 w-3.5 text-amber-400" />
+                  {drive5TBStatus?.connected ? "Hesap Değiştir" : "5 TB Drive Bağla"}
+                </button>
+                {drive5TBStatus?.connected && (
+                  <button
+                    type="button"
+                    onClick={onTriggerDrive5TBBackup}
+                    disabled={backingUpDrive5TB}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-extrabold transition-all disabled:opacity-50"
+                  >
+                    <CloudUpload className={`h-3.5 w-3.5 ${backingUpDrive5TB ? "animate-bounce" : ""}`} />
+                    {backingUpDrive5TB ? "Yedekleniyor..." : "Şimdi Yedekle"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -262,3 +348,4 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
     </div>
   );
 };
+

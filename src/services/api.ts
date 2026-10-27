@@ -736,4 +736,10 @@ export const api = {
     api.get(`/api/public/reconciliations/${reconId}`),
   respondPublicReconciliation: (reconId: number | string, data: { status: 'confirmed' | 'disputed'; disputeNote?: string; responderName?: string }) =>
     api.post(`/api/public/reconciliations/${reconId}/respond`, data),
+
+  // SuperAdmin 5 TB Google Drive Cloud Vault
+  getGoogleDrive5TBStatus: () => api.get("/api/google-drive/superadmin-status"),
+  getGoogleDrive5TBAuthUrl: () => api.get("/api/google-drive/superadmin-auth-url"),
+  triggerGoogleDrive5TBBackup: () => api.post("/api/google-drive/superadmin-backup", {}),
 };
+

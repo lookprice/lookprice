@@ -61,6 +61,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   });
   const [supabaseStatus, setSupabaseStatus] = useState<any>(null);
   const [checkingSupabase, setCheckingSupabase] = useState<boolean>(false);
+  const [drive5TBStatus, setDrive5TBStatus] = useState<any>(null);
+  const [backingUpDrive5TB, setBackingUpDrive5TB] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [editingStore, setEditingStore] = useState<any>(null);
@@ -398,10 +400,24 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     max_customers: 50
   });
 
+  const fetchDrive5TBStatus = async () => {
+    try {
+      const res = await api.getGoogleDrive5TBStatus();
+      if (res && !res.error) {
+        setDrive5TBStatus(res);
+      }
+    } catch (err) {
+      console.error("5 TB Google Drive status error:", err);
+    }
+  };
+
   const fetchSupabaseStatus = async () => {
     try {
       setCheckingSupabase(true);
-      const res = await api.getSupabaseStatus();
+      const [res] = await Promise.all([
+        api.getSupabaseStatus(),
+        fetchDrive5TBStatus()
+      ]);
       if (res && res.success) {
         setSupabaseStatus(res);
       }
@@ -409,6 +425,39 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
       console.error("Supabase status error:", err);
     } finally {
       setCheckingSupabase(false);
+    }
+  };
+
+  const handleConnectDrive5TB = async () => {
+    try {
+      const res = await api.getGoogleDrive5TBAuthUrl();
+      if (res?.url) {
+        const width = 560;
+        const height = 680;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        window.open(
+          res.url,
+          "GoogleDrive5TBAuth",
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
+      }
+    } catch (err: any) {
+      console.error("Drive 5TB auth url error:", err);
+    }
+  };
+
+  const handleTriggerDrive5TBBackup = async () => {
+    try {
+      setBackingUpDrive5TB(true);
+      const res = await api.triggerGoogleDrive5TBBackup();
+      if (res?.success) {
+        await fetchDrive5TBStatus();
+      }
+    } catch (err: any) {
+      console.error("Drive 5TB backup error:", err);
+    } finally {
+      setBackingUpDrive5TB(false);
     }
   };
 
@@ -437,6 +486,13 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
 
   useEffect(() => {
     fetchData();
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "google_drive_5tb_connected") {
+        fetchDrive5TBStatus();
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
   }, []);
 
   const handleUpdateLead = async (e: React.FormEvent) => {
@@ -759,6 +815,10 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
               supabaseStatus={supabaseStatus}
               checkingSupabase={checkingSupabase}
               onRefreshSupabaseStatus={fetchSupabaseStatus}
+              drive5TBStatus={drive5TBStatus}
+              backingUpDrive5TB={backingUpDrive5TB}
+              onConnectDrive5TB={handleConnectDrive5TB}
+              onTriggerDrive5TBBackup={handleTriggerDrive5TBBackup}
               st={st}
             />
             <SuperAdminLeads 
