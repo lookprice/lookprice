@@ -1309,6 +1309,47 @@ export async function syncProductStockToMarketplaces(
       }
     }
 
+    // 5. N11 Real-Time Sync
+    const n11Settings = store.n11_settings || branding.n11_settings;
+    if (n11Settings?.appKey && n11Settings?.appSecret) {
+      const n11Products = products.filter(p => Boolean(p.is_n11_active) || (p.marketplace_data?.n11?.status === 'ACTIVE'));
+      if (n11Products.length > 0) {
+        try {
+          const auth = { appKey: String(n11Settings.appKey).trim(), appSecret: String(n11Settings.appSecret).trim() };
+          const { N11Service } = await import("./backend/n11Service.js");
+
+          for (const p of n11Products) {
+            let mpData = p.marketplace_data;
+            if (typeof mpData === "string") {
+              try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+            }
+            const sellerCode = (
+              mpData?.n11?.attributes?.merchantSku || 
+              mpData?.n11?.attributes?.stockCode || 
+              mpData?.n11?.attributes?.Barcode || 
+              p.barcode || 
+              p.sku || 
+              ""
+            ).trim();
+
+            if (!sellerCode) continue;
+            const priceInTry = getPriceInTry(p);
+            const effectivePrice = N11Service.calculateMarketplacePrice(priceInTry, p.category, p.sub_category, n11Settings);
+            const currentStock = Math.max(0, parseInt(String(p.stock_quantity || 0), 10));
+
+            const n11Res = await N11Service.updatePriceAndStock(auth, sellerCode, effectivePrice, currentStock).catch(() => null);
+            if (n11Res?.success) {
+              syncedCount++;
+            }
+          }
+          console.log(`[Instant Marketplace Sync] Successfully pushed ${n11Products.length} products to N11 for store ${storeId} (Reason: ${options?.reason || "stock_change"}).`);
+        } catch (n11Err: any) {
+          errorsCount++;
+          console.warn(`[Instant Marketplace Sync N11 Error] Store ${storeId}:`, n11Err?.message || n11Err);
+        }
+      }
+    }
+
     return { syncedCount, errorsCount };
   } catch (err: any) {
     console.error("[Instant Marketplace Sync Exception]:", err?.message || err);

@@ -743,6 +743,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         showMarketplaceListingsModal={showMarketplaceListingsModal}
         setShowMarketplaceListingsModal={setShowMarketplaceListingsModal}
         marketplaceModalTab={marketplaceModalTab}
+        setMarketplaceModalTab={setMarketplaceModalTab}
         marketplaceModalStatus={marketplaceModalStatus}
         branding={branding}
         currentStoreId={currentStoreId}

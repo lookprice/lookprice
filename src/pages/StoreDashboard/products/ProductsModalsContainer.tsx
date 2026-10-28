@@ -37,6 +37,7 @@ interface ProductsModalsContainerProps {
   showMarketplaceListingsModal: boolean;
   setShowMarketplaceListingsModal: (show: boolean) => void;
   marketplaceModalTab: MarketplaceModalTab;
+  setMarketplaceModalTab?: (tab: MarketplaceModalTab) => void;
   marketplaceModalStatus: MarketplaceModalStatus;
   branding?: any;
   currentStoreId?: number;
@@ -69,6 +70,7 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
   showMarketplaceListingsModal,
   setShowMarketplaceListingsModal,
   marketplaceModalTab,
+  setMarketplaceModalTab,
   marketplaceModalStatus,
   branding,
   currentStoreId,
@@ -183,6 +185,9 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
           currentStoreId={currentStoreId}
           initialMarketplace={marketplaceModalTab as any}
           initialStatus={marketplaceModalStatus as any}
+          onMarketplaceChange={(tab) => {
+            if (setMarketplaceModalTab) setMarketplaceModalTab(tab);
+          }}
           onRefresh={() => {
             if (onRefresh) onRefresh();
           }}

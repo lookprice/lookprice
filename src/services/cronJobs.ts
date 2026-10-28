@@ -747,6 +747,96 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
         // Ignore N11 init warning in background cron
       }
     }
+
+    // 4. Trendyol Live Price & Stock Push
+    if (
+      tySettings?.merchantId &&
+      tySettings?.apiKey &&
+      tySettings?.apiSecret
+    ) {
+      try {
+        const tyProductsRes = await pool.query(
+          `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, marketplace_data 
+           FROM products 
+           WHERE store_id = $1 AND (is_trendyol_active = true OR (marketplace_data->'trendyol'->>'status' = 'ACTIVE')) AND (barcode IS NOT NULL AND barcode != '' OR sku IS NOT NULL AND sku != '')`,
+          [storeId]
+        );
+
+        if (tyProductsRes.rows.length > 0) {
+          const auth = { username: String(tySettings.apiKey).trim(), password: String(tySettings.apiSecret).trim() };
+          const storeFrontCode = (tySettings.storeFrontCode && String(tySettings.storeFrontCode).trim() !== "1" ? String(tySettings.storeFrontCode).trim() : "TR").toUpperCase();
+          const headers = {
+            "User-Agent": `${String(tySettings.merchantId).trim()} - SelfIntegration`,
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "storeFrontCode": storeFrontCode
+          };
+
+          const tyItems = tyProductsRes.rows.map((p) => {
+            let rawPrice = parseFloat(p.price || "0");
+            const curr = (p.currency || "TRY").toUpperCase();
+            if (curr === "USD" && effectiveRates.USD) rawPrice *= Number(effectiveRates.USD);
+            else if (curr === "EUR" && effectiveRates.EUR) rawPrice *= Number(effectiveRates.EUR);
+            else if (curr === "GBP" && effectiveRates.GBP) rawPrice *= Number(effectiveRates.GBP);
+
+            const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, p.category, p.sub_category, tySettings);
+            const roundedPrice = Math.round(effectivePrice * 100) / 100;
+            const stock = Math.max(0, parseInt(p.stock_quantity || "0", 10));
+            const cleanBarcode = String(p.barcode || p.sku || "").trim();
+
+            let mpData: any = p.marketplace_data;
+            if (typeof mpData === "string") {
+              try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+            }
+            mpData = mpData || {};
+            if (!mpData.trendyol) mpData.trendyol = {};
+            if (!mpData.trendyol.attributes) mpData.trendyol.attributes = {};
+            mpData.trendyol.attributes.price = String(roundedPrice);
+            mpData.trendyol.price = roundedPrice;
+            mpData.trendyol.lastSync = new Date().toISOString();
+
+            return {
+              id: p.id,
+              mpData,
+              barcode: cleanBarcode,
+              quantity: stock,
+              salePrice: roundedPrice,
+              listPrice: roundedPrice
+            };
+          });
+
+          // Trendyol accepts items array in batches
+          const TY_CHUNK = 100;
+          for (let i = 0; i < tyItems.length; i += TY_CHUNK) {
+            const chunk = tyItems.slice(i, i + TY_CHUNK);
+            const payload = {
+              items: chunk.map(c => ({
+                barcode: c.barcode,
+                quantity: c.quantity,
+                salePrice: c.salePrice,
+                listPrice: c.listPrice
+              }))
+            };
+
+            await axios.post(
+              `https://apigw.trendyol.com/integration/inventory/sellers/${String(tySettings.merchantId).trim()}/products/price-and-inventory`,
+              payload,
+              { auth, headers, timeout: 10000 }
+            ).catch(e => console.warn(`[CRON-CURRENCY-TY] Batch push error:`, e.message));
+
+            for (const c of chunk) {
+              await pool.query(
+                "UPDATE products SET trendyol_last_error = NULL, marketplace_data = $1 WHERE id = $2",
+                [JSON.stringify(c.mpData), c.id]
+              );
+            }
+          }
+          console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): Trendyol ${tyItems.length} ürünün döviz bazlı fiyat ve stoğu güncellendi.`);
+        }
+      } catch (tyCronErr: any) {
+        console.warn(`[CRON-CURRENCY] Store #${storeId} Trendyol sync error:`, tyCronErr.message);
+      }
+    }
   } catch (err: any) {
     console.error(`[CRON-CURRENCY] Store #${storeId} pazaryeri fiyat revizyonu hatası:`, err.message || err);
   }

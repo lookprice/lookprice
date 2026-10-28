@@ -3778,13 +3778,78 @@ router.post("/trendyol/settings", authenticate, async (req: any, res) => {
   }
 });
 
+// In-memory cache for Trendyol category attributes
+const trendyolCategoryAttributesCache = new Map<number, { timestamp: number; attributes: any[] }>();
+
+export async function getTrendyolCategoryAttributesCached(catId: number): Promise<any[]> {
+  const cached = trendyolCategoryAttributesCache.get(catId);
+  if (cached && (Date.now() - cached.timestamp < 1000 * 60 * 60)) { // 1 hour TTL
+    return cached.attributes;
+  }
+  try {
+    const res = await axios.get(`https://apigw.trendyol.com/integration/product/product-categories/${catId}/attributes`, {
+      headers: { "User-Agent": "LookPrice - SelfIntegration", "Accept": "application/json" },
+      timeout: 8000
+    });
+    const attrs = res.data?.categoryAttributes || [];
+    trendyolCategoryAttributesCache.set(catId, { timestamp: Date.now(), attributes: attrs });
+    return attrs;
+  } catch (err: any) {
+    console.warn(`[Trendyol API] Failed to fetch attributes for category ${catId}:`, err.message);
+    return cached ? cached.attributes : [];
+  }
+}
+
+export const TRENDYOL_LEGACY_CATEGORY_MAP: Record<number, number> = {
+  108656: 1876, // USB Flash Bellek -> live 1876
+  103668: 2683, // Dahili SSD -> live 2683
+  103669: 1875, // Taşınabilir SSD -> live 1875
+  103670: 1874, // Sabit Disk HDD -> live 1874
+  103108: 1873, // Hafıza Kartı -> live 1873
+  103109: 1872, // Kart Okuyucu -> live 1872
+  103671: 5506, // Harddisk Kutusu -> live 5506
+  103672: 2674, // RAM Bellek -> live 2674
+  103673: 2673, // Anakart -> live 2673
+  103674: 2676, // CPU İşlemci -> live 2676
+  103675: 2675, // Ekran Kartı -> live 2675
+  103676: 2680, // Bilgisayar Kasası -> live 2680
+  103677: 2681, // Kasa Soğutucu -> live 2681
+  103100: 1588, // Dizüstü Bilgisayar -> live 1588
+  103101: 1587, // Masaüstü Bilgisayar -> live 1587
+  103102: 1592, // Tablet Bilgisayar -> live 1592
+  103665: 5388, // Notebook Çantası -> live 5388
+  103680: 1589, // Monitör -> live 1589
+  103681: 1590, // Mouse -> live 1590
+  103682: 1586, // Klavye -> live 1586
+  103683: 2886, // Mousepad -> live 2886
+  103684: 5476, // USB Hub Çoklayıcı -> live 5476
+  103685: 1585, // Kablo & Adaptör -> live 1585
+  103686: 4743, // Router & Ağ Ekipmanı -> live 4743
+  103667: 4957, // Notebook Adaptörü -> live 4957
+  103666: 1591, // Notebook Soğutucu -> live 1591
+};
+
 // Trendyol Category Attributes Endpoint
 router.get("/trendyol/categories/:categoryId/attributes", authenticate, async (req: any, res) => {
   try {
+    const rawCatId = Number(req.params.categoryId);
+    const catId = TRENDYOL_LEGACY_CATEGORY_MAP[rawCatId] || rawCatId;
+    const catAttrs = await getTrendyolCategoryAttributesCached(catId);
+    if (Array.isArray(catAttrs) && catAttrs.length > 0) {
+      const formatted = catAttrs.map((a: any) => ({
+        id: String(a.attribute.id),
+        name: a.attribute.name,
+        mandatory: !!a.required,
+        allowCustom: !!a.allowCustom,
+        type: a.attributeValues?.length ? 'select' : 'text',
+        values: a.attributeValues?.map((v: any) => ({ id: v.id, name: v.name })) || []
+      }));
+      return res.json({ success: true, attributes: formatted });
+    }
     const { getAttributesForCategory } = await import("../src/data/marketplaceCategoriesData");
     const catName = String(req.query.categoryName || req.params.categoryId);
     const paths = req.query.subCategoryName ? [String(req.query.categoryName || ""), String(req.query.subCategoryName)] : [];
-    res.json({ success: true, attributes: getAttributesForCategory(catName, paths, String(req.params.categoryId)) });
+    res.json({ success: true, attributes: getAttributesForCategory(catName, paths, String(catId)) });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -4126,7 +4191,11 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
     const { suggestMarketplaceCategory, TRENDYOL_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
     const hierarchicalKey = [p.category, p.sub_category].filter(Boolean).join(" > ");
     const suggestedCat = suggestMarketplaceCategory(hierarchicalKey || p.sub_category || p.category || "", TRENDYOL_DEFAULT_CATEGORIES);
-    const resolvedCatId = Number(settings.categoryMappings?.[p.sub_category] || settings.categoryMappings?.[p.category] || suggestedCat.bestMatch?.id || 1585);
+    const rawCatId = Number(settings.categoryMappings?.[p.sub_category] || settings.categoryMappings?.[p.category] || suggestedCat.bestMatch?.id || 1585);
+    const resolvedCatId = TRENDYOL_LEGACY_CATEGORY_MAP[rawCatId] || rawCatId;
+    if (resolvedCatId !== rawCatId) {
+      console.log(`[Trendyol V2] Upgraded legacy category ${rawCatId} -> official live ${resolvedCatId}`);
+    }
 
     // Resolve Brand ID
     let resolvedBrandId = 25198; // Default to verified general tech brand
@@ -4150,14 +4219,18 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
     const tyAttributes: Array<{ attributeId: number; attributeValueId?: number; customAttributeValue?: string }> = [];
     const sourceAttrs = {
       ...(settings.categoryAttributes?.[String(resolvedCatId)] || {}),
+      ...(settings.categoryAttributes?.[String(rawCatId)] || {}),
       ...(mpData?.attributes || {}),
       ...(mpData?.trendyol?.attributes || {})
     };
+
+    const providedAttrIds = new Set<number>();
 
     for (const [key, val] of Object.entries(sourceAttrs)) {
       if (val !== undefined && val !== null && String(val).trim() !== "") {
         const numId = parseInt(key, 10);
         if (!isNaN(numId) && numId > 0) {
+          providedAttrIds.add(numId);
           const numVal = parseInt(String(val), 10);
           if (!isNaN(numVal) && String(numVal) === String(val).trim()) {
             tyAttributes.push({ attributeId: numId, attributeValueId: numVal });
@@ -4166,6 +4239,148 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
           }
         }
       }
+    }
+
+    // Live Mandatory Category Attributes Auto-Detection & Smart Fill
+    try {
+      const catAttrs = await getTrendyolCategoryAttributesCached(resolvedCatId);
+      const requiredAttrs = (catAttrs || []).filter((a: any) => a.required);
+
+      const pTitle = String(p.name || "").toLowerCase();
+      const pDesc = String(p.description || "").toLowerCase();
+      const pText = `${pTitle} ${pDesc}`;
+
+      for (const reqAttr of requiredAttrs) {
+        const attrId = Number(reqAttr.attribute?.id);
+        if (!attrId || providedAttrIds.has(attrId)) continue; // already provided
+
+        const attrName = String(reqAttr.attribute?.name || "").toLowerCase();
+        const values: Array<{ id: number; name: string }> = reqAttr.attributeValues || [];
+        let assignedValueId: number | undefined;
+        let assignedCustom: string | undefined;
+
+        // Smart Attribute Matching based on Trendyol requirements:
+        // 1. Menşei (ID 1192)
+        if (attrId === 1192 || attrName.includes("menşei") || attrName.includes("mensei")) {
+          const trVal = values.find(v => v.name.toUpperCase() === "TR" || v.name.toUpperCase() === "TÜRKİYE");
+          const cnVal = values.find(v => v.name.toUpperCase() === "CN" || v.name.toUpperCase() === "ÇİN");
+          if (trVal) assignedValueId = trVal.id;
+          else if (cnVal) assignedValueId = cnVal.id;
+          else if (values.length > 0) assignedValueId = values[0].id;
+          else if (reqAttr.allowCustom) assignedCustom = "TR";
+        }
+        // 2. Garanti Tipi (ID 290)
+        else if (attrId === 290 || attrName.includes("garanti tipi")) {
+          const distVal = values.find(v => v.name.toLowerCase().includes("distribütör") || v.name.toLowerCase().includes("resmi"));
+          const ithalatVal = values.find(v => v.name.toLowerCase().includes("ithalatçı"));
+          assignedValueId = distVal?.id || ithalatVal?.id || values[0]?.id;
+        }
+        // 3. Garanti Süresi (ID 433)
+        else if (attrId === 433 || attrName.includes("garanti süresi") || attrName.includes("garanti suresi")) {
+          const y2 = values.find(v => v.name.includes("2 Yıl") || v.name.includes("24"));
+          const y3 = values.find(v => v.name.includes("3 Yıl"));
+          const y5 = values.find(v => v.name.includes("5 Yıl"));
+          assignedValueId = y2?.id || y3?.id || y5?.id || values[0]?.id;
+        }
+        // 4. Cinsiyet (ID 343)
+        else if (attrId === 343 || attrName.includes("cinsiyet")) {
+          const unisex = values.find(v => v.name.toLowerCase().includes("unisex"));
+          assignedValueId = unisex?.id || values[0]?.id;
+        }
+        // 5. Yaş Grubu (ID 346)
+        else if (attrId === 346 || attrName.includes("yaş grubu") || attrName.includes("yas grubu")) {
+          const yetiskin = values.find(v => v.name.toLowerCase().includes("yetişkin") || v.name.toLowerCase().includes("yetiskin"));
+          assignedValueId = yetiskin?.id || values[0]?.id;
+        }
+        // 6. Ortam (ID 881)
+        else if (attrId === 881 || attrName.includes("ortam")) {
+          const daily = values.find(v => v.name.toLowerCase().includes("belirtilmemiş") || v.name.toLowerCase().includes("günlük") || v.name.toLowerCase().includes("gunluk") || v.name.toLowerCase().includes("casual"));
+          assignedValueId = daily?.id || values[0]?.id;
+        }
+        // 7. Desen (ID 33)
+        else if (attrId === 33 || attrName.includes("desen")) {
+          const duz = values.find(v => v.name.toLowerCase().includes("düz") || v.name.toLowerCase().includes("duz") || v.name.toLowerCase().includes("belirtilmemiş"));
+          assignedValueId = duz?.id || values[0]?.id;
+        }
+        // 8. Web Color (ID 348) & Renk (ID 47)
+        else if (attrId === 348 || attrName.includes("web color") || attrId === 47 || attrName === "renk") {
+          const colorKeywords = ["siyah", "beyaz", "gri", "mavi", "kırmızı", "yeşil", "sarı", "lacivert", "antrasit", "gümüş", "silver", "gold", "şeffaf"];
+          let matchedColor = colorKeywords.find(c => pText.includes(c));
+          if (!matchedColor) matchedColor = "siyah";
+
+          if (values.length > 0) {
+            const foundVal = values.find(v => v.name.toLowerCase().includes(matchedColor!));
+            assignedValueId = foundVal?.id || values[0]?.id;
+          } else if (reqAttr.allowCustom) {
+            assignedCustom = matchedColor.charAt(0).toUpperCase() + matchedColor.slice(1);
+          }
+        }
+        // 9. Kapasite (ID 184) / SSD Kapasitesi (ID 249)
+        else if (attrId === 184 || attrId === 249 || attrName.includes("kapasite")) {
+          const capMatch = pText.match(/(4\s*tb|2\s*tb|1\s*tb|960\s*gb|512\s*gb|500\s*gb|480\s*gb|256\s*gb|250\s*gb|240\s*gb|128\s*gb|64\s*gb|32\s*gb|16\s*gb|8\s*gb)/i);
+          if (capMatch && values.length > 0) {
+            const normalizedCap = capMatch[1].replace(/\s+/g, "").toUpperCase();
+            const foundVal = values.find(v => v.name.replace(/\s+/g, "").toUpperCase().includes(normalizedCap));
+            if (foundVal) assignedValueId = foundVal.id;
+          }
+          if (!assignedValueId && values.length > 0) {
+            assignedValueId = values[0].id;
+          } else if (!assignedValueId && reqAttr.allowCustom) {
+            assignedCustom = capMatch ? capMatch[1].toUpperCase() : "Standart";
+          }
+        }
+        // 10. Beden (ID 338 or laptop size)
+        else if (attrId === 338 || attrName.includes("beden") || attrName.includes("boyut")) {
+          const sizeMatch = pText.match(/(17\.3|16|15\.6|14|13\.3)/);
+          if (sizeMatch && values.length > 0) {
+            const foundVal = values.find(v => v.name.includes(sizeMatch[1]));
+            if (foundVal) assignedValueId = foundVal.id;
+          }
+          if (!assignedValueId && values.length > 0) {
+            assignedValueId = values[0].id;
+          } else if (!assignedValueId && reqAttr.allowCustom) {
+            assignedCustom = sizeMatch ? `${sizeMatch[1]} inç` : "Standart";
+          }
+        }
+        // 11. Bağlantı Tipi (ID 82)
+        else if (attrId === 82 || attrName.includes("bağlantı tipi") || attrName.includes("baglanti")) {
+          if (values.length > 0) {
+            const nvme = values.find(v => v.name.toLowerCase().includes("nvme") || v.name.toLowerCase().includes("m.2") || v.name.toLowerCase().includes("pcie"));
+            const sata = values.find(v => v.name.toLowerCase().includes("sata"));
+            const usb = values.find(v => v.name.toLowerCase().includes("usb"));
+            if (pText.includes("nvme") || pText.includes("m.2")) assignedValueId = nvme?.id || values[0].id;
+            else if (pText.includes("sata")) assignedValueId = sata?.id || values[0].id;
+            else if (pText.includes("usb")) assignedValueId = usb?.id || values[0].id;
+            else assignedValueId = values[0].id;
+          } else if (reqAttr.allowCustom) {
+            assignedCustom = "Standart";
+          }
+        }
+        // 12. General fallback for any remaining required attribute
+        else {
+          if (values.length > 0) {
+            const neutral = values.find(v => {
+              const vn = v.name.toLowerCase();
+              return vn.includes("belirtilmemiş") || vn.includes("standart") || vn.includes("yok") || vn.includes("universal") || vn.includes("genel");
+            });
+            assignedValueId = neutral?.id || values[0].id;
+          } else if (reqAttr.allowCustom) {
+            assignedCustom = "Standart";
+          }
+        }
+
+        if (assignedValueId) {
+          tyAttributes.push({ attributeId: attrId, attributeValueId: assignedValueId });
+          providedAttrIds.add(attrId);
+          console.log(`[Trendyol V2] Injected mandatory attribute: ${reqAttr.attribute?.name} (ID: ${attrId}) -> valueId: ${assignedValueId}`);
+        } else if (assignedCustom) {
+          tyAttributes.push({ attributeId: attrId, customAttributeValue: assignedCustom });
+          providedAttrIds.add(attrId);
+          console.log(`[Trendyol V2] Injected mandatory attribute: ${reqAttr.attribute?.name} (ID: ${attrId}) -> custom: "${assignedCustom}"`);
+        }
+      }
+    } catch (attrErr: any) {
+      console.warn("[Trendyol V2] Error while checking/injecting mandatory category attributes:", attrErr.message);
     }
 
     // Resolve Absolute Image URL for Trendyol API (Must be a valid public http/https URL ending in .jpg/.jpeg/.png)

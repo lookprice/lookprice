@@ -1509,6 +1509,7 @@ export const SettingsEStoresTab = ({
           lang={lang}
           initialMarketplace={listingsModalTab}
           initialStatus="all"
+          onMarketplaceChange={(tab) => setListingsModalTab(tab as any)}
         />
       )}
     </motion.div>

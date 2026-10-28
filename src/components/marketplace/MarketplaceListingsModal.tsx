@@ -27,6 +27,7 @@ interface MarketplaceListingsModalProps {
   lang?: string;
   initialMarketplace?: MarketplaceKey;
   initialStatus?: ListingStatus;
+  onMarketplaceChange?: (mp: MarketplaceKey) => void;
 }
 
 export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> = ({
@@ -39,7 +40,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   onEditProduct,
   lang = 'tr',
   initialMarketplace = 'hepsiburada',
-  initialStatus = 'active'
+  initialStatus = 'active',
+  onMarketplaceChange
 }) => {
   const isTr = lang === 'tr';
   const [localProducts, setLocalProducts] = useState<any[]>(products);
@@ -65,16 +67,32 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     return initialStatus;
   });
 
+  const prevIsOpenRef = React.useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
+      const savedTab = typeof window !== 'undefined' ? (localStorage.getItem('marketplaceModalTab') as MarketplaceKey) : null;
       if (initialMarketplace) {
         setSelectedMarketplace(initialMarketplace);
+      } else if (savedTab) {
+        setSelectedMarketplace(savedTab);
       }
       if (initialStatus) {
         setSelectedStatus(initialStatus);
       }
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen, initialMarketplace, initialStatus]);
+
+  const handleSelectMarketplace = (mp: MarketplaceKey) => {
+    setSelectedMarketplace(mp);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('marketplaceModalTab', mp);
+    }
+    if (onMarketplaceChange) {
+      onMarketplaceChange(mp);
+    }
+  };
 
   useEffect(() => {
     if (isOpen && typeof window !== 'undefined') {
@@ -1043,7 +1061,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         <MarketplaceListingsHeader
           isTr={isTr}
           selectedMarketplace={selectedMarketplace}
-          setSelectedMarketplace={setSelectedMarketplace}
+          setSelectedMarketplace={handleSelectMarketplace}
           currentMpConfig={currentMpConfig}
           onOpenCategoryMapping={() => setShowCategoryMappingModal(true)}
           onRefresh={onRefresh}

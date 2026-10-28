@@ -1,4 +1,5 @@
 import express from "express";
+import axios from "axios";
 import { pool, logAction } from "../../models/db";
 import { getAuthorizedStoreId, getTurkishSearchSnippet, normalizeTurkishParam, checkProductLimit, getGeminiApiKey } from "./utils";
 import { isValidStandardBarcode, hasProductMatchConflict, invalidateStoreProductsCache, transferAndCleanupInvoiceGeneratedProduct, saveSupplierMapping } from "./invoiceMatching";
@@ -1771,7 +1772,7 @@ router.put("/:id", async (req: any, res) => {
             else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
 
             const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, category, sub_category);
-            const hbMerchantSku = finalMarketplaceData?.hepsiburada?.merchantSku || finalBarcode;
+            const hbMerchantSku = finalMarketplaceData?.hepsiburada?.merchantSku || existingProductRes.rows[0]?.marketplace_data?.hepsiburada?.merchantSku || finalBarcode;
 
             await hbService.updatePriceAndStock([{
               MerchantSku: hbMerchantSku,
@@ -1865,6 +1866,67 @@ router.put("/:id", async (req: any, res) => {
           }
         } catch (n11SyncErr: any) {
           console.warn(`[Background N11 Sync] Failed for product ${id}:`, n11SyncErr.message);
+        }
+      })();
+    }
+
+    // Auto-sync Trendyol if product is active on Trendyol
+    const isTyActive = existingProductRes.rows[0]?.is_trendyol_active || (finalMarketplaceData?.trendyol?.status === 'ACTIVE') || finalMarketplaceData?.trendyol?.onSale;
+    if (isTyActive) {
+      (async () => {
+        try {
+          const storeRes = await pool.query("SELECT trendyol_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+          const st = storeRes.rows[0];
+          const tySettings = st?.trendyol_settings || st?.branding?.trendyol_settings;
+          if (tySettings?.merchantId && tySettings?.apiKey && tySettings?.apiSecret) {
+            const cleanBarcode = String(finalBarcode || existingProductRes.rows[0]?.sku || "").trim();
+            if (cleanBarcode) {
+              const { N11Service } = await import("../../src/services/backend/n11Service.js");
+              const auth = { username: String(tySettings.apiKey).trim(), password: String(tySettings.apiSecret).trim() };
+              const storeFrontCode = (tySettings.storeFrontCode && String(tySettings.storeFrontCode).trim() !== "1" ? String(tySettings.storeFrontCode).trim() : "TR").toUpperCase();
+              const headers = {
+                "User-Agent": `${String(tySettings.merchantId).trim()} - SelfIntegration`,
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "storeFrontCode": storeFrontCode
+              };
+
+              const rates = st?.currency_rates || st?.branding?.currency_rates || {};
+              let rawPrice = parseFloat(String(finalPrice || "0"));
+              const curr = (currency || "TRY").toUpperCase();
+              if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+              else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+              else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+
+              const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, category, sub_category, tySettings);
+              const roundedPrice = Math.round(effectivePrice * 100) / 100;
+
+              const payload = {
+                items: [{
+                  barcode: cleanBarcode,
+                  quantity: Math.max(0, parseInt(String(newStock || 0), 10)),
+                  salePrice: roundedPrice,
+                  listPrice: roundedPrice
+                }]
+              };
+
+              await axios.post(
+                `https://apigw.trendyol.com/integration/inventory/sellers/${String(tySettings.merchantId).trim()}/products/price-and-inventory`,
+                payload,
+                { auth, headers, timeout: 10000 }
+              );
+              await pool.query(
+                "UPDATE products SET trendyol_last_error = NULL WHERE id = $1",
+                [id]
+              );
+            }
+          }
+        } catch (tySyncErr: any) {
+          console.warn(`[Background Trendyol Sync] Failed for product ${id}:`, tySyncErr.message);
+          await pool.query(
+            "UPDATE products SET trendyol_last_error = $1 WHERE id = $2",
+            [tySyncErr.message, id]
+          );
         }
       })();
     }

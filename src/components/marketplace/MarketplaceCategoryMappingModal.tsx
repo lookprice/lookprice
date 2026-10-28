@@ -139,12 +139,20 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     pazarama: branding.pazarama_settings?.defaultFixedFee ?? 20
   });
 
+  const prevIsOpenRef = React.useRef(false);
+
   // Sync state whenever modal opens or branding changes
   useEffect(() => {
     if (isOpen) {
-      if (initialMarketplace) {
-        setActiveMarketplace(initialMarketplace);
+      if (!prevIsOpenRef.current) {
+        const saved = typeof window !== 'undefined' ? (localStorage.getItem('categoryMappingModalTab') as MarketplaceType) : null;
+        if (initialMarketplace) {
+          setActiveMarketplace(initialMarketplace);
+        } else if (saved) {
+          setActiveMarketplace(saved);
+        }
       }
+      prevIsOpenRef.current = true;
       setMappings({
         hepsiburada: branding.hepsiburada_settings?.categoryMappings || {},
         trendyol: branding.trendyol_settings?.categoryMappings || {},
@@ -180,6 +188,8 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         amazon: branding.amazon_settings?.defaultFixedFee ?? 20,
         pazarama: branding.pazarama_settings?.defaultFixedFee ?? 20
       });
+    } else {
+      prevIsOpenRef.current = false;
     }
   }, [isOpen, branding, initialMarketplace]);
 
@@ -533,6 +543,24 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         } else {
           setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
         }
+      } else if (activeMarketplace === 'trendyol') {
+        const res = await api.getTrendyolCategoryAttributes(marketCatId, catName, matched?.paths?.[matched.paths.length - 1]);
+        const attrs = res.data?.attributes || res.data || res.attributes;
+        if (Array.isArray(attrs) && attrs.length > 0) {
+          setCurrentCategoryAttributes(attrs.map((a: any) => ({
+            id: String(a.id || a.attribute?.id || a.attributeId || a.name),
+            name: a.name || a.attribute?.name || a.displayName || a.attributeName,
+            description: a.description,
+            mandatory: !!(a.mandatory || a.required),
+            type: (a.values?.length || a.attributeValues?.length) ? 'select' : 'text',
+            values: Array.isArray(a.values) 
+              ? a.values.map((v: any) => typeof v === 'object' ? `${v.id}: ${v.name}` : String(v))
+              : (Array.isArray(a.attributeValues) ? a.attributeValues.map((v: any) => typeof v === 'object' ? `${v.id}: ${v.name}` : String(v)) : undefined),
+            defaultValue: a.defaultValue
+          })));
+        } else {
+          setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
+        }
       } else {
         setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || [], marketCatId));
       }
@@ -575,13 +603,25 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
 
       if (lowerId === 'marka' || lowerName.includes('marka') || lowerId.includes('brand')) {
         autoFilled[attr.id] = { mode: 'field', value: '$product.brand' };
-      } else if (lowerId === 'mensei' || lowerName.includes('menşei') || lowerName.includes('mensei') || lowerId.includes('origin')) {
-        autoFilled[attr.id] = { mode: 'fixed', value: 'Çin' };
+      } else if (lowerId === '1192' || lowerId === 'mensei' || lowerName.includes('menşei') || lowerName.includes('mensei') || lowerId.includes('origin')) {
+        autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '10617344' : 'TR' };
+      } else if (lowerId === '290' || lowerName.includes('garanti tipi')) {
+        autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '4183' : 'Resmi Distribütör Garantili' };
+      } else if (lowerId === '433' || lowerName.includes('garanti süresi') || lowerName.includes('garanti suresi')) {
+        autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '20637' : '24' };
+      } else if (lowerId === '343' || lowerName.includes('cinsiyet')) {
+        autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '4296' : 'Unisex' };
+      } else if (lowerId === '346' || lowerName.includes('yaş grubu') || lowerName.includes('yas grubu')) {
+        autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '256116' : 'Yetişkin' };
+      } else if (lowerId === '881' || lowerName.includes('ortam')) {
+        autoFilled[attr.id] = { mode: 'fixed', value: activeMarketplace === 'trendyol' ? '10591476' : 'Belirtilmemiş' };
+      } else if (lowerId === '33' || lowerName.includes('desen')) {
+        autoFilled[attr.id] = { mode: 'fixed', value: 'Düz' };
       } else if (lowerId === 'model' || lowerName === 'model') {
         autoFilled[attr.id] = { mode: 'field', value: '$product.model' };
-      } else if (lowerId === 'renk' || lowerName.includes('renk')) {
+      } else if (lowerId === 'renk' || lowerName.includes('renk') || lowerId === '47' || lowerId === '348') {
         autoFilled[attr.id] = { mode: 'field', value: '$product.variant_color' };
-      } else if (lowerId === 'beden' || lowerName.includes('beden') || lowerName.includes('boyut')) {
+      } else if (lowerId === 'beden' || lowerName.includes('beden') || lowerName.includes('boyut') || lowerId === '338') {
         autoFilled[attr.id] = { mode: 'field', value: '$product.variant_size' };
       } else if (lowerId.includes('garanti') || lowerName.includes('garanti')) {
         autoFilled[attr.id] = { mode: 'fixed', value: '24' };
