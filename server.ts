@@ -20,6 +20,7 @@ import realEstateRoutes, { initRealEstateSchema } from "./routes/real_estate";
 import { initProductSchema } from "./routes/store/products";
 import { initPurchaseInvoiceSchema } from "./routes/store/invoices";
 import aiJobsRoutes from "./routes/ai_jobs.js";
+import aiSocialRoutes from "./routes/ai_social.js";
 import googleDriveRoutes from "./routes/googleDrive.js";
 import { authenticate } from "./middleware/auth";
 import { domainMiddleware, extractDomainFromRequest, resolveStoreSlugForDomain, MAIN_DOMAINS } from "./middleware/domain";
@@ -1115,6 +1116,7 @@ function sanitizeFilename(originalName: string): string {
   app.use("/api/integrations", integrationRoutes);
   app.use("/api/hepsiburada", integrationRoutes);
   app.use("/api/instagram", instagramRoutes);
+  app.use("/api/ai-social", aiSocialRoutes);
   app.use("/api", einvoiceRoutes);
 
   // Special case: Single Blog Post getter for dashboard

@@ -98,6 +98,8 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
   const [copySuccess, setCopySuccess] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [aiCaption, setAiCaption] = useState<string>("");
+  const [isGeneratingAiCaption, setIsGeneratingAiCaption] = useState<boolean>(false);
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -300,8 +302,47 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
     }
   };
 
+  const handleGenerateAiCaption = async (tone: CaptionTone = selectedTone) => {
+    setIsGeneratingAiCaption(true);
+    try {
+      const res = await fetch("/api/ai-social/generate-caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "vehicle",
+          title: vehicleTitle,
+          price: formatNumberVal(vehicle.selling_price),
+          currency: vehicle.currency || 'TRY',
+          category: vehicle.body_type || "Otomotiv",
+          brand: vehicle.brand,
+          storeName: storeName || "Seçkin Otomotiv",
+          phone: branding?.phone || branding?.whatsapp_number,
+          tone: tone === 'luxury' ? 'luxury' : tone === 'technical' ? 'futuristic' : 'friendly',
+          specs: {
+            year: vehicle.year,
+            mileage: mileageText,
+            fuel: fuelText,
+            transmission: transmissionText,
+            color: colorText,
+            tramer: vehicle.tramer_amount ? `${formatNumberVal(vehicle.tramer_amount)} ${vehicle.tramer_currency || 'TRY'}` : 'Hasarsız'
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.caption) {
+        setAiCaption(data.caption);
+      }
+    } catch (e) {
+      console.error("AI Caption error:", e);
+    } finally {
+      setIsGeneratingAiCaption(false);
+    }
+  };
+
+  const activeCaption = aiCaption || getCaptionText();
+
   const handleCopyCaption = () => {
-    navigator.clipboard.writeText(getCaptionText());
+    navigator.clipboard.writeText(activeCaption);
     setCopySuccess(true);
   };
 
@@ -735,22 +776,34 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
             {/* Copywriting Area */}
             <div className="relative">
-              <span className="block text-[11px] font-black tracking-wider text-slate-400 uppercase mb-1">HAZIR PAYLAŞIM METNİ (KOPYALANABİLİR)</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="block text-[11px] font-black tracking-wider text-slate-400 uppercase">PAYLAŞIM METNİ (DÜZENLENEBİLİR)</span>
+                <button
+                  type="button"
+                  onClick={() => handleGenerateAiCaption(selectedTone)}
+                  disabled={isGeneratingAiCaption}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 transition-all cursor-pointer disabled:opacity-50"
+                  title="Google AI Pro ile araç metnini zenginleştir"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${isGeneratingAiCaption ? 'animate-spin' : ''}`} />
+                  <span>{isGeneratingAiCaption ? "Yazılıyor..." : "Google AI Pro ile Yaz"}</span>
+                </button>
+              </div>
               <div className="border border-slate-200 rounded-2xl bg-slate-50 overflow-hidden">
                 <textarea 
-                  value={getCaptionText()}
-                  readOnly
+                  value={activeCaption}
+                  onChange={(e) => setAiCaption(e.target.value)}
                   className="w-full h-[240px] p-4 text-xs font-medium text-slate-800 leading-relaxed bg-transparent focus:outline-none focus:ring-0 resize-none font-sans border-0 select-text"
                 />
                 
                 {/* Float copy button */}
                 <div className="p-3 bg-slate-100 border-t border-slate-200 flex justify-between items-center">
                   <span className="text-[10px] font-extrabold text-slate-500 uppercase flex items-center gap-1">
-                    <Award className="w-3.5 h-3.5 text-indigo-600" /> LOOKPRICE AUTO SCRIPT
+                    <Award className="w-3.5 h-3.5 text-indigo-600" /> SEÇKİN OTOMOTİV AI STUDIO
                   </span>
                   <button 
                     onClick={handleCopyCaption}
-                    className={`px-3 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1 shadow-sm ${copySuccess ? 'bg-emerald-600 text-white animate-pulse' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}
+                    className={`px-3 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1 shadow-sm cursor-pointer ${copySuccess ? 'bg-emerald-600 text-white animate-pulse' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}
                   >
                     {copySuccess ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     {copySuccess ? 'Kopyalandı!' : 'Metni Kopyala'}

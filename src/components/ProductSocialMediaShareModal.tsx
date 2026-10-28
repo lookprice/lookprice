@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
-import { safeHtml2Canvas, prepareImagesForHtml2Canvas, urlToDataUrl } from "../utils/html2canvasFix";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { 
   X, 
@@ -8,17 +7,39 @@ import {
   Download, 
   Smartphone, 
   Grid, 
-  Instagram, 
-  Award,
-  Sparkles,
-  RefreshCw,
-  Info,
-  BadgePercent,
-  TrendingUp,
-  Tag,
-  Star
+  Sparkles, 
+  RefreshCw, 
+  Play, 
+  Pause, 
+  RotateCcw, 
+  Video, 
+  Image as ImageIcon, 
+  Palette, 
+  Sliders, 
+  FileText,
+  Wand2,
+  Layers,
+  Focus,
+  Plus,
+  Monitor,
+  User,
+  Package,
+  Film,
+  CheckCircle2
 } from "lucide-react";
 import { Product } from "../types";
+import { 
+  PosterConfig, 
+  SceneType,
+  CollageLayout,
+  ImageFitMode,
+  StorySceneItem,
+  loadPosterImage, 
+  renderPosterToCanvas, 
+  downloadPosterImage, 
+  recordPosterReel,
+  createContextualSceneDataUrl
+} from "../utils/posterCanvasEngine";
 
 interface ProductSocialMediaShareModalProps {
   isOpen: boolean;
@@ -27,9 +48,21 @@ interface ProductSocialMediaShareModalProps {
   branding?: any;
 }
 
-type TemplateTheme = 'luxury_dark' | 'sunset_orange' | 'neon_cyber' | 'minimal_carbon';
+type TemplateTheme = 'futuristic_studio' | 'modern_commerce' | 'luxury_editorial' | 'vibrant_sale';
 type AspectRatio = 'square' | 'story';
-type CaptionTone = 'luxury' | 'promo' | 'friendly';
+type CaptionTone = 'promo' | 'luxury' | 'futuristic' | 'friendly';
+
+interface ScenarioOption {
+  id: string;
+  title: string;
+  description: string;
+  sceneType: SceneType;
+  kicker: string;
+  headline: string;
+  badge: string;
+  storyScenes: StorySceneItem[];
+  aiPrompt?: string;
+}
 
 export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModalProps> = ({
   isOpen,
@@ -39,7 +72,6 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 }) => {
   const { slug: urlSlug } = useParams<{ slug?: string }>();
 
-  // Format slug nicely to Turkish title case
   const formatSlugToTitle = (slugStr: string): string => {
     if (!slugStr) return "";
     const lowerSlug = slugStr.toLowerCase().trim();
@@ -47,7 +79,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       return 'Gap Bilişim';
     }
     if (lowerSlug === 'lookprice') {
-      return 'LookPrice';
+      return 'Seçkin Mağaza';
     }
     return slugStr
       .split(/[-_]/)
@@ -80,82 +112,58 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     return candidateName;
   }, [branding, urlSlug]);
 
-  const [selectedTheme, setSelectedTheme] = useState<TemplateTheme>('sunset_orange');
+  // Core Studio States
+  const [outputMode, setOutputMode] = useState<'image' | 'video'>('image');
+  const [selectedTheme, setSelectedTheme] = useState<TemplateTheme>('futuristic_studio');
   const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
   const [selectedTone, setSelectedTone] = useState<CaptionTone>('promo');
+  const [rightTab, setRightTab] = useState<'scenario' | 'collage' | 'caption'>('scenario');
+
+  // Segment & Scenario Imagination States
+  const [segmentLabel, setSegmentLabel] = useState<string>("Ürün Segmenti Analiz Ediliyor...");
+  const [scenarios, setScenarios] = useState<ScenarioOption[]>([]);
+  const [activeScenarioId, setActiveScenarioId] = useState<string>("");
+  const [sceneType, setSceneType] = useState<SceneType>('desk_setup');
+  const [scenarioTitle, setScenarioTitle] = useState<string>("");
+  const [scenarioDescription, setScenarioDescription] = useState<string>("");
+  const [storyScenes, setStoryScenes] = useState<StorySceneItem[]>([]);
+  const [customScenarioIdea, setCustomScenarioIdea] = useState<string>("");
+  const [isAnalyzingSegment, setIsAnalyzingSegment] = useState<boolean>(false);
+  const [isGeneratingAiScene, setIsGeneratingAiScene] = useState<boolean>(false);
+
+  // Multi-Image & Collage Center-Focus States
+  const [imageUrlsPool, setImageUrlsPool] = useState<string[]>([]);
+  const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([]);
+  const [loadedImageElements, setLoadedImageElements] = useState<HTMLImageElement[]>([]);
+  const [collageLayout, setCollageLayout] = useState<CollageLayout>('single');
+  const [imageFitMode, setImageFitMode] = useState<ImageFitMode>('smart_center');
+  const [focalZoom, setFocalZoom] = useState<number>(1.0);
+
+  // Campaign Copy States
+  const [kicker, setKicker] = useState<string>("MASANIZDA YENİ NESİL GÜÇ");
+  const [headline, setHeadline] = useState<string>("MAKSİMUM PERFORMANS");
+  const [badge, setBadge] = useState<string>("Orijinal Garanti & Aynı Gün Hızlı Kargo");
+
+  // AI Caption States
+  const [captionText, setCaptionText] = useState<string>("");
+  const [isGeneratingCaption, setIsGeneratingCaption] = useState<boolean>(false);
+
+  // Video / Storyboard Reel States
+  const [isPlayingVideo, setIsPlayingVideo] = useState<boolean>(false);
+  const [videoProgress, setVideoProgress] = useState<number>(0);
+  const [isExportingVideo, setIsExportingVideo] = useState<boolean>(false);
+  const [exportProgress, setExportProgress] = useState<number>(0);
+  const [aiGeneratedVideoUrl, setAiGeneratedVideoUrl] = useState<string | null>(null);
+  const [isGeneratingAiVideo, setIsGeneratingAiVideo] = useState<boolean>(false);
+
+  // Utility States
   const [copySuccess, setCopySuccess] = useState(false);
-  const [isRendering, setIsRendering] = useState(false);
-  const [renderError, setRenderError] = useState<string | null>(null);
-  const [safeProductImageUrl, setSafeProductImageUrl] = useState<string>('');
+  const [isDownloadingImage, setIsDownloadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const previewContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    if (copySuccess) {
-      const timer = setTimeout(() => setCopySuccess(false), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [copySuccess]);
-
-  // Premium dynamic image gallery integration matching ProductDetailModal
-  const productImages = useMemo(() => {
-    const list: string[] = [];
-    if (product?.image_url) {
-      list.push(product.image_url);
-    }
-    const rawImages = (product as any)?.images;
-    if (rawImages) {
-      if (Array.isArray(rawImages)) {
-        rawImages.forEach((img: any) => {
-          if (img && typeof img === "string" && !list.includes(img)) {
-            list.push(img);
-          }
-        });
-      } else if (typeof rawImages === "string") {
-        try {
-          const parsed = JSON.parse(rawImages);
-          if (Array.isArray(parsed)) {
-            parsed.forEach((img: any) => {
-              if (img && typeof img === "string" && !list.includes(img)) {
-                list.push(img);
-              }
-            });
-          }
-        } catch (e) {}
-      }
-    }
-    return list;
-  }, [product]);
-
-  // Proactively convert external image URL to Data URL via backend proxy so that:
-  // 1) The preview displays crisp image with zero CORS restrictions
-  // 2) html2canvas has the Data URL ready instantly when user clicks "Görseli İndir"
-  useEffect(() => {
-    let isMounted = true;
-    const initialUrl = productImages[0];
-    if (!initialUrl) {
-      setSafeProductImageUrl('');
-      return;
-    }
-
-    if (initialUrl.startsWith('data:')) {
-      setSafeProductImageUrl(initialUrl);
-      return;
-    }
-
-    urlToDataUrl(initialUrl).then((safeUrl) => {
-      if (isMounted && safeUrl && safeUrl.startsWith('data:')) {
-        setSafeProductImageUrl(safeUrl);
-      }
-    }).catch(() => {});
-
-    return () => {
-      isMounted = false;
-    };
-  }, [productImages]);
-
-  if (!isOpen || !product) return null;
+  const animationFrameRef = useRef<number | null>(null);
+  const animationStartTimeRef = useRef<number | null>(null);
 
   const formatNumberVal = (val: any) => {
     if (val === undefined || val === null || val === '') return '0';
@@ -164,679 +172,1165 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Math.round(parsed));
   };
 
-  const currencySymbol = product.currency === 'GBP' ? '£' : product.currency === 'USD' ? '$' : product.currency === 'EUR' ? '€' : '₺';
-  const priceText = `${formatNumberVal(product.price)} ${currencySymbol}`;
-  const oldPriceText = product.old_price ? `${formatNumberVal(product.old_price)} ${currencySymbol}` : null;
-  const productTitle = product.name || "Seçkin Ürün Kataloğu";
-  const productCategory = product.category || "Genel Ürün";
-  const productBrand = product.brand || "";
+  const currencySymbol = product?.currency === 'GBP' ? '£' : product?.currency === 'USD' ? '$' : product?.currency === 'EUR' ? '€' : '₺';
+  const priceText = `${formatNumberVal(product?.price)} ${currencySymbol}`;
+  const oldPriceText = product?.old_price && Number(product.old_price) > Number(product?.price) 
+    ? `${formatNumberVal(product.old_price)} ${currencySymbol}` 
+    : null;
 
-  // Calculate discount percentage if exists
   const discountPercentage = useMemo(() => {
-    if (product.price && product.old_price && product.old_price > product.price) {
-      return Math.round(((product.old_price - product.price) / product.old_price) * 100);
+    if (product?.price && product?.old_price && Number(product.old_price) > Number(product.price)) {
+      return Math.round(((Number(product.old_price) - Number(product.price)) / Number(product.old_price)) * 100);
     }
     return 0;
-  }, [product.price, product.old_price]);
+  }, [product?.price, product?.old_price]);
 
-  const rawStoreName = storeName || branding?.store_name || branding?.name || "";
-  const storeNameDisplay = (!rawStoreName || rawStoreName.toLowerCase().includes("lookprice")) ? "Seçkin Mağaza" : rawStoreName;
-
-  // Determine theme colors for HTML Preview
-  const getThemeClasses = () => {
-    switch (selectedTheme) {
-      case 'luxury_dark':
-        return {
-          canvasBg: 'bg-gradient-to-b from-[#111625] via-[#0b0e17] to-[#040609]',
-          ambientGlow: 'from-amber-500/25 via-amber-600/10 to-transparent',
-          accentBorder: 'border-amber-500/40',
-          innerBorder: 'border-white/15',
-          headerBg: 'bg-black/60 border border-white/10 text-white',
-          infoCardBg: 'bg-black/85 border border-white/15 text-white shadow-2xl',
-          textTitle: 'text-amber-400 font-black',
-          priceColor: 'text-amber-300 font-black',
-          oldPriceColor: 'text-rose-400 line-through font-bold',
-          priceLabel: 'text-amber-200/90 font-extrabold',
-          badgeBorder: 'border-amber-500/40',
-          badgeText: 'text-amber-300',
-          discountBg: 'bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-black'
-        };
-      case 'sunset_orange':
-        return {
-          canvasBg: 'bg-gradient-to-b from-[#1c0a02] via-[#0f0501] to-[#050200]',
-          ambientGlow: 'from-orange-500/30 via-orange-600/10 to-transparent',
-          accentBorder: 'border-orange-500/40',
-          innerBorder: 'border-white/15',
-          headerBg: 'bg-black/60 border border-white/10 text-white',
-          infoCardBg: 'bg-black/85 border border-white/15 text-white shadow-2xl',
-          textTitle: 'text-orange-400 font-black',
-          priceColor: 'text-amber-300 font-black',
-          oldPriceColor: 'text-rose-400 line-through font-bold',
-          priceLabel: 'text-orange-200/90 font-extrabold',
-          badgeBorder: 'border-orange-500/40',
-          badgeText: 'text-orange-300',
-          discountBg: 'bg-gradient-to-r from-orange-500 to-rose-600 text-white font-black'
-        };
-      case 'neon_cyber':
-        return {
-          canvasBg: 'bg-gradient-to-b from-[#051124] via-[#030914] to-[#010307]',
-          ambientGlow: 'from-cyan-500/25 via-blue-600/10 to-transparent',
-          accentBorder: 'border-cyan-500/40',
-          innerBorder: 'border-white/15',
-          headerBg: 'bg-black/60 border border-white/10 text-white',
-          infoCardBg: 'bg-black/85 border border-white/15 text-white shadow-2xl',
-          textTitle: 'text-cyan-400 font-black',
-          priceColor: 'text-cyan-300 font-black',
-          oldPriceColor: 'text-rose-400 line-through font-bold',
-          priceLabel: 'text-cyan-200/90 font-extrabold',
-          badgeBorder: 'border-cyan-500/40',
-          badgeText: 'text-cyan-300',
-          discountBg: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black'
-        };
-      case 'minimal_carbon':
-      default:
-        return {
-          canvasBg: 'bg-gradient-to-b from-[#1c1c1f] via-[#121214] to-[#0a0a0c]',
-          ambientGlow: 'from-emerald-500/20 via-zinc-600/10 to-transparent',
-          accentBorder: 'border-zinc-600/50',
-          innerBorder: 'border-white/15',
-          headerBg: 'bg-black/60 border border-white/10 text-white',
-          infoCardBg: 'bg-black/85 border border-white/15 text-white shadow-2xl',
-          textTitle: 'text-white font-black',
-          priceColor: 'text-emerald-400 font-black',
-          oldPriceColor: 'text-rose-400 line-through font-bold',
-          priceLabel: 'text-zinc-300 font-extrabold',
-          badgeBorder: 'border-zinc-700',
-          badgeText: 'text-emerald-400',
-          discountBg: 'bg-emerald-500 text-slate-950 font-black'
-        };
+  // 1. Collect all product images (image_url + images array + gallery)
+  useEffect(() => {
+    if (!product) return;
+    const urls: string[] = [];
+    if (product.image_url && typeof product.image_url === 'string') {
+      urls.push(product.image_url);
     }
-  };
-
-  const themeConfig = getThemeClasses();
-
-  // Dynamic Captions generator with Sector-Specific Terminology & Templates (Retail, Horeca, Electronics, Fashion, Bookstore)
-  const getCaptionText = () => {
-    const rawName = storeName || branding?.store_name || branding?.name || "";
-    const displayName = (!rawName || rawName.toLowerCase().includes("lookprice")) ? "Seçkin Mağaza" : rawName;
-    const storeSector = branding?.store_type || branding?.page_layout_settings?.sector || 'product';
-    
-    const contactPhone = branding?.whatsapp_number || branding?.phone || '';
-    const contactPhoneText = contactPhone 
-      ? `İletişim & Sipariş Hattı: ${contactPhone}` 
-      : 'DM veya WhatsApp üzerinden anında sipariş verebilirsiniz.';
-    const storeHashtag = `#${displayName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')}`;
-    const activeHashtags = `#alisveris #kampanya #kalite #indirim #${productCategory.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} #${(productBrand || 'urun').toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} ${storeHashtag}`;
-
-    // 1. HORECA / CAFE / RESTAURANT TERMINOLOGY
-    if (storeSector === 'cafe_restaurant' || storeSector === 'horeca') {
-      switch (selectedTone) {
-        case 'luxury':
-        case 'promo':
-          return `🍽️ GASTRONOMİ DÜNYASININ ÖZEL LEZZETİ: ${productTitle.toUpperCase()} 🍽️\n\n` +
-                 `Usta şeflerimizin özenle seçilmiş taze malzemelerle hazırladığı eşsiz lezzetimiz ${displayName} mutfağında sizleri bekliyor. Damak tadına düşkün misafirlerimiz için benzersiz bir aroma şöleni!\n\n` +
-                 `🌟 Lezzet & Sunum Detayları:\n` +
-                 `• Ürün / Menü Adı: ${productTitle}\n` +
-                 `• Kategori: ${productCategory}\n` +
-                 `• Hazırlanış: Taze ve Günlük Üretim Garantisiyle\n` +
-                 (discountPercentage > 0 ? `• Özel İndirim Fırsatı: Menüde %${discountPercentage} İndirim!\n` : '') +
-                 `\n💰 Fiyat / Porsiyon: ${priceText}\n` +
-                 (oldPriceText ? `❌ Liste Fiyatı: ${oldPriceText}\n` : '') +
-                 `\nSıcak servis, hızlı paket veya restoranda keyifli bir akşam yemeği için yerinizi ayırtın veya hemen sipariş verin!\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🏛️ Mekan / Restoran: ${displayName}\n\n` +
-                 `#lezzetduragi #gurmelezzetler #restoran #yemekteyiz #cafe #gununmenusu ${storeHashtag}`;
-        case 'friendly':
-        default:
-          return `☕️ Enfes Bir Mola İçin ${productTitle} Sizi Bekliyor! 🍰\n\n` +
-                 `Selam lezzet severler! 😍 Günün yorgunluğunu atmak ya da sevdiklerinizle tatlı bir sohbet eşliğinde ${displayName} atmosferini yaşamak istemez misiniz?\n\n` +
-                 `✨ Neden Denemelisiniz?\n` +
-                 `👉 Taptaze malzemeler ve nefis reçeteyle hazırlandı!\n` +
-                 `👉 ${productCategory} kategorimizin en favori ikramı\n` +
-                 (discountPercentage > 0 ? `👉 Şahane İndirim: Bu lezzete %${discountPercentage} avantajla ulaşın! 🥳\n` : '') +
-                 `\n💰 Fiyat: ${priceText}\n` +
-                 `\nMasalarda yeriniz hazır ya da paket servis ile kapınızda! Hemen sipariş vermek için bize yazın.\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🏡 ${displayName}\n\n` +
-                 `#kahvekeyfi #tatlikrizi #lezzet #yemek #kafe #gununtatlisi ${storeHashtag}`;
+    const rawImages = (product as any)?.images || (product as any)?.gallery || (product as any)?.image_urls;
+    if (Array.isArray(rawImages)) {
+      for (const item of rawImages) {
+        const u = typeof item === 'string' ? item : item?.url || item?.image_url;
+        if (u && typeof u === 'string' && !urls.includes(u)) {
+          urls.push(u);
+        }
       }
+    } else if (typeof rawImages === 'string' && rawImages.trim().startsWith('[')) {
+      try {
+        const parsed = JSON.parse(rawImages);
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            const u = typeof item === 'string' ? item : item?.url;
+            if (u && !urls.includes(u)) urls.push(u);
+          }
+        }
+      } catch (e) {}
     }
 
-    // 2. ELECTRONICS & TECHNOLOGY TERMINOLOGY
-    if (storeSector === 'electronics' || productCategory.toLowerCase().includes('elektronik') || productCategory.toLowerCase().includes('telefon') || productCategory.toLowerCase().includes('bilgisayar')) {
-      switch (selectedTone) {
-        case 'luxury':
-          return `⚡️ YENİ NESİL TEKNOLOJİ & ÜSTÜN PERFORMANS: ${productTitle.toUpperCase()} ⚡️\n\n` +
-                 `Dijital yaşamınızı hızlandıracak, yüksek işlemci gücü ve kusursuz tasarımıyla ${displayName} güvencesiyle stoklarımızda yerini aldı.\n\n` +
-                 `💻 Teknik Donanım Özet Raporu:\n` +
-                 `• Cihaz / Model: ${productTitle}\n` +
-                 `• Kategori: ${productCategory} ${productBrand ? `• ${productBrand}` : ''}\n` +
-                 `• Garanti & Servis: %100 Orijinal Ürün & Resmi Distribütör Garantili\n` +
-                 (discountPercentage > 0 ? `• Lansman Kampanyası: Net %${discountPercentage} Teknoloji İndirimi\n` : '') +
-                 `• Stok Kodu (SKU): ${product.barcode || 'LP-TECH'}\n\n` +
-                 `💰 Avantajlı Satış Fiyatı: ${priceText}\n` +
-                 (oldPriceText ? `❌ Piyasaya Göre Eski Fiyat: ${oldPriceText}\n` : '') +
-                 `\nTeknolojide en iyisini arayan profesyoneller ve oyun tutkunları için kaçırılmayacak fırsat. Kargo ile hızlı gönderim veya mağazadan teslimat seçenekleri mevcuttur.\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🏢 Yetkili Teknoloji Mağazası: ${displayName}\n\n` +
-                 `#teknoloji #elektronik #akillicihaz #bilgisayar #telefon #indirimliteknoloji ${storeHashtag}`;
-        case 'promo':
-          return `🔥 TEKNOLOJİDE DEV KAMPANYA: ${productTitle} 🔥\n\n` +
-                 `Piyasa fiyatlarını altüst eden şok indirim! En son teknoloji ${productTitle} şimdi inanılmaz avantajlarla ${displayName} vitrininde!\n\n` +
-                 `🚀 Fırsat Özellikleri:\n` +
-                 `• Orijinal Kutulu ve Kapalı Ambalaj\n` +
-                 `• Resmiyete Uygun Garanti Belgesi\n` +
-                 (discountPercentage > 0 ? `• İndirim Oranı: %${discountPercentage} Kaçırılmayacak İndirim!\n` : '') +
-                 `• Barkod / SKU: ${product.barcode || 'LP-TECH'}\n\n` +
-                 `💰 Kampanyalı Fiyat: ${priceText}\n` +
-                 (oldPriceText ? `❌ Normal Fiyat: ${oldPriceText} (Fiyat Düştü!)\n` : '') +
-                 `\nStoklarla sınırlı bu özel teknoloji fırsatını kaçırmamak için hemen DM atın veya telefonla sipariş oluşturun!\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🏪 ${displayName}\n\n` +
-                 `#teknolojimarket #telefon #firsat #indirim #elektronikalisveris ${storeHashtag}`;
-        case 'friendly':
-        default:
-          return `✨ Teknoloji Tutkunlarının Gözdesi: ${productTitle}! ✨\n\n` +
-                 `Herkese harika bir günden merhaba! 😍 Hayatınızı kolaylaştıracak, hızınıza hız katacak ${productTitle} artık ${displayName}'da! İster iş için ister eğlence için aradığınız güç burada. 🚀\n\n` +
-                 `🎁 Neden Bu Cihazı Almalısınız?\n` +
-                 `👉 Üstün performans ve şık tasarım\n` +
-                 `👉 Orijinal ürün ve güvenilir ${displayName} desteği\n` +
-                 (discountPercentage > 0 ? `👉 Cebinizi düşünen %${discountPercentage} indirim fırsatı! 🥳\n` : '') +
-                 `\n💰 Sahip Olma Fiyatı: ${priceText}\n` +
-                 (oldPriceText ? `👉 Kaçırılmayacak fiyat avantajı (${oldPriceText} yerine!)\n` : '') +
-                 `\nSorularınız için bize her zaman yazabilirsiniz. Ürününüzü özenle paketleyip hemen kargoya veriyoruz!\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🛍️ ${displayName}\n\n` +
-                 `#teknolojidunyasi #gadgets #akillitelefon #alisveris #yenisezon ${storeHashtag}`;
-      }
+    setImageUrlsPool(urls);
+    setSelectedImageUrls(urls.slice(0, 4));
+    // If product has multiple images, default collage layout to 3-image or 2-image showcase!
+    if (urls.length >= 3) {
+      setCollageLayout('collage_3');
+    } else if (urls.length === 2) {
+      setCollageLayout('collage_2');
+    } else {
+      setCollageLayout('single');
     }
+  }, [product]);
 
-    // 3. FASHION & APPAREL TERMINOLOGY
-    if (storeSector === 'fashion' || productCategory.toLowerCase().includes('giyim') || productCategory.toLowerCase().includes('moda') || productCategory.toLowerCase().includes('tekstil')) {
-      switch (selectedTone) {
-        case 'luxury':
-          return `✨ TARZINIZI İMZALAYAN PARÇA: ${productTitle.toUpperCase()} ✨\n\n` +
-                 `Modanın kalbinden gelen zarif kesimler, kaliteli kumaş dokusu ve göz alıcı duruşuyla ${displayName} yeni sezon koleksiyonu beğeninize sunulmuştur.\n\n` +
-                 `👗 Tasarım & Kumaş Özellikleri:\n` +
-                 `• Ürün Adı: ${productTitle}\n` +
-                 `• Kategori / Koleksiyon: ${productCategory} ${productBrand ? `• ${productBrand}` : ''}\n` +
-                 `• Kumaş Kalitesi: Birinci Sınıf Premium Tekstil\n` +
-                 (discountPercentage > 0 ? `• Sezon İndirimi: Net %${discountPercentage} Avantajlı Oran\n` : '') +
-                 `• Ürün Kodu: ${product.barcode || 'LP-FASHION'}\n\n` +
-                 `💰 Özel Satış Bedeli: ${priceText}\n` +
-                 (oldPriceText ? `❌ Sezon Başı Fiyatı: ${oldPriceText}\n` : '') +
-                 `\nŞıklığınızdan ödün vermeden her ortamda dikkat çekmek istiyorsanız mağazamıza davetlisiniz. Beden ve renk alternatifleri için bize ulaşın.\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🏢 ${displayName}\n\n` +
-                 `#moda #giyim #trend #kombin #stil #alisveris #fashionstyle ${storeHashtag}`;
-        case 'promo':
-          return `🔥 SEZONUN EN BÜYÜK MODA İNDİRİMİ: ${productTitle} 🔥\n\n` +
-                 `Dolabınızı yenilemenin tam zamanı! Trendlerin öncüsü ${productTitle} şimdi şok indirimli fiyatıyla ${displayName}'da!\n\n` +
-                 `⚡️ Fırsat Detayları:\n` +
-                 `• Son Trend Tasarım\n` +
-                 `• Yüksek Kalite Kumaş\n` +
-                 (discountPercentage > 0 ? `• Dev İndirim: %${discountPercentage} İndirim Fırsatı!\n` : '') +
-                 `• Stok Kodu: ${product.barcode || 'LP-FASHION'}\n\n` +
-                 `💰 Şok Fiyat: ${priceText}\n` +
-                 (oldPriceText ? `❌ Eski Fiyat: ${oldPriceText} (Fiyatlar Düştü!)\n` : '') +
-                 `\nStoklar tükenmeden bedeninizi ayırtın! Sipariş ve kombin önerileri için hemen mesaj atın.\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🏪 ${displayName}\n\n` +
-                 `#indirimlimoda #butik #elbise #kombinönerileri #alisveriszamani ${storeHashtag}`;
-        case 'friendly':
-        default:
-          return `🌸 Yeni Sezon Favoriniz Olmaya Geldi: ${productTitle}! 🌸\n\n` +
-                 `Moda severler selamlar! 😍 Gardırobunuza bayılacağınız, üzerinizden çıkarmak istemeyeceğiniz ${productTitle} artık ${displayName} stoklarında! ✨\n\n` +
-                 `💖 Neden Çok Seveceksiniz?\n` +
-                 `👉 Yumuşacık kumaş ve kusursuz kalıp\n` +
-                 `👉 Günlük şıklığın ve özel davetlerin kurtarıcısı\n` +
-                 (discountPercentage > 0 ? `👉 Sınırlı süreye özel %${discountPercentage} indirim! 🥳\n` : '') +
-                 `\n💰 Fiyat: ${priceText}\n` +
-                 (oldPriceText ? `👉 Avantajlı fiyat (${oldPriceText} yerine!)\n` : '') +
-                 `\nBeden tablosu ve sipariş için DM üzerinden bize hemen yazabilirsiniz. Sevgiler!\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🛍️ ${displayName}\n\n` +
-                 `#butikgiyim #tarzgiyim #kombinler #modatrend #alisveriscikiyoruz ${storeHashtag}`;
-      }
-    }
-
-    // 4. BOOKSTORE & STATIONERY TERMINOLOGY
-    if (storeSector === 'bookstore' || productCategory.toLowerCase().includes('kitap') || productCategory.toLowerCase().includes('kirtasiye')) {
-      switch (selectedTone) {
-        case 'luxury':
-          return `📚 KÜTÜPHANENİZİN DEĞERLİ PARÇASI: ${productTitle.toUpperCase()} 📚\n\n` +
-                 `Okuma tutkunları ve bilgiye değer verenler için seçkin yayın dünyasından ${displayName} güvencesiyle ${productTitle} sizlerle.\n\n` +
-                 `📖 Eser ve Baskı Detayları:\n` +
-                 `• Eser / Ürün: ${productTitle}\n` +
-                 `• Kategori: ${productCategory} ${productBrand ? `• Yazar/Yayın: ${productBrand}` : ''}\n` +
-                 `• Baskı Kalitesi: Birinci Sınıf Ciltli / Orijinal Yayın\n` +
-                 (discountPercentage > 0 ? `• Özel İndirim: %${discountPercentage} Kitap Kulübü Avantajı\n` : '') +
-                 `• Barkod (ISBN): ${product.barcode || '978-LP-BOOK'}\n\n` +
-                 `💰 Satış Bedeli: ${priceText}\n` +
-                 (oldPriceText ? `❌ Liste Fiyatı: ${oldPriceText}\n` : '') +
-                 `\nKitap kokusunu seven, yeni dünyalar keşfetmek isteyen tüm kitapseverleri mağazamıza ve kütüphanemize bekliyoruz.\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🏢 ${displayName}\n\n` +
-                 `#kitap #kitapkurdu #kütüphane #okumakeyfi #kitaptavsiyesi #edebiyat ${storeHashtag}`;
-        case 'promo':
-          return `🔥 KİTAPSEVERLERE ÖZEL İNDİRİM: ${productTitle} 🔥\n\n` +
-                 `Okuma aşkınızı katlayacak dev kampanya! En çok satanlar listesinden ${productTitle} şimdi ${displayName} ayrıcalığıyla sizlerle!\n\n` +
-                 `⚡️ Fırsat Detayları:\n` +
-                 `• Orijinal Yayın & Temiz Baskı\n` +
-                 (discountPercentage > 0 ? `• İndirim Oranı: %${discountPercentage} Fırsat İndirimi!\n` : '') +
-                 `• ISBN / Barkod: ${product.barcode || '978-LP-BOOK'}\n\n` +
-                 `💰 Kampanyalı Fiyat: ${priceText}\n` +
-                 (oldPriceText ? `❌ Normal Fiyat: ${oldPriceText}\n` : '') +
-                 `\nStok tükenmeden sipariş verin, yeni kitabınız kapınıza gelsin!\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🏪 ${displayName}\n\n` +
-                 `#kitapönerisi #coksatanlar #kitapsatisi #okur #kirtasiye ${storeHashtag}`;
-        case 'friendly':
-        default:
-          return `☕️ Kahve ve Kitap Keyfinizin Yeni Eşlikçisi: ${productTitle}! 📖\n\n` +
-                 `Kitap kurtları merhaba! 😍 Sizi sayfalarını çevirirken zamandan koparacak harika bir eserle tanıştırıyoruz: ${productTitle}. Kitaplığınızda mutlaka yer almalı! ✨\n\n` +
-                 `📚 Neden Okumalısınız?\n` +
-                 `👉 Sürükleyici anlatım ve derinlikli içerik\n` +
-                 `👉 ${displayName} seçkisiyle en taze baskı\n` +
-                 (discountPercentage > 0 ? `👉 Kitapseverlere özel %${discountPercentage} indirimli fiyat! 🥳\n` : '') +
-                 `\n💰 Fiyat: ${priceText}\n` +
-                 (oldPriceText ? `👉 Kaçırılmayacak fırsat (${oldPriceText} yerine!)\n` : '') +
-                 `\nSipariş vermek ve diğer kitap tavsiyelerimiz için hemen mesaj atın!\n\n` +
-                 `📞 ${contactPhoneText}\n` +
-                 `🛍️ ${displayName}\n\n` +
-                 `#kitapsever #neokusam #kitapvatani #kitapaski #kirtasiyealisverisi ${storeHashtag}`;
-      }
-    }
-
-    // 5. GENERAL RETAIL / SHOPLP DEFAULT TERMINOLOGY
-    switch (selectedTone) {
-      case 'luxury':
-        return `⚜️ YAŞAMINIZA ZERAFET KATIN: ${productTitle.toUpperCase()} ⚜️\n\n` +
-               `Adını özgün tasarımdan, gücünü ise kaliteden alan muhteşem bir ürünle stilinizi taçlandırın. ${displayName} koleksiyonunun gözde tasarımları arasında yer alan bu nadide parça cazibesiyle göz kamaştırıyor.\n\n` +
-               `🛍️ Ürün Bilgileri ve Özellikleri:\n` +
-               `• Ürün Adı: ${productTitle}\n` +
-               `• Kategori / Marka: ${productCategory} ${productBrand ? `• ${productBrand}` : ''}\n` +
-               `• Güvence: %100 Orijinal Ürün & ${displayName} Güvencesi\n` +
-               (discountPercentage > 0 ? `• Kampanya Ayrıcalığı: Net %${discountPercentage} Seçkin İndirim Oranı\n` : '') +
-               `• Barkod ID: ${product.barcode || 'LP-PROD'}\n\n` +
-               `💰 Ayrıcalıklı Liste Satış Bedeli: ${priceText}\n` +
-               (oldPriceText ? `❌ Önceki Fiyat: ${oldPriceText}\n` : '') +
-               `\nHayatına prestij ve asalet katmak isteyen, detaylardaki mükemmelliği önemseyen tüm seçkin misafirlerimizi mağazamıza davet ediyoruz. İncelemeniz ve dilediğiniz adrese randevulu kurye gönderimleri için bize hemen ulaşabilirsiniz.\n\n` +
-               `📞 ${contactPhoneText}\n` +
-               `🏢 Koleksiyon Sahibi / Mağaza: ${displayName}\n\n` +
-               `${activeHashtags}`;
-
-      case 'promo':
-        return `🔥 BÜYÜK FIRSAT DETAYI: KAÇIRILMAYACAK FİYAT! 🔥\n\n` +
-               `Vitrinlerimizde hararetli anlar yaşanıyor! Sizlere kalite tescilli ${productTitle} ürünümüzü inanılmaz avantajlarla sunuyoruz. Stok tükenmeden hızlı karar verin!\n\n` +
-               `⚡️ Kampanya ve Detaylar:\n` +
-               `• Ürün Segmenti: ${productCategory}\n` +
-               (productBrand ? `• Marka Kalitesi: ${productBrand}\n` : '') +
-               (discountPercentage > 0 ? `🎊 Dev İndirim Oranı: %${discountPercentage} İndirim Fırsatı!\n` : '') +
-               `• Barkod / Kod: ${product.barcode || 'LP-PROD'}\n` +
-               `• Güvence: %100 Orijinal Ürün & ${displayName} Güvencesi\n\n` +
-               `💰 Şok Liste Fiyatı: ${priceText}\n` +
-               (oldPriceText ? `❌ Eski Satış Fiyatı: ${oldPriceText} (Büyük İndirim Yapıldı!)\n` : '') +
-               `\nBu bütçe dostu, Premium tasarımı kapınıza kadar ulaştırmak ve hızlı sipariş geçmek için bize hemen DM atabilir veya telefon hattımızdan iletişime geçebilirsiniz. Fırsatı kaçırmayın!\n\n` +
-               `📞 ${contactPhoneText}\n` +
-               `🏪 Yetkili Satıcı Mağaza: ${displayName}\n\n` +
-               `#indirimvar #sezonindirimi #alisveriszamani #firsatfiyat #alisverisonline ${activeHashtags}`;
-
-      case 'friendly':
-      default:
-        return `🌟 Günün Harika Ürünü İle Karşınızdayız! 🌟\n\n` +
-               `Selamlar sevgili ${displayName} takipçileri! 😍 Bugün mağazamızın en beğenilen, her köşede tarzınızı ve günlük kullanım konforunuzu tazeleyecek pırıl pırıl bir parçayı sizinle paylaşmak için çok heyecanlıyız: ${productTitle}! ✨\n\n` +
-               `🌸 Neden Bu Ürüne Bayılacaksınız?\n` +
-               `👉 Kalite & Zarafet bir arada: ${productCategory} koleksiyonunun en yeni tarzı\n` +
-               (productBrand ? `👉 Güvendiğiniz Marka: ${productBrand} güvencesiyle\n` : '') +
-               (discountPercentage > 0 ? `👉 Çok Özel İndirim: Tam %${discountPercentage} indirim yaptık, her bütçeye uygun hale getirdik! 🥳\n` : '') +
-               `👉 Tam günlük kullanımınıza, şık sofralarınıza veya sevdiklerinize hediye edilmeye uygun!\n\n` +
-               `💰 Yeni Sahibini Bekleyen Fiyat: ${priceText}\n` +
-               (oldPriceText ? `👉 Eski fiyata elveda: ${oldPriceText} yerine sadece ${priceText}! 😍\n` : '') +
-               `\nEv sahipliği yapmak, detaylı sormak ya da bir Türk kahvemizi içerken ürünü yakından incelemek için bizimle hemen iletişime geçin. Sizler için mağazamızda özenle paketlemek için hazırız!\n\n` +
-               `💬 DM üzerinden veya buraya yazarak bana anında ulaşabilirsiniz:\n` +
-               `📞 ${contactPhoneText}\n` +
-               `🛍️ Güvenli Mağaza: ${displayName}\n\n` +
-               `${activeHashtags}`;
-    }
-  };
-
-  const handleCopyCaption = () => {
-    navigator.clipboard.writeText(getCaptionText());
-    setCopySuccess(true);
-  };
-
-  // High-Resolution HTML5 Canvas Exporter for General Product Share Poster
-  const handleDownloadImage = async () => {
-    setIsRendering(true);
-    setRenderError(null);
-
-    const element = previewContainerRef.current;
-    if (!element) {
-      setRenderError("Afiş önizleme alanı yüklenemedi.");
-      setIsRendering(false);
+  // 2. Load HTMLImageElements for all selected image URLs
+  useEffect(() => {
+    let active = true;
+    if (selectedImageUrls.length === 0) {
+      setLoadedImageElements([]);
       return;
     }
 
+    Promise.all(
+      selectedImageUrls.map((url) =>
+        loadPosterImage(url).catch(() => null)
+      )
+    ).then((imgs) => {
+      if (!active) return;
+      const valid = imgs.filter((i): i is HTMLImageElement => i !== null);
+      setLoadedImageElements(valid);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedImageUrls]);
+
+  // Apply a selected scenario option
+  const applyScenario = useCallback((scen: ScenarioOption) => {
+    setActiveScenarioId(scen.id);
+    setSceneType(scen.sceneType || 'desk_setup');
+    setScenarioTitle(scen.title);
+    setScenarioDescription(scen.description);
+    setKicker(scen.kicker || "ÖZEL SENARYO");
+    setHeadline(discountPercentage > 0 ? `%${discountPercentage} İNDİRİM` : (scen.headline || "GERÇEK DENEYİM"));
+    setBadge(scen.badge || "Aynı Gün Kargo & Orijinal Garanti");
+    if (Array.isArray(scen.storyScenes) && scen.storyScenes.length > 0) {
+      setStoryScenes(scen.storyScenes);
+    }
+  }, [discountPercentage]);
+
+  // 3. Analyze Product Segment & Fetch Tailored Scenarios
+  const handleAnalyzeSegment = useCallback(async (customIdeaStr: string = "") => {
+    if (!product) return;
+    setIsAnalyzingSegment(true);
     try {
-      // Allow layout engine to fully settle
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      // 1. Prepare and convert all images inside preview element to Data URLs for 100% CORS safety
-      await prepareImagesForHtml2Canvas(element);
-
-      // 2. Render DOM element to high-resolution canvas with safe modern color handling
-      const currentWidth = element.clientWidth || 340;
-      const targetWidth = 1080;
-      const renderScale = Math.max(3.0, targetWidth / currentWidth);
-
-      const canvas = await safeHtml2Canvas(element, {
-        scale: renderScale,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: null,
-        logging: false,
-        imageTimeout: 15000,
+      const res = await fetch("/api/ai-social/analyze-segment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: product.name,
+          category: product.category,
+          brand: product.brand,
+          customIdea: customIdeaStr
+        })
       });
+      const data = await res.json();
+      if (data.segmentLabel) setSegmentLabel(data.segmentLabel);
+      if (Array.isArray(data.scenarios) && data.scenarios.length > 0) {
+        setScenarios(data.scenarios);
+        applyScenario(data.scenarios[0]);
+      }
+    } catch (e) {
+      console.error("Segment analyze error:", e);
+    } finally {
+      setIsAnalyzingSegment(false);
+    }
+  }, [product, applyScenario]);
 
-      // 3. Download generated PNG
-      const sanitizedTitle = (productTitle || 'afis')
-        .toLowerCase()
-        .replace(/[^a-z0-9ğüşıöç]/g, '-')
-        .replace(/-+/g, '-')
-        .substring(0, 25);
+  // Generate AI Scene Image (Places the product into the chosen scenario & adds to multi-image pool)
+  const handleGenerateAiSceneImage = async () => {
+    if (loadedImageElements.length === 0) return;
+    setIsGeneratingAiScene(true);
+    try {
+      const activeScen = scenarios.find((s) => s.id === activeScenarioId);
+      const customOrScenTitle = customScenarioIdea.trim() || scenarioTitle || "Gerçek Yaşam Senaryosu";
+      const targetSceneType: SceneType = customScenarioIdea.trim()
+        ? (customScenarioIdea.toLowerCase().includes("dolap") || customScenarioIdea.toLowerCase().includes("raf")
+            ? "closet_organizer"
+            : customScenarioIdea.toLowerCase().includes("insan") || customScenarioIdea.toLowerCase().includes("kullanıcı") || customScenarioIdea.toLowerCase().includes("üzerinde")
+            ? "user_lifestyle"
+            : "desk_setup")
+        : sceneType;
 
-      let dataUrl = '';
-      try {
-        dataUrl = canvas.toDataURL("image/png", 1.0);
-      } catch (e) {
-        dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+      // If user typed a custom scenario, also enrich the storyboard
+      if (customScenarioIdea.trim().length > 2) {
+        await handleAnalyzeSegment(customScenarioIdea.trim());
       }
 
-      const link = document.createElement("a");
-      link.download = `afis-product-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
-      link.href = dataUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err: any) {
-      console.error("Poster export error:", err);
-      setRenderError("Afiş görseli indirilirken bir hata oluştu: " + (err?.message || "Lütfen tekrar deneyiniz."));
+      const res = await fetch("/api/ai-social/generate-scene-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: selectedImageUrls[0],
+          title: product?.name,
+          scenarioTitle: customOrScenTitle,
+          scenarioPrompt: activeScen?.aiPrompt || customOrScenTitle,
+          sceneType: targetSceneType
+        })
+      });
+
+      const data = await res.json();
+      let newSceneUrl = data.generatedImageUrl;
+
+      if (!newSceneUrl && loadedImageElements[0]) {
+        // Generate high-res 1080p contextual stage variant via procedural compositor
+        newSceneUrl = createContextualSceneDataUrl(
+          loadedImageElements[0],
+          targetSceneType,
+          customOrScenTitle
+        );
+      }
+
+      if (newSceneUrl) {
+        setImageUrlsPool((prev) => [newSceneUrl, ...prev]);
+        setSelectedImageUrls((prev) => {
+          const next = [newSceneUrl, ...prev].slice(0, 4);
+          if (next.length >= 2 && collageLayout === 'single') {
+            setCollageLayout('collage_2');
+          }
+          return next;
+        });
+      }
+    } catch (e) {
+      console.error("Scene generation error:", e);
     } finally {
-      setIsRendering(false);
+      setIsGeneratingAiScene(false);
     }
   };
 
+  // Handle local extra image upload for multi-image collage/video
+  const handleAddLocalImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        if (dataUrl) {
+          setImageUrlsPool((prev) => [...prev, dataUrl]);
+          setSelectedImageUrls((prev) => {
+            const next = [...prev, dataUrl].slice(0, 4);
+            if (next.length === 2) setCollageLayout('collage_2');
+            else if (next.length === 3) setCollageLayout('collage_3');
+            else if (next.length >= 4) setCollageLayout('collage_4');
+            return next;
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  // Generate AI Social Caption
+  const handleGenerateCaption = useCallback(async (toneToUse: CaptionTone = selectedTone) => {
+    if (!product) return;
+    setIsGeneratingCaption(true);
+    try {
+      const res = await fetch("/api/ai-social/generate-caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "product",
+          title: product?.name,
+          price: formatNumberVal(product?.price),
+          oldPrice: oldPriceText ? formatNumberVal(product?.old_price) : null,
+          currency: product?.currency || 'TRY',
+          category: product?.category,
+          brand: product?.brand,
+          storeName: storeName,
+          phone: branding?.phone || branding?.whatsapp_number,
+          tone: toneToUse,
+          campaignBadge: badge,
+          scenarioTitle,
+          scenarioDescription
+        })
+      });
+
+      const data = await res.json();
+      if (data.caption) {
+        setCaptionText(data.caption);
+      }
+    } catch (e) {
+      console.error("Caption generation error:", e);
+    } finally {
+      setIsGeneratingCaption(false);
+    }
+  }, [product, oldPriceText, storeName, branding, selectedTone, badge, scenarioTitle, scenarioDescription]);
+
+  // Initial load when modal opens
+  useEffect(() => {
+    if (isOpen && product) {
+      handleAnalyzeSegment("");
+      handleGenerateCaption('promo');
+    }
+  }, [isOpen, product?.id]);
+
+  // Poster Config Builder
+  const posterConfig: PosterConfig = useMemo(() => {
+    return {
+      aspectRatio: selectedRatio,
+      template: selectedTheme,
+      sceneType,
+      collageLayout,
+      imageFitMode,
+      focalZoom,
+      storeName: storeName || "Seçkin Mağaza",
+      kicker: kicker.trim() || "ÖZEL SENARYO",
+      headline: headline.trim() || "GERÇEK DENEYİM",
+      badge: badge.trim(),
+      title: product?.name || "Seçkin Ürün",
+      price: priceText,
+      oldPrice: oldPriceText,
+      currencySymbol,
+      imageElement: loadedImageElements[0] || null,
+      imageElements: loadedImageElements,
+      brand: product?.brand || "",
+      category: product?.category || "Genel Ürün",
+      phone: branding?.phone || branding?.whatsapp_number || "",
+      scenarioTitle,
+      scenarioDescription,
+      storyScenes
+    };
+  }, [
+    selectedRatio,
+    selectedTheme,
+    sceneType,
+    collageLayout,
+    imageFitMode,
+    focalZoom,
+    storeName,
+    kicker,
+    headline,
+    badge,
+    product,
+    priceText,
+    oldPriceText,
+    currencySymbol,
+    loadedImageElements,
+    branding,
+    scenarioTitle,
+    scenarioDescription,
+    storyScenes
+  ]);
+
+  // Render canvas
+  const redrawCanvas = useCallback((progress?: number) => {
+    if (canvasRef.current) {
+      renderPosterToCanvas(canvasRef.current, {
+        ...posterConfig,
+        animationProgress: progress
+      });
+    }
+  }, [posterConfig]);
+
+  useEffect(() => {
+    if (!isPlayingVideo) {
+      redrawCanvas(outputMode === 'video' ? 0.01 : undefined);
+    }
+  }, [posterConfig, isPlayingVideo, outputMode, redrawCanvas]);
+
+  // 6-Second 4-Scene Storyboard Video Loop
+  useEffect(() => {
+    if (isPlayingVideo && outputMode === 'video') {
+      const duration = 6000; // 6 second multi-scene storyboard loop
+
+      const loop = (timestamp: number) => {
+        if (!animationStartTimeRef.current) animationStartTimeRef.current = timestamp;
+        const elapsed = (timestamp - animationStartTimeRef.current) % duration;
+        const progress = Math.max(0.001, elapsed / duration);
+        setVideoProgress(progress);
+        redrawCanvas(progress);
+        animationFrameRef.current = requestAnimationFrame(loop);
+      };
+
+      animationFrameRef.current = requestAnimationFrame(loop);
+    } else {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      animationStartTimeRef.current = null;
+      setVideoProgress(0);
+      redrawCanvas(outputMode === 'video' ? 0.01 : undefined);
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isPlayingVideo, outputMode, redrawCanvas]);
+
+  // Download High-Res 1080p PNG
+  const handleDownloadImage = async () => {
+    if (!canvasRef.current) return;
+    setIsDownloadingImage(true);
+    try {
+      // Ensure static poster render before snapshot
+      renderPosterToCanvas(canvasRef.current, {
+        ...posterConfig,
+        animationProgress: undefined
+      });
+      const filename = `${storeName.replace(/\s+/g, '_')}_${(product?.name || 'urun').replace(/[^a-zA-Z0-9]/g, '_')}_${collageLayout}_1080p.png`;
+      await downloadPosterImage(canvasRef.current, filename);
+    } catch (err) {
+      console.error("Download image error:", err);
+    } finally {
+      setIsDownloadingImage(false);
+    }
+  };
+
+  // Download 6s Multi-Scene Storyboard Video Reel
+  const handleDownloadVideo = async () => {
+    setIsExportingVideo(true);
+    setExportProgress(0);
+    try {
+      if (aiGeneratedVideoUrl) {
+        const a = document.createElement('a');
+        a.href = aiGeneratedVideoUrl;
+        a.download = `${storeName.replace(/\s+/g, '_')}_${(product?.name || 'reel').replace(/[^a-zA-Z0-9]/g, '_')}_AI_Reel.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      const videoBlob = await recordPosterReel(posterConfig, (percent) => {
+        setExportProgress(percent);
+      });
+
+      const url = URL.createObjectURL(videoBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${storeName.replace(/\s+/g, '_')}_${(product?.name || 'reel').replace(/[^a-zA-Z0-9]/g, '_')}_Senaryo_Reel.webm`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Video export error:", err);
+    } finally {
+      setIsExportingVideo(false);
+      setExportProgress(0);
+    }
+  };
+
+  // Trigger Google AI Omni Video Generation
+  const handleGenerateOmniVideo = async () => {
+    setIsGeneratingAiVideo(true);
+    setOutputMode('video');
+    try {
+      const activeScen = scenarios.find((s) => s.id === activeScenarioId);
+      const res = await fetch("/api/ai-social/generate-ai-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrls: selectedImageUrls,
+          title: product?.name,
+          scenarioPrompt: activeScen?.aiPrompt || `${scenarioTitle}: ${scenarioDescription}`,
+          aspectRatio: selectedRatio
+        })
+      });
+      const data = await res.json();
+      if (data.videoDataUrl) {
+        setAiGeneratedVideoUrl(data.videoDataUrl);
+      } else {
+        setIsPlayingVideo(true);
+      }
+    } catch (e) {
+      setIsPlayingVideo(true);
+    } finally {
+      setIsGeneratingAiVideo(false);
+    }
+  };
+
+  const toggleImageSelection = (url: string) => {
+    setSelectedImageUrls((prev) => {
+      if (prev.includes(url)) {
+        if (prev.length <= 1) return prev; // keep at least 1
+        return prev.filter((u) => u !== url);
+      }
+      return [...prev, url].slice(0, 4);
+    });
+  };
+
+  const handleCopyCaption = () => {
+    if (!captionText) return;
+    navigator.clipboard.writeText(captionText);
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
+  };
+
+  if (!isOpen || !product) return null;
+
   return (
-    <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[999] flex items-center justify-center p-4 overflow-y-auto font-sans" id="product-share-wizard-modal">
-      <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row border border-slate-200 animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-6xl max-h-[94vh] bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100">
         
-        {/* Left Side: Real-time Live Preview */}
-        <div className="lg:w-1/2 bg-slate-100 p-4 sm:p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 shrink-0 lg:shrink lg:overflow-y-auto">
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
-                <Sparkles className="w-3.5 h-3.5" /> AFİŞ ÖNİZLEME (FİİLİ TASARIM)
-              </span>
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => setSelectedRatio('square')}
-                  className={`p-1.5 rounded-lg border transition-all ${selectedRatio === 'square' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-                  title="Kare Gönderi Post (1:1)"
-                >
-                  <Grid className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={() => setSelectedRatio('story')}
-                  className={`p-1.5 rounded-lg border transition-all ${selectedRatio === 'story' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-                  title="Dikey Gönderi / Hikaye Story (9:16)"
-                >
-                  <Smartphone className="w-4 h-4" />
-                </button>
+        {/* TOP HEADER */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-900/95">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-bold tracking-tight text-white">
+                  AI Ürün Senaryolaştırma, Çoklu Kolaj & Video Stüdyosu
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                  {segmentLabel}
+                </span>
               </div>
-            </div>
-
-            {/* Poster Canvas container */}
-            <div className="flex justify-center items-center py-4">
-              <div 
-                ref={previewContainerRef}
-                className={`relative w-[340px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans select-none ${themeConfig.canvasBg}`}
-                style={{ height: selectedRatio === 'square' ? '340px' : '604px' }}
-              >
-                {/* Double Luxury Borders */}
-                <div className={`absolute inset-2 border-[2px] rounded-2xl pointer-events-none z-10 ${themeConfig.accentBorder}`} />
-                <div className={`absolute inset-3 border rounded-2xl pointer-events-none z-10 ${themeConfig.innerBorder}`} />
-
-                {/* Top Glassmorphic Store & Contact Bar */}
-                <div className={`relative z-20 flex justify-between items-center px-3.5 py-2 mx-3.5 mt-4 rounded-xl backdrop-blur-md ${themeConfig.headerBg} shrink-0`}>
-                  <div className="flex items-center gap-2 min-w-0 pr-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-sm" />
-                    <span className="text-[10.5px] font-black uppercase tracking-wider text-white inline-block leading-normal py-0.5">
-                      {storeNameDisplay}
-                    </span>
-                  </div>
-                  <div className={`shrink-0 text-[9.5px] font-mono font-black ${themeConfig.textTitle} leading-normal py-0.5 flex items-center gap-1`}>
-                    <span>📞</span>
-                    <span>{branding?.whatsapp_number || branding?.phone || '+90 212 8812442'}</span>
-                  </div>
-                </div>
-
-                {/* Main Visual Image centerpiece with ambient glow */}
-                <div className="relative flex-1 min-h-0 w-full flex items-center justify-center p-3 z-10 overflow-hidden">
-                  {/* Soft Radial Backlight */}
-                  <div className={`absolute inset-0 bg-radial ${themeConfig.ambientGlow} pointer-events-none`} />
-
-                  {(safeProductImageUrl || productImages[0]) ? (
-                    <img 
-                      src={safeProductImageUrl || productImages[0]} 
-                      alt={productTitle} 
-                      className="max-w-full max-h-full w-auto h-auto object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.7)] select-none z-10"
-                      crossOrigin="anonymous"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 z-10">
-                      <span className="text-4xl mb-1">🎁</span>
-                      <span className="text-[11px] font-bold">Görsel Eklenmemiş</span>
-                    </div>
-                  )}
-
-                  {/* Floating Discount Badge */}
-                  {discountPercentage > 0 && (
-                    <div className={`absolute top-2 right-3 ${themeConfig.discountBg} font-mono text-[9px] font-black px-2.5 py-1 rounded-full uppercase shadow-xl z-20 border border-white/20`}>
-                      %{discountPercentage} İNDİRİM
-                    </div>
-                  )}
-                </div>
-
-                {/* Translucent Overlay Info Card - 100% visible, elegant, NO line-clamp cut-off */}
-                <div className={`relative z-20 mx-3.5 mb-3.5 p-3 rounded-2xl backdrop-blur-md ${themeConfig.infoCardBg} flex flex-col gap-1.5 shrink-0`}>
-                  {/* Product Title */}
-                  <h4 
-                    className={`text-[12px] font-black uppercase tracking-wide leading-relaxed ${themeConfig.textTitle}`}
-                    style={{ lineHeight: '1.4', overflowWrap: 'break-word' }}
-                  >
-                    {productTitle}
-                  </h4>
-
-                  {/* Price and Guarantee Section */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
-                    <div className="flex flex-col">
-                      <span className={`block text-[7.5px] uppercase tracking-wider leading-normal font-extrabold ${themeConfig.priceLabel}`}>
-                        {discountPercentage > 0 ? "KAMPANYALI LİSTE FİYATI" : "AVANTAJLI LİSTE FİYATI"}
-                      </span>
-                      <div className="flex items-baseline gap-2 mt-0.5">
-                        <span className={`text-base font-black tracking-tight leading-normal ${themeConfig.priceColor}`}>
-                          {priceText}
-                        </span>
-                        {oldPriceText && (
-                          <span className={`text-[9.5px] ${themeConfig.oldPriceColor} leading-normal`}>
-                            {oldPriceText}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="text-right flex flex-col items-end shrink-0">
-                      {branding?.custom_domain ? (
-                        <>
-                          <span className="text-[7px] font-black uppercase tracking-widest text-slate-300 leading-normal mb-0.5 block">
-                            GÜVENLİ MAĞAZA
-                          </span>
-                          <span className={`text-[8.5px] font-black tracking-wider uppercase px-2.5 py-1 rounded border ${themeConfig.badgeBorder} ${themeConfig.badgeText} bg-white/5 leading-normal inline-block`}>
-                            {branding.custom_domain.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                          </span>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          {/* Theme Colors selection */}
-          <div className="mt-4">
-            <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">🎨 GÖRSEL ŞABLON SEÇENEKLERİ</span>
-            <div className="grid grid-cols-4 gap-2">
-              <button 
-                onClick={() => setSelectedTheme('sunset_orange')}
-                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'sunset_orange' ? 'bg-orange-500 border-white text-white ring-2 ring-orange-550/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
-              >
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 to-rose-600 mb-1 border border-white/20" />
-                <span className="text-[9px] font-bold">Turuncu Fırsat</span>
-              </button>
-              <button 
-                onClick={() => setSelectedTheme('luxury_dark')}
-                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'luxury_dark' ? 'bg-slate-900 border-amber-500 text-white ring-2 ring-amber-500/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
-              >
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-950 to-amber-500 mb-1" />
-                <span className="text-[9px] font-bold">Lüks Siyah</span>
-              </button>
-              <button 
-                onClick={() => setSelectedTheme('neon_cyber')}
-                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'neon_cyber' ? 'bg-indigo-950 border-cyan-400 text-white ring-2 ring-cyan-400/35 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
-              >
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-900 to-cyan-500 mb-1" />
-                <span className="text-[9px] font-bold">Sanal Siber</span>
-              </button>
-              <button 
-                onClick={() => setSelectedTheme('minimal_carbon')}
-                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'minimal_carbon' ? 'bg-zinc-900 border-zinc-550 text-white ring-2 ring-zinc-500/25 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
-              >
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-zinc-700 to-neutral-900 mb-1" />
-                <span className="text-[9px] font-bold">Kömür Gri</span>
-              </button>
-            </div>
-
-            {/* Downloader Trigger Button */}
-            <div className="mt-4 flex gap-1 items-center">
-              <button 
-                onClick={handleDownloadImage}
-                disabled={isRendering}
-                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl transition-all shadow-lg text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
-              >
-                {isRendering ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {isRendering ? 'Görsel Derleniyor (PNG)...' : 'Afiş Görselini İndir (PNG)'}
-              </button>
-            </div>
-            
-            {renderError && (
-              <p className="text-xs text-rose-600 mt-2 font-medium flex items-center gap-1">
-                <Info className="w-3.5 h-3.5 shrink-0" /> {renderError}
+              <p className="text-[11px] text-slate-400 line-clamp-1">
+                {product?.name} — Ürünün segmentine göre gerçek yaşam senaryosu, merkez odaklı kolaj ve çok sahneli video üretimi
               </p>
-            )}
+            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Kapat"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Right Side: Copywriting Caption */}
-        <div className="lg:w-1/2 p-6 flex flex-col justify-between overflow-y-auto">
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5 leading-tight">
-                <Instagram className="w-5 h-5 text-indigo-600" /> KOPYALANABİLİR REKLAM METİNLERİ
-              </h2>
-              <button 
-                onClick={onClose}
-                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-bold"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-slate-500 text-xs leading-relaxed mb-4">
-              Reklam afişinizi sol panelden dilediğiniz gibi hazırlayıp indirdikten sonra, sosyal medya postlarınız, story paylaşımlarınız veya WhatsApp katalog duyurularınız için kullanabileceğiniz hazır pazarlama metinleri:
-            </p>
-
-            {/* Tone Selector */}
-            <div className="mb-4">
-              <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2 font-sans">✍️ METİN TONU VE ÜSLUP TERCİHİ</span>
-              <div className="grid grid-cols-3 gap-2 bg-slate-55 p-1 rounded-2xl border border-slate-200">
-                <button 
-                  onClick={() => setSelectedTone('promo')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${selectedTone === 'promo' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900'}`}
+        {/* MAIN DUAL-COLUMN WORKSPACE */}
+        <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-5 p-4 sm:p-5">
+          
+          {/* LEFT COLUMN: LIVE STAGE PREVIEW, COLLAGE BAR & EXPORT (7 COLS) */}
+          <div className="lg:col-span-7 flex flex-col justify-between space-y-3.5">
+            
+            {/* TOP TOOLBAR: MODE + COLLAGE LAYOUT + ASPECT RATIO */}
+            <div className="w-full flex flex-wrap items-center justify-between gap-2 bg-slate-950/70 p-2 rounded-2xl border border-slate-800">
+              
+              {/* Output Mode Switcher */}
+              <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOutputMode('image');
+                    setIsPlayingVideo(false);
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    outputMode === 'image'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
                 >
-                  🔥 İndirim & Fırsat
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>Senaryo & Kolaj Afiş</span>
                 </button>
-                <button 
-                  onClick={() => setSelectedTone('luxury')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${selectedTone === 'luxury' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900'}`}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOutputMode('video');
+                    setIsPlayingVideo(true);
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    outputMode === 'video'
+                      ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
                 >
-                  ⚜️ Lüks & Prestij
+                  <Film className="w-3.5 h-3.5" />
+                  <span>4 Sahneli Senaryo Video</span>
                 </button>
-                <button 
-                  onClick={() => setSelectedTone('friendly')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${selectedTone === 'friendly' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900'}`}
+              </div>
+
+              {/* Quick Collage Layout Selector */}
+              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                {(
+                  [
+                    { id: 'single', label: 'Tekli Sahne' },
+                    { id: 'collage_2', label: "2'li Kolaj" },
+                    { id: 'collage_3', label: "3'lü Bento" },
+                    { id: 'collage_4', label: "4'lü Odak" }
+                  ] as Array<{ id: CollageLayout; label: string }>
+                ).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setCollageLayout(item.id)}
+                    className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      collageLayout === item.id
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Aspect Ratio Switcher */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRatio('square')}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    selectedRatio === 'square'
+                      ? 'bg-slate-800 text-white border-indigo-500'
+                      : 'bg-slate-900/80 text-slate-400 border-slate-800'
+                  }`}
+                  title="Kare 1:1 (1080x1080)"
                 >
-                  ✨ Samimi & Emojili
+                  <Grid className="w-3.5 h-3.5" />
+                  <span>1:1</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRatio('story')}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    selectedRatio === 'story'
+                      ? 'bg-slate-800 text-white border-indigo-500'
+                      : 'bg-slate-900/80 text-slate-400 border-slate-800'
+                  }`}
+                  title="Dikey Story/Reels 9:16 (1080x1920)"
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span>9:16</span>
                 </button>
               </div>
             </div>
 
-            {/* Caption Text area */}
-            <div className="relative">
-              <span className="block text-[11px] font-black tracking-wider text-slate-400 uppercase mb-1">HAZIR REKLAM METNİ (KOPYALANABİLİR)</span>
-              <div className="border border-slate-200 rounded-2xl bg-slate-50 overflow-hidden">
-                <textarea 
-                  value={getCaptionText()}
-                  readOnly
-                  className="w-full h-[240px] p-4 text-xs font-medium text-slate-800 leading-relaxed bg-transparent focus:outline-none focus:ring-0 resize-none font-sans border-0 select-text"
+            {/* HIGH-RES CANVAS / VIDEO PREVIEW STAGE */}
+            <div className="relative w-full flex-1 flex items-center justify-center p-3 rounded-2xl bg-black/50 border border-slate-800/90 min-h-[370px] sm:min-h-[420px] max-h-[490px] overflow-hidden">
+              {aiGeneratedVideoUrl && outputMode === 'video' ? (
+                <video
+                  src={aiGeneratedVideoUrl}
+                  controls
+                  autoPlay
+                  loop
+                  className="max-h-[440px] rounded-xl shadow-2xl border border-slate-700"
                 />
-                
-                {/* Float copy bar */}
-                <div className="p-3 bg-slate-100 border-t border-slate-200 flex justify-between items-center">
-                  <span className="text-[10px] font-extrabold text-slate-500 uppercase flex items-center gap-1">
-                    <Award className="w-3.5 h-3.5 text-indigo-600" /> DIGITAL AD-WRITER V3
-                  </span>
-                  <button 
-                    onClick={handleCopyCaption}
-                    className={`px-3 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1 shadow-sm ${copySuccess ? 'bg-emerald-600 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}
+              ) : (
+                <div 
+                  className="relative shadow-2xl transition-all duration-300 rounded-xl overflow-hidden"
+                  style={{
+                    width: selectedRatio === 'story' ? '265px' : '410px',
+                    height: selectedRatio === 'story' ? '470px' : '410px',
+                    maxHeight: '470px'
+                  }}
+                >
+                  <canvas
+                    ref={canvasRef}
+                    className="w-full h-full object-contain rounded-xl select-none"
+                  />
+
+                  {/* Active Mode Indicator Pill */}
+                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/15 text-[10px] font-bold text-white shadow-lg">
+                    <span className={`w-2 h-2 rounded-full ${outputMode === 'video' ? 'bg-cyan-400 animate-ping' : 'bg-emerald-400'}`} />
+                    <span>
+                      {outputMode === 'video'
+                        ? `4 SAHNELİ SENARYO REEL (${Math.min(4, Math.floor(videoProgress * 4) + 1)}/4)`
+                        : 'MERKEZ ODAKLI 1080P'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Video Playback Scrubber & Scene Bar */}
+              {outputMode === 'video' && !aiGeneratedVideoUrl && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2.5 bg-slate-950/90 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-800 shadow-xl">
+                  <button
+                    type="button"
+                    onClick={() => setIsPlayingVideo(!isPlayingVideo)}
+                    className="p-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white transition-colors cursor-pointer"
                   >
-                    {copySuccess ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copySuccess ? 'Kopyalandı!' : 'Metni Kopyala'}
+                    {isPlayingVideo ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPlayingVideo(false);
+                      setTimeout(() => setIsPlayingVideo(true), 40);
+                    }}
+                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="w-36 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-gradient-to-r from-cyan-400 to-indigo-500 h-full transition-all duration-75"
+                      style={{ width: `${Math.round(videoProgress * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-mono text-slate-300">
+                    {(videoProgress * 6).toFixed(1)}s / 6.0s
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* ENVIRONMENT SCENE & ATMOSPHERE BAR */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setSceneType('desk_setup')}
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
+                  sceneType === 'desk_setup'
+                    ? 'bg-slate-800 border-cyan-500 text-white ring-1 ring-cyan-500/30'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <Monitor className="w-4 h-4 text-cyan-400 shrink-0" />
+                <div>
+                  <div className="text-[11px] font-bold text-white">Ofis / Masaüstü</div>
+                  <div className="text-[9px] text-slate-400">Masa kurulum sahnesi</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSceneType('user_lifestyle')}
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
+                  sceneType === 'user_lifestyle'
+                    ? 'bg-slate-800 border-purple-500 text-white ring-1 ring-purple-500/30'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <User className="w-4 h-4 text-purple-400 shrink-0" />
+                <div>
+                  <div className="text-[11px] font-bold text-white">Kullanıcı Üzerinde</div>
+                  <div className="text-[9px] text-slate-400">Canlı deneyim kurgusu</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSceneType('closet_organizer')}
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
+                  sceneType === 'closet_organizer'
+                    ? 'bg-slate-800 border-amber-500 text-white ring-1 ring-amber-500/30'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <Package className="w-4 h-4 text-amber-400 shrink-0" />
+                <div>
+                  <div className="text-[11px] font-bold text-white">Dolap / Ev İçi</div>
+                  <div className="text-[9px] text-slate-400">Raf & yerleşim sahnesi</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSceneType('studio_macro')}
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
+                  sceneType === 'studio_macro'
+                    ? 'bg-slate-800 border-emerald-500 text-white ring-1 ring-emerald-500/30'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <Focus className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div>
+                  <div className="text-[11px] font-bold text-white">Stüdyo Makro</div>
+                  <div className="text-[9px] text-slate-400">Merkez doku & odak</div>
+                </div>
+              </button>
+            </div>
+
+            {/* DOWNLOAD & EXPORT BUTTONS */}
+            <div className="w-full flex flex-col sm:flex-row gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={handleDownloadImage}
+                disabled={isDownloadingImage}
+                className="flex-1 py-2.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Download className="w-4 h-4 text-slate-900" />
+                <span>{isDownloadingImage ? "Hazırlanıyor..." : "Merkez Odaklı Afiş / Kolaj İndir (PNG)"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadVideo}
+                disabled={isExportingVideo}
+                className="flex-1 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-xl shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Video className="w-4 h-4" />
+                <span>
+                  {isExportingVideo 
+                    ? `4 Sahneli Video Kaydediliyor (%${exportProgress})...` 
+                    : "Çok Sahneli Senaryo Videosu İndir"}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: SEGMENT SCENARIO IMAGINATION, MULTI-IMAGE COLLAGE & AI CAPTION (5 COLS) */}
+          <div className="lg:col-span-5 flex flex-col space-y-4 bg-slate-950/50 p-4 rounded-3xl border border-slate-800">
+            
+            {/* RIGHT PANEL NAVIGATION TABS */}
+            <div className="grid grid-cols-3 gap-1.5 bg-slate-900 p-1 rounded-2xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setRightTab('scenario')}
+                className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  rightTab === 'scenario'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>AI Senaryo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRightTab('collage')}
+                className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  rightTab === 'collage'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Çoklu Resim ({selectedImageUrls.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRightTab('caption')}
+                className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  rightTab === 'caption'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Sektörel Metin</span>
+              </button>
+            </div>
+
+            {/* TAB 1: SEGMENT SCENARIO IMAGINATION & STORYBOARD */}
+            {rightTab === 'scenario' && (
+              <div className="space-y-3.5 flex-1 overflow-y-auto pr-1">
+                
+                {/* Custom Imagination Prompt Box */}
+                <div className="p-3 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 space-y-2">
+                  <label className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center justify-between">
+                    <span>Ürüne Özel Hayal Gücü & Senaryo Kurgusu</span>
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customScenarioIdea}
+                      onChange={(e) => setCustomScenarioIdea(e.target.value)}
+                      placeholder="Örn: Dolap içinde kıyafet yerleştiren insan figürü / Modern ofis masası..."
+                      className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGenerateAiSceneImage}
+                      disabled={isGeneratingAiScene}
+                      className="px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
+                      title="Ürünü bu senaryoda sahnele ve çoklu resim havuzuna ekle"
+                    >
+                      <Wand2 className={`w-3.5 h-3.5 ${isGeneratingAiScene ? 'animate-spin' : ''}`} />
+                      <span>{isGeneratingAiScene ? "Sahneleniyor..." : "Sahne Üret"}</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Ürününüzün segmentine göre hazır senaryolardan birini seçebilir veya hayal ettiğiniz kullanım ortamını yazıp <strong>Sahne Üret</strong> ile kolaja ekleyebilirsiniz.
+                  </p>
+                </div>
+
+                {/* Tailored Segment Scenarios List */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Ürünün Segmentine Özel Hazır Canlandırma Senaryoları:
+                  </span>
+                  <div className="space-y-2">
+                    {scenarios.map((scen) => {
+                      const isSelected = activeScenarioId === scen.id;
+                      return (
+                        <button
+                          key={scen.id}
+                          type="button"
+                          onClick={() => applyScenario(scen)}
+                          className={`w-full text-left p-2.5 rounded-2xl border transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-slate-800/95 border-cyan-500 ring-1 ring-cyan-500/30 shadow-md'
+                              : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                              {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
+                              {scen.title}
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-950 text-cyan-300 border border-slate-800 font-semibold">
+                              4 Sahne
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-snug">
+                            {scen.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Headline & Kicker Quick Editor */}
+                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Afiş & Video Başlık Kurgusu
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-400">Üst Slogan</label>
+                      <input
+                        type="text"
+                        value={kicker}
+                        onChange={(e) => setKicker(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-400">Ana Vurgu Başlığı</label>
+                      <input
+                        type="text"
+                        value={headline}
+                        onChange={(e) => setHeadline(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400">Alt Değer / Kampanya Rozeti</label>
+                    <input
+                      type="text"
+                      value={badge}
+                      onChange={(e) => setBadge(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Google AI Pro Omni Video Trigger */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={handleGenerateOmniVideo}
+                    disabled={isGeneratingAiVideo}
+                    className="w-full py-2.5 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Film className={`w-4 h-4 ${isGeneratingAiVideo ? 'animate-spin' : ''}`} />
+                    <span>
+                      {isGeneratingAiVideo
+                        ? "Senaryo Videosu Kurgulanıyor..."
+                        : "Senaryoyu 4 Sahneli Video Reel Olarak Oynat"}
+                    </span>
                   </button>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Help guidelines */}
-            <div className="mt-4 p-3.5 bg-indigo-50/70 rounded-2xl border border-indigo-100 flex items-start gap-2.5">
-              <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-xs font-black text-indigo-900 leading-none">PRATİK KULLANIM REHBERİ</h4>
-                <p className="text-[10.5px] text-indigo-800 leading-relaxed mt-1">
-                  Afiş şablonunuzu sol kısımdan dikey veya kare olarak ayarlayıp indirdikten sonra, sağdaki reklam açıklamasını tek tıkla kopyalayarak Instagram veya WhatsApp statünüzde doğrudan paylaşabilirsiniz.
-                </p>
+            {/* TAB 2: MULTI-IMAGE COLLAGE & CENTER FOCAL ENGINE */}
+            {rightTab === 'collage' && (
+              <div className="space-y-4 flex-1 overflow-y-auto pr-1">
+                
+                {/* Image Pool & Upload */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-300">
+                      Ürün Görselleri & Üretilen Sahneler ({imageUrlsPool.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Görsel Ekle</span>
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleAddLocalImage}
+                      className="hidden"
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-slate-400">
+                    Kolajda ve çok sahneli videoda kullanılacak görselleri seçin (En fazla 4 görsel). Her resmin ürün odağı otomatik olarak merkeze hizalanır.
+                  </p>
+
+                  <div className="grid grid-cols-4 gap-2 pt-1">
+                    {imageUrlsPool.map((url, idx) => {
+                      const isSel = selectedImageUrls.includes(url);
+                      const orderIdx = selectedImageUrls.indexOf(url) + 1;
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => toggleImageSelection(url)}
+                          className={`relative aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition-all ${
+                            isSel
+                              ? 'border-cyan-400 ring-2 ring-cyan-500/30'
+                              : 'border-slate-800 opacity-60 hover:opacity-100'
+                          }`}
+                        >
+                          <img
+                            src={url}
+                            alt={`Ürün Açı ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          {isSel && (
+                            <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-cyan-500 text-slate-950 font-black text-[11px] flex items-center justify-center shadow-md">
+                              {orderIdx}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Collage Grid Layout Picker */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <span className="text-xs font-bold text-slate-300 block">
+                    Kolaj Dizilimi Seçimi
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        { id: 'single', title: 'Tekli Sahne & Odak', desc: 'Ana senaryo sahnesi (Çoklu resimde sağ alt PIP)' },
+                        { id: 'collage_2', title: "2'li Simetrik Kolaj", desc: 'Senaryo sahnesi + 2. açı merkez odaklı' },
+                        { id: 'collage_3', title: "3'lü Bento Vitrin", desc: '1 büyük sahne + 2 ortalanmış detay kare' },
+                        { id: 'collage_4', title: "4'lü 360° Katalog", desc: '4 farklı açıdan tam merkez odaklı vitrin' }
+                      ] as Array<{ id: CollageLayout; title: string; desc: string }>
+                    ).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setCollageLayout(c.id)}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          collageLayout === c.id
+                            ? 'bg-slate-800 border-cyan-500 text-white'
+                            : 'bg-slate-900/70 border-slate-800 text-slate-400'
+                        }`}
+                      >
+                        <div className="text-xs font-bold text-white">{c.title}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{c.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Focal Point Centering Mode & Zoom */}
+                <div className="space-y-3 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                      <Focus className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Resim Odağı & Merkezleme Modu</span>
+                    </span>
+                    <span className="text-[11px] font-mono text-cyan-300">
+                      Yakınlık: %{Math.round(focalZoom * 100)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(
+                      [
+                        { id: 'smart_center', label: 'Akıllı Merkez Odak' },
+                        { id: 'contain_center', label: 'Tam Ürün Sığdır' },
+                        { id: 'cover_center', label: 'Tam Çerçeve Doldur' }
+                      ] as Array<{ id: ImageFitMode; label: string }>
+                    ).map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setImageFitMode(m.id)}
+                        className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                          imageFitMode === m.id
+                            ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
+                            : 'bg-slate-900 border-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-1">
+                    <input
+                      type="range"
+                      min="0.85"
+                      max="1.35"
+                      step="0.05"
+                      value={focalZoom}
+                      onChange={(e) => setFocalZoom(parseFloat(e.target.value))}
+                      className="w-full accent-cyan-500 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-500">
+                      <span>Geniş Açı (%85)</span>
+                      <span>Tam Merkez (%100)</span>
+                      <span>Makro Yakın Plan (%135)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Color Theme Palette */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-800">
+                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Çerçeve & Marka Atmosferi</span>
+                  </span>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(
+                      [
+                        { id: 'futuristic_studio', label: 'Siber Stüdyo' },
+                        { id: 'modern_commerce', label: 'Aydınlık Vitrin' },
+                        { id: 'luxury_editorial', label: 'Lüks Titanyum' },
+                        { id: 'vibrant_sale', label: 'Sıcak Enerji' }
+                      ] as Array<{ id: TemplateTheme; label: string }>
+                    ).map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSelectedTheme(t.id)}
+                        className={`py-1.5 px-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
+                          selectedTheme === t.id
+                            ? 'bg-indigo-600 border-indigo-400 text-white'
+                            : 'bg-slate-900 border-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* TAB 3: AI CAPTION & COPYWRITING */}
+            {rightTab === 'caption' && (
+              <div className="space-y-3 flex-1 flex flex-col">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                    Senaryo Odaklı Paylaşım Metni
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateCaption(selectedTone)}
+                    disabled={isGeneratingCaption}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 px-2.5 py-1 rounded-lg border border-cyan-500/20 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isGeneratingCaption ? 'animate-spin' : ''}`} />
+                    <span>{isGeneratingCaption ? "Yazılıyor..." : "Yeniden Yaz"}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-4 gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                  {(
+                    [
+                      { id: 'promo', label: 'Satış Odaklı' },
+                      { id: 'luxury', label: 'Prestij' },
+                      { id: 'futuristic', label: 'Teknoloji' },
+                      { id: 'friendly', label: 'Samimi' }
+                    ] as Array<{ id: CaptionTone; label: string }>
+                  ).map((toneObj) => (
+                    <button
+                      key={toneObj.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTone(toneObj.id);
+                        handleGenerateCaption(toneObj.id);
+                      }}
+                      className={`py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                        selectedTone === toneObj.id
+                          ? 'bg-indigo-600 text-white'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {toneObj.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative flex-1">
+                  <textarea
+                    rows={11}
+                    value={captionText}
+                    onChange={(e) => setCaptionText(e.target.value)}
+                    className="w-full h-full p-3 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 leading-relaxed resize-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopyCaption}
+                    className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg cursor-pointer"
+                  >
+                    {copySuccess ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copySuccess ? "Kopyalandı!" : "Metni Kopyala"}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
-
       </div>
-
-      {/* Hidden virtual canvas for ultra-resolution graphics processing */}
-      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };

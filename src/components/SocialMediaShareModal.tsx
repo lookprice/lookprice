@@ -47,6 +47,8 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   const [copySuccess, setCopySuccess] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [aiCaption, setAiCaption] = useState<string>("");
+  const [isGeneratingAiCaption, setIsGeneratingAiCaption] = useState<boolean>(false);
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -105,7 +107,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
   const handleCopyCaption = async () => {
     try {
-      await navigator.clipboard.writeText(getCaptionText());
+      await navigator.clipboard.writeText(activeCaption);
       setCopySuccess(true);
     } catch (err) {
       console.error('Kopyalama hatası:', err);
@@ -281,6 +283,42 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                `${friendlyHashtags}`;
     }
   };
+
+  const handleGenerateAiCaption = async (tone: CaptionTone = selectedTone) => {
+    setIsGeneratingAiCaption(true);
+    try {
+      const res = await fetch("/api/ai-social/generate-caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "property",
+          title: propertyTitle,
+          price: formatNumberVal(property.price),
+          currency: property.currency || 'GBP',
+          category: property.type || property.category || "Emlak",
+          storeName: storeNameDisplay,
+          phone: branding?.phone || branding?.whatsapp_number,
+          tone: tone === 'luxury' ? 'luxury' : tone === 'investment' ? 'promo' : 'friendly',
+          specs: {
+            location: propertyLocation,
+            sqm: rawSqm,
+            rooms: rawRooms,
+            titleType: property.title_type || property.deed_type
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.caption) {
+        setAiCaption(data.caption);
+      }
+    } catch (e) {
+      console.error("AI Caption error:", e);
+    } finally {
+      setIsGeneratingAiCaption(false);
+    }
+  };
+
+  const activeCaption = aiCaption || getCaptionText();
 
   const handleDownloadImage = async () => {
     setIsRendering(true);
@@ -669,24 +707,36 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
               </div>
             </div>
 
-            {/* Copywriting Read-only Text Box */}
+            {/* Copywriting Text Box */}
             <div className="relative">
-              <span className="block text-[11px] font-black tracking-wider text-slate-400 uppercase mb-1">HAZIR PAYLAŞIM METNİ (DÜZENLENEBİLİR)</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="block text-[11px] font-black tracking-wider text-slate-400 uppercase">PAYLAŞIM METNİ (DÜZENLENEBİLİR)</span>
+                <button
+                  type="button"
+                  onClick={() => handleGenerateAiCaption(selectedTone)}
+                  disabled={isGeneratingAiCaption}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 transition-all cursor-pointer disabled:opacity-50"
+                  title="Google AI Pro ile emlak metnini zenginleştir"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${isGeneratingAiCaption ? 'animate-spin' : ''}`} />
+                  <span>{isGeneratingAiCaption ? "Yazılıyor..." : "Google AI Pro ile Yaz"}</span>
+                </button>
+              </div>
               <div className="border border-slate-200 rounded-2xl bg-slate-50 overflow-hidden">
                 <textarea 
-                  value={getCaptionText()}
-                  readOnly
+                  value={activeCaption}
+                  onChange={(e) => setAiCaption(e.target.value)}
                   className="w-full h-[240px] p-4 text-xs font-medium text-slate-800 leading-relaxed bg-transparent focus:outline-none focus:ring-0 resize-none font-sans border-0 select-text"
                 />
                 
                 {/* Float copy button */}
                 <div className="p-3 bg-slate-100 border-t border-slate-200 flex justify-between items-center">
                   <span className="text-[10px] font-extrabold text-slate-500 uppercase flex items-center gap-1">
-                    <Award className="w-3.5 h-3.5 text-indigo-600" /> LOOKPRICE MULTI-STATION SCRIPT
+                    <Award className="w-3.5 h-3.5 text-indigo-600" /> SEÇKİN EMLAK AI STUDIO
                   </span>
                   <button 
                     onClick={handleCopyCaption}
-                    className={"px-3 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1 shadow-sm " + (copySuccess ? 'bg-emerald-650 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white')}
+                    className={"px-3 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1 shadow-sm cursor-pointer " + (copySuccess ? 'bg-emerald-600 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white')}
                   >
                     {copySuccess ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     {copySuccess ? 'Kopyalandı!' : 'Metni Kopyala'}
