@@ -11,7 +11,8 @@ import {
   FileText,
   ShieldCheck,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  X
 } from "lucide-react";
 import { formatDateTR } from "../../utils/formatUtils";
 
@@ -74,8 +75,18 @@ export const WaybillTable: React.FC<WaybillTableProps> = ({
             placeholder={isTr ? "Seri, No veya Cari ara..." : "Search waybill, driver or firm..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-4 py-1.5 w-full rounded-lg border border-slate-200 outline-none text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/10 transition bg-white"
+            className="pl-9 pr-8 py-1.5 w-full rounded-lg border border-slate-200 outline-none text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/10 transition bg-white"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+              title={isTr ? "Aramayı Temizle" : "Clear search"}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

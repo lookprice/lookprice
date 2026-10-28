@@ -1,5 +1,5 @@
 {
-  "summary": "LookPrice & Enrakipsiz UI/UX Mimari Standartları ve Görünüm Şartnamesi (Kara Kaplı Defter)",
-  "updatedAt": "2026-10-19T12:23:44.840788068Z",
-  "userFacing": true
+  "summary":  "UI/UX Guidelines Specification covering Viewport-Fit Modal Protocol, High-Density Compact Inputs, and the Zero-Filter-Wipeout & Operator Context Preservation Protocol for all search, filter, and table operations across LookPrice ecosystem.",
+  "updatedAt":  "2026-10-28T08:05:59.413203484Z",
+  "userFacing":  true
 }

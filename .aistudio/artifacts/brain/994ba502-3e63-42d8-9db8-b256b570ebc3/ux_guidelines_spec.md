@@ -17,7 +17,22 @@ Bu şartname; LookPrice, Enrakipsiz ve tüm sektörel dikey ekosistemlerin (Shop
 
 ---
 
-## 2. OTOMATİK TESPİT VE GÜVENCE MEKANİZMALARI (Yüksek Teknoloji Test Protokolü)
+## 2. OPERATÖR İŞ AKIŞI VE FİLTRE KALICILIK PROTOKOLÜ (Zero-Filter-Wipeout & Context Preservation Protocol)
+
+- **Kural 2.1 (Arama ve Filtrelerin Sıfırlanma Yasağı - "Anti-Reset Guard")**:
+  - Operatör bir listede (Alış Faturaları, Satış Faturaları, e-İrsaliyeler, Cariler, Ürünler) arama çubuğuna bir firma, fatura no, ürün adı veya barkod yazdığında, ilgili kaydı inceleyip/düzenleyip **KAYDETTİĞİNDE VEYA SİLDİĞİNDE ARAMA FİLTRESİ KESİNLİKLE SIFIRLANAMAZ**.
+  - Liste, kullanıcının filtrelediği arama terimiyle kalmaya devam etmeli; arka plandaki tazelemeler (`fetchInvoicesData`, `fetchData`) mevcut arama terimini (`activeSearch || search`) zorunlu parametre olarak taşımalıdır.
+
+- **Kural 2.2 (localStorage & URL Query Senkronizasyonu)**:
+  - Operatörün arama terimi bileşen bazında `localStorage` (`purchase_search_${storeId}`, `sales_search_${storeId}`, `waybills_search_${storeId}`, `companies_search_${storeId}`) ile korunmalı; sayfa yenilense veya sekmeler arası geçiş yapılsa dahi operatör kaldığı yerden devam edebilmelidir.
+  - Arama girdi alanları üzerinde, operatörün istediği an aramayı tek tıkla sıfırlayabileceği entegre **'X' Temizleme Butonu** bulunmalıdır. Arama sadece kullanıcı bilerek bu butona bastığında veya metni sildiğinde temizlenir.
+
+- **Kural 2.3 (Çift Katmanlı Arama Koruması - Client-Side Search Defense)**:
+  - Sunucu yanıtı geniş veya önbelleksiz dönse dahi, `filteredInvoices` / `filteredItems` `useMemo` seviyesinde istemci tarafı filtreleme (`normalizeSearch`) devrede olmalı; filtre dışındaki hiçbir yabancı satır operatörün ekranına fırlamamalıdır.
+
+---
+
+## 3. OTOMATİK TESPİT VE GÜVENCE MEKANİZMALARI (Yüksek Teknoloji Test Protokolü)
 
 Panellerde ve web sitelerinde ekrana sığmama, taşma veya butonlara erişememe problemlerini manuel kontrole bırakmadan otomatik olarak tespit etmek ve önlemek için aşağıdaki mühendislik katmanları devreye alınmıştır:
 
@@ -33,8 +48,9 @@ Panellerde ve web sitelerinde ekrana sığmama, taşma veya butonlara erişememe
 
 ---
 
-## 3. GELİŞTİRİCİLER İÇİN ALTIN KURALLAR (Commit Öncesi Checklist)
+## 4. GELİŞTİRİCİLER İÇİN ALTIN KURALLAR (Commit Öncesi Checklist)
 1. **Modal Yazarken**: `max-h-[90vh] overflow-y-auto` sınıflarını ekledin mi?
 2. **Form Tasarlarken**: Uzun formlarda butonlar en altta sabit mi kalıyor, yoksa klavye/ekran yüksekliğinde kayboluyor mu?
-3. **Sektörel İzolasyon**: shopLP pazaryeri özellikleri horecaLP veya emlak/otomotiv modüllerine sızdı mı?
-4. **Fiyat ve Değerler**: Binlik ayraç (`1.250.000 ₺`) formatı uygulandı mı?
+3. **Filtre & Arama**: Kayıt kaydetme/silme sonrasında operatörün arama filtresi korundu mu? Sayfa yenilendiğinde filtre sıfırlanıyor mu?
+4. **Sektörel İzolasyon**: shopLP pazaryeri özellikleri horecaLP veya emlak/otomotiv modüllerine sızdı mı?
+5. **Fiyat ve Değerler**: Binlik ayraç (`1.250.000 ₺`) formatı uygulandı mı?

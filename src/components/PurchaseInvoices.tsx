@@ -45,8 +45,36 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [showHtmlModal, setShowHtmlModal] = useState(false);
   const [selectedHtml, setSelectedHtml] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [search, setSearch] = useState("");
-  const [activeSearch, setActiveSearch] = useState("");
+  const [search, setSearch] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const urlQ = url.searchParams.get('q') || url.searchParams.get('search');
+      if (urlQ) return urlQ;
+      const saved = localStorage.getItem(`purchase_search_${storeId || 'default'}`);
+      if (saved) return saved;
+    }
+    return "";
+  });
+  const [activeSearch, setActiveSearch] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const urlQ = url.searchParams.get('q') || url.searchParams.get('search');
+      if (urlQ) return urlQ;
+      const saved = localStorage.getItem(`purchase_search_${storeId || 'default'}`);
+      if (saved) return saved;
+    }
+    return "";
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (search) {
+        localStorage.setItem(`purchase_search_${storeId || 'default'}`, search);
+      } else {
+        localStorage.removeItem(`purchase_search_${storeId || 'default'}`);
+      }
+    }
+  }, [search, storeId]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isBulkPrinting, setIsBulkPrinting] = useState(false);
   const [startDate, setStartDate] = useState(() => {
@@ -78,20 +106,30 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     if (!Array.isArray(invoices)) return [];
     return invoices.filter((inv: any) => {
       if (statusFilter === 'pending') {
-        return inv.status === 'pending';
+        if (inv.status !== 'pending') return false;
+      } else if (statusFilter === 'backdated_carryover') {
+        if (!Boolean(inv.is_out_of_sequence || inv.is_prev_month_carryover)) return false;
+      } else if (statusFilter === 'approved') {
+        if (!(inv.status === 'approved' || inv.status === 'completed')) return false;
+      } else if (statusFilter === 'expense') {
+        if (inv.is_expense !== true) return false;
       }
-      if (statusFilter === 'backdated_carryover') {
-        return Boolean(inv.is_out_of_sequence || inv.is_prev_month_carryover);
+
+      // Real-time client-side search guard: ensures active search is never lost even if backend returns full list
+      const query = (search || activeSearch || "").trim();
+      if (query) {
+        const term = normalizeSearch(query);
+        const invNum = normalizeSearch(inv.invoice_number || '');
+        const compName = normalizeSearch(inv.company_name || inv.company_title || inv.supplier_name || '');
+        const notes = normalizeSearch(inv.notes || '');
+        const waybill = normalizeSearch(inv.waybill_number || '');
+        const isMatch = invNum.includes(term) || compName.includes(term) || notes.includes(term) || waybill.includes(term);
+        if (!isMatch) return false;
       }
-      if (statusFilter === 'approved') {
-        return inv.status === 'approved' || inv.status === 'completed';
-      }
-      if (statusFilter === 'expense') {
-        return inv.is_expense === true;
-      }
+
       return true;
     });
-  }, [invoices, statusFilter]);
+  }, [invoices, statusFilter, search, activeSearch]);
 
   const pendingCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.status === 'pending').length : 0, [invoices]);
   const backdatedCarryoverCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.is_out_of_sequence || i.is_prev_month_carryover).length : 0, [invoices]);
@@ -308,8 +346,9 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     if (!silent) setLoading(true);
     try {
       const targetStoreId = role === 'superadmin' ? storeId : undefined;
+      const effectiveSearch = searchStr !== undefined ? searchStr : (activeSearch || search || "");
       const [invRes, compRes, prodRes] = await Promise.all([
-        api.getPurchaseInvoices(targetStoreId, searchStr, sDate || startDate, eDate || endDate),
+        api.getPurchaseInvoices(targetStoreId, effectiveSearch, sDate || startDate, eDate || endDate),
         api.getCompanies(false, targetStoreId),
         api.getProducts("", targetStoreId)
       ]);
@@ -504,7 +543,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         if (res.error) throw new Error(res.error);
         setShowModal(false);
         setLastEditedId(editingInvoiceId || res.id);
-        await fetchInvoicesData(undefined, undefined, undefined, true);
+        await fetchInvoicesData(activeSearch || search || "", undefined, undefined, true);
         if (onSave) await onSave(true);
         resetForm();
         return res;
@@ -894,8 +933,24 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
               placeholder={isTr ? "Fatura No veya Cari ara..." : "Search invoice no or company..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+              className="w-full pl-10 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setActiveSearch("");
+                  try {
+                    localStorage.removeItem(`purchase_search_${storeId || 'default'}`);
+                  } catch {}
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-colors"
+                title={isTr ? "Aramayı Temizle" : "Clear search"}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <input

@@ -74,10 +74,31 @@ const CompaniesTab = ({
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const isTr = lang === 'tr';
-  const [search, setSearch] = useState("");
+  const storeId = companies[0]?.store_id || branding?.id || 1;
+  const [search, setSearch] = useState(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlQ = urlParams.get('q') || urlParams.get('search');
+      if (urlQ) return urlQ;
+      const sId = companies[0]?.store_id || branding?.id || 1;
+      return localStorage.getItem(`companies_search_${sId}`) || "";
+    } catch {
+      return "";
+    }
+  });
   const deferredSearch = useDeferredValue(search);
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
+
+  useEffect(() => {
+    try {
+      if (search) {
+        localStorage.setItem(`companies_search_${storeId}`, search);
+      } else {
+        localStorage.removeItem(`companies_search_${storeId}`);
+      }
+    } catch {}
+  }, [search, storeId]);
 
   const [showReconHistory, setShowReconHistory] = useState(false);
 
@@ -89,7 +110,6 @@ const CompaniesTab = ({
       }
     }
   }, [initialOpenRecon, initialReconFilter]);
-  const storeId = companies[0]?.store_id || branding?.id || 1;
 
   // Reconciliation Control Center States
   const [reconViewMode, setReconViewMode] = useState<'active' | 'archived'>('active');
@@ -422,10 +442,25 @@ const CompaniesTab = ({
           <input 
             type="text" 
             placeholder={t.searchCompany}
-            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all text-sm placeholder:text-slate-400"
+            className="w-full pl-10 pr-10 py-2 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all text-sm placeholder:text-slate-400"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                try {
+                  localStorage.removeItem(`companies_search_${storeId}`);
+                } catch {}
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+              title={isTr ? "Aramayı Temizle" : "Clear search"}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           {onNewCompany && !isViewer && (

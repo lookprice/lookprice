@@ -73,8 +73,36 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showWaybillModal, setShowWaybillModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [search, setSearch] = useState("");
-  const [activeSearch, setActiveSearch] = useState("");
+  const [search, setSearch] = useState(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlQ = urlParams.get('q') || urlParams.get('search');
+      if (urlQ) return urlQ;
+      return localStorage.getItem(`sales_search_${storeId || 'default'}`) || "";
+    } catch {
+      return "";
+    }
+  });
+  const [activeSearch, setActiveSearch] = useState(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlQ = urlParams.get('q') || urlParams.get('search');
+      if (urlQ) return urlQ;
+      return localStorage.getItem(`sales_search_${storeId || 'default'}`) || "";
+    } catch {
+      return "";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (search) {
+        localStorage.setItem(`sales_search_${storeId || 'default'}`, search);
+      } else {
+        localStorage.removeItem(`sales_search_${storeId || 'default'}`);
+      }
+    } catch {}
+  }, [search, storeId]);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0];
@@ -450,8 +478,9 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     if (role === 'superadmin' && !storeId) return;
     if (!silent) setLoading(true);
     try {
+      const effectiveSearch = searchStr !== undefined ? searchStr : (activeSearch || search || "");
       const [invRes, custRes, compRes, prodRes] = await Promise.all([
-        api.getSalesInvoices(role === 'superadmin' ? storeId : undefined, searchStr, sDate || startDate, eDate || endDate),
+        api.getSalesInvoices(role === 'superadmin' ? storeId : undefined, effectiveSearch, sDate || startDate, eDate || endDate),
         api.getCustomers(role === 'superadmin' ? storeId : undefined),
         api.getCompanies(true, role === 'superadmin' ? storeId : undefined),
         api.getProducts("", role === 'superadmin' ? storeId : undefined)
@@ -1213,8 +1242,22 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     if (showMarketplaceFilter && marketplaceFilter !== 'all') {
       list = list.filter(matchesMarketplaceFilter);
     }
+
+    // Real-time client-side search guard: ensures search query is never wiped out upon save or refresh
+    const query = (search || activeSearch || "").trim();
+    if (query) {
+      const term = normalizeSearch(query);
+      list = list.filter((inv: any) => {
+        const invNum = normalizeSearch(inv.invoice_number || '');
+        const compName = normalizeSearch(inv.company_name || inv.company_title || inv.customer_name || '');
+        const notes = normalizeSearch(inv.notes || '');
+        const waybill = normalizeSearch(inv.waybill_number || '');
+        return invNum.includes(term) || compName.includes(term) || notes.includes(term) || waybill.includes(term);
+      });
+    }
+
     return list;
-  }, [invoices, statusFilter, isInvoiceNotSentToGIB, showMarketplaceFilter, marketplaceFilter]);
+  }, [invoices, statusFilter, isInvoiceNotSentToGIB, showMarketplaceFilter, marketplaceFilter, search, activeSearch]);
 
   const activeValidInvoices = invoices.filter((inv: any) => !isInvoiceCancelled(inv));
   const totalCalculatedTax = activeValidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
@@ -1275,10 +1318,26 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             <input 
               type="text" 
               placeholder={isTr ? "Fatura no, müşteri ara..." : "Search invoice, customer..."}
-              className="w-full pl-9 pr-10 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs sm:text-sm"
+              className="w-full pl-9 pr-9 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs sm:text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setActiveSearch("");
+                  try {
+                    localStorage.removeItem(`sales_search_${storeId || 'default'}`);
+                  } catch {}
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-colors"
+                title={isTr ? "Aramayı Temizle" : "Clear search"}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             <input 

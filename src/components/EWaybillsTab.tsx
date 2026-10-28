@@ -65,9 +65,28 @@ export default function EWaybillsTab({ storeId: propStoreId, lang, api, branding
   const [savingSeries, setSavingSeries] = useState(false);
 
   // Filter/Search states
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlQ = urlParams.get('q') || urlParams.get('search');
+      if (urlQ) return urlQ;
+      return localStorage.getItem(`waybills_search_${storeId || 'default'}`) || "";
+    } catch {
+      return "";
+    }
+  });
   const deferredSearch = useDeferredValue(search);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  useEffect(() => {
+    try {
+      if (search) {
+        localStorage.setItem(`waybills_search_${storeId || 'default'}`, search);
+      } else {
+        localStorage.removeItem(`waybills_search_${storeId || 'default'}`);
+      }
+    } catch {}
+  }, [search, storeId]);
 
   // Selection states (for bulk invoice conversion)
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
