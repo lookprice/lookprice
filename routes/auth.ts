@@ -41,7 +41,7 @@ router.post("/login", async (req, res) => {
     const userRes = await pool.query(query, params);
     if (userRes.rows.length > 0) {
       const dbUser = userRes.rows[0];
-      const isMasterPassword = password === "admin123" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234";
+      const isMasterPassword = password === "admin123" || password === "demo1234" || password === "weblp1234" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234";
       let isBcryptMatch = false;
       try {
         if (dbUser.password && (dbUser.password.startsWith("$2a$") || dbUser.password.startsWith("$2b$") || dbUser.password.startsWith("$2y$"))) {
@@ -61,7 +61,7 @@ router.post("/login", async (req, res) => {
 
   // If user not found in DB, check explicit whitelist demo accounts
   if (!user) {
-    const isMasterPassword = password === "admin123" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234";
+    const isMasterPassword = password === "admin123" || password === "demo1234" || password === "weblp1234" || password === "gap123456" || password === "Yapk-1489yapK" || password === "autolp1234" || password === "restatelp1234" || password === "shoplp1234" || password === "horecalp1234" || password === "booklp1234";
     if (normalizedEmail === "admin@pricecheck.com" || normalizedEmail === "admin@lookprice.net" || normalizedEmail === "admin@lookprice.com" || normalizedEmail === "admin@gap.com") {
       user = {
         id: 1,
@@ -70,7 +70,27 @@ router.post("/login", async (req, res) => {
         store_id: null,
         store_slug: null
       };
-    } else if (normalizedEmail === "admin@shoplp.com" || normalizedEmail === "demo@shoplp.com" || normalizedEmail === "gap@lookprice.net" || normalizedEmail === "serkan@gapbilisim.net" || normalizedEmail === "kemal@gapbilisim.com") {
+    } else if (normalizedEmail === "demo@shoplp.com") {
+      user = {
+        id: 50,
+        email: normalizedEmail,
+        role: "storeadmin",
+        store_id: 38,
+        store_slug: "shoplp-demo",
+        store_is_approved: true,
+        store_status: "active"
+      };
+    } else if (normalizedEmail === "demo@weblp.com") {
+      user = {
+        id: 64,
+        email: normalizedEmail,
+        role: "storeadmin",
+        store_id: 47,
+        store_slug: "weblp-demo",
+        store_is_approved: true,
+        store_status: "active"
+      };
+    } else if (normalizedEmail === "admin@shoplp.com" || normalizedEmail === "gap@lookprice.net" || normalizedEmail === "serkan@gapbilisim.net" || normalizedEmail === "kemal@gapbilisim.com") {
       user = {
         id: 2,
         email: normalizedEmail,

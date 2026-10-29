@@ -55,14 +55,17 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
   isProductPending,
   getProductError,
 }) => {
-  const isHbActive = p.is_hepsiburada_active;
-  const isTyActive = p.is_trendyol_active;
-  const isN11Active = p.is_n11_active;
-  const isAmzActive = p.is_amazon_active;
-  const isPzActive = p.is_pazarama_active;
+  const isHbActive = isProductActive(p, 'hepsiburada');
+  const isTyActive = isProductActive(p, 'trendyol');
+  const isN11Active = isProductActive(p, 'n11');
+  const isAmzActive = isProductActive(p, 'amazon');
+  const isPzActive = isProductActive(p, 'pazarama');
 
   const hbError = getProductError(p, 'hepsiburada');
+  const tyError = getProductError(p, 'trendyol');
   const amzError = getProductError(p, 'amazon');
+  const n11Error = getProductError(p, 'n11');
+  const pzrError = getProductError(p, 'pazarama');
 
   const displayError = getProductError(p, selectedMarketplace);
   const hasAnyError = Boolean(displayError);
@@ -72,20 +75,177 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
     return /yüksek fiyat|fiyat limiti|fahiş|high pricing|tavan fiyat|aralığın dışında|invalid_price/i.test(err);
   };
 
-  const getShortErrorLabel = (err: string | null | undefined): string => {
-    if (!err) return isTr ? "Hatalı" : "Error";
+  const getErrorDiagnosis = (err: string | null | undefined): { label: string; detail: string } => {
+    if (!err) return { label: isTr ? "İlan Hatalı" : "Error", detail: "" };
     const clean = err.replace(/^\[(HB|AMZ|TY|N11|PZR)\]\s*/i, '').trim();
-    if (isPriceErrorStr(clean)) return isTr ? "Yüksek Fiyat" : "High Price";
-    if (/marka onay|brand|5886/i.test(clean)) return isTr ? "Marka Onayı" : "Brand Auth";
-    if (/kısıtlı asin|18299/i.test(clean)) return isTr ? "Kısıtlı ASIN" : "Restricted ASIN";
-    if (/belge kısıt|counterfeit/i.test(clean)) return isTr ? "Belge Kısıtı" : "Doc Required";
-    if (/ihlal|designviolation/i.test(clean)) return isTr ? "İhlal Kısıtı" : "Policy Lock";
-    if (/satış kısıt|salesrestriction/i.test(clean)) return isTr ? "Satış Kısıtı" : "Sales Lock";
-    if (/hb kilitli|byhbadmin/i.test(clean)) return isTr ? "HB Kilitli" : "HB Locked";
-    if (/asin kodu tanımlı değil|asin eksik|13013/i.test(clean)) return isTr ? "ASIN Eksik" : "Missing ASIN";
-    if (/yetkilendirme|401|403/i.test(clean)) return isTr ? "Yetki Hatası" : "Auth Error";
-    if (clean.length <= 18) return clean;
-    return isTr ? "Katalog Kısıtı" : "Catalog Error";
+
+    // 1. Prohibited / Banned Word (e.g. "Apple")
+    if (/yasaklı kelime|prohibited word|banned word/i.test(clean)) {
+      const wordMatch = clean.match(/"([^"]+)"/);
+      const word = wordMatch ? wordMatch[1] : "";
+      return {
+        label: word ? (isTr ? `Yasak Kelime ("${word}")` : `Banned Word ("${word}")`) : (isTr ? "Yasak Kelime Var" : "Banned Word"),
+        detail: word
+          ? (isTr
+              ? `Başlık veya açıklamada yasaklı "${word}" kelimesi tespit edildi (marka ihlali). Kalem (Düzenle) butonundan "${word}" ibaresini kaldırıp tekrar gönderin.`
+              : `Prohibited word "${word}" detected in title or description.`)
+          : (isTr
+              ? `Ürün başlığında veya açıklamasında pazaryerinin yasakladığı bir kelime tespit edildi. İçeriği düzenleyip tekrar gönderin.`
+              : `Prohibited word detected in product content.`)
+      };
+    }
+
+    // 2. Image Server Access / Firewall Block
+    if (/access permission|blocking trendyol|server hosting|cannot be reached|indirilemedi/i.test(clean)) {
+      return {
+        label: isTr ? "Resim İndirilemedi (Sunucu Engeli)" : "Image Server Blocked",
+        detail: isTr
+          ? "Görselin bulunduğu sunucu pazaryeri botlarının erişimini engelledi (IP/Firewall kısıtı). Düzenle ekranından görseli doğrudan sisteme yükleyin."
+          : "Product image server blocked marketplace download bots."
+      };
+    }
+
+    // 3. Invalid Image URL / Image Rejected
+    if (/görsel hatası|image url|image link|valid url format|resim|görsel/i.test(clean) && !/n11 katalog/i.test(clean)) {
+      return {
+        label: isTr ? "Resim Kabul Edilmedi" : "Image Rejected",
+        detail: isTr
+          ? "Ürün görsel linki kabul edilmedi (geçersiz URL formatı veya bozuk HTTPS bağlantısı). Ürün düzenleme ekranından görseli yenileyin."
+          : "Product image link was rejected due to invalid URL or format."
+      };
+    }
+
+    // 4. Brand Mismatch (Selected brand vs title/image)
+    if (/marka uyuşmazlığı|selected brand|does not match the brand|wrong brand/i.test(clean)) {
+      return {
+        label: isTr ? "Marka Uyuşmazlığı" : "Brand Mismatch",
+        detail: isTr
+          ? "Seçilen marka ile ürün başlığı veya görselindeki marka bilgisi uyuşmuyor. Ürün kartındaki Marka alanını başlıkla birebir aynı yapın."
+          : "Selected brand does not match the brand in product title or image."
+      };
+    }
+
+    // 5. Missing Mandatory Category Attribute (e.g. Menşei)
+    if (/zorunlu kategori özellik|eksik özellik|mandatory attribute|menşei/i.test(clean)) {
+      const attrMatch = clean.match(/Özellik Adı:\s*([^.,]+)/i);
+      const attrName = attrMatch ? attrMatch[1].trim() : "Menşei / Özellik";
+      return {
+        label: isTr ? `Eksik Özellik (${attrName})` : `Missing Attr (${attrName})`,
+        detail: isTr
+          ? `Pazaryerinin bu kategoride zorunlu tuttuğu "${attrName}" bilgisi eksik. Kategori özelliklerinden ilgili alanı doldurup tekrar gönderin.`
+          : `Mandatory category attribute "${attrName}" is missing.`
+      };
+    }
+
+    // 6. Invalid / Deprecated Category ID
+    if (/kategori bilgisi geçerli değildir|couldn't find any category|category id|kategori eşleş/i.test(clean)) {
+      const catIdMatch = clean.match(/(?:id|id:)\s*(\d+)/i);
+      const catId = catIdMatch ? catIdMatch[1] : "";
+      return {
+        label: isTr ? `Kategori Geçersiz${catId ? ` (#${catId})` : ""}` : "Invalid Category",
+        detail: isTr
+          ? `Eşleştirilen kategori kodu${catId ? ` (${catId})` : ""} pazaryerinde kapatılmış veya güncellenmiş. Üstteki "Kategori Eşleştir" butonundan güncel bir alt kategori seçin.`
+          : "Mapped category ID is no longer valid on the marketplace."
+      };
+    }
+
+    // 7. High Price / Reference Price Alert
+    if (isPriceErrorStr(clean)) {
+      const refMatch = clean.match(/Ref:\s*([^)]+)/i);
+      return {
+        label: isTr ? "Yüksek Fiyat Kısıtı" : "High Price Alert",
+        detail: isTr
+          ? `Pazaryeri rekabetçi tavan fiyat sınırına takıldı${refMatch ? ` (Tavan Ref: ${refMatch[1]})` : ""}. Fiyatı referans değere çekin veya komisyon marjını güncelleyin.`
+          : "Listing blocked due to marketplace competitive high-price threshold."
+      };
+    }
+
+    // 8. Brand Authorization Required (Amazon 5886 / HB Brand Auth)
+    if (/marka onay|5886/i.test(clean)) {
+      return {
+        label: isTr ? "Marka Onayı Gerekli" : "Brand Auth Required",
+        detail: isTr
+          ? "Pazaryeri bu markanın satışı için yetki belgesi veya fatura onayı talep ediyor (Katalog Marka Kısıtı)."
+          : "Marketplace requires brand authorization to list this brand."
+      };
+    }
+
+    // 9. Restricted ASIN (Amazon 18299)
+    if (/kısıtlı asin|18299/i.test(clean)) {
+      return {
+        label: isTr ? "Kısıtlı ASIN" : "Restricted ASIN",
+        detail: isTr
+          ? "Bu ASIN kodu Amazon tarafından doğrudan satışa kısıtlanmış (onay başvurusu gerektirir)."
+          : "This ASIN is restricted by Amazon."
+      };
+    }
+
+    // 10. Document / Counterfeit Restriction
+    if (/belge kısıt|counterfeit/i.test(clean)) {
+      return {
+        label: isTr ? "Belge Kısıtı" : "Document Required",
+        detail: isTr
+          ? "Pazaryeri orijinallik / distribütör faturası belgesi talep ettiği için ilanı askıya aldı."
+          : "Marketplace requires authenticity documentation."
+      };
+    }
+
+    // 11. Hepsiburada Locked Listing
+    if (/hb kilitli|kilitli ilan|byhbadmin/i.test(clean)) {
+      return {
+        label: isTr ? "HB Kilitli İlan" : "HB Admin Locked",
+        detail: isTr
+          ? "Bu ürün Hepsiburada katalog yönetimi tarafından kilitlenmiş (ByHbAdmin). Satıcı panelinden talep açılmalıdır."
+          : "Listing is locked by Hepsiburada catalog administration."
+      };
+    }
+
+    // 12. N11 Catalog / Image / Attribute Rejection
+    if (/n11 katalog onayı reddedildi/i.test(clean)) {
+      return {
+        label: isTr ? "Resim / Özellik Reddi" : "N11 Catalog Rejected",
+        detail: isTr
+          ? "N11 katalog ekibi ürün görselini veya özellik bilgilerini standartlara uygun bulmadı. Görseli ve özellikleri kontrol edip tekrar gönderin."
+          : "N11 catalog review rejected the product image or attributes."
+      };
+    }
+
+    // 13. Duplicate Request / Already Submitted
+    if (/tekrarlı ürün oluşturma|aynı barkodlu/i.test(clean)) {
+      return {
+        label: isTr ? "Mükerrer Gönderim Uyarısı" : "Duplicate Request",
+        detail: isTr
+          ? "Aynı barkod için eşzamanlı mükerrer istek gönderildi. Sağdaki 'Satışa Aç / Güncelle' butonuna tıklayarak durumu tazeleyin."
+          : "Duplicate product creation request detected. Click publish/update to refresh."
+      };
+    }
+
+    // 14. Missing ASIN
+    if (/asin kodu tanımlı değil|asin eksik|13013/i.test(clean)) {
+      return {
+        label: isTr ? "ASIN Kodu Eksik" : "Missing ASIN",
+        detail: isTr
+          ? "Amazon'da satış için ürün kartında geçerli bir ASIN kodu (B0...) tanımlanmalıdır."
+          : "Valid Amazon ASIN is required."
+      };
+    }
+
+    // 15. API / 404 / Auth Error
+    if (/404|401|403|bağlantı hatası|yetkilendirme/i.test(clean)) {
+      return {
+        label: isTr ? "API / Kategori Bağlantı Hatası" : "API Connection Error",
+        detail: clean
+      };
+    }
+
+    return {
+      label: clean.length <= 28 ? clean : `${clean.slice(0, 26)}…`,
+      detail: clean
+    };
+  };
+
+  const getShortErrorLabel = (err: string | null | undefined): string => {
+    return getErrorDiagnosis(err).label;
   };
 
   return (
@@ -215,6 +375,56 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                 );
               })()}
             </div>
+
+            {/* Net İlan Hatası ve Çözüm Açıklaması Kutusu */}
+            {(() => {
+              const activeErrors: Array<{ mpLabel: string; err: string }> = [];
+              if (selectedMarketplace === 'all') {
+                if (hbError) activeErrors.push({ mpLabel: 'HB', err: hbError });
+                if (tyError) activeErrors.push({ mpLabel: 'TY', err: tyError });
+                if (n11Error) activeErrors.push({ mpLabel: 'N11', err: n11Error });
+                if (amzError) activeErrors.push({ mpLabel: 'AMZ', err: amzError });
+                if (pzrError) activeErrors.push({ mpLabel: 'PZR', err: pzrError });
+              } else if (displayError) {
+                const mpTag = selectedMarketplace === 'hepsiburada' ? 'HB'
+                  : selectedMarketplace === 'trendyol' ? 'TY'
+                  : selectedMarketplace === 'n11' ? 'N11'
+                  : selectedMarketplace === 'amazon' ? 'AMZ'
+                  : 'PZR';
+                activeErrors.push({ mpLabel: mpTag, err: displayError });
+              }
+
+              if (activeErrors.length === 0) return null;
+
+              return (
+                <div className="mt-1.5 space-y-1 max-w-[360px] sm:max-w-[440px]">
+                  {activeErrors.map((item, idx) => {
+                    const diag = getErrorDiagnosis(item.err);
+                    const isPrice = isPriceErrorStr(item.err);
+                    return (
+                      <div
+                        key={idx}
+                        className={`px-2 py-1 rounded-lg border text-[10px] leading-snug ${
+                          isPrice
+                            ? 'bg-orange-50/90 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800/70 text-orange-900 dark:text-orange-200'
+                            : 'bg-rose-50/90 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800/70 text-rose-900 dark:text-rose-200'
+                        }`}
+                      >
+                        <div className="font-bold flex items-center gap-1">
+                          <AlertTriangle className={`w-3 h-3 shrink-0 ${isPrice ? 'text-orange-600' : 'text-rose-600'}`} />
+                          <span>[{item.mpLabel}] İlan Hatalı: {diag.label}</span>
+                        </div>
+                        {diag.detail && (
+                          <div className="mt-0.5 text-[10px] opacity-90 font-normal">
+                            {diag.detail}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </td>
@@ -389,33 +599,78 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                 ) : null}
 
                 {/* Trendyol Badge */}
-                {isTyActive && (
+                {isTyActive && MARKETPLACES[1].getListingUrl(p) ? (
                   <a
-                    href={MARKETPLACES[1].getListingUrl(p)}
+                    href={MARKETPLACES[1].getListingUrl(p)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:opacity-80 transition-opacity"
-                    title="Trendyol Canlı İlanına Git"
+                    title={isTr ? "Trendyol Canlı İlanına Git" : "Open Trendyol Live Listing"}
                   >
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                     TY
                     <ExternalLink className="w-2.5 h-2.5 opacity-80" />
                   </a>
+                ) : isProductPending(p, 'trendyol') ? (
+                  <button
+                    type="button"
+                    onClick={() => onCheckTyStatus && onCheckTyStatus(p.id)}
+                    disabled={checkingStatusId === p.id}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 hover:bg-amber-200 cursor-pointer transition-colors"
+                    title={isTr ? "Trendyol katalog incelemesinde. Durumu sorgulamak için tıklayın." : "Pending Trendyol catalog review. Click to refresh status."}
+                  >
+                    <Clock className={`w-2.5 h-2.5 text-amber-600 ${checkingStatusId === p.id ? 'animate-spin' : ''}`} />
+                    TY ONAY
+                  </button>
+                ) : tyError ? (
+                  <span
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                      isPriceErrorStr(tyError)
+                        ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800'
+                        : 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                    }`}
+                    title={`Trendyol: ${tyError}`}
+                  >
+                    <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                    TY: {getShortErrorLabel(tyError)}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800" title="TY Pasif">
+                    TY
+                  </span>
                 )}
                 {/* N11 Badge */}
-                {isN11Active && (
+                {isN11Active && MARKETPLACES[2].getListingUrl(p) ? (
                   <a
-                    href={MARKETPLACES[2].getListingUrl(p)}
+                    href={MARKETPLACES[2].getListingUrl(p)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800 hover:opacity-80 transition-opacity"
                     title="N11 Canlı İlanına Git"
                   >
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
                     N11
                     <ExternalLink className="w-2.5 h-2.5 opacity-80" />
                   </a>
-                )}
+                ) : isProductPending(p, 'n11') ? (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800"
+                    title={isTr ? "N11 katalog onay incelemesinde (InApproval)" : "Pending N11 catalog review"}
+                  >
+                    <Clock className="w-2.5 h-2.5 text-amber-600" />
+                    N11 ONAY
+                  </span>
+                ) : n11Error ? (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                    title={`N11: ${n11Error}`}
+                  >
+                    <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                    N11: {getShortErrorLabel(n11Error)}
+                  </span>
+                ) : null}
                 {/* Pazarama Badge */}
-                {isPzActive && (
+                {isPzActive ? (
                   <a
                     href={MARKETPLACES[4].getListingUrl(p)}
                     target="_blank"
@@ -426,7 +681,15 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                     PZR
                     <ExternalLink className="w-2.5 h-2.5 opacity-80" />
                   </a>
-                )}
+                ) : pzrError ? (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                    title={`Pazarama: ${pzrError}`}
+                  >
+                    <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                    PZR: {getShortErrorLabel(pzrError)}
+                  </span>
+                ) : null}
               </>
             ) : (() => {
               const isTargetActive = isProductActive(p, selectedMarketplace);
@@ -451,15 +714,15 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
                     </span>
                   ) : targetError ? (
                     <span
-                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold border ${
                         isPriceErr
                           ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800'
                           : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
                       }`}
                       title={targetError}
                     >
-                      <AlertTriangle className={`w-3 h-3 ${isPriceErr ? 'text-orange-600' : 'text-rose-600'}`} />
-                      {getShortErrorLabel(targetError)}
+                      <AlertTriangle className={`w-3 h-3 shrink-0 ${isPriceErr ? 'text-orange-600' : 'text-rose-600'}`} />
+                      <span>{isTr ? "Hatalı:" : "Error:"} {getShortErrorLabel(targetError)}</span>
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
@@ -519,9 +782,9 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
               )}
 
               {/* DOĞRUDAN TRENDYOL İLANINA GİT */}
-              {isTyActive && (
+              {isTyActive && MARKETPLACES[1].getListingUrl(p) && (
                 <a
-                  href={MARKETPLACES[1].getListingUrl(p)}
+                  href={MARKETPLACES[1].getListingUrl(p)!}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-amber-500/30"
@@ -546,9 +809,9 @@ export const MarketplaceProductRow: React.FC<MarketplaceProductRowProps> = ({
               )}
 
               {/* DOĞRUDAN N11 İLANINA GİT */}
-              {isN11Active && (
+              {isN11Active && MARKETPLACES[2].getListingUrl(p) && (
                 <a
-                  href={MARKETPLACES[2].getListingUrl(p)}
+                  href={MARKETPLACES[2].getListingUrl(p)!}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-red-500/30"

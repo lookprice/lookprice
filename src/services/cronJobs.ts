@@ -672,18 +672,23 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
 
     // 3. N11 Live Price & Stock Push
     if (
-      n11Settings?.appKey &&
-      n11Settings?.appSecret &&
+      (n11Settings?.appKey || n11Settings?.apiKey) &&
+      (n11Settings?.appSecret || n11Settings?.apiSecret) &&
       (!n11AuthBackoffStores.get(storeId) || Date.now() >= n11AuthBackoffStores.get(storeId)!)
     ) {
       try {
-        const auth = { appKey: n11Settings.appKey.trim(), appSecret: n11Settings.appSecret.trim() };
+        const auth = {
+          appKey: String(n11Settings.appKey || n11Settings.apiKey).trim(),
+          appSecret: String(n11Settings.appSecret || n11Settings.apiSecret).trim()
+        };
         const n11ProductsRes = await pool.query(
           `SELECT id, name, category, sub_category, barcode, sku, price, currency, stock_quantity, marketplace_data 
            FROM products 
-           WHERE store_id = $1 AND (is_n11_active = true OR (marketplace_data->'n11'->>'status' = 'ACTIVE'))`,
+           WHERE store_id = $1 AND is_n11_active = true`,
           [storeId]
         );
+
+        const n11BatchSkus: Array<{ stockCode: string; listPrice: number; salePrice: number; quantity: number; productId: number; mpData: any }> = [];
 
         for (const p of n11ProductsRes.rows) {
           try {
@@ -701,15 +706,18 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
             mpData = mpData || {};
 
             const sellerCode = (
-              mpData?.n11?.attributes?.merchantSku || 
-              mpData?.n11?.attributes?.stockCode || 
-              mpData?.n11?.attributes?.Barcode || 
-              p.barcode || 
-              p.sku || 
+              mpData?.n11?.sellerStockCode ||
+              mpData?.n11?.productSellerCode ||
+              mpData?.n11?.stockCode ||
+              mpData?.n11?.attributes?.stockCode ||
+              p.sku ||
+              p.barcode ||
+              mpData?.n11?.attributes?.merchantSku ||
+              mpData?.n11?.attributes?.Barcode ||
               ""
             ).trim();
 
-            const stock = parseInt(p.stock_quantity || "0", 10);
+            const stock = Math.max(0, parseInt(p.stock_quantity || "0", 10));
 
             if (!mpData.n11) mpData.n11 = {};
             if (!mpData.n11.attributes) mpData.n11.attributes = {};
@@ -718,22 +726,14 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
             mpData.n11.lastSync = new Date().toISOString();
 
             if (sellerCode && effectivePrice > 0) {
-              await new Promise(r => setTimeout(r, 100));
-              const n11Res = await N11Service.updatePriceAndStock(auth, sellerCode, effectivePrice, stock);
-              if (n11Res.success) {
-                mpData.n11.status = 'ACTIVE';
-                mpData.n11.lastError = null;
-              } else {
-                mpData.n11.lastError = n11Res.message;
-                if (n11Res.message?.includes('403') || n11Res.message?.includes('401') || n11Res.message?.includes('Unauthorized')) {
-                  n11AuthBackoffStores.set(storeId, Date.now() + 6 * 60 * 60 * 1000);
-                  break;
-                }
-              }
-              await pool.query(
-                "UPDATE products SET marketplace_data = $1 WHERE id = $2",
-                [JSON.stringify(mpData), p.id]
-              );
+              n11BatchSkus.push({
+                stockCode: sellerCode,
+                listPrice: effectivePrice,
+                salePrice: effectivePrice,
+                quantity: stock,
+                productId: p.id,
+                mpData
+              });
             }
           } catch (n11Err: any) {
             if (n11Err.message?.includes('403') || n11Err.message?.includes('401')) {
@@ -742,7 +742,35 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
             }
           }
         }
-        console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): N11 ${n11ProductsRes.rows.length} ürünün fiyat ve stoğu güncellendi.`);
+
+        if (n11BatchSkus.length > 0) {
+          const n11Res = await N11Service.updatePriceAndStockBatch(
+            auth,
+            n11BatchSkus.map(s => ({
+              stockCode: s.stockCode,
+              listPrice: s.listPrice,
+              salePrice: s.salePrice,
+              quantity: s.quantity
+            }))
+          );
+
+          for (const item of n11BatchSkus) {
+            if (n11Res.success) {
+              item.mpData.n11.status = 'ACTIVE';
+              item.mpData.n11.lastError = null;
+            } else {
+              item.mpData.n11.lastError = n11Res.message;
+              if (n11Res.message?.includes('403') || n11Res.message?.includes('401') || n11Res.message?.includes('Unauthorized')) {
+                n11AuthBackoffStores.set(storeId, Date.now() + 6 * 60 * 60 * 1000);
+              }
+            }
+            await pool.query(
+              "UPDATE products SET marketplace_data = $1, n11_last_sync = NOW(), n11_last_error = $2 WHERE id = $3",
+              [JSON.stringify(item.mpData), n11Res.success ? null : n11Res.message, item.productId]
+            );
+          }
+          console.log(`[CRON-CURRENCY] Store #${storeId} (${store.name}): N11 ${n11BatchSkus.length} ürünün fiyat ve stoğu güncellendi.`);
+        }
       } catch (n11InitErr: any) {
         // Ignore N11 init warning in background cron
       }

@@ -342,22 +342,6 @@ function drawCenteredFocalImage(
     ctx.drawImage(img, sX, sY, sWidth, sHeight, boxX, boxY, boxW, boxH);
   }
 
-  // Optional corner focus label (e.g. "Açı 1", "Yakın Plan", "Detay")
-  if (badgeLabel) {
-    ctx.save();
-    ctx.font = '700 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    const tw = ctx.measureText(badgeLabel).width;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
-    roundRect(ctx, boxX + 14, boxY + boxH - 38, tw + 22, 26, 8);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillText(badgeLabel, boxX + 25, boxY + boxH - 20);
-    ctx.restore();
-  }
-
   ctx.restore();
 }
 
@@ -384,8 +368,6 @@ function renderContextualScenarioStage(
   const pulse = Math.sin(animT * Math.PI * 2);
 
   if (sceneType === 'desk_setup') {
-    // 1. MODERN ERGONOMIC OFFICE / GAMING DESK SETUP ENVIRONMENT
-    // Upper architectural studio wall with ambient monitor/lamp glow
     const wallGrad = ctx.createLinearGradient(stageX, stageY, stageX, stageY + stageH * 0.68);
     wallGrad.addColorStop(0, '#0f172a');
     wallGrad.addColorStop(0.6, '#1e293b');
@@ -393,7 +375,6 @@ function renderContextualScenarioStage(
     ctx.fillStyle = wallGrad;
     ctx.fillRect(stageX, stageY, stageW, stageH);
 
-    // Subtle acoustic wall panels in background
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
     ctx.lineWidth = 2;
     const panelStep = 42;
@@ -404,7 +385,6 @@ function renderContextualScenarioStage(
       ctx.stroke();
     }
 
-    // Ambient Dual-Tone Backlight (Warm Key Light + Cyan/Indigo Monitor Glow)
     const monitorGlow = ctx.createRadialGradient(
       stageX + stageW * 0.5 + pulse * 25,
       stageY + stageH * 0.42,
@@ -419,52 +399,28 @@ function renderContextualScenarioStage(
     ctx.fillStyle = monitorGlow;
     ctx.fillRect(stageX, stageY, stageW, stageH);
 
-    // Perspective Walnut / Matte Carbon Desk Surface at bottom 34%
     const deskTopY = stageY + stageH * 0.66;
     const deskGrad = ctx.createLinearGradient(stageX, deskTopY, stageX, stageY + stageH);
-    deskGrad.addColorStop(0, '#27201c'); // warm dark walnut edge
+    deskGrad.addColorStop(0, '#27201c');
     deskGrad.addColorStop(0.12, '#1c1917');
     deskGrad.addColorStop(1, '#0c0a09');
     ctx.fillStyle = deskGrad;
     ctx.fillRect(stageX, deskTopY, stageW, stageH * 0.34);
 
-    // Desk edge LED strip highlight
     const ledGrad = ctx.createLinearGradient(stageX, deskTopY, stageX + stageW, deskTopY);
     ledGrad.addColorStop(0, 'rgba(56, 189, 248, 0.1)');
     ledGrad.addColorStop(0.5, 'rgba(56, 189, 248, 0.75)');
     ledGrad.addColorStop(1, 'rgba(99, 102, 241, 0.1)');
     ctx.fillStyle = ledGrad;
     ctx.fillRect(stageX, deskTopY, stageW, 3);
-
-    // Desk Mat perspective trapezoid
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
-    ctx.beginPath();
-    ctx.moveTo(stageX + stageW * 0.18, deskTopY + 14);
-    ctx.lineTo(stageX + stageW * 0.82, deskTopY + 14);
-    ctx.lineTo(stageX + stageW * 0.92, stageY + stageH - 12);
-    ctx.lineTo(stageX + stageW * 0.08, stageY + stageH - 12);
-    ctx.closePath();
-    ctx.fill();
   } else if (sceneType === 'closet_organizer') {
-    // 2. WARDROBE / CLOSET INTERIOR & HUMAN ORGANIZATION STAGE
     const closetGrad = ctx.createLinearGradient(stageX, stageY, stageX, stageY + stageH);
-    closetGrad.addColorStop(0, '#f5ebe0'); // Warm Scandinavian oak/linen
-    closetGrad.addColorStop(0.65, '#e3d5ca');
-    closetGrad.addColorStop(1, '#d5bdaf');
+    closetGrad.addColorStop(0, '#f8fafc');
+    closetGrad.addColorStop(0.65, '#f1f5f9');
+    closetGrad.addColorStop(1, '#e2e8f0');
     ctx.fillStyle = closetGrad;
     ctx.fillRect(stageX, stageY, stageW, stageH);
 
-    // Wardrobe side cabinet panels (3D interior perspective)
-    ctx.fillStyle = 'rgba(180, 145, 115, 0.25)';
-    ctx.fillRect(stageX, stageY, 38, stageH);
-    ctx.fillRect(stageX + stageW - 38, stageY, 38, stageH);
-
-    // Upper & Lower Wardrobe Shelf Beams
-    ctx.fillStyle = '#c89f7c';
-    ctx.fillRect(stageX, stageY + 22, stageW, 14);
-    ctx.fillRect(stageX, stageY + stageH * 0.74, stageW, 18);
-
-    // Warm recessed LED closet light from top shelf
     const shelfGlow = ctx.createRadialGradient(
       stageX + stageW * 0.5,
       stageY + 36,
@@ -473,12 +429,11 @@ function renderContextualScenarioStage(
       stageY + stageH * 0.45,
       stageW * 0.65
     );
-    shelfGlow.addColorStop(0, 'rgba(255, 251, 235, 0.85)');
-    shelfGlow.addColorStop(1, 'rgba(255, 251, 235, 0)');
+    shelfGlow.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+    shelfGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = shelfGlow;
-    ctx.fillRect(stageX, stageY + 36, stageW, stageH * 0.7);
+    ctx.fillRect(stageX, stageY, stageW, stageH);
   } else if (sceneType === 'user_lifestyle') {
-    // 3. ON-USER / LIFESTYLE EXPERIENCE ATMOSPHERE
     const lifeGrad = ctx.createLinearGradient(stageX, stageY, stageX + stageW, stageY + stageH);
     lifeGrad.addColorStop(0, '#1e1b4b');
     lifeGrad.addColorStop(0.5, '#312e81');
@@ -486,7 +441,6 @@ function renderContextualScenarioStage(
     ctx.fillStyle = lifeGrad;
     ctx.fillRect(stageX, stageY, stageW, stageH);
 
-    // Golden-hour bokeh lifestyle orbs
     const bokehPositions = [
       { x: 0.2, y: 0.25, r: 90, color: 'rgba(251, 191, 36, 0.22)' },
       { x: 0.8, y: 0.3, r: 120, color: 'rgba(244, 114, 182, 0.18)' },
@@ -505,7 +459,6 @@ function renderContextualScenarioStage(
       ctx.fill();
     }
   } else {
-    // 4. STUDIO MACRO PODIUM
     const studioGrad = ctx.createRadialGradient(
       stageX + stageW / 2,
       stageY + stageH / 2,
@@ -520,45 +473,27 @@ function renderContextualScenarioStage(
     ctx.fillRect(stageX, stageY, stageW, stageH);
   }
 
-  // Place the centered product onto the stage!
+  // Place the centered product onto the stage cleanly (without any artificial technical text pills)
   const zoom = (config.focalZoom || 1.0) * (1.0 + animT * 0.04);
   const floatY = Math.sin(animT * Math.PI * 2) * 6;
 
   if (bounds.hasWhiteBg) {
-    // Draw an elevated luxury studio frame / floating showcase card on the stage so white-bg product looks intentionally staged
-    const prodBoxW = stageW * 0.78;
-    const prodBoxH = stageH * 0.76;
+    const prodBoxW = stageW * 0.88;
+    const prodBoxH = stageH * 0.88;
     const prodBoxX = stageX + (stageW - prodBoxW) / 2;
     const prodBoxY = stageY + (stageH - prodBoxH) / 2 + floatY;
 
-    // Contact shadow on desk/shelf
     ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-    ctx.beginPath();
-    ctx.ellipse(
-      stageX + stageW / 2,
-      prodBoxY + prodBoxH + 6,
-      prodBoxW * 0.42,
-      14,
-      0,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.32)';
-    ctx.shadowBlur = 28;
-    ctx.shadowOffsetY = 12;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 10;
     drawCenteredFocalImage(ctx, img, prodBoxX, prodBoxY, prodBoxW, prodBoxH, {
       fitMode: config.imageFitMode || 'smart_center',
       zoom,
-      radius: 24
+      radius: 22
     });
     ctx.restore();
   } else {
-    // Full-bleed centered focal crop for lifestyle/full-frame photos
     drawCenteredFocalImage(ctx, img, stageX, stageY, stageW, stageH, {
       fitMode: config.imageFitMode || 'cover_center',
       zoom,
@@ -566,31 +501,6 @@ function renderContextualScenarioStage(
       blendOnStage: true
     });
   }
-
-  // Scenario Context Tag at top-left of stage
-  const sceneBadges: Record<SceneType, string> = {
-    desk_setup: '💻 MASAÜSTÜ & OFİS KURULUM SENARYOSU',
-    user_lifestyle: '🎧 KULLANICI ÜZERİNDE CANLI DENEYİM',
-    closet_organizer: '🧺 DOLAP İÇİ YERLEŞİM & DÜZEN SENARYOSU',
-    studio_macro: '✨ MERKEZ ODAK & DETAY VİTRİNİ'
-  };
-  const label = config.scenarioTitle
-    ? `✨ ${config.scenarioTitle.toUpperCase()}`
-    : sceneBadges[sceneType];
-
-  ctx.save();
-  ctx.font = '700 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  const lw = Math.min(stageW - 48, ctx.measureText(label).width + 28);
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
-  roundRect(ctx, stageX + 18, stageY + 18, lw, 32, 10);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.fillStyle = '#f8fafc';
-  ctx.fillText(label.slice(0, 48), stageX + 32, stageY + 39);
-  ctx.restore();
 
   ctx.restore();
 }
@@ -604,39 +514,33 @@ function buildCollageFrames(images: HTMLImageElement[], targetCount: number): Ar
   zoom: number;
   panX: number;
   panY: number;
-  label: string;
 }> {
   if (images.length === 0) return [];
 
-  const result: Array<{ img: HTMLImageElement; zoom: number; panX: number; panY: number; label: string }> = [];
-  const angleLabels = ['Ana Sahne & Odak', 'Yakın Plan Detay', 'Perspektif & Doku', 'Kullanım & Form'];
+  const result: Array<{ img: HTMLImageElement; zoom: number; panX: number; panY: number }> = [];
 
   for (let i = 0; i < targetCount; i++) {
     if (i < images.length) {
-      // Actual distinct image from product.images
       result.push({
         img: images[i],
         zoom: 1.0,
         panX: 0,
-        panY: 0,
-        label: images.length > 1 ? `Görsel ${i + 1} • Odak` : angleLabels[i]
+        panY: 0
       });
     } else {
-      // Create a smart focal detail view from existing product image so collage is always rich
       const baseImg = images[i % images.length];
       const presets = [
-        { zoom: 1.0, panX: 0, panY: 0, label: 'Merkez Odak' },
-        { zoom: 1.28, panX: 0, panY: -15, label: 'Makro Detay' },
-        { zoom: 1.22, panX: 15, panY: 15, label: 'Doku & İşçilik' },
-        { zoom: 1.15, panX: -12, panY: 0, label: 'Tam Profil' }
+        { zoom: 1.0, panX: 0, panY: 0 },
+        { zoom: 1.28, panX: 0, panY: -15 },
+        { zoom: 1.22, panX: 15, panY: 15 },
+        { zoom: 1.15, panX: -12, panY: 0 }
       ];
       const p = presets[i % presets.length];
       result.push({
         img: baseImg,
         zoom: p.zoom,
         panX: p.panX,
-        panY: p.panY,
-        label: p.label
+        panY: p.panY
       });
     }
   }
@@ -645,6 +549,7 @@ function buildCollageFrames(images: HTMLImageElement[], targetCount: number): Ar
 
 /**
  * Renders the visual stage either as Single Scenario Stage or Multi-Image Centered Collage (2, 3, or 4 images)
+ * Clean commercial output: zero technical labels on images!
  */
 function renderVisualStageOrCollage(
   ctx: CanvasRenderingContext2D,
@@ -682,7 +587,7 @@ function renderVisualStageOrCollage(
   if (layout === 'single') {
     renderContextualScenarioStage(ctx, allImages[0], boxX, boxY, boxW, boxH, sceneType, config, animT);
 
-    // If product has multiple images even in single mode, show a sleek floating secondary angle PIP in bottom-right
+    // If product has multiple images in single mode, show a clean secondary angle inset without text overlays
     if (allImages.length > 1) {
       const pipSize = Math.min(boxW, boxH) * 0.28;
       const pipX = boxX + boxW - pipSize - 20;
@@ -693,8 +598,7 @@ function renderVisualStageOrCollage(
       drawCenteredFocalImage(ctx, allImages[1], pipX, pipY, pipSize, pipSize, {
         fitMode: config.imageFitMode || 'smart_center',
         zoom: 1.05,
-        radius: 18,
-        badgeLabel: '2. Açı'
+        radius: 18
       });
       ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 2.5;
@@ -710,46 +614,60 @@ function renderVisualStageOrCollage(
     const isStory = config.aspectRatio === 'story';
     if (isStory) {
       const cellH = (boxH - gap) / 2;
-      renderContextualScenarioStage(ctx, frames[0].img, boxX, boxY, boxW, cellH, sceneType, config, animT);
+      drawCenteredFocalImage(ctx, frames[0].img, boxX, boxY, boxW, cellH, {
+        fitMode: config.imageFitMode || 'smart_center',
+        zoom: frames[0].zoom * (config.focalZoom || 1),
+        panX: frames[0].panX,
+        panY: frames[0].panY,
+        radius: 22
+      });
       drawCenteredFocalImage(ctx, frames[1].img, boxX, boxY + cellH + gap, boxW, cellH, {
         fitMode: config.imageFitMode || 'smart_center',
         zoom: frames[1].zoom * (config.focalZoom || 1),
         panX: frames[1].panX,
         panY: frames[1].panY,
-        radius: 22,
-        badgeLabel: frames[1].label
+        radius: 22
       });
     } else {
       const cellW = (boxW - gap) / 2;
-      renderContextualScenarioStage(ctx, frames[0].img, boxX, boxY, cellW, boxH, sceneType, config, animT);
+      drawCenteredFocalImage(ctx, frames[0].img, boxX, boxY, cellW, boxH, {
+        fitMode: config.imageFitMode || 'smart_center',
+        zoom: frames[0].zoom * (config.focalZoom || 1),
+        panX: frames[0].panX,
+        panY: frames[0].panY,
+        radius: 22
+      });
       drawCenteredFocalImage(ctx, frames[1].img, boxX + cellW + gap, boxY, cellW, boxH, {
         fitMode: config.imageFitMode || 'smart_center',
         zoom: frames[1].zoom * (config.focalZoom || 1),
         panX: frames[1].panX,
         panY: frames[1].panY,
-        radius: 22,
-        badgeLabel: frames[1].label
+        radius: 22
       });
     }
     return;
   }
 
   if (layout === 'collage_3') {
-    // 3-Image Bento Showcase: Left 58% Main Scenario Stage + Right 42% Two Stacked Centered Detail Frames
     const frames = buildCollageFrames(allImages, 3);
     const leftW = Math.round((boxW - gap) * 0.58);
     const rightW = boxW - leftW - gap;
     const rightCellH = (boxH - gap) / 2;
 
-    renderContextualScenarioStage(ctx, frames[0].img, boxX, boxY, leftW, boxH, sceneType, config, animT);
+    drawCenteredFocalImage(ctx, frames[0].img, boxX, boxY, leftW, boxH, {
+      fitMode: config.imageFitMode || 'smart_center',
+      zoom: frames[0].zoom * (config.focalZoom || 1),
+      panX: frames[0].panX,
+      panY: frames[0].panY,
+      radius: 22
+    });
 
     drawCenteredFocalImage(ctx, frames[1].img, boxX + leftW + gap, boxY, rightW, rightCellH, {
       fitMode: config.imageFitMode || 'smart_center',
       zoom: frames[1].zoom * (config.focalZoom || 1),
       panX: frames[1].panX,
       panY: frames[1].panY,
-      radius: 20,
-      badgeLabel: frames[1].label
+      radius: 20
     });
 
     drawCenteredFocalImage(ctx, frames[2].img, boxX + leftW + gap, boxY + rightCellH + gap, rightW, rightCellH, {
@@ -757,22 +675,18 @@ function renderVisualStageOrCollage(
       zoom: frames[2].zoom * (config.focalZoom || 1),
       panX: frames[2].panX,
       panY: frames[2].panY,
-      radius: 20,
-      badgeLabel: frames[2].label
+      radius: 20
     });
     return;
   }
 
-  // collage_4: 2x2 Symmetrical Centered Matrix
+  // collage_4: Clean, uniform 2x2 Symmetrical Centered Matrix (No technical pills or overlays!)
   const frames = buildCollageFrames(allImages, 4);
   const cellW = (boxW - gap) / 2;
   const cellH = (boxH - gap) / 2;
 
-  // Top-left: Contextual Stage
-  renderContextualScenarioStage(ctx, frames[0].img, boxX, boxY, cellW, cellH, sceneType, config, animT);
-
-  // Top-right, Bottom-left, Bottom-right: Centered Focal Views
   const positions = [
+    { x: boxX, y: boxY, f: frames[0] },
     { x: boxX + cellW + gap, y: boxY, f: frames[1] },
     { x: boxX, y: boxY + cellH + gap, f: frames[2] },
     { x: boxX + cellW + gap, y: boxY + cellH + gap, f: frames[3] }
@@ -784,40 +698,13 @@ function renderVisualStageOrCollage(
       zoom: pos.f.zoom * (config.focalZoom || 1),
       panX: pos.f.panX,
       panY: pos.f.panY,
-      radius: 20,
-      badgeLabel: pos.f.label
+      radius: 20
     });
   }
-
-  // Central floating emblem uniting the 4-grid collage
-  const centerBadgeW = 190;
-  const centerBadgeH = 40;
-  const cbx = boxX + (boxW - centerBadgeW) / 2;
-  const cby = boxY + (boxH - centerBadgeH) / 2;
-  ctx.save();
-  ctx.fillStyle = '#0f172a';
-  ctx.shadowColor = 'rgba(0,0,0,0.4)';
-  ctx.shadowBlur = 14;
-  roundRect(ctx, cbx, cby, centerBadgeW, centerBadgeH, 20);
-  ctx.fill();
-  ctx.strokeStyle = '#38bdf8';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.font = '800 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.fillText('360° MERKEZ ODAK', boxX + boxW / 2, cby + 25);
-  ctx.restore();
 }
 
 /**
  * Renders the Multi-Scene Storyboard Video Frame when `animationProgress` is active!
- * Divides the video into 4 dynamic commercial scenes:
- * - Scene 1 (0.00 - 0.27): Scenario & Real-Life Environment Stage Opening
- * - Scene 2 (0.27 - 0.54): Multi-Angle / Usage Interaction Split Transition
- * - Scene 3 (0.54 - 0.80): Multi-Image Bento Collage & Feature Callouts
- * - Scene 4 (0.80 - 1.00): Sales Conversion Finale & Offer Lockup
  */
 function renderStoryboardVideoStage(
   ctx: CanvasRenderingContext2D,
@@ -841,10 +728,10 @@ function renderStoryboardVideoStage(
   const scenes = config.storyScenes && config.storyScenes.length >= 4
     ? config.storyScenes
     : [
-        { phase: 'Sahne 1: Senaryo & Mekân Canlandırması', subtitle: config.scenarioTitle || 'Gerçek Yaşam Kullanım Kurulumu', highlight: 'Doğal Ortamında Üstün Performans' },
-        { phase: 'Sahne 2: Kullanım & Çoklu Açı Deneyimi', subtitle: 'Ergonomik tasarım ve pratik etkileşim', highlight: 'Maksimum Konfor & İşlevsellik' },
-        { phase: 'Sahne 3: 360° Çoklu Görsel & Detay Kolajı', subtitle: 'Merkeze odaklanmış kusursuz işçilik detayları', highlight: 'Üst Segment Malzeme Kalitesi' },
-        { phase: 'Sahne 4: Satış & Kampanya Finali', subtitle: `${config.storeName} Güvencesiyle`, highlight: config.badge || 'Hemen Sipariş Verin' }
+        { phase: 'Özel Tasarım', subtitle: config.scenarioTitle || 'Gerçek Yaşam Kullanım Kurulumu', highlight: 'Doğal Ortamında Üstün Performans' },
+        { phase: 'Ergonomik Deneyim', subtitle: 'Ergonomik tasarım ve pratik etkileşim', highlight: 'Maksimum Konfor & İşlevsellik' },
+        { phase: 'Detay & Kalite', subtitle: 'Merkeze odaklanmış kusursuz işçilik detayları', highlight: 'Üst Segment Malzeme Kalitesi' },
+        { phase: 'Özel Fırsat', subtitle: `${config.storeName} Güvencesiyle`, highlight: config.badge || 'Hemen Sipariş Verin' }
       ];
 
   let activeSceneIdx = 0;
@@ -867,27 +754,23 @@ function renderStoryboardVideoStage(
   const currentStory = scenes[activeSceneIdx] || scenes[0];
 
   if (activeSceneIdx === 0) {
-    // SCENE 1: Full Contextual Scenario Stage with smooth camera glide
     renderContextualScenarioStage(ctx, allImages[0], boxX, boxY, boxW, boxH, sceneType, {
       ...config,
       focalZoom: (config.focalZoom || 1) * (0.96 + localT * 0.1)
     }, localT);
   } else if (activeSceneIdx === 1) {
-    // SCENE 2: Dynamic 2-Image Usage & Angle Split
     renderVisualStageOrCollage(ctx, boxX, boxY, boxW, boxH, {
       ...config,
       collageLayout: 'collage_2',
       focalZoom: (config.focalZoom || 1) * (1.0 + localT * 0.06)
     }, localT);
   } else if (activeSceneIdx === 2) {
-    // SCENE 3: Multi-Image Bento / 4-Grid Showcase
     renderVisualStageOrCollage(ctx, boxX, boxY, boxW, boxH, {
       ...config,
       collageLayout: allImages.length >= 4 ? 'collage_4' : 'collage_3',
       focalZoom: config.focalZoom || 1
     }, localT);
   } else {
-    // SCENE 4: Hero Conversion Finale
     renderVisualStageOrCollage(ctx, boxX, boxY, boxW, boxH, {
       ...config,
       collageLayout: config.collageLayout || 'single',
@@ -895,41 +778,27 @@ function renderStoryboardVideoStage(
     }, localT);
   }
 
-  // Animated Storyboard Director Overlay Banner at bottom of stage
+  // Clean Commercial Highlight Banner at bottom of video frame (No "Sahne 1:" technical text)
   ctx.save();
   const bannerW = boxW - 36;
-  const bannerH = 82;
+  const bannerH = 68;
   const bannerX = boxX + 18;
   const bannerY = boxY + boxH - bannerH - 16;
 
   ctx.fillStyle = 'rgba(9, 13, 22, 0.88)';
-  roundRect(ctx, bannerX, bannerY, bannerW, bannerH, 18);
+  roundRect(ctx, bannerX, bannerY, bannerW, bannerH, 16);
   ctx.fill();
   ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Scene indicator dots (1 - 2 - 3 - 4)
-  for (let i = 0; i < 4; i++) {
-    ctx.fillStyle = i === activeSceneIdx ? '#38bdf8' : 'rgba(148, 163, 184, 0.35)';
-    roundRect(ctx, bannerX + bannerW - 110 + i * 22, bannerY + 18, i === activeSceneIdx ? 18 : 10, 6, 3);
-    ctx.fill();
-  }
-
-  // Phase Kicker
-  ctx.font = '800 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillStyle = '#38bdf8';
-  ctx.fillText(currentStory.phase.toUpperCase(), bannerX + 20, bannerY + 26);
-
-  // Subtitle
   ctx.font = '700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(currentStory.subtitle.slice(0, 56), bannerX + 20, bannerY + 50);
+  ctx.fillText(currentStory.subtitle.slice(0, 56), bannerX + 20, bannerY + 30);
 
-  // Highlight Callout
-  ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#fbbf24';
-  ctx.fillText(`★ ${currentStory.highlight}`, bannerX + 20, bannerY + 70);
+  ctx.fillText(`★ ${currentStory.highlight}`, bannerX + 20, bannerY + 52);
   ctx.restore();
 }
 

@@ -1,5 +1,44 @@
-import React, { useState } from "react";
-import { Store, Activity, Scan, Users, Database, HardDrive, ShieldCheck, RefreshCw, AlertTriangle, CheckCircle2, CloudUpload, Link2, Copy, Check, Archive } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import {
+  Store as StoreIcon,
+  Activity,
+  Scan,
+  Database,
+  HardDrive,
+  ShieldCheck,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle2,
+  CloudUpload,
+  Link2,
+  Copy,
+  Check,
+  Archive,
+  Building2,
+  FlaskConical,
+  ChevronDown,
+  ChevronUp,
+  Inbox,
+  Clock
+} from "lucide-react";
+import { Store } from "../../types/superadmin";
+
+export const isSystemDemoStore = (store: Partial<Store>): boolean => {
+  const slug = (store.slug || "").toLowerCase();
+  const name = (store.name || "").toLowerCase();
+  if (
+    slug.endsWith("-demo") ||
+    slug.includes("-demo-") ||
+    slug.startsWith("demo-") ||
+    slug === "akdeniz-hukuk" ||
+    name.includes("(demo)") ||
+    name.includes("demo mağaza") ||
+    name.includes("demo vitrin")
+  ) {
+    return true;
+  }
+  return false;
+};
 
 interface SuperAdminStatsProps {
   stats: {
@@ -8,6 +47,12 @@ interface SuperAdminStatsProps {
     totalScans: number;
     scansLast24h: number;
   };
+  stores?: Store[];
+  leadsCount?: number;
+  pendingRegistrationsCount?: number;
+  onOpenRequestsTab?: () => void;
+  activeSegment?: string;
+  onSelectSegment?: (segment: "commercial" | "branches" | "demos" | "all") => void;
   supabaseStatus?: {
     overallStatus: "healthy" | "warning" | "restricted";
     database: {
@@ -57,6 +102,12 @@ interface SuperAdminStatsProps {
 
 export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
   stats,
+  stores = [],
+  leadsCount = 0,
+  pendingRegistrationsCount = 0,
+  onOpenRequestsTab,
+  activeSegment,
+  onSelectSegment,
   supabaseStatus,
   checkingSupabase,
   onRefreshSupabaseStatus,
@@ -66,335 +117,543 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
   onConnectDrive5TB,
   onTriggerDrive5TBBackup,
   onTriggerDrive5TBArchive,
-  st
 }) => {
   const [copiedUri, setCopiedUri] = useState(false);
-  const expectedRedirectUri =
+  const [showInfraDrawer, setShowInfraDrawer] = useState(false);
+
+  const computed = useMemo(() => {
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const demoStores = stores.filter((s) => isSystemDemoStore(s));
+    const commercialStores = stores.filter((s) => !isSystemDemoStore(s));
+    const commercialMainStores = commercialStores.filter((s) => !s.parent_id);
+    const commercialBranches = commercialStores.filter((s) => Boolean(s.parent_id));
+
+    const activeCommercial = commercialStores.filter(
+      (s) => s.subscription_end && new Date(s.subscription_end) >= now
+    );
+    const expiringSoonCommercial = commercialStores.filter((s) => {
+      if (!s.subscription_end) return false;
+      const end = new Date(s.subscription_end);
+      return end >= now && end <= thirtyDaysFromNow;
+    });
+    const expiredCommercial = commercialStores.filter(
+      (s) => !s.subscription_end || new Date(s.subscription_end) < now
+    );
+
+    return {
+      totalCommercial: commercialStores.length,
+      commercialMainCount: commercialMainStores.length,
+      commercialBranchCount: commercialBranches.length,
+      demoCount: demoStores.length,
+      activeCommercialCount: activeCommercial.length,
+      expiringSoonCount: expiringSoonCommercial.length,
+      expiredCommercialCount: expiredCommercial.length,
+    };
+  }, [stores]);
+
+  const fallbackRedirectUri =
     drive5TBStatus?.redirectUri ||
-    (typeof window !== "undefined" ? `${window.location.origin}/api/google-drive/callback` : "https://enrakipsiz.com/api/google-drive/callback");
+    (typeof window !== "undefined"
+      ? `${window.location.origin}/api/superadmin/drive-5tb/callback`
+      : "https://lookprice.net/api/superadmin/drive-5tb/callback");
 
-  const handleCopyRedirectUri = () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(expectedRedirectUri);
-      setCopiedUri(true);
-      setTimeout(() => setCopiedUri(false), 2000);
-    }
+  const handleCopyUri = () => {
+    navigator.clipboard.writeText(fallbackRedirectUri);
+    setCopiedUri(true);
+    setTimeout(() => setCopiedUri(false), 2500);
   };
+
+  const dbPercentage = supabaseStatus?.database?.percentage ?? 0;
+  const totalRequests = leadsCount + pendingRegistrationsCount;
+
   return (
-    <div className="space-y-6 mb-8">
-      {/* 4 Main Stat Cards - Apple/Mercedes Glassmorphic Style */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl group-hover:scale-105 transition-transform">
-              <Store className="h-5 w-5 text-slate-900 dark:text-white" />
+    <div className="space-y-2.5 mb-3">
+      {/* High-Density 6-Card Cockpit Telemetry Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        {/* 1. Ticari Müşteriler (Aktif Firmalar) */}
+        <button
+          type="button"
+          onClick={() => onSelectSegment?.("commercial")}
+          className={`text-left p-3 rounded-xl border transition-all flex flex-col justify-between ${
+            activeSegment === "commercial"
+              ? "bg-slate-900 text-white border-slate-900 dark:bg-indigo-950/90 dark:border-indigo-500/60 shadow-md"
+              : "bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600"
+          }`}
+        >
+          <div className="flex items-center justify-between w-full mb-1.5">
+            <span
+              className={`text-[10px] font-extrabold uppercase tracking-wider ${
+                activeSegment === "commercial"
+                  ? "text-indigo-300"
+                  : "text-slate-500 dark:text-slate-400"
+              }`}
+            >
+              Ticari Firmalar
+            </span>
+            <div
+              className={`p-1.5 rounded-lg ${
+                activeSegment === "commercial"
+                  ? "bg-white/10 text-indigo-300"
+                  : "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400"
+              }`}
+            >
+              <StoreIcon className="h-3.5 w-3.5" />
             </div>
-            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-200/60 dark:border-emerald-800/60">
-              SİSTEM GENELİ
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <span
+              className={`text-xl font-black tracking-tight ${
+                activeSegment === "commercial"
+                  ? "text-white"
+                  : "text-slate-900 dark:text-white"
+              }`}
+            >
+              {stores.length > 0 ? computed.totalCommercial : stats.totalStores}
+            </span>
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                activeSegment === "commercial"
+                  ? "bg-emerald-500/20 text-emerald-300"
+                  : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
+              }`}
+            >
+              {computed.activeCommercialCount} Aktif
             </span>
           </div>
-          <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{st.totalStores}</h3>
-          <div className="flex items-baseline gap-2 mt-1">
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">{stats.totalStores}</p>
-            <span className="text-xs font-semibold text-slate-400">MAĞAZA</span>
+        </button>
+
+        {/* 2. Çok Şubeli Yapılar */}
+        <button
+          type="button"
+          onClick={() => onSelectSegment?.("branches")}
+          className={`text-left p-3 rounded-xl border transition-all flex flex-col justify-between ${
+            activeSegment === "branches"
+              ? "bg-slate-900 text-white border-slate-900 dark:bg-indigo-950/90 dark:border-indigo-500/60 shadow-md"
+              : "bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600"
+          }`}
+        >
+          <div className="flex items-center justify-between w-full mb-1.5">
+            <span
+              className={`text-[10px] font-extrabold uppercase tracking-wider ${
+                activeSegment === "branches"
+                  ? "text-amber-300"
+                  : "text-slate-500 dark:text-slate-400"
+              }`}
+            >
+              Şubeli Yapılar
+            </span>
+            <div
+              className={`p-1.5 rounded-lg ${
+                activeSegment === "branches"
+                  ? "bg-white/10 text-amber-300"
+                  : "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400"
+              }`}
+            >
+              <Building2 className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <span
+              className={`text-xl font-black tracking-tight ${
+                activeSegment === "branches"
+                  ? "text-white"
+                  : "text-slate-900 dark:text-white"
+              }`}
+            >
+              {computed.commercialBranchCount}
+            </span>
+            <span
+              className={`text-[10px] font-semibold ${
+                activeSegment === "branches"
+                  ? "text-slate-300"
+                  : "text-slate-500 dark:text-slate-400"
+              }`}
+            >
+              {computed.commercialMainCount} Ana Merkez
+            </span>
+          </div>
+        </button>
+
+        {/* 3. Sistem & Sektör Demoları */}
+        <button
+          type="button"
+          onClick={() => onSelectSegment?.("demos")}
+          className={`text-left p-3 rounded-xl border transition-all flex flex-col justify-between ${
+            activeSegment === "demos"
+              ? "bg-slate-900 text-white border-slate-900 dark:bg-indigo-950/90 dark:border-indigo-500/60 shadow-md"
+              : "bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-purple-400 dark:hover:border-purple-600"
+          }`}
+        >
+          <div className="flex items-center justify-between w-full mb-1.5">
+            <span
+              className={`text-[10px] font-extrabold uppercase tracking-wider ${
+                activeSegment === "demos"
+                  ? "text-purple-300"
+                  : "text-slate-500 dark:text-slate-400"
+              }`}
+            >
+              Demo Vitrinler
+            </span>
+            <div
+              className={`p-1.5 rounded-lg ${
+                activeSegment === "demos"
+                  ? "bg-white/10 text-purple-300"
+                  : "bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400"
+              }`}
+            >
+              <FlaskConical className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <span
+              className={`text-xl font-black tracking-tight ${
+                activeSegment === "demos"
+                  ? "text-white"
+                  : "text-slate-900 dark:text-white"
+              }`}
+            >
+              {computed.demoCount}
+            </span>
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                activeSegment === "demos"
+                  ? "bg-purple-500/20 text-purple-200"
+                  : "bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300"
+              }`}
+            >
+              İzole Vitrin
+            </span>
+          </div>
+        </button>
+
+        {/* 4. Muhasebe & Süre Radarı */}
+        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between w-full mb-1.5">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Hesap & Süre Radarı
+            </span>
+            <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+              <Clock className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-1">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+                {computed.expiringSoonCount}
+              </span>
+              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                &lt;30 Gün
+              </span>
+            </div>
+            {computed.expiredCommercialCount > 0 ? (
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+                {computed.expiredCommercialCount} Süresi Doldu
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                Tümü Güncel
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl group-hover:scale-105 transition-transform">
-              <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+        {/* 5. Canlı Trafik & Talepler */}
+        <button
+          type="button"
+          onClick={onOpenRequestsTab}
+          className="text-left p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 transition-all flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between w-full mb-1.5">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Talepler & QR Trafik
+            </span>
+            <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+              <Inbox className="h-3.5 w-3.5" />
             </div>
-            <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-indigo-200/60 dark:border-indigo-800/60">
-              YAYINDA
+          </div>
+          <div className="flex items-baseline justify-between gap-1">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+                {totalRequests}
+              </span>
+              <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
+                Talep/Başvuru
+              </span>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">
+              {stats.scansLast24h || 0} QR/24s
             </span>
           </div>
-          <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{st.activeStores}</h3>
-          <div className="flex items-baseline gap-2 mt-1">
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">{stats.activeStores}</p>
-            <span className="text-xs font-semibold text-slate-400">AKTİF</span>
-          </div>
-        </div>
+        </button>
 
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl group-hover:scale-105 transition-transform">
-              <Scan className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+        {/* 6. Bulut & 5TB Yedekleme Sağlığı (Toggle Drawer) */}
+        <button
+          type="button"
+          onClick={() => setShowInfraDrawer((prev) => !prev)}
+          className={`text-left p-3 rounded-xl border transition-all flex flex-col justify-between ${
+            showInfraDrawer
+              ? "bg-slate-900 text-white border-slate-900 dark:bg-slate-800 dark:border-slate-700 shadow-md"
+              : "bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-emerald-500/60"
+          }`}
+        >
+          <div className="flex items-center justify-between w-full mb-1.5">
+            <span
+              className={`text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 ${
+                showInfraDrawer
+                  ? "text-emerald-300"
+                  : "text-slate-500 dark:text-slate-400"
+              }`}
+            >
+              Bulut & 5TB Drive
+            </span>
+            <div className="flex items-center gap-1">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  supabaseStatus?.overallStatus === "restricted"
+                    ? "bg-rose-500 animate-ping"
+                    : "bg-emerald-500"
+                }`}
+              />
+              {showInfraDrawer ? (
+                <ChevronUp className="h-3.5 w-3.5 text-slate-300" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+              )}
             </div>
-            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-amber-200/60 dark:border-amber-800/60">
-              ETKİLEŞİM
+          </div>
+          <div className="flex items-baseline justify-between gap-1">
+            <span
+              className={`text-sm font-black tracking-tight ${
+                showInfraDrawer
+                  ? "text-white"
+                  : "text-slate-900 dark:text-white"
+              }`}
+            >
+              DB %{dbPercentage}
+            </span>
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                drive5TBStatus?.connected
+                  ? showInfraDrawer
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
+                  : "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
+              }`}
+            >
+              {drive5TBStatus?.connected ? "5TB Aktif" : "Detay ▾"}
             </span>
           </div>
-          <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">TOPLAM QR TARAMA</h3>
-          <div className="flex items-baseline gap-2 mt-1">
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">{stats.totalScans}</p>
-            <span className="text-xs font-semibold text-slate-400">TARAMA</span>
-          </div>
-        </div>
-
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl group-hover:scale-105 transition-transform">
-              <Users className="h-5 w-5 text-rose-600 dark:text-rose-400" />
-            </div>
-            <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-rose-200/60 dark:border-rose-800/60">
-              SON 24 SAAT
-            </span>
-          </div>
-          <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">CANLI TRAFİK</h3>
-          <div className="flex items-baseline gap-2 mt-1">
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">{stats.scansLast24h}</p>
-            <span className="text-xs font-semibold text-slate-400">TARAMA</span>
-          </div>
-        </div>
+        </button>
       </div>
 
-      {/* Supabase & Database Quota & Health Monitor */}
-      {supabaseStatus && (
-        <div className="bg-slate-900 text-white rounded-2xl p-6 border border-slate-800 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative z-10 border-b border-slate-800 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-indigo-500/20 text-indigo-400 rounded-xl border border-indigo-500/30">
-                <Database className="h-6 w-6" />
+      {/* Collapsible Cloud & 5TB Google Drive Infrastructure Drawer */}
+      {showInfraDrawer && supabaseStatus && (
+        <div
+          className={`p-4 rounded-xl border transition-all shadow-sm ${
+            supabaseStatus.overallStatus === "restricted"
+              ? "bg-red-50/90 dark:bg-red-950/40 border-red-200 dark:border-red-800"
+              : supabaseStatus.overallStatus === "warning"
+              ? "bg-amber-50/90 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800"
+              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+          }`}
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div
+                className={`p-2 rounded-lg ${
+                  supabaseStatus.overallStatus === "restricted"
+                    ? "bg-red-100 text-red-700"
+                    : supabaseStatus.overallStatus === "warning"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
+                }`}
+              >
+                {supabaseStatus.overallStatus === "restricted" ? (
+                  <AlertTriangle className="h-4 w-4" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-white">Supabase & 5 TB Google Drive Bulut Kota Monitörü</h3>
-                  {supabaseStatus.overallStatus === "healthy" && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      SAĞLIKLI
-                    </span>
-                  )}
-                  {supabaseStatus.overallStatus === "warning" && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      KOTA UYARISI
-                    </span>
-                  )}
-                  {supabaseStatus.overallStatus === "restricted" && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      KISITLANDI
-                    </span>
-                  )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xs font-extrabold text-slate-900 dark:text-white">
+                    Supabase & 5TB Google Drive Altyapı Kontrol Merkezi
+                  </h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300">
+                    {supabaseStatus.overallStatus === "restricted"
+                      ? "Kısıtlama Uyarısı"
+                      : "Tüm Servisler Aktif"}
+                  </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Anlık veritabanı boyutu, dosya depolama kullanımı, sıfır egress kalkanı ve 5 TB Google Drive yedekleme kasası
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {supabaseStatus.proxyMode.description}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {supabaseStatus.checkedAt && (
-                <span className="text-[11px] text-slate-400 font-mono hidden md:inline">
-                  Son kontrol: {new Date(supabaseStatus.checkedAt).toLocaleTimeString("tr-TR")}
-                </span>
-              )}
+            {onRefreshSupabaseStatus && (
               <button
                 onClick={onRefreshSupabaseStatus}
                 disabled={checkingSupabase}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 active:scale-95 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${checkingSupabase ? "animate-spin text-indigo-400" : ""}`} />
-                {checkingSupabase ? "Kontrol..." : "Yenile"}
+                <RefreshCw
+                  className={`h-3 w-3 ${checkingSupabase ? "animate-spin" : ""}`}
+                />
+                {checkingSupabase ? "Kontrol Ediliyor..." : "Durumu Yenile"}
               </button>
-            </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 relative z-10">
-            {/* Database Storage Card */}
-            <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-700/60">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                  <Database className="h-4 w-4 text-indigo-400" />
-                  PostgreSQL Veritabanı
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            {/* PostgreSQL DB Size */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200/70 dark:border-slate-700/60">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                  <Database className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />{" "}
+                  PostgreSQL Boyutu
                 </span>
-                <span className="text-xs font-mono font-bold text-indigo-300">
-                  %{supabaseStatus.database.percentage}
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between mb-2">
-                <span className="text-xl font-extrabold text-white">
-                  {supabaseStatus.database.sizeMB} <span className="text-xs font-medium text-slate-400">MB</span>
-                </span>
-                <span className="text-xs text-slate-400 font-medium">
-                  Limit: {supabaseStatus.database.limitMB} MB
+                <span className="text-[11px] font-extrabold text-slate-900 dark:text-white">
+                  {supabaseStatus.database.sizeMB} / {supabaseStatus.database.limitMB} MB
                 </span>
               </div>
-              <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+              <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-1">
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    supabaseStatus.database.percentage > 80 ? "bg-rose-500" : supabaseStatus.database.percentage > 50 ? "bg-amber-400" : "bg-indigo-500"
+                  className={`h-full rounded-full ${
+                    supabaseStatus.database.percentage > 80
+                      ? "bg-red-500"
+                      : supabaseStatus.database.percentage > 60
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
                   }`}
-                  style={{ width: `${Math.min(100, Math.max(2, supabaseStatus.database.percentage))}%` }}
+                  style={{
+                    width: `${Math.min(100, supabaseStatus.database.percentage)}%`,
+                  }}
                 />
               </div>
-              <p className="text-[11px] text-slate-400 mt-2">
-                Ücretsiz planda 500 MB limit bulunmaktadır. Veritabanınız güvendedir.
-              </p>
+              <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                <span>Doluluk: %{supabaseStatus.database.percentage}</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                  Güvenli
+                </span>
+              </div>
             </div>
 
-            {/* Supabase Storage Bucket Card */}
-            <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-700/60">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                  <HardDrive className="h-4 w-4 text-emerald-400" />
-                  Depolama (lookdocu)
+            {/* Supabase Storage */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200/70 dark:border-slate-700/60">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                  <HardDrive className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />{" "}
+                  Medya & Storage
                 </span>
-                <span className="text-xs font-mono font-bold text-emerald-300">
-                  %{supabaseStatus.storage.percentage}
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between mb-2">
-                <span className="text-xl font-extrabold text-white">
-                  {supabaseStatus.storage.sizeMB} <span className="text-xs font-medium text-slate-400">MB</span>
-                </span>
-                <span className="text-xs text-slate-400 font-medium">
-                  {supabaseStatus.storage.fileCount} Görsel
+                <span className="text-[11px] font-extrabold text-slate-900 dark:text-white">
+                  {supabaseStatus.storage.sizeMB} / {supabaseStatus.storage.limitMB} MB
                 </span>
               </div>
-              <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+              <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-1">
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    supabaseStatus.storage.percentage > 80 ? "bg-rose-500" : supabaseStatus.storage.percentage > 50 ? "bg-amber-400" : "bg-emerald-500"
-                  }`}
-                  style={{ width: `${Math.min(100, Math.max(2, supabaseStatus.storage.percentage))}%` }}
+                  className="h-full rounded-full bg-emerald-500"
+                  style={{
+                    width: `${Math.min(100, supabaseStatus.storage.percentage)}%`,
+                  }}
                 />
               </div>
-              <p className="text-[11px] text-slate-400 mt-2">
-                {supabaseStatus.storage.status === "active" ? (
-                  <span className="text-emerald-400 font-medium flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3 inline" /> Depolama servisi erişilebilir.
-                  </span>
-                ) : (
-                  <span className="text-rose-400 font-medium">
-                    {supabaseStatus.storage.errorMessage || "Depolama servisinde uyarı mevcut."}
-                  </span>
-                )}
-              </p>
-            </div>
-
-            {/* Egress / CDN Proxy Shield Card */}
-            <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-700/60">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-cyan-400" />
-                  Sıfır Egress Kalkanı
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  KORUMA AKTİF
+              <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                <span>{supabaseStatus.storage.fileCount} dosya</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
+                  <CheckCircle2 className="h-3 w-3" /> Egress Koruma
                 </span>
               </div>
-              <p className="text-xs font-extrabold text-white mb-1">
-                RAM & Yerel Disk Proxy
-              </p>
-              <p className="text-[11px] text-slate-300 leading-snug">
-                Tüm görsel ve API istekleri sunucu RAM önbelleği (<code className="text-cyan-300 font-mono bg-slate-900 px-1 py-0.5 rounded">/api/storage/*</code>) üzerinden sunularak Supabase Egress kotasını korur.
-              </p>
             </div>
 
-            {/* 5 TB Google Drive Cloud Vault Card */}
-            <div className="bg-slate-800/80 rounded-xl p-4 border border-amber-500/40 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                    <CloudUpload className="h-4 w-4 text-amber-400" />
-                    5 TB Google Drive Kasa
+            {/* 5TB Google Drive */}
+            <div className="md:col-span-2 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200/70 dark:border-slate-700/60 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <CloudUpload className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span className="text-[11px] font-extrabold text-slate-900 dark:text-white">
+                    5TB Google Drive Yedekleme & Soğuk Arşiv
                   </span>
-                  {drive5TBStatus?.connected ? (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      BAĞLI
+                  {drive5TBStatus?.email && (
+                    <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded">
+                      {drive5TBStatus.email}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={handleCopyUri}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+                    title={fallbackRedirectUri}
+                  >
+                    {copiedUri ? (
+                      <>
+                        <Check className="h-3 w-3 text-emerald-600" /> URI Kopyalandı
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" /> OAuth URI
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                  {drive5TBStatus?.quota ? (
+                    <span>
+                      Kullanılan: <b>{drive5TBStatus.quota.usageGB} GB</b> /{" "}
+                      {drive5TBStatus.quota.limitTB} TB
                     </span>
                   ) : (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      HAZIR
+                    <span>Otomatik JSON Snapshot & Soğuk Medya Arşivi</span>
+                  )}
+                  {drive5TBStatus?.lastBackupAt && (
+                    <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">
+                      • Son Yedek:{" "}
+                      {new Date(drive5TBStatus.lastBackupAt).toLocaleString("tr-TR")}
                     </span>
                   )}
                 </div>
 
-                {drive5TBStatus?.connected ? (
-                  <div className="space-y-1 mb-2">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-lg font-extrabold text-white">
-                        {drive5TBStatus.quota?.usageGB || "0.0"} <span className="text-xs font-medium text-slate-400">GB</span>
-                      </span>
-                      <span className="text-[11px] text-amber-300 font-semibold">
-                        Kapasite: {drive5TBStatus.quota?.limitTB || "5.00"} TB
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-300 truncate">
-                      Hesap: <span className="text-white font-semibold">{drive5TBStatus.email || "lookprice.me@gmail.com"}</span>
-                    </p>
-                    {drive5TBStatus.lastBackupAt && (
-                      <p className="text-[10px] text-emerald-400 truncate">
-                        Son Yedek: {new Date(drive5TBStatus.lastBackupAt).toLocaleString("tr-TR")}
-                      </p>
-                    )}
-                    {drive5TBStatus.lastArchiveAt && (
-                      <p className="text-[10px] text-cyan-300 truncate">
-                        Arşiv: {drive5TBStatus.lastArchivedInvoicesCount || 0} Fatura • {drive5TBStatus.lastArchivedMediaCount || 0} Medya
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="mb-2.5 space-y-1.5">
-                    <p className="text-[11px] text-slate-300 leading-snug">
-                      Google AI Pro <strong className="text-white">5 TB Drive</strong> hesabınızı bağlayarak tüm mağaza, ürün ve fatura veritabanını tek tıkla yedekleyin.
-                    </p>
-                    <div className="flex items-center justify-between gap-1.5 bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1">
-                      <span className="text-[10px] font-mono text-amber-300 truncate" title={expectedRedirectUri}>
-                        {expectedRedirectUri}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleCopyRedirectUri}
-                        className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-200 border border-slate-600 transition-colors"
-                        title="Google Cloud Console Redirect URI Kopyala"
-                      >
-                        {copiedUri ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-amber-400" />}
-                        {copiedUri ? "Kopyalandı" : "URI"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-1.5 pt-1">
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={onConnectDrive5TB}
-                    className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[11px] font-bold transition-all border border-slate-600"
-                  >
-                    <Link2 className="h-3 w-3 text-amber-400 shrink-0" />
-                    <span className="truncate">{drive5TBStatus?.connected ? "Hesap" : "5 TB Drive Bağla"}</span>
-                  </button>
-                  {drive5TBStatus?.connected && (
+                  {drive5TBStatus?.connected && onTriggerDrive5TBBackup && (
                     <button
-                      type="button"
                       onClick={onTriggerDrive5TBBackup}
-                      disabled={backingUpDrive5TB || archivingDrive5TB}
-                      className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-extrabold transition-all disabled:opacity-50"
+                      disabled={backingUpDrive5TB}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
                     >
-                      <CloudUpload className={`h-3 w-3 shrink-0 ${backingUpDrive5TB ? "animate-bounce" : ""}`} />
-                      <span className="truncate">{backingUpDrive5TB ? "Yedek..." : "Şimdi Yedekle"}</span>
+                      <CloudUpload
+                        className={`h-3 w-3 ${backingUpDrive5TB ? "animate-bounce" : ""}`}
+                      />
+                      {backingUpDrive5TB ? "Yedekleniyor..." : "Şimdi Yedekle"}
+                    </button>
+                  )}
+                  {drive5TBStatus?.connected && onTriggerDrive5TBArchive && (
+                    <button
+                      onClick={onTriggerDrive5TBArchive}
+                      disabled={archivingDrive5TB}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      <Archive
+                        className={`h-3 w-3 ${archivingDrive5TB ? "animate-spin" : ""}`}
+                      />
+                      {archivingDrive5TB ? "Arşivleniyor..." : "Soğuk Arşivle"}
+                    </button>
+                  )}
+                  {onConnectDrive5TB && (
+                    <button
+                      onClick={onConnectDrive5TB}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+                    >
+                      <Link2 className="h-3 w-3" />
+                      {drive5TBStatus?.connected ? "Hesap Değiştir" : "5TB Drive Bağla"}
                     </button>
                   )}
                 </div>
-                {drive5TBStatus?.connected && onTriggerDrive5TBArchive && (
-                  <button
-                    type="button"
-                    onClick={onTriggerDrive5TBArchive}
-                    disabled={archivingDrive5TB || backingUpDrive5TB}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[11px] font-extrabold transition-all disabled:opacity-50"
-                  >
-                    <Archive className={`h-3.5 w-3.5 text-cyan-400 ${archivingDrive5TB ? "animate-spin" : ""}`} />
-                    {archivingDrive5TB ? "Fatura & Medya Arşivleniyor..." : "Fatura Arşivle & DB Hafiflet"}
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -403,4 +662,3 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({
     </div>
   );
 };
-

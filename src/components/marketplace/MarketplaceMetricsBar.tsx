@@ -184,6 +184,19 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
           </>
         )}
 
+        {selectedMarketplace === 'trendyol' && (
+          <button
+            type="button"
+            onClick={() => onMatchListings(false)}
+            disabled={isMatchingListings}
+            className="px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-xs border border-amber-500 transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+            title={isTr ? "Trendyol mağazanızdaki tüm onaylı, onayda bekleyen ve reddedilen ürünleri canlı sorgular, linkleri ve fiyat/stokları eşitler" : "Reconcile Trendyol catalog, URLs, and prices"}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
+            <span>{isMatchingListings ? (isTr ? "TY Doğrulanıyor..." : "Syncing TY...") : (isTr ? "TY Eşleştir & Fiyat Güncelle" : "Sync Trendyol")}</span>
+          </button>
+        )}
+
         {selectedMarketplace === 'amazon' && (
           <button
             type="button"
@@ -194,6 +207,19 @@ export const MarketplaceMetricsBar: React.FC<MarketplaceMetricsBarProps> = ({
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
             <span>{isMatchingListings ? (isTr ? "Eşleşiyor..." : "Syncing...") : (isTr ? "AMZ Eşleştir" : "Sync AMZ")}</span>
+          </button>
+        )}
+
+        {selectedMarketplace === 'n11' && (
+          <button
+            type="button"
+            onClick={() => onMatchListings(false)}
+            disabled={isMatchingListings}
+            className="px-2.5 py-1.5 rounded-lg bg-red-700 hover:bg-red-800 text-white text-xs font-semibold shadow-xs border border-red-600 transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+            title={isTr ? "N11 mağazanızdaki tüm ilanları canlı sorgular, satışta/onayda/reddedilen durumlarını, linklerini ve fiyat/stoklarını senkronize eder" : "Reconcile N11 listings, URLs, and prices"}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
+            <span>{isMatchingListings ? (isTr ? "N11 Doğrulanıyor..." : "Syncing N11...") : (isTr ? "N11 Eşleştir & Fiyat Güncelle" : "Sync N11")}</span>
           </button>
         )}
 

@@ -420,7 +420,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       TY Hatalı
                     </button>
                   )}
-                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.n11 && p.is_n11_active && p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED' && (
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.n11 && p.is_n11_active && p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED' && getN11Url(p) && (
                     <a
                       href={getN11Url(p) || undefined}
                       target="_blank"
@@ -432,6 +432,42 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse"></span>
                       N11 ↗
                     </a>
+                  )}
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.n11 && !p.is_n11_active && !p.n11_last_error && (
+                    p.marketplace_data?.n11?.status === 'PENDING' ||
+                    String(p.marketplace_data?.n11?.approvalStatus || '') === '5' ||
+                    String(p.marketplace_data?.n11?.rawStatus || '') === 'InApproval'
+                  ) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMarketplaceModalTab('n11');
+                        setMarketplaceModalStatus('pending');
+                        setShowMarketplaceListingsModal(true);
+                      }}
+                      className="text-[8px] font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 cursor-pointer"
+                      title={lang === 'tr' ? "N11 katalog onay incelemesinde (InApproval)" : "Pending N11 catalog review"}
+                    >
+                      <span className="w-1 h-1 rounded-full bg-amber-500 animate-ping"></span>
+                      N11 ONAY
+                    </button>
+                  )}
+                  {isShopLp && p.product_type !== 'service' && connectedMarketplaces.n11 && !p.is_n11_active && p.n11_last_error && Number(p.stock_quantity || 0) > 0 && Number(p.price || 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMarketplaceModalTab('n11');
+                        setMarketplaceModalStatus('error');
+                        setShowMarketplaceListingsModal(true);
+                      }}
+                      className="text-[8px] font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5 cursor-pointer"
+                      title={`N11 Hatası: ${p.n11_last_error}`}
+                    >
+                      <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
+                      N11 Hatalı
+                    </button>
                   )}
                   {isShopLp && p.product_type !== 'service' && connectedMarketplaces.amazon && p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().length >= 9 && String(p.amazon_asin).toLowerCase() !== 'null' && (
                     <a

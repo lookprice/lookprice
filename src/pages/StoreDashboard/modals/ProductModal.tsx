@@ -161,21 +161,23 @@ export const ProductModal = ({
         })
       });
       const data = await res.json();
-      if (data?.description) {
+      const generatedDesc = data?.description || data?.text || "";
+      const generatedBrand = data?.brand || data?.suggestedBrand || "";
+      if (generatedDesc) {
         if (descArea) {
-          descArea.value = data.description;
+          descArea.value = generatedDesc;
           descArea.dispatchEvent(new Event("input", { bubbles: true }));
           descArea.dispatchEvent(new Event("change", { bubbles: true }));
         }
         if (editingProduct) {
           setEditingProduct((prev: any) => ({
             ...prev,
-            description: data.description,
-            brand: (!prev?.brand && data.brand) ? data.brand : prev?.brand
+            description: generatedDesc,
+            brand: (!prev?.brand && generatedBrand) ? generatedBrand : prev?.brand
           }));
         }
-        if (!isCafeRestaurant && data.brand && brandInput && !brandInput.value.trim()) {
-          brandInput.value = data.brand;
+        if (!isCafeRestaurant && generatedBrand && brandInput && !brandInput.value.trim()) {
+          brandInput.value = generatedBrand;
           brandInput.dispatchEvent(new Event("input", { bubbles: true }));
         }
         if (isCafeRestaurant) {
@@ -574,7 +576,7 @@ export const ProductModal = ({
         initial={{ opacity: 0, scale: 0.98, y: 4 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98, y: 4 }}
-        className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl h-full sm:h-auto sm:max-h-[95vh] max-h-none flex flex-col overflow-hidden animate-fade-in border-0 sm:border border-slate-200"
+        className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl h-[100dvh] sm:h-auto sm:max-h-[95dvh] flex flex-col overflow-hidden animate-fade-in border-0 sm:border border-slate-200"
       >
         {/* COMPACT MODAL HEADER */}
         <div className="px-3 sm:px-4 py-2 border-b border-slate-800 flex items-center justify-between bg-slate-900 text-white shrink-0">
@@ -665,7 +667,7 @@ export const ProductModal = ({
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
           {/* SCROLLABLE BODY */}
-          <div className="flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2">
+          <div className="flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 pb-24 sm:pb-2.5">
             {activeTab === 'general' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-start">
                 

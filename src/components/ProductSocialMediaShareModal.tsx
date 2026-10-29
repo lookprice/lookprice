@@ -158,6 +158,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
   // Utility States
   const [copySuccess, setCopySuccess] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'stage' | 'caption' | 'scenario' | 'collage'>('stage');
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -617,26 +618,26 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
   if (!isOpen || !product) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-6xl max-h-[94vh] bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-3 md:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200 whitespace-normal text-left overflow-hidden">
+      <div className="relative w-full max-w-6xl h-[100dvh] sm:h-auto sm:max-h-[92dvh] bg-slate-900 border-0 sm:border border-slate-800 rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100 whitespace-normal">
         
         {/* TOP HEADER */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-900/95">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
-              <Sparkles className="w-5 h-5" />
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-slate-800 bg-slate-900/95 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-2xl bg-gradient-to-br from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white shrink-0">
+              <Sparkles className="w-4 sm:w-5 h-4 sm:h-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm sm:text-base font-bold tracking-tight text-white">
+                <h2 className="text-xs sm:text-base font-bold tracking-tight text-white truncate">
                   AI Ürün Senaryolaştırma, Çoklu Kolaj & Video Stüdyosu
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 truncate">
                   {segmentLabel}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 line-clamp-1">
-                {product?.name} — Ürünün segmentine göre gerçek yaşam senaryosu, merkez odaklı kolaj ve çok sahneli video üretimi
+              <p className="text-[10px] sm:text-[11px] text-slate-400 line-clamp-1">
+                {product?.name} — Gerçek yaşam senaryosu, merkez odaklı kolaj ve sektörel paylaşım metni
               </p>
             </div>
           </div>
@@ -644,18 +645,64 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shrink-0 ml-2"
             title="Kapat"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        {/* MOBILE NAVIGATION TABS (VISIBLE ON MOBILE, HIDDEN ON LG) */}
+        <div className="lg:hidden flex items-center justify-between border-b border-slate-800 bg-slate-950/90 px-2 py-1.5 gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileTab('stage')}
+            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              mobileTab === 'stage'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>Afiş & Video</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMobileTab('caption');
+              setRightTab('caption');
+            }}
+            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              mobileTab === 'caption'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Paylaşım Metni</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMobileTab('scenario');
+              if (rightTab === 'caption') setRightTab('scenario');
+            }}
+            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              mobileTab === 'scenario' || mobileTab === 'collage'
+                ? 'bg-purple-600/30 text-purple-200 border border-purple-500/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Senaryo & Kolaj</span>
+          </button>
+        </div>
+
         {/* MAIN DUAL-COLUMN WORKSPACE */}
-        <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-5 p-4 sm:p-5">
+        <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 p-3 sm:p-5 pb-28 sm:pb-6">
           
           {/* LEFT COLUMN: LIVE STAGE PREVIEW, COLLAGE BAR & EXPORT (7 COLS) */}
-          <div className="lg:col-span-7 flex flex-col justify-between space-y-3.5">
+          <div className={`lg:col-span-7 flex flex-col justify-between space-y-3.5 ${mobileTab !== 'stage' ? 'hidden lg:flex' : 'flex'}`}>
             
             {/* TOP TOOLBAR: MODE + COLLAGE LAYOUT + ASPECT RATIO */}
             <div className="w-full flex flex-wrap items-center justify-between gap-2 bg-slate-950/70 p-2 rounded-2xl border border-slate-800">
@@ -751,22 +798,22 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
             </div>
 
             {/* HIGH-RES CANVAS / VIDEO PREVIEW STAGE */}
-            <div className="relative w-full flex-1 flex items-center justify-center p-3 rounded-2xl bg-black/50 border border-slate-800/90 min-h-[370px] sm:min-h-[420px] max-h-[490px] overflow-hidden">
+            <div className="relative w-full flex-1 flex items-center justify-center p-2 sm:p-3 rounded-2xl bg-black/50 border border-slate-800/90 min-h-[220px] sm:min-h-[380px] max-h-[350px] sm:max-h-[490px] overflow-hidden">
               {aiGeneratedVideoUrl && outputMode === 'video' ? (
                 <video
                   src={aiGeneratedVideoUrl}
                   controls
                   autoPlay
                   loop
-                  className="max-h-[440px] rounded-xl shadow-2xl border border-slate-700"
+                  className="max-h-[320px] sm:max-h-[440px] rounded-xl shadow-2xl border border-slate-700"
                 />
               ) : (
                 <div 
-                  className="relative shadow-2xl transition-all duration-300 rounded-xl overflow-hidden"
+                  className="relative shadow-2xl transition-all duration-300 rounded-xl overflow-hidden max-w-full"
                   style={{
-                    width: selectedRatio === 'story' ? '265px' : '410px',
-                    height: selectedRatio === 'story' ? '470px' : '410px',
-                    maxHeight: '470px'
+                    width: selectedRatio === 'story' ? 'min(240px, 65vw)' : 'min(340px, 85vw)',
+                    height: selectedRatio === 'story' ? 'min(400px, 46vh)' : 'min(340px, 46vh)',
+                    maxHeight: '420px'
                   }}
                 >
                   <canvas
@@ -912,16 +959,52 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 </span>
               </button>
             </div>
+
+            {/* QUICK CAPTION COPY & PREVIEW BAR (INSTANT 1-TAP COPY ON MOBILE & DESKTOP) */}
+            <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/90 flex flex-col sm:flex-row items-center justify-between gap-2.5 shadow-lg">
+              <div className="flex-1 min-w-0 w-full sm:w-auto">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-300">
+                  <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span className="truncate">Hazır Paylaşım Metni & Hashtagler:</span>
+                </div>
+                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                  {captionText || "Ürüne özel sektörel metin ve etiketler..."}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRightTab('caption');
+                    setMobileTab('caption');
+                  }}
+                  className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer text-center"
+                >
+                  Metni Düzenle
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopyCaption}
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  {copySuccess ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copySuccess ? "Metin Kopyalandı!" : "Metni Kopyala"}</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* RIGHT COLUMN: SEGMENT SCENARIO IMAGINATION, MULTI-IMAGE COLLAGE & AI CAPTION (5 COLS) */}
-          <div className="lg:col-span-5 flex flex-col space-y-4 bg-slate-950/50 p-4 rounded-3xl border border-slate-800">
+          <div className={`lg:col-span-5 min-w-0 flex flex-col space-y-4 bg-slate-950/50 p-3 sm:p-4 rounded-3xl border border-slate-800 overflow-hidden whitespace-normal ${mobileTab === 'stage' ? 'hidden lg:flex' : 'flex'}`}>
             
             {/* RIGHT PANEL NAVIGATION TABS */}
             <div className="grid grid-cols-3 gap-1.5 bg-slate-900 p-1 rounded-2xl border border-slate-800">
               <button
                 type="button"
-                onClick={() => setRightTab('scenario')}
+                onClick={() => {
+                  setRightTab('scenario');
+                  setMobileTab('scenario');
+                }}
                 className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   rightTab === 'scenario'
                     ? 'bg-indigo-600 text-white shadow-xs'
@@ -934,7 +1017,10 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
               <button
                 type="button"
-                onClick={() => setRightTab('collage')}
+                onClick={() => {
+                  setRightTab('collage');
+                  setMobileTab('collage');
+                }}
                 className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   rightTab === 'collage'
                     ? 'bg-indigo-600 text-white shadow-xs'
@@ -947,7 +1033,10 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
               <button
                 type="button"
-                onClick={() => setRightTab('caption')}
+                onClick={() => {
+                  setRightTab('caption');
+                  setMobileTab('caption');
+                }}
                 className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   rightTab === 'caption'
                     ? 'bg-indigo-600 text-white shadow-xs'
@@ -961,21 +1050,21 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
             {/* TAB 1: SEGMENT SCENARIO IMAGINATION & STORYBOARD */}
             {rightTab === 'scenario' && (
-              <div className="space-y-3.5 flex-1 overflow-y-auto pr-1">
+              <div className="space-y-3.5 flex-1 min-w-0 overflow-y-auto overflow-x-hidden pr-1 whitespace-normal">
                 
                 {/* Custom Imagination Prompt Box */}
-                <div className="p-3 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 space-y-2">
+                <div className="p-3 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 space-y-2 min-w-0">
                   <label className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center justify-between">
-                    <span>Ürüne Özel Hayal Gücü & Senaryo Kurgusu</span>
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Özel Hayal Gücü & Senaryo Kurgusu</span>
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 min-w-0">
                     <input
                       type="text"
                       value={customScenarioIdea}
                       onChange={(e) => setCustomScenarioIdea(e.target.value)}
-                      placeholder="Örn: Dolap içinde kıyafet yerleştiren insan figürü / Modern ofis masası..."
-                      className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+                      placeholder="Örn: Dolap içi yerleşim / Modern ofis masası..."
+                      className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
                     />
                     <button
                       type="button"
@@ -988,17 +1077,17 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                       <span>{isGeneratingAiScene ? "Sahneleniyor..." : "Sahne Üret"}</span>
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400">
-                    Ürününüzün segmentine göre hazır senaryolardan birini seçebilir veya hayal ettiğiniz kullanım ortamını yazıp <strong>Sahne Üret</strong> ile kolaja ekleyebilirsiniz.
+                  <p className="text-[10px] text-slate-400 whitespace-normal break-words leading-relaxed">
+                    Hazır senaryo seçebilir veya hayal ettiğiniz ortamı yazıp <strong>Sahne Üret</strong> ile kolaja ekleyebilirsiniz.
                   </p>
                 </div>
 
                 {/* Tailored Segment Scenarios List */}
-                <div className="space-y-1.5">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Ürünün Segmentine Özel Hazır Canlandırma Senaryoları:
+                <div className="space-y-1.5 min-w-0">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block truncate">
+                    Hazır Canlandırma Senaryoları:
                   </span>
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-w-0">
                     {scenarios.map((scen) => {
                       const isSelected = activeScenarioId === scen.id;
                       return (
@@ -1006,22 +1095,22 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                           key={scen.id}
                           type="button"
                           onClick={() => applyScenario(scen)}
-                          className={`w-full text-left p-2.5 rounded-2xl border transition-all cursor-pointer ${
+                          className={`w-full min-w-0 overflow-hidden whitespace-normal text-left p-2.5 rounded-2xl border transition-all cursor-pointer ${
                             isSelected
                               ? 'bg-slate-800/95 border-cyan-500 ring-1 ring-cyan-500/30 shadow-md'
                               : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <div className="flex items-center justify-between gap-2 mb-1 min-w-0">
+                            <span className="text-xs font-bold text-white flex items-center gap-1.5 min-w-0 truncate">
                               {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
-                              {scen.title}
+                              <span className="truncate">{scen.title}</span>
                             </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-950 text-cyan-300 border border-slate-800 font-semibold">
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-950 text-cyan-300 border border-slate-800 font-semibold shrink-0">
                               4 Sahne
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-400 leading-snug">
+                          <p className="text-[11px] text-slate-400 leading-snug whitespace-normal break-words line-clamp-2">
                             {scen.description}
                           </p>
                         </button>

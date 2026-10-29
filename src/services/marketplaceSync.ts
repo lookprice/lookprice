@@ -1048,10 +1048,20 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
           // 3. N11 Stock 0
           if (p.is_n11_active && (p.n11_id || p.barcode || p.sku)) {
             const n11Settings = st?.n11_settings || st?.branding?.n11_settings;
-            if (n11Settings?.apiKey && n11Settings?.apiSecret) {
+            const appKey = n11Settings?.appKey || n11Settings?.apiKey;
+            const appSecret = n11Settings?.appSecret || n11Settings?.apiSecret;
+            if (appKey && appSecret) {
               const { N11Service } = await import("./backend/n11Service.js");
-              const auth = { appKey: n11Settings.apiKey, appSecret: n11Settings.apiSecret };
-              const stockCode = p.barcode || p.sku;
+              const auth = { appKey: String(appKey).trim(), appSecret: String(appSecret).trim() };
+              const stockCode = (
+                mpData?.n11?.sellerStockCode ||
+                mpData?.n11?.productSellerCode ||
+                mpData?.n11?.stockCode ||
+                mpData?.n11?.attributes?.stockCode ||
+                p.sku ||
+                p.barcode ||
+                ""
+              ).trim();
               if (stockCode) {
                 await N11Service.updatePriceAndStock(
                   auth,
@@ -1142,7 +1152,7 @@ export async function syncProductStockToMarketplaces(
     const products = prodRes.rows;
 
     const storeRes = await pool.query(
-      "SELECT hepsiburada_settings, amazon_settings, currency_rates, branding FROM stores WHERE id = $1",
+      "SELECT hepsiburada_settings, amazon_settings, n11_settings, trendyol_settings, pazarama_settings, currency_rates, branding FROM stores WHERE id = $1",
       [storeId]
     );
     const store = storeRes.rows[0] || {};
@@ -1311,24 +1321,30 @@ export async function syncProductStockToMarketplaces(
 
     // 5. N11 Real-Time Sync
     const n11Settings = store.n11_settings || branding.n11_settings;
-    if (n11Settings?.appKey && n11Settings?.appSecret) {
+    const n11AppKey = n11Settings?.appKey || n11Settings?.apiKey;
+    const n11AppSecret = n11Settings?.appSecret || n11Settings?.apiSecret;
+    if (n11AppKey && n11AppSecret) {
       const n11Products = products.filter(p => Boolean(p.is_n11_active) || (p.marketplace_data?.n11?.status === 'ACTIVE'));
       if (n11Products.length > 0) {
         try {
-          const auth = { appKey: String(n11Settings.appKey).trim(), appSecret: String(n11Settings.appSecret).trim() };
+          const auth = { appKey: String(n11AppKey).trim(), appSecret: String(n11AppSecret).trim() };
           const { N11Service } = await import("./backend/n11Service.js");
 
+          const n11SkuBatch: Array<{ stockCode: string; listPrice: number; salePrice: number; quantity: number }> = [];
           for (const p of n11Products) {
             let mpData = p.marketplace_data;
             if (typeof mpData === "string") {
               try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
             }
             const sellerCode = (
-              mpData?.n11?.attributes?.merchantSku || 
-              mpData?.n11?.attributes?.stockCode || 
-              mpData?.n11?.attributes?.Barcode || 
-              p.barcode || 
-              p.sku || 
+              mpData?.n11?.sellerStockCode ||
+              mpData?.n11?.productSellerCode ||
+              mpData?.n11?.stockCode ||
+              mpData?.n11?.attributes?.stockCode ||
+              p.sku ||
+              p.barcode ||
+              mpData?.n11?.attributes?.merchantSku ||
+              mpData?.n11?.attributes?.Barcode ||
               ""
             ).trim();
 
@@ -1337,12 +1353,28 @@ export async function syncProductStockToMarketplaces(
             const effectivePrice = N11Service.calculateMarketplacePrice(priceInTry, p.category, p.sub_category, n11Settings);
             const currentStock = Math.max(0, parseInt(String(p.stock_quantity || 0), 10));
 
-            const n11Res = await N11Service.updatePriceAndStock(auth, sellerCode, effectivePrice, currentStock).catch(() => null);
-            if (n11Res?.success) {
-              syncedCount++;
+            if (effectivePrice > 0) {
+              n11SkuBatch.push({
+                stockCode: sellerCode,
+                listPrice: effectivePrice,
+                salePrice: effectivePrice,
+                quantity: currentStock
+              });
             }
           }
-          console.log(`[Instant Marketplace Sync] Successfully pushed ${n11Products.length} products to N11 for store ${storeId} (Reason: ${options?.reason || "stock_change"}).`);
+
+          if (n11SkuBatch.length > 0) {
+            const n11Res = await N11Service.updatePriceAndStockBatch(auth, n11SkuBatch).catch(() => null);
+            if (n11Res?.success) {
+              syncedCount += n11SkuBatch.length;
+              const n11Ids = n11Products.map(p => p.id);
+              await pool.query(
+                "UPDATE products SET n11_last_sync = NOW(), n11_last_error = NULL WHERE id = ANY($1)",
+                [n11Ids]
+              );
+            }
+          }
+          console.log(`[Instant Marketplace Sync] Successfully pushed ${n11SkuBatch.length} products to N11 for store ${storeId} (Reason: ${options?.reason || "stock_change"}).`);
         } catch (n11Err: any) {
           errorsCount++;
           console.warn(`[Instant Marketplace Sync N11 Error] Store ${storeId}:`, n11Err?.message || n11Err);

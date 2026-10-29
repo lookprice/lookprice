@@ -681,7 +681,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         initial={{ scale: 0.95, opacity: 0, y: 15 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 15 }}
-        className="bg-white w-full max-w-4xl lg:max-w-5xl rounded-2xl md:rounded-3xl shadow-2xl relative z-10 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row max-h-[92vh] md:max-h-[88vh] border border-slate-200 mt-8 sm:mt-0 custom-scrollbar"
+        className="bg-white w-full max-w-4xl lg:max-w-5xl rounded-none sm:rounded-2xl md:rounded-3xl shadow-2xl relative z-10 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row h-[100dvh] sm:h-auto sm:max-h-[92dvh] md:max-h-[88dvh] border-0 sm:border border-slate-200 mt-0 custom-scrollbar"
       >
         <button
           onClick={onClose}
@@ -902,9 +902,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         </div>
 
         {/* Product Details Column */}
-        <div className="w-full md:w-[54%] lg:w-[52%] flex flex-col min-h-0 h-full max-h-[92vh] md:max-h-[88vh] bg-white">
+        <div className="w-full md:w-[54%] lg:w-[52%] flex flex-col min-h-0 h-full max-h-none md:max-h-[88dvh] bg-white">
           {/* Scrollable Content Pane */}
-          <div className="flex-1 min-h-0 p-3.5 sm:p-4 md:p-5 overflow-y-auto no-scrollbar space-y-2.5">
+          <div className="flex-1 min-h-0 p-3.5 sm:p-4 md:p-5 overflow-y-auto no-scrollbar space-y-2.5 pb-24 sm:pb-5">
             {/* Metadata Badges (Category, Author, Publisher, Brand, Stock) */}
             {(() => {
               // Strict sectoral isolation: Books / Authors / Publishers ONLY exist if the store itself is a bookstore

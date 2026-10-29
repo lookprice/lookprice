@@ -8,7 +8,9 @@ import {
   Server,
   ShieldCheck,
   UserCircle,
-  Layers
+  Layers,
+  Sparkles,
+  Inbox
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { translations } from "@/translations";
@@ -21,13 +23,14 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import { SuperAdminStats } from "../components/superadmin/SuperAdminStats";
 import { SuperAdminLeads } from "../components/superadmin/SuperAdminLeads";
 import { SuperAdminRegistrations } from "../components/superadmin/SuperAdminRegistrations";
-import { SuperAdminStoresTable } from "../components/superadmin/SuperAdminStoresTable";
+import { SuperAdminStoresTable, StoreSegmentType } from "../components/superadmin/SuperAdminStoresTable";
 import { MultiTenancyDashboard } from "../components/superadmin/MultiTenancyDashboard";
 import { EnrakipsizPortalManager } from "../components/superadmin/EnrakipsizPortalManager";
 import { IntegratorHub } from "../components/IntegratorHub";
 import { SuperAdminVideosManager } from "../components/superadmin/SuperAdminVideosManager";
 import { SuperAdminAuditLogs } from "../components/superadmin/SuperAdminAuditLogs";
 import { SuperAdminProfile } from "../components/superadmin/SuperAdminProfile";
+import { SuperAdminMarketingHub } from "../components/superadmin/SuperAdminMarketingHub";
 import { 
   SlideModal, 
   AdModal, 
@@ -73,10 +76,42 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const [deletePassword, setDeletePassword] = useState("");
   const [storeSearchTerm, setStoreSearchTerm] = useState("");
   const [leadSearchTerm, setLeadSearchTerm] = useState("");
-  const [storeFilter, setStoreFilter] = useState<'all' | 'active' | 'expired'>('all');
+  const [storeFilter, setStoreFilter] = useState<'all' | 'active' | 'expiring_soon' | 'expired'>('all');
   const [leadFilter, setLeadFilter] = useState<'all' | 'new' | 'contacted' | 'converted'>('all');
+  const [storeSegment, setStoreSegment] = useState<StoreSegmentType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('superAdminStoreSegment');
+      if (saved && ['commercial', 'branches', 'demos', 'all'].includes(saved)) {
+        return saved as StoreSegmentType;
+      }
+    }
+    return 'commercial';
+  });
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'tenants' | 'marketing' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>(() => {
+    if (typeof window !== 'undefined') {
+      const urlTab = new URLSearchParams(window.location.search).get('saTab');
+      if (urlTab && ['dashboard', 'requests', 'tenants', 'marketing', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(urlTab)) {
+        return urlTab as any;
+      }
+      const saved = localStorage.getItem('superAdminActiveTab');
+      if (saved && ['dashboard', 'requests', 'tenants', 'marketing', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(saved)) {
+        return saved as any;
+      }
+    }
+    return 'dashboard';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('superAdminActiveTab', activeTab);
+      if (window.history && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('saTab', activeTab);
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [activeTab]);
   
   // Enrakipsiz states
   const [enrakipsizSettings, setEnrakipsizSettings] = useState<EnrakipsizSettings>({
@@ -682,115 +717,165 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
 
   return (
     <ErrorBoundary lang={lang}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Apple/Mercedes Glassmorphic Header */}
-        <div className="bg-slate-900 text-white rounded-3xl p-6 md:p-8 border border-slate-800 shadow-2xl backdrop-blur-2xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="relative z-10 space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-xs font-semibold text-slate-200 tracking-wider uppercase mb-1">
-              <ShieldCheck className="h-3.5 w-3.5 text-amber-400" /> Executive Console
+      <div className="max-w-[1440px] mx-auto px-3 sm:px-5 py-3 space-y-3">
+        {/* Unified LookPrice Executive Cockpit Command Bar (Single Header & Navigation) */}
+        <header className="bg-slate-900 text-white rounded-2xl p-3 sm:p-4 border border-slate-800 shadow-lg relative overflow-hidden">
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-800/90">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center shrink-0">
+                <ShieldCheck className="h-5 w-5 text-amber-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-base sm:text-lg font-black tracking-tight text-white">
+                    LookPrice Kaptan Köşkü
+                  </h1>
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-[10px] font-extrabold text-amber-300 uppercase tracking-wider">
+                    Executive Cockpit
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-medium">
+                  Ticari müşteri hesapları, çok şubeli yapılar, abonelik muhasebesi ve sektörel vitrin yönetim merkezi
+                </p>
+              </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">Süper Admin Paneli</h1>
-            <p className="text-sm text-slate-400 font-medium max-w-xl">
-              LookPrice / Otomotiv / Emlak ekosistemindeki tüm mağaza, ilan ve entegrasyon taleplerini yönetin.
-            </p>
-          </div>
-          <div className="relative z-10 flex items-center gap-3">
-            <button 
-              onClick={onLogout}
-              className="text-slate-300 hover:text-white px-4 py-2.5 rounded-2xl font-semibold hover:bg-white/10 transition-all flex items-center text-sm border border-white/10 backdrop-blur-md"
-            >
-              <LogOut className="mr-2 h-4 w-4 text-rose-400" /> Çıkış Yap
-            </button>
-            <button 
-              onClick={() => setShowAdd(true)}
-              className="bg-white text-slate-900 hover:bg-slate-100 px-5 py-2.5 rounded-2xl font-bold transition-all shadow-xl hover:scale-[1.02] flex items-center text-sm"
-            >
-              <Plus className="mr-2 h-4 w-4" /> {st.registerNewStore}
-            </button>
-          </div>
-          <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        </div>
 
-        {/* Apple/Mercedes Glassmorphic Tab Switcher */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl p-2 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex gap-1.5 overflow-x-auto whitespace-nowrap">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-3 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center gap-2.5 ${
-              activeTab === 'dashboard'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg shadow-slate-900/10'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Activity className="h-4 w-4" />
-            <span>Genel Özet & Talepler</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('tenants')}
-            className={`px-4 py-3 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center gap-2.5 ${
-              activeTab === 'tenants'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg shadow-slate-900/10'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Layers className="h-4 w-4 text-indigo-400" />
-            <span>Multi-Tenancy Mağazalar</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('enrakipsiz')}
-            className={`px-4 py-3 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center gap-2.5 ${
-              activeTab === 'enrakipsiz'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg shadow-slate-900/10'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Megaphone className="h-4 w-4 text-amber-400" />
-            <span>enrakipsiz.com Portal</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('videos')}
-            className={`px-4 py-3 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center gap-2.5 ${
-              activeTab === 'videos'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg shadow-slate-900/10'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Video className="h-4 w-4 text-emerald-400" />
-            <span>Sektörel Videolar</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('integrator')}
-            className={`px-4 py-3 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center gap-2.5 ${
-              activeTab === 'integrator'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg shadow-slate-900/10'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Server className="h-4 w-4 text-indigo-400" />
-            <span>Entegratör Hub</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('audit')}
-            className={`px-4 py-3 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center gap-2.5 ${
-              activeTab === 'audit'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg shadow-slate-900/10'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <ShieldCheck className="h-4 w-4 text-blue-400" />
-            <span>Güvenlik & İzler</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`px-4 py-3 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center gap-2.5 ${
-              activeTab === 'profile'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg shadow-slate-900/10'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <UserCircle className="h-4 w-4 text-rose-400" />
-            <span>Profil</span>
-          </button>
-        </div>
+            <div className="flex items-center gap-2 self-end lg:self-auto">
+              <button
+                onClick={() => setShowAdd(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl font-extrabold transition-all shadow-sm flex items-center text-xs cursor-pointer"
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> {st.registerNewStore}
+              </button>
+              <button
+                onClick={onLogout}
+                className="text-slate-300 hover:text-white px-3 py-2 rounded-xl font-bold hover:bg-white/10 transition-all flex items-center text-xs border border-white/10 cursor-pointer"
+              >
+                <LogOut className="mr-1.5 h-3.5 w-3.5 text-rose-400" /> Çıkış
+              </button>
+            </div>
+          </div>
+
+          {/* Integrated High-Density Navigation Tabs */}
+          <div className="relative z-10 pt-2.5 flex items-center gap-1 overflow-x-auto whitespace-nowrap no-scrollbar">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'dashboard'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Activity className="h-3.5 w-3.5 text-indigo-500" />
+              <span>Kaptan Köşkü (Mağazalar)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'requests'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Inbox className="h-3.5 w-3.5 text-amber-400" />
+              <span>Talepler & Başvurular</span>
+              {(leads.length + registrationRequests.length) > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  activeTab === 'requests'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                }`}>
+                  {leads.length + registrationRequests.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('tenants')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'tenants'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Multi-Tenancy & Şubeler</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('marketing')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'marketing'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span>Pazarlama & Broşür Stüdyosu</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('enrakipsiz')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'enrakipsiz'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Megaphone className="h-3.5 w-3.5 text-amber-400" />
+              <span>enrakipsiz.com Portal</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('videos')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'videos'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Video className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Sektörel Videolar</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('integrator')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'integrator'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Server className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Entegratör Hub</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('audit')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'audit'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <ShieldCheck className="h-3.5 w-3.5 text-blue-400" />
+              <span>Güvenlik & İzler</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'profile'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <UserCircle className="h-3.5 w-3.5 text-rose-400" />
+              <span>Profil</span>
+            </button>
+          </div>
+        </header>
 
         {activeTab === 'tenants' ? (
           <MultiTenancyDashboard 
@@ -798,6 +883,28 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             onRefreshStores={fetchData}
             lang={lang}
           />
+        ) : activeTab === 'requests' ? (
+          <div className="space-y-4">
+            <SuperAdminRegistrations 
+              registrationRequests={registrationRequests}
+              st={st}
+              handleApproveRegistration={handleApproveRegistration}
+              handleRejectRegistration={handleRejectRegistration}
+              handleDeleteRegistrationRequest={handleDeleteRegistrationRequest}
+            />
+            <SuperAdminLeads 
+              leads={leads}
+              leadSearchTerm={leadSearchTerm}
+              setLeadSearchTerm={setLeadSearchTerm}
+              leadFilter={leadFilter}
+              setLeadFilter={setLeadFilter}
+              st={st}
+              setSelectedLead={setSelectedLead}
+              handleDeleteLead={handleDeleteLead}
+            />
+          </div>
+        ) : activeTab === 'marketing' ? (
+          <SuperAdminMarketingHub lang={lang} />
         ) : activeTab === 'enrakipsiz' ? (
           <EnrakipsizPortalManager 
             lang={lang}
@@ -827,6 +934,17 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           <>
             <SuperAdminStats
               stats={stats}
+              stores={stores}
+              leadsCount={leads.length}
+              pendingRegistrationsCount={registrationRequests.filter((r: any) => r.status === 'pending').length}
+              onOpenRequestsTab={() => setActiveTab('requests')}
+              activeSegment={storeSegment}
+              onSelectSegment={(seg) => {
+                setStoreSegment(seg);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('superAdminStoreSegment', seg);
+                }
+              }}
               supabaseStatus={supabaseStatus}
               checkingSupabase={checkingSupabase}
               onRefreshSupabaseStatus={() => fetchSupabaseStatus(true)}
@@ -837,23 +955,6 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
               onTriggerDrive5TBBackup={handleTriggerDrive5TBBackup}
               onTriggerDrive5TBArchive={handleTriggerDrive5TBArchive}
               st={st}
-            />
-            <SuperAdminLeads 
-              leads={leads}
-              leadSearchTerm={leadSearchTerm}
-              setLeadSearchTerm={setLeadSearchTerm}
-              leadFilter={leadFilter}
-              setLeadFilter={setLeadFilter}
-              st={st}
-              setSelectedLead={setSelectedLead}
-              handleDeleteLead={handleDeleteLead}
-            />
-            <SuperAdminRegistrations 
-              registrationRequests={registrationRequests}
-              st={st}
-              handleApproveRegistration={handleApproveRegistration}
-              handleRejectRegistration={handleRejectRegistration}
-              handleDeleteRegistrationRequest={handleDeleteRegistrationRequest}
             />
             <SuperAdminStoresTable 
               stores={stores}
@@ -869,6 +970,13 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
               onToggleHotel={handleToggleHotel}
               onToggleBookstore={handleToggleBookstore}
               onNavigateToMultiTenancy={() => setActiveTab('tenants')}
+              activeSegment={storeSegment}
+              onSelectSegment={(seg) => {
+                setStoreSegment(seg);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('superAdminStoreSegment', seg);
+                }
+              }}
             />
           </>
         )}

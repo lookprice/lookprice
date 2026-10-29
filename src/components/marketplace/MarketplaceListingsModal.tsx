@@ -191,9 +191,63 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     }
   };
 
+  const handleMatchN11Listings = async (importMissing: boolean = false) => {
+    try {
+      setIsMatchingListings(true);
+      const res = await api.matchN11Listings(importMissing, currentStoreId);
+      const data = (res as any)?.data ?? res;
+      if (data && (data.success || data.matchedCount !== undefined)) {
+        setMatchResult({ ...data, marketplaceKey: 'n11' });
+        toast.success(
+          data.message || (isTr 
+            ? `N11 İlan Eşleştirme Başarılı! ${data.activeCount || 0} canlı satışta, ${data.pendingCount || 0} katalog onayında, ${data.rejectedCount || 0} reddedilen ürün doğrulandı.`
+            : `N11 sync completed! ${data.activeCount || 0} active listings verified.`),
+          { duration: 6000 }
+        );
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(data?.message || data?.error || (isTr ? "N11 eşleştirme işlemi tamamlanamadı." : "N11 match failed."));
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || (isTr ? "N11 eşleştirme hatası" : "N11 match error"));
+    } finally {
+      setIsMatchingListings(false);
+    }
+  };
+
+  const handleMatchTrendyolListings = async (importMissing: boolean = false) => {
+    try {
+      setIsMatchingListings(true);
+      const res = await api.matchTrendyolListings(importMissing, currentStoreId);
+      const data = (res as any)?.data ?? res;
+      if (data && (data.success || data.matchedCount !== undefined)) {
+        setMatchResult({ ...data, marketplaceKey: 'trendyol' });
+        toast.success(
+          data.message || (isTr 
+            ? `Trendyol İlan Eşleştirme Başarılı! ${data.activeCount || 0} ürün satışta, ${data.pendingCount || 0} onay bekliyor, ${data.rejectedCount || 0} reddedildi.`
+            : `Trendyol sync completed! ${data.activeCount || 0} active listings verified.`),
+          { duration: 6000 }
+        );
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(data?.message || data?.error || (isTr ? "Trendyol eşleştirme işlemi tamamlanamadı." : "Trendyol match failed."));
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || (isTr ? "Trendyol eşleştirme hatası" : "Trendyol match error"));
+    } finally {
+      setIsMatchingListings(false);
+    }
+  };
+
   const handleMatchListings = async (importMissing: boolean = false) => {
     if (selectedMarketplace === 'amazon') {
       return handleMatchAmazonListings(true);
+    }
+    if (selectedMarketplace === 'n11') {
+      return handleMatchN11Listings(importMissing);
+    }
+    if (selectedMarketplace === 'trendyol') {
+      return handleMatchTrendyolListings(importMissing);
     }
     return handleMatchHbListings(importMissing);
   };
@@ -298,11 +352,31 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     }
 
     if (mpKey === 'n11') {
+      let mpData = p.marketplace_data;
+      if (typeof mpData === 'string') {
+        try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+      }
+      const n11 = mpData?.n11 || {};
       const cleanN11Id = p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED' ? String(p.n11_id).trim() : null;
       if (!cleanN11Id) {
         return false;
       }
+      if (n11.status === 'PENDING' || n11.status === 'ERROR' || String(n11.approvalStatus) === '5' || String(n11.approvalStatus) === '8' || n11.rawStatus === 'InApproval') {
+        return false;
+      }
       return Boolean(p.is_n11_active);
+    }
+
+    if (mpKey === 'trendyol') {
+      let mpData = p.marketplace_data;
+      if (typeof mpData === 'string') {
+        try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+      }
+      const ty = mpData?.trendyol || {};
+      if (ty.approved === false || ty.status === 'PENDING_APPROVAL' || ty.status === 'ERROR') {
+        return false;
+      }
+      return Boolean(p.is_trendyol_active);
     }
 
     if (mpKey === 'all') {
@@ -322,12 +396,16 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       const cleanAmzAsin = p.amazon_asin && String(p.amazon_asin).trim().toLowerCase() !== 'null' && !String(p.amazon_asin).startsWith('http') ? String(p.amazon_asin).trim().toUpperCase() : null;
       const isAmzActive = Boolean(p.is_amazon_active) && Boolean(cleanAmzAsin && cleanAmzAsin.length >= 9);
 
+      const n11 = mpData?.n11 || {};
       const cleanN11Id = p.n11_id && String(p.n11_id).trim().toLowerCase() !== 'null' && String(p.n11_id).trim().toUpperCase() !== 'PUBLISHED' ? String(p.n11_id).trim() : null;
-      const isN11Active = Boolean(p.is_n11_active) && Boolean(cleanN11Id);
+      const isN11Active = Boolean(p.is_n11_active) && Boolean(cleanN11Id) && n11.status !== 'PENDING' && String(n11.approvalStatus) !== '5' && n11.rawStatus !== 'InApproval';
+
+      const ty = mpData?.trendyol || {};
+      const isTyActive = Boolean(p.is_trendyol_active) && ty.approved !== false && ty.status !== 'PENDING_APPROVAL' && ty.status !== 'ERROR';
 
       return Boolean(
         isHbActive ||
-        p.is_trendyol_active ||
+        isTyActive ||
         isN11Active ||
         isAmzActive ||
         p.is_pazarama_active
@@ -363,9 +441,29 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     if (mpKey === 'trendyol' || mpKey === 'all') {
       if (!isProductActive(p, 'trendyol')) {
         const ty = mpData?.trendyol || {};
-        const lastErr = String(p.trendyol_last_error || '');
-        if (ty.status === 'PENDING_APPROVAL' || ty.batchRequestId || lastErr.includes('kuyruğunda') || lastErr.includes('bekleniyor') || lastErr.includes('incele')) {
+        const lastErr = String(p.trendyol_last_error || '').toLowerCase();
+        if (
+          ty.status === 'PENDING_APPROVAL' ||
+          ty.approved === false ||
+          (ty.batchRequestId && !p.trendyol_last_error) ||
+          lastErr.includes('katalog') ||
+          lastErr.includes('kuyruğunda') ||
+          lastErr.includes('bekleniyor') ||
+          lastErr.includes('incele') ||
+          (Boolean(p.is_trendyol_active) && ty.approved === false)
+        ) {
           return true;
+        }
+      }
+    }
+
+    if (mpKey === 'n11' || mpKey === 'all') {
+      if (!isProductActive(p, 'n11')) {
+        const n11 = mpData?.n11 || {};
+        if (!p.n11_last_error) {
+          if (n11.status === 'PENDING' || String(n11.approvalStatus) === '5' || n11.rawStatus === 'InApproval') {
+            return true;
+          }
         }
       }
     }
@@ -514,10 +612,19 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       if (!err) return null;
       const lower = String(err).toLowerCase();
       // Any error claiming price or stock is insufficient is not a real API error!
-      if ((lower.includes("fiyat") || lower.includes("stok") || lower.includes("stoğu")) && (lower.includes("yetersiz") || lower.includes("pasife") || lower.includes("kapalı"))) {
+      if ((lower.includes("fiyat") || lower.includes("stok") || lower.includes("stoğu")) && (lower.includes("yetersiz") || lower.includes("pasife") || lower.includes("kapalı") || lower.includes("0.") || lower.includes("satış dışı"))) {
         return null;
       }
       if (lower.includes("operatör tarafından satışa kapatıldı")) {
+        return null;
+      }
+      // Catalog review in progress is PENDING, not an error
+      if (
+        lower.includes("katalog onay kuyruğunda inceleniyor") ||
+        lower.includes("katalog doğrulaması bekleniyor") ||
+        lower.includes("katalog incelemesi sürüyor") ||
+        lower.includes("inapproval")
+      ) {
         return null;
       }
       return err;
@@ -766,17 +873,40 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         }
       } else if (targetMp === 'n11') {
         const res = await api.publishN11Product(product.id, currentStoreId);
-        if (res && (res.data?.success || res?.success)) {
-          toast.success(isTr ? `"${product.name}" N11'e aktarıldı (Satışta)!` : "Published to N11!");
+        const data = (res as any)?.data ?? res;
+        if (data && data.success) {
+          const isLive = Boolean(data.isLive ?? true);
+          if (isLive) {
+            toast.success(data.message || (isTr ? `"${product.name}" N11'de canlı satışa açıldı ve fiyat/stok senkronize edildi!` : "Published to N11!"));
+          } else {
+            toast.info(data.message || (isTr ? `"${product.name}" N11 sistemine iletildi ve katalog onay kuyruğuna (InApproval) alındı.` : "Submitted to N11 catalog review."), { duration: 5000 });
+          }
           setLocalProducts(prev => prev.map(item => {
             if (item.id === product.id) {
-              return { ...item, is_n11_active: true, n11_last_error: null, n11_last_sync: new Date().toISOString() };
+              return {
+                ...item,
+                is_n11_active: isLive,
+                n11_id: data.n11ProductId || item.n11_id,
+                n11_last_error: null,
+                n11_last_sync: new Date().toISOString(),
+                marketplace_data: {
+                  ...((typeof item.marketplace_data === 'object' ? item.marketplace_data : {}) || {}),
+                  n11: {
+                    ...(((typeof item.marketplace_data === 'object' ? item.marketplace_data : {}) as any)?.n11 || {}),
+                    status: isLive ? 'ACTIVE' : 'PENDING',
+                    rawStatus: data.n11Status || (isLive ? 'Active' : 'InApproval'),
+                    approvalStatus: isLive ? '1' : '5',
+                    n11ProductId: data.n11ProductId || item.n11_id,
+                    productUrl: data.productUrl || null
+                  }
+                }
+              };
             }
             return item;
           }));
           if (onRefresh) onRefresh();
         } else {
-          const errMsg = res?.error || "Aktarım başarısız.";
+          const errMsg = data?.error || res?.error || "Aktarım başarısız.";
           toast.error(errMsg);
           setLocalProducts(prev => prev.map(item => {
             if (item.id === product.id) {

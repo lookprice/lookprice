@@ -100,6 +100,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
   const [renderError, setRenderError] = useState<string | null>(null);
   const [aiCaption, setAiCaption] = useState<string>("");
   const [isGeneratingAiCaption, setIsGeneratingAiCaption] = useState<boolean>(false);
+  const [mobileTab, setMobileTab] = useState<'preview' | 'caption'>('preview');
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -411,73 +412,113 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 overflow-y-auto font-sans" id="automotive-share-wizard-modal">
-      <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl flex flex-col lg:flex-row border border-slate-200 animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto lg:overflow-hidden">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[999] flex items-center justify-center p-0 sm:p-4 overflow-hidden font-sans whitespace-normal text-left" id="automotive-share-wizard-modal">
+      <div className="bg-white w-full max-w-6xl rounded-none sm:rounded-3xl shadow-2xl h-[100dvh] sm:h-auto sm:max-h-[92dvh] overflow-hidden flex flex-col border-0 sm:border border-slate-200 animate-in fade-in zoom-in-95 duration-200 whitespace-normal">
         
-        {/* Left Side: Real Real-time Interactive Poster Preview */}
-        <div className="w-full lg:w-1/2 bg-slate-100 p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 lg:overflow-y-auto">
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
-                <Sparkles className="w-3.5 h-3.5" /> REELTIME AFİŞ ÖNİZLEME (ARAÇ)
-              </span>
-              <div className="flex items-center gap-2">
-                {/* Collage Toggle Mode */}
-                <button
-                  onClick={() => setIsCollage(!isCollage)}
-                  className={`p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 ${
-                    isCollage
-                      ? 'bg-amber-600 text-white border-amber-600 shadow'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-                  title="Detaylı 3'lü Fotoğraf Kolajı"
-                >
-                  <Grid className="w-3.5 h-3.5" />
-                  {isCollage ? "Kolaj" : "Tek Resim"}
-                </button>
-                <div className="h-5 w-[1px] bg-slate-200" />
-                <button 
-                  onClick={() => setSelectedRatio('square')}
-                  className={`p-1.5 rounded-lg border transition-all ${selectedRatio === 'square' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-                  title="Instagram Post (1:1)"
-                >
-                  <Grid className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={() => setSelectedRatio('story')}
-                  className={`p-1.5 rounded-lg border transition-all ${selectedRatio === 'story' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-                  title="Instagram Story / Vertical (9:16)"
-                >
-                  <Smartphone className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+        {/* MOBILE TOP TAB BAR (VISIBLE ON MOBILE, HIDDEN ON LG) */}
+        <div className="lg:hidden flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileTab('preview')}
+            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              mobileTab === 'preview'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 bg-white border border-slate-200'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Afiş & Önizleme</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('caption')}
+            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              mobileTab === 'caption'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 bg-white border border-slate-200'
+            }`}
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>Paylaşım Metni & Kopyala</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 cursor-pointer shrink-0"
+            title="Kapat"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-            {/* Poster Canvas container */}
-            <div className="flex justify-center items-center py-4">
-              {(() => {
-                const htmlThemeColors = {
-                  luxury_dark: { bg: 'bg-[#0b111e]', border: 'border-[#d97706]', textAccent: 'text-[#f59e0b]', barBg: 'bg-[#d97706]', textMuted: 'text-slate-300' },
-                  sporty_red: { bg: 'bg-[#110505]', border: 'border-[#dc2626]', textAccent: 'text-[#f87171]', barBg: 'bg-[#dc2626]', textMuted: 'text-rose-200' },
-                  neon_cyber: { bg: 'bg-[#030712]', border: 'border-[#06b6d4]', textAccent: 'text-[#22d3ee]', barBg: 'bg-[#06b6d4]', textMuted: 'text-cyan-200' },
-                  hertz_style: { bg: 'bg-[#0f172a]', border: 'border-[#eab308]', textAccent: 'text-[#facc15]', barBg: 'bg-[#eab308]', textMuted: 'text-yellow-100' },
-                  rangerover_style: { bg: 'bg-[#18181b]', border: 'border-white', textAccent: 'text-[#e4e4e7]', barBg: 'bg-white', textMuted: 'text-zinc-350' }
-                };
-                const previewColors = htmlThemeColors[selectedTheme] || htmlThemeColors.luxury_dark;
-                const brokerName = (vehicle.responsible_agent || storeName || branding?.owner_name || "Seçkin Danışman").toUpperCase();
-                const brokerPhone = branding?.whatsapp_number || branding?.phone || "+90 548 890 23 09";
-                const plateText = (vehicle.plate || 'OTO-PORTFÖY').toUpperCase();
-                
-                return (
-                  <div 
-                    ref={previewContainerRef}
-                    className={`relative w-[340px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans p-4 ${previewColors.bg}`}
-                    style={{ 
-                      height: selectedRatio === 'square' ? '340px' : '604px'
-                    }}
+        {/* WORKSPACE FLEX CONTAINER */}
+        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+          {/* Left Side: Real Real-time Interactive Poster Preview */}
+          <div className={`w-full lg:w-1/2 bg-slate-100 p-4 sm:p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 shrink-0 lg:shrink overflow-y-auto pb-28 sm:pb-6 ${mobileTab !== 'preview' ? 'hidden lg:flex' : 'flex'}`}>
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
+                  <Sparkles className="w-3.5 h-3.5" /> REELTIME AFİŞ ÖNİZLEME (ARAÇ)
+                </span>
+                <div className="flex items-center gap-2">
+                  {/* Collage Toggle Mode */}
+                  <button
+                    onClick={() => setIsCollage(!isCollage)}
+                    className={`p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 ${
+                      isCollage
+                        ? 'bg-amber-600 text-white border-amber-600 shadow'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                    title="Detaylı 3'lü Fotoğraf Kolajı"
                   >
-                    {/* Double Borders (Padded safely away from content) */}
-                    <div className={`absolute inset-2 border-[3px] rounded-2xl pointer-events-none z-10 ${previewColors.border}`} />
+                    <Grid className="w-3.5 h-3.5" />
+                    {isCollage ? "Kolaj" : "Tek Resim"}
+                  </button>
+                  <div className="h-5 w-[1px] bg-slate-200" />
+                  <button 
+                    onClick={() => setSelectedRatio('square')}
+                    className={`p-1.5 rounded-lg border transition-all ${selectedRatio === 'square' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                    title="Instagram Post (1:1)"
+                  >
+                    <Grid className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setSelectedRatio('story')}
+                    className={`p-1.5 rounded-lg border transition-all ${selectedRatio === 'story' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                    title="Instagram Story / Vertical (9:16)"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Poster Canvas container */}
+              <div className="flex justify-center items-center py-4">
+                {(() => {
+                  const htmlThemeColors = {
+                    luxury_dark: { bg: 'bg-[#0b111e]', border: 'border-[#d97706]', textAccent: 'text-[#f59e0b]', barBg: 'bg-[#d97706]', textMuted: 'text-slate-300' },
+                    sporty_red: { bg: 'bg-[#110505]', border: 'border-[#dc2626]', textAccent: 'text-[#f87171]', barBg: 'bg-[#dc2626]', textMuted: 'text-rose-200' },
+                    neon_cyber: { bg: 'bg-[#030712]', border: 'border-[#06b6d4]', textAccent: 'text-[#22d3ee]', barBg: 'bg-[#06b6d4]', textMuted: 'text-cyan-200' },
+                    hertz_style: { bg: 'bg-[#0f172a]', border: 'border-[#eab308]', textAccent: 'text-[#facc15]', barBg: 'bg-[#eab308]', textMuted: 'text-yellow-100' },
+                    rangerover_style: { bg: 'bg-[#18181b]', border: 'border-white', textAccent: 'text-[#e4e4e7]', barBg: 'bg-white', textMuted: 'text-zinc-350' }
+                  };
+                  const previewColors = htmlThemeColors[selectedTheme] || htmlThemeColors.luxury_dark;
+                  const brokerName = (vehicle.responsible_agent || storeName || branding?.owner_name || "Seçkin Danışman").toUpperCase();
+                  const brokerPhone = branding?.whatsapp_number || branding?.phone || "+90 548 890 23 09";
+                  const plateText = (vehicle.plate || 'OTO-PORTFÖY').toUpperCase();
+                  
+                  return (
+                    <div 
+                      ref={previewContainerRef}
+                      className={`relative w-[340px] max-w-full rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans p-4 ${previewColors.bg}`}
+                      style={{ 
+                        width: selectedRatio === 'story' ? 'min(240px, 70vw)' : 'min(340px, 85vw)',
+                        height: selectedRatio === 'story' ? 'min(420px, 50vh)' : 'min(340px, 50vh)',
+                        maxHeight: '460px'
+                      }}
+                    >
+                      {/* Double Borders (Padded safely away from content) */}
+                      <div className={`absolute inset-2 border-[3px] rounded-2xl pointer-events-none z-10 ${previewColors.border}`} />
                     <div className="absolute inset-3 border border-white/20 rounded-2xl pointer-events-none z-10" />
 
                     {/* TOP CONSULTANT BAR */}
@@ -705,14 +746,24 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
             </div>
 
             {/* Print trigger */}
-            <div className="mt-4 flex gap-1 items-center">
+            <div className="mt-4 flex flex-col sm:flex-row gap-2 items-center">
               <button 
                 onClick={handleDownloadImage}
                 disabled={isRendering}
-                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl transition-all shadow-lg text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
+                className="flex-1 w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl transition-all shadow-lg text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
                 {isRendering ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {isRendering ? 'Afiş Derleniyor...' : 'Kapak Görselini İndir (PNG)'}
+                <span>{isRendering ? 'Afiş Derleniyor...' : 'Kapak Görselini İndir (PNG)'}</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={handleCopyCaption}
+                className="w-full sm:w-auto py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl transition-all shadow-md text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer"
+                title="Paylaşım metnini hafızaya kopyala"
+              >
+                {copySuccess ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                <span>{copySuccess ? 'Kopyalandı!' : 'Metni Kopyala'}</span>
               </button>
             </div>
             
@@ -725,15 +776,15 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
         </div>
 
         {/* Right Side: Copywriting Caption */}
-        <div className="w-full lg:w-1/2 p-6 flex flex-col justify-between lg:overflow-y-auto">
+        <div className={`w-full lg:w-1/2 p-4 sm:p-6 flex flex-col justify-between overflow-y-auto pb-28 sm:pb-6 ${mobileTab !== 'caption' ? 'hidden lg:flex' : 'flex'}`}>
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5 leading-tight">
-                <Instagram className="w-5 h-5 text-indigo-600" /> SOSYAL MEDYA ARABAM PAYLAŞIMCI
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5 leading-tight">
+                <Instagram className="w-5 h-5 text-indigo-600 shrink-0" /> SOSYAL MEDYA ARABAM PAYLAŞIMCI
               </h2>
               <button 
                 onClick={onClose}
-                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"
+                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -837,10 +888,10 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
           </div>
 
         </div>
-
       </div>
-
-      <canvas ref={canvasRef} className="hidden" />
     </div>
-  );
+
+    <canvas ref={canvasRef} className="hidden" />
+  </div>
+);
 };

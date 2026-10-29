@@ -176,21 +176,35 @@ export function getMarketplaceListingUrl(
 
     case 'trendyol': {
       const ty = mpData.trendyol || {};
-      const directUrl = ty.productUrl || ty.url || product.trendyol_url;
-      if (directUrl && String(directUrl).startsWith('http') && !directUrl.includes('/sr?')) {
-        return directUrl;
+      if (
+        !product.is_trendyol_active ||
+        ty.status === 'PENDING_APPROVAL' ||
+        ty.status === 'ERROR' ||
+        ty.status === 'INACTIVE'
+      ) {
+        return null;
       }
 
-      const tyId = product.trendyol_id || ty.contentId || ty.pimCategoryId || ty.productCode;
+      const directUrl = ty.productUrl || ty.url || product.trendyol_url;
+      if (
+        directUrl &&
+        String(directUrl).startsWith('http') &&
+        /-p-\d+/.test(String(directUrl)) &&
+        !directUrl.includes('/sr?')
+      ) {
+        return String(directUrl).trim();
+      }
+
+      const tyId = product.trendyol_id || ty.contentId || ty.productCode;
       if (tyId && (String(tyId).match(/^\d+$/) || String(tyId).startsWith('p-'))) {
         const cleanId = String(tyId).replace(/^p-/, '');
-        return slug 
-          ? `https://www.trendyol.com/${slug}-p-${cleanId}` 
-          : `https://www.trendyol.com/-p-${cleanId}`;
+        if (/^\d+$/.test(cleanId)) {
+          return slug 
+            ? `https://www.trendyol.com/${slug}-p-${cleanId}` 
+            : `https://www.trendyol.com/-p-${cleanId}`;
+        }
       }
 
-      // Never fallback to generic search queries for Trendyol in merchant dashboard
-      // (prevents landing on unrelated search pages or third-party listings)
       return null;
     }
 
@@ -223,23 +237,48 @@ export function getMarketplaceListingUrl(
 
     case 'n11': {
       const n11Data = mpData.n11 || {};
-      const directUrl = n11Data.productUrl || n11Data.url || product.n11_url;
-      if (directUrl && String(directUrl).startsWith('http') && String(directUrl).includes('/urun/') && !directUrl.includes('-PUBLISHED') && !directUrl.endsWith('/PUBLISHED')) {
-        let finalUrl = String(directUrl).trim();
-        if (!finalUrl.includes('?magaza=') && !finalUrl.includes('&magaza=')) {
-          finalUrl = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}magaza=enrakipsiz`;
-        }
-        return finalUrl;
+      const sellerNick = n11Data.sellerNickname || 'enrakipsiz';
+      if (
+        !product.is_n11_active ||
+        n11Data.status === 'PENDING' ||
+        n11Data.status === 'PENDING_APPROVAL' ||
+        n11Data.status === 'ERROR' ||
+        n11Data.status === 'INACTIVE' ||
+        String(n11Data.approvalStatus) === '5' ||
+        String(n11Data.approvalStatus) === '8'
+      ) {
+        return null;
       }
 
-      const catalogId = n11Data.n11CatalogId || n11Data.catalogId || n11Data.n11CatalogGroupId;
-      const n11Id = catalogId || product.n11_id || n11Data.productId || n11Data.id || n11Data.n11Id;
-      if (n11Id && /^\d+$/.test(String(n11Id).trim()) && String(n11Id).trim() !== '0') {
-        const cleanN11Id = String(n11Id).trim();
+      // N11 public /urun/{slug}-{id} URLs strictly require the N11 Catalog Group ID (groupId / n11CatalogGroupId / catalogId)
+      const catalogGroupId = String(
+        n11Data.n11CatalogGroupId ||
+        n11Data.groupId ||
+        n11Data.n11CatalogId ||
+        n11Data.catalogId ||
+        ''
+      ).trim();
+
+      if (catalogGroupId && /^\d+$/.test(catalogGroupId) && catalogGroupId !== '0') {
         const n11Slug = slugifyText(n11Data.title || product.name || '');
-        return n11Slug 
-          ? `https://www.n11.com/urun/${n11Slug}-${cleanN11Id}?magaza=enrakipsiz` 
-          : `https://www.n11.com/urun/${cleanN11Id}?magaza=enrakipsiz`;
+        return n11Slug
+          ? `https://www.n11.com/urun/${n11Slug}-${catalogGroupId}?magaza=${sellerNick}`
+          : `https://www.n11.com/urun/${catalogGroupId}?magaza=${sellerNick}`;
+      }
+
+      const directUrl = n11Data.productUrl || n11Data.url || product.n11_url;
+      if (
+        directUrl &&
+        String(directUrl).startsWith('http') &&
+        String(directUrl).includes('/urun/') &&
+        !directUrl.includes('-PUBLISHED') &&
+        !directUrl.endsWith('/PUBLISHED')
+      ) {
+        let finalUrl = String(directUrl).trim();
+        if (!finalUrl.includes('?magaza=') && !finalUrl.includes('&magaza=')) {
+          finalUrl = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}magaza=${sellerNick}`;
+        }
+        return finalUrl;
       }
 
       if (!fallbackToSearch) return null;

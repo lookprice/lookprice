@@ -49,6 +49,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   const [renderError, setRenderError] = useState<string | null>(null);
   const [aiCaption, setAiCaption] = useState<string>("");
   const [isGeneratingAiCaption, setIsGeneratingAiCaption] = useState<boolean>(false);
+  const [mobileTab, setMobileTab] = useState<'preview' | 'caption'>('preview');
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -384,75 +385,115 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 overflow-y-auto font-sans" id="social-share-wizard-modal">
-      <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row border border-slate-200 animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[999] flex items-center justify-center p-0 sm:p-4 overflow-hidden font-sans whitespace-normal text-left" id="social-share-wizard-modal">
+      <div className="bg-white w-full max-w-6xl rounded-none sm:rounded-3xl shadow-2xl h-[100dvh] sm:h-auto sm:max-h-[92dvh] overflow-hidden flex flex-col border-0 sm:border border-slate-200 animate-in fade-in zoom-in-95 duration-200 whitespace-normal">
         
-        {/* Left Side: Real Real-time Interactive Poster Preview */}
-        <div className="lg:w-1/2 bg-slate-100 p-4 sm:p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 shrink-0 lg:shrink lg:overflow-y-auto">
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
-                <Sparkles className="w-3.5 h-3.5" /> REELTIME AFİŞ ÖNİZLEME (EMLAK)
-              </span>
-              <div className="flex items-center gap-2">
-                {/* Collage Toggle Mode */}
-                <button
-                  onClick={() => setIsCollage(!isCollage)}
-                  className={isCollage 
-                    ? "p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 bg-amber-600 text-white border-amber-600 shadow" 
-                    : "p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}
-                  title="Detaylı 3'lü Fotoğraf Kolajı"
-                >
-                  <Grid className="w-3.5 h-3.5" />
-                  {isCollage ? "Kolaj" : "Tek Resim"}
-                </button>
-                <div className="h-5 w-[1px] bg-slate-200" />
-                <button 
-                  onClick={() => setSelectedRatio('square')}
-                  className={"p-1.5 rounded-lg border transition-all " + (selectedRatio === 'square' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')}
-                  title="Instagram Square Post (1:1)"
-                >
-                  <Grid className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={() => setSelectedRatio('story')}
-                  className={"p-1.5 rounded-lg border transition-all " + (selectedRatio === 'story' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')}
-                  title="Instagram Story / Vertical (9:16)"
-                >
-                  <Smartphone className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+        {/* MOBILE TOP TAB BAR (VISIBLE ON MOBILE, HIDDEN ON LG) */}
+        <div className="lg:hidden flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileTab('preview')}
+            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              mobileTab === 'preview'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 bg-white border border-slate-200'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Afiş & Önizleme</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('caption')}
+            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              mobileTab === 'caption'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 bg-white border border-slate-200'
+            }`}
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>Paylaşım Metni & Kopyala</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 cursor-pointer shrink-0"
+            title="Kapat"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-            {/* Poster Canvas container */}
-            <div className="flex justify-center items-center py-4">
-              {(() => {
-                const htmlThemeColors = {
-                  luxury_dark: { bg: 'bg-[#0b111e]', border: 'border-[#d97706]', textAccent: 'text-[#f59e0b]', barBg: 'bg-[#d97706]', textMuted: 'text-slate-300' },
-                  cyprus_warm: { bg: 'bg-[#1c0c05]', border: 'border-[#ea580c]', textAccent: 'text-[#f97316]', barBg: 'bg-[#ea580c]', textMuted: 'text-orange-200' },
-                  modern_indigo: { bg: 'bg-[#060c1d]', border: 'border-[#0284c7]', textAccent: 'text-[#38bdf8]', barBg: 'bg-[#0284c7]', textMuted: 'text-cyan-200' },
-                  minimal_carbon: { bg: 'bg-[#18181b]', border: 'border-[#a1a1aa]', textAccent: 'text-[#e4e4e7]', barBg: 'bg-[#a1a1aa]', textMuted: 'text-zinc-350' },
-                  premium_gold: { bg: 'bg-[#0f172a]', border: 'border-[#ca8a04]', textAccent: 'text-[#facc15]', barBg: 'bg-[#ca8a04]', textMuted: 'text-yellow-100' }
-                };
-                const previewColors = htmlThemeColors[selectedTheme] || htmlThemeColors.luxury_dark;
-                const activeAgent = agents.find(a => a.id === selectedAgentId);
-                const activeBrokerName = (activeAgent?.name || storeNameDisplay || "Seçkin Danışman").toUpperCase();
-                const activeBrokerPhone = activeAgent?.phone || branding?.phone || branding?.whatsapp_number || "+90 548 890 23 09";
-                const activeRefNoText = (property.reference_no || 'EMLAK-PORTFOY').toUpperCase();
-                
-                return (
-                  <div 
-                    ref={previewContainerRef}
-                    className={`relative w-[340px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans p-4 ${previewColors.bg}`}
-                    style={{ 
-                      height: selectedRatio === 'square' ? '340px' : '604px'
-                    }}
+        {/* WORKSPACE FLEX CONTAINER */}
+        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+          {/* Left Side: Real Real-time Interactive Poster Preview */}
+          <div className={`w-full lg:w-1/2 bg-slate-100 p-4 sm:p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 shrink-0 lg:shrink overflow-y-auto pb-28 sm:pb-6 ${mobileTab !== 'preview' ? 'hidden lg:flex' : 'flex'}`}>
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
+                  <Sparkles className="w-3.5 h-3.5" /> REELTIME AFİŞ ÖNİZLEME (EMLAK)
+                </span>
+                <div className="flex items-center gap-2">
+                  {/* Collage Toggle Mode */}
+                  <button
+                    onClick={() => setIsCollage(!isCollage)}
+                    className={isCollage 
+                      ? "p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 bg-amber-600 text-white border-amber-600 shadow" 
+                      : "p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}
+                    title="Detaylı 3'lü Fotoğraf Kolajı"
                   >
-                    {/* Double Borders (Padded safely away from content) */}
-                    <div className={`absolute inset-2 border-[3px] rounded-2xl pointer-events-none z-10 ${previewColors.border}`} />
-                    <div className="absolute inset-3 border border-white/20 rounded-2xl pointer-events-none z-10" />
+                    <Grid className="w-3.5 h-3.5" />
+                    {isCollage ? "Kolaj" : "Tek Resim"}
+                  </button>
+                  <div className="h-5 w-[1px] bg-slate-200" />
+                  <button 
+                    onClick={() => setSelectedRatio('square')}
+                    className={"p-1.5 rounded-lg border transition-all " + (selectedRatio === 'square' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')}
+                    title="Instagram Square Post (1:1)"
+                  >
+                    <Grid className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setSelectedRatio('story')}
+                    className={"p-1.5 rounded-lg border transition-all " + (selectedRatio === 'story' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')}
+                    title="Instagram Story / Vertical (9:16)"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
 
-                    {/* TOP CONSULTANT BAR */}
+              {/* Poster Canvas container */}
+              <div className="flex justify-center items-center py-4">
+                {(() => {
+                  const htmlThemeColors = {
+                    luxury_dark: { bg: 'bg-[#0b111e]', border: 'border-[#d97706]', textAccent: 'text-[#f59e0b]', barBg: 'bg-[#d97706]', textMuted: 'text-slate-300' },
+                    cyprus_warm: { bg: 'bg-[#1c0c05]', border: 'border-[#ea580c]', textAccent: 'text-[#f97316]', barBg: 'bg-[#ea580c]', textMuted: 'text-orange-200' },
+                    modern_indigo: { bg: 'bg-[#060c1d]', border: 'border-[#0284c7]', textAccent: 'text-[#38bdf8]', barBg: 'bg-[#0284c7]', textMuted: 'text-cyan-200' },
+                    minimal_carbon: { bg: 'bg-[#18181b]', border: 'border-[#a1a1aa]', textAccent: 'text-[#e4e4e7]', barBg: 'bg-[#a1a1aa]', textMuted: 'text-zinc-350' },
+                    premium_gold: { bg: 'bg-[#0f172a]', border: 'border-[#ca8a04]', textAccent: 'text-[#facc15]', barBg: 'bg-[#ca8a04]', textMuted: 'text-yellow-100' }
+                  };
+                  const previewColors = htmlThemeColors[selectedTheme] || htmlThemeColors.luxury_dark;
+                  const activeAgent = agents.find(a => a.id === selectedAgentId);
+                  const activeBrokerName = (activeAgent?.name || storeNameDisplay || "Seçkin Danışman").toUpperCase();
+                  const activeBrokerPhone = activeAgent?.phone || branding?.phone || branding?.whatsapp_number || "+90 548 890 23 09";
+                  const activeRefNoText = (property.reference_no || 'EMLAK-PORTFOY').toUpperCase();
+                  
+                  return (
+                    <div 
+                      ref={previewContainerRef}
+                      className={`relative w-[340px] max-w-full rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans p-4 ${previewColors.bg}`}
+                      style={{ 
+                        width: selectedRatio === 'story' ? 'min(240px, 70vw)' : 'min(340px, 85vw)',
+                        height: selectedRatio === 'story' ? 'min(420px, 50vh)' : 'min(340px, 50vh)',
+                        maxHeight: '460px'
+                      }}
+                    >
+                      {/* Double Borders (Padded safely away from content) */}
+                      <div className={`absolute inset-2 border-[3px] rounded-2xl pointer-events-none z-10 ${previewColors.border}`} />
+                      <div className="absolute inset-3 border border-white/20 rounded-2xl pointer-events-none z-10" />
+
+                      {/* TOP CONSULTANT BAR */}
                     <div className="relative z-20 flex justify-between items-center px-2.5 py-1.5 mx-2.5 mt-3 mb-1 text-[9px] font-black tracking-wider text-white shrink-0">
                       <div className="flex items-center gap-1.5 min-w-0 max-w-[60%]">
                         {activeAgent?.image_url ? (
@@ -644,14 +685,24 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
             </div>
 
             {/* Offline Export Trigger Button */}
-            <div className="mt-4 flex gap-1 items-center">
+            <div className="mt-4 flex flex-col sm:flex-row gap-2 items-center">
               <button 
                 onClick={handleDownloadImage}
                 disabled={isRendering}
-                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl transition-all shadow-lg text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
+                className="flex-1 w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl transition-all shadow-lg text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
                 {isRendering ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {isRendering ? 'Afiş Derleniyor...' : 'Afiş Görselini İndir (PNG)'}
+                <span>{isRendering ? 'Afiş Derleniyor...' : 'Afiş Görselini İndir (PNG)'}</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={handleCopyCaption}
+                className="w-full sm:w-auto py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl transition-all shadow-md text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer"
+                title="Paylaşım metnini hafızaya kopyala"
+              >
+                {copySuccess ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                <span>{copySuccess ? 'Kopyalandı!' : 'Metni Kopyala'}</span>
               </button>
             </div>
             
@@ -664,15 +715,15 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
         </div>
 
         {/* Right Side: Copywriting Caption & Social Media Posting Advisor */}
-        <div className="lg:w-1/2 p-6 flex flex-col justify-between overflow-y-auto">
+        <div className={`w-full lg:w-1/2 p-4 sm:p-6 flex flex-col justify-between overflow-y-auto pb-28 sm:pb-6 ${mobileTab !== 'caption' ? 'hidden lg:flex' : 'flex'}`}>
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5 leading-tight">
-                <Instagram className="w-5 h-5 text-indigo-600" /> SOSYAL MEDYA PAYLAŞIM REHBERİ
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5 leading-tight">
+                <Instagram className="w-5 h-5 text-indigo-600 shrink-0" /> SOSYAL MEDYA PAYLAŞIM REHBERİ
               </h2>
               <button 
                 onClick={onClose}
-                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"
+                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -768,15 +819,14 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
               Kapat
             </button>
           </div>
-
         </div>
-
       </div>
-
-      {/* Hidden off-screen canvas used purely for drawing high quality image rendering */}
-      <canvas ref={canvasRef} className="hidden" />
     </div>
-  );
+
+    {/* Hidden off-screen canvas used purely for drawing high quality image rendering */}
+    <canvas ref={canvasRef} className="hidden" />
+  </div>
+);
 };
 
 // Helper inside file for translation consistency

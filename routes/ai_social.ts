@@ -21,21 +21,99 @@ const getGenAIClient = () => {
  * Helper: Detect Product Segment & Build Tailored Usage Scenarios
  */
 export function buildSegmentScenarios(title: string = "", category: string = "", brand: string = "") {
+  const titleLower = String(title || "").toLowerCase();
   const combined = `${title} ${category} ${brand}`.toLowerCase();
+
+  // 0. PİKNİK, TERMAL ÇANTA, KAMP & OUTDOOR LIFESTYLE SEGMENTİ
+  if (
+    titleLower.includes("piknik") ||
+    titleLower.includes("termo") ||
+    titleLower.includes("termal") ||
+    titleLower.includes("soğutucu") ||
+    titleLower.includes("kamp") ||
+    titleLower.includes("termos") ||
+    combined.includes("piknik")
+  ) {
+    return {
+      segmentId: "outdoor_picnic_lifestyle",
+      segmentLabel: "Doğa, Piknik & Termal Koruma Deneyimi",
+      segmentIcon: "user",
+      defaultSceneType: "user_lifestyle",
+      scenarios: [
+        {
+          id: "outdoor_picnic_fresh",
+          title: "Doğa & Piknik Taze Koruma",
+          description: "Açık havada içecek ve yiyecekleri saatlerce taze tutan sahne.",
+          sceneType: "user_lifestyle",
+          kicker: "DOĞADA VE SEYAHATTE HEP TAZE",
+          headline: "MAKSİMUM ISI YALITIMI",
+          badge: "Termal İç Kaplama & Geniş Taşıma Hacmi",
+          storyScenes: [
+            { phase: "Doğa & Piknik Sahnesi", subtitle: "Açık havada ve seyahatte ideal ısı koruma", highlight: "Üstün Termal Yalıtım" },
+            { phase: "Geniş İç Hacim", subtitle: "Yiyecek ve içecekler için ferah, sızdırmaz bölme", highlight: "Pratik & Ergonomik Taşıma" },
+            { phase: "Çoklu Açı Vitrin", subtitle: "Alüminyum folyo iç yüzey ve dayanıklı dış kumaş", highlight: "Uzun Ömürlü Kalite" },
+            { phase: "Özel Kampanya", subtitle: "Stoktan hızlı kargo avantajıyla", highlight: "Hemen Keşfet" }
+          ],
+          aiPrompt: `Bright commercial outdoor picnic and travel lifestyle photography featuring "${title}" on lush green grass with fresh fruits and cold beverages inside, warm natural sunlight, crisp focus on centered product, 8k.`
+        },
+        {
+          id: "travel_beach_companion",
+          title: "Plaj, Kamp & Yolculuk Senaryosu",
+          description: "Tatil, plaj ve araç yolculuklarında pratik kullanım.",
+          sceneType: "user_lifestyle",
+          kicker: "HER YOLCULUKTA YANINDA",
+          headline: "KONFORLU TAŞIMA DENEYİMİ",
+          badge: "Katlanabilir Form & Kolay Temizlenen İç Yüzey",
+          storyScenes: [
+            { phase: "Seyahat & Kamp Konforu", subtitle: "Plajda, kampta ve araçta soğuk/sıcak koruma", highlight: "4 Mevsim Kullanım" },
+            { phase: "Fonksiyonel Detaylar", subtitle: "Sağlam taşıma kulpları ve fermuarlı tam koruma", highlight: "Ergonomik Tasarım" },
+            { phase: "Detay & İç Yüzey", subtitle: "Kaliteli yalıtım katmanı ve şık dış görünüm", highlight: "Orijinal Ürün" },
+            { phase: "Avantajlı Fiyat", subtitle: "Güvenli ödeme ve hızlı teslimat", highlight: "Siparişi Tamamla" }
+          ],
+          aiPrompt: `Sunny summer travel and camping lifestyle shot of "${title}" carried effortlessly outdoors, natural bokeh background, commercial product photography.`
+        },
+        {
+          id: "studio_macro_detail",
+          title: "Stüdyo Çoklu Açı & Yalıtım Detayı",
+          description: "İç termal doku ve dış kumaş kalitesini vurgulayan vitrin.",
+          sceneType: "studio_macro",
+          kicker: "ÜSTÜN MALZEME KALİTESİ",
+          headline: "FONKSİYONEL TASARIM",
+          badge: "Orijinal Ürün & Koşulsuz İade Garantisi",
+          storyScenes: [
+            { phase: "Merkez Odak Vitrin", subtitle: "Ürünün tam boy ve net stüdyo görünümü", highlight: "Kusursuz Form" },
+            { phase: "Termal İç Yüzey", subtitle: "Isı koruyucu özel iç kaplama detayı", highlight: "Dayanıklı Yapı" },
+            { phase: "Çoklu Açı Kolajı", subtitle: "Tüm detaylarıyla şeffaf ürün incelemesi", highlight: "Tam Uyum" },
+            { phase: "Özel Teklif", subtitle: "Mağazamıza özel kampanya avantajı", highlight: "Güvenli Alışveriş" }
+          ],
+          aiPrompt: `Clean architectural studio product photography of "${title}" on a soft minimalist podium, crisp texture detail, centered composition.`
+        }
+      ]
+    };
+  }
+
+  const isBagOrWearableInTitle =
+    titleLower.includes("çanta") ||
+    titleLower.includes("çantası") ||
+    titleLower.includes("backpack") ||
+    titleLower.includes("kulaklık") ||
+    titleLower.includes("saat") ||
+    titleLower.includes("ayakkabı");
 
   // 1. DOLAP İÇİ ORGANİZER / EV & DÜZENLEME SEGMENTİ
   if (
-    combined.includes("organizer") ||
-    combined.includes("düzenleyici") ||
-    combined.includes("dolap") ||
-    combined.includes("askı") ||
-    combined.includes("çekmece") ||
-    combined.includes("hurç") ||
-    combined.includes("saklama") ||
-    combined.includes("kutu") ||
-    combined.includes("raf") ||
-    combined.includes("banyo") ||
-    combined.includes("mutfak")
+    !isBagOrWearableInTitle &&
+    (combined.includes("organizer") ||
+      combined.includes("düzenleyici") ||
+      combined.includes("dolap") ||
+      combined.includes("askı") ||
+      combined.includes("çekmece") ||
+      combined.includes("hurç") ||
+      combined.includes("saklama") ||
+      combined.includes("kutu") ||
+      combined.includes("raf") ||
+      combined.includes("banyo") ||
+      combined.includes("mutfak"))
   ) {
     return {
       segmentId: "closet_home_organizer",
@@ -45,8 +123,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
       scenarios: [
         {
           id: "closet_human_action",
-          title: "Dolap İçi Yerleşim & İnsan Etkileşimi",
-          description: "Aydınlık bir gardırop içerisinde, organizer bölmelerine özenle katlanmış kıyafet/eşya yerleştiren kullanıcı figürü ve düzenli dolap görünümü.",
+          title: "Dolap İçi & İnsan Etkileşimi",
+          description: "Gardırop içinde eşya yerleştiren kullanıcı sahnesi.",
           sceneType: "closet_organizer",
           kicker: "DOLABINIZDA KUSURSUZ DÜZEN",
           headline: "MAKSİMUM ALAN TASARRUFU",
@@ -61,8 +139,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
         },
         {
           id: "drawer_shelf_symmetry",
-          title: "Raf & Çekmece İçi Simetrik Kurulum",
-          description: "Dolap raflarında ve çekmecelerde kategorize edilmiş, aradığınızı saniyeler içinde bulmanızı sağlayan estetik yaşam senaryosu.",
+          title: "Raf & Çekmece Simetrik Kurulum",
+          description: "Dolap raflarında ve çekmecelerde düzenli yerleşim.",
           sceneType: "closet_organizer",
           kicker: "AKILLI YAŞAM ÇÖZÜMLERİ",
           headline: "HER ŞEY YERLİ YERİNDE",
@@ -77,8 +155,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
         },
         {
           id: "studio_macro_detail",
-          title: "Stüdyo Odaklı Çoklu Açı & Detay Şovu",
-          description: "Ürünün doku kalitesini, dikiş detaylarını ve iç hacmini tam merkezde vurgulayan çoklu açı kolaj senaryosu.",
+          title: "Stüdyo Çoklu Açı & Detay Şovu",
+          description: "Doku, dikiş ve iç hacmi merkezde vurgulayan vitrin.",
           sceneType: "studio_macro",
           kicker: "ÜSTÜN MALZEME KALİTESİ",
           headline: "FONKSİYONEL TASARIM",
@@ -119,8 +197,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
       scenarios: [
         {
           id: "user_active_wear",
-          title: "Kullanıcı Üzerinde Canlı Deneyim Senaryosu",
-          description: "Ürünü gerçek yaşamda kullanan/takan insan figürü üzerinde ergonomi, duruş ve konforu gösteren etkileyici lifestyle senaryo.",
+          title: "Kullanıcı Üzerinde Canlı Deneyim",
+          description: "Model/kullanıcı üzerinde ergonomi ve duruş sahnesi.",
           sceneType: "user_lifestyle",
           kicker: "GÜN BOYU MAKSİMUM KONFOR",
           headline: "SENİN TARZIN SENİN RİTMİN",
@@ -135,8 +213,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
         },
         {
           id: "urban_commute_scene",
-          title: "Şehir Hayatı & Mobil Çalışma Senaryosu",
-          description: "Modern şehir temposunda, seyahatte veya çalışma alanında kullanıcıyla bütünleşen dinamik dış/iç mekân kurgusu.",
+          title: "Şehir & Mobil Çalışma Senaryosu",
+          description: "Günlük yaşam ve seyahat temposunda kullanım kurgusu.",
           sceneType: "user_lifestyle",
           kicker: "HER AN YANINDA",
           headline: "ÖZGÜRLÜĞÜ KEŞFET",
@@ -151,8 +229,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
         },
         {
           id: "desk_companion_scene",
-          title: "Modern Çalışma Masası & Lifestyle Kurulumu",
-          description: "Ürünün çalışma masasında dizüstü bilgisayar ve diğer ekipmanlarla birlikte sergilendiği profesyonel masaüstü sahnesi.",
+          title: "Çalışma Masası & Lifestyle Kurulum",
+          description: "Bilgisayar ve masaüstü ekipmanlarla birlikte sunum.",
           sceneType: "desk_setup",
           kicker: "PROFESYONEL EKİPMAN",
           headline: "PERFORMANS VE ESTETİK",
@@ -203,8 +281,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
       scenarios: [
         {
           id: "modern_office_desk",
-          title: "Modern Ofis & Ev Çalışma Masası Senaryosu",
-          description: "Ürünü şık bir ceviz/mat çalışma masasında, monitör, ambiyans ışığı ve aktif kullanıcı etkileşimiyle canlandıran masaüstü senaryosu.",
+          title: "Modern Ofis & Ev Masası Senaryosu",
+          description: "Çalışma masasında monitör ve kullanıcı etkileşimi.",
           sceneType: "desk_setup",
           kicker: "MASANIZDA YENİ NESİL GÜÇ",
           headline: "MAKSİMUM VERİMLİLİK VE HIZ",
@@ -219,8 +297,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
         },
         {
           id: "pro_gaming_studio",
-          title: "Pro Stüdyo & RGB Oyuncu Masası Senaryosu",
-          description: "Karanlık stüdyo atmosferinde siber cyan/mor ambiyans aydınlatmalı kurulumda maksimum performans vurgusu.",
+          title: "Pro Stüdyo & RGB Masa Senaryosu",
+          description: "Ambiyans ışıklı stüdyo masasında performans şovu.",
           sceneType: "desk_setup",
           kicker: "SINIRLARI ZORLAYAN TEKNOLOJİ",
           headline: "OYUNUN VE İŞİN HAKİMİ OL",
@@ -235,8 +313,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
         },
         {
           id: "multi_angle_tech_collage",
-          title: "Çoklu Resim & Teknik Detay Kolajı",
-          description: "Ürünün tüm açılarını merkeze odaklayarak birleştiren, teknik üstünlükleri ön plana çıkaran katalog senaryosu.",
+          title: "Çoklu Açı & Teknik Detay Kolajı",
+          description: "Tüm açıları merkeze odaklayan teknik vitrin.",
           sceneType: "studio_macro",
           kicker: "İLERİ MÜHENDİSLİK",
           headline: "PROFESYONELLERİN TERCİHİ",
@@ -262,8 +340,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
     scenarios: [
       {
         id: "real_life_usage",
-        title: "Gerçek Yaşam Alanında Kullanım Senaryosu",
-        description: "Ürünü doğal kullanım ortamında (ev, ofis veya yaşam alanında) insan etkileşimiyle canlandıran satış odaklı senaryo.",
+        title: "Gerçek Yaşam Kullanım Senaryosu",
+        description: "Doğal kullanım ortamında insan etkileşimli sunum.",
         sceneType: "desk_setup",
         kicker: "YAŞAMINIZA DEĞER KATAR",
         headline: "KALİTE VE KONFOR BİR ARADA",
@@ -278,8 +356,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
       },
       {
         id: "user_interaction_story",
-        title: "Kullanıcı Etkileşimli Deneyim Senaryosu",
-        description: "Ürünün bir kullanıcı tarafından aktif olarak kullanıldığı, faydasını doğrudan hissettiren dinamik kurgu.",
+        title: "Kullanıcı Etkileşimli Deneyim",
+        description: "Kullanıcı üzerinde aktif kullanım ve fayda vurgusu.",
         sceneType: "user_lifestyle",
         kicker: "DENEYİMİ KEŞFET",
         headline: "HER DETAYDA KUSURSUZLUK",
@@ -294,8 +372,8 @@ export function buildSegmentScenarios(title: string = "", category: string = "",
       },
       {
         id: "closet_home_stage",
-        title: "Ev / Dolap İçi Düzen & Mekân Senaryosu",
-        description: "Ürünü düzenli bir dolap, raf veya ev içi yaşam alanında sergileyen sıcak ve davetkar atmosfer.",
+        title: "Ev & Dolap İçi Düzen Senaryosu",
+        description: "Dolap, raf veya ev içi yaşam alanında yerleşim.",
         sceneType: "closet_organizer",
         kicker: "EVİNİZ İÇİN EN İYİSİ",
         headline: "MODERN VE DÜZENLİ YAŞAM",

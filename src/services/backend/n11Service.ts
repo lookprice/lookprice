@@ -392,7 +392,12 @@ export class N11Service {
     success: boolean;
     n11Id?: string;
     groupId?: string | number;
+    catalogId?: string | number;
     sellerNickname?: string;
+    sellerStockCode?: string;
+    title?: string;
+    isLive?: boolean;
+    n11Status?: string;
     taskId?: string | number;
     message?: string;
   }> {
@@ -705,6 +710,60 @@ export class N11Service {
     };
 
     try {
+      // 0. Pre-check if this product already exists in seller's N11 catalog (by stockCode or barcode)
+      try {
+        const queryHeaders = {
+          appkey: cleanAppKey,
+          appsecret: cleanAppSecret,
+          appKey: cleanAppKey,
+          appSecret: cleanAppSecret,
+          "Content-Type": "application/json"
+        };
+        let existingItem: any = null;
+        if (stockCode) {
+          const qByCode = await axios.get(
+            `https://api.n11.com/ms/product-query?page=0&size=20&stockCode=${encodeURIComponent(stockCode)}`,
+            { headers: queryHeaders, timeout: 8000 }
+          ).catch(() => null);
+          const codeItems = qByCode?.data?.content || [];
+          existingItem =
+            codeItems.find((it: any) => it.status === "Active") ||
+            codeItems.find((it: any) => String(it.stockCode || "").toLowerCase() === stockCode.toLowerCase());
+        }
+        if (!existingItem && barcode && !barcode.startsWith("20") && barcode.length >= 8) {
+          const qByBc = await axios.get(
+            `https://api.n11.com/ms/product-query?page=0&size=20&barcode=${encodeURIComponent(barcode)}`,
+            { headers: queryHeaders, timeout: 8000 }
+          ).catch(() => null);
+          const bcItems = qByBc?.data?.content || [];
+          existingItem =
+            bcItems.find((it: any) => it.status === "Active") ||
+            bcItems.find((it: any) => String(it.barcode || "").toLowerCase() === barcode.toLowerCase());
+        }
+
+        if (existingItem && existingItem.n11ProductId && existingItem.status !== "CatalogRejected" && existingItem.status !== "Rejected") {
+          const realStockCode = String(existingItem.stockCode || stockCode).trim();
+          await this.updatePriceAndStock(auth, realStockCode, formattedPrice, quantity).catch(() => null);
+          const isCurrentlyActive = existingItem.status === "Active" && quantity > 0;
+          return {
+            success: true,
+            n11Id: String(existingItem.n11ProductId),
+            groupId: existingItem.groupId || undefined,
+            catalogId: existingItem.catalogId || undefined,
+            sellerNickname: existingItem.sellerNickname || undefined,
+            sellerStockCode: realStockCode,
+            title: existingItem.title || product.title,
+            isLive: isCurrentlyActive,
+            n11Status: existingItem.status,
+            message: isCurrentlyActive
+              ? "Ürün N11 mağazanızda aktif satışta; fiyat ve stok bilgisi anlık güncellendi."
+              : "Ürün N11 katalog onay kuyruğunda (InApproval); fiyat ve stok bilgisi güncellendi."
+          };
+        }
+      } catch (preCheckErr) {
+        // Ignore pre-check error and proceed with product-create
+      }
+
       let targetCatId = this.resolveCategoryIdForProduct(
         product.title,
         product.categoryName,
@@ -716,7 +775,6 @@ export class N11Service {
       // Check if N11 returned a specific category requirement or Slicer requirement
       if (attemptResult.status === "FAIL") {
         const joinedReasons = (attemptResult.reasons || []).join(" ");
-        // Example: "1000363 id li Mouse kategorisinde mainId girişi zorunludur." or "Slicer False olan kategorilerde mainId girilmemelidir"
         const catMatch = joinedReasons.match(/(\d{5,9})\s*id\s*li/i);
         if (catMatch && Number(catMatch[1]) !== targetCatId) {
           targetCatId = Number(catMatch[1]);
@@ -731,26 +789,58 @@ export class N11Service {
           attemptResult = await executeRestCreate(targetCatId, false);
         }
 
-        // If N11 states the seller stock code or catalog item is already registered under this seller account, update its price & stock and treat as active!
+        // If N11 states the seller stock code or catalog item is already registered under this seller account, update its price & stock and query real status!
         const updatedReasons = (attemptResult.reasons || []).join(" ");
         if (
           attemptResult.status === "FAIL" &&
           /seller stock code tarafınızdan kullanılmaktadır|ürün listenizde mevcuttur/i.test(updatedReasons)
         ) {
           await this.updatePriceAndStock(auth, stockCode, formattedPrice, quantity).catch(() => null);
+          let queriedItem: any = null;
+          try {
+            const qRes = await axios.get(
+              `https://api.n11.com/ms/product-query?page=0&size=10&stockCode=${encodeURIComponent(stockCode)}`,
+              {
+                headers: {
+                  appkey: cleanAppKey,
+                  appsecret: cleanAppSecret,
+                  appKey: cleanAppKey,
+                  appSecret: cleanAppSecret,
+                  "Content-Type": "application/json"
+                },
+                timeout: 8000
+              }
+            );
+            const qList = qRes.data?.content || [];
+            queriedItem = qList.find((it: any) => it.status === "Active") || qList[0] || null;
+          } catch (qErr) {}
+
           const existingIdMatch = updatedReasons.match(/(\d{6,12})\s*nolu\s*katalog\s*id/i);
-          const resolvedExistingId = attemptResult.sku?.n11ProductId
+          const resolvedExistingId = queriedItem?.n11ProductId
+            ? String(queriedItem.n11ProductId)
+            : attemptResult.sku?.n11ProductId
             ? String(attemptResult.sku.n11ProductId)
             : existingIdMatch
             ? existingIdMatch[1]
             : stockCode;
+
+          const itemStatus = queriedItem?.status || "InApproval";
+          const isLiveNow = itemStatus === "Active" && quantity > 0;
+
           return {
             success: true,
             n11Id: resolvedExistingId,
-            groupId: attemptResult.sku?.groupId,
-            sellerNickname: attemptResult.sku?.sellerNickname,
+            groupId: queriedItem?.groupId || attemptResult.sku?.groupId,
+            catalogId: queriedItem?.catalogId || undefined,
+            sellerNickname: queriedItem?.sellerNickname || attemptResult.sku?.sellerNickname,
+            sellerStockCode: queriedItem?.stockCode || stockCode,
+            title: queriedItem?.title || product.title,
+            isLive: isLiveNow,
+            n11Status: itemStatus,
             taskId: attemptResult.taskId || undefined,
-            message: "Ürün N11 kataloğunuzda zaten kayıtlı; fiyat ve stok bilgisi güncellendi."
+            message: isLiveNow
+              ? "Ürün N11 kataloğunuzda aktif kayıtlı; fiyat ve stok bilgisi güncellendi."
+              : "Ürün N11 katalog onay kuyruğunda (Onay Bekliyor); fiyat ve stok bilgisi güncellendi."
           };
         }
       }
@@ -763,17 +853,49 @@ export class N11Service {
         };
       }
 
-      const n11ProductId = attemptResult.sku?.n11ProductId
+      // Query N11 product-query by stockCode to inspect the created product's actual approval status (Active vs InApproval)
+      let createdItem: any = null;
+      try {
+        const qRes = await axios.get(
+          `https://api.n11.com/ms/product-query?page=0&size=10&stockCode=${encodeURIComponent(stockCode)}`,
+          {
+            headers: {
+              appkey: cleanAppKey,
+              appsecret: cleanAppSecret,
+              appKey: cleanAppKey,
+              appSecret: cleanAppSecret,
+              "Content-Type": "application/json"
+            },
+            timeout: 8000
+          }
+        );
+        const qList = qRes.data?.content || [];
+        createdItem = qList.find((it: any) => it.status === "Active") || qList[0] || null;
+      } catch (qErr) {}
+
+      const n11ProductId = createdItem?.n11ProductId
+        ? String(createdItem.n11ProductId)
+        : attemptResult.sku?.n11ProductId
         ? String(attemptResult.sku.n11ProductId)
         : String(attemptResult.taskId || stockCode);
+
+      const finalStatus = createdItem?.status || (attemptResult.status === "IN_QUEUE" ? "InApproval" : "InApproval");
+      const isLive = finalStatus === "Active" && quantity > 0;
 
       return {
         success: true,
         n11Id: n11ProductId,
-        groupId: attemptResult.sku?.groupId,
-        sellerNickname: attemptResult.sku?.sellerNickname,
+        groupId: createdItem?.groupId || attemptResult.sku?.groupId,
+        catalogId: createdItem?.catalogId || undefined,
+        sellerNickname: createdItem?.sellerNickname || attemptResult.sku?.sellerNickname,
+        sellerStockCode: createdItem?.stockCode || stockCode,
+        title: createdItem?.title || product.title,
+        isLive,
+        n11Status: finalStatus,
         taskId: attemptResult.taskId || undefined,
-        message: (attemptResult.reasons || [])[0] || "Ürün başarıyla N11 kataloğuna eklendi."
+        message: isLive
+          ? "Ürün N11 kataloğunda onaylandı ve canlı satışa açıldı!"
+          : ((attemptResult.reasons || [])[0] || "Ürün N11 katalog onay kuyruğuna (InApproval) alındı. N11 katalog kontrolü tamamlandığında otomatik satışa açılacaktır.")
       };
     } catch (err: any) {
       const apiErrMsg =
@@ -1498,7 +1620,121 @@ export class N11Service {
   }
 
   /**
-   * Update Product Price & Stock in N11 using the modern REST API or SOAP fallback
+   * Batch Update Product Prices & Stocks in N11 using the official REST API (with task verification)
+   */
+  static async updatePriceAndStockBatch(
+    auth: N11Auth,
+    items: Array<{ stockCode: string; price?: number; salePrice?: number; listPrice?: number; quantity: number }>
+  ): Promise<{
+    success: boolean;
+    taskId?: number | string;
+    results?: Record<string, { status: string; reasons: string[] }>;
+    message?: string;
+  }> {
+    const cleanAppKey = (auth.appKey || "").trim();
+    const cleanAppSecret = (auth.appSecret || "").trim();
+    if (!cleanAppKey || !cleanAppSecret) {
+      return { success: false, message: "N11 AppKey veya AppSecret eksik." };
+    }
+
+    const validItems = (items || []).filter((it) => it && String(it.stockCode || "").trim().length > 0);
+    if (validItems.length === 0) {
+      return { success: true, results: {}, message: "Güncellenecek N11 ürünü bulunamadı." };
+    }
+
+    const headers = {
+      appKey: cleanAppKey,
+      appSecret: cleanAppSecret,
+      appkey: cleanAppKey,
+      appsecret: cleanAppSecret,
+      "Content-Type": "application/json"
+    };
+
+    const results: Record<string, { status: string; reasons: string[] }> = {};
+    let lastTaskId: number | string | undefined;
+
+    // Process in chunks of 100 SKUs
+    for (let i = 0; i < validItems.length; i += 100) {
+      const chunk = validItems.slice(i, i + 100);
+      const skusPayload = chunk.map((it) => {
+        const rawPrice = it.salePrice !== undefined ? it.salePrice : (it.price !== undefined ? it.price : (it.listPrice || 0));
+        const formattedPrice = Number(Math.max(1, Number(rawPrice || 0)).toFixed(2));
+        const listPrice = it.listPrice !== undefined ? Math.max(formattedPrice, Number(Number(it.listPrice).toFixed(2))) : formattedPrice;
+        const formattedQuantity = Math.max(0, Math.floor(Number(it.quantity || 0)));
+        return {
+          stockCode: String(it.stockCode).trim(),
+          listPrice: listPrice,
+          salePrice: formattedPrice,
+          quantity: formattedQuantity,
+          currencyType: "TL"
+        };
+      });
+
+      try {
+        const res = await axios.post(
+          "https://api.n11.com/ms/product/tasks/price-stock-update",
+          {
+            payload: {
+              integrator: "LookPrice",
+              skus: skusPayload
+            }
+          },
+          { headers, timeout: 15000 }
+        );
+
+        const taskId = res.data?.id || res.data?.taskId;
+        lastTaskId = taskId;
+
+        if (taskId) {
+          // Poll task-details up to 3 times to verify actual execution status
+          for (let attempt = 0; attempt < 3; attempt++) {
+            await new Promise((r) => setTimeout(r, 1200));
+            try {
+              const tdRes = await axios.post(
+                "https://api.n11.com/ms/product/task-details/page-query",
+                {
+                  taskId,
+                  pageable: { page: 0, size: Math.max(20, chunk.length) }
+                },
+                { headers, timeout: 10000 }
+              );
+              const tStatus = tdRes.data?.status;
+              const content: any[] = tdRes.data?.skus?.content || [];
+              if (tStatus === "PROCESSED" && content.length > 0) {
+                for (const c of content) {
+                  const sc = String(c.sku?.stockCode || c.stockCode || "").trim();
+                  if (sc) {
+                    results[sc] = {
+                      status: c.status || "SUCCESS",
+                      reasons: c.reasons || c.sku?.reasons || []
+                    };
+                  }
+                }
+                break;
+              }
+            } catch (pollErr) {
+              // Ignore poll error
+            }
+          }
+        }
+      } catch (err: any) {
+        return {
+          success: false,
+          message: err.response?.data?.errorMessage || err.message || "N11 toplu fiyat/stok güncelleme hatası."
+        };
+      }
+    }
+
+    return {
+      success: true,
+      taskId: lastTaskId,
+      results,
+      message: `${validItems.length} ürün için N11 fiyat ve stok güncellemesi tamamlandı.`
+    };
+  }
+
+  /**
+   * Update Product Price & Stock in N11 using the modern REST API (with task verification) or SOAP fallback
    */
   static async updatePriceAndStock(
     auth: N11Auth,
@@ -1506,15 +1742,29 @@ export class N11Service {
     price: number,
     quantity: number
   ): Promise<{ success: boolean; message?: string }> {
-    const formattedPrice = Number(price.toFixed(2));
-    const formattedQuantity = Math.max(0, Math.floor(quantity));
+    const cleanCode = String(productSellerCode || "").trim();
+    if (!cleanCode) {
+      return { success: false, message: "N11 satıcı stok kodu (stockCode) eksik." };
+    }
+    const formattedPrice = Number(Math.max(1, Number(price || 0)).toFixed(2));
+    const formattedQuantity = Math.max(0, Math.floor(Number(quantity || 0)));
+
+    const cleanAppKey = (auth.appKey || "").trim();
+    const cleanAppSecret = (auth.appSecret || "").trim();
+    const headers = {
+      appKey: cleanAppKey,
+      appSecret: cleanAppSecret,
+      appkey: cleanAppKey,
+      appsecret: cleanAppSecret,
+      "Content-Type": "application/json"
+    };
 
     const requestBody = {
       payload: {
         integrator: "LookPrice",
         skus: [
           {
-            stockCode: productSellerCode,
+            stockCode: cleanCode,
             listPrice: formattedPrice,
             salePrice: formattedPrice,
             quantity: formattedQuantity,
@@ -1524,55 +1774,80 @@ export class N11Service {
       }
     };
 
-    // 1. Try modern N11 REST API (price-stock-update)
+    // 1. Try modern N11 REST API (price-stock-update) and verify via task-details/page-query
+    let restFailReason = "";
     try {
       const res = await axios.post("https://api.n11.com/ms/product/tasks/price-stock-update", requestBody, {
-        headers: {
-          "appKey": auth.appKey.trim(),
-          "appSecret": auth.appSecret.trim(),
-          "appkey": auth.appKey.trim(),
-          "appsecret": auth.appSecret.trim(),
-          "Content-Type": "application/json"
-        },
+        headers,
         timeout: 10000
       });
 
-      if (res.status === 200 || res.status === 201 || res.status === 202) {
-        return { 
-          success: true, 
-          message: `N11 REST API fiyat ve stok güncelleme görevi oluşturuldu. Task ID: ${res.data?.id || res.data?.taskId || "N/A"}` 
-        };
+      const taskId = res.data?.id || res.data?.taskId;
+      if (taskId) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await new Promise((r) => setTimeout(r, 1100));
+          try {
+            const tdRes = await axios.post(
+              "https://api.n11.com/ms/product/task-details/page-query",
+              {
+                taskId,
+                pageable: { page: 0, size: 10 }
+              },
+              { headers, timeout: 8000 }
+            );
+            const taskStatus = tdRes.data?.status;
+            const skuContent = tdRes.data?.skus?.content?.[0];
+            if (taskStatus === "PROCESSED" && skuContent) {
+              const reasons: string[] = skuContent.reasons || skuContent.sku?.reasons || [];
+              if (skuContent.status === "SUCCESS") {
+                return {
+                  success: true,
+                  message: reasons[0] || `N11 fiyat (${formattedPrice} TL) ve stok (${formattedQuantity}) başarıyla güncellendi.`
+                };
+              } else if (skuContent.status === "FAIL") {
+                restFailReason = reasons.join(" | ");
+                break;
+              }
+            }
+          } catch (pollErr) {
+            // Ignore transient poll error
+          }
+        }
+        if (!restFailReason) {
+          return {
+            success: true,
+            message: `N11 REST API fiyat ve stok güncelleme görevi oluşturuldu. Task ID: ${taskId}`
+          };
+        }
       }
     } catch (restErr: any) {
-      // Quiet fallback without throwing or spamming error logs
+      // Quiet fallback to SOAP if REST fails
     }
 
     // 2. SOAP Fallback (using SOAP UpdateProductPriceBySellerCode + UpdateStockByStockSellerCode)
     try {
-      // Use full stockItems structure required by N11 SOAP ProductService
       const priceRes = await this.updateProductPriceBySellerCode(
         auth,
-        productSellerCode,
+        cleanCode,
         formattedPrice,
-        [{ sellerStockCode: productSellerCode, optionPrice: formattedPrice }]
+        [{ sellerStockCode: cleanCode, optionPrice: formattedPrice }]
       );
 
-      const stockRes = await this.updateStockByStockSellerCode(auth, [{ sellerStockCode: productSellerCode, quantity: formattedQuantity }]);
+      const stockRes = await this.updateStockByStockSellerCode(auth, [{ sellerStockCode: cleanCode, quantity: formattedQuantity }]);
 
       if (priceRes?.success || stockRes?.success) {
-        return { 
-          success: true, 
-          message: `N11 ürün fiyatı ve stok miktarı SOAP ile güncellendi.${stockRes.success ? "" : ` (Stok uyarısı: ${stockRes.message})`}` 
+        return {
+          success: true,
+          message: `N11 ürün fiyatı ve stok miktarı SOAP ile güncellendi.${stockRes.success ? "" : ` (Stok uyarısı: ${stockRes.message})`}`
         };
       }
 
-      // If seller code lookup failed and productSellerCode is numeric, try updateProductPriceById
-      if (/^\d+$/.test(productSellerCode)) {
+      if (/^\d+$/.test(cleanCode)) {
         const idRes = await this.updateProductPriceById(
           auth,
-          productSellerCode,
+          cleanCode,
           formattedPrice,
-          [{ sellerStockCode: productSellerCode, optionPrice: formattedPrice }]
+          [{ sellerStockCode: cleanCode, optionPrice: formattedPrice }]
         );
         if (idRes.success) {
           return { success: true, message: `N11 ürün fiyatı ID ile güncellendi.` };
@@ -1581,12 +1856,12 @@ export class N11Service {
 
       return {
         success: false,
-        message: priceRes?.message || "N11 güncelleme tamamlanamadı (Satıcı stok kodu veya N11 katalog kaydı doğrulanamadı)."
+        message: restFailReason || priceRes?.message || "N11 güncelleme tamamlanamadı (Satıcı stok kodu veya N11 katalog kaydı doğrulanamadı)."
       };
     } catch (err: any) {
-      return { 
-        success: false, 
-        message: `N11 güncelleme tamamlanamadı. (RestAPI ve SOAP servisleri yanıt vermedi)` 
+      return {
+        success: false,
+        message: restFailReason || `N11 güncelleme tamamlanamadı. (RestAPI ve SOAP servisleri yanıt vermedi)`
       };
     }
   }
@@ -2016,153 +2291,394 @@ export class N11Service {
   }
 
   /**
+   * Fetch all products from N11 using the official REST Product Query API (`GET https://api.n11.com/ms/product-query`)
+   * with SOAP `GetProductList` fallback.
+   */
+  static async getAllProductsRest(auth: N11Auth): Promise<any[]> {
+    const cleanAppKey = (auth.appKey || "").trim();
+    const cleanAppSecret = (auth.appSecret || "").trim();
+    if (!cleanAppKey || !cleanAppSecret) return [];
+
+    const headers = {
+      appKey: cleanAppKey,
+      appSecret: cleanAppSecret,
+      appkey: cleanAppKey,
+      appsecret: cleanAppSecret,
+      "Content-Type": "application/json"
+    };
+
+    const allItems: any[] = [];
+    try {
+      let page = 0;
+      let totalPages = 1;
+      while (page < totalPages && page < 50) {
+        const res = await axios.get(`https://api.n11.com/ms/product-query?page=${page}&size=100`, {
+          headers,
+          timeout: 15000
+        });
+        const content = res.data?.content || [];
+        if (Array.isArray(content)) {
+          allItems.push(...content);
+        }
+        totalPages = Number(res.data?.totalPages || 1);
+        page++;
+      }
+      if (allItems.length > 0) {
+        return allItems;
+      }
+    } catch (restErr) {
+      // Fallback to SOAP GetProductList
+    }
+
+    try {
+      const soapRes = await this.getProductList(auth, 0, 500);
+      return soapRes.products || [];
+    } catch (soapErr) {
+      return [];
+    }
+  }
+
+  /**
    * Match Remote N11 Listings with Local Store Products
+   * - Prioritizes Active & On_Sale listings over InApproval duplicates
+   * - Distinguishes Active (Satışta) vs InApproval (Onay Bekliyor) vs CatalogRejected (Reddedildi)
+   * - Builds verified N11 public URLs using N11's exact catalog title and groupId / catalogId
+   * - Synchronizes live prices & stocks to N11 for all matched Active listings
    */
   static async matchListingsWithStoreProducts(
     auth: N11Auth,
     poolInstance: any,
     storeId: number,
-    options: { importMissing?: boolean } = {}
-  ): Promise<{ success: boolean; matchedCount: number; importedCount: number; totalRemote: number; message: string }> {
-    const listRes = await this.getProductList(auth, 0, 500);
-    const remoteProducts = listRes.products || [];
+    options: { importMissing?: boolean; syncPrices?: boolean } = {}
+  ): Promise<{
+    success: boolean;
+    matchedCount: number;
+    activeCount?: number;
+    pendingCount?: number;
+    rejectedCount?: number;
+    importedCount: number;
+    totalRemote: number;
+    message: string;
+  }> {
+    const remoteProductsRaw = await this.getAllProductsRest(auth);
+
+    // Sort remote products so Active + On_Sale ALWAYS match before Active (Out_Of_Stock), which match before InApproval, which match before Rejected/Suspended
+    const getStatusPriority = (rp: any): number => {
+      const st = String(rp.status || "");
+      const saleSt = String(rp.saleStatus || "");
+      const appSt = String(rp.approvalStatus || "");
+      if ((st === "Active" || appSt === "1") && (saleSt === "On_Sale" || saleSt === "2")) return 1;
+      if (st === "Active" || appSt === "1") return 2;
+      if (st === "InApproval" || appSt === "5") return 3;
+      if (st === "Suspended" || appSt === "2" || appSt === "3") return 4;
+      return 5;
+    };
+
+    const remoteProducts = [...remoteProductsRaw].sort((a, b) => getStatusPriority(a) - getStatusPriority(b));
 
     const localProdRes = await poolInstance.query("SELECT * FROM products WHERE store_id = $1", [storeId]);
     const localProducts = localProdRes.rows || [];
 
+    const storeRes = await poolInstance.query("SELECT n11_settings, currency_rates, branding, default_currency FROM stores WHERE id = $1", [storeId]);
+    const storeRow = storeRes.rows[0] || {};
+    let n11Settings = storeRow.n11_settings || {};
+    if (typeof n11Settings === "string") { try { n11Settings = JSON.parse(n11Settings); } catch { n11Settings = {}; } }
+    let branding = storeRow.branding || {};
+    if (typeof branding === "string") { try { branding = JSON.parse(branding); } catch { branding = {}; } }
+    const rates = { ...(branding?.currency_rates || {}), ...(storeRow.currency_rates || {}) };
+
     let matchedCount = 0;
+    let activeCount = 0;
+    let pendingCount = 0;
+    let rejectedCount = 0;
     let importedCount = 0;
     const matchedLocalIds = new Set<number>();
+    const activeMatchedIds = new Set<number>();
+    const priceStockSyncBatch: Array<{ stockCode: string; price: number; quantity: number }> = [];
 
-    // First clear any legacy fake 'PUBLISHED' placeholder IDs
+    // Clear any legacy fake 'PUBLISHED' placeholder IDs
     await poolInstance.query(
       "UPDATE products SET n11_id = NULL, is_n11_active = false WHERE store_id = $1 AND n11_id = 'PUBLISHED'",
       [storeId]
     );
 
-    for (const rp of remoteProducts) {
-      const rpId = String(rp.id || rp.productId || '');
-      const rpCode = String(rp.productSellerCode || rp.stockCode || rp.barcode || '').trim().toLowerCase();
-      const rpBarcode = String(rp.barcode || '').trim().toLowerCase();
-      const rpTitle = String(rp.title || rp.name || '').trim().toLowerCase();
-      const isSaleActiveOnN11 = String(rp.saleStatus || '2') === '2' && String(rp.approvalStatus || '1') === '1';
+    const isRealExternalBarcode = (bc: string): boolean => {
+      if (!bc || bc.length < 8) return false;
+      if (bc.startsWith("200") || bc.startsWith("205") || bc.startsWith("8680000") || bc.startsWith("prd-")) return false;
+      return /^\d{8,14}$/.test(bc);
+    };
 
-      // Extract GTINs and sellerStockCodes from stockItems
+    for (const rp of remoteProducts) {
+      const rpId = String(rp.n11ProductId || rp.id || rp.productId || "").trim();
+      const rpStockCodeRaw = String(rp.stockCode || rp.productSellerCode || "").trim();
+      const rpCode = rpStockCodeRaw.toLowerCase();
+      const rpBaseCode = rpCode.replace(/_(489_)?2$/i, "");
+      const rpBarcode = String(rp.barcode || "").trim().toLowerCase();
+      const rpTitle = String(rp.title || rp.name || "").trim();
+      const rpTitleLower = rpTitle.toLocaleLowerCase("tr-TR");
+      const rpGroupId = rp.groupId || rp.n11CatalogGroupId || "";
+      const rpCatalogId = rp.catalogId || "";
+      const rpSellerNickname = rp.sellerNickname || "enrakipsiz";
+
+      // Extract GTINs and sellerStockCodes from SOAP stockItems if present
       const stockItemsRaw = rp.stockItems?.stockItem || [];
       const stockItemsList = Array.isArray(stockItemsRaw) ? stockItemsRaw : (stockItemsRaw ? [stockItemsRaw] : []);
-      const rpGtins = stockItemsList.map((si: any) => String(si.gtin || '').trim().toLowerCase()).filter(Boolean);
-      const rpSellerCodes = stockItemsList.map((si: any) => String(si.sellerStockCode || '').trim().toLowerCase()).filter(Boolean);
+      const rpGtins = stockItemsList.map((si: any) => String(si.gtin || "").trim().toLowerCase()).filter(Boolean);
+      const rpSellerCodes = stockItemsList.map((si: any) => String(si.sellerStockCode || "").trim().toLowerCase()).filter(Boolean);
 
+      // Determine normalized N11 status
+      const rawStatus = String(rp.status || "");
+      const rawSaleStatus = String(rp.saleStatus || "");
+      const rawApproval = String(rp.approvalStatus || "");
+
+      const isApprovedOnN11 = rawStatus === "Active" || rawApproval === "1";
+      const isPendingOnN11 = rawStatus === "InApproval" || rawApproval === "5";
+      const isRejectedOnN11 = rawStatus === "CatalogRejected" || rawStatus === "Rejected" || rawApproval === "8" || rawApproval === "3";
+      const isOnSaleOnN11 = rawSaleStatus === "On_Sale" || rawSaleStatus === "2";
+
+      // 1a. Pass 1a: Exact Barcode / GTIN match across all products first
       let matchedLocal = localProducts.find((lp: any) => {
         if (matchedLocalIds.has(lp.id)) return false;
-        if (String(lp.n11_id || '') === rpId) return true;
-        const lpSku = String(lp.sku || '').trim().toLowerCase();
-        const lpProdCode = String(lp.product_code || '').trim().toLowerCase();
-        const lpBarcode = String(lp.barcode || '').trim().toLowerCase();
-        const lpCleanBarcode = lpBarcode.replace(/^0+/, '');
-        const lpName = String(lp.name || '').trim().toLowerCase();
+        const lpBarcode = String(lp.barcode || "").trim().toLowerCase();
+        const lpCleanBarcode = lpBarcode.replace(/^0+/, "");
+        if (!lpBarcode) return false;
 
-        if (rpCode && ((lpSku && rpCode === lpSku) || (lpProdCode && rpCode === lpProdCode))) return true;
-        if (rpBarcode && lpBarcode && rpBarcode === lpBarcode) return true;
-        if (rpCode && lpBarcode && rpCode === lpBarcode) return true;
-        if (rpBarcode && lpSku && rpBarcode === lpSku) return true;
-
+        if (rpBarcode && (rpBarcode === lpBarcode || rpBarcode.replace(/^0+/, "") === lpCleanBarcode)) return true;
+        if (rpCode && (rpCode === lpBarcode || rpBaseCode === lpBarcode)) return true;
         for (const gtin of rpGtins) {
-          const cleanGtin = gtin.replace(/^0+/, '');
-          if (gtin === lpBarcode || cleanGtin === lpBarcode || cleanGtin === lpCleanBarcode) return true;
-          if (gtin === lpSku || cleanGtin === lpSku) return true;
-        }
-
-        for (const sc of rpSellerCodes) {
-          if (sc === lpSku || sc === lpBarcode || sc === lpProdCode) return true;
-        }
-
-        if (rpTitle && lpName && rpTitle === lpName) return true;
-
-        // Model code / token matching
-        if (rpCode && rpCode.length >= 4) {
-          const cleanCode = rpCode.replace(/^(tru|per)/, '').replace(/_[0-9_]+$/, '').replace(/[-_\s]/g, '');
-          const cleanLpName = lpName.replace(/[-_\s]/g, '');
-          if (cleanCode.length >= 4 && (cleanLpName.includes(cleanCode) || lpBarcode.includes(cleanCode))) {
-            return true;
-          }
+          const cleanGtin = gtin.replace(/^0+/, "");
+          if (gtin === lpBarcode || cleanGtin === lpCleanBarcode) return true;
         }
         return false;
       });
 
+      // 1b. Pass 1b: Exact SKU / SellerStockCode / N11 ID match (only if external barcodes do not conflict!)
+      if (!matchedLocal) {
+        matchedLocal = localProducts.find((lp: any) => {
+          if (matchedLocalIds.has(lp.id)) return false;
+          const lpBarcode = String(lp.barcode || "").trim().toLowerCase();
+          const lpSku = String(lp.sku || "").trim().toLowerCase();
+          const lpProdCode = String(lp.product_code || "").trim().toLowerCase();
+          const lpN11Id = String(lp.n11_id || "").trim();
+
+          // Never match two items that have different real EAN/UPC barcodes even if they share a generic SKU prefix (e.g. Hs-usb-m200)
+          if (isRealExternalBarcode(rpBarcode) && isRealExternalBarcode(lpBarcode) && rpBarcode !== lpBarcode) {
+            return false;
+          }
+
+          if (rpCode && ((lpSku && (rpCode === lpSku || rpBaseCode === lpSku)) || (lpProdCode && (rpCode === lpProdCode || rpBaseCode === lpProdCode)))) return true;
+          if (rpCode === `prd-${lp.id}` || rpBaseCode === `prd-${lp.id}`) return true;
+          for (const sc of rpSellerCodes) {
+            const baseSc = sc.replace(/_(489_)?2$/i, "");
+            if ((lpSku && (sc === lpSku || baseSc === lpSku)) || (lpBarcode && (sc === lpBarcode || baseSc === lpBarcode))) return true;
+          }
+
+          if (lpN11Id && (lpN11Id === rpId || (rpCatalogId && lpN11Id === String(rpCatalogId)) || (rpGroupId && lpN11Id === String(rpGroupId)))) {
+            return true;
+          }
+
+          return false;
+        });
+      }
+
+      // 2. Second pass: Exact title or distinct model token match (only when barcodes do not conflict!)
+      if (!matchedLocal) {
+        matchedLocal = localProducts.find((lp: any) => {
+          if (matchedLocalIds.has(lp.id)) return false;
+          const lpBarcode = String(lp.barcode || "").trim().toLowerCase();
+          const lpName = String(lp.name || "").trim();
+          const lpNameLower = lpName.toLocaleLowerCase("tr-TR");
+          const lpSku = String(lp.sku || "").trim().toLowerCase();
+
+          // Guard: If both N11 item and local DB product have real EAN/UPC barcodes and they differ, NEVER fuzzy-match them!
+          if (isRealExternalBarcode(rpBarcode) && isRealExternalBarcode(lpBarcode) && rpBarcode !== lpBarcode) {
+            return false;
+          }
+
+          if (rpTitleLower && lpNameLower && rpTitleLower === lpNameLower) return true;
+
+          // Distinct model code check (e.g., fm10, 2pc54aa, tcg455, m171, m170, mk120, k380s, 1470g2, 6200a, c270, zq521, wca004vfwh, 800300-250, av10128cw03)
+          const candidateModel = rpBaseCode.replace(/^prd-\d+$/i, "").trim();
+          if (candidateModel && candidateModel.length >= 4 && !/^\d+$/.test(candidateModel)) {
+            const escapedModel = candidateModel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const tokenRegex = new RegExp(`(^|[^a-z0-9])${escapedModel}($|[^a-z0-9])`, "i");
+            if (tokenRegex.test(lpNameLower) || tokenRegex.test(lpSku)) {
+              // Extra check for M171 color variants (Siyah, Mavi, Kırmızı)
+              if (candidateModel === "m171") {
+                const rpHasBlue = /mavi|blue/i.test(rpTitleLower);
+                const rpHasRed = /kırmızı|kirmizi|red/i.test(rpTitleLower);
+                const rpHasBlack = /siyah|black/i.test(rpTitleLower);
+                const lpHasBlue = /mavi|blue/i.test(lpNameLower);
+                const lpHasRed = /kırmızı|kirmizi|red/i.test(lpNameLower);
+                const lpHasBlack = /siyah|black/i.test(lpNameLower);
+                if ((rpHasBlue && !lpHasBlue) || (rpHasRed && !lpHasRed) || (rpHasBlack && !lpHasBlack)) {
+                  return false;
+                }
+              }
+              return true;
+            }
+          }
+
+          return false;
+        });
+      }
+
       if (matchedLocal) {
         matchedLocalIds.add(matchedLocal.id);
         let mpData: any = matchedLocal.marketplace_data;
-        if (typeof mpData === 'string') { try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; } }
+        if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch { mpData = {}; } }
         mpData = mpData || {};
 
-        const catalogId = rp.n11CatalogGroupId || stockItemsList[0]?.n11CatalogId || '';
-        const publicId = catalogId || rpId;
-        const n11Title = rp.title || matchedLocal.name || '';
+        const publicCatalogId = String(rpGroupId || rpCatalogId || stockItemsList[0]?.n11CatalogId || "").trim();
+        const n11Title = rpTitle || matchedLocal.name || "";
         const catalogSlug = n11Title
           .toString()
-          .replace(/Ğ/g, 'g').replace(/ğ/g, 'g')
-          .replace(/Ü/g, 'u').replace(/ü/g, 'u')
-          .replace(/Ş/g, 's').replace(/ş/g, 's')
-          .replace(/İ/g, 'i').replace(/I/g, 'i').replace(/ı/g, 'i')
-          .replace(/Ö/g, 'o').replace(/ö/g, 'o')
-          .replace(/Ç/g, 'c').replace(/ç/g, 'c')
+          .replace(/Ğ/g, "g").replace(/ğ/g, "g")
+          .replace(/Ü/g, "u").replace(/ü/g, "u")
+          .replace(/Ş/g, "s").replace(/ş/g, "s")
+          .replace(/İ/g, "i").replace(/I/g, "i").replace(/ı/g, "i")
+          .replace(/Ö/g, "o").replace(/ö/g, "o")
+          .replace(/Ç/g, "c").replace(/ç/g, "c")
           .toLowerCase()
           .trim()
-          .replace(/[^a-z0-9 -]/g, '')
-          .replace(/\s+/g, '-')
-          .replace(/-+/g, '-');
+          .replace(/[^a-z0-9 -]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-");
 
-        const productUrl = publicId 
-          ? `https://www.n11.com/urun/${catalogSlug}-${publicId}?magaza=enrakipsiz` 
-          : `https://www.n11.com/urun/${catalogSlug}-${rpId}?magaza=enrakipsiz`;
+        // Build public product URL ONLY when N11 listing is approved (Active) and has a valid Catalog Group ID
+        const productUrl = isApprovedOnN11 && publicCatalogId
+          ? `https://www.n11.com/urun/${catalogSlug}-${publicCatalogId}?magaza=${rpSellerNickname}`
+          : undefined;
 
         const pPrice = Number(matchedLocal.price || 0);
-        const pStock = Number(matchedLocal.stock_quantity || 0);
-        const finalActive = isSaleActiveOnN11 && pPrice > 0 && pStock > 0;
+        const pStock = Math.max(0, Math.floor(Number(matchedLocal.stock_quantity || 0)));
+
+        // Calculate target N11 price in TRY
+        let webPriceTry = pPrice;
+        const prodCurrency = String(matchedLocal.currency || storeRow.default_currency || "TRY").toUpperCase();
+        if (prodCurrency !== "TRY" && prodCurrency !== "TL") {
+          const rate = Number(rates[prodCurrency] || (prodCurrency === "USD" ? 49.5647 : prodCurrency === "EUR" ? 55.4997 : 1));
+          if (rate > 1) webPriceTry = pPrice * rate;
+        }
+        const calculatedN11Price = pPrice > 0
+          ? this.calculateMarketplacePrice(webPriceTry, matchedLocal.category, matchedLocal.sub_category, n11Settings)
+          : 0;
+
+        let finalActive = false;
+        let mpStatus = "INACTIVE";
+        let approvalStatusStr = "1";
+        let lastError: string | null = null;
+
+        if (isApprovedOnN11) {
+          approvalStatusStr = "1";
+          if (pPrice > 0 && pStock > 0 && (isOnSaleOnN11 || Number(rp.quantity || 0) === 0)) {
+            finalActive = true;
+            mpStatus = "ACTIVE";
+            activeCount++;
+            activeMatchedIds.add(matchedLocal.id);
+          } else {
+            finalActive = false;
+            mpStatus = "INACTIVE";
+          }
+
+          // Queue live N11 price & stock sync if price or stock on N11 differs from local store
+          if (rpStockCodeRaw && calculatedN11Price > 0) {
+            const remoteSalePrice = Number(rp.salePrice || rp.price || 0);
+            const remoteQty = Number(rp.quantity ?? -1);
+            if (Math.abs(remoteSalePrice - calculatedN11Price) >= 0.05 || remoteQty !== pStock) {
+              priceStockSyncBatch.push({
+                stockCode: rpStockCodeRaw,
+                price: calculatedN11Price,
+                quantity: pStock
+              });
+            }
+          }
+        } else if (isPendingOnN11) {
+          finalActive = false;
+          mpStatus = "PENDING";
+          approvalStatusStr = "5";
+          lastError = null;
+          pendingCount++;
+        } else if (isRejectedOnN11) {
+          finalActive = false;
+          mpStatus = "ERROR";
+          approvalStatusStr = "8";
+          lastError = "N11 katalog onayı reddedildi: Ürün özellik veya görsel bilgileri N11 katalog standartlarına uygun değil.";
+          rejectedCount++;
+        } else {
+          finalActive = false;
+          mpStatus = "INACTIVE";
+          approvalStatusStr = rawApproval || "2";
+        }
 
         mpData.n11 = {
           ...(mpData.n11 || {}),
           n11Id: rpId,
           productId: rpId,
-          n11CatalogId: stockItemsList[0]?.n11CatalogId || undefined,
-          n11CatalogGroupId: rp.n11CatalogGroupId || undefined,
+          sellerStockCode: rpStockCodeRaw || undefined,
+          productSellerCode: rpStockCodeRaw || undefined,
+          stockCode: rpStockCodeRaw || undefined,
+          n11CatalogId: rpCatalogId ? String(rpCatalogId) : (stockItemsList[0]?.n11CatalogId || undefined),
+          n11CatalogGroupId: rpGroupId ? String(rpGroupId) : undefined,
+          sellerNickname: rpSellerNickname,
           title: n11Title,
-          status: finalActive ? 'ACTIVE' : 'INACTIVE',
-          saleStatus: rp.saleStatus,
-          productUrl,
+          status: mpStatus,
+          rawStatus: rawStatus || (isApprovedOnN11 ? "Active" : isPendingOnN11 ? "InApproval" : "Inactive"),
+          approvalStatus: approvalStatusStr,
+          saleStatus: rawSaleStatus || rp.saleStatus,
+          price: calculatedN11Price > 0 ? calculatedN11Price : Number(rp.salePrice || rp.price || 0),
+          productUrl: productUrl || null,
           lastSync: new Date().toISOString(),
-          lastError: null
+          lastError
         };
 
         await poolInstance.query(
-          "UPDATE products SET n11_id = $1, is_n11_active = $2, n11_last_error = NULL, marketplace_data = $3 WHERE id = $4 AND store_id = $5",
-          [rpId, finalActive, JSON.stringify(mpData), matchedLocal.id, storeId]
+          "UPDATE products SET n11_id = $1, is_n11_active = $2, n11_last_error = $3, marketplace_data = $4 WHERE id = $5 AND store_id = $6",
+          [rpId, finalActive, lastError, JSON.stringify(mpData), matchedLocal.id, storeId]
         );
         matchedCount++;
       }
     }
 
-    // Ensure any product not matched to a live N11 listing does not remain falsely marked active
+    // Ensure any product not matched to any N11 listing has its stale N11 active/pending state cleaned up
     const matchedIdsArray = Array.from(matchedLocalIds);
-    if (matchedIdsArray.length > 0) {
-      await poolInstance.query(
-        "UPDATE products SET is_n11_active = false WHERE store_id = $1 AND is_n11_active = true AND NOT (id = ANY($2::int[]))",
-        [storeId, matchedIdsArray]
-      );
-    } else if (remoteProducts.length === 0) {
-      await poolInstance.query(
-        "UPDATE products SET is_n11_active = false WHERE store_id = $1 AND (n11_id IS NULL OR n11_id = 'PUBLISHED')",
-        [storeId]
-      );
+    if (remoteProducts.length > 0) {
+      for (const lp of localProducts) {
+        if (!matchedLocalIds.has(lp.id)) {
+          let mpData: any = lp.marketplace_data;
+          if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch { mpData = {}; } }
+          if (lp.is_n11_active || lp.n11_id || mpData?.n11?.status === "ACTIVE" || mpData?.n11?.status === "PENDING") {
+            if (mpData?.n11) {
+              mpData.n11.status = "INACTIVE";
+              mpData.n11.rawStatus = "Unmatched";
+              mpData.n11.approvalStatus = "0";
+              mpData.n11.productUrl = null;
+            }
+            await poolInstance.query(
+              "UPDATE products SET is_n11_active = false, n11_id = NULL, marketplace_data = $1 WHERE id = $2 AND store_id = $3",
+              [JSON.stringify(mpData || {}), lp.id, storeId]
+            );
+          }
+        }
+      }
+    }
+
+    // Push updated prices and stocks in batch for all active matched listings where price/stock differed
+    if (options.syncPrices !== false && priceStockSyncBatch.length > 0) {
+      await this.updatePriceAndStockBatch(auth, priceStockSyncBatch).catch((err) => {
+        console.warn("[N11 Match Listings Batch Price/Stock Sync Warning]:", err?.message || err);
+      });
     }
 
     return {
       success: true,
       matchedCount,
+      activeCount,
+      pendingCount,
+      rejectedCount,
       importedCount,
       totalRemote: remoteProducts.length,
-      message: `N11 mağazası (enrakipsiz) tarandı: ${matchedCount} ürün yerel ürünlerinizle eşleştirildi, ${importedCount} yeni ürün içe aktarıldı.`
+      message: `N11 mağazası (enrakipsiz) tarandı: ${matchedCount} ürün eşleştirildi (${activeCount} aktif satışta, ${pendingCount} N11 katalog onayında bekliyor${rejectedCount > 0 ? `, ${rejectedCount} reddedildi` : ""}).`
     };
   }
 }
