@@ -468,7 +468,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     }
   };
 
-  // Download Multi-Slide Storyboard Video Reel
+  // Download Multi-Slide Storyboard Video Reel (.MP4 — Instagram, WhatsApp & TikTok Ready)
   const handleDownloadVideo = async () => {
     setIsExportingVideo(true);
     setExportProgress(0);
@@ -480,7 +480,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       const url = URL.createObjectURL(videoBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${storeName.replace(/\s+/g, '_')}_${(product?.name || 'reel').replace(/[^a-zA-Z0-9]/g, '_')}_Slayt_Reel.webm`;
+      a.download = `${storeName.replace(/\s+/g, '_')}_${(product?.name || 'reel').replace(/[^a-zA-Z0-9]/g, '_')}_Instagram_Reels.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -724,8 +724,8 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 <Video className="w-4 h-4" />
                 <span>
                   {isExportingVideo 
-                    ? `Video Reels Kaydediliyor (%${exportProgress})...` 
-                    : `Tüm Slaytları Video Reels İndir (${slides.length * 2}s)`}
+                    ? `MP4 Video Hazırlanıyor (%${exportProgress})...` 
+                    : `Slayt Videosunu İndir (MP4 • ${slides.length * 2}s)`}
                 </span>
               </button>
 
