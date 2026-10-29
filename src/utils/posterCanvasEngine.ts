@@ -15,6 +15,18 @@
 export type SceneType = 'desk_setup' | 'user_lifestyle' | 'closet_organizer' | 'studio_macro';
 export type CollageLayout = 'single' | 'collage_2' | 'collage_3' | 'collage_4';
 export type ImageFitMode = 'smart_center' | 'contain_center' | 'cover_center';
+export type MotionEffect = 'zoom_in' | 'zoom_out' | 'pan_right' | 'pulse';
+
+export interface StorySlideItem {
+  id: string;
+  imageIndex: number;
+  kicker: string;
+  headline: string;
+  subtitle: string;
+  badge: string;
+  motion: MotionEffect;
+  customImageUrl?: string;
+}
 
 export interface StorySceneItem {
   phase: string;
@@ -47,6 +59,8 @@ export interface PosterConfig {
   scenarioTitle?: string;
   scenarioDescription?: string;
   storyScenes?: StorySceneItem[];
+  slides?: StorySlideItem[];
+  activeSlideIndex?: number;
   specs?: Array<{ label: string; value: string }>;
   animationProgress?: number; // undefined for static poster, 0.0 to 1.0 for multi-scene video reel
 }
@@ -803,6 +817,96 @@ function renderStoryboardVideoStage(
 }
 
 /**
+ * Renders an interactive single slide with motion transform, focal crop, and custom selling callout
+ */
+function renderSingleSlideMotionStage(
+  ctx: CanvasRenderingContext2D,
+  boxX: number,
+  boxY: number,
+  boxW: number,
+  boxH: number,
+  slide: StorySlideItem,
+  config: PosterConfig,
+  localT: number,
+  isVideo: boolean
+) {
+  const allImages =
+    config.imageElements && config.imageElements.length > 0
+      ? config.imageElements
+      : config.imageElement
+      ? [config.imageElement]
+      : [];
+
+  const slideImg = allImages[slide.imageIndex] || allImages[0];
+  if (!slideImg) return;
+
+  // Calculate motion zoom and pan based on slide.motion and localT
+  let zoom = (config.focalZoom || 1.0);
+  let panX = 0;
+  let panY = 0;
+
+  if (isVideo) {
+    if (slide.motion === 'zoom_in') {
+      zoom *= (0.97 + localT * 0.12);
+    } else if (slide.motion === 'zoom_out') {
+      zoom *= (1.12 - localT * 0.12);
+    } else if (slide.motion === 'pan_right') {
+      zoom *= 1.06;
+      panX = (localT - 0.5) * 45;
+    } else if (slide.motion === 'pulse') {
+      zoom *= (1.02 + 0.05 * Math.sin(localT * Math.PI));
+    }
+  }
+
+  // Draw stage card background
+  ctx.save();
+  ctx.fillStyle = config.template === 'modern_commerce' ? '#ffffff' : 'rgba(15, 23, 42, 0.9)';
+  roundRect(ctx, boxX, boxY, boxW, boxH, 26);
+  ctx.fill();
+  ctx.strokeStyle = config.template === 'modern_commerce' ? 'rgba(203, 213, 225, 0.8)' : 'rgba(56, 189, 248, 0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Draw the centered product image with smart focal bounding
+  drawCenteredFocalImage(ctx, slideImg, boxX + 16, boxY + 16, boxW - 32, boxH - 32, {
+    fitMode: config.imageFitMode || 'smart_center',
+    zoom,
+    panX,
+    panY,
+    radius: 20
+  });
+
+  // Slide Subtitle & Badge Floating Banner
+  if (slide.subtitle || slide.badge) {
+    const bannerH = 64;
+    const bannerY = boxY + boxH - bannerH - 14;
+    const bannerX = boxX + 16;
+    const bannerW = boxW - 32;
+
+    ctx.fillStyle = 'rgba(8, 12, 22, 0.92)';
+    roundRect(ctx, bannerX, bannerY, bannerW, bannerH, 16);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    if (slide.subtitle) {
+      ctx.font = '700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(slide.subtitle.slice(0, 56), bannerX + 18, bannerY + 28);
+    }
+
+    if (slide.badge) {
+      ctx.font = '800 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillText(`✦ ${slide.badge.slice(0, 42)}`, bannerX + 18, bannerY + 50);
+    }
+  }
+
+  ctx.restore();
+}
+
+/**
  * Renders the complete poster or video frame on an HTML5 canvas at native 1080p resolution
  */
 export const renderPosterToCanvas = (
@@ -825,6 +929,25 @@ export const renderPosterToCanvas = (
   const isVideoFrame = config.animationProgress !== undefined && config.animationProgress > 0;
   const t = config.animationProgress || 0;
   const tSin = Math.sin(t * Math.PI * 2);
+
+  const slides = config.slides;
+  const isSlideMode = Array.isArray(slides) && slides.length > 0;
+
+  let activeSlideIdx = 0;
+  let localSlideT = 0;
+
+  if (isSlideMode) {
+    const totalSlides = slides.length;
+    if (isVideoFrame) {
+      activeSlideIdx = Math.min(totalSlides - 1, Math.floor(t * totalSlides));
+      localSlideT = (t * totalSlides) - activeSlideIdx;
+    } else {
+      activeSlideIdx = Math.min(totalSlides - 1, Math.max(0, config.activeSlideIndex ?? 0));
+      localSlideT = 0;
+    }
+  }
+
+  const currentSlide = isSlideMode ? slides[activeSlideIdx] : null;
 
   // 1. CANVAS ATMOSPHERE BACKGROUND
   if (config.template === 'modern_commerce') {
@@ -885,50 +1008,87 @@ export const renderPosterToCanvas = (
     ctx.fillRect(0, 0, width, height);
   }
 
-  // 2. HEADER: STORE BRAND & SCENARIO BADGE
+  // 1.5. STORY SLIDES PROGRESS BARS (Instagram/TikTok style progress indicators)
+  if (isSlideMode && slides.length > 1) {
+    const barPadding = 56;
+    const barY = isStory ? 44 : 26;
+    const barH = 5;
+    const gap = 8;
+    const totalW = width - barPadding * 2;
+    const segmentW = (totalW - gap * (slides.length - 1)) / slides.length;
+
+    for (let i = 0; i < slides.length; i++) {
+      const segX = barPadding + i * (segmentW + gap);
+      // Background track
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      roundRect(ctx, segX, barY, segmentW, barH, 3);
+      ctx.fill();
+
+      // Filled track
+      let fillRatio = 0;
+      if (isVideoFrame) {
+        if (i < activeSlideIdx) fillRatio = 1;
+        else if (i === activeSlideIdx) fillRatio = localSlideT;
+      } else {
+        if (i <= activeSlideIdx) fillRatio = 1;
+      }
+
+      if (fillRatio > 0) {
+        ctx.fillStyle = '#38bdf8';
+        roundRect(ctx, segX, barY, segmentW * Math.min(1, fillRatio), barH, 3);
+        ctx.fill();
+      }
+    }
+  }
+
+  // 2. HEADER: STORE BRAND & SLIDE NUMBER / CATEGORY BADGE
   const paddingX = 56;
-  let cursorY = isStory ? 88 : 68;
+  let cursorY = isSlideMode && slides.length > 1 ? (isStory ? 94 : 76) : (isStory ? 88 : 68);
 
   ctx.save();
   const storeDisplay = (config.storeName || "SEÇKİN MAĞAZA").toUpperCase();
-  ctx.font = '900 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.font = '900 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = config.template === 'modern_commerce' ? '#0f172a' : '#ffffff';
   ctx.fillText(storeDisplay, paddingX, cursorY);
 
-  // Right side category / brand pill
-  const catText = (config.category || config.brand || "ORİJİNAL PORTFÖY").toUpperCase().slice(0, 28);
-  ctx.font = '700 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  const catW = ctx.measureText(catText).width + 28;
-  ctx.fillStyle = config.template === 'modern_commerce' ? '#e2e8f0' : 'rgba(255,255,255,0.08)';
-  roundRect(ctx, width - paddingX - catW, cursorY - 24, catW, 32, 16);
+  // Right side slide indicator or category
+  const badgeRight = isSlideMode
+    ? `SLAYT ${activeSlideIdx + 1}/${slides.length}`
+    : (config.category || config.brand || "ORİJİNAL PORTFÖY").toUpperCase().slice(0, 28);
+  ctx.font = '800 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const badgeW = ctx.measureText(badgeRight).width + 26;
+  ctx.fillStyle = isSlideMode ? 'rgba(56, 189, 248, 0.18)' : (config.template === 'modern_commerce' ? '#e2e8f0' : 'rgba(255,255,255,0.08)');
+  roundRect(ctx, width - paddingX - badgeW, cursorY - 22, badgeW, 30, 15);
   ctx.fill();
-  ctx.fillStyle = config.template === 'modern_commerce' ? '#334155' : '#cbd5e1';
-  ctx.fillText(catText, width - paddingX - catW + 14, cursorY - 3);
+  ctx.fillStyle = isSlideMode ? '#38bdf8' : (config.template === 'modern_commerce' ? '#334155' : '#cbd5e1');
+  ctx.fillText(badgeRight, width - paddingX - badgeW + 13, cursorY - 2);
   ctx.restore();
 
   // 3. KICKER & HEADLINE (Compact & Clean)
-  cursorY += isStory ? 54 : 46;
+  cursorY += isStory ? 52 : 44;
   ctx.save();
-  const kickerText = (config.kicker || "ÖZEL SENARYO & VİTRİN").toUpperCase();
+  const kickerText = (currentSlide?.kicker || config.kicker || "ÖZEL SENARYO & VİTRİN").toUpperCase();
   ctx.font = '800 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = config.template === 'modern_commerce' ? '#475569' : '#38bdf8';
   ctx.fillText(kickerText, paddingX, cursorY);
 
-  cursorY += isStory ? 62 : 54;
-  const headlineText = (config.headline || "GERÇEK DENEYİM").toUpperCase();
-  ctx.font = '900 52px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  cursorY += isStory ? 60 : 52;
+  const headlineText = (currentSlide?.headline || config.headline || "GERÇEK DENEYİM").toUpperCase();
+  ctx.font = '900 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = config.template === 'modern_commerce' ? '#0f172a' : '#ffffff';
-  ctx.fillText(headlineText.slice(0, 26), paddingX, cursorY);
+  ctx.fillText(headlineText.slice(0, 32), paddingX, cursorY);
   ctx.restore();
 
-  // 4. CENTRAL STAGE: MULTI-IMAGE CENTERED COLLAGE OR CONTEXTUAL SCENARIO STAGE
+  // 4. CENTRAL STAGE: INTERACTIVE SINGLE SLIDE MOTION STAGE OR COLLAGE
   const cardMargin = 48;
-  const cardTop = cursorY + (isStory ? 34 : 26);
-  const infoHeight = isStory ? 168 : 132;
-  const cardHeight = height - cardTop - infoHeight - (isStory ? 82 : 62);
+  const cardTop = cursorY + (isStory ? 30 : 22);
+  const infoHeight = isStory ? 172 : 136;
+  const cardHeight = height - cardTop - infoHeight - (isStory ? 80 : 58);
   const cardWidth = width - cardMargin * 2;
 
-  if (isVideoFrame) {
+  if (isSlideMode && currentSlide) {
+    renderSingleSlideMotionStage(ctx, cardMargin, cardTop, cardWidth, cardHeight, currentSlide, config, localSlideT, isVideoFrame);
+  } else if (isVideoFrame) {
     renderStoryboardVideoStage(ctx, cardMargin, cardTop, cardWidth, cardHeight, config, t);
   } else {
     renderVisualStageOrCollage(ctx, cardMargin, cardTop, cardWidth, cardHeight, config, 0);
@@ -954,7 +1114,7 @@ export const renderPosterToCanvas = (
   ctx.fillText(displayTitle, cardMargin + 28, infoY + 46);
 
   // Promo / Benefit Badge inside bottom card
-  const badgeStr = config.badge || "Aynı Gün Hızlı Kargo & Orijinal Garanti";
+  const badgeStr = (currentSlide?.badge || config.badge || "Aynı Gün Hızlı Kargo & Orijinal Garanti");
   ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#38bdf8';
   ctx.fillText(`✦ ${badgeStr.slice(0, 48)}`, cardMargin + 28, infoY + 80);
@@ -1104,7 +1264,9 @@ export const recordPosterReel = async (
 
     mediaRecorder.start();
 
-    const totalFrames = 180; // 6 seconds * 30fps (4 distinct storyboard scenes)
+    const slideCount = config.slides?.length || 4;
+    // 2 seconds per slide at 30 fps (e.g. 4 slides = 8 seconds = 240 frames)
+    const totalFrames = Math.max(120, slideCount * 60);
     let currentFrame = 0;
 
     const renderFrame = () => {

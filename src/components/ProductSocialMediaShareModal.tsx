@@ -14,18 +14,20 @@ import {
   RotateCcw, 
   Video, 
   Image as ImageIcon, 
-  Palette, 
-  Sliders, 
   FileText,
   Wand2,
   Layers,
-  Focus,
   Plus,
-  Monitor,
-  User,
-  Package,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
   Film,
-  CheckCircle2
+  CheckCircle2,
+  MoveHorizontal,
+  ZoomIn,
+  ZoomOut,
+  Activity,
+  Sliders
 } from "lucide-react";
 import { Product } from "../types";
 import { 
@@ -33,12 +35,12 @@ import {
   SceneType,
   CollageLayout,
   ImageFitMode,
-  StorySceneItem,
+  StorySlideItem,
+  MotionEffect,
   loadPosterImage, 
   renderPosterToCanvas, 
   downloadPosterImage, 
-  recordPosterReel,
-  createContextualSceneDataUrl
+  recordPosterReel
 } from "../utils/posterCanvasEngine";
 
 interface ProductSocialMediaShareModalProps {
@@ -51,18 +53,6 @@ interface ProductSocialMediaShareModalProps {
 type TemplateTheme = 'futuristic_studio' | 'modern_commerce' | 'luxury_editorial' | 'vibrant_sale';
 type AspectRatio = 'square' | 'story';
 type CaptionTone = 'promo' | 'luxury' | 'futuristic' | 'friendly';
-
-interface ScenarioOption {
-  id: string;
-  title: string;
-  description: string;
-  sceneType: SceneType;
-  kicker: string;
-  headline: string;
-  badge: string;
-  storyScenes: StorySceneItem[];
-  aiPrompt?: string;
-}
 
 export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModalProps> = ({
   isOpen,
@@ -113,52 +103,37 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
   }, [branding, urlSlug]);
 
   // Core Studio States
-  const [outputMode, setOutputMode] = useState<'image' | 'video'>('image');
+  const [outputMode, setOutputMode] = useState<'video' | 'image'>('video');
   const [selectedTheme, setSelectedTheme] = useState<TemplateTheme>('futuristic_studio');
   const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
   const [selectedTone, setSelectedTone] = useState<CaptionTone>('promo');
-  const [rightTab, setRightTab] = useState<'scenario' | 'collage' | 'caption'>('scenario');
+  const [rightTab, setRightTab] = useState<'slides' | 'design' | 'caption'>('slides');
 
-  // Segment & Scenario Imagination States
-  const [segmentLabel, setSegmentLabel] = useState<string>("Ürün Segmenti Analiz Ediliyor...");
-  const [scenarios, setScenarios] = useState<ScenarioOption[]>([]);
-  const [activeScenarioId, setActiveScenarioId] = useState<string>("");
-  const [sceneType, setSceneType] = useState<SceneType>('desk_setup');
-  const [scenarioTitle, setScenarioTitle] = useState<string>("");
-  const [scenarioDescription, setScenarioDescription] = useState<string>("");
-  const [storyScenes, setStoryScenes] = useState<StorySceneItem[]>([]);
-  const [customScenarioIdea, setCustomScenarioIdea] = useState<string>("");
-  const [isAnalyzingSegment, setIsAnalyzingSegment] = useState<boolean>(false);
-  const [isGeneratingAiScene, setIsGeneratingAiScene] = useState<boolean>(false);
-
-  // Multi-Image & Collage Center-Focus States
+  // Multi-Image Pool States
   const [imageUrlsPool, setImageUrlsPool] = useState<string[]>([]);
-  const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([]);
   const [loadedImageElements, setLoadedImageElements] = useState<HTMLImageElement[]>([]);
-  const [collageLayout, setCollageLayout] = useState<CollageLayout>('single');
-  const [imageFitMode, setImageFitMode] = useState<ImageFitMode>('smart_center');
   const [focalZoom, setFocalZoom] = useState<number>(1.0);
+  const [imageFitMode, setImageFitMode] = useState<ImageFitMode>('smart_center');
 
-  // Campaign Copy States
-  const [kicker, setKicker] = useState<string>("MASANIZDA YENİ NESİL GÜÇ");
-  const [headline, setHeadline] = useState<string>("MAKSİMUM PERFORMANS");
-  const [badge, setBadge] = useState<string>("Orijinal Garanti & Aynı Gün Hızlı Kargo");
+  // Interactive Slide Studio States
+  const [slides, setSlides] = useState<StorySlideItem[]>([]);
+  const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
+  const [isGeneratingSlides, setIsGeneratingSlides] = useState<boolean>(false);
+  const [customSlidePrompt, setCustomSlidePrompt] = useState<string>("");
 
   // AI Caption States
   const [captionText, setCaptionText] = useState<string>("");
   const [isGeneratingCaption, setIsGeneratingCaption] = useState<boolean>(false);
 
   // Video / Storyboard Reel States
-  const [isPlayingVideo, setIsPlayingVideo] = useState<boolean>(false);
+  const [isPlayingVideo, setIsPlayingVideo] = useState<boolean>(true);
   const [videoProgress, setVideoProgress] = useState<number>(0);
   const [isExportingVideo, setIsExportingVideo] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<number>(0);
-  const [aiGeneratedVideoUrl, setAiGeneratedVideoUrl] = useState<string | null>(null);
-  const [isGeneratingAiVideo, setIsGeneratingAiVideo] = useState<boolean>(false);
 
   // Utility States
   const [copySuccess, setCopySuccess] = useState(false);
-  const [mobileTab, setMobileTab] = useState<'stage' | 'caption' | 'scenario' | 'collage'>('stage');
+  const [mobileTab, setMobileTab] = useState<'stage' | 'slides' | 'caption' | 'design'>('stage');
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -214,27 +189,18 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     }
 
     setImageUrlsPool(urls);
-    setSelectedImageUrls(urls.slice(0, 4));
-    // If product has multiple images, default collage layout to 3-image or 2-image showcase!
-    if (urls.length >= 3) {
-      setCollageLayout('collage_3');
-    } else if (urls.length === 2) {
-      setCollageLayout('collage_2');
-    } else {
-      setCollageLayout('single');
-    }
   }, [product]);
 
-  // 2. Load HTMLImageElements for all selected image URLs
+  // 2. Load HTMLImageElements for all collected image URLs
   useEffect(() => {
     let active = true;
-    if (selectedImageUrls.length === 0) {
+    if (imageUrlsPool.length === 0) {
       setLoadedImageElements([]);
       return;
     }
 
     Promise.all(
-      selectedImageUrls.map((url) =>
+      imageUrlsPool.map((url) =>
         loadPosterImage(url).catch(() => null)
       )
     ).then((imgs) => {
@@ -246,140 +212,46 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     return () => {
       active = false;
     };
-  }, [selectedImageUrls]);
+  }, [imageUrlsPool]);
 
-  // Apply a selected scenario option
-  const applyScenario = useCallback((scen: ScenarioOption) => {
-    setActiveScenarioId(scen.id);
-    setSceneType(scen.sceneType || 'desk_setup');
-    setScenarioTitle(scen.title);
-    setScenarioDescription(scen.description);
-    setKicker(scen.kicker || "ÖZEL SENARYO");
-    setHeadline(discountPercentage > 0 ? `%${discountPercentage} İNDİRİM` : (scen.headline || "GERÇEK DENEYİM"));
-    setBadge(scen.badge || "Aynı Gün Kargo & Orijinal Garanti");
-    if (Array.isArray(scen.storyScenes) && scen.storyScenes.length > 0) {
-      setStoryScenes(scen.storyScenes);
-    }
-  }, [discountPercentage]);
-
-  // 3. Analyze Product Segment & Fetch Tailored Scenarios
-  const handleAnalyzeSegment = useCallback(async (customIdeaStr: string = "") => {
+  // 3. Generate AI Story Slides tailored to the product's actual title, category, description, and images
+  const handleGenerateStorySlides = useCallback(async (customIdeaStr: string = "") => {
     if (!product) return;
-    setIsAnalyzingSegment(true);
+    setIsGeneratingSlides(true);
     try {
-      const res = await fetch("/api/ai-social/analyze-segment", {
+      const res = await fetch("/api/ai-social/generate-story-slides", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: product.name,
-          category: product.category,
-          brand: product.brand,
-          customIdea: customIdeaStr
+          description: product.description || "",
+          category: product.category || "Genel",
+          brand: product.brand || "",
+          price: formatNumberVal(product.price),
+          oldPrice: oldPriceText ? formatNumberVal(product.old_price) : null,
+          currency: product.currency || 'TRY',
+          imagesCount: Math.max(2, imageUrlsPool.length || 4),
+          customPrompt: customIdeaStr
         })
       });
       const data = await res.json();
-      if (data.segmentLabel) setSegmentLabel(data.segmentLabel);
-      if (Array.isArray(data.scenarios) && data.scenarios.length > 0) {
-        setScenarios(data.scenarios);
-        applyScenario(data.scenarios[0]);
+      if (Array.isArray(data.slides) && data.slides.length > 0) {
+        setSlides(data.slides);
+        setActiveSlideIndex(0);
       }
     } catch (e) {
-      console.error("Segment analyze error:", e);
+      console.error("Story slides generation error:", e);
     } finally {
-      setIsAnalyzingSegment(false);
+      setIsGeneratingSlides(false);
     }
-  }, [product, applyScenario]);
-
-  // Generate AI Scene Image (Places the product into the chosen scenario & adds to multi-image pool)
-  const handleGenerateAiSceneImage = async () => {
-    if (loadedImageElements.length === 0) return;
-    setIsGeneratingAiScene(true);
-    try {
-      const activeScen = scenarios.find((s) => s.id === activeScenarioId);
-      const customOrScenTitle = customScenarioIdea.trim() || scenarioTitle || "Gerçek Yaşam Senaryosu";
-      const targetSceneType: SceneType = customScenarioIdea.trim()
-        ? (customScenarioIdea.toLowerCase().includes("dolap") || customScenarioIdea.toLowerCase().includes("raf")
-            ? "closet_organizer"
-            : customScenarioIdea.toLowerCase().includes("insan") || customScenarioIdea.toLowerCase().includes("kullanıcı") || customScenarioIdea.toLowerCase().includes("üzerinde")
-            ? "user_lifestyle"
-            : "desk_setup")
-        : sceneType;
-
-      // If user typed a custom scenario, also enrich the storyboard
-      if (customScenarioIdea.trim().length > 2) {
-        await handleAnalyzeSegment(customScenarioIdea.trim());
-      }
-
-      const res = await fetch("/api/ai-social/generate-scene-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: selectedImageUrls[0],
-          title: product?.name,
-          scenarioTitle: customOrScenTitle,
-          scenarioPrompt: activeScen?.aiPrompt || customOrScenTitle,
-          sceneType: targetSceneType
-        })
-      });
-
-      const data = await res.json();
-      let newSceneUrl = data.generatedImageUrl;
-
-      if (!newSceneUrl && loadedImageElements[0]) {
-        // Generate high-res 1080p contextual stage variant via procedural compositor
-        newSceneUrl = createContextualSceneDataUrl(
-          loadedImageElements[0],
-          targetSceneType,
-          customOrScenTitle
-        );
-      }
-
-      if (newSceneUrl) {
-        setImageUrlsPool((prev) => [newSceneUrl, ...prev]);
-        setSelectedImageUrls((prev) => {
-          const next = [newSceneUrl, ...prev].slice(0, 4);
-          if (next.length >= 2 && collageLayout === 'single') {
-            setCollageLayout('collage_2');
-          }
-          return next;
-        });
-      }
-    } catch (e) {
-      console.error("Scene generation error:", e);
-    } finally {
-      setIsGeneratingAiScene(false);
-    }
-  };
-
-  // Handle local extra image upload for multi-image collage/video
-  const handleAddLocalImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        if (dataUrl) {
-          setImageUrlsPool((prev) => [...prev, dataUrl]);
-          setSelectedImageUrls((prev) => {
-            const next = [...prev, dataUrl].slice(0, 4);
-            if (next.length === 2) setCollageLayout('collage_2');
-            else if (next.length === 3) setCollageLayout('collage_3');
-            else if (next.length >= 4) setCollageLayout('collage_4');
-            return next;
-          });
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = '';
-  };
+  }, [product, oldPriceText, imageUrlsPool.length]);
 
   // Generate AI Social Caption
   const handleGenerateCaption = useCallback(async (toneToUse: CaptionTone = selectedTone) => {
     if (!product) return;
     setIsGeneratingCaption(true);
     try {
+      const activeSlide = slides[activeSlideIndex] || slides[0];
       const res = await fetch("/api/ai-social/generate-caption", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -394,9 +266,9 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
           storeName: storeName,
           phone: branding?.phone || branding?.whatsapp_number,
           tone: toneToUse,
-          campaignBadge: badge,
-          scenarioTitle,
-          scenarioDescription
+          campaignBadge: activeSlide?.badge || (discountPercentage > 0 ? `%${discountPercentage} İndirim` : "Özel Fırsat"),
+          scenarioTitle: activeSlide?.headline || product?.name,
+          scenarioDescription: activeSlide?.subtitle || product?.description
         })
       });
 
@@ -409,62 +281,118 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     } finally {
       setIsGeneratingCaption(false);
     }
-  }, [product, oldPriceText, storeName, branding, selectedTone, badge, scenarioTitle, scenarioDescription]);
+  }, [product, oldPriceText, storeName, branding, selectedTone, slides, activeSlideIndex, discountPercentage]);
 
   // Initial load when modal opens
   useEffect(() => {
     if (isOpen && product) {
-      handleAnalyzeSegment("");
+      handleGenerateStorySlides("");
       handleGenerateCaption('promo');
     }
   }, [isOpen, product?.id]);
 
+  // Slide CRUD helpers
+  const handleUpdateActiveSlide = (updates: Partial<StorySlideItem>) => {
+    setSlides(prev => prev.map((s, idx) => idx === activeSlideIndex ? { ...s, ...updates } : s));
+  };
+
+  const handleAddSlide = () => {
+    const newIdx = slides.length;
+    const newSlide: StorySlideItem = {
+      id: `slide-${Date.now()}`,
+      imageIndex: newIdx % (imageUrlsPool.length || 1),
+      kicker: "ÖZEL DETAY",
+      headline: "YENİ AVANTAJ & ÖZELLİK",
+      subtitle: "Ürünün öne çıkan pratik kullanım detayları",
+      badge: "Sınırlı Stok",
+      motion: 'zoom_in'
+    };
+    setSlides(prev => [...prev, newSlide]);
+    setActiveSlideIndex(newIdx);
+    setIsPlayingVideo(false);
+  };
+
+  const handleDeleteSlide = (indexToDelete: number) => {
+    if (slides.length <= 1) return;
+    setSlides(prev => prev.filter((_, idx) => idx !== indexToDelete));
+    if (activeSlideIndex >= indexToDelete && activeSlideIndex > 0) {
+      setActiveSlideIndex(prev => prev - 1);
+    }
+  };
+
+  const handleMoveSlide = (fromIndex: number, direction: 'left' | 'right') => {
+    const toIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= slides.length) return;
+    setSlides(prev => {
+      const next = [...prev];
+      const temp = next[fromIndex];
+      next[fromIndex] = next[toIndex];
+      next[toIndex] = temp;
+      return next;
+    });
+    setActiveSlideIndex(toIndex);
+  };
+
+  // Handle local extra image upload for multi-image pool
+  const handleAddLocalImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        if (dataUrl) {
+          setImageUrlsPool((prev) => [...prev, dataUrl]);
+          // Also assign newly uploaded image to currently active slide!
+          handleUpdateActiveSlide({
+            imageIndex: imageUrlsPool.length // points to the new image
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
   // Poster Config Builder
   const posterConfig: PosterConfig = useMemo(() => {
+    const currentSlide = slides[activeSlideIndex] || slides[0];
     return {
       aspectRatio: selectedRatio,
       template: selectedTheme,
-      sceneType,
-      collageLayout,
-      imageFitMode,
+      slides,
+      activeSlideIndex,
       focalZoom,
+      imageFitMode,
       storeName: storeName || "Seçkin Mağaza",
-      kicker: kicker.trim() || "ÖZEL SENARYO",
-      headline: headline.trim() || "GERÇEK DENEYİM",
-      badge: badge.trim(),
+      kicker: currentSlide?.kicker || "ÖZEL SENARYO",
+      headline: currentSlide?.headline || product?.name || "GERÇEK DENEYİM",
+      badge: currentSlide?.badge || (discountPercentage > 0 ? `%${discountPercentage} İndirim` : "Orijinal Garanti"),
       title: product?.name || "Seçkin Ürün",
       price: priceText,
       oldPrice: oldPriceText,
       currencySymbol,
-      imageElement: loadedImageElements[0] || null,
+      imageElement: loadedImageElements[currentSlide?.imageIndex || 0] || loadedImageElements[0] || null,
       imageElements: loadedImageElements,
       brand: product?.brand || "",
       category: product?.category || "Genel Ürün",
-      phone: branding?.phone || branding?.whatsapp_number || "",
-      scenarioTitle,
-      scenarioDescription,
-      storyScenes
+      phone: branding?.phone || branding?.whatsapp_number || ""
     };
   }, [
     selectedRatio,
     selectedTheme,
-    sceneType,
-    collageLayout,
-    imageFitMode,
+    slides,
+    activeSlideIndex,
     focalZoom,
+    imageFitMode,
     storeName,
-    kicker,
-    headline,
-    badge,
     product,
+    discountPercentage,
     priceText,
     oldPriceText,
     currencySymbol,
     loadedImageElements,
-    branding,
-    scenarioTitle,
-    scenarioDescription,
-    storyScenes
+    branding
   ]);
 
   // Render canvas
@@ -478,22 +406,28 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
   }, [posterConfig]);
 
   useEffect(() => {
-    if (!isPlayingVideo) {
-      redrawCanvas(outputMode === 'video' ? 0.01 : undefined);
+    if (!isPlayingVideo || outputMode === 'image') {
+      redrawCanvas(undefined);
     }
   }, [posterConfig, isPlayingVideo, outputMode, redrawCanvas]);
 
-  // 6-Second 4-Scene Storyboard Video Loop
+  // Multi-Slide Story Video Reel Loop (2 seconds per slide)
   useEffect(() => {
-    if (isPlayingVideo && outputMode === 'video') {
-      const duration = 6000; // 6 second multi-scene storyboard loop
+    if (isPlayingVideo && outputMode === 'video' && slides.length > 0) {
+      const slideDuration = 2000; // 2 seconds per slide
+      const totalDuration = slides.length * slideDuration;
 
       const loop = (timestamp: number) => {
         if (!animationStartTimeRef.current) animationStartTimeRef.current = timestamp;
-        const elapsed = (timestamp - animationStartTimeRef.current) % duration;
-        const progress = Math.max(0.001, elapsed / duration);
+        const elapsed = (timestamp - animationStartTimeRef.current) % totalDuration;
+        const progress = Math.max(0.001, elapsed / totalDuration);
         setVideoProgress(progress);
         redrawCanvas(progress);
+
+        // Keep activeSlideIndex in sync with video progress for active UI indicator
+        const currentIdx = Math.min(slides.length - 1, Math.floor(progress * slides.length));
+        setActiveSlideIndex(currentIdx);
+
         animationFrameRef.current = requestAnimationFrame(loop);
       };
 
@@ -505,7 +439,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       }
       animationStartTimeRef.current = null;
       setVideoProgress(0);
-      redrawCanvas(outputMode === 'video' ? 0.01 : undefined);
+      redrawCanvas(undefined);
     }
 
     return () => {
@@ -513,19 +447,19 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isPlayingVideo, outputMode, redrawCanvas]);
+  }, [isPlayingVideo, outputMode, slides.length, redrawCanvas]);
 
-  // Download High-Res 1080p PNG
+  // Download Current Active Slide as High-Res 1080p PNG Poster
   const handleDownloadImage = async () => {
     if (!canvasRef.current) return;
     setIsDownloadingImage(true);
     try {
-      // Ensure static poster render before snapshot
       renderPosterToCanvas(canvasRef.current, {
         ...posterConfig,
         animationProgress: undefined
       });
-      const filename = `${storeName.replace(/\s+/g, '_')}_${(product?.name || 'urun').replace(/[^a-zA-Z0-9]/g, '_')}_${collageLayout}_1080p.png`;
+      const activeSlide = slides[activeSlideIndex];
+      const filename = `${storeName.replace(/\s+/g, '_')}_${(product?.name || 'urun').replace(/[^a-zA-Z0-9]/g, '_')}_Slayt_${activeSlideIndex + 1}_1080p.png`;
       await downloadPosterImage(canvasRef.current, filename);
     } catch (err) {
       console.error("Download image error:", err);
@@ -534,21 +468,11 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     }
   };
 
-  // Download 6s Multi-Scene Storyboard Video Reel
+  // Download Multi-Slide Storyboard Video Reel
   const handleDownloadVideo = async () => {
     setIsExportingVideo(true);
     setExportProgress(0);
     try {
-      if (aiGeneratedVideoUrl) {
-        const a = document.createElement('a');
-        a.href = aiGeneratedVideoUrl;
-        a.download = `${storeName.replace(/\s+/g, '_')}_${(product?.name || 'reel').replace(/[^a-zA-Z0-9]/g, '_')}_AI_Reel.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        return;
-      }
-
       const videoBlob = await recordPosterReel(posterConfig, (percent) => {
         setExportProgress(percent);
       });
@@ -556,7 +480,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       const url = URL.createObjectURL(videoBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${storeName.replace(/\s+/g, '_')}_${(product?.name || 'reel').replace(/[^a-zA-Z0-9]/g, '_')}_Senaryo_Reel.webm`;
+      a.download = `${storeName.replace(/\s+/g, '_')}_${(product?.name || 'reel').replace(/[^a-zA-Z0-9]/g, '_')}_Slayt_Reel.webm`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -569,75 +493,38 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     }
   };
 
-  // Trigger Google AI Omni Video Generation
-  const handleGenerateOmniVideo = async () => {
-    setIsGeneratingAiVideo(true);
-    setOutputMode('video');
-    try {
-      const activeScen = scenarios.find((s) => s.id === activeScenarioId);
-      const res = await fetch("/api/ai-social/generate-ai-video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrls: selectedImageUrls,
-          title: product?.name,
-          scenarioPrompt: activeScen?.aiPrompt || `${scenarioTitle}: ${scenarioDescription}`,
-          aspectRatio: selectedRatio
-        })
-      });
-      const data = await res.json();
-      if (data.videoDataUrl) {
-        setAiGeneratedVideoUrl(data.videoDataUrl);
-      } else {
-        setIsPlayingVideo(true);
-      }
-    } catch (e) {
-      setIsPlayingVideo(true);
-    } finally {
-      setIsGeneratingAiVideo(false);
-    }
-  };
-
-  const toggleImageSelection = (url: string) => {
-    setSelectedImageUrls((prev) => {
-      if (prev.includes(url)) {
-        if (prev.length <= 1) return prev; // keep at least 1
-        return prev.filter((u) => u !== url);
-      }
-      return [...prev, url].slice(0, 4);
-    });
-  };
-
   const handleCopyCaption = () => {
     if (!captionText) return;
     navigator.clipboard.writeText(captionText);
     setCopySuccess(true);
-    setTimeout(() => setCopySuccess(false), 2000);
+    setTimeout(() => setCopySuccess(false), 2500);
   };
 
-  if (!isOpen || !product) return null;
+  if (!isOpen) return null;
+
+  const activeSlide = slides[activeSlideIndex] || slides[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-3 md:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200 whitespace-normal text-left overflow-hidden">
-      <div className="relative w-full max-w-6xl h-[100dvh] sm:h-auto sm:max-h-[92dvh] bg-slate-900 border-0 sm:border border-slate-800 rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100 whitespace-normal">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in overflow-hidden">
+      <div className="relative w-full max-w-6xl max-h-[96vh] flex flex-col bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl text-white overflow-hidden">
         
-        {/* TOP HEADER */}
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-slate-800 bg-slate-900/95 shrink-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-2xl bg-gradient-to-br from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white shrink-0">
-              <Sparkles className="w-4 sm:w-5 h-4 sm:h-5" />
+        {/* COMPACT MODAL HEADER */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-slate-800 bg-slate-950/70 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
+              <Film className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xs sm:text-base font-bold tracking-tight text-white truncate">
-                  AI Ürün Senaryolaştırma, Çoklu Kolaj & Video Stüdyosu
-                </h2>
-                <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 truncate">
-                  {segmentLabel}
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-extrabold text-white tracking-tight truncate">
+                  AI Slayt & Video Reklam Stüdyosu
+                </h3>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase tracking-wider hidden sm:inline-block">
+                  {slides.length} Slaytlı Kurgu
                 </span>
               </div>
-              <p className="text-[10px] sm:text-[11px] text-slate-400 line-clamp-1">
-                {product?.name} — Gerçek yaşam senaryosu, merkez odaklı kolaj ve sektörel paylaşım metni
+              <p className="text-[11px] text-slate-400 truncate">
+                {product?.name} • {storeName}
               </p>
             </div>
           </div>
@@ -645,14 +532,13 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 sm:p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shrink-0 ml-2"
-            title="Kapat"
+            className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* MOBILE NAVIGATION TABS (VISIBLE ON MOBILE, HIDDEN ON LG) */}
+        {/* MOBILE NAVIGATION TABS */}
         <div className="lg:hidden flex items-center justify-between border-b border-slate-800 bg-slate-950/90 px-2 py-1.5 gap-1 shrink-0">
           <button
             type="button"
@@ -663,8 +549,23 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <ImageIcon className="w-3.5 h-3.5" />
-            <span>Afiş & Video</span>
+            <Video className="w-3.5 h-3.5" />
+            <span>Önizleme</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMobileTab('slides');
+              setRightTab('slides');
+            }}
+            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              mobileTab === 'slides'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Slayt Editörü</span>
           </button>
           <button
             type="button"
@@ -679,91 +580,49 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Paylaşım Metni</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMobileTab('scenario');
-              if (rightTab === 'caption') setRightTab('scenario');
-            }}
-            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              mobileTab === 'scenario' || mobileTab === 'collage'
-                ? 'bg-purple-600/30 text-purple-200 border border-purple-500/40'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Senaryo & Kolaj</span>
+            <span>Metin</span>
           </button>
         </div>
 
         {/* MAIN DUAL-COLUMN WORKSPACE */}
-        <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 p-3 sm:p-5 pb-28 sm:pb-6">
+        <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 p-3 sm:p-4 pb-28 sm:pb-4">
           
-          {/* LEFT COLUMN: LIVE STAGE PREVIEW, COLLAGE BAR & EXPORT (7 COLS) */}
-          <div className={`lg:col-span-7 flex flex-col justify-between space-y-3.5 ${mobileTab !== 'stage' ? 'hidden lg:flex' : 'flex'}`}>
+          {/* LEFT COLUMN: LIVE STAGE PREVIEW, TIMELINE SCRUBBER & EXPORT (7 COLS) */}
+          <div className={`lg:col-span-7 flex flex-col justify-between space-y-3 ${mobileTab !== 'stage' ? 'hidden lg:flex' : 'flex'}`}>
             
-            {/* TOP TOOLBAR: MODE + COLLAGE LAYOUT + ASPECT RATIO */}
-            <div className="w-full flex flex-wrap items-center justify-between gap-2 bg-slate-950/70 p-2 rounded-2xl border border-slate-800">
-              
-              {/* Output Mode Switcher */}
+            {/* TOP TOOLBAR: OUTPUT MODE + ASPECT RATIO */}
+            <div className="w-full flex items-center justify-between gap-2 bg-slate-950/70 p-2 rounded-2xl border border-slate-800">
               <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOutputMode('image');
-                    setIsPlayingVideo(false);
-                  }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    outputMode === 'image'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  <span>Senaryo & Kolaj Afiş</span>
-                </button>
                 <button
                   type="button"
                   onClick={() => {
                     setOutputMode('video');
                     setIsPlayingVideo(true);
                   }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     outputMode === 'video'
                       ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-xs'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Film className="w-3.5 h-3.5" />
-                  <span>4 Sahneli Senaryo Video</span>
+                  <span>Slayt Video (Reels)</span>
                 </button>
-              </div>
-
-              {/* Quick Collage Layout Selector */}
-              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
-                {(
-                  [
-                    { id: 'single', label: 'Tekli Sahne' },
-                    { id: 'collage_2', label: "2'li Kolaj" },
-                    { id: 'collage_3', label: "3'lü Bento" },
-                    { id: 'collage_4', label: "4'lü Odak" }
-                  ] as Array<{ id: CollageLayout; label: string }>
-                ).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setCollageLayout(item.id)}
-                    className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                      collageLayout === item.id
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOutputMode('image');
+                    setIsPlayingVideo(false);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    outputMode === 'image'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>Tek Slayt Afişi</span>
+                </button>
               </div>
 
               {/* Aspect Ratio Switcher */}
@@ -797,45 +656,33 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
               </div>
             </div>
 
-            {/* HIGH-RES CANVAS / VIDEO PREVIEW STAGE */}
-            <div className="relative w-full flex-1 flex items-center justify-center p-2 sm:p-3 rounded-2xl bg-black/50 border border-slate-800/90 min-h-[220px] sm:min-h-[380px] max-h-[350px] sm:max-h-[490px] overflow-hidden">
-              {aiGeneratedVideoUrl && outputMode === 'video' ? (
-                <video
-                  src={aiGeneratedVideoUrl}
-                  controls
-                  autoPlay
-                  loop
-                  className="max-h-[320px] sm:max-h-[440px] rounded-xl shadow-2xl border border-slate-700"
+            {/* HIGH-RES CANVAS PREVIEW STAGE */}
+            <div className="relative w-full flex-1 flex items-center justify-center p-2 rounded-2xl bg-black/60 border border-slate-800/90 min-h-[260px] sm:min-h-[380px] max-h-[460px] overflow-hidden">
+              <div 
+                className="relative shadow-2xl transition-all duration-300 rounded-xl overflow-hidden max-w-full"
+                style={{
+                  width: selectedRatio === 'story' ? 'min(240px, 65vw)' : 'min(360px, 85vw)',
+                  height: selectedRatio === 'story' ? 'min(410px, 48vh)' : 'min(360px, 48vh)',
+                  maxHeight: '430px'
+                }}
+              >
+                <canvas
+                  ref={canvasRef}
+                  className="w-full h-full object-contain rounded-xl select-none"
                 />
-              ) : (
-                <div 
-                  className="relative shadow-2xl transition-all duration-300 rounded-xl overflow-hidden max-w-full"
-                  style={{
-                    width: selectedRatio === 'story' ? 'min(240px, 65vw)' : 'min(340px, 85vw)',
-                    height: selectedRatio === 'story' ? 'min(400px, 46vh)' : 'min(340px, 46vh)',
-                    maxHeight: '420px'
-                  }}
-                >
-                  <canvas
-                    ref={canvasRef}
-                    className="w-full h-full object-contain rounded-xl select-none"
-                  />
 
-                  {/* Active Mode Indicator Pill */}
-                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/15 text-[10px] font-bold text-white shadow-lg">
-                    <span className={`w-2 h-2 rounded-full ${outputMode === 'video' ? 'bg-cyan-400 animate-ping' : 'bg-emerald-400'}`} />
-                    <span>
-                      {outputMode === 'video'
-                        ? `4 SAHNELİ SENARYO REEL (${Math.min(4, Math.floor(videoProgress * 4) + 1)}/4)`
-                        : 'MERKEZ ODAKLI 1080P'}
-                    </span>
-                  </div>
+                {/* Active Slide Pill */}
+                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 bg-slate-950/85 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/15 text-[10px] font-bold text-white shadow-lg">
+                  <span className={`w-2 h-2 rounded-full ${outputMode === 'video' ? 'bg-cyan-400 animate-ping' : 'bg-emerald-400'}`} />
+                  <span>
+                    SLAYT {activeSlideIndex + 1} / {slides.length}
+                  </span>
                 </div>
-              )}
+              </div>
 
               {/* Video Playback Scrubber & Scene Bar */}
-              {outputMode === 'video' && !aiGeneratedVideoUrl && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2.5 bg-slate-950/90 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-800 shadow-xl">
+              {outputMode === 'video' && slides.length > 0 && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-950/95 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-slate-800 shadow-xl">
                   <button
                     type="button"
                     onClick={() => setIsPlayingVideo(!isPlayingVideo)}
@@ -853,98 +700,21 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                   </button>
-                  <div className="w-36 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="w-32 bg-slate-800 h-1.5 rounded-full overflow-hidden">
                     <div 
                       className="bg-gradient-to-r from-cyan-400 to-indigo-500 h-full transition-all duration-75"
                       style={{ width: `${Math.round(videoProgress * 100)}%` }}
                     />
                   </div>
-                  <span className="text-[11px] font-mono text-slate-300">
-                    {(videoProgress * 6).toFixed(1)}s / 6.0s
+                  <span className="text-[10px] font-mono text-slate-300">
+                    {(videoProgress * slides.length * 2).toFixed(1)}s / {(slides.length * 2)}s
                   </span>
                 </div>
               )}
             </div>
 
-            {/* ENVIRONMENT SCENE & ATMOSPHERE BAR */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => setSceneType('desk_setup')}
-                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
-                  sceneType === 'desk_setup'
-                    ? 'bg-slate-800 border-cyan-500 text-white ring-1 ring-cyan-500/30'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <Monitor className="w-4 h-4 text-cyan-400 shrink-0" />
-                <div>
-                  <div className="text-[11px] font-bold text-white">Ofis / Masaüstü</div>
-                  <div className="text-[9px] text-slate-400">Masa kurulum sahnesi</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSceneType('user_lifestyle')}
-                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
-                  sceneType === 'user_lifestyle'
-                    ? 'bg-slate-800 border-purple-500 text-white ring-1 ring-purple-500/30'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <User className="w-4 h-4 text-purple-400 shrink-0" />
-                <div>
-                  <div className="text-[11px] font-bold text-white">Kullanıcı Üzerinde</div>
-                  <div className="text-[9px] text-slate-400">Canlı deneyim kurgusu</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSceneType('closet_organizer')}
-                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
-                  sceneType === 'closet_organizer'
-                    ? 'bg-slate-800 border-amber-500 text-white ring-1 ring-amber-500/30'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <Package className="w-4 h-4 text-amber-400 shrink-0" />
-                <div>
-                  <div className="text-[11px] font-bold text-white">Dolap / Ev İçi</div>
-                  <div className="text-[9px] text-slate-400">Raf & yerleşim sahnesi</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSceneType('studio_macro')}
-                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
-                  sceneType === 'studio_macro'
-                    ? 'bg-slate-800 border-emerald-500 text-white ring-1 ring-emerald-500/30'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <Focus className="w-4 h-4 text-emerald-400 shrink-0" />
-                <div>
-                  <div className="text-[11px] font-bold text-white">Stüdyo Makro</div>
-                  <div className="text-[9px] text-slate-400">Merkez doku & odak</div>
-                </div>
-              </button>
-            </div>
-
             {/* DOWNLOAD & EXPORT BUTTONS */}
-            <div className="w-full flex flex-col sm:flex-row gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={handleDownloadImage}
-                disabled={isDownloadingImage}
-                className="flex-1 py-2.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-              >
-                <Download className="w-4 h-4 text-slate-900" />
-                <span>{isDownloadingImage ? "Hazırlanıyor..." : "Merkez Odaklı Afiş / Kolaj İndir (PNG)"}</span>
-              </button>
-
+            <div className="w-full flex flex-col sm:flex-row gap-2 pt-1">
               <button
                 type="button"
                 onClick={handleDownloadVideo}
@@ -954,81 +724,81 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 <Video className="w-4 h-4" />
                 <span>
                   {isExportingVideo 
-                    ? `4 Sahneli Video Kaydediliyor (%${exportProgress})...` 
-                    : "Çok Sahneli Senaryo Videosu İndir"}
+                    ? `Video Reels Kaydediliyor (%${exportProgress})...` 
+                    : `Tüm Slaytları Video Reels İndir (${slides.length * 2}s)`}
                 </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadImage}
+                disabled={isDownloadingImage}
+                className="py-2.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Download className="w-4 h-4 text-slate-900" />
+                <span>Bu Slaytı Afiş İndir (PNG)</span>
               </button>
             </div>
 
-            {/* QUICK CAPTION COPY & PREVIEW BAR (INSTANT 1-TAP COPY ON MOBILE & DESKTOP) */}
-            <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/90 flex flex-col sm:flex-row items-center justify-between gap-2.5 shadow-lg">
+            {/* QUICK CAPTION COPY BAR */}
+            <div className="p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800/90 flex flex-col sm:flex-row items-center justify-between gap-2 shadow-lg">
               <div className="flex-1 min-w-0 w-full sm:w-auto">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-300">
                   <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                  <span className="truncate">Hazır Paylaşım Metni & Hashtagler:</span>
+                  <span className="truncate">Sektörel Paylaşım Metni & Hashtagler:</span>
                 </div>
                 <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                  {captionText || "Ürüne özel sektörel metin ve etiketler..."}
+                  {captionText || "Ürüne özel hazır satış metni..."}
                 </p>
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                 <button
                   type="button"
-                  onClick={() => {
-                    setRightTab('caption');
-                    setMobileTab('caption');
-                  }}
-                  className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer text-center"
-                >
-                  Metni Düzenle
-                </button>
-                <button
-                  type="button"
                   onClick={handleCopyCaption}
-                  className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   {copySuccess ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copySuccess ? "Metin Kopyalandı!" : "Metni Kopyala"}</span>
+                  <span>{copySuccess ? "Kopyalandı!" : "Metni Kopyala"}</span>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: SEGMENT SCENARIO IMAGINATION, MULTI-IMAGE COLLAGE & AI CAPTION (5 COLS) */}
-          <div className={`lg:col-span-5 min-w-0 flex flex-col space-y-4 bg-slate-950/50 p-3 sm:p-4 rounded-3xl border border-slate-800 overflow-hidden whitespace-normal ${mobileTab === 'stage' ? 'hidden lg:flex' : 'flex'}`}>
+          {/* RIGHT COLUMN: SLIDE TIMELINE & INTERACTIVE SLIDE INSPECTOR (5 COLS) */}
+          <div className={`lg:col-span-5 min-w-0 flex flex-col space-y-3 bg-slate-950/50 p-3 sm:p-4 rounded-3xl border border-slate-800 overflow-hidden ${mobileTab === 'stage' ? 'hidden lg:flex' : 'flex'}`}>
             
             {/* RIGHT PANEL NAVIGATION TABS */}
-            <div className="grid grid-cols-3 gap-1.5 bg-slate-900 p-1 rounded-2xl border border-slate-800">
+            <div className="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
               <button
                 type="button"
                 onClick={() => {
-                  setRightTab('scenario');
-                  setMobileTab('scenario');
+                  setRightTab('slides');
+                  setMobileTab('slides');
                 }}
-                className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  rightTab === 'scenario'
+                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  rightTab === 'slides'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Wand2 className="w-3.5 h-3.5" />
-                <span>AI Senaryo</span>
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Slayt Editörü ({slides.length})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => {
-                  setRightTab('collage');
-                  setMobileTab('collage');
+                  setRightTab('design');
+                  setMobileTab('design');
                 }}
-                className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  rightTab === 'collage'
+                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  rightTab === 'design'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Çoklu Resim ({selectedImageUrls.length})</span>
+                <span>Şablon & Tema</span>
               </button>
 
               <button
@@ -1037,378 +807,372 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                   setRightTab('caption');
                   setMobileTab('caption');
                 }}
-                className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   rightTab === 'caption'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>Sektörel Metin</span>
+                <span>Hazır Metin</span>
               </button>
             </div>
 
-            {/* TAB 1: SEGMENT SCENARIO IMAGINATION & STORYBOARD */}
-            {rightTab === 'scenario' && (
-              <div className="space-y-3.5 flex-1 min-w-0 overflow-y-auto overflow-x-hidden pr-1 whitespace-normal">
+            {/* TAB 1: INTERACTIVE SLIDE DECK & ACTIVE SLIDE INSPECTOR */}
+            {rightTab === 'slides' && (
+              <div className="space-y-3 flex-1 min-w-0 overflow-y-auto pr-1">
                 
-                {/* Custom Imagination Prompt Box */}
-                <div className="p-3 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 space-y-2 min-w-0">
-                  <label className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center justify-between">
-                    <span>Özel Hayal Gücü & Senaryo Kurgusu</span>
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                  </label>
-                  <div className="flex gap-2 min-w-0">
-                    <input
-                      type="text"
-                      value={customScenarioIdea}
-                      onChange={(e) => setCustomScenarioIdea(e.target.value)}
-                      placeholder="Örn: Dolap içi yerleşim / Modern ofis masası..."
-                      className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
-                    />
+                {/* HORIZONTAL SLIDE TIMELINE / SELECTOR */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <span>Slayt Akışı</span>
+                      <span className="text-cyan-400">({activeSlideIndex + 1}/{slides.length})</span>
+                    </span>
                     <button
                       type="button"
-                      onClick={handleGenerateAiSceneImage}
-                      disabled={isGeneratingAiScene}
-                      className="px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
-                      title="Ürünü bu senaryoda sahnele ve çoklu resim havuzuna ekle"
+                      onClick={handleAddSlide}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 text-[10px] font-bold cursor-pointer"
                     >
-                      <Wand2 className={`w-3.5 h-3.5 ${isGeneratingAiScene ? 'animate-spin' : ''}`} />
-                      <span>{isGeneratingAiScene ? "Sahneleniyor..." : "Sahne Üret"}</span>
+                      <Plus className="w-3 h-3" />
+                      <span>Slayt Ekle</span>
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400 whitespace-normal break-words leading-relaxed">
-                    Hazır senaryo seçebilir veya hayal ettiğiniz ortamı yazıp <strong>Sahne Üret</strong> ile kolaja ekleyebilirsiniz.
-                  </p>
-                </div>
 
-                {/* Tailored Segment Scenarios List */}
-                <div className="space-y-1.5 min-w-0">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block truncate">
-                    Hazır Canlandırma Senaryoları:
-                  </span>
-                  <div className="space-y-2 min-w-0">
-                    {scenarios.map((scen) => {
-                      const isSelected = activeScenarioId === scen.id;
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1.5 no-scrollbar">
+                    {slides.map((s, idx) => {
+                      const isSelected = activeSlideIndex === idx;
+                      const thumbUrl = imageUrlsPool[s.imageIndex] || imageUrlsPool[0];
                       return (
                         <button
-                          key={scen.id}
+                          key={s.id || idx}
                           type="button"
-                          onClick={() => applyScenario(scen)}
-                          className={`w-full min-w-0 overflow-hidden whitespace-normal text-left p-2.5 rounded-2xl border transition-all cursor-pointer ${
+                          onClick={() => {
+                            setActiveSlideIndex(idx);
+                            setIsPlayingVideo(false);
+                          }}
+                          className={`flex items-center gap-2 p-1.5 pr-2.5 rounded-xl border transition-all cursor-pointer shrink-0 text-left ${
                             isSelected
-                              ? 'bg-slate-800/95 border-cyan-500 ring-1 ring-cyan-500/30 shadow-md'
-                              : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+                              ? 'bg-slate-800 border-cyan-500 ring-1 ring-cyan-500/40 shadow-md'
+                              : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2 mb-1 min-w-0">
-                            <span className="text-xs font-bold text-white flex items-center gap-1.5 min-w-0 truncate">
-                              {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
-                              <span className="truncate">{scen.title}</span>
-                            </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-950 text-cyan-300 border border-slate-800 font-semibold shrink-0">
-                              4 Sahne
-                            </span>
+                          <div className="w-8 h-8 rounded-lg bg-slate-950 overflow-hidden shrink-0 border border-slate-700">
+                            {thumbUrl && <img src={thumbUrl} alt="" className="w-full h-full object-cover" />}
                           </div>
-                          <p className="text-[11px] text-slate-400 leading-snug whitespace-normal break-words line-clamp-2">
-                            {scen.description}
-                          </p>
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-bold text-white flex items-center gap-1">
+                              <span>Slayt {idx + 1}</span>
+                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />}
+                            </div>
+                            <div className="text-[9px] text-slate-400 truncate max-w-[85px]">
+                              {s.kicker || s.headline}
+                            </div>
+                          </div>
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Headline & Kicker Quick Editor */}
-                <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Afiş & Video Başlık Kurgusu
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] font-semibold text-slate-400">Üst Slogan</label>
-                      <input
-                        type="text"
-                        value={kicker}
-                        onChange={(e) => setKicker(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500"
-                      />
+                {/* ACTIVE SLIDE INSPECTOR (EDIT SELECTED SLIDE) */}
+                {activeSlide && (
+                  <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5">
+                    <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+                      <span className="text-xs font-extrabold text-cyan-300 flex items-center gap-1.5">
+                        <Sliders className="w-3.5 h-3.5" />
+                        <span>Slayt {activeSlideIndex + 1} Detayları</span>
+                      </span>
+
+                      {/* Slide Reorder & Delete */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleMoveSlide(activeSlideIndex, 'left')}
+                          disabled={activeSlideIndex === 0}
+                          className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
+                          title="Sola Taşı"
+                        >
+                          <ChevronLeft className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveSlide(activeSlideIndex, 'right')}
+                          disabled={activeSlideIndex === slides.length - 1}
+                          className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
+                          title="Sağa Taşı"
+                        >
+                          <ChevronRight className="w-3 h-3" />
+                        </button>
+                        {slides.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSlide(activeSlideIndex)}
+                            className="p-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 cursor-pointer"
+                            title="Bu Slaytı Sil"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Image Assignment for this Slide */}
                     <div>
-                      <label className="text-[10px] font-semibold text-slate-400">Ana Vurgu Başlığı</label>
-                      <input
-                        type="text"
-                        value={headline}
-                        onChange={(e) => setHeadline(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">
+                          Slayt Görselini Seç ({imageUrlsPool.length} Görsel)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="text-[10px] text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-2.5 h-2.5" /> Görsel Ekle
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleAddLocalImage}
+                          className="hidden"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                        {imageUrlsPool.map((url, imgIdx) => {
+                          const isAssigned = activeSlide.imageIndex === imgIdx;
+                          return (
+                            <button
+                              key={imgIdx}
+                              type="button"
+                              onClick={() => handleUpdateActiveSlide({ imageIndex: imgIdx })}
+                              className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer relative ${
+                                isAssigned
+                                  ? 'border-cyan-400 ring-2 ring-cyan-500/30 scale-105'
+                                  : 'border-slate-800 opacity-60 hover:opacity-100'
+                              }`}
+                            >
+                              <img src={url} alt="" className="w-full h-full object-cover" />
+                              {isAssigned && (
+                                <div className="absolute inset-0 bg-cyan-500/20 flex items-center justify-center">
+                                  <Check className="w-4 h-4 text-cyan-300 stroke-[3]" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Headline & Kicker Inputs */}
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400">Üst Kanca / Slogan</label>
+                        <input
+                          type="text"
+                          value={activeSlide.kicker}
+                          onChange={(e) => handleUpdateActiveSlide({ kicker: e.target.value })}
+                          placeholder="Örn: GÜNÜN FIRSATI"
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400">Büyük Vurucu Başlık</label>
+                        <input
+                          type="text"
+                          value={activeSlide.headline}
+                          onChange={(e) => handleUpdateActiveSlide({ headline: e.target.value })}
+                          placeholder="Örn: TERMO İZOLASYON & GENİŞ HACİM"
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400">Açıklama / Fayda Metni</label>
+                        <textarea
+                          rows={2}
+                          value={activeSlide.subtitle}
+                          onChange={(e) => handleUpdateActiveSlide({ subtitle: e.target.value })}
+                          placeholder="Örn: Yiyecek ve içeceklerinizi saatlerce ilk tazeliğinde muhafaza edin"
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 resize-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400">Kampanya / Rozet</label>
+                          <input
+                            type="text"
+                            value={activeSlide.badge}
+                            onChange={(e) => handleUpdateActiveSlide({ badge: e.target.value })}
+                            placeholder="Örn: %25 İNDİRİM"
+                            className="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-amber-300 font-semibold focus:outline-none focus:border-cyan-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400">Hareket Efekti</label>
+                          <select
+                            value={activeSlide.motion}
+                            onChange={(e) => handleUpdateActiveSlide({ motion: e.target.value as MotionEffect })}
+                            className="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500"
+                          >
+                            <option value="zoom_in">🔍 Yavaşça Yakınlaş</option>
+                            <option value="zoom_out">🔭 Geniş Açıya Açıl</option>
+                            <option value="pan_right">➡️ Yana Dinamik Kaydır</option>
+                            <option value="pulse">💓 Dinamik Nabız</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-400">Alt Değer / Kampanya Rozeti</label>
+                )}
+
+                {/* AI RE-GENERATE SLIDES PROMPT BOX */}
+                <div className="p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-extrabold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>AI ile Slaytları Yeniden Kurgula</span>
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
                     <input
                       type="text"
-                      value={badge}
-                      onChange={(e) => setBadge(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      value={customSlidePrompt}
+                      onChange={(e) => setCustomSlidePrompt(e.target.value)}
+                      placeholder="Örn: Masaüstü ofis kurgusu / Piknik ve tatil..."
+                      className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
                     />
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateStorySlides(customSlidePrompt)}
+                      disabled={isGeneratingSlides}
+                      className="px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      <Wand2 className={`w-3.5 h-3.5 ${isGeneratingSlides ? 'animate-spin' : ''}`} />
+                      <span>{isGeneratingSlides ? "Kurgulanıyor..." : "Yeniden Üret"}</span>
+                    </button>
                   </div>
-                </div>
-
-                {/* Google AI Pro Omni Video Trigger */}
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={handleGenerateOmniVideo}
-                    disabled={isGeneratingAiVideo}
-                    className="w-full py-2.5 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
-                  >
-                    <Film className={`w-4 h-4 ${isGeneratingAiVideo ? 'animate-spin' : ''}`} />
-                    <span>
-                      {isGeneratingAiVideo
-                        ? "Senaryo Videosu Kurgulanıyor..."
-                        : "Senaryoyu 4 Sahneli Video Reel Olarak Oynat"}
-                    </span>
-                  </button>
+                  <p className="text-[10px] text-slate-400">
+                    Gemini AI, ürünün gerçek resimlerine ve özelliklerine göre dikkat çeken {slides.length} sahnelik satış hikayesini otomatik kurgular.
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* TAB 2: MULTI-IMAGE COLLAGE & CENTER FOCAL ENGINE */}
-            {rightTab === 'collage' && (
-              <div className="space-y-4 flex-1 overflow-y-auto pr-1">
-                
-                {/* Image Pool & Upload */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-300">
-                      Ürün Görselleri & Üretilen Sahneler ({imageUrlsPool.length})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Görsel Ekle</span>
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleAddLocalImage}
-                      className="hidden"
-                    />
-                  </div>
-
-                  <p className="text-[11px] text-slate-400">
-                    Kolajda ve çok sahneli videoda kullanılacak görselleri seçin (En fazla 4 görsel). Her resmin ürün odağı otomatik olarak merkeze hizalanır.
-                  </p>
-
-                  <div className="grid grid-cols-4 gap-2 pt-1">
-                    {imageUrlsPool.map((url, idx) => {
-                      const isSel = selectedImageUrls.includes(url);
-                      const orderIdx = selectedImageUrls.indexOf(url) + 1;
-                      return (
-                        <div
-                          key={idx}
-                          onClick={() => toggleImageSelection(url)}
-                          className={`relative aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition-all ${
-                            isSel
-                              ? 'border-cyan-400 ring-2 ring-cyan-500/30'
-                              : 'border-slate-800 opacity-60 hover:opacity-100'
-                          }`}
-                        >
-                          <img
-                            src={url}
-                            alt={`Ürün Açı ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          {isSel && (
-                            <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-cyan-500 text-slate-950 font-black text-[11px] flex items-center justify-center shadow-md">
-                              {orderIdx}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Collage Grid Layout Picker */}
-                <div className="space-y-2 pt-2 border-t border-slate-800">
-                  <span className="text-xs font-bold text-slate-300 block">
-                    Kolaj Dizilimi Seçimi
+            {/* TAB 2: TEMPLATE & THEME SETTINGS */}
+            {rightTab === 'design' && (
+              <div className="space-y-3.5 flex-1 overflow-y-auto pr-1">
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                    Görsel Tema & Renk Atmosferi
                   </span>
                   <div className="grid grid-cols-2 gap-2">
-                    {(
-                      [
-                        { id: 'single', title: 'Tekli Sahne & Odak', desc: 'Ana senaryo sahnesi (Çoklu resimde sağ alt PIP)' },
-                        { id: 'collage_2', title: "2'li Simetrik Kolaj", desc: 'Senaryo sahnesi + 2. açı merkez odaklı' },
-                        { id: 'collage_3', title: "3'lü Bento Vitrin", desc: '1 büyük sahne + 2 ortalanmış detay kare' },
-                        { id: 'collage_4', title: "4'lü 360° Katalog", desc: '4 farklı açıdan tam merkez odaklı vitrin' }
-                      ] as Array<{ id: CollageLayout; title: string; desc: string }>
-                    ).map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => setCollageLayout(c.id)}
-                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                          collageLayout === c.id
-                            ? 'bg-slate-800 border-cyan-500 text-white'
-                            : 'bg-slate-900/70 border-slate-800 text-slate-400'
-                        }`}
-                      >
-                        <div className="text-xs font-bold text-white">{c.title}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{c.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Focal Point Centering Mode & Zoom */}
-                <div className="space-y-3 pt-2 border-t border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                      <Focus className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>Resim Odağı & Merkezleme Modu</span>
-                    </span>
-                    <span className="text-[11px] font-mono text-cyan-300">
-                      Yakınlık: %{Math.round(focalZoom * 100)}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(
-                      [
-                        { id: 'smart_center', label: 'Akıllı Merkez Odak' },
-                        { id: 'contain_center', label: 'Tam Ürün Sığdır' },
-                        { id: 'cover_center', label: 'Tam Çerçeve Doldur' }
-                      ] as Array<{ id: ImageFitMode; label: string }>
-                    ).map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setImageFitMode(m.id)}
-                        className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
-                          imageFitMode === m.id
-                            ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
-                            : 'bg-slate-900 border-slate-800 text-slate-400'
-                        }`}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="space-y-1">
-                    <input
-                      type="range"
-                      min="0.85"
-                      max="1.35"
-                      step="0.05"
-                      value={focalZoom}
-                      onChange={(e) => setFocalZoom(parseFloat(e.target.value))}
-                      className="w-full accent-cyan-500 cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] text-slate-500">
-                      <span>Geniş Açı (%85)</span>
-                      <span>Tam Merkez (%100)</span>
-                      <span>Makro Yakın Plan (%135)</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Color Theme Palette */}
-                <div className="space-y-1.5 pt-2 border-t border-slate-800">
-                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                    <Palette className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Çerçeve & Marka Atmosferi</span>
-                  </span>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {(
-                      [
-                        { id: 'futuristic_studio', label: 'Siber Stüdyo' },
-                        { id: 'modern_commerce', label: 'Aydınlık Vitrin' },
-                        { id: 'luxury_editorial', label: 'Lüks Titanyum' },
-                        { id: 'vibrant_sale', label: 'Sıcak Enerji' }
-                      ] as Array<{ id: TemplateTheme; label: string }>
-                    ).map((t) => (
+                    {[
+                      { id: 'futuristic_studio', label: 'Fütüristik Stüdyo', desc: 'Koyu neon & siber mavi' },
+                      { id: 'modern_commerce', label: 'Modern Ticaret', desc: 'Açık & minimal kurumsal' },
+                      { id: 'luxury_editorial', label: 'Lüks Editoryal', desc: 'Premium altın & antrasit' },
+                      { id: 'vibrant_sale', label: 'Dinamik İndirim', desc: 'Sıcak günbatımı & kampanya' }
+                    ].map((t) => (
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setSelectedTheme(t.id)}
-                        className={`py-1.5 px-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
+                        onClick={() => setSelectedTheme(t.id as TemplateTheme)}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                           selectedTheme === t.id
-                            ? 'bg-indigo-600 border-indigo-400 text-white'
-                            : 'bg-slate-900 border-slate-800 text-slate-400'
+                            ? 'bg-slate-800 border-cyan-500 text-white ring-1 ring-cyan-500/30'
+                            : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:border-slate-700'
                         }`}
                       >
-                        {t.label}
+                        <div className="text-xs font-bold text-white">{t.label}</div>
+                        <div className="text-[10px] text-slate-400">{t.desc}</div>
                       </button>
                     ))}
                   </div>
                 </div>
+
+                {/* Focal Zoom */}
+                <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-300">Merkez Ürün Yakınlaştırma (Focal Zoom)</span>
+                    <span className="font-mono text-cyan-400 font-bold">{focalZoom.toFixed(2)}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.85"
+                    max="1.35"
+                    step="0.05"
+                    value={focalZoom}
+                    onChange={(e) => setFocalZoom(parseFloat(e.target.value))}
+                    className="w-full accent-cyan-500 cursor-pointer"
+                  />
+                </div>
               </div>
             )}
 
-            {/* TAB 3: AI CAPTION & COPYWRITING */}
+            {/* TAB 3: AI CAPTION GENERATOR */}
             {rightTab === 'caption' && (
-              <div className="space-y-3 flex-1 flex flex-col">
+              <div className="space-y-3.5 flex-1 overflow-y-auto pr-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Senaryo Odaklı Paylaşım Metni
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Metin Tonu
                   </span>
+                  <div className="flex items-center gap-1">
+                    {(['promo', 'luxury', 'futuristic', 'friendly'] as CaptionTone[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTone(t);
+                          handleGenerateCaption(t);
+                        }}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                          selectedTone === t
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-slate-900 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {t === 'promo' ? 'Fırsat' : t === 'luxury' ? 'Lüks' : t === 'futuristic' ? 'Vizyon' : 'Samimi'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <textarea
+                    rows={9}
+                    value={captionText}
+                    onChange={(e) => setCaptionText(e.target.value)}
+                    placeholder="Sektörel paylaşım metni ve hashtagler..."
+                    className="w-full p-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-indigo-500 resize-none font-sans"
+                  />
+                  {isGeneratingCaption && (
+                    <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center rounded-2xl">
+                      <div className="flex items-center gap-2 text-xs font-bold text-indigo-400">
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Sektörel Metin Yazılıyor...</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => handleGenerateCaption(selectedTone)}
                     disabled={isGeneratingCaption}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 px-2.5 py-1 rounded-lg border border-cyan-500/20 cursor-pointer disabled:opacity-50"
+                    className="flex-1 py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
-                    <RefreshCw className={`w-3 h-3 ${isGeneratingCaption ? 'animate-spin' : ''}`} />
-                    <span>{isGeneratingCaption ? "Yazılıyor..." : "Yeniden Yaz"}</span>
+                    <RefreshCw className={`w-3.5 h-3.5 ${isGeneratingCaption ? 'animate-spin' : ''}`} />
+                    <span>Yeniden Yaz</span>
                   </button>
-                </div>
-
-                <div className="grid grid-cols-4 gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
-                  {(
-                    [
-                      { id: 'promo', label: 'Satış Odaklı' },
-                      { id: 'luxury', label: 'Prestij' },
-                      { id: 'futuristic', label: 'Teknoloji' },
-                      { id: 'friendly', label: 'Samimi' }
-                    ] as Array<{ id: CaptionTone; label: string }>
-                  ).map((toneObj) => (
-                    <button
-                      key={toneObj.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTone(toneObj.id);
-                        handleGenerateCaption(toneObj.id);
-                      }}
-                      className={`py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                        selectedTone === toneObj.id
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      {toneObj.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="relative flex-1">
-                  <textarea
-                    rows={11}
-                    value={captionText}
-                    onChange={(e) => setCaptionText(e.target.value)}
-                    className="w-full h-full p-3 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 leading-relaxed resize-none"
-                  />
                   <button
                     type="button"
                     onClick={handleCopyCaption}
-                    className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg cursor-pointer"
+                    className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
                   >
                     {copySuccess ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copySuccess ? "Kopyalandı!" : "Metni Kopyala"}</span>
@@ -1416,7 +1180,6 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>

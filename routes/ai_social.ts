@@ -844,4 +844,219 @@ SADECE JSON array döndür:
   }
 });
 
+/**
+ * POST /api/ai-social/generate-story-slides
+ * Generates tailored, high-conversion selling story slides matching the product's actual features and images
+ */
+router.post("/generate-story-slides", async (req: any, res: any) => {
+  const {
+    title = "Seçkin Ürün",
+    description = "",
+    category = "Genel",
+    brand = "",
+    price = "",
+    oldPrice = null,
+    currency = "TRY",
+    imagesCount = 4,
+    customPrompt = ""
+  } = req.body;
+
+  const count = Math.max(2, Math.min(6, Number(imagesCount) || 4));
+
+  // Intelligent fallback generator based on category & title
+  const generateFallbackSlides = () => {
+    const isTech = /ssd|ram|monit|mouse|klavye|usb|disk|bilgisayar|kulakl|kablo|şarj|telefon/i.test(title + " " + category);
+    const isHome = /dolap|organizer|çanta|piknik|termo|mutfak|ev|banyo|kutu|raf|saklama/i.test(title + " " + category);
+    const isFashion = /giyim|ayakkab|elbise|saat|takı|deri|mont|gömlek/i.test(title + " " + category);
+
+    if (isTech) {
+      return [
+        {
+          id: "slide-1",
+          imageIndex: 0,
+          kicker: "YÜKSEK PERFORMANS & HIZ",
+          headline: title.length > 30 ? title.substring(0, 30) : title,
+          subtitle: "Günlük işlerinizde ve oyunlarda maksimum kararlılık ve hız",
+          badge: price ? `${price} ${currency}` : "Özel Lansman Fiyatı",
+          motion: "zoom_in"
+        },
+        {
+          id: "slide-2",
+          imageIndex: Math.min(1, count - 1),
+          kicker: "ÜSTÜN TEKNOLOJİ & KALİTE",
+          headline: "ORİJİNAL DONANIM GARANTİSİ",
+          subtitle: "Gelişmiş bileşen kalitesi ve uzun ömürlü kararlı çalışma",
+          badge: "2 Yıl Resmi Garanti",
+          motion: "pulse"
+        },
+        {
+          id: "slide-3",
+          imageIndex: Math.min(2, count - 1),
+          kicker: "KUSURSUZ UYUMLULUK",
+          headline: "TAK & ÇALIŞTIR KOLAYLIĞI",
+          subtitle: "Tüm sistemlerle anında senkronize, zahmetsiz kurulum",
+          badge: "Hızlı & Güvenli Teslimat",
+          motion: "pan_right"
+        },
+        {
+          id: "slide-4",
+          imageIndex: 0,
+          kicker: "SINIRLI STOK FIRSATI",
+          headline: "HEMEN SİPARİŞ VERİN",
+          subtitle: "Seçkin mağaza güvencesiyle aynı gün kargo fırsatı",
+          badge: price ? `${price} ${currency} • KAÇIRMAYIN` : "Sipariş İçin Tıklayın",
+          motion: "zoom_out"
+        }
+      ];
+    }
+
+    if (isHome) {
+      return [
+        {
+          id: "slide-1",
+          imageIndex: 0,
+          kicker: "KUSURSUZ DÜZEN & KONFOR",
+          headline: title.length > 32 ? title.substring(0, 32) : title,
+          subtitle: "Evinizde ve seyahatlerinizde maksimum alan tasarrufu ve pratiklik",
+          badge: price ? `${price} ${currency}` : "Günün Fırsatı",
+          motion: "zoom_in"
+        },
+        {
+          id: "slide-2",
+          imageIndex: Math.min(1, count - 1),
+          kicker: "İŞLEVSEL & DETAYLI TASARIM",
+          headline: "DAYANIKLI MALZEME & İÇ HACİM",
+          subtitle: "Yüksek kaliteli dikişler, ısı yalıtımı ve kolay temizlenebilir yapı",
+          badge: "1. Sınıf Kalite",
+          motion: "pan_right"
+        },
+        {
+          id: "slide-3",
+          imageIndex: Math.min(2, count - 1),
+          kicker: "HER AN YANINIZDA",
+          headline: "HER MEKÂNA KOLAY UYUM",
+          subtitle: "Piknikte, kampta, arabada veya dolabınızda kusursuz pratiklik",
+          badge: "Ergonomik Taşıma",
+          motion: "pulse"
+        },
+        {
+          id: "slide-4",
+          imageIndex: 0,
+          kicker: "AVANTAJLI FİYAT",
+          headline: "STOKLARLA SINIRLI FIRSAT",
+          subtitle: "Güvenli alışveriş ve hızlı kargo ile hemen kapınızda",
+          badge: price ? `${price} ${currency} • HEMEN AL` : "Fırsatı Yakala",
+          motion: "zoom_out"
+        }
+      ];
+    }
+
+    return [
+      {
+        id: "slide-1",
+        imageIndex: 0,
+        kicker: "ÖZEL KOLEKSİYON",
+        headline: title.length > 32 ? title.substring(0, 32) : title,
+        subtitle: "Şık tasarımı ve seçkin kalitesiyle fark yaratan deneyim",
+        badge: price ? `${price} ${currency}` : "Seçkin Ürün",
+        motion: "zoom_in"
+      },
+      {
+        id: "slide-2",
+        imageIndex: Math.min(1, count - 1),
+        kicker: "DETAYLARDAKİ KALİTE",
+        headline: "ÖZENLE İŞLENMİŞ DETAYLAR",
+        subtitle: "Uzun ömürlü kullanım için tasarlanmış birinci sınıf malzeme",
+        badge: "Orijinal Ürün",
+        motion: "pan_right"
+      },
+      {
+        id: "slide-3",
+        imageIndex: Math.min(2, count - 1),
+        kicker: "GÜNLÜK KULLANIMDA ŞIKLIK",
+        headline: "KONFOR VE İŞLEVSELLİK",
+        subtitle: "Günün her anında size eşlik edecek pratik ve zarif form",
+        badge: "Memnuniyet Garantili",
+        motion: "pulse"
+      },
+      {
+        id: "slide-4",
+        imageIndex: 0,
+        kicker: "KAMPANYALI FİYAT",
+        headline: "HEMEN SAHİP OLUN",
+        subtitle: "Hızlı teslimat ve kolay iade güvencesiyle sipariş verin",
+        badge: price ? `${price} ${currency} • SATIN AL` : "Hemen Keşfet",
+        motion: "zoom_out"
+      }
+    ];
+  };
+
+  const fallback = generateFallbackSlides();
+
+  try {
+    const ai = getGenAIClient();
+    if (!ai) {
+      return res.json({ success: true, slides: fallback, source: "fallback" });
+    }
+
+    const prompt = `Sen profesyonel bir sosyal medya reklam yönetmenisin (Instagram Reels / TikTok / WhatsApp video slayt hikayeleri).
+Aşağıdaki ürün için ${count} slayttan oluşan, izleyicinin dikkatini ilk saniyede yakalayan (hook) ve slayt slayt özelliklerini anlatan dinamik bir video hikaye kurgusu üret.
+
+Ürün Bilgileri:
+- Ürün Adı: "${title}"
+- Kategori: "${category}"
+- Marka: "${brand || 'Seçkin'}"
+- Fiyat: "${price} ${currency}" ${oldPrice ? `(Eski Fiyat: ${oldPrice} ${currency})` : ''}
+- Ürün Açıklaması: "${description.slice(0, 400)}"
+- Mevcut Resim Sayısı: ${count}
+${customPrompt ? `- Kullanıcının Özel İsteği/Kurgusu: "${customPrompt}"` : ''}
+
+Kurallar:
+1. Her slayt için Türkçe çarpıcı bir ÜST SLOGAN (kicker), BÜYÜK VURUCU BAŞLIK (headline - max 32 karakter), ALT AÇIKLAMA/FAYDA (subtitle - max 70 karakter) ve KAMPANYA ROZETİ (badge - max 28 karakter) üret.
+2. Slayt 1: Dikkat çekici kanca (indirim, popülerlik, çözüm vaadi).
+3. Slayt 2: Detay, malzeme veya teknik üstünlük vurgusu.
+4. Slayt 3: Günlük kullanım, pratiklik veya yaşam deneyimi.
+5. Slayt 4: Satış kapanışı, güven, kargo ve net FİYAT/CTA.
+6. imageIndex değerleri 0 ile ${count - 1} arasında ürün görsellerini sırayla veya odak noktalarına göre dağıt.
+7. motion değeri 'zoom_in', 'zoom_out', 'pan_right' veya 'pulse' olmalıdır.
+
+SADECE aşağıdaki JSON formatında array döndür:
+[
+  {
+    "id": "slide-1",
+    "imageIndex": 0,
+    "kicker": "KISA ÜST SLOGAN",
+    "headline": "VURUCU BAŞLIK",
+    "subtitle": "Kısa net açıklama",
+    "badge": "Rozet / Fiyat",
+    "motion": "zoom_in"
+  }
+]`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: prompt,
+      config: { responseMimeType: "application/json" }
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || "[]");
+    if (Array.isArray(parsed) && parsed.length >= 2) {
+      const sanitized = parsed.map((item, idx) => ({
+        id: item.id || `slide-${idx + 1}`,
+        imageIndex: typeof item.imageIndex === "number" && item.imageIndex >= 0 && item.imageIndex < count ? item.imageIndex : idx % count,
+        kicker: (item.kicker || "ÖNE ÇIKAN FIRSAT").toUpperCase(),
+        headline: (item.headline || title).toUpperCase(),
+        subtitle: item.subtitle || "Üstün kalite ve pratik kullanım",
+        badge: item.badge || (price ? `${price} ${currency}` : "Özel Fırsat"),
+        motion: ['zoom_in', 'zoom_out', 'pan_right', 'pulse'].includes(item.motion) ? item.motion : 'zoom_in'
+      }));
+      return res.json({ success: true, slides: sanitized, source: "gemini-3.8-flash" });
+    }
+  } catch (err: any) {
+    console.warn("AI slides generation notice:", err?.message || err);
+  }
+
+  return res.json({ success: true, slides: fallback, source: "fallback" });
+});
+
 export default router;
