@@ -756,30 +756,30 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             </div>
           </div>
 
-          {/* Integrated High-Density Navigation Tabs */}
-          <div className="relative z-10 pt-2.5 flex items-center gap-1 overflow-x-auto whitespace-nowrap no-scrollbar">
+          {/* Integrated High-Density Navigation Tabs (Single-Line Compact Bar) */}
+          <div className="relative z-10 pt-2 flex items-center gap-1 flex-nowrap overflow-x-auto whitespace-nowrap no-scrollbar">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'dashboard'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <Activity className="h-3.5 w-3.5 text-indigo-500" />
-              <span>Kaptan Köşkü (Mağazalar)</span>
+              <span>Kokpit</span>
             </button>
 
             <button
               onClick={() => setActiveTab('requests')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'requests'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <Inbox className="h-3.5 w-3.5 text-amber-400" />
-              <span>Talepler & Başvurular</span>
+              <span>Talepler</span>
               {(leads.length + registrationRequests.length) > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                   activeTab === 'requests'
@@ -793,79 +793,79 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
 
             <button
               onClick={() => setActiveTab('tenants')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'tenants'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <Layers className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Multi-Tenancy & Şubeler</span>
+              <span>Şubeler</span>
             </button>
 
             <button
               onClick={() => setActiveTab('marketing')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'marketing'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              <span>Pazarlama & Broşür Stüdyosu</span>
+              <span>Pazarlama</span>
             </button>
 
             <button
               onClick={() => setActiveTab('enrakipsiz')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'enrakipsiz'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <Megaphone className="h-3.5 w-3.5 text-amber-400" />
-              <span>enrakipsiz.com Portal</span>
+              <span>Portal</span>
             </button>
 
             <button
               onClick={() => setActiveTab('videos')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'videos'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <Video className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Sektörel Videolar</span>
+              <span>Videolar</span>
             </button>
 
             <button
               onClick={() => setActiveTab('integrator')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'integrator'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <Server className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Entegratör Hub</span>
+              <span>Entegratör</span>
             </button>
 
             <button
               onClick={() => setActiveTab('audit')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'audit'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <ShieldCheck className="h-3.5 w-3.5 text-blue-400" />
-              <span>Güvenlik & İzler</span>
+              <span>Güvenlik</span>
             </button>
 
             <button
               onClick={() => setActiveTab('profile')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'profile'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'

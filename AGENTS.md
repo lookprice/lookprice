@@ -431,3 +431,23 @@ This file outlines strict engineering, performance, and naming directives that m
   - Sayısı belli olan bileşen dizilerinde (örneğin Sosyal Medya Stüdyosundaki **4'lü Slayt Akışı: Slayt 1, Slayt 2, Slayt 3, Slayt 4**, ürün görsel havuzu, şablon seçiciler vb.) `flex overflow-x-auto no-scrollbar` kullanılarak 4. slaytın veya sondaki öğelerin ekran dışına taşıp görünmez hale gelmesi KESİNLİKLE YASAKTIR.
   - Slayt akışı seçicileri daima **`grid grid-cols-2 sm:grid-cols-4 gap-1.5`** yapısında (tüm 4 slayt aynı anda yan yana %100 görünür, yeni slayt eklendiğinde alt satıra dengeli kırılacak şekilde), görsel havuzu seçicileri ise **`flex flex-wrap`** yapısında tasarlanmalıdır.
 
+---
+
+## 31. Büyük Sayfa ve Satır Taşmalarına Son: Tek Satır Kompakt Navigasyon ve Minimalist Operatör Protokolü (Zero-Overflow Single-Line Navigation & High-Density UI Protocol)
+
+- **Üst Navigasyon Butonlarında Kısa ve Öz İsim Zorunluluğu ("Tek Satırda Görünürlük")**:
+  - Panellerin üst araç çubuklarında ve sekme barlarında (`SuperAdmin`, `StoreDashboard`, `StaffDashboard`) buton etiketleri ASLA aşırı uzun (örn. 'Kaptan Köşkü (Mağazalar)', 'Pazarlama & Broşür Stüdyosu', 'Multi-Tenancy & Şubeler', 'Güvenlik & İzler') olamaz.
+  - Etiketler daima kısa, vurucu ve tekil tutulmalıdır:
+    - `Kokpit` (veya `Mağazalar`), `Talepler`, `Şubeler`, `Pazarlama`, `Portal`, `Videolar`, `Entegratör`, `Güvenlik`, `Profil`.
+  - Sekme konteyneri mutlaka `flex-nowrap`, `overflow-x-auto whitespace-nowrap` ve butonlar `shrink-0 px-2.5 py-1.5 text-xs font-bold rounded-lg` formatında olmalıdır. Böylece tüm butonlar masaüstü ve dizüstü ekranlarda tek bir satırda kırılmadan ve taşmadan net şekilde görüntülenir.
+
+- **Devasa Sayfa ve Boşluk Yasağı (Büyüksayfalar ve Satırlara Son - %80 Zoom Eşdeğeri Minimalizm)**:
+  - Profil, Güvenlik, Ekip & İzinler, Denetim İzleri ve diğer tüm yönetim sayfalarında devasa `p-6` / `p-8` kart paddingleri, aşırı yüksek inputlar (`py-3`, `h-12`) ve devasa satır aralıkları (`gap-8`, `space-y-6`) KESİNLİKLE YASAKTIR.
+  - Standart operatör yoğunluğu:
+    - Kart Padding: Optimum `p-3.5 sm:p-4 rounded-xl`
+    - Form Inputları: Bounded-width, optimum `px-2.5 py-1.5 text-xs rounded-lg`
+    - Tipografi: Başlıklar `text-xs sm:text-sm font-black`, açıklamalar `text-[10.5px] text-slate-500`
+    - Izgara Aralığı: Kolonlar arası `gap-3.5` ila `gap-4`
+  - Bu sayede operatör ekranı gereksiz aşağı kaydırmadan tüm alanları kompakt ve derli toplu tek bir görüş alanında yönetir.
+
+

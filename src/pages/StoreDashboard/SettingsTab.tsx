@@ -438,87 +438,87 @@ const SettingsTab = ({
   }, [activeSubTab, branding.custom_domain]);
 
   return (
-    <div className="space-y-6 md:space-y-8 max-w-6xl mx-auto pb-24">
-        {/* Apple/Mercedes Minimalist Sub-tab Navigation */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl p-1.5 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex overflow-x-auto whitespace-nowrap scrollbar-none gap-1.5 transition-all">
+    <div className="space-y-4 max-w-6xl mx-auto pb-16">
+        {/* Minimalist Compact Sub-tab Navigation (Single-Line Bar) */}
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-slate-200/80 dark:border-slate-800/80 shadow-2xs flex flex-nowrap items-center overflow-x-auto whitespace-nowrap no-scrollbar gap-1 transition-all">
           <button 
             onClick={() => setActiveSubTab('integrations')}
-            className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'integrations' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+            className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'integrations' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
-            <Database className="h-4 w-4" />
+            <Database className="h-3.5 w-3.5" />
             <span>Yedek</span>
           </button>
           {!isPortfolio && (
             <button 
               onClick={() => setActiveSubTab('web')}
-              className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'web' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+              className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'web' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
-              <Palette className="h-4 w-4" />
+              <Palette className="h-3.5 w-3.5" />
               <span>Web</span>
             </button>
           )}
           <button 
             onClick={() => setActiveSubTab('store-ops')}
-            className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'store-ops' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+            className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'store-ops' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
-            <Wrench className="h-4 w-4" />
+            <Wrench className="h-3.5 w-3.5" />
             <span>Mağaza</span>
           </button>
           {!isPortfolio && !isCorporateWebsite && (
             <button 
               onClick={() => setActiveSubTab('pos')}
-              className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'pos' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+              className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'pos' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
-              <CreditCard className="h-4 w-4" />
+              <CreditCard className="h-3.5 w-3.5" />
               <span>POS</span>
             </button>
           )}
           {!isPortfolio && !isCafeRestaurant && !isCorporateWebsite && (
             <button 
               onClick={() => setActiveSubTab('e-stores')}
-              className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+              className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
-              <ShoppingBag className="h-4 w-4" />
+              <ShoppingBag className="h-3.5 w-3.5" />
               <span>e-Mağaza</span>
             </button>
           )}
           {isPortfolio && (
             <button 
               onClick={() => setActiveSubTab('financing')}
-              className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'financing' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+              className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'financing' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
-              <CreditCard className="h-4 w-4" />
+              <CreditCard className="h-3.5 w-3.5" />
               <span>Finans</span>
             </button>
           )}
           <button 
             onClick={() => setActiveSubTab('domain')}
-            className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'domain' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+            className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'domain' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
-            <Globe className="h-4 w-4" />
+            <Globe className="h-3.5 w-3.5" />
             <span>Domain</span>
           </button>
           {!isPortfolio && !isCorporateWebsite && (
             <button 
               onClick={() => setActiveSubTab('e-invoice')}
-              className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'e-invoice' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+              className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'e-invoice' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
-              <Building2 className="h-4 w-4" />
+              <Building2 className="h-3.5 w-3.5" />
               <span>E-Fatura</span>
             </button>
           )}
           <button 
             onClick={() => setActiveSubTab('team')}
-            className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'team' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+            className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'team' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
-            <ShieldCheck className="h-4 w-4" />
+            <ShieldCheck className="h-3.5 w-3.5" />
             <span>Ekip</span>
           </button>
           <button 
             onClick={() => setActiveSubTab('logs')}
-            className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'logs' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+            className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'logs' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
-            <History className="h-4 w-4" />
+            <History className="h-3.5 w-3.5" />
             <span>Loglar</span>
           </button>
         </div>

@@ -54,92 +54,96 @@ export function SuperAdminAuditLogs({ lang }: { lang: string }) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-              <ShieldCheck className="text-indigo-600" />
-              {isTr ? 'Kurumsal Güvenlik & Denetim (DPP)' : 'Corporate Security & Audit (DPP)'}
-            </h2>
-            <p className="text-sm text-slate-500 font-medium mt-1">
-              {isTr ? 'Amazon Veri Koruma Politikası (DPP) gereği tüm kritik mağaza işlemleri ve PII maskeleme logları.' : 'All critical store operations and PII masking logs as per Amazon Data Protection Policy (DPP).'}
-            </p>
+    <div className="space-y-3 max-w-6xl mx-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-3.5 sm:p-4 shadow-2xs border border-slate-200 dark:border-slate-800 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-900/50 flex items-center justify-center text-indigo-600 shrink-0">
+              <ShieldCheck className="w-4 h-4 text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white tracking-tight">
+                {isTr ? 'Kurumsal Güvenlik & Denetim İzleri (DPP)' : 'Corporate Security & Audit (DPP)'}
+              </h2>
+              <p className="text-[10.5px] text-slate-500 font-medium">
+                {isTr ? 'Kritik mağaza işlemleri ve PII denetim logları' : 'Critical store operations and PII audit logs'}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               onClick={() => setIsIrpModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 text-rose-600 rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-rose-500/20 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-bold hover:bg-rose-500/20 transition-colors cursor-pointer"
             >
-              <ShieldAlert className="w-4 h-4" />
-              {isTr ? 'Olay Müdahale Planı' : 'Incident Response Plan'}
+              <ShieldAlert className="w-3.5 h-3.5" />
+              {isTr ? 'Olay Müdahale Planı' : 'IRP'}
             </button>
             <button
               onClick={exportToExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-slate-800 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-3.5 h-3.5" />
               Excel
             </button>
           </div>
         </div>
 
-        <div className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder={isTr ? "Mağaza, İşlem, Kullanıcı veya Detay ara..." : "Search store, action, user or details..."}
+            placeholder={isTr ? "Mağaza, işlem, kullanıcı veya detay ara..." : "Search store, action, user or details..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm font-medium"
+            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-slate-100"
           />
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-lg border border-slate-100 dark:border-slate-800">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                <th className="pb-3 px-4">{isTr ? 'Zaman' : 'Time'}</th>
-                <th className="pb-3 px-4">{isTr ? 'Mağaza' : 'Store'}</th>
-                <th className="pb-3 px-4">{isTr ? 'Kullanıcı' : 'User'}</th>
-                <th className="pb-3 px-4">{isTr ? 'İşlem' : 'Action'}</th>
-                <th className="pb-3 px-4">{isTr ? 'Detay' : 'Details'}</th>
+              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <th className="py-2 px-3">{isTr ? 'Zaman' : 'Time'}</th>
+                <th className="py-2 px-3">{isTr ? 'Mağaza' : 'Store'}</th>
+                <th className="py-2 px-3">{isTr ? 'Kullanıcı' : 'User'}</th>
+                <th className="py-2 px-3">{isTr ? 'İşlem' : 'Action'}</th>
+                <th className="py-2 px-3">{isTr ? 'Detay' : 'Details'}</th>
               </tr>
             </thead>
-            <tbody className="text-sm">
+            <tbody className="text-xs divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400">
+                  <td colSpan={5} className="py-6 text-center text-slate-400 text-xs">
                     {isTr ? 'Yükleniyor...' : 'Loading...'}
                   </td>
                 </tr>
               ) : filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400">
+                  <td colSpan={5} className="py-6 text-center text-slate-400 text-xs">
                     {isTr ? 'Kayıt bulunamadı.' : 'No records found.'}
                   </td>
                 </tr>
               ) : (
                 filteredLogs.map((log) => (
-                  <tr key={log.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2 text-slate-500 whitespace-nowrap">
-                        <Clock className="w-3.5 h-3.5" />
+                  <tr key={log.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="py-2 px-3">
+                      <div className="flex items-center gap-1.5 text-slate-500 whitespace-nowrap text-[11px]">
+                        <Clock className="w-3 h-3 text-slate-400" />
                         {formatDateTimeTR(log.created_at)}
                       </div>
                     </td>
-                    <td className="py-3 px-4 font-medium text-slate-700">
+                    <td className="py-2 px-3 font-bold text-slate-800 dark:text-slate-200">
                       {log.store_name || log.store_slug || '-'}
                     </td>
-                    <td className="py-3 px-4 text-slate-500">
+                    <td className="py-2 px-3 text-slate-500 text-[11px]">
                       {log.user_email || 'Sistem'}
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-[11px] font-bold tracking-wider">
+                    <td className="py-2 px-3">
+                      <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 rounded text-[10px] font-bold">
                         {log.action}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-slate-600">
+                    <td className="py-2 px-3 text-slate-600 dark:text-slate-400 text-[11px]">
                       {log.details || '-'}
                     </td>
                   </tr>

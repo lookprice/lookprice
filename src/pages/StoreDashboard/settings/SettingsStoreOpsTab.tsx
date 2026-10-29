@@ -274,8 +274,8 @@ export const SettingsStoreOpsTab = ({
           </div>
         </div>
 
-        {/* Horizontal Micro Tab Bar */}
-        <div className="flex items-center gap-1 overflow-x-auto pt-2.5 pb-0.5 no-scrollbar">
+        {/* Horizontal Micro Tab Bar (Single-Line Compact Bar) */}
+        <div className="flex items-center gap-1 flex-nowrap overflow-x-auto whitespace-nowrap pt-2 pb-0.5 no-scrollbar">
           {activeNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeOpsTab === item.id;
@@ -284,7 +284,7 @@ export const SettingsStoreOpsTab = ({
                 key={item.id}
                 type="button"
                 onClick={() => setActiveOpsTab(item.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                   isActive 
                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' 
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
