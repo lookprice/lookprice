@@ -115,14 +115,79 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
+    height: 5px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-gray-50 rounded-full;
+    background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-gray-200 rounded-full hover:bg-gray-300 transition-colors;
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 9999px;
   }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.65);
+  }
+}
+
+/* Global Modern Ultra-Slim Scrollbar Architecture (Zero Thick White OS Scrollbars & Zero Arrow Buttons) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.38);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.65);
+}
+
+/* Dark Container Adaptive Scrollbar Thumbs */
+.dark *,
+[class*="bg-slate-900"],
+[class*="bg-slate-900"] *,
+[class*="bg-slate-950"],
+[class*="bg-slate-950"] * {
+  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+}
+
+.dark *::-webkit-scrollbar-thumb,
+[class*="bg-slate-900"]::-webkit-scrollbar-thumb,
+[class*="bg-slate-900"] *::-webkit-scrollbar-thumb,
+[class*="bg-slate-950"]::-webkit-scrollbar-thumb,
+[class*="bg-slate-950"] *::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.45);
+  border-radius: 9999px;
+}
+
+.dark *::-webkit-scrollbar-thumb:hover,
+[class*="bg-slate-900"]::-webkit-scrollbar-thumb:hover,
+[class*="bg-slate-900"] *::-webkit-scrollbar-thumb:hover,
+[class*="bg-slate-950"]::-webkit-scrollbar-thumb:hover,
+[class*="bg-slate-950"] *::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
 }
 
 /* Custom Print Page Styles */

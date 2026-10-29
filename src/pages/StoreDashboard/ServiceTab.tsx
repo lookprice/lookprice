@@ -1075,7 +1075,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   </div>
 
                   {/* High-Density Service Items Table */}
-                  <div className="flex-1 my-2 overflow-y-auto rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col">
+                  <div className="flex-1 my-2 overflow-hidden rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col">
                     <div className="sticky top-0 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-xs border-b border-slate-200 dark:border-slate-700/80 px-3 py-1.5 grid grid-cols-12 text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 z-10">
                       <span className="col-span-2">{isTr ? "Tür" : "Type"}</span>
                       <span className="col-span-4">{isTr ? "Kalem / İşlem Adı" : "Item / Service"}</span>

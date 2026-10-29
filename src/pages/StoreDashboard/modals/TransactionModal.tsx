@@ -827,7 +827,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             </div>
 
             {/* Content & High Density Table Area */}
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 bg-slate-50/30">
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-slate-50/30">
               {(() => {
                 const defaultCurr = (branding?.default_currency || branding?.currency || 'TRY').toUpperCase();
                 const storeRates: Record<string, number> = { USD: 34.50, EUR: 37.80, GBP: 45.20, TRY: 1, [defaultCurr]: 1 };

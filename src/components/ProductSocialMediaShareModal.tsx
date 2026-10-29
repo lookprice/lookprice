@@ -584,11 +584,11 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
           </button>
         </div>
 
-        {/* MAIN DUAL-COLUMN WORKSPACE */}
-        <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 p-3 sm:p-4 pb-28 sm:pb-4">
+        {/* MAIN DUAL-COLUMN WORKSPACE (SINGLE UNIFIED SCROLL CONTEXT - NO DOUBLE SCROLLBARS) */}
+        <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-3 p-3 sm:p-4 pb-24 sm:pb-4 items-start">
           
           {/* LEFT COLUMN: LIVE STAGE PREVIEW, TIMELINE SCRUBBER & EXPORT (7 COLS) */}
-          <div className={`lg:col-span-7 flex flex-col justify-between space-y-3 ${mobileTab !== 'stage' ? 'hidden lg:flex' : 'flex'}`}>
+          <div className={`lg:col-span-7 flex flex-col justify-between space-y-2.5 ${mobileTab !== 'stage' ? 'hidden lg:flex' : 'flex'}`}>
             
             {/* TOP TOOLBAR: OUTPUT MODE + ASPECT RATIO */}
             <div className="w-full flex items-center justify-between gap-2 bg-slate-950/70 p-2 rounded-2xl border border-slate-800">
@@ -657,13 +657,13 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
             </div>
 
             {/* HIGH-RES CANVAS PREVIEW STAGE */}
-            <div className="relative w-full flex-1 flex items-center justify-center p-2 rounded-2xl bg-black/60 border border-slate-800/90 min-h-[260px] sm:min-h-[380px] max-h-[460px] overflow-hidden">
+            <div className="relative w-full flex items-center justify-center p-2 rounded-2xl bg-black/60 border border-slate-800/90 min-h-[240px] sm:min-h-[320px] max-h-[390px] overflow-hidden">
               <div 
                 className="relative shadow-2xl transition-all duration-300 rounded-xl overflow-hidden max-w-full"
                 style={{
-                  width: selectedRatio === 'story' ? 'min(240px, 65vw)' : 'min(360px, 85vw)',
-                  height: selectedRatio === 'story' ? 'min(410px, 48vh)' : 'min(360px, 48vh)',
-                  maxHeight: '430px'
+                  width: selectedRatio === 'story' ? 'min(220px, 62vw)' : 'min(340px, 82vw)',
+                  height: selectedRatio === 'story' ? 'min(370px, 44vh)' : 'min(340px, 44vh)',
+                  maxHeight: '370px'
                 }}
               >
                 <canvas
@@ -682,7 +682,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
               {/* Video Playback Scrubber & Scene Bar */}
               {outputMode === 'video' && slides.length > 0 && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-950/95 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-slate-800 shadow-xl">
+                <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-950/95 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-slate-800 shadow-xl">
                   <button
                     type="button"
                     onClick={() => setIsPlayingVideo(!isPlayingVideo)}
@@ -714,7 +714,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
             </div>
 
             {/* DOWNLOAD & EXPORT BUTTONS */}
-            <div className="w-full flex flex-col sm:flex-row gap-2 pt-1">
+            <div className="w-full flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
                 onClick={handleDownloadVideo}
@@ -764,18 +764,18 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
             </div>
           </div>
 
-          {/* RIGHT COLUMN: SLIDE TIMELINE & INTERACTIVE SLIDE INSPECTOR (5 COLS) */}
-          <div className={`lg:col-span-5 min-w-0 flex flex-col space-y-3 bg-slate-950/50 p-3 sm:p-4 rounded-3xl border border-slate-800 overflow-hidden ${mobileTab === 'stage' ? 'hidden lg:flex' : 'flex'}`}>
+          {/* RIGHT COLUMN: SLIDE TIMELINE & INTERACTIVE SLIDE INSPECTOR (5 COLS - NO NESTED SCROLLBAR) */}
+          <div className={`lg:col-span-5 min-w-0 flex flex-col space-y-2.5 bg-slate-950/50 p-3 rounded-2xl border border-slate-800 ${mobileTab === 'stage' ? 'hidden lg:flex' : 'flex'}`}>
             
             {/* RIGHT PANEL NAVIGATION TABS */}
-            <div className="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
+            <div className="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
               <button
                 type="button"
                 onClick={() => {
                   setRightTab('slides');
                   setMobileTab('slides');
                 }}
-                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   rightTab === 'slides'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
@@ -791,7 +791,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                   setRightTab('design');
                   setMobileTab('design');
                 }}
-                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   rightTab === 'design'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
@@ -807,7 +807,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                   setRightTab('caption');
                   setMobileTab('caption');
                 }}
-                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   rightTab === 'caption'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
@@ -820,9 +820,9 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
             {/* TAB 1: INTERACTIVE SLIDE DECK & ACTIVE SLIDE INSPECTOR */}
             {rightTab === 'slides' && (
-              <div className="space-y-3 flex-1 min-w-0 overflow-y-auto pr-1">
+              <div className="space-y-2.5 min-w-0">
                 
-                {/* HORIZONTAL SLIDE TIMELINE / SELECTOR */}
+                {/* 4-COLUMN FULL-VISIBILITY SLIDE TIMELINE / SELECTOR (ZERO HIDDEN SLIDES) */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
@@ -839,7 +839,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1.5 no-scrollbar">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                     {slides.map((s, idx) => {
                       const isSelected = activeSlideIndex === idx;
                       const thumbUrl = imageUrlsPool[s.imageIndex] || imageUrlsPool[0];
@@ -851,21 +851,21 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                             setActiveSlideIndex(idx);
                             setIsPlayingVideo(false);
                           }}
-                          className={`flex items-center gap-2 p-1.5 pr-2.5 rounded-xl border transition-all cursor-pointer shrink-0 text-left ${
+                          className={`flex items-center gap-1.5 p-1.5 rounded-xl border transition-all cursor-pointer min-w-0 text-left ${
                             isSelected
-                              ? 'bg-slate-800 border-cyan-500 ring-1 ring-cyan-500/40 shadow-md'
+                              ? 'bg-slate-800 border-cyan-400 ring-1 ring-cyan-500/40 shadow-md'
                               : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
                           }`}
                         >
-                          <div className="w-8 h-8 rounded-lg bg-slate-950 overflow-hidden shrink-0 border border-slate-700">
+                          <div className="w-7 h-7 rounded-lg bg-slate-950 overflow-hidden shrink-0 border border-slate-700">
                             {thumbUrl && <img src={thumbUrl} alt="" className="w-full h-full object-cover" />}
                           </div>
-                          <div className="min-w-0">
-                            <div className="text-[11px] font-bold text-white flex items-center gap-1">
-                              <span>Slayt {idx + 1}</span>
-                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[10px] font-extrabold text-white flex items-center justify-between gap-1 leading-tight">
+                              <span className="truncate">Slayt {idx + 1}</span>
+                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />}
                             </div>
-                            <div className="text-[9px] text-slate-400 truncate max-w-[85px]">
+                            <div className="text-[9px] text-slate-400 truncate leading-tight mt-0.5">
                               {s.kicker || s.headline}
                             </div>
                           </div>
@@ -877,7 +877,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
                 {/* ACTIVE SLIDE INSPECTOR (EDIT SELECTED SLIDE) */}
                 {activeSlide && (
-                  <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5">
+                  <div className="p-2.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
                     <div className="flex items-center justify-between pb-1 border-b border-slate-800">
                       <span className="text-xs font-extrabold text-cyan-300 flex items-center gap-1.5">
                         <Sliders className="w-3.5 h-3.5" />
@@ -917,7 +917,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                       </div>
                     </div>
 
-                    {/* Image Assignment for this Slide */}
+                    {/* Image Assignment for this Slide (Flex-Wrap for 100% Visibility) */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase">
@@ -939,7 +939,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                           className="hidden"
                         />
                       </div>
-                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {imageUrlsPool.map((url, imgIdx) => {
                           const isAssigned = activeSlide.imageIndex === imgIdx;
                           return (
@@ -947,7 +947,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                               key={imgIdx}
                               type="button"
                               onClick={() => handleUpdateActiveSlide({ imageIndex: imgIdx })}
-                              className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer relative ${
+                              className={`w-10 h-10 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer relative ${
                                 isAssigned
                                   ? 'border-cyan-400 ring-2 ring-cyan-500/30 scale-105'
                                   : 'border-slate-800 opacity-60 hover:opacity-100'
@@ -956,7 +956,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                               <img src={url} alt="" className="w-full h-full object-cover" />
                               {isAssigned && (
                                 <div className="absolute inset-0 bg-cyan-500/20 flex items-center justify-center">
-                                  <Check className="w-4 h-4 text-cyan-300 stroke-[3]" />
+                                  <Check className="w-3.5 h-3.5 text-cyan-300 stroke-[3]" />
                                 </div>
                               )}
                             </button>
@@ -965,32 +965,34 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                       </div>
                     </div>
 
-                    {/* Headline & Kicker Inputs */}
-                    <div className="space-y-2">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-400">Üst Kanca / Slogan</label>
-                        <input
-                          type="text"
-                          value={activeSlide.kicker}
-                          onChange={(e) => handleUpdateActiveSlide({ kicker: e.target.value })}
-                          placeholder="Örn: GÜNÜN FIRSATI"
-                          className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500"
-                        />
+                    {/* Compact Headline & Kicker Inputs */}
+                    <div className="space-y-1.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                        <div className="sm:col-span-5">
+                          <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Üst Kanca / Slogan</label>
+                          <input
+                            type="text"
+                            value={activeSlide.kicker}
+                            onChange={(e) => handleUpdateActiveSlide({ kicker: e.target.value })}
+                            placeholder="Örn: GÜNÜN FIRSATI"
+                            className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-7">
+                          <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Büyük Vurucu Başlık</label>
+                          <input
+                            type="text"
+                            value={activeSlide.headline}
+                            onChange={(e) => handleUpdateActiveSlide({ headline: e.target.value })}
+                            placeholder="Örn: TERMO İZOLASYON & GENİŞ HACİM"
+                            className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+                          />
+                        </div>
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400">Büyük Vurucu Başlık</label>
-                        <input
-                          type="text"
-                          value={activeSlide.headline}
-                          onChange={(e) => handleUpdateActiveSlide({ headline: e.target.value })}
-                          placeholder="Örn: TERMO İZOLASYON & GENİŞ HACİM"
-                          className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-400">Açıklama / Fayda Metni</label>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Açıklama / Fayda Metni</label>
                         <textarea
                           rows={2}
                           value={activeSlide.subtitle}
@@ -1002,7 +1004,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] font-bold text-slate-400">Kampanya / Rozet</label>
+                          <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Kampanya / Rozet</label>
                           <input
                             type="text"
                             value={activeSlide.badge}
@@ -1013,16 +1015,16 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-bold text-slate-400">Hareket Efekti</label>
+                          <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Hareket Efekti</label>
                           <select
                             value={activeSlide.motion}
                             onChange={(e) => handleUpdateActiveSlide({ motion: e.target.value as MotionEffect })}
                             className="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500"
                           >
-                            <option value="zoom_in">🔍 Yavaşça Yakınlaş</option>
-                            <option value="zoom_out">🔭 Geniş Açıya Açıl</option>
-                            <option value="pan_right">➡️ Yana Dinamik Kaydır</option>
-                            <option value="pulse">💓 Dinamik Nabız</option>
+                            <option value="zoom_in">Yavaşça Yakınlaş (Zoom In)</option>
+                            <option value="zoom_out">Geniş Açıya Açıl (Zoom Out)</option>
+                            <option value="pan_right">Yana Dinamik Kaydır (Pan)</option>
+                            <option value="pulse">Dinamik Odak (Pulse)</option>
                           </select>
                         </div>
                       </div>
@@ -1031,9 +1033,9 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 )}
 
                 {/* AI RE-GENERATE SLIDES PROMPT BOX */}
-                <div className="p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-2">
+                <div className="p-2.5 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="text-[10px] font-extrabold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                       <span>AI ile Slaytları Yeniden Kurgula</span>
                     </span>
@@ -1044,19 +1046,19 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                       value={customSlidePrompt}
                       onChange={(e) => setCustomSlidePrompt(e.target.value)}
                       placeholder="Örn: Masaüstü ofis kurgusu / Piknik ve tatil..."
-                      className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+                      className="flex-1 min-w-0 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
                     />
                     <button
                       type="button"
                       onClick={() => handleGenerateStorySlides(customSlidePrompt)}
                       disabled={isGeneratingSlides}
-                      className="px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
+                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
                     >
                       <Wand2 className={`w-3.5 h-3.5 ${isGeneratingSlides ? 'animate-spin' : ''}`} />
                       <span>{isGeneratingSlides ? "Kurgulanıyor..." : "Yeniden Üret"}</span>
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[10px] text-slate-400 leading-tight">
                     Gemini AI, ürünün gerçek resimlerine ve özelliklerine göre dikkat çeken {slides.length} sahnelik satış hikayesini otomatik kurgular.
                   </p>
                 </div>
@@ -1065,7 +1067,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
             {/* TAB 2: TEMPLATE & THEME SETTINGS */}
             {rightTab === 'design' && (
-              <div className="space-y-3.5 flex-1 overflow-y-auto pr-1">
+              <div className="space-y-3">
                 <div className="space-y-1.5">
                   <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block">
                     Görsel Tema & Renk Atmosferi
@@ -1115,7 +1117,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
             {/* TAB 3: AI CAPTION GENERATOR */}
             {rightTab === 'caption' && (
-              <div className="space-y-3.5 flex-1 overflow-y-auto pr-1">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
                     Metin Tonu

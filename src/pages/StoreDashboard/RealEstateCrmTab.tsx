@@ -773,7 +773,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact, isAutomoti
 
       {/* ADD/EDIT CONTACT MODAL - VIEWPORT-FIT COMPACT DESIGN (NO OVERFLOW) */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[100] p-2 sm:p-4 overflow-y-auto flex items-start sm:items-center justify-center py-4 sm:py-6">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[100] p-2 sm:p-4 overflow-hidden flex items-start sm:items-center justify-center py-4 sm:py-6">
           <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[calc(100vh-2rem)] sm:max-h-[88vh]">
             {/* Modal Fixed Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50 shrink-0">

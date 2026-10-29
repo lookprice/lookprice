@@ -844,7 +844,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-1.5 sm:p-3 md:p-4 overflow-y-auto animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-1.5 sm:p-3 md:p-4 overflow-hidden animate-fade-in">
       <div className="bg-white w-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl border border-slate-200 flex flex-col h-[94dvh] max-h-[94dvh] sm:h-auto sm:max-h-[92vh] overflow-hidden my-auto">
         
         {/* HEADER & TABS */}

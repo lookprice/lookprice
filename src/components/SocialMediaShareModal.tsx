@@ -424,10 +424,10 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
           </button>
         </div>
 
-        {/* WORKSPACE FLEX CONTAINER */}
-        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+        {/* WORKSPACE FLEX CONTAINER (SINGLE UNIFIED SCROLL CONTEXT) */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col lg:flex-row">
           {/* Left Side: Real Real-time Interactive Poster Preview */}
-          <div className={`w-full lg:w-1/2 bg-slate-100 p-4 sm:p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 shrink-0 lg:shrink overflow-y-auto pb-28 sm:pb-6 ${mobileTab !== 'preview' ? 'hidden lg:flex' : 'flex'}`}>
+          <div className={`w-full lg:w-1/2 bg-slate-100 p-4 sm:p-5 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 shrink-0 lg:shrink pb-24 sm:pb-5 ${mobileTab !== 'preview' ? 'hidden lg:flex' : 'flex'}`}>
             <div>
               <div className="flex justify-between items-center mb-4">
                 <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
@@ -715,7 +715,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
         </div>
 
         {/* Right Side: Copywriting Caption & Social Media Posting Advisor */}
-        <div className={`w-full lg:w-1/2 p-4 sm:p-6 flex flex-col justify-between overflow-y-auto pb-28 sm:pb-6 ${mobileTab !== 'caption' ? 'hidden lg:flex' : 'flex'}`}>
+        <div className={`w-full lg:w-1/2 p-4 sm:p-5 flex flex-col justify-between pb-24 sm:pb-5 ${mobileTab !== 'caption' ? 'hidden lg:flex' : 'flex'}`}>
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5 leading-tight">

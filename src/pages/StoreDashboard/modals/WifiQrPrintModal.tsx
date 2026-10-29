@@ -187,7 +187,7 @@ export const WifiQrPrintModal: React.FC<WifiQrPrintModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[140] flex items-center justify-center p-3 sm:p-4 bg-slate-900/75 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-[140] flex items-center justify-center p-3 sm:p-4 bg-slate-900/75 backdrop-blur-sm overflow-hidden">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

@@ -413,3 +413,21 @@ This file outlines strict engineering, performance, and naming directives that m
   - **2. Operatör Revizyonlarının Ezilmezliği (Non-Destructive Sync)**: Arka plan veya manuel e-Fatura senkronizasyonu (`sync-inbox`), veritabanında halihazırda mevcut olan bir faturanın operatör tarafından girilmiş/revize edilmiş `exchange_rate`, `currency`, `payment_method`, `is_expense` veya `company_id` değerlerini ASLA `1` veya varsayılan değerlerle ezemez (`CASE WHEN COALESCE(exchange_rate, 1) > 1 THEN exchange_rate ELSE ... END`).
   - **3. Fatura ve Cari Hareket Çift Yönlü Kur Eşgüdümü**: Alış/Satış faturası güncellendiğinde bağlı cari hareketlerin (`current_account_transactions` borç ve alacak kayıtları) döviz kuru anında güncellenmeli; cari hareket ekranından (`transactions.ts`) bir faturaya bağlı hareketin döviz kuru güncellendiğinde de ilgili alış/satış faturasının `exchange_rate` alanı otomatik olarak senkronize edilmelidir.
 
+---
+
+## 30. Çift Kaydırma Çubuğu (Double Scrollbar) Yasağı, Ultra-İnce Scrollbar Mimarisi ve Tam Görünür Izgara (4'lü Slayt/Sekme) Anayasa Kuralı
+
+- **İç İçe Dikey Kaydırma (`overflow-y-auto` içinde `overflow-y-auto`) Kesin Yasağı (Single Scroll Context Protocol)**:
+  - Hiçbir modalda, stüdyo ekranında (`ProductSocialMediaShareModal`, `SocialMediaShareModal`, `AutomotiveSocialMediaShareModal`), sekmede veya yönetim panelinde aynı eksende yan yana iki adet dikey kaydırma çubuğu (double vertical scrollbar) BULUNAMAZ.
+  - **1. Sabit Arka Plan (Backdrop) Kuralı**: Tam ekran modal karartma katmanları (`fixed inset-0 ...`) daima `overflow-hidden` olmalıdır (`overflow-y-auto` kullanılamaz). Kaydırma işlemi yalnızca modalın kendi gövde alanında (`flex-1 min-h-0 overflow-y-auto`) tek bir merkezden yönetilmelidir.
+  - **2. Çift Kolonlu Stüdyo ve Form Modalları**: Ana modal gövdesi `overflow-y-auto` iken sağ veya sol iç kolonlara ya da sekme içlerine ikinci bir `overflow-y-auto` verilmesi KESİNLİKLE YASAKTIR. İç paneller doğal yüksekliğinde akmalı ve tüm modal tek bir birleşik kaydırma bağlamı (Single Scroll Context) kullanmalıdır.
+  - **3. Sabit Başlıklı Tablo Sarmalayıcıları**: `ServiceTab`, `TransactionModal` gibi sabit başlıklı tablolarda dış çerçeve `overflow-hidden flex flex-col`, yalnızca iç satır listesi `flex-1 overflow-y-auto` olmalıdır.
+
+- **Kalın Beyaz İşletim Sistemi Kaydırma Çubuğu Yasağı (`src/index.css` Global Scrollbar Standardı)**:
+  - Windows/tarayıcı varsayılanı olan 17px genişliğindeki kalın beyaz kaydırma çubukları ve alt/üst üçgen ok butonları (`::-webkit-scrollbar-button`) hem çalışma alanını daraltır hem de koyu (`bg-slate-900`/`bg-slate-950`) panellerde görüntü kirliliği yaratır.
+  - `/src/index.css` içerisindeki global `*::-webkit-scrollbar` (5px ultra-ince genişlik, şeffaf `transparent` arka plan izi, gizlenmiş ok butonları ve koyu/açık temaya duyarlı yuvarlatılmış tutamaç) kuralları sistem genelinde zorunludur ve asla kaldırılamaz.
+
+- **Slayt, Adım ve Görsel Seçicilerde Kırpılma Yasağı (Full-Visibility Grid & Flex-Wrap Protocol)**:
+  - Sayısı belli olan bileşen dizilerinde (örneğin Sosyal Medya Stüdyosundaki **4'lü Slayt Akışı: Slayt 1, Slayt 2, Slayt 3, Slayt 4**, ürün görsel havuzu, şablon seçiciler vb.) `flex overflow-x-auto no-scrollbar` kullanılarak 4. slaytın veya sondaki öğelerin ekran dışına taşıp görünmez hale gelmesi KESİNLİKLE YASAKTIR.
+  - Slayt akışı seçicileri daima **`grid grid-cols-2 sm:grid-cols-4 gap-1.5`** yapısında (tüm 4 slayt aynı anda yan yana %100 görünür, yeni slayt eklendiğinde alt satıra dengeli kırılacak şekilde), görsel havuzu seçicileri ise **`flex flex-wrap`** yapısında tasarlanmalıdır.
+

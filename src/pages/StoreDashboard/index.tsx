@@ -2210,7 +2210,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     </div>
 
                     {staffConfigTab === 'waiters' ? (
-                      <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+                      <div className="space-y-2.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                             {txt('Sezonluk & Etkinlik Kadrosu', 'Seasonal & Event Staff', 'Εποχικό Προσωπικό')}
