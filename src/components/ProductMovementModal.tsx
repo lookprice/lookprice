@@ -326,11 +326,16 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
 
     const netStock = totalInQty - totalOutQty;
 
+    const inCurrency = movements.find(m => m.type === 'in' && m.currency)?.currency || product?.cost_currency || product?.currency || 'TRY';
+    const outCurrency = movements.find(m => m.type === 'out' && m.currency)?.currency || inCurrency || product?.currency || 'TRY';
+
     return {
       totalInQty,
       totalInAmount,
       totalOutQty,
       totalOutAmount,
+      inCurrency,
+      outCurrency,
       netStock,
       purchaseCount,
       salesCount,
@@ -338,7 +343,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
       otherCount,
       totalCount: movements.length
     };
-  }, [movements]);
+  }, [movements, product]);
 
   // Filtered movements
   const filteredMovements = useMemo(() => {
@@ -495,7 +500,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                   +{stats.totalInQty} <span className="text-[11px] font-normal text-slate-500">{product.unit || 'Adet'}</span>
                 </div>
                 <div className="text-[10px] font-mono text-slate-500">
-                  {formatCurrency(stats.totalInAmount)}
+                  {formatCurrency(stats.totalInAmount, stats.inCurrency)}
                 </div>
               </div>
               <div className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-mono font-medium text-[11px]">
@@ -514,7 +519,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                   -{stats.totalOutQty} <span className="text-[11px] font-normal text-slate-500">{product.unit || 'Adet'}</span>
                 </div>
                 <div className="text-[10px] font-mono text-slate-500">
-                  {formatCurrency(stats.totalOutAmount)}
+                  {formatCurrency(stats.totalOutAmount, stats.outCurrency)}
                 </div>
               </div>
               <div className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/60 font-mono font-medium text-[11px]">
@@ -533,7 +538,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                   {stats.totalCount > 0 ? stats.netStock : (product.stock_quantity ?? 0)} <span className="text-[11px] font-normal text-indigo-700">{product.unit || 'Adet'}</span>
                 </div>
                 <div className="text-[10px] font-mono text-indigo-700">
-                  {isTr ? 'Satış:' : 'Price:'} {formatCurrency(product.price)}
+                  {isTr ? 'Satış:' : 'Price:'} {formatCurrency(product.price, product.currency || 'TRY')}
                 </div>
               </div>
               <div className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono font-medium text-[10px] shadow-2xs">

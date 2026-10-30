@@ -2211,7 +2211,7 @@ export async function ensureProductMovements(
     `, [productId]);
 
     const prodRes = await pool.query(
-      "SELECT id, store_id, barcode, product_code, sku, name, unit, product_type, stock_quantity, cost_price, price, currency, created_at FROM products WHERE id = $1",
+      "SELECT id, store_id, barcode, product_code, sku, name, unit, product_type, stock_quantity, cost_price, cost_currency, price, currency, created_at FROM products WHERE id = $1",
       [productId]
     );
     if (prodRes.rows.length === 0) return;
@@ -2368,8 +2368,31 @@ export async function ensureProductMovements(
     //   the sum of historical movements, record it as an explicit 'Stok Hareket Virmanı' ('manual_adjustment') row.
     const currentStock = parseFloat(prod.stock_quantity || '0');
     const unitLabel = prod.unit || 'Adet';
-    const baseUnitPrice = parseFloat(prod.cost_price) || parseFloat(prod.price) || 0;
-    const baseCurrency = prod.currency || 'TRY';
+
+    // Find the latest authoritative purchase invoice movement for cost price and currency
+    const latestPurchaseRes = await pool.query(`
+      SELECT unit_price, currency
+      FROM stock_movements
+      WHERE product_id = $1
+        AND type = 'in'
+        AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+    `, [productId]);
+
+    let baseUnitPrice = 0;
+    let baseCurrency = 'TRY';
+
+    if (latestPurchaseRes.rows.length > 0 && parseFloat(latestPurchaseRes.rows[0].unit_price) > 0) {
+      baseUnitPrice = parseFloat(latestPurchaseRes.rows[0].unit_price);
+      baseCurrency = latestPurchaseRes.rows[0].currency || prod.cost_currency || 'TRY';
+    } else if (parseFloat(prod.cost_price) > 0) {
+      baseUnitPrice = parseFloat(prod.cost_price);
+      baseCurrency = prod.cost_currency || 'TRY';
+    } else if (parseFloat(prod.price) > 0) {
+      baseUnitPrice = parseFloat(prod.price);
+      baseCurrency = prod.currency || 'TRY';
+    }
 
     const summaryRes = await pool.query(`
       SELECT

@@ -14,7 +14,9 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle2,
-  Receipt
+  Receipt,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { normalizeSearch } from "../lib/searchUtils";
@@ -43,6 +45,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showHtmlModal, setShowHtmlModal] = useState(false);
+  const [isHtmlFullscreen, setIsHtmlFullscreen] = useState(false);
   const [selectedHtml, setSelectedHtml] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState(() => {
@@ -142,14 +145,15 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       <style id="a4-print-styles">
         @media screen {
           html, body {
-            background-color: #f8fafc !important;
+            background-color: #f1f5f9 !important;
             margin: 0 !important;
-            padding: 16px !important;
+            padding: 12px !important;
           }
           body {
-            max-width: 780px !important;
+            width: 100% !important;
+            max-width: 960px !important;
             margin: 0 auto !important;
-            padding: 20px !important;
+            padding: 24px !important;
             background-color: #ffffff !important;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
             box-sizing: border-box !important;
@@ -1104,16 +1108,35 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       />
 
       {showHtmlModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div className={`fixed inset-0 z-[150] flex items-center justify-center ${isHtmlFullscreen ? 'p-0' : 'p-2 sm:p-4'} bg-slate-900/75 backdrop-blur-sm transition-all`}>
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+            className={`bg-white w-full transition-all duration-200 flex flex-col overflow-hidden shadow-2xl ${
+              isHtmlFullscreen 
+                ? 'fixed inset-0 w-screen h-screen max-w-none max-h-none rounded-none' 
+                : 'max-w-6xl h-[92vh] rounded-2xl sm:rounded-3xl border border-slate-200'
+            }`}
           >
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-medium text-slate-900">{isTr ? "Fatura Önizleme" : "Invoice Preview"}</h3>
-              <div className="flex gap-2">
+            <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="h-4 w-4 text-indigo-600 shrink-0" />
+                <h3 className="font-semibold text-xs sm:text-sm text-slate-900 truncate">
+                  {isTr ? "Fatura Resmi Önizleme (GİB HTML)" : "Official Invoice Preview (HTML)"}
+                </h3>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button 
+                  type="button"
+                  onClick={() => setIsHtmlFullscreen(!isHtmlFullscreen)}
+                  className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  title={isHtmlFullscreen ? (isTr ? "Pencere Boyutuna Dön" : "Exit Fullscreen") : (isTr ? "Tam Ekran Görünüm" : "Fullscreen")}
+                >
+                  {isHtmlFullscreen ? <Minimize2 className="h-3.5 w-3.5 text-indigo-600" /> : <Maximize2 className="h-3.5 w-3.5 text-slate-600" />}
+                  <span className="hidden sm:inline font-semibold">{isHtmlFullscreen ? (isTr ? "Küçült" : "Windowed") : (isTr ? "Tam Ekran" : "Fullscreen")}</span>
+                </button>
+                <button 
+                  type="button"
                   onClick={() => {
                     const iframe = document.getElementById('purchase-invoice-iframe') as HTMLIFrameElement;
                     if (iframe?.contentWindow) {
@@ -1121,17 +1144,25 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                       iframe.contentWindow.print();
                     }
                   }}
-                  className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-medium hover:bg-indigo-100 transition-all flex items-center gap-2 shadow-sm"
+                  className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
-                  <Printer className="h-4 w-4" />
-                  {isTr ? "Yazdır" : "Print"}
+                  <Printer className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{isTr ? "Yazdır" : "Print"}</span>
                 </button>
-                <button onClick={() => setShowHtmlModal(false)} className="p-2 hover:bg-slate-200 rounded-xl transition-all">
-                  <X className="h-5 w-5 text-slate-400" />
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowHtmlModal(false);
+                    setIsHtmlFullscreen(false);
+                  }} 
+                  className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded-xl transition-all cursor-pointer"
+                  title={isTr ? "Kapat" : "Close"}
+                >
+                  <X className="h-5 w-5" />
                 </button>
               </div>
             </div>
-            <div className="relative flex-1 overflow-auto bg-slate-100 p-8 flex justify-center">
+            <div className={`relative flex-1 overflow-auto bg-slate-100/90 ${isHtmlFullscreen ? 'p-2 sm:p-4' : 'p-3 sm:p-6'} flex justify-center`}>
               {(purchaseHtmlLoading || !purchaseIframeReady) && (
                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100/90 backdrop-blur-xs gap-4 z-10 transition-opacity duration-300">
                    <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
@@ -1142,7 +1173,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                 id="purchase-invoice-iframe"
                 srcDoc={getStyledHtml(selectedHtml)} 
                 onLoad={() => setPurchaseIframeReady(true)}
-                className={`w-full h-full bg-white shadow-lg rounded-2xl min-h-[60vh] border-0 p-4 transition-opacity duration-300 ${
+                className={`w-full h-full bg-white shadow-md rounded-2xl min-h-[60vh] border-0 transition-opacity duration-300 ${
                   purchaseIframeReady && !purchaseHtmlLoading ? 'opacity-100' : 'opacity-0'
                 }`}
                 title="Invoice HTML Preview" 
