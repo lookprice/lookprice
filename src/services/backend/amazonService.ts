@@ -1515,7 +1515,15 @@ export class AmazonService {
                   const items = await pool.query("SELECT product_id, quantity, unit_price FROM sale_items WHERE sale_id = $1", [exRow.sale_id]);
                   for (const it of items.rows) {
                     if (it.product_id && it.quantity > 0) {
-                      await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3", [it.quantity, it.product_id, this.storeId]);
+                      // Only refund stock if product is currently > 0 and has not been explicitly zeroed/unpublished
+                      await pool.query(
+                        `UPDATE products 
+                         SET stock_quantity = stock_quantity + $1 
+                         WHERE id = $2 AND store_id = $3 
+                           AND stock_quantity > 0 
+                           AND COALESCE(is_amazon_active, false) = true`,
+                        [it.quantity, it.product_id, this.storeId]
+                      );
                     }
                   }
                   await pool.query(

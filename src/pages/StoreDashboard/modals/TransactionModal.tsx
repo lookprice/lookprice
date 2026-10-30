@@ -848,6 +848,20 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
                 const safeTransactions = Array.isArray(companyTransactions) ? companyTransactions : [];
 
+                // Detect primary foreign currency of this account (e.g. USD, EUR, GBP) if any
+                const detectedFxCurrencies = new Set<string>();
+                Object.keys(openingBalances || {}).forEach(k => {
+                  const ku = k.toUpperCase();
+                  if (ku !== defaultCurr && Math.abs(Number(openingBalances[k] || 0)) > 0.005) detectedFxCurrencies.add(ku);
+                });
+                safeTransactions.forEach((tx: any) => {
+                  const c1 = (tx.currency || defaultCurr).toUpperCase();
+                  const c2 = (tx.cross_currency || '').toUpperCase();
+                  if (c1 && c1 !== defaultCurr) detectedFxCurrencies.add(c1);
+                  if (c2 && c2 !== defaultCurr) detectedFxCurrencies.add(c2);
+                });
+                const primaryFxCurr = Array.from(detectedFxCurrencies)[0] || '';
+
                 const enrichedTransactions: any[] = [];
                 safeTransactions.forEach((tx: any) => {
                   const txCurr = (tx.currency || defaultCurr).toUpperCase();
@@ -857,6 +871,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   const rate = resolveRate(txCurr, tx.exchange_rate);
                   const crossRate = Number(tx.cross_rate || rate || 1);
                   const descLower = (tx.description || '').toLowerCase();
+                  const isExchangeDiffInvoice = descLower.includes('kur fark');
 
                   // Detect cross-currency transaction where entry was in TRY (TL) converting to foreign target (USD/EUR/GBP)
                   const isCrossFromTRY = (txCrossCurr === defaultCurr && rawCrossAmt > 0 && txCurr !== defaultCurr) ||
@@ -869,47 +884,89 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     // Rule: Kayıt işlemi hangi para birimi ile yapılmışsa o para birimi ekstrede asıl kayıtta (statementCurr / statementAmt)
                     // görünecek ve dönüştürülen para birimi de bilgi / karşı tutar kısmında (fxCurr / fxAmt) görünecek!
                     if (isCrossFromTRY) {
-                      const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * (crossRate > 0 ? crossRate : rate)).toFixed(2));
+                      const effRate = crossRate > 1 ? crossRate : (rate > 1 ? rate : resolveRate(txCurr, storeRates[txCurr]));
+                      const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * effRate).toFixed(2));
                       enrichedTransactions.push({
                         ...tx,
                         statementCurr: defaultCurr,
                         statementAmt: tryAmt,
-                        statementRate: crossRate > 0 ? crossRate : rate,
+                        statementRate: effRate,
                         fxCurr: txCurr,
                         fxAmt: rawAmt,
-                        fxRate: crossRate > 0 ? crossRate : rate,
+                        fxRate: effRate,
                         baseAmt: tryAmt,
                         targetBalCurr: txCurr,
                         targetBalAmt: rawAmt,
                         isCross: true,
-                        crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${(crossRate > 0 ? crossRate : rate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+                        crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
                       });
                       return;
                     }
 
                     if (isCrossToTRY) {
-                      const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (crossRate > 0 ? Number((rawAmt / crossRate).toFixed(2)) : null);
+                      const effRate = crossRate > 1 ? crossRate : resolveRate(txCrossCurr, storeRates[txCrossCurr]);
+                      const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (effRate > 0 ? Number((rawAmt / effRate).toFixed(2)) : null);
                       enrichedTransactions.push({
                         ...tx,
                         statementCurr: defaultCurr,
                         statementAmt: rawAmt,
-                        statementRate: crossRate > 0 ? crossRate : 1,
+                        statementRate: effRate > 0 ? effRate : 1,
                         fxCurr: txCrossCurr,
                         fxAmt: fxAmt,
-                        fxRate: crossRate > 0 ? crossRate : rate,
+                        fxRate: effRate,
                         baseAmt: rawAmt,
-                        targetBalCurr: defaultCurr,
-                        targetBalAmt: rawAmt,
+                        targetBalCurr: txCrossCurr,
+                        targetBalAmt: fxAmt || 0,
                         isCross: true,
-                        crossNote: fxAmt ? `${Number(fxAmt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCrossCurr} Mahsubu` : undefined
+                        crossNote: fxAmt ? `${Number(fxAmt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCrossCurr} Mahsubu (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
                       });
                       return;
                     }
 
+                    // Plain default-currency (TRY) transaction on a foreign-currency account
+                    if (txCurr === defaultCurr && primaryFxCurr) {
+                      if (isExchangeDiffInvoice) {
+                        // Kur Farkı Faturası: Adjusts only TRY balance, keeps FX balance unchanged
+                        enrichedTransactions.push({
+                          ...tx,
+                          statementCurr: defaultCurr,
+                          statementAmt: rawAmt,
+                          statementRate: 1,
+                          fxCurr: primaryFxCurr,
+                          fxAmt: null,
+                          fxRate: 1,
+                          baseAmt: rawAmt,
+                          targetBalCurr: primaryFxCurr,
+                          targetBalAmt: 0,
+                          isCross: false,
+                          isExchangeDiffInvoice: true
+                        });
+                        return;
+                      } else {
+                        const impliedRate = (Number(tx.exchange_rate) > 1 ? Number(tx.exchange_rate) : (crossRate > 1 ? crossRate : resolveRate(primaryFxCurr, storeRates[primaryFxCurr])));
+                        const impliedFxAmt = impliedRate > 1 ? Number((rawAmt / impliedRate).toFixed(2)) : null;
+                        enrichedTransactions.push({
+                          ...tx,
+                          statementCurr: defaultCurr,
+                          statementAmt: rawAmt,
+                          statementRate: impliedRate,
+                          fxCurr: impliedFxAmt ? primaryFxCurr : '',
+                          fxAmt: impliedFxAmt,
+                          fxRate: impliedRate,
+                          baseAmt: rawAmt,
+                          targetBalCurr: impliedFxAmt ? primaryFxCurr : defaultCurr,
+                          targetBalAmt: impliedFxAmt || rawAmt,
+                          isCross: Boolean(impliedFxAmt),
+                          crossNote: impliedFxAmt ? `${impliedFxAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${primaryFxCurr} Karşılığı (Kur: ${impliedRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
+                        });
+                        return;
+                      }
+                    }
+
                     // Standard single currency transaction in ALL view
                     const baseAmt = Number((rawAmt * rate).toFixed(2));
-                    const fxCurr = txCrossCurr || (txCurr !== defaultCurr ? defaultCurr : '');
-                    const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (txCurr !== defaultCurr ? baseAmt : null);
+                    const fxCurr = txCrossCurr || (txCurr !== defaultCurr ? txCurr : '');
+                    const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (txCurr !== defaultCurr ? rawAmt : null);
                     enrichedTransactions.push({
                       ...tx,
                       statementCurr: txCurr,
@@ -1513,17 +1570,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                             ) : '-'}
                                           </td>
                                           <td className="py-2 px-3 text-right font-mono font-medium whitespace-nowrap text-slate-900">
-                                            {rowRunningBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
+                                            {Math.abs(rowRunningBalance).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             <span className="text-[10px] ml-1 font-medium text-slate-600">{rowBalCurr}</span>
                                             <span className="text-[10px] ml-1 opacity-75 text-slate-500">
-                                              {rowRunningBalance > 0 ? (isTr ? '(B)' : '(D)') : rowRunningBalance < 0 ? (isTr ? '(A)' : '(C)') : ''}
+                                              {Math.abs(rowRunningBalance) < 0.005 ? (isTr ? '(Kapalı)' : '(Closed)') : rowRunningBalance > 0 ? (isTr ? '(B)' : '(D)') : (isTr ? '(A)' : '(C)')}
                                             </span>
                                           </td>
                                           <td className="py-2 px-3 text-right font-mono font-medium whitespace-nowrap text-indigo-950 bg-indigo-50/30">
-                                            {runningBaseBal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            {Math.abs(runningBaseBal).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             <span className="text-[10px] ml-1 font-medium text-indigo-700">{defaultCurr}</span>
                                             <span className="text-[10px] ml-1 opacity-75 text-indigo-600">
-                                              {runningBaseBal > 0 ? (isTr ? '(B)' : '(D)') : runningBaseBal < 0 ? (isTr ? '(A)' : '(C)') : ''}
+                                              {Math.abs(runningBaseBal) < 0.005 ? (isTr ? '(Kapalı)' : '(Closed)') : runningBaseBal > 0 ? (isTr ? '(B)' : '(D)') : (isTr ? '(A)' : '(C)')}
                                             </span>
                                           </td>
                                           <td className="py-2 px-3.5 text-right whitespace-nowrap">

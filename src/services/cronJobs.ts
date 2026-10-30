@@ -645,13 +645,17 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
 
           const effectivePrice = amzService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
           const sellerSku = p.amazon_sku || mpData?.amazon?.sku || p.sku || p.barcode;
-          const stock = parseInt(p.stock_quantity || "0", 10);
+          const stock = Math.max(0, parseInt(p.stock_quantity || "0", 10));
 
           if (!mpData.amazon) mpData.amazon = {};
           if (!mpData.amazon.attributes) mpData.amazon.attributes = {};
           mpData.amazon.attributes.price = String(effectivePrice);
           mpData.amazon.price = effectivePrice;
           mpData.amazon.lastSync = new Date().toISOString();
+          if (stock <= 0) {
+            mpData.amazon.manuallyUnpublished = true;
+            mpData.amazon.status = 'INACTIVE';
+          }
 
           if (sellerSku && effectivePrice > 0) {
             const res = await amzService.updateListingsItem(sellerSku, effectivePrice, stock, 3, {
@@ -659,8 +663,8 @@ export async function syncMarketplacePricesOnRateChange(storeId: number, rates?:
               productType: mpData?.amazon?.productType
             });
             await pool.query(
-              "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = $1, marketplace_data = $2 WHERE id = $3",
-              [res.success ? null : res.message, JSON.stringify(mpData), p.id]
+              "UPDATE products SET amazon_last_sync = NOW(), amazon_last_error = $1, marketplace_data = $2, is_amazon_active = CASE WHEN $4::numeric <= 0 THEN false ELSE is_amazon_active END WHERE id = $3",
+              [res.success ? null : res.message, JSON.stringify(mpData), p.id, stock]
             );
           }
         } catch (itemErr: any) {

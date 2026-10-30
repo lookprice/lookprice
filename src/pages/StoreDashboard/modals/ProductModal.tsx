@@ -1693,8 +1693,8 @@ export const ProductModal = ({
                     </div>
 
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider">
-                        {isTr ? "Stok Miktarı" : "Stock"}
+                      <label className="text-[10px] font-medium text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                        <span>{isTr ? "Stok Miktarı" : "Stock"}</span>
                       </label>
                       <input
                         type="number"
@@ -1702,7 +1702,7 @@ export const ProductModal = ({
                         readOnly={hasVariants}
                         placeholder="0"
                         className={`w-full px-2 py-0.5 border rounded-lg font-medium text-xs h-7 outline-none ${
-                          hasVariants 
+                          hasVariants
                             ? "bg-slate-100 text-slate-700 border-slate-200 cursor-not-allowed font-medium" 
                             : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600"
                         }`}

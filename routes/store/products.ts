@@ -942,7 +942,7 @@ router.post("/", async (req: any, res) => {
       if (linkedInvoiceItemId) {
         try {
           const piiRes = await pool.query(
-            `SELECT pii.*, pi.invoice_number, pi.document_number, pi.is_expense, pi.tax_number as supplier_vkn, pi.currency as inv_currency, pi.supplier_name
+            `SELECT pii.*, pi.invoice_number, pi.document_number, pi.invoice_date, pi.is_expense, pi.tax_number as supplier_vkn, pi.currency as inv_currency, pi.supplier_name
              FROM purchase_invoice_items pii
              JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
              WHERE pii.id = $1 AND pi.store_id = $2`,
@@ -983,7 +983,7 @@ router.post("/", async (req: any, res) => {
               await pool.query(
                 `INSERT INTO stock_movements
                  (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
-                 VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, 'purchase', $9)`,
+                 VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, COALESCE($8::timestamp, CURRENT_TIMESTAMP), $9, 'purchase', $10)`,
                 [
                   storeId,
                   createdProdId,
@@ -992,6 +992,7 @@ router.post("/", async (req: any, res) => {
                   itemUnitPrice,
                   pii.supplier_name || 'Tedarikçi',
                   pii.inv_currency || currency || 'TRY',
+                  pii.invoice_date || null,
                   pii.purchase_invoice_id,
                   invNum
                 ]
@@ -1542,10 +1543,6 @@ router.put("/:id", async (req: any, res) => {
     const existingHbUrl = cleanMpString(finalMarketplaceData?.hepsiburada?.productUrl || existingProductRes.rows[0]?.hepsiburada_url);
     const finalHbUrl = req.body.hepsiburada_url !== undefined ? rawHbUrl : existingHbUrl;
 
-    const finalIsHbActive = req.body.is_hepsiburada_active !== undefined 
-      ? parseMpBool(req.body.is_hepsiburada_active) 
-      : (Boolean(finalHbSku) && finalMarketplaceData?.hepsiburada?.status !== 'PENDING_APPROVAL' && Boolean(existingProductRes.rows[0]?.is_hepsiburada_active));
-
     const rawAmzAsin = cleanMpString(req.body.amazon_asin);
     const existingAmzAsin = cleanMpString(finalMarketplaceData?.amazon?.asin || existingProductRes.rows[0]?.amazon_asin);
     const finalAmzAsin = req.body.amazon_asin !== undefined ? rawAmzAsin : existingAmzAsin;
@@ -1558,14 +1555,37 @@ router.put("/:id", async (req: any, res) => {
     const existingAmzUrl = cleanMpString(finalMarketplaceData?.amazon?.productUrl || existingProductRes.rows[0]?.amazon_url);
     const finalAmzUrl = req.body.amazon_url !== undefined ? rawAmzUrl : existingAmzUrl;
 
-    // Strict ASIN Rule: On Amazon TR, a product CANNOT be on sale without a valid 10-character ASIN!
     const cleanValidAmzAsin = (finalAmzAsin && finalAmzAsin.length >= 9 && !finalAmzAsin.startsWith('http')) 
       ? finalAmzAsin.toUpperCase() 
       : null;
     const hasValidAmzAsin = Boolean(cleanValidAmzAsin);
-    const finalIsAmzActive = req.body.is_amazon_active !== undefined 
-      ? (parseMpBool(req.body.is_amazon_active) && hasValidAmzAsin) 
-      : (hasValidAmzAsin && Boolean(existingProductRes.rows[0]?.is_amazon_active));
+
+    const existing = existingProductRes.rows[0] || {};
+    const isExplicitStockUpdate = req.body.is_explicit_stock_update === true || req.body.is_explicit_stock_update === 'true';
+    const hasStockFieldInBody = stock_quantity !== undefined && stock_quantity !== null && String(stock_quantity).trim() !== '';
+    const parsedBodyStock = hasStockFieldInBody ? (parseFloat(String(stock_quantity).replace(',', '.')) || 0) : oldStock;
+    // Accept stock update if explicitly flagged (inline stock edit or modified stock in ProductModal) or if operator submitted 0 (zeroing stock)
+    const finalStockQuantity = hasStockFieldInBody && (isExplicitStockUpdate || parsedBodyStock === 0)
+      ? parsedBodyStock
+      : oldStock;
+
+    // If stock is zeroed out (<= 0), automatically mark marketplace listings inactive / manually unpublished so background crons never push positive stock
+    const isZeroStock = finalStockQuantity <= 0;
+    if (isZeroStock) {
+      if (!finalMarketplaceData.amazon) finalMarketplaceData.amazon = {};
+      finalMarketplaceData.amazon.manuallyUnpublished = true;
+      finalMarketplaceData.amazon.status = 'INACTIVE';
+    }
+
+    const finalIsHbActive = req.body.is_hepsiburada_active !== undefined 
+      ? parseMpBool(req.body.is_hepsiburada_active) 
+      : (Boolean(finalHbSku) && finalMarketplaceData?.hepsiburada?.status !== 'PENDING_APPROVAL' && Boolean(existingProductRes.rows[0]?.is_hepsiburada_active));
+
+    const finalIsAmzActive = isZeroStock
+      ? false
+      : (req.body.is_amazon_active !== undefined 
+          ? (parseMpBool(req.body.is_amazon_active) && hasValidAmzAsin) 
+          : (hasValidAmzAsin && Boolean(existingProductRes.rows[0]?.is_amazon_active)));
 
     if (finalHbUrl && finalMarketplaceData?.hepsiburada) {
       finalMarketplaceData.hepsiburada.productUrl = finalHbUrl;
@@ -1614,11 +1634,6 @@ router.put("/:id", async (req: any, res) => {
         // Non-blocking fallback
       }
     }
-
-    const existing = existingProductRes.rows[0] || {};
-    const finalStockQuantity = (stock_quantity !== undefined && stock_quantity !== null && String(stock_quantity).trim() !== '')
-      ? (parseFloat(String(stock_quantity).replace(',', '.')) || 0)
-      : oldStock;
 
     const finalName = name !== undefined ? name : (existing.name || '');
     const finalCostPrice = cost_price !== undefined ? (parseFloat(String(cost_price).replace(',', '.')) || 0) : (parseFloat(existing.cost_price) || 0);
@@ -1694,26 +1709,6 @@ router.put("/:id", async (req: any, res) => {
          WHERE id = $1 AND store_id = $2`,
         [id, storeId]
       );
-    }
-    const isExplicitStockUpdate = req.body.is_explicit_stock_update === true;
-    const diff = newStock - oldStock;
-    if (isExplicitStockUpdate && Math.abs(diff) > 0.001) {
-      try {
-        await pool.query(`
-          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-          VALUES ($1, $2, $3, $4, 'manual_adjustment', $5, $6, $7, CURRENT_TIMESTAMP)
-        `, [
-          storeId, 
-          id, 
-          diff > 0 ? 'in' : 'out', 
-          Math.abs(diff), 
-          diff > 0 ? 'Stok Miktarı Güncellendi (Manuel Artış)' : 'Stok Miktarı Güncellendi (Manuel Azalış)',
-          finalCostPrice || finalPrice || 0, 
-          currency || existing.currency || 'TRY'
-        ]);
-      } catch (smErr) {
-        console.error("Failed to log product update stock movement:", smErr);
-      }
     }
     await ensureProductMovements(Number(id), storeId);
 
@@ -2194,18 +2189,153 @@ router.delete("/:id", async (req: any, res) => {
 
 export async function ensureProductMovements(productId: number, storeId: number) {
   try {
-    // 0. Clean up any bad/orphaned stock movements with product_id 0 or NULL
+    // 0. Clean up any bad/orphaned stock movements with product_id 0 or NULL or phantom auto-sync descriptions
     await pool.query("DELETE FROM stock_movements WHERE product_id IS NULL OR product_id = 0");
+    await pool.query(`
+      DELETE FROM stock_movements
+      WHERE product_id = $1
+        AND (
+          COALESCE(description, '') ILIKE '%Envanter Stok Senkronizasyonu%'
+          OR COALESCE(description, '') ILIKE '%Envanter Stok Mutabakatı%'
+          OR COALESCE(description, '') ILIKE 'Stok Miktarı Güncellendi (Manuel%'
+        )
+    `, [productId]);
 
     const prodRes = await pool.query(
-      "SELECT id, store_id, barcode, product_code, sku, name, stock_quantity, cost_price, price, currency, created_at FROM products WHERE id = $1",
+      "SELECT id, store_id, barcode, product_code, sku, name, product_type, stock_quantity, cost_price, price, currency, created_at FROM products WHERE id = $1",
       [productId]
     );
     if (prodRes.rows.length === 0) return;
     const prod = prodRes.rows[0];
 
-    // 1. Deduplicate existing redundant movements for this product:
-    // a) Deduplicate multiple 'out' movements for the exact same invoice_id (keep earliest/single record per invoice)
+    // 1. Clean up bogus recent initial_stock records (id >= 24000) if product already has purchase invoice items
+    await pool.query(`
+      DELETE FROM stock_movements sm
+      WHERE sm.product_id = $1
+        AND sm.source = 'initial_stock'
+        AND sm.id >= 24000
+        AND EXISTS (
+          SELECT 1 FROM purchase_invoice_items pii
+          WHERE pii.product_id = sm.product_id
+        )
+    `, [productId]);
+
+    // 2. Remove any stock_movements linked to cancelled/rejected sales_invoices
+    await pool.query(`
+      DELETE FROM stock_movements sm
+      USING sales_invoices si
+      WHERE sm.product_id = $1
+        AND (
+          (sm.invoice_id = si.id AND (sm.type = 'out' OR sm.invoice_type = 'sales' OR sm.source = 'sales_invoice'))
+          OR (si.sale_id IS NOT NULL AND sm.sale_id = si.sale_id)
+          OR (
+            NULLIF(TRIM(sm.invoice_number), '') IS NOT NULL
+            AND TRIM(sm.invoice_number) = NULLIF(TRIM(si.invoice_number), '')
+            AND (sm.type = 'out' OR sm.invoice_type = 'sales' OR sm.source = 'sales_invoice')
+          )
+        )
+        AND LOWER(COALESCE(si.status, '')) IN ('cancelled', 'iptal', 'canceled', 'rejected', 'reddedildi')
+    `, [productId]);
+
+    // 3. Reconstruct any missing purchase_invoice ('in') stock movements from authoritative purchase_invoice_items
+    if (prod.product_type !== 'service') {
+      await pool.query(`
+        INSERT INTO stock_movements (
+          store_id, product_id, type, quantity, source, description,
+          unit_price, customer_info, currency, sale_id, invoice_id,
+          invoice_type, invoice_number, created_at
+        )
+        SELECT
+          pi.store_id,
+          $1::int,
+          'in',
+          SUM(COALESCE(pii.system_quantity, pii.quantity, 0)),
+          'purchase_invoice',
+          'Alış Faturası: ' || COALESCE(NULLIF(TRIM(pi.document_number), ''), NULLIF(TRIM(pi.invoice_number), ''), '#' || pi.id::text),
+          AVG(COALESCE(pii.unit_price, 0)),
+          COALESCE(NULLIF(TRIM(pi.supplier_name), ''), comp.title, 'Tedarikçi'),
+          COALESCE(NULLIF(TRIM(pi.currency), ''), 'TRY'),
+          NULL,
+          pi.id,
+          'purchase',
+          COALESCE(NULLIF(TRIM(pi.document_number), ''), NULLIF(TRIM(pi.invoice_number), '')),
+          COALESCE(pi.invoice_date, pi.created_at, CURRENT_TIMESTAMP)
+        FROM purchase_invoice_items pii
+        JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+        LEFT JOIN companies comp ON pi.company_id = comp.id
+        WHERE pii.product_id = $1
+          AND COALESCE(pi.is_expense, FALSE) = FALSE
+          AND LOWER(COALESCE(pi.status, '')) NOT IN ('cancelled', 'iptal', 'canceled', 'rejected', 'reddedildi')
+          AND NOT EXISTS (
+            SELECT 1 FROM stock_movements sm
+            WHERE sm.product_id = $1
+              AND sm.type = 'in'
+              AND (
+                (sm.invoice_id = pi.id AND (sm.invoice_type = 'purchase' OR sm.source = 'purchase_invoice' OR sm.invoice_type IS NULL))
+                OR (
+                  NULLIF(TRIM(COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number)), '') IS NOT NULL
+                  AND (
+                    sm.invoice_number = COALESCE(NULLIF(TRIM(pi.document_number), ''), TRIM(pi.invoice_number))
+                    OR sm.description ILIKE ('%' || COALESCE(NULLIF(TRIM(pi.document_number), ''), TRIM(pi.invoice_number)) || '%')
+                  )
+                )
+              )
+          )
+        GROUP BY pi.id, pi.store_id, pi.document_number, pi.invoice_number, pi.supplier_name, comp.title, pi.currency, pi.invoice_date, pi.created_at
+        HAVING SUM(COALESCE(pii.system_quantity, pii.quantity, 0)) > 0
+      `, [productId]);
+
+      // 4. Reconstruct any missing sales_invoice ('out') stock movements from authoritative sales_invoice_items
+      await pool.query(`
+        INSERT INTO stock_movements (
+          store_id, product_id, type, quantity, source, description,
+          unit_price, customer_info, currency, sale_id, invoice_id,
+          invoice_type, invoice_number, created_at
+        )
+        SELECT
+          si.store_id,
+          $1::int,
+          'out',
+          SUM(COALESCE(sii.quantity, 0)),
+          'sales_invoice',
+          'Satış Faturası: ' || COALESCE(NULLIF(TRIM(si.document_number), ''), NULLIF(TRIM(si.invoice_number), ''), '#' || si.id::text),
+          AVG(COALESCE(sii.unit_price, 0)),
+          COALESCE(comp.title, cust.full_name, 'Müşteri'),
+          COALESCE(NULLIF(TRIM(si.currency), ''), 'TRY'),
+          si.sale_id,
+          si.id,
+          'sales',
+          COALESCE(NULLIF(TRIM(si.document_number), ''), NULLIF(TRIM(si.invoice_number), '')),
+          COALESCE(si.invoice_date, si.created_at, CURRENT_TIMESTAMP)
+        FROM sales_invoice_items sii
+        JOIN sales_invoices si ON sii.sales_invoice_id = si.id
+        LEFT JOIN companies comp ON si.company_id = comp.id
+        LEFT JOIN customers cust ON si.customer_id = cust.id
+        WHERE sii.product_id = $1
+          AND LOWER(COALESCE(si.status, '')) NOT IN ('cancelled', 'iptal', 'canceled', 'rejected', 'reddedildi', 'draft')
+          AND NOT EXISTS (
+            SELECT 1 FROM stock_movements sm
+            WHERE sm.product_id = $1
+              AND sm.type = 'out'
+              AND (
+                (sm.invoice_id = si.id AND (sm.invoice_type = 'sales' OR sm.source = 'sales_invoice' OR sm.invoice_type IS NULL))
+                OR (si.sale_id IS NOT NULL AND sm.sale_id = si.sale_id)
+                OR (
+                  NULLIF(TRIM(COALESCE(NULLIF(si.document_number, ''), si.invoice_number)), '') IS NOT NULL
+                  AND (
+                    sm.invoice_number = COALESCE(NULLIF(TRIM(si.document_number), ''), TRIM(si.invoice_number))
+                    OR sm.description ILIKE ('%' || COALESCE(NULLIF(TRIM(si.document_number), ''), TRIM(si.invoice_number)) || '%')
+                  )
+                )
+              )
+          )
+        GROUP BY si.id, si.store_id, si.document_number, si.invoice_number, comp.title, cust.full_name, si.currency, si.sale_id, si.invoice_date, si.created_at
+        HAVING SUM(COALESCE(sii.quantity, 0)) > 0
+      `, [productId]);
+    }
+
+    // 5. Deduplicate existing redundant movements for this product:
+    // a) Deduplicate multiple 'out' movements for the exact same sales invoice_id (keep earliest record per invoice)
     await pool.query(`
       DELETE FROM stock_movements sm1
       WHERE sm1.product_id = $1
@@ -2233,52 +2363,71 @@ export async function ensureProductMovements(productId: number, storeId: number)
         )
     `, [productId]);
 
-    // c) Remove any stock_movements linked to cancelled/rejected sales_invoices
-    await pool.query(`
-      DELETE FROM stock_movements sm
-      USING sales_invoices si
-      WHERE sm.product_id = $1
-        AND (
-          sm.invoice_id = si.id
-          OR (si.sale_id IS NOT NULL AND sm.sale_id = si.sale_id)
-          OR (sm.invoice_number IS NOT NULL AND sm.invoice_number = si.invoice_number)
-        )
-        AND LOWER(COALESCE(si.status, '')) IN ('cancelled', 'iptal', 'canceled', 'rejected', 'reddedildi')
-    `, [productId]);
-
-    // 2. Authoritative Ledger Calculation:
-    // Compute the true net stock from legitimate movements (invoices, sales, explicit manual corrections)
-    const smSumRes = await pool.query(`
-      SELECT COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as net_qty,
-             COUNT(*) as total_cnt
-      FROM stock_movements
-      WHERE product_id = $1
-    `, [productId]);
-
-    const netQty = parseFloat(smSumRes.rows[0]?.net_qty || '0');
-    const totalCnt = parseInt(smSumRes.rows[0]?.total_cnt || '0');
+    // 6. Authoritative Stock & Ledger Reconciliation:
+    // NEVER overwrite products.stock_quantity from ensureProductMovements!
+    // products.stock_quantity is the authoritative physical stock set by operator / invoices / orders.
     const currentStock = parseFloat(prod.stock_quantity || '0');
 
-    if (totalCnt === 0) {
-      if (Math.abs(currentStock) > 0.001) {
-        await pool.query(`
-          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-          VALUES ($1, $2, $3, $4, 'initial_stock', 'Açılış Stok / Devir Kaydı', $5, $6, COALESCE($7, CURRENT_TIMESTAMP))
-        `, [
-          prod.store_id,
-          prod.id,
-          currentStock >= 0 ? 'in' : 'out',
-          Math.abs(currentStock),
-          parseFloat(prod.cost_price) || parseFloat(prod.price) || 0,
-          prod.currency || 'TRY',
-          prod.created_at
-        ]);
+    // Calculate net stock of actual invoice & sale documents (excluding initial_stock and manual_adjustment)
+    const docSumRes = await pool.query(`
+      SELECT COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as doc_net,
+             MIN(created_at) as min_date
+      FROM stock_movements
+      WHERE product_id = $1
+        AND COALESCE(source, '') NOT IN ('initial_stock', 'manual_adjustment')
+    `, [productId]);
+
+    const docNet = parseFloat(docSumRes.rows[0]?.doc_net || '0');
+    const minDate = docSumRes.rows[0]?.min_date;
+    const baseUnitPrice = parseFloat(prod.cost_price) || parseFloat(prod.price) || 0;
+    const baseCurrency = prod.currency || 'TRY';
+    const openingDate = (minDate && prod.created_at && new Date(minDate) < new Date(prod.created_at))
+      ? minDate
+      : (prod.created_at || minDate || new Date().toISOString());
+
+    if (currentStock >= docNet - 0.001) {
+      // Remove any manual_adjustment rows since opening stock + invoices/sales cleanly accounts for currentStock
+      await pool.query("DELETE FROM stock_movements WHERE product_id = $1 AND source = 'manual_adjustment'", [productId]);
+      const openingQty = Math.max(0, currentStock - docNet);
+      if (openingQty > 0.001) {
+        const initRes = await pool.query(
+          "SELECT id FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock' ORDER BY id ASC LIMIT 1",
+          [productId]
+        );
+        if (initRes.rows.length > 0) {
+          await pool.query(
+            "UPDATE stock_movements SET type = 'in', quantity = $1, description = 'Açılış Stok / Devir Kaydı', created_at = LEAST(created_at, $2::timestamptz) WHERE id = $3",
+            [openingQty, openingDate, initRes.rows[0].id]
+          );
+        } else {
+          await pool.query(`
+            INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+            VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok / Devir Kaydı', $4, $5, $6)
+          `, [prod.store_id, prod.id, openingQty, baseUnitPrice, baseCurrency, openingDate]);
+        }
+      } else {
+        await pool.query("DELETE FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock'", [productId]);
       }
     } else {
-      // Rule 32: If stock movements exist, DO NOT inject synthetic "Envanter Stok Senkronizasyonu" phantom records into the ledger!
-      // The movements ledger is authoritative for transactions. Update products.stock_quantity to match netQty if they differ.
-      if (Math.abs(currentStock - netQty) > 0.001) {
-        await pool.query("UPDATE products SET stock_quantity = $1 WHERE id = $2", [netQty, productId]);
+      // currentStock < docNet (e.g., purchase invoices exceed sales invoices + current shelf stock because operator zeroed/reduced stock)
+      await pool.query("DELETE FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock'", [productId]);
+      const adjustOutQty = docNet - currentStock;
+      const adjRes = await pool.query(
+        "SELECT id FROM stock_movements WHERE product_id = $1 AND source = 'manual_adjustment' ORDER BY id DESC LIMIT 1",
+        [productId]
+      );
+      if (adjRes.rows.length > 0) {
+        const keepId = adjRes.rows[0].id;
+        await pool.query("DELETE FROM stock_movements WHERE product_id = $1 AND source = 'manual_adjustment' AND id != $2", [productId, keepId]);
+        await pool.query(
+          "UPDATE stock_movements SET type = 'out', quantity = $1, description = 'Operatör Stok Sayım Düzeltmesi (-)' WHERE id = $2",
+          [adjustOutQty, keepId]
+        );
+      } else {
+        await pool.query(`
+          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+          VALUES ($1, $2, 'out', $3, 'manual_adjustment', 'Operatör Stok Sayım Düzeltmesi (-)', $4, $5, CURRENT_TIMESTAMP)
+        `, [prod.store_id, prod.id, adjustOutQty, baseUnitPrice, baseCurrency]);
       }
     }
   } catch (err) {
@@ -2298,23 +2447,40 @@ router.get("/:id/movements", async (req: any, res) => {
 
     const movementsRes = await pool.query(
       `SELECT sm.*,
-              COALESCE(pi.invoice_date, si.invoice_date, sm.created_at) as effective_date
+              COALESCE(pi.invoice_date, si.invoice_date, sm.created_at) as effective_date,
+              pi.supplier_name as pi_supplier_name,
+              COALESCE(NULLIF(TRIM(pi.document_number), ''), NULLIF(TRIM(pi.invoice_number), '')) as pi_inv_num,
+              COALESCE(NULLIF(TRIM(si.document_number), ''), NULLIF(TRIM(si.invoice_number), '')) as si_inv_num
        FROM stock_movements sm
-       LEFT JOIN purchase_invoices pi ON sm.invoice_id = pi.id
-       LEFT JOIN sales_invoices si ON sm.invoice_id = si.id
-       WHERE sm.product_id = $1 
+       LEFT JOIN purchase_invoices pi ON sm.invoice_id = pi.id AND (sm.invoice_type = 'purchase' OR sm.source = 'purchase_invoice' OR (sm.invoice_type IS NULL AND sm.type = 'in'))
+       LEFT JOIN sales_invoices si ON sm.invoice_id = si.id AND (sm.invoice_type = 'sales' OR sm.source = 'sales_invoice' OR (sm.invoice_type IS NULL AND sm.type = 'out'))
+       WHERE sm.product_id = $1
+         AND COALESCE(sm.description, '') NOT ILIKE '%Envanter Stok Senkronizasyonu%'
+         AND COALESCE(sm.description, '') NOT ILIKE 'Stok Miktarı Güncellendi (Manuel%'
        ORDER BY COALESCE(pi.invoice_date, si.invoice_date, sm.created_at) DESC, sm.id DESC`,
       [id]
     );
 
     const rows = movementsRes.rows.map((row: any) => {
-      if (row.effective_date && (row.source === 'purchase_invoice' || row.source === 'sales_invoice' || row.invoice_type === 'purchase' || row.invoice_type === 'sales')) {
-        return {
-          ...row,
-          created_at: row.effective_date
-        };
+      const isInvoice = row.source === 'purchase_invoice' || row.source === 'sales_invoice' || row.invoice_type === 'purchase' || row.invoice_type === 'sales';
+      const resolvedInvNum = (row.invoice_number && String(row.invoice_number).trim()) || row.pi_inv_num || row.si_inv_num || null;
+      let cleanDesc = row.description || '';
+      if (cleanDesc.startsWith('Fatura Güncelleme:') || cleanDesc.startsWith('E-Fatura İlk İçe Aktarma:') || cleanDesc.startsWith('Fatura Girişi:') || cleanDesc.startsWith('Alış Faturası Yeni Ürün Kartı:')) {
+        const invNum = resolvedInvNum || cleanDesc.split(':')[1]?.trim() || '';
+        cleanDesc = `Alış Faturası: ${invNum}`;
+      } else if (cleanDesc.startsWith('Satış Faturası Güncelleme:') || cleanDesc === 'Satış Faturası:' || cleanDesc === 'Satış Faturası: ') {
+        const invNum = resolvedInvNum || cleanDesc.split(':')[1]?.trim() || `#${row.invoice_id || ''}`;
+        cleanDesc = `Satış Faturası: ${invNum}`;
       }
-      return row;
+      const cleanCustomer = (row.customer_info === 'Tedarikçi' && row.pi_supplier_name) ? row.pi_supplier_name : row.customer_info;
+
+      return {
+        ...row,
+        invoice_number: resolvedInvNum,
+        created_at: (row.effective_date && isInvoice) ? row.effective_date : row.created_at,
+        description: cleanDesc,
+        customer_info: cleanCustomer
+      };
     });
 
     res.json(rows);
@@ -2338,28 +2504,42 @@ router.get("/:id/movements/export", async (req: any, res) => {
 
     const movementsRes = await pool.query(
       `SELECT sm.*,
-              COALESCE(pi.invoice_date, si.invoice_date, sm.created_at) as effective_date
+              COALESCE(pi.invoice_date, si.invoice_date, sm.created_at) as effective_date,
+              pi.supplier_name as pi_supplier_name,
+              COALESCE(NULLIF(TRIM(pi.document_number), ''), NULLIF(TRIM(pi.invoice_number), '')) as pi_inv_num,
+              COALESCE(NULLIF(TRIM(si.document_number), ''), NULLIF(TRIM(si.invoice_number), '')) as si_inv_num
        FROM stock_movements sm
-       LEFT JOIN purchase_invoices pi ON sm.invoice_id = pi.id
-       LEFT JOIN sales_invoices si ON sm.invoice_id = si.id
-       WHERE sm.product_id = $1 
+       LEFT JOIN purchase_invoices pi ON sm.invoice_id = pi.id AND (sm.invoice_type = 'purchase' OR sm.source = 'purchase_invoice' OR (sm.invoice_type IS NULL AND sm.type = 'in'))
+       LEFT JOIN sales_invoices si ON sm.invoice_id = si.id AND (sm.invoice_type = 'sales' OR sm.source = 'sales_invoice' OR (sm.invoice_type IS NULL AND sm.type = 'out'))
+       WHERE sm.product_id = $1
+         AND COALESCE(sm.description, '') NOT ILIKE '%Envanter Stok Senkronizasyonu%'
+         AND COALESCE(sm.description, '') NOT ILIKE 'Stok Miktarı Güncellendi (Manuel%'
        ORDER BY COALESCE(pi.invoice_date, si.invoice_date, sm.created_at) DESC, sm.id DESC`,
       [id]
     );
 
-    const { formatDateTimeTR } = await import("../../src/utils/formatUtils");
+    const { formatDateTimeTR, formatDateTR } = await import("../../src/utils/formatUtils");
     const data = movementsRes.rows.map((m: any) => {
-      const displayDate = (m.effective_date && (m.source === 'purchase_invoice' || m.source === 'sales_invoice' || m.invoice_type === 'purchase' || m.invoice_type === 'sales'))
-        ? m.effective_date
-        : m.created_at;
+      const isInvoice = m.source === 'purchase_invoice' || m.source === 'sales_invoice' || m.invoice_type === 'purchase' || m.invoice_type === 'sales';
+      const displayDate = (m.effective_date && isInvoice) ? m.effective_date : m.created_at;
+      const resolvedInvNum = (m.invoice_number && String(m.invoice_number).trim()) || m.pi_inv_num || m.si_inv_num || '';
+      let cleanDesc = m.description || "";
+      if (cleanDesc.startsWith('Fatura Güncelleme:') || cleanDesc.startsWith('E-Fatura İlk İçe Aktarma:') || cleanDesc.startsWith('Fatura Girişi:') || cleanDesc.startsWith('Alış Faturası Yeni Ürün Kartı:')) {
+        const invNum = resolvedInvNum || cleanDesc.split(':')[1]?.trim() || '';
+        cleanDesc = `Alış Faturası: ${invNum}`;
+      } else if (cleanDesc.startsWith('Satış Faturası Güncelleme:') || cleanDesc === 'Satış Faturası:' || cleanDesc === 'Satış Faturası: ') {
+        const invNum = resolvedInvNum || cleanDesc.split(':')[1]?.trim() || `#${m.invoice_id || ''}`;
+        cleanDesc = `Satış Faturası: ${invNum}`;
+      }
+      const cleanCustomer = (m.customer_info === 'Tedarikçi' && m.pi_supplier_name) ? m.pi_supplier_name : (m.customer_info || "");
       return {
-        [lang === "tr" ? "Tarih" : "Date"]: formatDateTimeTR(displayDate),
+        [lang === "tr" ? "Tarih" : "Date"]: isInvoice ? formatDateTR(displayDate) : formatDateTimeTR(displayDate),
         [lang === "tr" ? "Tür" : "Type"]: m.type === "in" ? (lang === "tr" ? "Giriş" : "In") : (lang === "tr" ? "Çıkış" : "Out"),
         [lang === "tr" ? "Miktar" : "Quantity"]: m.quantity,
         [lang === "tr" ? "Kaynak" : "Source"]: m.source,
-        [lang === "tr" ? "Açıklama" : "Description"]: m.description || "",
+        [lang === "tr" ? "Açıklama" : "Description"]: cleanDesc,
         [lang === "tr" ? "Birim Fiyat" : "Unit Price"]: m.unit_price ? Number(m.unit_price) : "",
-        [lang === "tr" ? "Müşteri/Tedarikçi" : "Customer/Supplier"]: m.customer_info || "",
+        [lang === "tr" ? "Müşteri/Tedarikçi" : "Customer/Supplier"]: cleanCustomer,
         [lang === "tr" ? "Para Birimi" : "Currency"]: m.currency || "TRY"
       };
     });

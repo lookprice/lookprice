@@ -1476,11 +1476,17 @@ export async function revertInvoiceStockAndProducts(
   }
 
   // Delete all stock movement logs related to this invoice
+  const cleanRevertInvNum = (invNum || '').trim();
   await clientOrPool.query(
     `DELETE FROM stock_movements 
      WHERE store_id = $1 
-       AND ((source = 'purchase_invoice' OR invoice_type = 'purchase') AND (invoice_id = $2 OR description LIKE $3 OR description LIKE $4))`,
-    [storeId, invoiceId, `%${invNum}%`, `%${invoiceId}%`]
+       AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+       AND (
+         invoice_id = $2
+         OR ($3::text <> '' AND invoice_number = $3)
+         OR ($3::text <> '' AND description LIKE ('%' || $3 || '%'))
+       )`,
+    [storeId, invoiceId, cleanRevertInvNum]
   );
 
   // Unlink items from product catalog so they do not show barcode/stock links

@@ -2256,6 +2256,94 @@ export async function initDb() {
       console.warn("[DB Init] Sequence alignment notice:", seqErr);
     }
 
+    // Rule 32 Database-Level Trigger Guard:
+    // Blocks any phantom 'Envanter Stok Senkronizasyonu' or 'Stok Miktarı Güncellendi (Manuel...' inserts (even from older containers),
+    // heals products.stock_quantity from the true ledger, and enforces invoice_date + supplier_name on invoice movements.
+    try {
+      await client.query(`
+        CREATE OR REPLACE FUNCTION fn_guard_stock_movements()
+        RETURNS TRIGGER AS $$
+        DECLARE
+          v_inv_date TIMESTAMP;
+          v_inv_num TEXT;
+          v_supplier TEXT;
+          v_curr TEXT;
+          v_net_qty NUMERIC;
+        BEGIN
+          -- 1. Block automatic phantom sync / legacy product-edit stock adjustments
+          IF COALESCE(NEW.description, '') ILIKE '%Envanter Stok Senkronizasyonu%'
+             OR COALESCE(NEW.description, '') ILIKE 'Stok Miktarı Güncellendi (Manuel%' THEN
+            SELECT COALESCE(SUM(CASE WHEN sm.type = 'in' THEN sm.quantity ELSE -sm.quantity END), 0)
+              INTO v_net_qty
+              FROM stock_movements sm
+             WHERE sm.product_id = NEW.product_id
+               AND COALESCE(sm.description, '') NOT ILIKE '%Envanter Stok Senkronizasyonu%'
+               AND COALESCE(sm.description, '') NOT ILIKE 'Stok Miktarı Güncellendi (Manuel%';
+
+            UPDATE products SET stock_quantity = v_net_qty WHERE id = NEW.product_id;
+            RETURN NULL;
+          END IF;
+
+          -- 2. Enforce purchase invoice date, clean description, and supplier_name
+          IF (NEW.source = 'purchase_invoice' OR NEW.invoice_type = 'purchase') AND NEW.invoice_id IS NOT NULL THEN
+            SELECT pi.invoice_date,
+                   COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number),
+                   pi.supplier_name,
+                   pi.currency
+              INTO v_inv_date, v_inv_num, v_supplier, v_curr
+              FROM purchase_invoices pi
+             WHERE pi.id = NEW.invoice_id;
+
+            IF v_inv_date IS NOT NULL THEN
+              NEW.created_at := v_inv_date;
+            END IF;
+
+            IF (NEW.customer_info IS NULL OR NEW.customer_info = '' OR NEW.customer_info = 'Tedarikçi') AND v_supplier IS NOT NULL AND v_supplier <> '' THEN
+              NEW.customer_info := v_supplier;
+            END IF;
+
+            IF NEW.invoice_number IS NULL OR NEW.invoice_number = '' THEN
+              NEW.invoice_number := v_inv_num;
+            END IF;
+
+            IF COALESCE(NEW.description, '') ILIKE 'Fatura Güncelleme:%'
+               OR COALESCE(NEW.description, '') ILIKE 'E-Fatura İlk İçe Aktarma:%'
+               OR COALESCE(NEW.description, '') ILIKE 'Fatura Girişi:%'
+               OR COALESCE(NEW.description, '') ILIKE 'Alış Faturası Yeni Ürün Kartı:%' THEN
+              NEW.description := 'Alış Faturası: ' || COALESCE(NEW.invoice_number, v_inv_num, '');
+            END IF;
+          END IF;
+
+          -- 3. Enforce sales invoice date and clean description
+          IF (NEW.source = 'sales_invoice' OR NEW.invoice_type = 'sales') AND NEW.invoice_id IS NOT NULL THEN
+            SELECT si.invoice_date, si.invoice_number
+              INTO v_inv_date, v_inv_num
+              FROM sales_invoices si
+             WHERE si.id = NEW.invoice_id;
+
+            IF v_inv_date IS NOT NULL THEN
+              NEW.created_at := v_inv_date;
+            END IF;
+
+            IF COALESCE(NEW.description, '') ILIKE 'Satış Faturası Güncelleme:%' THEN
+              NEW.description := 'Satış Faturası: ' || COALESCE(NEW.invoice_number, v_inv_num, '');
+            END IF;
+          END IF;
+
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        DROP TRIGGER IF EXISTS trg_guard_stock_movements ON stock_movements;
+        CREATE TRIGGER trg_guard_stock_movements
+        BEFORE INSERT OR UPDATE ON stock_movements
+        FOR EACH ROW
+        EXECUTE FUNCTION fn_guard_stock_movements();
+      `);
+    } catch (trgErr) {
+      console.warn("[DB Init] Stock movement trigger setup notice:", trgErr);
+    }
+
     console.log("Super admin, stores, and demo accounts verified/seeded.");
     } finally {
       client.release();

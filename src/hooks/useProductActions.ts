@@ -255,10 +255,18 @@ export const useProductActions = (
       }
     });
     ['stock_quantity', 'min_stock_level'].forEach(field => {
-      if (data[field]) {
+      if (data[field] !== undefined && data[field] !== null && String(data[field]).trim() !== '') {
         data[field] = Math.floor(Number(String(data[field]).replace(',', '.')));
       }
     });
+
+    if (editingProduct && data.stock_quantity !== undefined) {
+      const prevStock = Math.floor(Number(String(editingProduct.stock_quantity ?? 0).replace(',', '.')));
+      const nextStock = Number(data.stock_quantity);
+      if (!isNaN(nextStock) && (nextStock !== prevStock || nextStock === 0)) {
+        data.is_explicit_stock_update = true;
+      }
+    }
 
     data.price_2_currency = data.currency;
 

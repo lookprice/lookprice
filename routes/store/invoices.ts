@@ -515,31 +515,32 @@ export async function initPurchaseInvoiceSchema() {
         WHERE cat.company_id = c.id AND (cat.store_id IS NULL OR cat.store_id = 0)
       `);
 
-      // h) Auto-repair products with stock_quantity that lack initial stock_movements records (only if no initial_stock exists yet)
+      // h) Auto-repair products with stock_quantity that lack ANY stock_movements or invoice items
       await pool.query(`
         INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
         SELECT 
           p.store_id,
           p.id,
           'in',
-          p.stock_quantity - COALESCE(sm_sum.net_qty, 0),
+          p.stock_quantity,
           'initial_stock',
           'Açılış Stok / Devir Kaydı',
           COALESCE(NULLIF(p.cost_price, 0), p.price, 0),
           COALESCE(p.currency, 'TRY'),
           COALESCE(p.created_at, CURRENT_TIMESTAMP)
         FROM products p
-        LEFT JOIN (
-          SELECT 
-            product_id, 
-            SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END) as net_qty
-          FROM stock_movements
-          GROUP BY product_id
-        ) sm_sum ON p.id = sm_sum.product_id
-        WHERE (p.stock_quantity - COALESCE(sm_sum.net_qty, 0)) > 0
+        WHERE p.stock_quantity > 0
           AND NOT EXISTS (
-            SELECT 1 FROM stock_movements sm_init
-            WHERE sm_init.product_id = p.id AND sm_init.source = 'initial_stock'
+            SELECT 1 FROM stock_movements sm
+            WHERE sm.product_id = p.id
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM purchase_invoice_items pii
+            WHERE pii.product_id = p.id
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM sales_invoice_items sii
+            WHERE sii.product_id = p.id
           )
       `);
   } catch (e) {
@@ -1139,8 +1140,8 @@ router.post("/sales", async (req: any, res) => {
             "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
             [item.quantity, resolvedProductId, storeId]
           );
-          
-          await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName, currency, null, invoiceId, 'sales', invoice_number, invoice_date || new Date());
+          const effectiveSalesInvNo = (invoice_number && String(invoice_number).trim()) || `#${invoiceId}`;
+          await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${effectiveSalesInvNo}`, item.unit_price, displayName, currency, null, invoiceId, 'sales', (invoice_number && String(invoice_number).trim()) || null, invoice_date || new Date());
         }
       }
     }
@@ -1252,9 +1253,24 @@ router.put("/sales/:id", async (req: any, res) => {
       }
     }
     
+    const oldInvNumClean = (oldInvoice.invoice_number || '').trim();
+    const oldDocNumClean = (oldInvoice.document_number || oldInvoice.invoice_number || '').trim();
     await client.query(
-      "DELETE FROM stock_movements WHERE store_id = $1 AND (invoice_id = $2 OR (sale_id IS NOT NULL AND sale_id = $3) OR (source IN ('sales_invoice', 'AMAZON', 'hepsiburada', 'trendyol', 'n11', 'pazarama') AND (description LIKE $4 OR description LIKE $5 OR invoice_number = $6)))",
-      [storeId, req.params.id, oldInvoice.sale_id || -1, `%${oldInvoice.invoice_number}%`, `%${oldInvoice.document_number || oldInvoice.invoice_number}%`, oldInvoice.invoice_number]
+      `DELETE FROM stock_movements
+       WHERE store_id = $1
+         AND (
+           (invoice_id = $2 AND (type = 'out' OR invoice_type = 'sales' OR source = 'sales_invoice'))
+           OR ($3::int IS NOT NULL AND sale_id = $3)
+           OR (
+             source IN ('sales_invoice', 'AMAZON', 'hepsiburada', 'trendyol', 'n11', 'pazarama')
+             AND (
+               ($4::text <> '' AND invoice_number = $4)
+               OR ($4::text <> '' AND description LIKE ('%' || $4 || '%'))
+               OR ($5::text <> '' AND description LIKE ('%' || $5 || '%'))
+             )
+           )
+         )`,
+      [storeId, req.params.id, oldInvoice.sale_id || null, oldInvNumClean, oldDocNumClean]
     );
 
     await client.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [req.params.id]);
@@ -1520,7 +1536,8 @@ router.put("/sales/:id", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, resolvedProductId, storeId]
         );
-        await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName, currency, null, req.params.id, 'sales', invoice_number, invoice_date || new Date());
+        const effectiveUpdInvNo = (invoice_number && String(invoice_number).trim()) || (oldInvoice.document_number && String(oldInvoice.document_number).trim()) || `#${req.params.id}`;
+        await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${effectiveUpdInvNo}`, item.unit_price, displayName, currency, null, req.params.id, 'sales', (invoice_number && String(invoice_number).trim()) || (oldInvoice.document_number && String(oldInvoice.document_number).trim()) || null, invoice_date || new Date());
       }
     }
 
@@ -2276,7 +2293,7 @@ router.post("/purchase", async (req: any, res) => {
           
           await addStockMovement(
             pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
-            `Alış Faturası: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency,
+            `Alış Faturası: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, invoice.supplier_name || supplier_name || 'Tedarikçi', invoice.currency || currency || 'TRY',
             null, invoice.id, 'purchase', invoice.invoice_number, invoice.invoice_date || invoice_date || new Date()
           );
         }
@@ -2491,7 +2508,18 @@ router.put("/purchase/:id", async (req: any, res) => {
     }
 
     await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
-    await pool.query("DELETE FROM stock_movements WHERE (source = 'purchase_invoice' OR invoice_type = 'purchase') AND (invoice_id = $1 OR description LIKE $2 OR description LIKE $3)", [id, `%${invoice_number}%`, `%${id}%`]);
+    const cleanPurchInvNo = (invoice_number || '').trim();
+    await pool.query(
+      `DELETE FROM stock_movements
+       WHERE store_id = $1
+         AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+         AND (
+           invoice_id = $2
+           OR ($3::text <> '' AND invoice_number = $3)
+           OR ($3::text <> '' AND description LIKE ('%' || $3 || '%'))
+         )`,
+      [targetStoreId, id, cleanPurchInvNo]
+    );
 
     const invoiceRes = await pool.query(
       `UPDATE purchase_invoices 
@@ -2696,7 +2724,7 @@ router.put("/purchase/:id", async (req: any, res) => {
           
           await addStockMovement(
             pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
-            `Alış Faturası: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency,
+            `Alış Faturası: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, invoice.supplier_name || supplier_name || 'Tedarikçi', invoice.currency || currency || 'TRY',
             null, invoice.id, 'purchase', invoice.invoice_number, invoice.invoice_date || invoice_date || new Date()
           );
         }
@@ -2735,9 +2763,17 @@ router.delete("/sales/:id", async (req: any, res) => {
       }
     }
 
+    const delSalesInvNo = (invoice.invoice_number || '').trim();
     await pool.query(
-      "DELETE FROM stock_movements WHERE store_id = $1 AND (invoice_id = $2 OR (sale_id IS NOT NULL AND sale_id = $3) OR (invoice_number IS NOT NULL AND invoice_number = $4) OR (source = 'sales_invoice' AND description LIKE $5))",
-      [storeId, id, invoice.sale_id || -1, invoice.invoice_number || '', `%${invoice.invoice_number || id}%`]
+      `DELETE FROM stock_movements
+       WHERE store_id = $1
+         AND (
+           (invoice_id = $2 AND (type = 'out' OR invoice_type = 'sales' OR source = 'sales_invoice'))
+           OR ($3::int IS NOT NULL AND sale_id = $3)
+           OR ($4::text <> '' AND invoice_number = $4)
+           OR ($4::text <> '' AND source = 'sales_invoice' AND description LIKE ('%' || $4 || '%'))
+         )`,
+      [storeId, id, invoice.sale_id || null, delSalesInvNo]
     );
     await pool.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [id]);
     await pool.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [id]);
@@ -2810,9 +2846,18 @@ router.delete("/purchase/:id", async (req: any, res) => {
     }
 
     // Clean up related stock movements, current account transactions, and invoice items
-    if (invoice.invoice_number) {
-      await pool.query("DELETE FROM stock_movements WHERE source = 'purchase_invoice' AND description LIKE $1", [`%${invoice.invoice_number}%`]);
-    }
+    const delPurchInvNo = (invoice.invoice_number || '').trim();
+    await pool.query(
+      `DELETE FROM stock_movements
+       WHERE store_id = $1
+         AND (source = 'purchase_invoice' OR invoice_type = 'purchase')
+         AND (
+           invoice_id = $2
+           OR ($3::text <> '' AND invoice_number = $3)
+           OR ($3::text <> '' AND description LIKE ('%' || $3 || '%'))
+         )`,
+      [storeId, id, delPurchInvNo]
+    );
     await pool.query("DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1", [id]);
     await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
     await pool.query("DELETE FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);

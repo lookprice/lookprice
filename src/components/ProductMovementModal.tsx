@@ -120,6 +120,16 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
       .then(data => {
         if (Array.isArray(data)) {
           setMovements(data);
+          if (data.length > 0) {
+            const computedNet = data.reduce((acc, m) => {
+              const q = Number(m.quantity) || 0;
+              return m.type === 'in' ? acc + q : acc - q;
+            }, 0);
+            if (Math.abs(Number(product.stock_quantity || 0) - computedNet) > 0.001) {
+              product.stock_quantity = computedNet;
+              if (onStockUpdated) onStockUpdated(computedNet);
+            }
+          }
         } else {
           console.error("Expected array but got:", data);
           setMovements([]);
@@ -157,23 +167,29 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
     let type: 'purchase' | 'sales' | null = m.invoice_type || null;
     let number: string | null = m.invoice_number || null;
     const desc = m.description || '';
+    const srcLower = (m.source || '').toLowerCase();
 
     if (!type) {
-      if (m.source === 'purchase_invoice' || /alış faturası|fatura girişi|e-fatura içe|e-fatura detay/i.test(desc)) {
+      if (srcLower === 'purchase_invoice' || srcLower === 'purchase' || /alış faturası|fatura girişi|e-fatura içe|e-fatura detay/i.test(desc)) {
         type = 'purchase';
-      } else if (m.source === 'sales_invoice' || /satış faturası/i.test(desc)) {
+      } else if (
+        srcLower === 'sales_invoice' ||
+        srcLower === 'sales' ||
+        /satış faturası/i.test(desc) ||
+        (['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(srcLower) && (m.invoice_id || m.invoice_number))
+      ) {
         type = 'sales';
       }
     }
 
     if (!number) {
-      const match = desc.match(/(?:Faturası?|Girişi|Sorgulama|Aktarma|Güncellendi)?:\s*([A-Za-z0-9\-_]+)/i);
+      const match = desc.match(/(?:Faturası?|Girişi|Sorgulama|Aktarma|Güncellendi)?:\s*([A-Za-z0-9\-_#]+)/i);
       if (match) {
         number = match[1].trim();
       }
     }
 
-    const hasInvoice = Boolean(m.invoice_id || (type && number) || m.source === 'purchase_invoice' || m.source === 'sales_invoice');
+    const hasInvoice = Boolean(m.invoice_id || (type && number) || srcLower === 'purchase_invoice' || srcLower === 'sales_invoice');
     return { type, number, hasInvoice };
   };
 
@@ -301,9 +317,11 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
         totalOutAmount += amount;
       }
 
-      const isPurchase = m.source === 'purchase_invoice' || m.invoice_type === 'purchase' || m.source === 'purchase' || (m.type === 'in' && m.source !== 'initial_stock');
-      const isSales = m.source === 'sales_invoice' || m.invoice_type === 'sales' || m.source === 'sales' || m.source === 'web_sale' || ['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(m.source);
-      const isPos = m.source === 'pos_sale' || m.source === 'pos';
+      const srcLower = (m.source || '').toLowerCase();
+      const isReversal = Boolean(m.reference_movement_id || /ters kay[ıi]t|d[üu]zeltme fark/i.test(m.description || ''));
+      const isPurchase = !isReversal && (srcLower === 'purchase_invoice' || m.invoice_type === 'purchase' || srcLower === 'purchase');
+      const isSales = !isReversal && (srcLower === 'sales_invoice' || m.invoice_type === 'sales' || srcLower === 'sales' || srcLower === 'web_sale' || ['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(srcLower));
+      const isPos = !isReversal && (srcLower === 'pos_sale' || srcLower === 'pos' || (srcLower === 'sale' && !m.invoice_id && m.invoice_type !== 'sales'));
 
       if (isPurchase) {
         purchaseCount++;
@@ -335,9 +353,11 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
   // Filtered movements
   const filteredMovements = useMemo(() => {
     return movements.filter(m => {
-      const isPurchase = m.source === 'purchase_invoice' || m.invoice_type === 'purchase' || m.source === 'purchase' || (m.type === 'in' && m.source !== 'initial_stock');
-      const isSales = m.source === 'sales_invoice' || m.invoice_type === 'sales' || m.source === 'sales' || m.source === 'web_sale' || ['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(m.source);
-      const isPos = m.source === 'pos_sale' || m.source === 'pos';
+      const srcLower = (m.source || '').toLowerCase();
+      const isReversal = Boolean(m.reference_movement_id || /ters kay[ıi]t|d[üu]zeltme fark/i.test(m.description || ''));
+      const isPurchase = !isReversal && (srcLower === 'purchase_invoice' || m.invoice_type === 'purchase' || srcLower === 'purchase');
+      const isSales = !isReversal && (srcLower === 'sales_invoice' || m.invoice_type === 'sales' || srcLower === 'sales' || srcLower === 'web_sale' || ['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(srcLower));
+      const isPos = !isReversal && (srcLower === 'pos_sale' || srcLower === 'pos' || (srcLower === 'sale' && !m.invoice_id && m.invoice_type !== 'sales'));
 
       // Type Filter
       if (selectedFilter === 'purchase') {
@@ -377,7 +397,8 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
         color: 'bg-purple-100 text-purple-800 border-purple-200' 
       };
     }
-    switch (source) {
+    const srcLower = (source || '').toLowerCase();
+    switch (srcLower) {
       case 'purchase_invoice':
       case 'purchase':
         return { label: isTr ? 'Alış Faturası' : 'Purchase Invoice', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
@@ -386,6 +407,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
         return { label: isTr ? 'Satış Faturası' : 'Sales Invoice', color: 'bg-blue-100 text-blue-800 border-blue-200' };
       case 'pos_sale':
       case 'pos':
+      case 'sale':
         return { label: isTr ? 'POS / Kasa Satışı' : 'POS Sale', color: 'bg-violet-100 text-violet-800 border-violet-200' };
       case 'web_sale':
         return { label: isTr ? 'E-Ticaret / Web Satışı' : 'Web Sale', color: 'bg-sky-100 text-sky-800 border-sky-200' };
@@ -394,8 +416,8 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
       case 'manual_adjustment':
         return { label: isTr ? 'Manuel Stok Sayım/Düzeltme' : 'Manual Adjustment', color: 'bg-slate-100 text-slate-800 border-slate-200' };
       default:
-        if (['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(source)) {
-          return { label: `Pazaryeri (${source.toUpperCase()})`, color: 'bg-orange-100 text-orange-800 border-orange-200' };
+        if (['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(srcLower)) {
+          return { label: `Pazaryeri (${srcLower.toUpperCase()})`, color: 'bg-orange-100 text-orange-800 border-orange-200' };
         }
         return { 
           label: type === 'in' ? (isTr ? 'Stok Girişi' : 'Stock In') : (isTr ? 'Stok Çıkışı' : 'Stock Out'),
@@ -665,7 +687,9 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
 
                       {/* Date Time */}
                       <span className="font-mono text-[11px] text-slate-500 whitespace-nowrap shrink-0">
-                        {formatDateTimeTR(m.created_at)}
+                        {(m.source === 'purchase_invoice' || m.source === 'sales_invoice' || m.invoice_type === 'purchase' || m.invoice_type === 'sales')
+                          ? formatDateTR(m.created_at)
+                          : formatDateTimeTR(m.created_at)}
                       </span>
 
                       {/* Badge */}

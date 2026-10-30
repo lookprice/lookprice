@@ -865,8 +865,8 @@ router.post("/:id/status", async (req: any, res) => {
            WHERE store_id = $1
              AND (
                sale_id = $2
-               OR invoice_id IN (SELECT id FROM sales_invoices WHERE sale_id = $2 AND store_id = $1)
-               OR invoice_number IN (SELECT invoice_number FROM sales_invoices WHERE sale_id = $2 AND store_id = $1 AND invoice_number IS NOT NULL)
+               OR (invoice_id IN (SELECT id FROM sales_invoices WHERE sale_id = $2 AND store_id = $1) AND (type = 'out' OR invoice_type = 'sales' OR source = 'sales_invoice'))
+               OR (NULLIF(TRIM(invoice_number), '') IS NOT NULL AND TRIM(invoice_number) IN (SELECT NULLIF(TRIM(invoice_number), '') FROM sales_invoices WHERE sale_id = $2 AND store_id = $1 AND NULLIF(TRIM(invoice_number), '') IS NOT NULL))
              )`,
           [storeId, id]
         );
@@ -996,9 +996,10 @@ router.post("/:id/cancel", async (req: any, res) => {
       [sale.id, storeId]
     );
     for (const inv of linkedInvRes.rows) {
+      const cleanInvNo = (inv.invoice_number || '').trim();
       await client.query(
-        "DELETE FROM stock_movements WHERE store_id = $1 AND source = 'sales_invoice' AND (invoice_id = $2 OR invoice_number = $3) AND sale_id IS NULL",
-        [storeId, inv.id, inv.invoice_number || '']
+        "DELETE FROM stock_movements WHERE store_id = $1 AND source = 'sales_invoice' AND (invoice_id = $2 OR ($3::text <> '' AND invoice_number = $3)) AND sale_id IS NULL",
+        [storeId, inv.id, cleanInvNo]
       );
     }
 
