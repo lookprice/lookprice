@@ -1013,7 +1013,7 @@ router.post("/", async (req: any, res) => {
         try {
           await pool.query(`
             INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-            VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok Girişi', $4, $5, CURRENT_TIMESTAMP)
+            VALUES ($1, $2, 'in', $3, 'initial_stock', 'Dönem Başı Mal Mevcudu (Açılış Stok)', $4, $5, CURRENT_TIMESTAMP)
           `, [storeId, createdProdId, parseFloat(stock_quantity), parseFloat(cost_price) || finalPrice || 0, currency || 'TRY']);
         } catch (smErr) {
           console.error("Failed to log initial stock movement:", smErr);
@@ -1710,7 +1710,12 @@ router.put("/:id", async (req: any, res) => {
         [id, storeId]
       );
     }
-    await ensureProductMovements(Number(id), storeId);
+    const isOperatorStockRevision = hasStockFieldInBody && (isExplicitStockUpdate || parsedBodyStock === 0) && Math.abs(finalStockQuantity - oldStock) > 0.001;
+    await ensureProductMovements(Number(id), storeId, {
+      explicitOperatorRevision: isOperatorStockRevision,
+      previousStock: oldStock,
+      newStock: finalStockQuantity
+    });
 
     if (sync_group && barcode) {
       const storeRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
@@ -2187,7 +2192,11 @@ router.delete("/:id", async (req: any, res) => {
   }
 });
 
-export async function ensureProductMovements(productId: number, storeId: number) {
+export async function ensureProductMovements(
+  productId: number,
+  storeId: number,
+  options?: { explicitOperatorRevision?: boolean; previousStock?: number; newStock?: number }
+) {
   try {
     // 0. Clean up any bad/orphaned stock movements with product_id 0 or NULL or phantom auto-sync descriptions
     await pool.query("DELETE FROM stock_movements WHERE product_id IS NULL OR product_id = 0");
@@ -2202,25 +2211,13 @@ export async function ensureProductMovements(productId: number, storeId: number)
     `, [productId]);
 
     const prodRes = await pool.query(
-      "SELECT id, store_id, barcode, product_code, sku, name, product_type, stock_quantity, cost_price, price, currency, created_at FROM products WHERE id = $1",
+      "SELECT id, store_id, barcode, product_code, sku, name, unit, product_type, stock_quantity, cost_price, price, currency, created_at FROM products WHERE id = $1",
       [productId]
     );
     if (prodRes.rows.length === 0) return;
     const prod = prodRes.rows[0];
 
-    // 1. Clean up bogus recent initial_stock records (id >= 24000) if product already has purchase invoice items
-    await pool.query(`
-      DELETE FROM stock_movements sm
-      WHERE sm.product_id = $1
-        AND sm.source = 'initial_stock'
-        AND sm.id >= 24000
-        AND EXISTS (
-          SELECT 1 FROM purchase_invoice_items pii
-          WHERE pii.product_id = sm.product_id
-        )
-    `, [productId]);
-
-    // 2. Remove any stock_movements linked to cancelled/rejected sales_invoices
+    // 1. Remove any stock_movements linked to cancelled/rejected sales_invoices
     await pool.query(`
       DELETE FROM stock_movements sm
       USING sales_invoices si
@@ -2237,7 +2234,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
         AND LOWER(COALESCE(si.status, '')) IN ('cancelled', 'iptal', 'canceled', 'rejected', 'reddedildi')
     `, [productId]);
 
-    // 3. Reconstruct any missing purchase_invoice ('in') stock movements from authoritative purchase_invoice_items
+    // 2. Reconstruct any missing purchase_invoice ('in') stock movements from authoritative purchase_invoice_items
     if (prod.product_type !== 'service') {
       await pool.query(`
         INSERT INTO stock_movements (
@@ -2285,7 +2282,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
         HAVING SUM(COALESCE(pii.system_quantity, pii.quantity, 0)) > 0
       `, [productId]);
 
-      // 4. Reconstruct any missing sales_invoice ('out') stock movements from authoritative sales_invoice_items
+      // 3. Reconstruct any missing sales_invoice ('out') stock movements from authoritative sales_invoice_items
       await pool.query(`
         INSERT INTO stock_movements (
           store_id, product_id, type, quantity, source, description,
@@ -2334,7 +2331,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
       `, [productId]);
     }
 
-    // 5. Deduplicate existing redundant movements for this product:
+    // 4. Deduplicate existing redundant movements for this product:
     // a) Deduplicate multiple 'out' movements for the exact same sales invoice_id (keep earliest record per invoice)
     await pool.query(`
       DELETE FROM stock_movements sm1
@@ -2363,71 +2360,66 @@ export async function ensureProductMovements(productId: number, storeId: number)
         )
     `, [productId]);
 
-    // 6. Authoritative Stock & Ledger Reconciliation:
-    // NEVER overwrite products.stock_quantity from ensureProductMovements!
-    // products.stock_quantity is the authoritative physical stock set by operator / invoices / orders.
+    // 5. Authoritative Stock & Ledger Virman Reconciliation (AGENTS.md Section 32):
+    // - NEVER overwrite products.stock_quantity from ensureProductMovements!
+    // - NEVER delete or retroactively mutate an existing 'initial_stock' (Dönem Başı Mal Mevcudu) record!
+    // - NEVER delete historical purchase_invoice, sales_invoice, POS, or marketplace sale movements!
+    // - When an intermediate stock count revision creates a difference between products.stock_quantity and
+    //   the sum of historical movements, record it as an explicit 'Stok Hareket Virmanı' ('manual_adjustment') row.
     const currentStock = parseFloat(prod.stock_quantity || '0');
-
-    // Calculate net stock of actual invoice & sale documents (excluding initial_stock and manual_adjustment)
-    const docSumRes = await pool.query(`
-      SELECT COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as doc_net,
-             MIN(created_at) as min_date
-      FROM stock_movements
-      WHERE product_id = $1
-        AND COALESCE(source, '') NOT IN ('initial_stock', 'manual_adjustment')
-    `, [productId]);
-
-    const docNet = parseFloat(docSumRes.rows[0]?.doc_net || '0');
-    const minDate = docSumRes.rows[0]?.min_date;
+    const unitLabel = prod.unit || 'Adet';
     const baseUnitPrice = parseFloat(prod.cost_price) || parseFloat(prod.price) || 0;
     const baseCurrency = prod.currency || 'TRY';
-    const openingDate = (minDate && prod.created_at && new Date(minDate) < new Date(prod.created_at))
-      ? minDate
-      : (prod.created_at || minDate || new Date().toISOString());
 
-    if (currentStock >= docNet - 0.001) {
-      // Remove any manual_adjustment rows since opening stock + invoices/sales cleanly accounts for currentStock
-      await pool.query("DELETE FROM stock_movements WHERE product_id = $1 AND source = 'manual_adjustment'", [productId]);
-      const openingQty = Math.max(0, currentStock - docNet);
-      if (openingQty > 0.001) {
-        const initRes = await pool.query(
-          "SELECT id FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock' ORDER BY id ASC LIMIT 1",
-          [productId]
-        );
-        if (initRes.rows.length > 0) {
-          await pool.query(
-            "UPDATE stock_movements SET type = 'in', quantity = $1, description = 'Açılış Stok / Devir Kaydı', created_at = LEAST(created_at, $2::timestamptz) WHERE id = $3",
-            [openingQty, openingDate, initRes.rows[0].id]
-          );
-        } else {
-          await pool.query(`
-            INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-            VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok / Devir Kaydı', $4, $5, $6)
-          `, [prod.store_id, prod.id, openingQty, baseUnitPrice, baseCurrency, openingDate]);
-        }
-      } else {
-        await pool.query("DELETE FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock'", [productId]);
-      }
-    } else {
-      // currentStock < docNet (e.g., purchase invoices exceed sales invoices + current shelf stock because operator zeroed/reduced stock)
-      await pool.query("DELETE FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock'", [productId]);
-      const adjustOutQty = docNet - currentStock;
-      const adjRes = await pool.query(
-        "SELECT id FROM stock_movements WHERE product_id = $1 AND source = 'manual_adjustment' ORDER BY id DESC LIMIT 1",
-        [productId]
+    const summaryRes = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as ledger_net,
+        MIN(created_at) FILTER (WHERE COALESCE(source, '') != 'initial_stock') as min_doc_date,
+        COUNT(*) FILTER (WHERE source = 'initial_stock') as init_count,
+        COUNT(*) FILTER (WHERE source = 'purchase_invoice' OR invoice_type = 'purchase') as purchase_count,
+        COUNT(*) FILTER (WHERE source = 'manual_adjustment') as manual_count
+      FROM stock_movements
+      WHERE product_id = $1
+    `, [productId]);
+
+    const ledgerNet = parseFloat(summaryRes.rows[0]?.ledger_net || '0');
+    const minDocDate = summaryRes.rows[0]?.min_doc_date;
+    const initCount = parseInt(summaryRes.rows[0]?.init_count || '0', 10);
+    const purchaseCount = parseInt(summaryRes.rows[0]?.purchase_count || '0', 10);
+    const manualCount = parseInt(summaryRes.rows[0]?.manual_count || '0', 10);
+
+    const openingDate = (minDocDate && prod.created_at && new Date(minDocDate) < new Date(prod.created_at))
+      ? minDocDate
+      : (prod.created_at || minDocDate || new Date().toISOString());
+
+    // Ensure any existing initial_stock is chronologically positioned at or before the earliest movement
+    if (initCount > 0 && minDocDate) {
+      await pool.query(
+        "UPDATE stock_movements SET created_at = LEAST(created_at, $1::timestamptz) WHERE product_id = $2 AND source = 'initial_stock'",
+        [openingDate, productId]
       );
-      if (adjRes.rows.length > 0) {
-        const keepId = adjRes.rows[0].id;
-        await pool.query("DELETE FROM stock_movements WHERE product_id = $1 AND source = 'manual_adjustment' AND id != $2", [productId, keepId]);
-        await pool.query(
-          "UPDATE stock_movements SET type = 'out', quantity = $1, description = 'Operatör Stok Sayım Düzeltmesi (-)' WHERE id = $2",
-          [adjustOutQty, keepId]
-        );
-      } else {
+    }
+
+    const diff = currentStock - ledgerNet;
+    if (Math.abs(diff) > 0.001) {
+      if (initCount === 0 && manualCount === 0 && !options?.explicitOperatorRevision && diff > 0 && purchaseCount === 0) {
+        // Legacy product with no initial_stock and no purchase_invoice yet: record its initial Dönem Başı Mal Mevcudu
         await pool.query(`
           INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-          VALUES ($1, $2, 'out', $3, 'manual_adjustment', 'Operatör Stok Sayım Düzeltmesi (-)', $4, $5, CURRENT_TIMESTAMP)
-        `, [prod.store_id, prod.id, adjustOutQty, baseUnitPrice, baseCurrency]);
+          VALUES ($1, $2, 'in', $3, 'initial_stock', 'Dönem Başı Mal Mevcudu (Açılış Stok)', $4, $5, $6)
+        `, [prod.store_id, prod.id, diff, baseUnitPrice, baseCurrency, openingDate]);
+      } else {
+        // Intermediate stock count revision -> record an explicit Stok Hareket Virmanı without altering any prior movement
+        const virmanType = diff > 0 ? 'in' : 'out';
+        const virmanQty = Math.abs(diff);
+        const virmanDesc = options?.explicitOperatorRevision
+          ? `Stok Hareket Virmanı: Envanter Sayım Revizyonu (Önceki: ${ledgerNet} -> Yeni: ${currentStock} ${unitLabel})`
+          : `Stok Hareket Virmanı: Sayım / Envanter Revizyonu (Önceki: ${ledgerNet} -> Yeni: ${currentStock} ${unitLabel})`;
+
+        await pool.query(`
+          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+          VALUES ($1, $2, $3, $4, 'manual_adjustment', $5, $6, $7, CURRENT_TIMESTAMP)
+        `, [prod.store_id, prod.id, virmanType, virmanQty, virmanDesc, baseUnitPrice, baseCurrency]);
       }
     }
   } catch (err) {

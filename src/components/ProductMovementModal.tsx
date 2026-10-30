@@ -120,16 +120,6 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
       .then(data => {
         if (Array.isArray(data)) {
           setMovements(data);
-          if (data.length > 0) {
-            const computedNet = data.reduce((acc, m) => {
-              const q = Number(m.quantity) || 0;
-              return m.type === 'in' ? acc + q : acc - q;
-            }, 0);
-            if (Math.abs(Number(product.stock_quantity || 0) - computedNet) > 0.001) {
-              product.stock_quantity = computedNet;
-              if (onStockUpdated) onStockUpdated(computedNet);
-            }
-          }
         } else {
           console.error("Expected array but got:", data);
           setMovements([]);
@@ -412,9 +402,10 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
       case 'web_sale':
         return { label: isTr ? 'E-Ticaret / Web Satışı' : 'Web Sale', color: 'bg-sky-100 text-sky-800 border-sky-200' };
       case 'initial_stock':
-        return { label: isTr ? 'Açılış / Devir Stok' : 'Opening Stock', color: 'bg-amber-100 text-amber-800 border-amber-200' };
+        return { label: isTr ? 'Dönem Başı Mal Mevcudu' : 'Opening Stock', color: 'bg-amber-100 text-amber-800 border-amber-200' };
       case 'manual_adjustment':
-        return { label: isTr ? 'Manuel Stok Sayım/Düzeltme' : 'Manual Adjustment', color: 'bg-slate-100 text-slate-800 border-slate-200' };
+      case 'stock_revision_virman':
+        return { label: isTr ? 'Stok Hareket Virmanı' : 'Stock Revision Virman', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
       default:
         if (['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(srcLower)) {
           return { label: `Pazaryeri (${srcLower.toUpperCase()})`, color: 'bg-orange-100 text-orange-800 border-orange-200' };
@@ -609,7 +600,7 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
                       : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200/60'
                   }`}
                 >
-                  {isTr ? 'Devir / Düzeltme' : 'Adjustment'} ({stats.otherCount})
+                  {isTr ? 'Devir / Virman' : 'Opening / Virman'} ({stats.otherCount})
                 </button>
               )}
             </div>

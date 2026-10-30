@@ -452,20 +452,34 @@ This file outlines strict engineering, performance, and naming directives that m
 
 ---
 
-## 32. Stok Envanter Kayıt Bütünlüğü ve Yetkisiz/Hayalet Stok Kaydı Kesin Yasağı (Ironclad Stock Ledger & Zero Phantom Adjustment Protocol)
+## 32. Stok Envanter Kayıt Bütünlüğü, Çalışan Yapıyı Bozmama İlkesi ve Geriye Dönük Stok Hareket Virmanı Anayasası (Ironclad Stock Ledger, Zero-Breakage & Stock Revision Virman Protocol)
 
-- **Sistem Operatör Dışında Belli Belirsiz Kayıt Atamaz (Kayıt Kaynağı İlkesi)**:
-  - Ürün Ekstresindeki (`stock_movements`) hareketler SADECE VE SADECE şu üç meşru kaynaktan oluşabilir:
-    1. **Faturalar**: Alış ve Satış Faturaları (`source: 'purchase_invoice' | 'sales_invoice'`).
-    2. **Satışlar / Siparişler**: Kasa Satışları (Fast POS), Web Siparişleri (`source: 'pos' | 'web_sale' | 'sale'`).
-    3. **Operatörün Bilinçli Manuel Düzeltmesi**: Operatörün Ürün Ekstresi ekranındaki onaylı "Manuel Stok Sayım/Düzeltme" modalı veya onaylı sayım fişi üzerinden bilinçli olarak yaptığı işlemler (`source: 'manual_adjustment'`).
-  - Bir ürünün adı, fiyatı, barkodu, kategorisi, görselleri vb. bilgileri düzenlenip kaydedildiğinde; arka plandaki diff hesaplayıcıları veya otomatik senkronizasyon mekanizmaları KESİNLİKLE "Envanter Stok Senkronizasyonu (+/-)" veya habersiz "Stok Miktarı Güncellendi (Manuel Azalış/Artış)" kaydı ATAMAZ.
+- **Altın Kural — Çalışan Yapıyı Bozmamak (Do Not Break Working Architecture)**:
+  - Sistemde yapılan hiçbir hata düzeltmesi, senkronizasyon veya iyileştirme mevcut çalışan stok, fatura, pazaryeri ve ekstre mimarisini bozamaz. Bu maddedeki kurallara ters düşen hiçbir otomatik script, toplu stok ezme veya geçmiş hareket silme işlemi yapılamaz.
 
-- **Kısmi Ürün Güncellemelerinde (Partial Update) Stok Ezilme Koruması**:
-  - `PUT /api/store/products/:id` uç noktasında gelen gövdede (`req.body`) `stock_quantity` alanı yer almıyorsa (`req.body.stock_quantity === undefined`), ürünün mevcut `stock_quantity` değeri asla `0`'a veya varsayılan bir değere eşitlenemez; mevcut `stock_quantity` korunmalıdır.
-  - Sadece ve sadece operatör tablo üzerinden açıkça stok miktarını değiştirdiğinde (`is_explicit_stock_update: true`) stok hareketi üretilebilir.
+- **1. Stokların İlk Oluşum Kuralı (Dönem Başı Mal Mevcudu veya Satınalma / Alış Faturası)**:
+  - Envanterdeki aktif stokların tamamında başlangıç noktası olarak:
+    1. Ya **Dönem Başı Mal Mevcudu (Açılış Stok)** dediğimiz, ilk stok sayımı sonucu operatör tarafından kaydı oluşturulan ilk giriş hareketi (`source: 'initial_stock'`) vardır — ki bu veri girişi veya alış faturası yoksa ürün stoğu da yok demektir,
+    2. Ya da **Satınalma Sonucu Alış Faturaları** (`source: 'purchase_invoice'`) üzerinden stok girişi yapılarak aktif bir stok oluşturulmuştur (veya dönem başı mal mevcudu üzerine sonradan alış faturaları eklenmiştir).
+  - **Dönem Başı Mal Mevcudu Dokunulmazlığı**: Bir ürünün `Dönem Başı Mal Mevcudu (Açılış Stok)` (`initial_stock`) kaydı tarihsel bir gerçektir. İlerleyen tarihlerde yapılan satışlar veya operatör stok revizyonları sebebiyle geçmişteki `initial_stock` adedi ASLA silinemez, sıfırlanamaz veya geriye dönük değiştirilemez.
 
-- **Fatura Stok Hareketlerinde Gerçek Fatura Tarihi Zorunluluğu (`invoice_date` Preservation)**:
+- **2. Normal Stok Çıkış Akışı (Outflow Channels)**:
+  - Her hâlükârda stok çıkışları (`type: 'out'`) sistem üzerinden yalnızca şu 3 meşru kanal ile normal akışta gerçekleşir:
+    1. **E-Market / Pazaryeri Siparişleri** (`source: 'sale' | 'web_sale' | 'HEPSIBURADA' | 'TRENDYOL' | 'N11' | 'AMAZON' | 'PAZARAMA'`),
+    2. **Mağaza Hızlı POS (Kasa) Satışları** (`source: 'pos' | 'pos_sale' | 'sale'`),
+    3. **Kurumsal Satış Faturaları** (`source: 'sales_invoice'`).
+  - Stok ekstrelerinde normal çıkış akışı haricinde sistemin kendi kendine ürettiği belirsiz/hayalet bir çıkış hareketi KESİNLİKLE olamaz.
+
+- **3. Ara Tarihli Operatör Envanter Revizyonları ve Geriye Dönük Stok Hareket Virmanı ("Stok Hareket Virmanı")**:
+  - Ara tarihlerde, stok sayım sonucu gözden kaçan veya sistemden işlemi yapılmayan stok hareketleri sonucunda envanterdeki sayı operatör tarafından revize edildiğinde:
+    1. **Yeni Rakamın Kesinliği**: Operatörün revize ettiği bu rakam artık o ürünün kesin stok adedini (`products.stock_quantity`) temsil eder. Hiçbir arka plan görevi, ekstre sorgusu (`ensureProductMovements`) veya iptal edilmiş eski pazaryeri siparişi operatörün sıfırladığı/revize ettiği bu stok adedini tekrar arttıramaz veya ezemez.
+    2. **Geriye Dönük Stok Hareket Virmanı ve Geçmişin Korunması**: Operatör stok adedini revize ettiğinde, **bu revizyon öncesi hiçbir giriş veya çıkış hareketi (`Dönem Başı Mal Mevcudu`, `Alış Faturaları`, `Satış Faturaları`, `POS Satışları`, `E-Market Siparişleri`) kaybolmayacak ve değiştirilmeyecek şekilde** korunur.
+    3. Revizyon farkı (`yeni_stok - ekstre_net_bakiye`), revizyon tarihinde ekstrede açıkça görünür bir **"Stok Hareket Virmanı (Envanter Sayım Revizyonu)"** (`source: 'manual_adjustment'`) satırı olarak kaydedilir ve raporlanır. Böylece ekstre incelendiğinde ürünün dönem başı mevcudu, tüm alış/satış geçmişi ve operatörün yaptığı sayım revizyon virmanı şeffaf ve eksiksiz biçimde görülür.
+
+- **4. Kısmi Ürün Güncellemelerinde (Partial Update) Stok Ezilme Koruması**:
+  - Bir ürünün yalnızca adı, fiyatı, barkodu, kategorisi veya görselleri düzenlenip kaydedildiğinde; stok adedi değiştirilmediyse (`is_explicit_stock_update` yoksa) sistem asla stok hareketi veya virman kaydı üretemez.
+  - Stok sıfırlandığında (`stock_quantity <= 0`) bağlı pazaryeri ilanları (`is_amazon_active`, vb.) otomatik pasife alınır ve pazaryerlerine `quantity = 0` bildirimi gönderilir; stok sıfır (`0`) iken gelen eski/iptal sipariş bildirimleri stoğu tekrar pozitif yapamaz.
+
+- **5. Fatura Stok Hareketlerinde Gerçek Fatura Tarihi Zorunluluğu (`invoice_date` Preservation)**:
   - Alış ve satış faturalarına ait stok hareketleri (`stock_movements`), faturanın kaydedildiği veya güncellendiği anın zaman damgasını (`CURRENT_TIMESTAMP`) DEĞİL; faturanın gerçek düzenlenme tarihini (`purchase_invoices.invoice_date` / `sales_invoices.invoice_date`) `created_at` olarak almalıdır.
-  - Fatura sonradan güncellense veya e-Fatura içe aktarılsa dahi oluşan stok hareketinin tarihi her zaman faturanın üzerinde yazan asıl fatura tarihi olmalıdır.
-  - Açıklama metinlerinde operatörü yanıltan "Fatura Güncelleme" veya "E-Fatura İlk İçe Aktarma" gibi geçici başlıklar yerine, resmi fatura no ve unvanı taşıyan standart `Alış Faturası: [FaturaNo]` / `Satış Faturası: [FaturaNo]` kullanılmalıdır.
+
