@@ -450,4 +450,22 @@ This file outlines strict engineering, performance, and naming directives that m
     - Izgara Aralığı: Kolonlar arası `gap-3.5` ila `gap-4`
   - Bu sayede operatör ekranı gereksiz aşağı kaydırmadan tüm alanları kompakt ve derli toplu tek bir görüş alanında yönetir.
 
+---
 
+## 32. Stok Envanter Kayıt Bütünlüğü ve Yetkisiz/Hayalet Stok Kaydı Kesin Yasağı (Ironclad Stock Ledger & Zero Phantom Adjustment Protocol)
+
+- **Sistem Operatör Dışında Belli Belirsiz Kayıt Atamaz (Kayıt Kaynağı İlkesi)**:
+  - Ürün Ekstresindeki (`stock_movements`) hareketler SADECE VE SADECE şu üç meşru kaynaktan oluşabilir:
+    1. **Faturalar**: Alış ve Satış Faturaları (`source: 'purchase_invoice' | 'sales_invoice'`).
+    2. **Satışlar / Siparişler**: Kasa Satışları (Fast POS), Web Siparişleri (`source: 'pos' | 'web_sale' | 'sale'`).
+    3. **Operatörün Bilinçli Manuel Düzeltmesi**: Operatörün Ürün Ekstresi ekranındaki onaylı "Manuel Stok Sayım/Düzeltme" modalı veya onaylı sayım fişi üzerinden bilinçli olarak yaptığı işlemler (`source: 'manual_adjustment'`).
+  - Bir ürünün adı, fiyatı, barkodu, kategorisi, görselleri vb. bilgileri düzenlenip kaydedildiğinde; arka plandaki diff hesaplayıcıları veya otomatik senkronizasyon mekanizmaları KESİNLİKLE "Envanter Stok Senkronizasyonu (+/-)" veya habersiz "Stok Miktarı Güncellendi (Manuel Azalış/Artış)" kaydı ATAMAZ.
+
+- **Kısmi Ürün Güncellemelerinde (Partial Update) Stok Ezilme Koruması**:
+  - `PUT /api/store/products/:id` uç noktasında gelen gövdede (`req.body`) `stock_quantity` alanı yer almıyorsa (`req.body.stock_quantity === undefined`), ürünün mevcut `stock_quantity` değeri asla `0`'a veya varsayılan bir değere eşitlenemez; mevcut `stock_quantity` korunmalıdır.
+  - Sadece ve sadece operatör tablo üzerinden açıkça stok miktarını değiştirdiğinde (`is_explicit_stock_update: true`) stok hareketi üretilebilir.
+
+- **Fatura Stok Hareketlerinde Gerçek Fatura Tarihi Zorunluluğu (`invoice_date` Preservation)**:
+  - Alış ve satış faturalarına ait stok hareketleri (`stock_movements`), faturanın kaydedildiği veya güncellendiği anın zaman damgasını (`CURRENT_TIMESTAMP`) DEĞİL; faturanın gerçek düzenlenme tarihini (`purchase_invoices.invoice_date` / `sales_invoices.invoice_date`) `created_at` olarak almalıdır.
+  - Fatura sonradan güncellense veya e-Fatura içe aktarılsa dahi oluşan stok hareketinin tarihi her zaman faturanın üzerinde yazan asıl fatura tarihi olmalıdır.
+  - Açıklama metinlerinde operatörü yanıltan "Fatura Güncelleme" veya "E-Fatura İlk İçe Aktarma" gibi geçici başlıklar yerine, resmi fatura no ve unvanı taşıyan standart `Alış Faturası: [FaturaNo]` / `Satış Faturası: [FaturaNo]` kullanılmalıdır.

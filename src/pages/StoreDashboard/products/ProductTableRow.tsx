@@ -168,7 +168,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
     }
     setIsSavingStock(true);
     try {
-      await api.updateProduct(p.id, { stock_quantity: newS }, currentStoreId);
+      await api.updateProduct(p.id, { stock_quantity: newS, is_explicit_stock_update: true }, currentStoreId);
       p.stock_quantity = newS;
       setIsEditingStock(false);
       toast.success(lang === "tr" ? `Stok güncellendi: ${newS} ${p.unit || 'Adet'}` : `Stock updated: ${newS}`);

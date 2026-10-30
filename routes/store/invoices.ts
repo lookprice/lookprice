@@ -1140,7 +1140,7 @@ router.post("/sales", async (req: any, res) => {
             [item.quantity, resolvedProductId, storeId]
           );
           
-          await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName, currency, null, invoiceId, 'sales', invoice_number);
+          await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName, currency, null, invoiceId, 'sales', invoice_number, invoice_date || new Date());
         }
       }
     }
@@ -1520,7 +1520,7 @@ router.put("/sales/:id", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, resolvedProductId, storeId]
         );
-        await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası (Güncellendi): ${invoice_number}`, item.unit_price, displayName, currency, null, req.params.id, 'sales', invoice_number);
+        await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName, currency, null, req.params.id, 'sales', invoice_number, invoice_date || new Date());
       }
     }
 
@@ -1942,14 +1942,15 @@ router.get("/purchase/:id", async (req: any, res) => {
                        'in',
                        qty,
                        'purchase_invoice',
-                       `E-Fatura İlk İçe Aktarma: ${invoice.invoice_number}`,
+                       `Alış Faturası: ${invoice.invoice_number}`,
                        up,
                        invoice.supplier_name || invoice.company_name,
                        invoice.currency,
                        null,
                        invoice.id,
                        'purchase',
-                       invoice.invoice_number
+                       invoice.invoice_number,
+                       invoice.invoice_date || invoice.created_at || new Date()
                      );
                    }
                  }
@@ -2275,8 +2276,8 @@ router.post("/purchase", async (req: any, res) => {
           
           await addStockMovement(
             pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
-            `Fatura Girişi: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency,
-            null, invoice.id, 'purchase', invoice.invoice_number
+            `Alış Faturası: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency,
+            null, invoice.id, 'purchase', invoice.invoice_number, invoice.invoice_date || invoice_date || new Date()
           );
         }
       }
@@ -2695,8 +2696,8 @@ router.put("/purchase/:id", async (req: any, res) => {
           
           await addStockMovement(
             pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
-            `Fatura Güncelleme: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency,
-            null, invoice.id, 'purchase', invoice.invoice_number
+            `Alış Faturası: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency,
+            null, invoice.id, 'purchase', invoice.invoice_number, invoice.invoice_date || invoice_date || new Date()
           );
         }
       }
@@ -3102,7 +3103,7 @@ router.post("/purchase/:invoiceId/items/:itemId/match-product", async (req: any,
         await addStockMovement(
           pool, storeId, targetProd.id, 'in', Math.round(qty), 'purchase_invoice',
           `Alış Faturası: ${invNum}`, Number(item.unit_price || 0), inv.supplier_name || 'Tedarikçi', inv.currency || 'TRY',
-          null, Number(invoiceId), 'purchase', invNum
+          null, Number(invoiceId), 'purchase', invNum, inv.invoice_date || inv.created_at || new Date()
         );
       }
     }
@@ -3216,8 +3217,8 @@ router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
 
             await addStockMovement(
               pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
-              `Fatura Girişi: ${inv.invoice_number || inv.document_number}`, item.unit_price || 0, inv.supplier_name || 'Tedarikçi', inv.currency || 'TRY',
-              null, Number(id), 'purchase', inv.invoice_number || inv.document_number
+              `Alış Faturası: ${inv.invoice_number || inv.document_number}`, item.unit_price || 0, inv.supplier_name || 'Tedarikçi', inv.currency || 'TRY',
+              null, Number(id), 'purchase', inv.invoice_number || inv.document_number, inv.invoice_date || inv.created_at || new Date()
             );
             addedStockCount++;
           }
@@ -3282,7 +3283,7 @@ router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
           const movCheck = await pool.query("SELECT 1 FROM stock_movements WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND source = 'purchase_invoice' LIMIT 1", [row.store_id, row.id, prodId]);
           if (movCheck.rows.length === 0 && qty > 0) {
             await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5", [qty, item.unit_price || 0, row.currency || 'TRY', prodId, row.store_id]);
-            await addStockMovement(pool, row.store_id, prodId, 'in', qty, 'purchase_invoice', `Fatura Girişi: ${row.invoice_number}`, item.unit_price || 0, row.supplier_name || 'Bimel', row.currency || 'TRY', null, row.id, 'purchase', row.invoice_number);
+            await addStockMovement(pool, row.store_id, prodId, 'in', qty, 'purchase_invoice', `Alış Faturası: ${row.invoice_number}`, item.unit_price || 0, row.supplier_name || 'Bimel', row.currency || 'TRY', null, row.id, 'purchase', row.invoice_number, row.invoice_date || row.created_at || new Date());
           }
         }
       }
@@ -3447,7 +3448,7 @@ router.put("/purchase/items/:itemId", async (req: any, res) => {
           await client.query(
             `INSERT INTO stock_movements 
              (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number) 
-             VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, NOW(), $8, 'purchase', $9)`,
+             VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, $8, $9, 'purchase', $10)`,
             [
               storeId,
               newProductId,
@@ -3456,6 +3457,7 @@ router.put("/purchase/items/:itemId", async (req: any, res) => {
               unitPrice,
               currentItem.supplier_name || 'Tedarikçi',
               currentItem.currency || 'TRY',
+              currentItem.invoice_date || currentItem.created_at || new Date(),
               currentItem.purchase_invoice_id,
               currentItem.invoice_number
             ]
@@ -3568,15 +3570,16 @@ router.post("/purchase/items/:itemId/create-product", async (req: any, res) => {
     await client.query(
       `INSERT INTO stock_movements 
        (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number) 
-       VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, NOW(), $8, 'purchase', $9)`,
+       VALUES ($1, $2, 'in', $3, 'purchase_invoice', $4, $5, $6, $7, $8, $9, 'purchase', $10)`,
       [
         storeId,
         newProductId,
         itemQty,
-        `Alış Faturası Yeni Ürün Kartı: ${currentItem.invoice_number || currentItem.purchase_invoice_id}`,
+        `Alış Faturası: ${currentItem.invoice_number || currentItem.purchase_invoice_id}`,
         unitPrice,
         currentItem.supplier_name || 'Tedarikçi',
         currentItem.currency || 'TRY',
+        currentItem.invoice_date || currentItem.created_at || new Date(),
         currentItem.purchase_invoice_id,
         currentItem.invoice_number
       ]
@@ -3718,7 +3721,8 @@ router.post("/purchase/:id/re-sync-matching", async (req: any, res) => {
           null,
           invoice.id,
           'purchase',
-          invoice.invoice_number
+          invoice.invoice_number,
+          invoice.invoice_date || invoice.created_at || new Date()
         );
       }
       processedCount++;

@@ -2295,7 +2295,23 @@ export async function logAction(
   }
 }
 
-export async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: any = null, customerInfo: any = null, currency: any = 'TRY', saleId: any = null, invoiceId: any = null, invoiceType: any = null, invoiceNumber: any = null) {
+export async function addStockMovement(
+  client: any, 
+  storeId: number, 
+  productId: number, 
+  type: 'in' | 'out', 
+  quantity: number, 
+  source: string, 
+  description: string, 
+  unitPrice: any = null, 
+  customerInfo: any = null, 
+  currency: any = 'TRY', 
+  saleId: any = null, 
+  invoiceId: any = null, 
+  invoiceType: any = null, 
+  invoiceNumber: any = null,
+  createdAt: any = null
+) {
   const price = unitPrice !== null && unitPrice !== undefined ? Number(unitPrice) : null;
   const info = customerInfo !== null && customerInfo !== undefined ? String(customerInfo) : null;
   const curr = currency !== null && currency !== undefined ? String(currency) : 'TRY';
@@ -2303,10 +2319,25 @@ export async function addStockMovement(client: any, storeId: number, productId: 
   const invId = invoiceId !== null && invoiceId !== undefined ? Number(invoiceId) : null;
   const invType = invoiceType !== null && invoiceType !== undefined ? String(invoiceType) : null;
   const invNum = invoiceNumber !== null && invoiceNumber !== undefined ? String(invoiceNumber) : null;
-  await client.query(
-    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, sale_id, invoice_id, invoice_type, invoice_number) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
-    [storeId, productId, type, quantity, source, description, price, info, curr, sId, invId, invType, invNum]
-  );
+  
+  const movDate = createdAt ? new Date(createdAt) : null;
+  const validDate = (movDate && !isNaN(movDate.getTime())) ? movDate : null;
+
+  if (validDate) {
+    await client.query(
+      `INSERT INTO stock_movements 
+       (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, sale_id, invoice_id, invoice_type, invoice_number, created_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [storeId, productId, type, quantity, source, description, price, info, curr, sId, invId, invType, invNum, validDate]
+    );
+  } else {
+    await client.query(
+      `INSERT INTO stock_movements 
+       (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, sale_id, invoice_id, invoice_type, invoice_number) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [storeId, productId, type, quantity, source, description, price, info, curr, sId, invId, invType, invNum]
+    );
+  }
 }
 
 export async function processSaleAutomation(client: any, saleId: number, storeId: number) {

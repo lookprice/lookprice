@@ -1615,6 +1615,29 @@ router.put("/:id", async (req: any, res) => {
       }
     }
 
+    const existing = existingProductRes.rows[0] || {};
+    const finalStockQuantity = (stock_quantity !== undefined && stock_quantity !== null && String(stock_quantity).trim() !== '')
+      ? (parseFloat(String(stock_quantity).replace(',', '.')) || 0)
+      : oldStock;
+
+    const finalName = name !== undefined ? name : (existing.name || '');
+    const finalCostPrice = cost_price !== undefined ? (parseFloat(String(cost_price).replace(',', '.')) || 0) : (parseFloat(existing.cost_price) || 0);
+    const finalCostCurrency = cost_currency !== undefined ? cost_currency : (existing.cost_currency || 'TRY');
+    const finalDescription = description !== undefined ? description : (existing.description || '');
+    const finalMinStockLevel = min_stock_level !== undefined ? (parseFloat(min_stock_level) || 5) : (parseFloat(existing.min_stock_level) || 5);
+    const finalUnit = unit !== undefined ? unit : (existing.unit || 'Adet');
+    const finalCategory = category !== undefined ? category : (existing.category || '');
+    const finalSubCategory = sub_category !== undefined ? sub_category : (existing.sub_category || '');
+    const finalCategory2 = category_2 !== undefined ? category_2 : (existing.category_2 || '');
+    const finalSubCategory2 = sub_category_2 !== undefined ? sub_category_2 : (existing.sub_category_2 || '');
+    const finalBrand = brand !== undefined ? brand : (existing.brand || '');
+    const finalAuthor = author !== undefined ? author : (existing.author || '');
+    const finalPrice2 = price_2 !== undefined ? (parseFloat(String(price_2).replace(',', '.')) || 0) : (parseFloat(existing.price_2) || 0);
+    const finalPrice2Currency = price_2_currency !== undefined ? price_2_currency : (existing.price_2_currency || 'TRY');
+    const finalTaxRate = tax_rate !== undefined ? (parseFloat(tax_rate) || 0) : (parseFloat(existing.tax_rate) || 0);
+    const finalShippingProfileId = shipping_profile_id !== undefined ? (shipping_profile_id || null) : (existing.shipping_profile_id || null);
+    const finalVolumeMl = volume_ml !== undefined ? (parseFloat(volume_ml) || 0) : (parseFloat(existing.volume_ml) || 0);
+
     await pool.query(`
       UPDATE products SET 
         barcode = $1, product_code = $2, sku = $2, name = $3, price = $4, currency = $5, 
@@ -1632,25 +1655,25 @@ router.put("/:id", async (req: any, res) => {
         updated_at = CURRENT_TIMESTAMP 
       WHERE id = $45 AND store_id = $46
     `, [
-      finalBarcode, finalProductCode, name, finalPrice, currency || 'TRY', 
-      parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
-      parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
-      category || '', sub_category || '', category_2 || '', sub_category_2 || '',
-      finalHasVariants, finalVariants, brand || '', author || '', 
+      finalBarcode, finalProductCode, finalName, finalPrice, currency || existing.currency || 'TRY', 
+      finalCostPrice, finalCostCurrency, finalDescription, 
+      finalStockQuantity, finalMinStockLevel, finalUnit, 
+      finalCategory, finalSubCategory, finalCategory2, finalSubCategory2,
+      finalHasVariants, finalVariants, finalBrand, finalAuthor, 
       JSON.stringify(updatedLabels), cleanMainImage, finalImagesVal,
       finalIsWebSale,
       finalIsBestseller,
-      product_type || 'product',
-      parseFloat(price_2) || 0,
-      price_2_currency || 'TRY',
-      parseFloat(tax_rate) || 0,
-      shipping_profile_id || null,
-      parseFloat(volume_ml) || 0,
+      product_type || existing.product_type || 'product',
+      finalPrice2,
+      finalPrice2Currency,
+      finalTaxRate,
+      finalShippingProfileId,
+      finalVolumeMl,
       finalIsSellable,
       finalAllergens,
-      calories !== undefined ? (parseFloat(calories) || 0) : (existingProductRes.rows[0]?.calories || 0),
-      prep_time_min !== undefined ? (parseFloat(prep_time_min) || 0) : (existingProductRes.rows[0]?.prep_time_min || 0),
-      portion_size !== undefined ? String(portion_size) : (existingProductRes.rows[0]?.portion_size || ''),
+      calories !== undefined ? (parseFloat(calories) || 0) : (existing.calories || 0),
+      prep_time_min !== undefined ? (parseFloat(prep_time_min) || 0) : (existing.prep_time_min || 0),
+      portion_size !== undefined ? String(portion_size) : (existing.portion_size || ''),
       JSON.stringify(finalMarketplaceData),
       JSON.stringify(finalSectorData),
       finalHbSku, finalIsHbActive,
@@ -1659,7 +1682,7 @@ router.put("/:id", async (req: any, res) => {
       id, storeId
     ]);
 
-    const newStock = parseFloat(stock_quantity !== undefined ? stock_quantity : oldStock) || 0;
+    const newStock = finalStockQuantity;
     if (finalPrice > 0 && newStock > 0) {
       await pool.query(
         `UPDATE products
@@ -1672,8 +1695,9 @@ router.put("/:id", async (req: any, res) => {
         [id, storeId]
       );
     }
+    const isExplicitStockUpdate = req.body.is_explicit_stock_update === true;
     const diff = newStock - oldStock;
-    if (Math.abs(diff) > 0.001) {
+    if (isExplicitStockUpdate && Math.abs(diff) > 0.001) {
       try {
         await pool.query(`
           INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
@@ -1684,8 +1708,8 @@ router.put("/:id", async (req: any, res) => {
           diff > 0 ? 'in' : 'out', 
           Math.abs(diff), 
           diff > 0 ? 'Stok Miktarı Güncellendi (Manuel Artış)' : 'Stok Miktarı Güncellendi (Manuel Azalış)',
-          parseFloat(cost_price) || finalPrice || parseFloat(existingProductRes.rows[0]?.cost_price) || parseFloat(existingProductRes.rows[0]?.price) || 0, 
-          currency || existingProductRes.rows[0]?.currency || 'TRY'
+          finalCostPrice || finalPrice || 0, 
+          currency || existing.currency || 'TRY'
         ]);
       } catch (smErr) {
         console.error("Failed to log product update stock movement:", smErr);
@@ -1935,6 +1959,7 @@ router.put("/:id", async (req: any, res) => {
       "SELECT p.*, s.name as store_name FROM products p JOIN stores s ON p.store_id = s.id WHERE p.id = $1",
       [id]
     );
+    invalidateStoreProductsCache(storeId);
     res.json({ success: true, product: updatedProdRes.rows[0] });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
@@ -2221,8 +2246,8 @@ export async function ensureProductMovements(productId: number, storeId: number)
         AND LOWER(COALESCE(si.status, '')) IN ('cancelled', 'iptal', 'canceled', 'rejected', 'reddedildi')
     `, [productId]);
 
-    // 2. Ensure stock_movements net sum matches products.stock_quantity (products.stock_quantity is the authoritative source of truth)
-    // NEVER overwrite products.stock_quantity from stock_movements!
+    // 2. Authoritative Ledger Calculation:
+    // Compute the true net stock from legitimate movements (invoices, sales, explicit manual corrections)
     const smSumRes = await pool.query(`
       SELECT COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as net_qty,
              COUNT(*) as total_cnt
@@ -2233,50 +2258,27 @@ export async function ensureProductMovements(productId: number, storeId: number)
     const netQty = parseFloat(smSumRes.rows[0]?.net_qty || '0');
     const totalCnt = parseInt(smSumRes.rows[0]?.total_cnt || '0');
     const currentStock = parseFloat(prod.stock_quantity || '0');
-    const diff = currentStock - netQty;
 
     if (totalCnt === 0) {
-      await pool.query(`
-        INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-        VALUES ($1, $2, $3, $4, 'initial_stock', 'Açılış Stok / Devir Kaydı', $5, $6, COALESCE($7, CURRENT_TIMESTAMP))
-      `, [
-        prod.store_id,
-        prod.id,
-        currentStock >= 0 ? 'in' : 'out',
-        Math.abs(currentStock),
-        parseFloat(prod.cost_price) || parseFloat(prod.price) || 0,
-        prod.currency || 'TRY',
-        prod.created_at
-      ]);
-    } else if (Math.abs(diff) > 0.001) {
-      // Adjust initial_stock if possible, or insert a baseline adjustment so ledger sum equals products.stock_quantity
-      const initRes = await pool.query(
-        "SELECT id, type, quantity FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock' ORDER BY id ASC LIMIT 1",
-        [productId]
-      );
-      if (initRes.rows.length > 0 && initRes.rows[0].type === 'in' && (parseFloat(initRes.rows[0].quantity) + diff) >= -0.001) {
-        const updatedInitQty = parseFloat(initRes.rows[0].quantity) + diff;
-        if (updatedInitQty <= 0.001) {
-          await pool.query("DELETE FROM stock_movements WHERE id = $1", [initRes.rows[0].id]);
-        } else {
-          await pool.query(
-            "UPDATE stock_movements SET quantity = $1 WHERE id = $2",
-            [updatedInitQty, initRes.rows[0].id]
-          );
-        }
-      } else {
+      if (Math.abs(currentStock) > 0.001) {
         await pool.query(`
           INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-          VALUES ($1, $2, $3, $4, 'manual_adjustment', $5, $6, $7, CURRENT_TIMESTAMP)
+          VALUES ($1, $2, $3, $4, 'initial_stock', 'Açılış Stok / Devir Kaydı', $5, $6, COALESCE($7, CURRENT_TIMESTAMP))
         `, [
           prod.store_id,
           prod.id,
-          diff > 0 ? 'in' : 'out',
-          Math.abs(diff),
-          diff > 0 ? 'Envanter Stok Senkronizasyonu (+)' : 'Envanter Stok Senkronizasyonu (-)',
+          currentStock >= 0 ? 'in' : 'out',
+          Math.abs(currentStock),
           parseFloat(prod.cost_price) || parseFloat(prod.price) || 0,
-          prod.currency || 'TRY'
+          prod.currency || 'TRY',
+          prod.created_at
         ]);
+      }
+    } else {
+      // Rule 32: If stock movements exist, DO NOT inject synthetic "Envanter Stok Senkronizasyonu" phantom records into the ledger!
+      // The movements ledger is authoritative for transactions. Update products.stock_quantity to match netQty if they differ.
+      if (Math.abs(currentStock - netQty) > 0.001) {
+        await pool.query("UPDATE products SET stock_quantity = $1 WHERE id = $2", [netQty, productId]);
       }
     }
   } catch (err) {
@@ -2295,11 +2297,27 @@ router.get("/:id/movements", async (req: any, res) => {
     await ensureProductMovements(Number(id), productStoreId);
 
     const movementsRes = await pool.query(
-      "SELECT * FROM stock_movements WHERE product_id = $1 ORDER BY created_at DESC",
+      `SELECT sm.*,
+              COALESCE(pi.invoice_date, si.invoice_date, sm.created_at) as effective_date
+       FROM stock_movements sm
+       LEFT JOIN purchase_invoices pi ON sm.invoice_id = pi.id
+       LEFT JOIN sales_invoices si ON sm.invoice_id = si.id
+       WHERE sm.product_id = $1 
+       ORDER BY COALESCE(pi.invoice_date, si.invoice_date, sm.created_at) DESC, sm.id DESC`,
       [id]
     );
 
-    res.json(movementsRes.rows);
+    const rows = movementsRes.rows.map((row: any) => {
+      if (row.effective_date && (row.source === 'purchase_invoice' || row.source === 'sales_invoice' || row.invoice_type === 'purchase' || row.invoice_type === 'sales')) {
+        return {
+          ...row,
+          created_at: row.effective_date
+        };
+      }
+      return row;
+    });
+
+    res.json(rows);
   } catch (error: any) {
     console.error("Fetch product movements error:", error);
     res.status(500).json({ error: error.message });
@@ -2319,21 +2337,32 @@ router.get("/:id/movements/export", async (req: any, res) => {
     await ensureProductMovements(Number(id), product.store_id);
 
     const movementsRes = await pool.query(
-      "SELECT * FROM stock_movements WHERE product_id = $1 ORDER BY created_at DESC",
+      `SELECT sm.*,
+              COALESCE(pi.invoice_date, si.invoice_date, sm.created_at) as effective_date
+       FROM stock_movements sm
+       LEFT JOIN purchase_invoices pi ON sm.invoice_id = pi.id
+       LEFT JOIN sales_invoices si ON sm.invoice_id = si.id
+       WHERE sm.product_id = $1 
+       ORDER BY COALESCE(pi.invoice_date, si.invoice_date, sm.created_at) DESC, sm.id DESC`,
       [id]
     );
 
     const { formatDateTimeTR } = await import("../../src/utils/formatUtils");
-    const data = movementsRes.rows.map((m: any) => ({
-      [lang === "tr" ? "Tarih" : "Date"]: formatDateTimeTR(m.created_at),
-      [lang === "tr" ? "Tür" : "Type"]: m.type === "in" ? (lang === "tr" ? "Giriş" : "In") : (lang === "tr" ? "Çıkış" : "Out"),
-      [lang === "tr" ? "Miktar" : "Quantity"]: m.quantity,
-      [lang === "tr" ? "Kaynak" : "Source"]: m.source,
-      [lang === "tr" ? "Açıklama" : "Description"]: m.description || "",
-      [lang === "tr" ? "Birim Fiyat" : "Unit Price"]: m.unit_price ? Number(m.unit_price) : "",
-      [lang === "tr" ? "Müşteri/Tedarikçi" : "Customer/Supplier"]: m.customer_info || "",
-      [lang === "tr" ? "Para Birimi" : "Currency"]: m.currency || "TRY"
-    }));
+    const data = movementsRes.rows.map((m: any) => {
+      const displayDate = (m.effective_date && (m.source === 'purchase_invoice' || m.source === 'sales_invoice' || m.invoice_type === 'purchase' || m.invoice_type === 'sales'))
+        ? m.effective_date
+        : m.created_at;
+      return {
+        [lang === "tr" ? "Tarih" : "Date"]: formatDateTimeTR(displayDate),
+        [lang === "tr" ? "Tür" : "Type"]: m.type === "in" ? (lang === "tr" ? "Giriş" : "In") : (lang === "tr" ? "Çıkış" : "Out"),
+        [lang === "tr" ? "Miktar" : "Quantity"]: m.quantity,
+        [lang === "tr" ? "Kaynak" : "Source"]: m.source,
+        [lang === "tr" ? "Açıklama" : "Description"]: m.description || "",
+        [lang === "tr" ? "Birim Fiyat" : "Unit Price"]: m.unit_price ? Number(m.unit_price) : "",
+        [lang === "tr" ? "Müşteri/Tedarikçi" : "Customer/Supplier"]: m.customer_info || "",
+        [lang === "tr" ? "Para Birimi" : "Currency"]: m.currency || "TRY"
+      };
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();

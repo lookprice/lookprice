@@ -661,6 +661,7 @@ export const ProductModal = ({
 
         {/* UNIFIED FORM WITH FIXED STICKY FOOTER */}
         <form
+          key={editingProduct?.id ? `product-form-${editingProduct.id}` : 'product-form-new'}
           onSubmit={(e) => {
             if (handleAddProduct) handleAddProduct(e);
           }}
@@ -1699,7 +1700,6 @@ export const ProductModal = ({
                         type="number"
                         name="stock_quantity"
                         readOnly={hasVariants}
-                        disabled={hasVariants}
                         placeholder="0"
                         className={`w-full px-2 py-0.5 border rounded-lg font-medium text-xs h-7 outline-none ${
                           hasVariants 
