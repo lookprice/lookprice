@@ -60,6 +60,7 @@ const NavigateWithParams = () => {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const isDashboardRoute = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/admin');
   const { lang } = useLanguage();
   const initialHostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
   const cachedDomainSlug = typeof window !== 'undefined' ? sessionStorage.getItem(`detected_slug_${initialHostname}`) : null;
@@ -235,7 +236,7 @@ export default function App() {
     }
 
     return (
-      <div className="min-h-screen bg-gray-50 font-sans">
+      <div className={`${isDashboardRoute ? 'h-screen h-[100dvh] overflow-hidden dashboard-root-wrapper' : 'min-h-screen'} bg-gray-50 font-sans`}>
         <React.Suspense fallback={<SuspenseLoader />}>
           <Routes>
             {/* Scan Routes */}
@@ -278,7 +279,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
+    <div className={`${isDashboardRoute ? 'h-screen h-[100dvh] overflow-hidden dashboard-root-wrapper' : 'min-h-screen'} bg-gray-50 font-sans`}>
       <Toaster position="top-center" richColors />
       <React.Suspense fallback={<SuspenseLoader />}>
         <Routes>

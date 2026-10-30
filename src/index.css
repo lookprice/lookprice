@@ -288,6 +288,19 @@
   }
 }
 
+/* Single Unified Scrollbar Standard: Prevent outer viewport double scrollbars on operator dashboards */
+html:has(.operator-compact-layout),
+body:has(.operator-compact-layout),
+html:has(.dashboard-root-wrapper),
+body:has(.dashboard-root-wrapper) {
+  overflow: hidden !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important;
+  padding-bottom: 0 !important;
+}
+
 /* High-Density Compact Operator Workspace & Digital Menu */
 .operator-compact-layout {
   --compact-density: 1;

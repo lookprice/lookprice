@@ -104,7 +104,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   return (
     <div className="os-panel overflow-hidden">
       {/* Table View */}
-      <div className="overflow-x-auto min-h-[360px]">
+      <div className="overflow-x-auto overflow-y-hidden min-h-[360px]">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-200">
@@ -159,10 +159,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                 </td>
               </tr>
             ) : (
-              paginatedProducts.map((p) => (
+              paginatedProducts.map((p, idx) => (
                 <ProductTableRow
                   key={p.id}
                   product={p}
+                  rowIndex={idx}
+                  totalRows={paginatedProducts.length}
                   isViewer={isViewer}
                   isCafe={isCafe}
                   isCafeRestaurant={isCafeRestaurant}

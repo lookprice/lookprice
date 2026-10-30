@@ -43,7 +43,7 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
   }, []);
 
   return (
-    <div className="flex h-screen h-[100dvh] min-h-screen bg-slate-50 overflow-hidden font-sans relative operator-compact-layout">
+    <div className="flex h-screen h-[100dvh] max-h-screen max-h-[100dvh] bg-slate-50 overflow-hidden font-sans relative operator-compact-layout">
       {/* Top Non-blocking Loading Bar */}
       {loading && (
         <div className="fixed top-0 left-0 right-0 z-[9999] h-0.5 bg-slate-200 overflow-hidden">
@@ -77,7 +77,7 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
 
       <DashboardSidebar {...sidebarProps} />
 
-      <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+      <main className="flex-1 flex flex-col min-w-0 h-full max-h-full overflow-hidden relative">
         {/* Mobile Header with Hamburger Menu & Notification Bell */}
         <div className="lg:hidden flex items-center justify-between px-3.5 py-2.5 bg-white border-b border-slate-200 z-10 shrink-0">
           <div className="flex items-center min-w-0">

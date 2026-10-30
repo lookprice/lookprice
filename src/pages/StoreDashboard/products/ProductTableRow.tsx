@@ -68,6 +68,8 @@ interface ProductTableRowProps {
   setSelectedProduct: (p: any) => void;
   lang: string;
   t: any;
+  rowIndex?: number;
+  totalRows?: number;
 }
 
 export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
@@ -110,8 +112,11 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
   setSelectedProduct,
   lang,
   t,
+  rowIndex,
+  totalRows,
 }) => {
   const isRowOpen = tableManager.isRowExpanded(p.id);
+  const isNearBottom = totalRows !== undefined && rowIndex !== undefined && totalRows >= 4 && rowIndex >= totalRows - 2;
 
   // Fast Inline Price & Stock Editing States
   const [isEditingPrice, setIsEditingPrice] = useState(false);
@@ -184,7 +189,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
       <tr 
         id={`product-row-${p.id}`}
         className={`transition-all duration-300 group cursor-default ${
-          openActionMenuId === p.id ? 'relative z-30' : ''
+          openActionMenuId === p.id ? 'relative z-[90]' : ''
         } ${
           highlightedProductId === p.id 
             ? 'bg-orange-50/90 ring-2 ring-orange-400 ring-inset shadow-xs' 
@@ -805,7 +810,9 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
           </td>
         )}
         {tableManager.isColumnVisible('actions') && (
-          <td className="px-2.5 py-1.5 text-right whitespace-nowrap relative">
+          <td className={`px-2.5 py-1.5 text-right whitespace-nowrap ${
+            openActionMenuId === p.id ? 'relative z-[95]' : 'relative z-0'
+          }`}>
             {!isViewer && (
               <div className="flex items-center justify-end gap-1">
                 <button 
@@ -818,7 +825,9 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                 </button>
 
                 {/* Collapsible Actions Dropdown Menu Trigger */}
-                <div className="relative inline-block text-left z-40">
+                <div className={`relative inline-block text-left ${
+                  openActionMenuId === p.id ? 'z-[100]' : 'z-0'
+                }`}>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -839,7 +848,9 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                   {/* Dropdown Popup Menu */}
                   {openActionMenuId === p.id && (
                     <div 
-                      className="action-menu-dropdown absolute right-0 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 top-full mt-1.5 origin-top-right"
+                      className={`action-menu-dropdown absolute right-0 w-48 bg-white rounded-xl shadow-2xl border border-slate-200/90 py-1.5 z-[110] text-left animate-in fade-in zoom-in-95 duration-100 ring-1 ring-black/5 ${
+                        isNearBottom ? 'bottom-full mb-1.5 origin-bottom-right' : 'top-full mt-1.5 origin-top-right'
+                      }`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
@@ -1095,6 +1106,8 @@ export const ProductTableRow = React.memo(ProductTableRowComponent, (prevProps, 
     prevProps.selectedIds.includes(prevProps.product.id) === nextProps.selectedIds.includes(nextProps.product.id) &&
     (prevProps.openActionMenuId === prevProps.product.id) === (nextProps.openActionMenuId === nextProps.product.id) &&
     (prevProps.badgePopoverProductId === prevProps.product.id) === (nextProps.badgePopoverProductId === nextProps.product.id) &&
-    (prevProps.highlightedProductId === prevProps.product.id) === (nextProps.highlightedProductId === nextProps.product.id)
+    (prevProps.highlightedProductId === prevProps.product.id) === (nextProps.highlightedProductId === nextProps.product.id) &&
+    prevProps.rowIndex === nextProps.rowIndex &&
+    prevProps.totalRows === nextProps.totalRows
   );
 });

@@ -147,7 +147,7 @@ const QuotationsTab = ({
                 </tr>
               ) : (
                 paginatedQuotations.map((q, idx) => (
-                  <tr key={q.id} className={`hover:bg-slate-50/80 transition-colors group ${openActionMenuId === q.id ? 'relative z-30' : ''}`}>
+                  <tr key={q.id} className={`hover:bg-slate-50/80 transition-colors group ${openActionMenuId === q.id ? 'relative z-[90]' : ''}`}>
                     <td className="px-6 py-4">
                       <div className="text-sm font-semibold text-slate-900">{q.customer_name}</div>
                       {q.customer_title && <div className="text-xs text-slate-400 truncate max-w-[240px] mt-0.5">{q.customer_title}</div>}
@@ -203,7 +203,7 @@ const QuotationsTab = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right relative">
+                    <td className={`px-6 py-4 text-right ${openActionMenuId === q.id ? 'relative z-[95]' : 'relative z-0'}`}>
                         <div className="flex justify-end items-center gap-1">
                           <button 
                             onClick={() => onViewDetails(q)}
@@ -221,7 +221,7 @@ const QuotationsTab = ({
                           </button>
 
                           {/* Lookprice Standard Dropdown Menu */}
-                          <div className="relative inline-block text-left z-40">
+                          <div className={`relative inline-block text-left ${openActionMenuId === q.id ? 'z-[100]' : 'z-0'}`}>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -241,7 +241,7 @@ const QuotationsTab = ({
 
                             {openActionMenuId === q.id && (
                               <div 
-                                className={`absolute right-0 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 ${
+                                className={`absolute right-0 w-48 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-[110] text-left animate-in fade-in zoom-in-95 duration-100 ring-1 ring-black/5 ${
                                   (paginatedQuotations.length >= 4 && idx >= paginatedQuotations.length - 2) ? 'bottom-full mb-1.5 origin-bottom-right' : 'top-full mt-1.5 origin-top-right'
                                 }`}
                                 onClick={(e) => e.stopPropagation()}
