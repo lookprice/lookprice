@@ -717,7 +717,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
 
   return (
     <ErrorBoundary lang={lang}>
-      <div className="max-w-[1440px] mx-auto px-3 sm:px-5 py-3 space-y-3">
+      <div className="max-w-[1440px] mx-auto px-3 sm:px-5 pt-3 pb-28 sm:pb-36 space-y-3.5 min-h-screen">
         {/* Unified LookPrice Executive Cockpit Command Bar (Single Header & Navigation) */}
         <header className="bg-slate-900 text-white rounded-2xl p-3 sm:p-4 border border-slate-800 shadow-lg relative overflow-hidden">
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-800/90">

@@ -509,10 +509,10 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
         </div>
       </div>
 
-      {/* Viewport-Contained High-Density Cockpit Table */}
-      <div className="overflow-x-auto max-h-[calc(100vh-285px)] overflow-y-auto">
+      {/* Unified Natural-Flow High-Density Cockpit Table */}
+      <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
-          <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
+          <thead className="bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
             <tr>
               <th className="px-3.5 py-2.5 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Firma & Domain Kimliği

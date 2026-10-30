@@ -14,7 +14,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
       ui.setNewTransactionCurrency, ui.setNewTransactionExchangeRate, branding, lang
   );
   
-  const exporter = useCompanyExport(lang, data.companies, branding, ui.selectedCompany, ui.transactionStartDate, ui.transactionEndDate, data.companyTransactions, data.openingBalances, ui.selectedCurrency);
+  const exporter = useCompanyExport(lang, data.companies, branding, ui.selectedCompany, ui.transactionStartDate, ui.transactionEndDate, data.companyTransactions, data.openingBalances, ui.selectedCurrency, ui.includeZeroBalance);
 
   return {
     ...data,

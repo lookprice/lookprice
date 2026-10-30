@@ -94,7 +94,7 @@ export const MultiTenancyStoreList: React.FC<MultiTenancyStoreListProps> = ({
       </div>
 
       {/* Tenant Cards List */}
-      <div className="mt-3 space-y-2 max-h-[calc(100vh-24rem)] overflow-y-auto pr-1 no-scrollbar">
+      <div className="mt-3 space-y-2 max-h-[680px] overflow-y-auto pr-1 custom-scrollbar">
         {filteredStores.length === 0 ? (
           <div className="text-center py-8 text-slate-400 text-xs font-medium">
             Filtrelere uygun mağaza bulunamadı.

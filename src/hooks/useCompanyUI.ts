@@ -4,9 +4,20 @@ export const useCompanyUI = (branding: any) => {
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
-  const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [includeZeroBalance, setIncludeZeroBalance] = useState(false);
-  const [transactionStartDate, setTransactionStartDate] = useState('');
+  const [includeZeroBalance, setIncludeZeroBalanceState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('companies_include_zero_balance');
+      if (saved !== null) return saved === 'true';
+    }
+    return false;
+  });
+
+  const setIncludeZeroBalance = (val: boolean) => {
+    setIncludeZeroBalanceState(val);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('companies_include_zero_balance', String(val));
+    }
+  };
   const [transactionEndDate, setTransactionEndDate] = useState('');
   const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);
   const [newTransactionType, setNewTransactionType] = useState<'debt' | 'credit'>('credit');
