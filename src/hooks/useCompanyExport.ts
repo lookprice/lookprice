@@ -13,30 +13,13 @@ export const useCompanyExport = (
   transactionEndDate: string, 
   companyTransactions: any[], 
   openingBalances: Record<string, number>, 
-  selectedCurrency: string,
-  includeZeroBalance: boolean = false
+  selectedCurrency: string
 ) => {
 
-  const handleExportCompanies = (customCompanies?: any[], customIncludeZero?: boolean) => {
+  const handleExportCompanies = () => {
     const isTr = lang === 'tr';
     const t = translations[lang].dashboard;
-
-    let effectiveIncludeZero = customIncludeZero !== undefined ? customIncludeZero : includeZeroBalance;
-    if (effectiveIncludeZero === undefined && typeof window !== 'undefined') {
-      const saved = localStorage.getItem('companies_include_zero_balance');
-      if (saved !== null) {
-        effectiveIncludeZero = saved === 'true';
-      }
-    }
-
-    let targetCompanies = Array.isArray(customCompanies) && customCompanies.length > 0 ? customCompanies : companies;
-    if (!effectiveIncludeZero) {
-      targetCompanies = targetCompanies.filter(c => {
-        return Object.values(c.balances || {}).some(bal => Math.abs(Number(bal)) > 0.0001);
-      });
-    }
-
-    const data = targetCompanies.map(c => {
+    const data = companies.map(c => {
       const balancesStr = Object.entries(c.balances || {})
         .filter(([_, bal]) => Number(bal) !== 0)
         .map(([curr, bal]) => `${Number(bal).toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${curr}`)

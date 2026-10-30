@@ -45,20 +45,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [includeZeroStock, setIncludeZeroStockState] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("products_include_zero_stock");
-      if (saved !== null) return saved === "true";
-    }
-    return false;
-  });
-
-  const setIncludeZeroStock = (val: boolean) => {
-    setIncludeZeroStockState(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("products_include_zero_stock", String(val));
-    }
-  };
+  const [includeZeroStock, setIncludeZeroStock] = useState<boolean>(true);
   const [page, setPage] = useState(1);
   const itemsPerPage = 25;
   const [isFixingNames, setIsFixingNames] = useState(false);
@@ -624,7 +611,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         selectedIds={selectedIds}
         onAddNew={onAddNew}
         onImport={onImport}
-        onExportReport={() => onExportReport && (onExportReport as any)(includeZeroStock, filteredProducts)}
+        onExportReport={onExportReport}
         onOpenXRay={() => setShowXRayModal(true)}
         showXRay={showXRayButton}
         handleBulkDeleteSelected={handleBulkDeleteSelected}
