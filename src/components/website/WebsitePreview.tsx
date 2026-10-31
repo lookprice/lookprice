@@ -13,6 +13,7 @@ import {
   Newspaper 
 } from "lucide-react";
 import { WebContent, TeamMember, SectionConfig, FooterLink } from "../../types/websiteGenerator";
+import { LookPriceFooterBadge } from "../common/LookPriceFooterBadge";
 
 interface WebsitePreviewProps {
   lang: string;
@@ -377,12 +378,15 @@ export const WebsitePreview: React.FC<WebsitePreviewProps> = ({
           </div>
           
           <div className="mt-20 pt-10 border-t border-white/5 flex items-center justify-between">
-            <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">© 2024 {originalBranding?.store_name || "SEÇKİN EMLAK"} - POWERED BY LOOKPRICE</p>
+            <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">© {new Date().getFullYear()} {originalBranding?.store_name || "SEÇKİN EMLAK"} - TÜM HAKLARI SAKLIDIR</p>
             <div className="flex gap-4">
               <div className="h-6 w-10 bg-white/5 rounded border border-white/10"></div>
               <div className="h-6 w-10 bg-white/5 rounded border border-white/10"></div>
             </div>
           </div>
+
+          {/* LookPrice.net Parlak Yanıp-Sönen İmza */}
+          <LookPriceFooterBadge />
         </footer>
       </div>
     </div>

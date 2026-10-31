@@ -166,10 +166,12 @@ export const SettingsStoreOpsTab = ({
     return map;
   };
 
+  const isBranchStore = Boolean(branding?.parent_id);
+
   const navItems: { id: OpsSubTab; label: string; icon: any; show: boolean }[] = [
     { 
       id: 'profile', 
-      label: lang === 'tr' ? 'Profil' : 'Profile', 
+      label: isBranchStore ? (lang === 'tr' ? 'Şube Profili' : 'Branch Profile') : (lang === 'tr' ? 'Profil' : 'Profile'), 
       icon: Store, 
       show: true 
     },
@@ -189,25 +191,25 @@ export const SettingsStoreOpsTab = ({
       id: 'currency', 
       label: lang === 'tr' ? 'Para & Dil' : 'Currency', 
       icon: Globe, 
-      show: !isCorporateWebsite 
+      show: !isCorporateWebsite && !isBranchStore 
     },
     { 
       id: 'legal_tax', 
       label: lang === 'tr' ? 'Firma & Vergi' : 'Legal', 
       icon: Building2, 
-      show: true 
+      show: !isBranchStore 
     },
     { 
       id: 'shipping', 
       label: lang === 'tr' ? 'Kargo' : 'Shipping', 
       icon: Truck, 
-      show: !isPortfolio && !isCafeRestaurant && !isCorporateWebsite 
+      show: !isPortfolio && !isCafeRestaurant && !isCorporateWebsite && !isBranchStore 
     },
     { 
       id: 'locations', 
       label: isPortfolio ? (lang === 'tr' ? 'Ofisler' : 'Offices') : (lang === 'tr' ? 'Konumlar' : 'Locations'), 
       icon: MapPin, 
-      show: true 
+      show: !isBranchStore 
     },
     { 
       id: 'horeca', 
@@ -219,7 +221,7 @@ export const SettingsStoreOpsTab = ({
       id: 'bulk_price', 
       label: lang === 'tr' ? 'Toplu Fiyat' : 'Bulk Price', 
       icon: Percent, 
-      show: !isPortfolio && !isCorporateWebsite 
+      show: !isPortfolio && !isCorporateWebsite && !isBranchStore 
     },
     { 
       id: 'wifi', 
@@ -256,7 +258,9 @@ export const SettingsStoreOpsTab = ({
                 )}
               </div>
               <p className="text-[11px] text-slate-500 font-medium">
-                {lang === 'tr' ? 'Operasyonel mağaza, firma ve kargo yapılandırması' : 'Store operations & business configuration'}
+                {isBranchStore
+                  ? (lang === 'tr' ? 'Şube iletişim, adres, çalışma saatleri ve lokal operasyon ayarları' : 'Branch contact, address, working hours & local operations')
+                  : (lang === 'tr' ? 'Operasyonel mağaza, firma ve kargo yapılandırması' : 'Store operations & business configuration')}
               </p>
             </div>
           </div>
@@ -314,7 +318,9 @@ export const SettingsStoreOpsTab = ({
                 <div className="flex items-center gap-2">
                   <Store className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                    {lang === 'tr' ? 'İşletme & Mağaza Temel Profil Bilgileri' : 'Business & Store Profile'}
+                    {isBranchStore
+                      ? (lang === 'tr' ? 'Şube Temel İletişim & Lokasyon Bilgileri' : 'Branch Basic Contact & Location Profile')
+                      : (lang === 'tr' ? 'İşletme & Mağaza Temel Profil Bilgileri' : 'Business & Store Profile')}
                   </h3>
                 </div>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
@@ -325,7 +331,9 @@ export const SettingsStoreOpsTab = ({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                 {/* Store Name */}
                 <div className="space-y-1">
-                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Mağaza / Tabela Adı' : 'Store / Brand Name'}</label>
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
+                    {isBranchStore ? (lang === 'tr' ? 'Şube / Tabela Adı' : 'Branch Name') : (lang === 'tr' ? 'Mağaza / Tabela Adı' : 'Store / Brand Name')}
+                  </label>
                   <div className="relative">
                     <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                     <input 
@@ -343,7 +351,9 @@ export const SettingsStoreOpsTab = ({
 
                 {/* Contact Person */}
                 <div className="space-y-1">
-                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Yetkili Kişi Adı Soyadı' : 'Contact Person'}</label>
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
+                    {isBranchStore ? (lang === 'tr' ? 'Şube Yetkilisi Adı Soyadı' : 'Branch Manager') : (lang === 'tr' ? 'Yetkili Kişi Adı Soyadı' : 'Contact Person')}
+                  </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                     <input 
@@ -358,7 +368,9 @@ export const SettingsStoreOpsTab = ({
 
                 {/* Primary Phone */}
                 <div className="space-y-1">
-                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'İşletme İletişim Telefonu' : 'Primary Phone'}</label>
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
+                    {isBranchStore ? (lang === 'tr' ? 'Şube İletişim Telefonu' : 'Branch Phone') : (lang === 'tr' ? 'İşletme İletişim Telefonu' : 'Primary Phone')}
+                  </label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                     <input 
@@ -373,7 +385,9 @@ export const SettingsStoreOpsTab = ({
 
                 {/* Primary Email */}
                 <div className="space-y-1">
-                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'İşletme E-Posta Adresi' : 'Primary Email'}</label>
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
+                    {isBranchStore ? (lang === 'tr' ? 'Şube E-Posta Adresi' : 'Branch Email') : (lang === 'tr' ? 'İşletme E-Posta Adresi' : 'Primary Email')}
+                  </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                     <input 
@@ -386,24 +400,26 @@ export const SettingsStoreOpsTab = ({
                   </div>
                 </div>
 
-                {/* Store Type (Sector) */}
-                <div className="space-y-1">
-                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Mağaza Şablon Türü (Sektör)' : 'Store Type'}</label>
-                  <div className="relative">
-                    <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                    <select 
-                      className="w-full pl-9 pr-7 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-indigo-500"
-                      value={branding.store_type || "product"}
-                      onChange={(e) => onBrandingChange('store_type', e.target.value)}
-                    >
-                      <option value="product">shopLP - Perakende / Genel Ürün Mağazası</option>
-                      <option value="cafe_restaurant">horecaLP - Kafeterya, Restoran & Otel</option>
-                      <option value="real_estate">Emlak Portföy Mağazası</option>
-                      <option value="automotive">Oto Galeri / Araç İlan Mağazası</option>
-                      <option value="corporate_website">Kurumsal Web Sitesi (Tanıtım, Hizmet & İletişim)</option>
-                    </select>
+                {/* Store Type (Sector) - HQ Only */}
+                {!isBranchStore && (
+                  <div className="space-y-1">
+                    <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Mağaza Şablon Türü (Sektör)' : 'Store Type'}</label>
+                    <div className="relative">
+                      <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                      <select 
+                        className="w-full pl-9 pr-7 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-indigo-500"
+                        value={branding.store_type || "product"}
+                        onChange={(e) => onBrandingChange('store_type', e.target.value)}
+                      >
+                        <option value="product">shopLP - Perakende / Genel Ürün Mağazası</option>
+                        <option value="cafe_restaurant">horecaLP - Kafeterya, Restoran & Otel</option>
+                        <option value="real_estate">Emlak Portföy Mağazası</option>
+                        <option value="automotive">Oto Galeri / Araç İlan Mağazası</option>
+                        <option value="corporate_website">Kurumsal Web Sitesi (Tanıtım, Hizmet & İletişim)</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* District, City, Country */}
                 <div className="space-y-1">

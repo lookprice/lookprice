@@ -174,15 +174,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   // Load theme preference from store config & user preferences
   useEffect(() => {
     if (store) {
-      const storeKey = `store_theme_${slug || store.slug || store.id}`;
-      const localSaved = localStorage.getItem(storeKey);
-      if (localSaved === 'light' || localSaved === 'dark') {
-        setTheme(localSaved);
-        return;
-      }
-
       let netflixConfig: any = {};
-      const rawNetflix = store.branding?.netflix_config;
+      const rawNetflix =
+        store.branding?.netflix_config ||
+        (store as any).netflix_config ||
+        store.page_layout_settings?.netflix_config ||
+        store.branding?.page_layout_settings?.netflix_config;
       if (typeof rawNetflix === 'string') {
         try { netflixConfig = JSON.parse(rawNetflix); } catch {}
       } else if (rawNetflix && typeof rawNetflix === 'object') {
@@ -190,9 +187,31 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       }
 
       const config = store.theme_config || store.branding?.theme_config || {};
-      const configuredTheme = netflixConfig.theme_mode === 'auto' ? undefined : (netflixConfig.theme_mode || config.theme);
-      
-      // Default to light for Gap Bilişim, otherwise dark (or configuredTheme if explicitly set)
+      const rawThemeMode = netflixConfig.theme_mode || store.branding?.theme_mode || (store as any).theme_mode || config.theme;
+
+      // Key visitor toggle by configured operator mode so operator changes in ShopThemeStudio take immediate effect
+      const configuredModeKey = rawThemeMode || 'default';
+      const storeKey = `store_theme_${slug || store.slug || store.id}_${configuredModeKey}`;
+      const localSaved = localStorage.getItem(storeKey);
+      if (localSaved === 'light' || localSaved === 'dark') {
+        setTheme(localSaved);
+        return;
+      }
+
+      if (rawThemeMode === 'light' || rawThemeMode === 'dark') {
+        setTheme(rawThemeMode);
+        return;
+      }
+
+      if (rawThemeMode === 'auto') {
+        const prefersDark = typeof window !== 'undefined' && window.matchMedia
+          ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          : true;
+        setTheme(prefersDark ? 'dark' : 'light');
+        return;
+      }
+
+      // Default to light for Gap Bilişim, otherwise dark
       const isGapStore = (
         store.name?.toLowerCase().includes("gap") || 
         store.slug?.toLowerCase().includes("gap") ||
@@ -202,8 +221,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         String(store.id) === 'gap-bilisim' ||
         (typeof slug === 'string' && slug.toLowerCase().includes("gap"))
       );
-      const defaultTheme = isGapStore ? 'light' : 'dark';
-      setTheme(configuredTheme || defaultTheme);
+      setTheme(isGapStore ? 'light' : 'dark');
     }
   }, [store, slug]);
 
@@ -229,7 +247,24 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     theme_variety: "modern",
     sector: "general",
   }, [store]);
-  const primaryColor = store?.primary_color || (layoutSettings.theme_variety === "luxury" ? "#8B7355" : "#3b82f6");
+  const resolvedNetflixConfig = React.useMemo(() => {
+    const raw =
+      store?.branding?.netflix_config ||
+      (store as any)?.netflix_config ||
+      store?.page_layout_settings?.netflix_config ||
+      store?.branding?.page_layout_settings?.netflix_config;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw); } catch { return {}; }
+    }
+    return raw && typeof raw === 'object' ? raw : {};
+  }, [store]);
+  const primaryColor =
+    resolvedNetflixConfig.cart_button_color ||
+    resolvedNetflixConfig.accent_color ||
+    store?.branding?.accent_color ||
+    (store as any)?.accent_color ||
+    store?.primary_color ||
+    (layoutSettings.theme_variety === "luxury" ? "#8B7355" : "#3b82f6");
   const isLuxury = layoutSettings.theme_variety === "luxury" || layoutSettings.theme_variety === "minimal";
   const sector = layoutSettings.sector || "general";
 
@@ -1070,7 +1105,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               onToggleTheme={() => {
                 const next = theme === 'dark' ? 'light' : 'dark';
                 setTheme(next);
-                const storeKey = `store_theme_${slug || store?.slug || store?.id || 'default'}`;
+                const configuredModeKey =
+                  resolvedNetflixConfig.theme_mode ||
+                  store?.branding?.theme_mode ||
+                  (store as any)?.theme_mode ||
+                  'default';
+                const storeKey = `store_theme_${slug || store?.slug || store?.id || 'default'}_${configuredModeKey}`;
                 localStorage.setItem(storeKey, next);
               }}
               onViewProduct={(p, rowProds) => {

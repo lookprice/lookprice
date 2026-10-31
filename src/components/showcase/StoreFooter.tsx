@@ -14,6 +14,7 @@ import {
   Youtube,
   Linkedin
 } from 'lucide-react';
+import { LookPriceFooterBadge } from '../common/LookPriceFooterBadge';
 
 interface StoreFooterProps {
   store: any;
@@ -398,6 +399,9 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
             </span>
           </div>
         </div>
+
+        {/* LookPrice.net Parlak Yanıp-Sönen İmza */}
+        <LookPriceFooterBadge />
 
       </div>
     </footer>

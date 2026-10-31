@@ -28,6 +28,7 @@ import { api } from "../services/api";
 import { RadarShowcaseSlider } from "./RadarShowcaseSlider";
 import { BlogShowcaseModal } from "./BlogShowcaseModal";
 import { StoreMapSection } from "./StoreMapSection";
+import { LookPriceFooterBadge } from "./common/LookPriceFooterBadge";
 
 interface ModernAutomotiveLayoutProps {
   store: Store;
@@ -1054,6 +1055,8 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
               © {new Date().getFullYear()} {store.name}. {lang === 'tr' ? 'TÜM HAKLARI SAKLIDIR.' : 'ALL RIGHTS RESERVED.'}
             </p>
           </div>
+          {/* LookPrice.net Parlak Yanıp-Sönen İmza */}
+          <LookPriceFooterBadge />
         </div>
       </footer>
 

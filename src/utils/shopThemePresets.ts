@@ -231,8 +231,8 @@ export const THEME_PRESETS: Record<string, Partial<ShopThemeConfig>> = {
   },
   netflix_original: {
     preset_name: "netflix_original",
-    primary_color: "#ef4444",
-    accent_color: "#dc2626",
+    primary_color: "#0f172a",
+    accent_color: "#e50914",
     background_mode: "dark",
     card_style: "elevated",
     card_radius: "rounded",
@@ -253,7 +253,7 @@ export const THEME_PRESETS: Record<string, Partial<ShopThemeConfig>> = {
   },
   netflix_cyber_blue: {
     preset_name: "netflix_cyber_blue",
-    primary_color: "#2563eb",
+    primary_color: "#0f172a",
     accent_color: "#3b82f6",
     background_mode: "dark",
     card_style: "glass",
@@ -275,7 +275,7 @@ export const THEME_PRESETS: Record<string, Partial<ShopThemeConfig>> = {
   },
   netflix_luxury_gold: {
     preset_name: "netflix_luxury_gold",
-    primary_color: "#d97706",
+    primary_color: "#0f172a",
     accent_color: "#f59e0b",
     background_mode: "dark",
     card_style: "elevated",
@@ -297,8 +297,8 @@ export const THEME_PRESETS: Record<string, Partial<ShopThemeConfig>> = {
   },
   netflix_minimal_light: {
     preset_name: "netflix_minimal_light",
-    primary_color: "#0f172a",
-    accent_color: "#2563eb",
+    primary_color: "#ffffff",
+    accent_color: "#4f46e5",
     background_mode: "light",
     card_style: "minimal",
     card_radius: "rounded",

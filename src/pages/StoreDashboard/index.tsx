@@ -969,11 +969,29 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
   ];
 
+  const isBranchStore = Boolean(branding?.parent_id);
+
   const navItems = React.useMemo(() => {
-    if (!isCafeRestaurant) return rawNavItems;
+    const branchFilteredItems = isBranchStore
+      ? rawNavItems
+          .map(category => {
+            if (category.type === 'category') {
+              return {
+                ...category,
+                items: category.items.filter(item =>
+                  !['corporate-website', 'website-generator', 'blog', 'faq', 'seo', 'meta', 'google-merchant', 'team-crm'].includes(item.id)
+                )
+              };
+            }
+            return category;
+          })
+          .filter(category => category.type === 'item' || (category.type === 'category' && category.items.length > 0))
+      : rawNavItems;
+
+    if (!isCafeRestaurant) return branchFilteredItems;
     
     // Cafe/Restaurant menu: Only show required items
-    const restaurantItems = rawNavItems
+    const restaurantItems = branchFilteredItems
       .map(category => {
         if (category.type === 'category') {
           return {
@@ -1006,7 +1024,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       ];
     }
     return restaurantItems;
-  }, [rawNavItems, activeStaffRole, isCafeRestaurant, isTr, t.companies, t.purchase_invoices, t.procurements, t.stock_transfer]);
+  }, [rawNavItems, isBranchStore, activeStaffRole, isCafeRestaurant, isTr, t.companies, t.purchase_invoices, t.procurements, t.stock_transfer]);
 
   const currentMenuItem: any = (navItems as any[]).flatMap(c => c.type === 'category' ? c.items : [c]).find(i => i && i.id === activeTab);
 

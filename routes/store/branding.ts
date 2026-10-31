@@ -18,7 +18,7 @@ router.post("/", async (req: any, res) => {
     // Fetch existing store
     const existingRes = await pool.query(`
       SELECT 
-        name, logo_url, favicon_url, primary_color, background_image_url, about_text, description,
+        name, parent_id, logo_url, favicon_url, primary_color, background_image_url, about_text, description,
         phone, address, email, page_layout, menu_links, footer_links, store_type, sub_sector,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number,
         branding, payment_settings, meta_settings, einvoice_settings,
@@ -233,23 +233,26 @@ router.post("/", async (req: any, res) => {
     }
     const hotel_module_enabled = requestedHotel;
     
-    let page_layout = cleanedBody.page_layout !== undefined ? cleanedBody.page_layout : existingStore.page_layout;
+    const isBranchStore = Boolean(existingStore.parent_id);
+
+    let page_layout = (!isBranchStore && cleanedBody.page_layout !== undefined) ? cleanedBody.page_layout : existingStore.page_layout;
     page_layout = await cleanDeepBase64(page_layout, `store_${targetStoreId}_layout`);
     
-    const menu_links = cleanedBody.menu_links !== undefined ? cleanedBody.menu_links : existingStore.menu_links;
-    const footer_links = cleanedBody.footer_links !== undefined ? cleanedBody.footer_links : existingStore.footer_links;
-    const store_type = cleanedBody.store_type !== undefined ? cleanedBody.store_type : existingStore.store_type;
-    const sub_sector = cleanedBody.sub_sector !== undefined ? cleanedBody.sub_sector : existingStore.sub_sector;
+    const menu_links = (!isBranchStore && cleanedBody.menu_links !== undefined) ? cleanedBody.menu_links : existingStore.menu_links;
+    const footer_links = (!isBranchStore && cleanedBody.footer_links !== undefined) ? cleanedBody.footer_links : existingStore.footer_links;
+    const store_type = (!isBranchStore && cleanedBody.store_type !== undefined) ? cleanedBody.store_type : existingStore.store_type;
+    const sub_sector = (!isBranchStore && cleanedBody.sub_sector !== undefined) ? cleanedBody.sub_sector : existingStore.sub_sector;
 
-    const hero_title = cleanedBody.hero_title !== undefined ? cleanedBody.hero_title : existingStore.hero_title;
-    const hero_subtitle = cleanedBody.hero_subtitle !== undefined ? cleanedBody.hero_subtitle : existingStore.hero_subtitle;
-    const hero_image_url = await replaceAllBase64InString(cleanedBody.hero_image_url !== undefined ? cleanedBody.hero_image_url : existingStore.hero_image_url, `store_${targetStoreId}_hero`);
+    const hero_title = (!isBranchStore && cleanedBody.hero_title !== undefined) ? cleanedBody.hero_title : existingStore.hero_title;
+    const hero_subtitle = (!isBranchStore && cleanedBody.hero_subtitle !== undefined) ? cleanedBody.hero_subtitle : existingStore.hero_subtitle;
+    const hero_image_url = await replaceAllBase64InString((!isBranchStore && cleanedBody.hero_image_url !== undefined) ? cleanedBody.hero_image_url : existingStore.hero_image_url, `store_${targetStoreId}_hero`);
     const instagram_url = cleanedBody.instagram_url !== undefined ? cleanedBody.instagram_url : existingStore.instagram_url;
     const facebook_url = cleanedBody.facebook_url !== undefined ? cleanedBody.facebook_url : existingStore.facebook_url;
     const twitter_url = cleanedBody.twitter_url !== undefined ? cleanedBody.twitter_url : existingStore.twitter_url;
     const whatsapp_number = cleanedBody.whatsapp_number !== undefined ? cleanedBody.whatsapp_number : existingStore.whatsapp_number;
 
     // Sync all resolved values onto updatedBranding
+    updatedBranding.parent_id = existingStore.parent_id ? Number(existingStore.parent_id) : null;
     updatedBranding.store_name = name;
     updatedBranding.name = name;
     updatedBranding.contact_person = contact_person || '';
@@ -414,13 +417,25 @@ router.post("/", async (req: any, res) => {
         const sCustomDomain = storeInfoRes.rows[0].custom_domain;
         publicApiCache.del(`store_${targetStoreId}`);
         publicApiCache.del(`digital_menu_${targetStoreId}`);
+        publicApiCache.del(`dm_info_${targetStoreId}`);
         if (sSlug) {
           publicApiCache.del(`store_${sSlug.toLowerCase()}`);
           publicApiCache.del(`products_${sSlug.toLowerCase()}`);
           publicApiCache.del(`digital_menu_${sSlug.toLowerCase()}`);
+          publicApiCache.del(`dm_info_${sSlug.toLowerCase()}`);
         }
         if (sCustomDomain) {
           publicApiCache.del(`domain_${sCustomDomain.toLowerCase()}`);
+        }
+      }
+      if (existingStore.parent_id) {
+        publicApiCache.del(`store_${existingStore.parent_id}`);
+        const parentSlugRes = await pool.query("SELECT slug, custom_domain FROM stores WHERE id = $1", [existingStore.parent_id]);
+        if (parentSlugRes.rows.length > 0) {
+          const pSlug = parentSlugRes.rows[0].slug;
+          const pDomain = parentSlugRes.rows[0].custom_domain;
+          if (pSlug) publicApiCache.del(`store_${pSlug.toLowerCase()}`);
+          if (pDomain) publicApiCache.del(`domain_${pDomain.toLowerCase()}`);
         }
       }
       publicApiCache.del("enrakipsiz_portal");

@@ -399,15 +399,20 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
   // Netflix Architecture Configuration from branding
   const netflixConfig = useMemo(() => {
-    const raw = store?.branding?.netflix_config;
+    const raw =
+      store?.branding?.netflix_config ||
+      (store as any)?.netflix_config ||
+      store?.branding?.page_layout_settings?.netflix_config ||
+      (store as any)?.page_layout_settings?.netflix_config;
     if (typeof raw === "string") {
       try { return JSON.parse(raw); } catch { return {}; }
     }
     return (raw && typeof raw === "object") ? raw : {};
-  }, [store?.branding?.netflix_config]);
+  }, [store?.branding?.netflix_config, (store as any)?.netflix_config, store?.branding?.page_layout_settings?.netflix_config, (store as any)?.page_layout_settings?.netflix_config]);
 
   const showHero = netflixConfig.hero_enabled !== false;
   const showHeroBadges = netflixConfig.show_hero_badges !== false;
+  const heroGlowEffect = netflixConfig.hero_glow_effect !== false;
   const heroIntervalSec = Number(netflixConfig.hero_autoplay_interval) || 6;
   const showBestsellers = netflixConfig.show_bestsellers_row !== false;
   const bestsellersTitle = (netflixConfig.bestsellers_title || (isTr ? "Çok Satanlar & Popüler Ürünler" : "Bestsellers & Popular")).replace(/^[🔥⭐🏷️✨📦]+\s*/, '');
@@ -425,7 +430,11 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
   const showThemeToggle = netflixConfig.show_theme_toggle !== false;
   const showAnnouncementBar = netflixConfig.show_announcement_bar !== false && !!(netflixConfig.announcement_text || store?.branding?.announcement_text);
   const announcementText = netflixConfig.announcement_text || store?.branding?.announcement_text || "";
-  const accentColor = netflixConfig.accent_color || store?.branding?.accent_color || "#3b82f6";
+  const accentColor = netflixConfig.accent_color || store?.branding?.accent_color || (store as any)?.accent_color || "#3b82f6";
+  const primaryColor = netflixConfig.primary_color || store?.branding?.primary_color || store?.primary_color || "#0f172a";
+  const cartButtonColor = netflixConfig.cart_button_color || (store?.branding as any)?.cart_button_color || accentColor;
+  const inspectButtonColor = netflixConfig.inspect_button_color || (store?.branding as any)?.inspect_button_color || accentColor;
+  const featuredBadgeColor = netflixConfig.featured_badge_color || (store?.branding as any)?.featured_badge_color || accentColor;
 
   useEffect(() => {
     if (heroProducts.length <= 1 || !showHero) return;
@@ -572,13 +581,16 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 className="h-9 w-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-xs" 
               />
             ) : (
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-black text-white shadow-md">
+              <div
+                className="h-9 w-9 rounded-xl flex items-center justify-center font-black text-white shadow-md"
+                style={{ background: `linear-gradient(135deg, ${accentColor}, ${primaryColor !== '#ffffff' ? primaryColor : accentColor})` }}
+              >
                 {storeName.charAt(0)}
               </div>
             )}
             <div className="flex flex-col">
               <span className="font-black text-sm tracking-tight text-slate-900 dark:text-white">{storeName}</span>
-              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest">Premium Mağaza</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: accentColor }}>Premium Mağaza</span>
             </div>
           </div>
 
@@ -666,15 +678,16 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
             className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl border border-slate-200 dark:border-slate-800 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
             title={isTr ? "İletişim, Adres & Çalışma Saatleri" : "Contact, Address & Hours"}
           >
-            <PhoneCall className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+            <PhoneCall className="h-4 w-4" style={{ color: accentColor }} />
             <span className="hidden xl:inline">{isTr ? "İletişim" : "Contact"}</span>
           </button>
 
-          {/* BASKET BTN */}
+          {/* BASKET BTN ("Sepetim") */}
           <button
             type="button"
             onClick={() => onCheckout()}
-            className="relative px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
+            style={{ backgroundColor: cartButtonColor, boxShadow: `0 8px 20px -4px ${cartButtonColor}45` }}
+            className="relative px-3.5 py-2 hover:brightness-110 text-white rounded-xl font-bold text-xs flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
           >
             <ShoppingBag className="h-4 w-4" />
             <span className="hidden sm:inline">{isTr ? "Sepetim" : "Cart"}</span>
@@ -785,24 +798,41 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
           {/* MINIMALIST ILLUMINATED HERO SHOWCASE BANNER */}
           {showHero && currentHero && (
             <div className="max-w-7xl mx-auto px-3 sm:px-8 pt-3 sm:pt-6">
-              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50/90 via-indigo-50/30 to-white dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border border-slate-200/90 dark:border-slate-800 shadow-lg dark:shadow-2xl p-3.5 sm:p-7 md:p-9 pb-7 sm:pb-9 min-h-[168px] sm:min-h-[280px] flex flex-row items-center justify-between gap-3 sm:gap-6 group transition-colors duration-200">
+              <div
+                className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-br from-slate-50 via-white to-white dark:from-slate-900 dark:via-slate-900/95 dark:to-slate-950 border border-slate-200/90 dark:border-slate-800 shadow-lg dark:shadow-2xl p-3.5 sm:p-7 md:p-9 pb-7 sm:pb-9 min-h-[168px] sm:min-h-[280px] flex flex-row items-center justify-between gap-3 sm:gap-6 group transition-colors duration-200"
+                style={
+                  theme === 'dark' && primaryColor && primaryColor !== '#ffffff'
+                    ? { backgroundImage: `linear-gradient(135deg, ${primaryColor} 0%, #090d16 65%, #020617 100%)` }
+                    : undefined
+                }
+              >
                 {/* Luminous Ambient Background Glow & Atmospheric Blurred Photo Backdrop */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-2xl sm:rounded-3xl">
-                  <img 
-                    src={getProductImageUrl(currentHero)} 
-                    alt="" 
-                    className="absolute -right-12 -bottom-12 w-[260px] sm:w-[420px] h-[260px] sm:h-[420px] object-cover opacity-25 dark:opacity-30 blur-3xl filter saturate-200 transform scale-125"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-52 sm:w-80 h-52 sm:h-80 bg-blue-300/20 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 to-transparent dark:from-slate-950/95 dark:via-slate-900/80 dark:to-transparent" />
+                  {heroGlowEffect && (
+                    <>
+                      <img 
+                        src={getProductImageUrl(currentHero)} 
+                        alt="" 
+                        className="absolute -right-12 -bottom-12 w-[260px] sm:w-[420px] h-[260px] sm:h-[420px] object-cover opacity-25 dark:opacity-30 blur-3xl filter saturate-200 transform scale-125"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div
+                        className="absolute top-1/2 right-1/4 -translate-y-1/2 w-52 sm:w-80 h-52 sm:h-80 rounded-full blur-3xl pointer-events-none opacity-25 dark:opacity-20"
+                        style={{ backgroundColor: accentColor }}
+                      />
+                    </>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 to-transparent dark:from-slate-950/90 dark:via-slate-900/75 dark:to-transparent" />
                 </div>
 
                 {/* LEFT CONTENT */}
                 <div className="relative z-10 flex-1 min-w-0 max-w-2xl space-y-1.5 sm:space-y-3">
                   {showHeroBadges && (
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="px-2 py-0.5 bg-blue-600 text-white rounded-md font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                      <span
+                        className="px-2 py-0.5 text-white rounded-md font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-xs"
+                        style={{ backgroundColor: featuredBadgeColor }}
+                      >
                         <Sparkles className="h-2.5 w-2.5" />
                         {isTr ? "Öne Çıkan" : "Featured"}
                       </span>
@@ -821,7 +851,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
                   <h1 
                     onClick={() => onViewProduct(currentHero, products)}
-                    className="text-sm sm:text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white line-clamp-2 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors leading-snug"
+                    className="text-sm sm:text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white line-clamp-2 cursor-pointer hover:opacity-85 transition-opacity leading-snug"
                   >
                     {currentHero.name}
                   </h1>
@@ -852,7 +882,10 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
 
                   <div className="flex items-center gap-2 sm:gap-3 pt-0.5 sm:pt-1 flex-wrap">
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-base sm:text-2xl font-black text-blue-600 dark:text-blue-400 tabular-nums">
+                      <span
+                        className="text-base sm:text-2xl font-black tabular-nums"
+                        style={{ color: accentColor }}
+                      >
                         ₺{(currentHero.price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                       {currentHero.old_price && currentHero.old_price > currentHero.price && (
@@ -866,7 +899,8 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                       <button
                         type="button"
                         onClick={() => onViewProduct(currentHero, products)}
-                        className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1 shadow-sm shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
+                        style={{ backgroundColor: inspectButtonColor, boxShadow: `0 6px 16px -3px ${inspectButtonColor}45` }}
+                        className="px-2.5 sm:px-4 py-1.5 sm:py-2 hover:brightness-110 text-white rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
                       >
                         <span>{isTr ? "İncele" : "View"}</span>
                         <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -877,7 +911,7 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                         onClick={() => addToBasket(currentHero)}
                         className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-2xs"
                       >
-                        <ShoppingBag className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                        <ShoppingBag className="h-3 w-3 sm:h-3.5 sm:w-3.5" style={{ color: cartButtonColor }} />
                         <span>{isTr ? "Sepete Ekle" : "Add"}</span>
                       </button>
                     </div>
@@ -927,8 +961,9 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                         key={hIdx}
                         type="button"
                         onClick={() => setHeroIndex(hIdx)}
+                        style={heroIndex === hIdx ? { backgroundColor: accentColor } : undefined}
                         className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                          heroIndex === hIdx ? "w-4 bg-blue-500 shadow-xs" : "w-1.5 bg-white/30 hover:bg-white/60"
+                          heroIndex === hIdx ? "w-4 shadow-xs" : "w-1.5 bg-white/30 hover:bg-white/60"
                         }`}
                         title={`Ürün ${hIdx + 1}`}
                       />
@@ -953,6 +988,9 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 showQuickAddCart={showQuickAddCart}
                 showStockBadge={showStockBadge}
                 showOldPrice={showOldPrice}
+                accentColor={accentColor}
+                cartButtonColor={cartButtonColor}
+                featuredBadgeColor={featuredBadgeColor}
               />
             )}
 
@@ -968,6 +1006,9 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 showQuickAddCart={showQuickAddCart}
                 showStockBadge={showStockBadge}
                 showOldPrice={showOldPrice}
+                accentColor={accentColor}
+                cartButtonColor={cartButtonColor}
+                featuredBadgeColor={featuredBadgeColor}
               />
             )}
 
@@ -983,6 +1024,9 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 showQuickAddCart={showQuickAddCart}
                 showStockBadge={showStockBadge}
                 showOldPrice={showOldPrice}
+                accentColor={accentColor}
+                cartButtonColor={cartButtonColor}
+                featuredBadgeColor={featuredBadgeColor}
               />
             )}
 
@@ -998,6 +1042,9 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                 showQuickAddCart={showQuickAddCart}
                 showStockBadge={showStockBadge}
                 showOldPrice={showOldPrice}
+                accentColor={accentColor}
+                cartButtonColor={cartButtonColor}
+                featuredBadgeColor={featuredBadgeColor}
               />
             )}
 
@@ -1017,6 +1064,9 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                   showQuickAddCart={showQuickAddCart}
                   showStockBadge={showStockBadge}
                   showOldPrice={showOldPrice}
+                  accentColor={accentColor}
+                  cartButtonColor={cartButtonColor}
+                  featuredBadgeColor={featuredBadgeColor}
                 />
               );
             })}
@@ -1076,16 +1126,24 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsFilterDrawerOpen(true)}
+                    style={
+                      activeFilterCount > 0
+                        ? { backgroundColor: accentColor, borderColor: accentColor }
+                        : undefined
+                    }
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 border ${
                       activeFilterCount > 0
-                        ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                        ? "text-white shadow-xs"
                         : "bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800"
                     }`}
                   >
                     <SlidersHorizontal className="h-3.5 w-3.5" />
                     <span>{isTr ? "Filtrele" : "Filter"}</span>
                     {activeFilterCount > 0 && (
-                      <span className="px-1.5 py-0.2 rounded-full bg-white text-blue-600 text-[10px] font-black tabular-nums">
+                      <span
+                        className="px-1.5 py-0.2 rounded-full bg-white text-[10px] font-black tabular-nums"
+                        style={{ color: accentColor }}
+                      >
                         {activeFilterCount}
                       </span>
                     )}
@@ -1123,9 +1181,10 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                       key={sub}
                       type="button"
                       onClick={() => setSelectedSubCategory(selectedSubCategory === sub ? "all" : sub)}
+                      style={selectedSubCategory === sub ? { backgroundColor: accentColor } : undefined}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-colors cursor-pointer ${
                         selectedSubCategory === sub
-                          ? "bg-blue-600 text-white font-bold shadow-2xs"
+                          ? "text-white font-bold shadow-2xs"
                           : "bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
                       }`}
                     >
@@ -1159,9 +1218,10 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                         setSelectedSubCategory("all");
                         setSelectedBadge("all");
                       }}
+                      style={selectedCategory === cat ? { backgroundColor: accentColor } : undefined}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-colors cursor-pointer ${
                         selectedCategory === cat
-                          ? "bg-blue-600 text-white font-bold shadow-2xs"
+                          ? "text-white font-bold shadow-2xs"
                           : "bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
                       }`}
                     >
@@ -1283,6 +1343,9 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                       showQuickAddCart={showQuickAddCart}
                       showStockBadge={showStockBadge}
                       showOldPrice={showOldPrice}
+                      accentColor={accentColor}
+                      cartButtonColor={cartButtonColor}
+                      featuredBadgeColor={featuredBadgeColor}
                     />
                   ))}
                 </div>
@@ -1558,7 +1621,8 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
                     setIsFilterDrawerOpen(false);
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-blue-600/25 transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-2"
+                  style={{ backgroundColor: accentColor, boxShadow: `0 10px 25px -5px ${accentColor}45` }}
+                  className="w-full py-3 hover:brightness-110 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-2"
                 >
                   <span>
                     {isTr
@@ -1661,6 +1725,9 @@ interface NetflixRowProps {
   showQuickAddCart?: boolean;
   showStockBadge?: boolean;
   showOldPrice?: boolean;
+  accentColor?: string;
+  cartButtonColor?: string;
+  featuredBadgeColor?: string;
 }
 
 const NetflixRow: React.FC<NetflixRowProps> = ({ 
@@ -1672,7 +1739,10 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
   enableHoverZoom = true,
   showQuickAddCart = true,
   showStockBadge = true,
-  showOldPrice = true
+  showOldPrice = true,
+  accentColor = "#3b82f6",
+  cartButtonColor = "#3b82f6",
+  featuredBadgeColor = "#3b82f6"
 }) => {
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -1684,7 +1754,7 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
       return <Flame className="h-4 w-4 text-amber-500 shrink-0" />;
     }
     if (lower.includes("öne") || lower.includes("one") || lower.includes("featured") || lower.includes("koleksiyon")) {
-      return <Sparkles className="h-4 w-4 text-blue-500 shrink-0" />;
+      return <Sparkles className="h-4 w-4 shrink-0" style={{ color: featuredBadgeColor }} />;
     }
     if (lower.includes("fırsat") || lower.includes("firsat") || lower.includes("indirim") || lower.includes("kampanya") || lower.includes("offer") || lower.includes("deal")) {
       return <Tag className="h-4 w-4 text-rose-500 shrink-0" />;
@@ -1692,7 +1762,7 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
     if (lower.includes("yeni") || lower.includes("new") || lower.includes("arrival")) {
       return <Clock className="h-4 w-4 text-indigo-500 shrink-0" />;
     }
-    return <Package className="h-4 w-4 text-blue-500 shrink-0" />;
+    return <Package className="h-4 w-4 shrink-0" style={{ color: accentColor }} />;
   };
 
   const handleScroll = (direction: 'left' | 'right') => {
@@ -1720,7 +1790,8 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
           <button
             type="button"
             onClick={onShowAll}
-            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-[11px] sm:text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-0.5 cursor-pointer transition-colors shrink-0 active:scale-95"
+            style={{ color: accentColor }}
+            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-[11px] sm:text-xs font-bold flex items-center gap-0.5 cursor-pointer transition-colors shrink-0 active:scale-95"
           >
             <span>Tümünü Gör</span>
             <ChevronRight className="h-3.5 w-3.5" />
@@ -1731,7 +1802,7 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
       <div className="relative">
         <button
           onClick={() => handleScroll('left')}
-          className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -ml-3 z-20 w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600"
+          className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -ml-3 z-20 w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl cursor-pointer hover:bg-slate-900 hover:text-white"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -1752,6 +1823,9 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
                 showQuickAddCart={showQuickAddCart}
                 showStockBadge={showStockBadge}
                 showOldPrice={showOldPrice}
+                accentColor={accentColor}
+                cartButtonColor={cartButtonColor}
+                featuredBadgeColor={featuredBadgeColor}
               />
             </div>
           ))}
@@ -1759,7 +1833,7 @@ const NetflixRow: React.FC<NetflixRowProps> = ({
 
         <button
           onClick={() => handleScroll('right')}
-          className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 -mr-3 z-20 w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600"
+          className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 -mr-3 z-20 w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl cursor-pointer hover:bg-slate-900 hover:text-white"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -1777,6 +1851,9 @@ interface NetflixProductCardProps {
   showQuickAddCart?: boolean;
   showStockBadge?: boolean;
   showOldPrice?: boolean;
+  accentColor?: string;
+  cartButtonColor?: string;
+  featuredBadgeColor?: string;
 }
 
 const NetflixProductCard: React.FC<NetflixProductCardProps> = ({ 
@@ -1787,11 +1864,16 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
   enableHoverZoom = true,
   showQuickAddCart = true,
   showStockBadge = true,
-  showOldPrice = true
+  showOldPrice = true,
+  accentColor = "#3b82f6",
+  cartButtonColor = "#3b82f6",
+  featuredBadgeColor = "#3b82f6"
 }) => {
   const coverImg = getProductImageUrl(product);
   const stockCount = getProductStockCount(product);
   const isOutOfStock = stockCount <= 0 && (product as any).is_sellable !== true && (product as any).allow_backorder !== true;
+  const labels = getLabels(product.labels || (product as any).tags || (product as any).badges || []).map(l => l.toLowerCase());
+  const isFeaturedProduct = labels.some(l => l.includes("one cikan") || l.includes("öne çıkan") || l.includes("featured"));
 
   return (
     <motion.div
@@ -1827,7 +1909,7 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
           }}
         />
 
-        {/* STOCK BADGE */}
+        {/* STOCK & FEATURED BADGES */}
         {showStockBadge && (
           <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 pointer-events-none">
             {isOutOfStock ? (
@@ -1838,6 +1920,13 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
               <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white font-black text-[8px] sm:text-[9px] uppercase tracking-wider shadow-xs">
                 Son {stockCount}
               </span>
+            ) : isFeaturedProduct ? (
+              <span
+                className="px-1.5 py-0.5 rounded text-white font-black text-[8px] sm:text-[9px] uppercase tracking-wider shadow-xs"
+                style={{ backgroundColor: featuredBadgeColor }}
+              >
+                Öne Çıkan
+              </span>
             ) : null}
           </div>
         )}
@@ -1846,11 +1935,14 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
       <div className="p-2.5 sm:p-3 space-y-1.5 flex-1 flex flex-col justify-between">
         <div className="space-y-0.5">
           {product.brand && (
-            <span className="text-[9px] sm:text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide block truncate">
+            <span
+              className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wide block truncate"
+              style={{ color: accentColor }}
+            >
               {product.brand}
             </span>
           )}
-          <h3 className="font-semibold text-[11px] sm:text-xs text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors leading-snug min-h-[2.4em]">
+          <h3 className="font-semibold text-[11px] sm:text-xs text-slate-900 dark:text-white line-clamp-2 group-hover:opacity-80 transition-opacity leading-snug min-h-[2.4em]">
             <a
               href={`${typeof window !== 'undefined' && window.location.pathname.startsWith('/s/') ? `/s/${window.location.pathname.split('/')[2]}` : ''}/p/${encodeURIComponent(product.barcode || product.id)}`}
               onClick={(e) => {
@@ -1886,7 +1978,8 @@ const NetflixProductCard: React.FC<NetflixProductCardProps> = ({
                   e.stopPropagation();
                   addToBasket(product);
                 }}
-                className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 bg-slate-100 hover:bg-blue-600 dark:bg-slate-800 dark:hover:bg-blue-600 text-slate-700 hover:text-white dark:text-slate-300 dark:hover:text-white rounded-lg transition-all active:scale-90 cursor-pointer flex items-center justify-center"
+                style={{ backgroundColor: cartButtonColor }}
+                className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-white hover:brightness-110 rounded-lg transition-all active:scale-90 cursor-pointer flex items-center justify-center shadow-xs"
                 title="Sepete Ekle"
               >
                 <ShoppingBag className="h-3.5 w-3.5" />

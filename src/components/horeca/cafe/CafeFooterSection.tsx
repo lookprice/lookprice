@@ -8,6 +8,7 @@ import {
   Award
 } from "lucide-react";
 import { Store } from "../../../types";
+import { LookPriceFooterBadge } from "../../common/LookPriceFooterBadge";
 
 interface CafeFooterSectionProps {
   store: Store;
@@ -318,6 +319,9 @@ export const CafeFooterSection: React.FC<CafeFooterSectionProps> = ({
               <span>{isTr ? "LookPrice Horeca LP Güvencesiyle Sağlanmaktadır" : "Powered by LookPrice Horeca LP"}</span>
             </div>
           </div>
+
+          {/* LookPrice.net Parlak Yanıp-Sönen İmza */}
+          <LookPriceFooterBadge />
         </div>
       </footer>
     </>

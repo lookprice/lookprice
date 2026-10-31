@@ -24,7 +24,6 @@ import { SuperAdminStats } from "../components/superadmin/SuperAdminStats";
 import { SuperAdminLeads } from "../components/superadmin/SuperAdminLeads";
 import { SuperAdminRegistrations } from "../components/superadmin/SuperAdminRegistrations";
 import { SuperAdminStoresTable, StoreSegmentType } from "../components/superadmin/SuperAdminStoresTable";
-import { MultiTenancyDashboard } from "../components/superadmin/MultiTenancyDashboard";
 import { EnrakipsizPortalManager } from "../components/superadmin/EnrakipsizPortalManager";
 import { IntegratorHub } from "../components/IntegratorHub";
 import { SuperAdminVideosManager } from "../components/superadmin/SuperAdminVideosManager";
@@ -88,14 +87,14 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     return 'commercial';
   });
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'tenants' | 'marketing' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'marketing' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>(() => {
     if (typeof window !== 'undefined') {
       const urlTab = new URLSearchParams(window.location.search).get('saTab');
-      if (urlTab && ['dashboard', 'requests', 'tenants', 'marketing', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(urlTab)) {
+      if (urlTab && ['dashboard', 'requests', 'marketing', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(urlTab)) {
         return urlTab as any;
       }
       const saved = localStorage.getItem('superAdminActiveTab');
-      if (saved && ['dashboard', 'requests', 'tenants', 'marketing', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(saved)) {
+      if (saved && ['dashboard', 'requests', 'marketing', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(saved)) {
         return saved as any;
       }
     }
@@ -801,18 +800,6 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             </button>
 
             <button
-              onClick={() => setActiveTab('tenants')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                activeTab === 'tenants'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              <Layers className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Şubeler</span>
-            </button>
-
-            <button
               onClick={() => setActiveTab('marketing')}
               className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'marketing'
@@ -891,13 +878,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         {/* Dedicated Smooth Single Vertical Scroll Area */}
         <main ref={mainScrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-5 py-3">
           <div className="max-w-[1440px] mx-auto space-y-3 pb-36">
-            {activeTab === 'tenants' ? (
-          <MultiTenancyDashboard 
-            stores={stores}
-            onRefreshStores={fetchData}
-            lang={lang}
-          />
-        ) : activeTab === 'requests' ? (
+            {activeTab === 'requests' ? (
           <div className="space-y-4">
             <SuperAdminRegistrations 
               registrationRequests={registrationRequests}

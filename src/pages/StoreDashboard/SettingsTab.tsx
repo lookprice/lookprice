@@ -244,9 +244,12 @@ const SettingsTab = ({
   const isPortfolio = !isGapStore && !isCorporateWebsite && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
   const isAutomotive = !isCorporateWebsite && (branding?.store_type === 'motor_vehicle' || branding?.page_layout_settings?.sector === 'automotive');
   const isCafeRestaurant = !isCorporateWebsite && (branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant');
+  const isBranchStore = Boolean(branding?.parent_id);
 
   React.useEffect(() => {
-    if (isCorporateWebsite && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice' || activeSubTab === 'financing' || activeSubTab === 'layout' || activeSubTab === 'menu')) {
+    if (isBranchStore && (activeSubTab === 'web' || activeSubTab === 'domain' || activeSubTab === 'e-stores' || activeSubTab === 'layout' || activeSubTab === 'menu')) {
+      setActiveSubTab('store-ops');
+    } else if (isCorporateWebsite && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice' || activeSubTab === 'financing' || activeSubTab === 'layout' || activeSubTab === 'menu')) {
       setActiveSubTab('web');
     } else if (isPortfolio && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice')) {
       setActiveSubTab('financing');
@@ -255,7 +258,7 @@ const SettingsTab = ({
     } else if (isCafeRestaurant && activeSubTab === 'e-stores') {
       setActiveSubTab('store-ops');
     }
-  }, [isPortfolio, isCafeRestaurant, isCorporateWebsite, activeSubTab]);
+  }, [isBranchStore, isPortfolio, isCafeRestaurant, isCorporateWebsite, activeSubTab]);
 
   const fetchLogs = async () => {
     setLoadingLogs(true);
@@ -439,6 +442,21 @@ const SettingsTab = ({
 
   return (
     <div className="space-y-4 max-w-6xl mx-auto pb-16">
+        {isBranchStore && (
+          <div className="bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/70 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Building2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <p className="text-xs font-semibold text-indigo-950 dark:text-indigo-200">
+                {lang === 'tr'
+                  ? `Bu mağaza "${branding?.parent_store_name || 'Merkez Mağaza'}" bünyesinde bir şubedir. Kurumsal web sitesi teması, domain, vergi/ticari kimlik ve e-pazaryeri ayarları Merkez Şube üzerinden yönetilir.`
+                  : `This store is a branch under "${branding?.parent_store_name || 'HQ Store'}". Website theme, domain, legal identity, and marketplace integrations are centrally managed by HQ.`}
+              </p>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-600 text-white shrink-0">
+              {lang === 'tr' ? 'Şube Paneli' : 'Branch Panel'}
+            </span>
+          </div>
+        )}
         {/* Minimalist Compact Sub-tab Navigation (Single-Line Bar) */}
         <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-slate-200/80 dark:border-slate-800/80 shadow-2xs flex flex-nowrap items-center overflow-x-auto whitespace-nowrap no-scrollbar gap-1 transition-all">
           <button 
@@ -448,7 +466,7 @@ const SettingsTab = ({
             <Database className="h-3.5 w-3.5" />
             <span>Yedek</span>
           </button>
-          {!isPortfolio && (
+          {!isPortfolio && !isBranchStore && (
             <button 
               onClick={() => setActiveSubTab('web')}
               className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'web' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
@@ -462,7 +480,7 @@ const SettingsTab = ({
             className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'store-ops' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
             <Wrench className="h-3.5 w-3.5" />
-            <span>Mağaza</span>
+            <span>{isBranchStore ? 'Şube' : 'Mağaza'}</span>
           </button>
           {!isPortfolio && !isCorporateWebsite && (
             <button 
@@ -473,7 +491,7 @@ const SettingsTab = ({
               <span>POS</span>
             </button>
           )}
-          {!isPortfolio && !isCafeRestaurant && !isCorporateWebsite && (
+          {!isPortfolio && !isCafeRestaurant && !isCorporateWebsite && !isBranchStore && (
             <button 
               onClick={() => setActiveSubTab('e-stores')}
               className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
@@ -482,7 +500,7 @@ const SettingsTab = ({
               <span>e-Mağaza</span>
             </button>
           )}
-          {isPortfolio && (
+          {isPortfolio && !isBranchStore && (
             <button 
               onClick={() => setActiveSubTab('financing')}
               className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'financing' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
@@ -491,13 +509,15 @@ const SettingsTab = ({
               <span>Finans</span>
             </button>
           )}
-          <button 
-            onClick={() => setActiveSubTab('domain')}
-            className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'domain' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
-          >
-            <Globe className="h-3.5 w-3.5" />
-            <span>Domain</span>
-          </button>
+          {!isBranchStore && (
+            <button 
+              onClick={() => setActiveSubTab('domain')}
+              className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeSubTab === 'domain' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
+            >
+              <Globe className="h-3.5 w-3.5" />
+              <span>Domain</span>
+            </button>
+          )}
           {!isPortfolio && !isCorporateWebsite && (
             <button 
               onClick={() => setActiveSubTab('e-invoice')}

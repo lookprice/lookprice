@@ -27,6 +27,7 @@ import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from "../data/realEstateC
 
 import { StoreMapSection } from "./StoreMapSection";
 import { IDXSplitMapView } from "./IDXSplitMapView";
+import { LookPriceFooterBadge } from "./common/LookPriceFooterBadge";
 
 interface ModernRealEstateLayoutProps {
   store: Store;
@@ -1395,6 +1396,8 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
               © {new Date().getFullYear()} {store.name}. {lang === 'tr' ? 'TÜM HAKLARI SAKLIDIR.' : 'ALL RIGHTS RESERVED.'}
             </p>
           </div>
+          {/* LookPrice.net Parlak Yanıp-Sönen İmza */}
+          <LookPriceFooterBadge />
         </div>
       </footer>
 

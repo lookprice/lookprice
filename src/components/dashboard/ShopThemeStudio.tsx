@@ -88,12 +88,25 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
     }
     if (updates.theme_mode !== undefined) {
       onBrandingChange("theme_mode", updates.theme_mode);
+      try {
+        if (branding?.slug) localStorage.removeItem(`store_theme_${branding.slug}`);
+        if (branding?.id) localStorage.removeItem(`store_theme_${branding.id}`);
+      } catch {}
     }
     if (updates.primary_color !== undefined) {
       onBrandingChange("primary_color", updates.primary_color);
     }
     if (updates.accent_color !== undefined) {
       onBrandingChange("accent_color", updates.accent_color);
+    }
+    if (updates.cart_button_color !== undefined) {
+      onBrandingChange("cart_button_color", updates.cart_button_color);
+    }
+    if (updates.inspect_button_color !== undefined) {
+      onBrandingChange("inspect_button_color", updates.inspect_button_color);
+    }
+    if (updates.featured_badge_color !== undefined) {
+      onBrandingChange("featured_badge_color", updates.featured_badge_color);
     }
   };
 
@@ -102,6 +115,7 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
     const preset = THEME_PRESETS[presetKey];
     if (preset) {
       const netflixUpdates: any = {
+        preset_name: presetKey,
         theme_mode: preset.netflix_theme_mode || (preset.background_mode === "dark" ? "dark" : "light"),
         hero_enabled: true,
         hero_autoplay_interval: preset.netflix_hero_timer || 6,
@@ -116,11 +130,17 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
         show_discounted_row: preset.netflix_show_discounted !== false,
         show_new_arrivals_row: preset.netflix_show_new_arrivals !== false,
         primary_color: preset.primary_color,
-        accent_color: preset.accent_color
+        accent_color: preset.accent_color,
+        cart_button_color: preset.accent_color,
+        inspect_button_color: preset.accent_color,
+        featured_badge_color: preset.accent_color
       };
       updateNetflixConfig(netflixUpdates);
       onBrandingChange("primary_color", preset.primary_color);
       onBrandingChange("accent_color", preset.accent_color);
+      onBrandingChange("cart_button_color", preset.accent_color);
+      onBrandingChange("inspect_button_color", preset.accent_color);
+      onBrandingChange("featured_badge_color", preset.accent_color);
     }
   };
 
@@ -624,7 +644,7 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
                 { id: "netflix_original", title: "Netflix Orijinal Kırmızı", desc: "Moda, Trend & Dinamik", dot1: "#0f172a", dot2: "#e50914" },
                 { id: "netflix_minimal_light", title: "Netflix Minimal Açık", desc: "Temiz Aydınlık Zemin", dot1: "#ffffff", dot2: "#4f46e5" },
               ].map((p) => {
-                const isSelected = netflixConfig.accent_color === p.dot2;
+                const isSelected = netflixConfig.preset_name === p.id || netflixConfig.accent_color === p.dot2;
                 return (
                   <button
                     key={p.id}
@@ -657,8 +677,9 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
               })}
             </div>
 
-            {/* Custom Color Pickers */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            {/* Custom Brand & Button Color Pickers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+              {/* 1. Vurgu (Aksan) Rengi */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                   {isTr ? "Vurgu (Aksan) Rengi" : "Accent Color"}
@@ -685,9 +706,10 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
                 </div>
               </div>
 
+              {/* 2. Ana Marka Rengi */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                  {isTr ? "Ana Marka Rengi" : "Primary Brand Color"}
+                  {isTr ? "Ana Marka & Atmosfer Rengi" : "Primary Brand Color"}
                 </label>
                 <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5">
                   <input
@@ -708,6 +730,163 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
                     }}
                     className="w-full bg-transparent text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
                   />
+                </div>
+              </div>
+
+              {/* 3. "Sepetim" Buton Rengi */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>{isTr ? "\"Sepetim\" Buton Rengi" : "\"Cart\" Button Color"}</span>
+                  {netflixConfig.cart_button_color && (
+                    <button
+                      type="button"
+                      onClick={() => updateNetflixConfig({ cart_button_color: "" })}
+                      className="text-[9px] text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer"
+                    >
+                      {isTr ? "Varsayılan" : "Default"}
+                    </button>
+                  )}
+                </label>
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5">
+                  <input
+                    type="color"
+                    value={netflixConfig.cart_button_color || netflixConfig.accent_color || branding?.accent_color || "#2563eb"}
+                    onChange={(e) => {
+                      updateNetflixConfig({ cart_button_color: e.target.value });
+                    }}
+                    className="w-7 h-7 rounded-lg border border-slate-300 cursor-pointer p-0 shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={netflixConfig.cart_button_color || netflixConfig.accent_color || branding?.accent_color || "#2563eb"}
+                    onChange={(e) => {
+                      updateNetflixConfig({ cart_button_color: e.target.value });
+                    }}
+                    className="w-full bg-transparent text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* 4. "İncele" Buton Rengi */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>{isTr ? "\"İncele\" Buton Rengi" : "\"View\" Button Color"}</span>
+                  {netflixConfig.inspect_button_color && (
+                    <button
+                      type="button"
+                      onClick={() => updateNetflixConfig({ inspect_button_color: "" })}
+                      className="text-[9px] text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer"
+                    >
+                      {isTr ? "Varsayılan" : "Default"}
+                    </button>
+                  )}
+                </label>
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5">
+                  <input
+                    type="color"
+                    value={netflixConfig.inspect_button_color || netflixConfig.accent_color || branding?.accent_color || "#2563eb"}
+                    onChange={(e) => {
+                      updateNetflixConfig({ inspect_button_color: e.target.value });
+                    }}
+                    className="w-7 h-7 rounded-lg border border-slate-300 cursor-pointer p-0 shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={netflixConfig.inspect_button_color || netflixConfig.accent_color || branding?.accent_color || "#2563eb"}
+                    onChange={(e) => {
+                      updateNetflixConfig({ inspect_button_color: e.target.value });
+                    }}
+                    className="w-full bg-transparent text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* 5. "Öne Çıkan" Rozet / Buton Rengi */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>{isTr ? "\"Öne Çıkan\" Buton / Rozet Rengi" : "\"Featured\" Badge Color"}</span>
+                  {netflixConfig.featured_badge_color && (
+                    <button
+                      type="button"
+                      onClick={() => updateNetflixConfig({ featured_badge_color: "" })}
+                      className="text-[9px] text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer"
+                    >
+                      {isTr ? "Varsayılan" : "Default"}
+                    </button>
+                  )}
+                </label>
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5">
+                  <input
+                    type="color"
+                    value={netflixConfig.featured_badge_color || netflixConfig.accent_color || branding?.accent_color || "#2563eb"}
+                    onChange={(e) => {
+                      updateNetflixConfig({ featured_badge_color: e.target.value });
+                    }}
+                    className="w-7 h-7 rounded-lg border border-slate-300 cursor-pointer p-0 shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={netflixConfig.featured_badge_color || netflixConfig.accent_color || branding?.accent_color || "#2563eb"}
+                    onChange={(e) => {
+                      updateNetflixConfig({ featured_badge_color: e.target.value });
+                    }}
+                    className="w-full bg-transparent text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Live Mini Preview of Customized Storefront Buttons */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                  {isTr ? "Canlı Buton Önizlemesi" : "Live Button Preview"}
+                </label>
+                <div
+                  className={`rounded-xl p-2 border flex items-center justify-around gap-1.5 min-h-[42px] ${
+                    netflixConfig.theme_mode === "light"
+                      ? "bg-white border-slate-200 text-slate-900"
+                      : "bg-slate-950 border-slate-800 text-white"
+                  }`}
+                >
+                  <span
+                    className="px-2 py-0.5 text-white rounded-md font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-xs"
+                    style={{
+                      backgroundColor:
+                        netflixConfig.featured_badge_color ||
+                        netflixConfig.accent_color ||
+                        branding?.accent_color ||
+                        "#2563eb",
+                    }}
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    {isTr ? "Öne Çıkan" : "Featured"}
+                  </span>
+
+                  <span
+                    className="px-2.5 py-1 text-white rounded-lg font-bold text-[10px] flex items-center gap-1 shadow-xs"
+                    style={{
+                      backgroundColor:
+                        netflixConfig.inspect_button_color ||
+                        netflixConfig.accent_color ||
+                        branding?.accent_color ||
+                        "#2563eb",
+                    }}
+                  >
+                    {isTr ? "İncele" : "View"}
+                  </span>
+
+                  <span
+                    className="px-2.5 py-1 text-white rounded-lg font-bold text-[10px] flex items-center gap-1 shadow-xs"
+                    style={{
+                      backgroundColor:
+                        netflixConfig.cart_button_color ||
+                        netflixConfig.accent_color ||
+                        branding?.accent_color ||
+                        "#2563eb",
+                    }}
+                  >
+                    <ShoppingBag className="w-3 h-3" />
+                    {isTr ? "Sepetim" : "Cart"}
+                  </span>
                 </div>
               </div>
             </div>

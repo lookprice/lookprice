@@ -28,6 +28,7 @@ import {
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
 import { toast } from "sonner";
+import { LookPriceFooterBadge } from "../../components/common/LookPriceFooterBadge";
 
 interface SectionConfig {
   id: string;
@@ -2276,23 +2277,9 @@ export const PortfolioWebsiteGenerator = ({
                         ? "TÜM HAKLARI SAKLIDIR."
                         : "ALL RIGHTS RESERVED."}
                     </p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest whitespace-nowrap">
-                        POWERED BY
-                      </span>
-                      <a
-                        href="https://lookprice.net"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center hover:opacity-80 transition-opacity"
-                      >
-                        <img
-                          src="https://lookprice.master/logo.png"
-                          className="h-5 md:h-6 object-contain"
-                        />
-                      </a>
-                    </div>
                   </div>
+                  {/* LookPrice.net Parlak Yanıp-Sönen İmza */}
+                  <LookPriceFooterBadge />
                 </div>
               </div>
             </div>

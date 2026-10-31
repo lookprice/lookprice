@@ -145,7 +145,16 @@ router.get("/", async (req: any, res) => {
     const n11FromCol = store.n11_settings || {};
     const n11FromBr = store.branding.n11_settings || {};
 
+    const dbParentId = store.parent_id ? Number(store.parent_id) : null;
+    store.parent_id = dbParentId;
+    store.branding.parent_id = dbParentId;
+
     Object.assign(store, store.branding);
+    // Re-enforce authoritative DB identity & branch hierarchy after Object.assign
+    store.id = store.branding.id;
+    store.parent_id = dbParentId;
+    store.branding.parent_id = dbParentId;
+
     store.payment_settings = mergeNonEmpty(psFromBr, psFromCol);
     store.meta_settings = mergeNonEmpty(msFromBr, msFromCol);
     store.google_merchant_settings = mergeNonEmpty(gmFromBr, gmFromCol);
@@ -175,13 +184,42 @@ router.get("/", async (req: any, res) => {
     store.branding.pazarama_settings = store.pazarama_settings;
     store.branding.n11_settings = store.n11_settings;
 
-    // Fetch branches if this is a main store
+    // Fetch branches if this is a main store (HQ), or inherit HQ corporate identity if this is a branch
     if (!store.parent_id) {
       const branchesRes = await pool.query(
         "SELECT id, name, slug, address, phone FROM stores WHERE parent_id = $1",
         [store.id]
       );
       store.branches = branchesRes.rows;
+    } else {
+      const parentRes = await pool.query(
+        "SELECT id, name, slug, logo_url, favicon_url, primary_color, store_type, sub_sector, branding FROM stores WHERE id = $1",
+        [store.parent_id]
+      );
+      if (parentRes.rows.length > 0) {
+        const parentStore = parentRes.rows[0];
+        let parentBranding: any = parentStore.branding || {};
+        if (typeof parentBranding === 'string') {
+          try { parentBranding = JSON.parse(parentBranding); } catch (e) { parentBranding = {}; }
+        }
+        store.parent_store_name = parentStore.name;
+        store.parent_store_slug = parentStore.slug;
+        store.branding.parent_store_name = parentStore.name;
+        store.branding.parent_store_slug = parentStore.slug;
+        // Branch inherits sector & corporate visual identity from HQ
+        store.store_type = parentStore.store_type || parentBranding.store_type || store.store_type;
+        store.sub_sector = parentStore.sub_sector || parentBranding.sub_sector || store.sub_sector;
+        store.branding.store_type = store.store_type;
+        store.branding.sub_sector = store.sub_sector;
+        if (!store.logo_url && (parentStore.logo_url || parentBranding.logo_url)) {
+          store.logo_url = parentStore.logo_url || parentBranding.logo_url;
+          store.branding.logo_url = store.logo_url;
+        }
+        if (!store.favicon_url && (parentStore.favicon_url || parentBranding.favicon_url)) {
+          store.favicon_url = parentStore.favicon_url || parentBranding.favicon_url;
+          store.branding.favicon_url = store.favicon_url;
+        }
+      }
     }
 
     res.json(store);

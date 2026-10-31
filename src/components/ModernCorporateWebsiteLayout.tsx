@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "motion/react";
+import { LookPriceFooterBadge } from "./common/LookPriceFooterBadge";
 import {
   Phone,
   MessageCircle,
@@ -2860,6 +2861,9 @@ export const ModernCorporateWebsiteLayout: React.FC<ModernCorporateWebsiteLayout
           </p>
           <p className="text-[11px]">Kurumsal Web & Dijital Hizmet Altyapısı</p>
         </div>
+
+        {/* LookPrice.net Parlak Yanıp-Sönen İmza */}
+        <LookPriceFooterBadge />
       </footer>
 
       {/* FLOATING CALL & WHATSAPP ACTION BUTTONS (ICON-ONLY, SIDE-BY-SIDE) */}

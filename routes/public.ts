@@ -769,7 +769,7 @@ router.get("/store/:slug", async (req, res) => {
     const cacheKey = `store_${slug.toLowerCase()}`;
     const cached = publicApiCache.get(cacheKey);
     if (cached) {
-      res.setHeader('Cache-Control', 'public, max-age=60');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.json(cached);
     }
 
@@ -897,7 +897,7 @@ router.get("/store/:slug", async (req, res) => {
     store.consultants = consultantsRes2.rows;
 
     publicApiCache.set(cacheKey, store, 300);
-    res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json(store);
   } catch (error: any) {
     console.error("Error in /store/:slug:", error);
@@ -906,7 +906,7 @@ router.get("/store/:slug", async (req, res) => {
 });
 
 // Cache for 5 minutes, serve stale for up to 1 hour
-const PUBLIC_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=3600';
+const PUBLIC_CACHE_CONTROL = 'no-cache, no-store, must-revalidate';
 
 async function findStoreByIdentifier(identifier: string) {
   let isNumeric = !isNaN(Number(identifier));
