@@ -1301,7 +1301,10 @@ router.post("/:id/create-invoice", async (req: any, res) => {
     const paymentLabel = paymentMethodMap[rawPayment] || sale.payment_method || "Online Ödeme";
 
     const bankDetails = (branding?.payment_settings?.bank_details || branding?.payment_settings?.hotel_bank_details || '').trim();
-    let professionalNote = `İrsaliye Yerine Geçer.\n\nBu fatura ${storeName} web sitesinden verilen #${id} nolu siparişe aittir. Ödeme Yöntemi: ${paymentLabel} ile ödenmiştir.`;
+    const isPosSale = (sale.notes || '').toLowerCase().includes('hızlı pos') || sale.customer_name === 'Hızlı Satış';
+    let professionalNote = isPosSale 
+      ? `İrsaliye Yerine Geçer.\n\nBu fatura #${id} nolu hızlı POS satış fişinin faturaya dönüştürülmüş halidir. Ödeme Yöntemi: ${paymentLabel} ile ödenmiştir.`
+      : `İrsaliye Yerine Geçer.\n\nBu fatura ${storeName} web sitesinden verilen #${id} nolu siparişe aittir. Ödeme Yöntemi: ${paymentLabel} ile ödenmiştir.`;
     if (customerNotesParts.length > 0) {
       professionalNote += `\n\nMüşteri Notu: ${customerNotesParts.join(' | ')}`;
     }

@@ -871,7 +871,7 @@ export const BookstoreThemeStudio: React.FC<BookstoreThemeStudioProps> = ({
               <label className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between cursor-pointer">
                 <div>
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                    {isTr ? "Kapak Üzeri Vitrin Rozetleri" : "Cover Badges"}
+                    {isTr ? "Kapak Üzeri Rozetler" : "Cover Badges"}
                   </span>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">
                     {isTr ? "Çok Satan, Yeni, Ödüllü gibi rozet hapları" : "Display bestseller, new, award tags"}

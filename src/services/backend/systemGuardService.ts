@@ -288,8 +288,9 @@ export async function runStartupSystemGuards(): Promise<void> {
         if (JSON.stringify(branding.hepsiburada_settings.categoryMappings) !== before) changed = true;
       }
 
-      if (branding?.category_specs && typeof branding.category_specs === "object") {
-        for (const [catName, spec] of Object.entries(branding.category_specs)) {
+      const specsObj = branding?.marketplace_category_specs || branding?.category_specs;
+      if (specsObj && typeof specsObj === "object") {
+        for (const [catName, spec] of Object.entries(specsObj)) {
           if (spec && typeof spec === "object" && String((spec as any).hb_category_id) === "2147483647") {
             (spec as any).hb_category_id = Number(resolveSubCategoryLeafHbId(catName, 676));
             changed = true;

@@ -124,11 +124,11 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
       {/* Row: Search Bar & Primary Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
         {/* Search Input: Expands smoothly with generous room */}
-        <div className="relative w-full sm:flex-1 group min-w-[160px]">
+        <div className="relative flex-1 group min-w-[200px] sm:min-w-[260px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
           <input 
             type="text" 
-            placeholder={isCafe ? (lang === 'tr' ? "Ürün / Menü adı ile ara..." : (t.searchProduct || "Search menu product...")) : (lang === 'tr' ? "Ürün adı veya barkod ile ara..." : (t.searchProduct || "Search product name or barcode..."))}
+            placeholder={isCafe ? (lang === 'tr' ? "Ürün / menü ara..." : (t.searchProduct || "Search menu product...")) : (lang === 'tr' ? "Ürün adı veya barkod ile ara..." : (t.searchProduct || "Search product name or barcode..."))}
             className="os-input w-full pr-8 py-1.5 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 shadow-xs"
             style={{ paddingLeft: '2.25rem' }}
             value={search}
@@ -150,21 +150,23 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
         </div>
 
         {/* Filters: Category & 0 Stock Checkbox */}
-        <div className="flex items-center gap-2 shrink-0 justify-between sm:justify-start">
-          <div className="relative flex-1 sm:w-44 sm:flex-initial shrink-0 group min-w-[120px]">
-            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 justify-between sm:justify-start">
+          {/* Minimal Category Selector */}
+          <div className="relative w-28 sm:w-32 shrink-0 group">
+            <Filter className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
             <select 
-              className="os-input w-full pr-7 py-1.5 text-xs font-medium appearance-none cursor-pointer truncate shadow-xs"
-              style={{ paddingLeft: '2rem' }}
+              className="os-input w-full pr-5 py-1.5 text-xs font-medium appearance-none cursor-pointer truncate shadow-xs"
+              style={{ paddingLeft: '1.75rem' }}
               value={selectedCategory}
               onChange={(e) => {
                 setSelectedCategory(e.target.value);
                 setPage(1);
               }}
+              title={lang === 'tr' ? 'Kategori Filtresi' : 'Category Filter'}
             >
-              <option value="all">{t.allCategories}</option>
+              <option value="all">{lang === 'tr' ? 'Kategoriler' : (t.allCategories || 'Categories')}</option>
               {isCafe && <option value="bestsellers">{lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</option>}
-              <optgroup label={lang === 'tr' ? "Vitrin Izgara Rozetleri" : "Showcase Badges"}>
+              <optgroup label={lang === 'tr' ? "Rozetler" : "Badges"}>
                 {sectorBadges.map((b) => (
                   <option key={`opt-badge-${b.id}`} value={`badge_${b.id}`}>
                     {lang === 'tr' ? b.labelTr : b.labelEn}
@@ -200,7 +202,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
             </button>
           )}
 
-          {/* Showcase Badges - Compact Dropdown Popover */}
+          {/* Rozetler - Compact Dropdown Popover */}
           <div className="relative shrink-0" ref={badgeMenuRef}>
             <button
               type="button"
@@ -210,7 +212,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                   ? `${activeBadgeDef.badgeBgClass} border-transparent shadow-sm ring-1 ring-black/10`
                   : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
               }`}
-              title={lang === 'tr' ? 'Vitrin Rozet Filtresi' : 'Showcase Badges Filter'}
+              title={lang === 'tr' ? 'Rozetler' : 'Badges'}
             >
               {activeBadgeDef ? (
                 <>
@@ -247,8 +249,8 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               ) : (
                 <>
                   <Tag className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                  <span className="hidden md:inline">{lang === 'tr' ? 'Vitrin Rozetleri' : 'Showcase Badges'}</span>
-                  <span className="md:hidden">{lang === 'tr' ? 'Rozet' : 'Badge'}</span>
+                  <span className="hidden sm:inline">{lang === 'tr' ? 'Rozetler' : 'Badges'}</span>
+                  <span className="sm:hidden">{lang === 'tr' ? 'Rozet' : 'Badge'}</span>
                   <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isBadgeMenuOpen ? 'rotate-180' : ''}`} />
                 </>
               )}
@@ -256,9 +258,9 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
 
             {/* Dropdown Popover */}
             {isBadgeMenuOpen && (
-              <div className="absolute left-0 sm:right-0 sm:left-auto mt-1.5 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-100 divide-y divide-slate-100 dark:divide-slate-800">
-                <div className="px-3 py-1.5 text-[11px] font-medium text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>{lang === 'tr' ? 'Vitrin Izgara Rozeti' : 'Showcase Badge'}</span>
+              <div className="absolute left-0 sm:right-0 sm:left-auto mt-1.5 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-100 divide-y divide-slate-100 dark:divide-slate-800">
+                <div className="px-3 py-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                  <span>{lang === 'tr' ? 'Rozetler' : 'Badges'}</span>
                   <span className="text-[10px] text-slate-400 font-medium">({products.length} {lang === 'tr' ? 'Ürün' : 'Products'})</span>
                 </div>
 
@@ -280,7 +282,7 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
                       <div className="w-6 h-6 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shrink-0">
                         <Tag className="w-3.5 h-3.5" />
                       </div>
-                      <span>{lang === 'tr' ? 'Tüm Ürünler (Filtresiz)' : 'All Products (No Filter)'}</span>
+                      <span>{lang === 'tr' ? 'Tüm Ürünler' : 'All Products'}</span>
                     </div>
                     {!activeBadgeId && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
                   </button>

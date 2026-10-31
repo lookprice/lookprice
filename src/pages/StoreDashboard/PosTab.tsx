@@ -374,25 +374,35 @@ const PosTab = ({
                     <td className="px-3.5 py-4 text-right">
                       <div className="flex justify-end items-center space-x-1.5">
                         {!s.sales_invoice_id && s.status !== 'cancelled' && (
-                          <button 
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try {
-                                const res = await api.createSaleInvoice(s.id, activeStoreId);
-                                if (res.error) throw new Error(res.error);
-                                alert(lang === 'tr' ? 'Satış faturası oluşturuldu.' : 'Invoice created.');
-                                if (onRefreshSales) onRefreshSales();
-                                else window.location.reload();
-                              } catch (err: any) {
-                                alert(err.message || 'Hata');
-                              }
-                            }}
-                            className="px-2.5 py-1.5 bg-slate-900 hover:bg-black text-white text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 shadow-sm active:scale-95"
-                            title={lang === 'tr' ? 'Satış Faturasına Dönüştür' : 'Convert to Invoice'}
-                          >
-                            <FileText className="h-3.5 w-3.5 text-emerald-400" />
-                            <span className="hidden sm:inline">{lang === 'tr' ? 'Faturalandır' : 'Invoice'}</span>
-                          </button>
+                          (s.notes?.toLowerCase()?.includes('hızlı pos') || s.customer_name === 'Hızlı Satış') ? (
+                            <span 
+                              className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-md border border-slate-200"
+                              title={lang === 'tr' ? 'Yazarkasa / POS Satış Fişi' : 'Cash Register POS Slip'}
+                            >
+                              {lang === 'tr' ? 'Satış Fişi' : 'Receipt'}
+                            </span>
+                          ) : (
+                            <button 
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!window.confirm(lang === 'tr' ? 'Bu sipariş için satış faturası oluşturulsun mu?' : 'Create sales invoice for this order?')) return;
+                                try {
+                                  const res = await api.createSaleInvoice(s.id, activeStoreId);
+                                  if (res.error) throw new Error(res.error);
+                                  alert(lang === 'tr' ? 'Satış faturası oluşturuldu.' : 'Invoice created.');
+                                  if (onRefreshSales) onRefreshSales();
+                                  else window.location.reload();
+                                } catch (err: any) {
+                                  alert(err.message || 'Hata');
+                                }
+                              }}
+                              className="px-2.5 py-1.5 bg-slate-900 hover:bg-black text-white text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                              title={lang === 'tr' ? 'Satış Faturasına Dönüştür' : 'Convert to Invoice'}
+                            >
+                              <FileText className="h-3.5 w-3.5 text-emerald-400" />
+                              <span className="hidden sm:inline">{lang === 'tr' ? 'Faturalandır' : 'Invoice'}</span>
+                            </button>
+                          )
                         )}
                         <button 
                           onClick={() => onViewDetails(s)}

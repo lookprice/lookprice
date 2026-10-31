@@ -2334,8 +2334,105 @@ router.post("/sales", async (req, res) => {
     }
 
     // Handle Payment Gateways
-    const storeRes = await client.query("SELECT payment_settings, branding, default_currency FROM stores WHERE id = $1", [storeId]);
+    const storeRes = await client.query("SELECT name, payment_settings, branding, default_currency FROM stores WHERE id = $1", [storeId]);
     const storeData = storeRes.rows[0];
+
+    // Auto-generate Sales Invoice for Web Store Order (Web orders contain full customer/cari info)
+    try {
+      const webPrefix = 'WEB-';
+      const numberRes = await client.query(
+        "SELECT invoice_number FROM sales_invoices WHERE store_id = $1 AND invoice_number LIKE $2 ORDER BY id DESC LIMIT 1",
+        [storeId, `${webPrefix}%`]
+      );
+      let nextWebNum = 1;
+      if (numberRes.rows.length > 0) {
+        const match = numberRes.rows[0].invoice_number.match(/\d+$/);
+        if (match) nextWebNum = parseInt(match[0]) + 1;
+      }
+      const webInvoiceNumber = `${webPrefix}${nextWebNum.toString().padStart(6, '0')}`;
+      const now = new Date();
+      const invoiceTimeStr = now.toLocaleTimeString('tr-TR', { hour12: false });
+
+      let calculatedTotalMatrah = 0;
+      let calculatedTotalTax = 0;
+      let calculatedGrandTotal = 0;
+      const processedWebItems: any[] = [];
+
+      for (const item of items) {
+        const q = parseFloat(item.quantity) || 1;
+        const price = parseFloat(item.price) || 0;
+        let taxRate = parseFloat(item.tax_rate);
+        if (isNaN(taxRate) || taxRate < 0) taxRate = 20;
+
+        const lineTotalInclusive = (q * price);
+        const lineMatrah = lineTotalInclusive / (1 + (taxRate / 100));
+        const lineTaxAmount = lineTotalInclusive - lineMatrah;
+
+        calculatedTotalMatrah += lineMatrah;
+        calculatedTotalTax += lineTaxAmount;
+        calculatedGrandTotal += lineTotalInclusive;
+
+        processedWebItems.push({
+          product_id: item.productId || item.id || null,
+          product_name: item.name || 'Bilinmeyen Ürün',
+          barcode: item.barcode || '',
+          quantity: q,
+          unit_price: price / (1 + (taxRate / 100)),
+          tax_rate: taxRate,
+          tax_amount: lineTaxAmount,
+          total_price: lineMatrah
+        });
+      }
+
+      const storeDisplayName = storeData?.branding?.store_name || storeData?.branding?.name || storeData?.name || 'Mağaza';
+      const professionalWebNote = `İrsaliye Yerine Geçer.\n\nBu fatura ${storeDisplayName} web sitesinden verilen #${saleId} nolu siparişe aittir.`;
+
+      const webInvRes = await client.query(
+        `INSERT INTO sales_invoices (
+          store_id, customer_id, company_id, sale_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total,
+          currency, payment_method, notes, invoice_type, status, e_document_type, invoice_profile, gi_invoice_type,
+          invoice_time, customer_name, company_title
+        ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, $7, $8, $9, $10, $11, 'web_order', 'completed', 'E-ARSIV', 'EARSIVFATURA', 'SATIS', $12, $13, $14) RETURNING id`,
+        [
+          storeId,
+          finalCustomerId || null,
+          finalCompanyId || null,
+          saleId,
+          webInvoiceNumber,
+          calculatedTotalMatrah,
+          calculatedTotalTax,
+          calculatedGrandTotal || total || 0,
+          currency || 'TRY',
+          paymentMethod || 'Web Satışı',
+          professionalWebNote,
+          invoiceTimeStr,
+          fullNameVal,
+          fullNameVal
+        ]
+      );
+      const newSalesInvoiceId = webInvRes.rows[0].id;
+
+      for (const pItem of processedWebItems) {
+        await client.query(
+          `INSERT INTO sales_invoice_items (
+            sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Adet')`,
+          [
+            newSalesInvoiceId,
+            pItem.product_id,
+            pItem.product_name,
+            pItem.barcode,
+            pItem.quantity,
+            pItem.unit_price,
+            pItem.tax_rate,
+            pItem.tax_amount,
+            pItem.total_price
+          ]
+        );
+      }
+    } catch (invErr) {
+      console.error("Auto sales invoice creation for web order warning:", invErr);
+    }
     const rawPayment = storeData?.payment_settings;
     const brandingPayment = storeData?.branding?.payment_settings;
 

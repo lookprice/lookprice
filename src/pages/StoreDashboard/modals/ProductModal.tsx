@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink, Layers, Maximize2, Minimize2 } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink, Layers } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 import { compressImageToWebP, normalizeImageUrl } from "../../../utils/imageUtils";
@@ -10,7 +10,6 @@ import ProductMovementModal from "../../../components/ProductMovementModal";
 import { BookstoreSectorSpecs } from "../../../components/bookstore/BookstoreSectorSpecs";
 import { getConnectedMarketplaces } from "../../../utils/marketplaceEStores";
 import { resolveDomainId } from "../../../utils/sectorCapability";
-import { BOOKSTORE_CATEGORIES } from "../../../data/bookstoreCategories";
 import { getSectorBadges, extractProductLabels } from "../../../data/bookstoreBadges";
 
 interface ProductModalProps {
@@ -81,7 +80,6 @@ export const ProductModal = ({
   const [matrixColors, setMatrixColors] = useState("");
   const [matrixSizes, setMatrixSizes] = useState("");
   const [showMovementModal, setShowMovementModal] = useState(false);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   const domainId = resolveDomainId(branding);
   const isCafeRestaurant = domainId === 'HORECA' || domainId === 'HOTEL';
@@ -364,65 +362,73 @@ export const ProductModal = ({
 
   const categoriesList = React.useMemo(() => {
     const cats = new Set<string>();
-    if (isBookstore) {
-      BOOKSTORE_CATEGORIES.forEach((c) => cats.add(c.mainCategory));
-    }
-    if (branding?.custom_categories && Array.isArray(branding.custom_categories)) {
-      branding.custom_categories.forEach((c: string) => {
-        if (c && typeof c === "string") cats.add(c.trim());
-      });
-    }
-    if (branding?.category_specs && typeof branding.category_specs === "object") {
-      Object.keys(branding.category_specs).forEach((c) => {
-        if (c) cats.add(c.trim());
+    // Only manual store categories created by operator in products or operator_categories
+    if (branding?.operator_categories && Array.isArray(branding.operator_categories)) {
+      branding.operator_categories.forEach((c: any) => {
+        if (typeof c === "string" && c.trim()) cats.add(c.trim());
+        else if (c && typeof c === "object" && c.name && typeof c.name === "string") cats.add(c.name.trim());
       });
     }
     if (products && Array.isArray(products)) {
       products.forEach((p: any) => {
-        if (p.category) cats.add(p.category.trim());
-        if (p.category_2) cats.add(p.category_2.trim());
+        if (p.category && typeof p.category === "string" && p.category.trim()) cats.add(p.category.trim());
+        if (p.category_2 && typeof p.category_2 === "string" && p.category_2.trim()) cats.add(p.category_2.trim());
       });
     }
+    if (editingProduct?.category && typeof editingProduct.category === "string" && editingProduct.category.trim()) {
+      cats.add(editingProduct.category.trim());
+    }
+    if (editingProduct?.category_2 && typeof editingProduct.category_2 === "string" && editingProduct.category_2.trim()) {
+      cats.add(editingProduct.category_2.trim());
+    }
     return Array.from(cats).sort((a, b) => a.localeCompare(b, "tr"));
-  }, [products, isBookstore, branding]);
+  }, [products, branding?.operator_categories, editingProduct?.category, editingProduct?.category_2]);
 
   const subCategoriesMap = React.useMemo(() => {
     const map = new Map<string, Set<string>>();
-    if (isBookstore) {
-      BOOKSTORE_CATEGORIES.forEach((c) => {
-        if (!map.has(c.mainCategory)) map.set(c.mainCategory, new Set());
-        c.subCategories.forEach((s) => map.get(c.mainCategory)!.add(s));
-      });
-    }
-    if (branding?.category_specs && typeof branding.category_specs === "object") {
-      Object.entries(branding.category_specs).forEach(([catName, spec]: [string, any]) => {
-        const cat = catName.trim();
-        if (!map.has(cat)) map.set(cat, new Set());
-        if (spec && Array.isArray(spec.sub_categories)) {
-          spec.sub_categories.forEach((s: string) => {
-            if (s) map.get(cat)!.add(s.trim());
-          });
+    if (branding?.operator_categories && Array.isArray(branding.operator_categories)) {
+      branding.operator_categories.forEach((c: any) => {
+        if (c && typeof c === "object" && c.name && Array.isArray(c.sub_categories)) {
+          const catName = String(c.name).trim();
+          if (catName) {
+            if (!map.has(catName)) map.set(catName, new Set());
+            c.sub_categories.forEach((s: string) => {
+              if (s && typeof s === "string" && s.trim()) map.get(catName)!.add(s.trim());
+            });
+          }
         }
       });
     }
     if (products && Array.isArray(products)) {
       products.forEach((p: any) => {
         if (p.category && p.sub_category) {
-          const cat = p.category.trim();
-          const sub = p.sub_category.trim();
-          if (!map.has(cat)) map.set(cat, new Set());
-          map.get(cat)!.add(sub);
+          const cat = String(p.category).trim();
+          const sub = String(p.sub_category).trim();
+          if (cat && sub) {
+            if (!map.has(cat)) map.set(cat, new Set());
+            map.get(cat)!.add(sub);
+          }
         }
         if (p.category_2 && p.sub_category_2) {
-          const cat2 = p.category_2.trim();
-          const sub2 = p.sub_category_2.trim();
-          if (!map.has(cat2)) map.set(cat2, new Set());
-          map.get(cat2)!.add(sub2);
+          const cat2 = String(p.category_2).trim();
+          const sub2 = String(p.sub_category_2).trim();
+          if (cat2 && sub2) {
+            if (!map.has(cat2)) map.set(cat2, new Set());
+            map.get(cat2)!.add(sub2);
+          }
         }
       });
     }
+    if (editingProduct?.category && editingProduct?.sub_category) {
+      const cat = String(editingProduct.category).trim();
+      const sub = String(editingProduct.sub_category).trim();
+      if (cat && sub) {
+        if (!map.has(cat)) map.set(cat, new Set());
+        map.get(cat)!.add(sub);
+      }
+    }
     return map;
-  }, [products, isBookstore, branding]);
+  }, [products, branding?.operator_categories, editingProduct?.category, editingProduct?.sub_category]);
 
   useEffect(() => {
     if (showProductModal) {
@@ -946,35 +952,15 @@ export const ProductModal = ({
                               : (isTr ? "✨ Gemini ile Otomatik Yaz" : "✨ Auto-Write with AI")}
                         </span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                        className="text-[10px] font-normal text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-indigo-50 transition-colors cursor-pointer"
-                        title={isDescriptionExpanded ? (isTr ? "Alanı Küçült" : "Collapse") : (isTr ? "Alanı Genişlet" : "Expand")}
-                      >
-                        {isDescriptionExpanded ? (
-                          <>
-                            <Minimize2 className="w-3 h-3" />
-                            <span>{isTr ? "Daralt" : "Collapse"}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Maximize2 className="w-3 h-3" />
-                            <span>{isTr ? "Genişlet" : "Expand"}</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
                   <textarea
                     name="description"
-                    rows={isDescriptionExpanded ? 10 : 5}
+                    rows={5}
                     placeholder={isBookstore 
                       ? (isTr ? "Arka kapak tanıtım yazısı veya eser özeti..." : "Book synopsis...") 
-                      : (isTr ? "Ürün özellikleri, teknik detaylar ve vitrin açıklaması... (Sağ alt köşeden tutarak da genişletebilirsiniz)" : "Detailed product specifications and description...")}
-                    className={`w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/10 transition-all font-normal text-slate-900 text-xs sm:text-sm shadow-2xs resize-y outline-none leading-relaxed ${
-                      isDescriptionExpanded ? "min-h-[220px]" : "min-h-[110px]"
-                    } max-h-[520px]`}
+                      : (isTr ? "Ürün özellikleri, teknik detaylar ve vitrin açıklaması..." : "Detailed product specifications and description...")}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/10 transition-all font-normal text-slate-900 text-xs sm:text-sm shadow-2xs resize-y outline-none leading-relaxed min-h-[110px] max-h-[520px]"
                     defaultValue={editingProduct?.description || ""}
                   />
                 </div>
@@ -1926,7 +1912,7 @@ export const ProductModal = ({
                         <div className="flex items-center justify-between">
                           <label className="text-[10px] font-medium text-indigo-950 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-1">
                             <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-                            <span>{isTr ? "Vitrin Rozetleri" : "Showcase Badges"}</span>
+                            <span>{isTr ? "Rozetler" : "Badges"}</span>
                           </label>
                           <span className="text-[9px] text-slate-500 font-medium">
                             {isTr ? "Vitrinde öne çıkarılır" : "Featured in showcase"}

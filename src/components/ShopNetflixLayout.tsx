@@ -291,15 +291,21 @@ export const ShopNetflixLayout: React.FC<ShopNetflixLayoutProps> = ({
   const categoryTree = useMemo(() => {
     const map = new Map<string, Set<string>>();
 
-    if (store?.branding?.category_specs && typeof store.branding.category_specs === "object") {
-      Object.entries(store.branding.category_specs).forEach(([catName, spec]: [string, any]) => {
-        const cleanCat = catName.trim();
-        if (!cleanCat) return;
-        if (!map.has(cleanCat)) map.set(cleanCat, new Set());
-        if (spec && Array.isArray(spec.sub_categories)) {
-          spec.sub_categories.forEach((s: string) => {
-            if (s && s.trim()) map.get(cleanCat)!.add(s.trim());
-          });
+    if (store?.branding?.operator_categories && Array.isArray(store.branding.operator_categories)) {
+      store.branding.operator_categories.forEach((cat: any) => {
+        if (typeof cat === "string" && cat.trim()) {
+          const cleanCat = cat.trim();
+          if (!map.has(cleanCat)) map.set(cleanCat, new Set());
+        } else if (cat && typeof cat === "object" && cat.name) {
+          const cleanCat = String(cat.name).trim();
+          if (cleanCat) {
+            if (!map.has(cleanCat)) map.set(cleanCat, new Set());
+            if (Array.isArray(cat.sub_categories)) {
+              cat.sub_categories.forEach((s: string) => {
+                if (s && typeof s === "string" && s.trim()) map.get(cleanCat)!.add(s.trim());
+              });
+            }
+          }
         }
       });
     }

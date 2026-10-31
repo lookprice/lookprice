@@ -30,6 +30,8 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
 }) => {
   if (!showSaleDetailsModal || !selectedSale) return null;
 
+  const isPosSale = (selectedSale.notes?.toLowerCase() || '').includes('hızlı pos') || selectedSale.customer_name === 'Hızlı Satış';
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <motion.div 
@@ -40,9 +42,11 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
       >
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div>
-            <h3 className="text-xl font-medium text-gray-900">{t.saleDetails}</h3>
+            <h3 className="text-xl font-medium text-gray-900">
+              {isPosSale ? (lang === 'tr' ? 'Satış Fişi Detayı' : 'POS Receipt Details') : t.saleDetails}
+            </h3>
             <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mt-1">
-              #{selectedSale.id} • {formatDateTR(selectedSale.created_at)}
+              #{selectedSale.id} • {formatDateTR(selectedSale.created_at)} • {isPosSale ? (lang === 'tr' ? 'Hızlı POS Satış Fişi' : 'POS Receipt') : (lang === 'tr' ? 'Sipariş' : 'Order')}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -201,21 +205,47 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({
 
               {/* Create Invoice Button or Invoice Badge */}
               {!selectedSale.sales_invoice_id ? (
-                <button 
-                  onClick={async () => {
-                    try {
-                      const res = await api.createSaleInvoice(selectedSale.id, selectedSale.store_id);
-                      if (res.error) throw new Error(res.error);
-                      alert(lang === 'tr' ? 'Satış faturası başarıyla oluşturuldu.' : 'Invoice created successfully.');
-                      if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
-                      else window.location.reload();
-                    } catch (e: any) { alert(e.message || "Hata"); }
-                  }}
-                  className="px-4 py-2 bg-slate-900 text-white hover:bg-black text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
-                >
-                  <FileText className="w-4 h-4 text-emerald-400" />
-                  {lang === 'tr' ? 'Satış Faturasına Dönüştür' : 'Convert to Invoice'}
-                </button>
+                isPosSale ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-slate-500" />
+                      {lang === 'tr' ? 'Kasa / POS Satış Fişi' : 'Cash Register POS Slip'}
+                    </span>
+                    <button 
+                      onClick={async () => {
+                        if (!window.confirm(lang === 'tr' ? 'Bu hızlı POS satış fişini resmi satış faturasına dönüştürmek istediğinize emin misiniz?' : 'Are you sure you want to convert this POS receipt to an official invoice?')) return;
+                        try {
+                          const res = await api.createSaleInvoice(selectedSale.id, selectedSale.store_id);
+                          if (res.error) throw new Error(res.error);
+                          alert(lang === 'tr' ? 'Satış faturası başarıyla oluşturuldu.' : 'Invoice created successfully.');
+                          if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
+                          else window.location.reload();
+                        } catch (e: any) { alert(e.message || "Hata"); }
+                      }}
+                      className="px-3 py-1.5 bg-slate-900 text-white hover:bg-black text-[11px] font-medium rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                      {lang === 'tr' ? 'Faturaya Dönüştür' : 'Convert to Invoice'}
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={async () => {
+                      if (!window.confirm(lang === 'tr' ? 'Bu sipariş için satış faturası oluşturulsun mu?' : 'Create sales invoice for this order?')) return;
+                      try {
+                        const res = await api.createSaleInvoice(selectedSale.id, selectedSale.store_id);
+                        if (res.error) throw new Error(res.error);
+                        alert(lang === 'tr' ? 'Satış faturası başarıyla oluşturuldu.' : 'Invoice created successfully.');
+                        if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
+                        else window.location.reload();
+                      } catch (e: any) { alert(e.message || "Hata"); }
+                    }}
+                    className="px-4 py-2 bg-slate-900 text-white hover:bg-black text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4 text-emerald-400" />
+                    {lang === 'tr' ? 'Satış Faturasına Dönüştür' : 'Convert to Invoice'}
+                  </button>
+                )
               ) : (
                 <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5 text-emerald-600" />

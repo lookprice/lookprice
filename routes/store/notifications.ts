@@ -26,10 +26,12 @@ router.get("/", async (req: any, res) => {
 
   try {
     // Fetch store info first
-    const storeRes = await pool.query("SELECT store_type, branding FROM stores WHERE id = $1", [storeId]);
-    const storeRow = storeRes.rows[0] || { store_type: "product", branding: {} };
+    const storeRes = await pool.query("SELECT store_type, branding, einvoice_settings FROM stores WHERE id = $1", [storeId]);
+    const storeRow = storeRes.rows[0] || { store_type: "product", branding: {}, einvoice_settings: {} };
     const sector = (storeRow.store_type || storeRow.branding?.store_type || storeRow.branding?.page_layout_settings?.sector || "product").toUpperCase();
     const branding = storeRow.branding || {};
+    const einvoiceSettings = storeRow.einvoice_settings || {};
+    const isEInvoiceActive = Boolean(einvoiceSettings.is_active && einvoiceSettings.provider && einvoiceSettings.provider !== 'none');
     const isHotelModuleActive = branding?.hotel_module_enabled === true;
     const isPortfolio = ["REAL_ESTATE", "AUTOMOTIVE", "MOTOR_VEHICLE", "PORTFOLIO", "AUTO", "AUTOLP", "GALERI", "OTO", "EMLAK"].includes(sector);
     const isCafeRestaurant = sector === "HORECA" || sector === "CAFE_RESTAURANT";
@@ -164,10 +166,14 @@ router.get("/", async (req: any, res) => {
     let salesInvoicesErrorCount = 0;
     let salesInvoicesNotSentCount = 0;
     try {
-      if (!isPortfolio) {
+      if (!isPortfolio && isEInvoiceActive) {
         const salesInvoicesCount = await pool.query(
           `SELECT COUNT(*) FROM sales_invoices 
-           WHERE store_id = $1 AND integration_status IN ('REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED', 'ERROR')`,
+           WHERE store_id = $1 
+             AND COALESCE(invoice_type, '') NOT IN ('receipt', 'pos_receipt')
+             AND COALESCE(notes, '') NOT LIKE '%Hızlı POS%'
+             AND COALESCE(NULLIF(TRIM(customer_name), ''), '') != 'Hızlı Satış'
+             AND integration_status IN ('REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED', 'ERROR')`,
           [storeId]
         );
         salesInvoicesErrorCount = parseInt(salesInvoicesCount.rows[0]?.count || "0");
@@ -176,6 +182,9 @@ router.get("/", async (req: any, res) => {
           `SELECT COUNT(*) FROM sales_invoices 
            WHERE store_id = $1 
              AND status NOT IN ('cancelled', 'iptal')
+             AND COALESCE(invoice_type, '') NOT IN ('receipt', 'pos_receipt')
+             AND COALESCE(notes, '') NOT LIKE '%Hızlı POS%'
+             AND COALESCE(NULLIF(TRIM(customer_name), ''), '') != 'Hızlı Satış'
              AND (integration_status IS NULL OR integration_status IN ('', 'NOT_SENT', 'DRAFT', 'UNKNOWN', 'BILINMIYOR'))
              AND (ettn IS NULL OR length(trim(ettn)) < 5)`,
           [storeId]
@@ -297,10 +306,12 @@ router.get("/feed", async (req: any, res) => {
     const nowIso = new Date().toISOString();
 
     // Fetch store sector & branding for strict sectoral isolation (Rule 0 & Rule 5)
-    const storeRes = await pool.query("SELECT store_type, branding FROM stores WHERE id = $1", [storeId]);
-    const storeRow = storeRes.rows[0] || { store_type: "product", branding: {} };
+    const storeRes = await pool.query("SELECT store_type, branding, einvoice_settings FROM stores WHERE id = $1", [storeId]);
+    const storeRow = storeRes.rows[0] || { store_type: "product", branding: {}, einvoice_settings: {} };
     const sector = (storeRow.store_type || storeRow.branding?.store_type || storeRow.branding?.page_layout_settings?.sector || "product").toUpperCase();
     const branding = storeRow.branding || {};
+    const einvoiceSettings = storeRow.einvoice_settings || {};
+    const isEInvoiceActive = Boolean(einvoiceSettings.is_active && einvoiceSettings.provider && einvoiceSettings.provider !== 'none');
     const isHotelModuleActive = branding?.hotel_module_enabled === true;
     const isPortfolio = ["REAL_ESTATE", "AUTOMOTIVE", "MOTOR_VEHICLE", "PORTFOLIO", "AUTO", "AUTOLP", "GALERI", "OTO", "EMLAK"].includes(sector);
     const isCafeRestaurant = sector === "HORECA" || sector === "CAFE_RESTAURANT";
@@ -544,7 +555,7 @@ router.get("/feed", async (req: any, res) => {
     }
 
     // 3. GİB Hatası & Reddedilen Faturalar (Critical)
-    if (!isPortfolio) {
+    if (!isPortfolio && isEInvoiceActive) {
       try {
         const errInvoices = await pool.query(
           `SELECT si.id, si.invoice_number,
@@ -554,13 +565,21 @@ router.get("/feed", async (req: any, res) => {
            FROM sales_invoices si
            LEFT JOIN companies c ON si.company_id = c.id
            LEFT JOIN customers cust ON si.customer_id = cust.id
-           WHERE si.store_id = $1 AND si.integration_status IN ('REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED', 'ERROR')
+           WHERE si.store_id = $1 
+             AND COALESCE(si.invoice_type, '') NOT IN ('receipt', 'pos_receipt')
+             AND COALESCE(si.notes, '') NOT LIKE '%Hızlı POS%'
+             AND COALESCE(NULLIF(TRIM(si.customer_name), ''), '') != 'Hızlı Satış'
+             AND si.integration_status IN ('REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED', 'ERROR')
            ORDER BY si.created_at DESC LIMIT 5`,
           [storeId]
         );
         const errCountRes = await pool.query(
           `SELECT COUNT(*) FROM sales_invoices 
-           WHERE store_id = $1 AND integration_status IN ('REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED', 'ERROR')`,
+           WHERE store_id = $1 
+             AND COALESCE(invoice_type, '') NOT IN ('receipt', 'pos_receipt')
+             AND COALESCE(notes, '') NOT LIKE '%Hızlı POS%'
+             AND COALESCE(NULLIF(TRIM(customer_name), ''), '') != 'Hızlı Satış'
+             AND integration_status IN ('REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED', 'ERROR')`,
           [storeId]
         );
         const totalErr = parseInt(errCountRes.rows[0]?.count || "0");
@@ -589,7 +608,7 @@ router.get("/feed", async (req: any, res) => {
     }
 
     // 4. GİB'e Gönderilmeyi Bekleyen Satış Faturaları (Warning / Action Required)
-    if (!isPortfolio) {
+    if (!isPortfolio && isEInvoiceActive) {
       try {
         const unsentInvoices = await pool.query(
           `SELECT si.id, si.invoice_number,
@@ -601,6 +620,9 @@ router.get("/feed", async (req: any, res) => {
            LEFT JOIN customers cust ON si.customer_id = cust.id
            WHERE si.store_id = $1 
              AND si.status NOT IN ('cancelled', 'iptal')
+             AND COALESCE(si.invoice_type, '') NOT IN ('receipt', 'pos_receipt')
+             AND COALESCE(si.notes, '') NOT LIKE '%Hızlı POS%'
+             AND COALESCE(NULLIF(TRIM(si.customer_name), ''), cust.name, '') != 'Hızlı Satış'
              AND (si.integration_status IS NULL OR si.integration_status IN ('', 'NOT_SENT', 'DRAFT', 'UNKNOWN', 'BILINMIYOR'))
              AND (si.ettn IS NULL OR length(trim(si.ettn)) < 5)
            ORDER BY COALESCE(si.created_at, si.invoice_date::timestamp) DESC LIMIT 5`,
@@ -610,6 +632,9 @@ router.get("/feed", async (req: any, res) => {
           `SELECT COUNT(*) FROM sales_invoices 
            WHERE store_id = $1 
              AND status NOT IN ('cancelled', 'iptal')
+             AND COALESCE(invoice_type, '') NOT IN ('receipt', 'pos_receipt')
+             AND COALESCE(notes, '') NOT LIKE '%Hızlı POS%'
+             AND COALESCE(NULLIF(TRIM(customer_name), ''), '') != 'Hızlı Satış'
              AND (integration_status IS NULL OR integration_status IN ('', 'NOT_SENT', 'DRAFT', 'UNKNOWN', 'BILINMIYOR'))
              AND (ettn IS NULL OR length(trim(ettn)) < 5)`,
           [storeId]

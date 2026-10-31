@@ -7,8 +7,6 @@ import {
   ChevronDown, 
   ChevronUp, 
   Layers, 
-  ListPlus, 
-  ListCollapse, 
   Sparkles,
   Check,
   X,
@@ -73,39 +71,9 @@ export const TableManager: React.FC<TableManagerProps> = ({
   ];
 
   const hasHiddenColumns = manager.visibleColumnCount < manager.totalColumnCount;
-  const isExpandableMode = manager.metadataMode === 'expandable';
-  const hasExpandedRows = Object.values(manager.expandedRows).some(Boolean);
 
   return (
     <div className={`relative inline-flex items-center gap-1.5 ${className}`} ref={containerRef}>
-      {/* Quick Expand / Collapse All for Expandable Mode */}
-      {isExpandableMode && allRowIds.length > 0 && (
-        <button
-          type="button"
-          onClick={() => {
-            if (hasExpandedRows) {
-              manager.collapseAllRows();
-            } else {
-              manager.expandAllRows(allRowIds);
-            }
-          }}
-          className="os-btn-secondary p-2 text-slate-600 hover:text-indigo-600 rounded-lg transition-all border border-slate-200 hover:border-indigo-200 shadow-xs flex items-center gap-1 text-xs font-semibold cursor-pointer"
-          title={hasExpandedRows ? (lang === 'tr' ? 'Tüm Alt Satırları Daralt' : 'Collapse All Rows') : (lang === 'tr' ? 'Tüm Alt Satırları Genişlet' : 'Expand All Rows')}
-        >
-          {hasExpandedRows ? (
-            <>
-              <ListCollapse className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="hidden xl:inline">{lang === 'tr' ? 'Tümünü Daralt' : 'Collapse All'}</span>
-            </>
-          ) : (
-            <>
-              <ListPlus className="w-3.5 h-3.5 text-slate-500" />
-              <span className="hidden xl:inline">{lang === 'tr' ? 'Tümünü Genişlet' : 'Expand All'}</span>
-            </>
-          )}
-        </button>
-      )}
-
       {/* Main Table Manager Toggle Button */}
       <button
         type="button"

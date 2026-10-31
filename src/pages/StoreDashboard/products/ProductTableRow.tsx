@@ -555,10 +555,10 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                                 ? 'bg-indigo-600 text-white shadow-xs' 
                                 : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80'
                             }`}
-                            title={lang === 'tr' ? "Vitrin Rozetlerini & Izgaralarını Değiştir" : "Edit Showcase Badges"}
+                            title={lang === 'tr' ? "Rozetleri Değiştir" : "Edit Badges"}
                           >
                             <Sparkles className="w-2.5 h-2.5 text-indigo-600" />
-                            <span>{lang === 'tr' ? 'Rozet' : 'Badges'}</span>
+                            <span>{lang === 'tr' ? 'Rozet' : 'Badge'}</span>
                           </button>
 
                           <BookstoreBadgePopover
