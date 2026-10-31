@@ -112,6 +112,13 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
       }
     }
   }, [activeTab]);
+
+  const mainScrollRef = React.useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (mainScrollRef.current) {
+      mainScrollRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
   
   // Enrakipsiz states
   const [enrakipsizSettings, setEnrakipsizSettings] = useState<EnrakipsizSettings>({
@@ -717,9 +724,11 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
 
   return (
     <ErrorBoundary lang={lang}>
-      <div className="max-w-[1440px] mx-auto px-3 sm:px-5 py-3 space-y-3">
-        {/* Unified LookPrice Executive Cockpit Command Bar (Single Header & Navigation) */}
-        <header className="bg-slate-900 text-white rounded-2xl p-3 sm:p-4 border border-slate-800 shadow-lg relative overflow-hidden">
+      <div className="h-full h-[100dvh] max-h-screen max-h-[100dvh] flex flex-col overflow-hidden bg-slate-100/60 font-sans relative operator-compact-layout">
+        {/* Unified LookPrice Executive Cockpit Command Bar (Pinned Top Bar) */}
+        <header className="shrink-0 z-20 px-3 sm:px-5 pt-3 pb-1.5 bg-slate-100/90 backdrop-blur-md border-b border-slate-200/50">
+          <div className="max-w-[1440px] mx-auto">
+            <div className="bg-slate-900 text-white rounded-2xl p-3 sm:p-4 border border-slate-800 shadow-lg relative overflow-hidden">
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-800/90">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center shrink-0">
@@ -874,10 +883,15 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
               <UserCircle className="h-3.5 w-3.5 text-rose-400" />
               <span>Profil</span>
             </button>
+            </div>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {activeTab === 'tenants' ? (
+        {/* Dedicated Smooth Single Vertical Scroll Area */}
+        <main ref={mainScrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-5 py-3">
+          <div className="max-w-[1440px] mx-auto space-y-3 pb-36">
+            {activeTab === 'tenants' ? (
           <MultiTenancyDashboard 
             stores={stores}
             onRefreshStores={fetchData}
@@ -980,6 +994,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             />
           </>
         )}
+          </div>
+        </main>
 
         {/* Modals */}
         <SlideModal 

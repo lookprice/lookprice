@@ -494,7 +494,7 @@ const CompaniesTab = ({
             </button>
           )}
           <button 
-            onClick={onExportReport}
+            onClick={() => onExportReport && (onExportReport as any)(filteredCompanies, includeZero)}
             className="flex items-center justify-center bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
           >
             <Download className="h-4 w-4 mr-2 text-slate-500" /> {t.export}

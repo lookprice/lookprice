@@ -7,18 +7,23 @@ export interface StaffWaiter {
   active: boolean;
 }
 
-export const DEFAULT_WAITERS: StaffWaiter[] = [
-  { id: 'w_1', name: 'Garson 1 (Ahmet)', pin: '1001', section: 'Salon', phone: '', active: true },
-  { id: 'w_2', name: 'Garson 2 (Mehmet)', pin: '1002', section: 'Bahçe', phone: '', active: true },
-  { id: 'w_3', name: 'Garson 3 (Can)', pin: '1003', section: 'Havuz / Şezlong', phone: '', active: true },
-  { id: 'w_4', name: 'Garson 4 (Ayşe)', pin: '1004', section: 'Teras / VIP Loca', phone: '', active: true },
-];
+export const isHorecaStore = (branding: any): boolean => {
+  if (!branding) return false;
+  const storeType = (branding.store_type || branding.page_layout_settings?.sector || '').toLowerCase();
+  return storeType === 'cafe_restaurant' || storeType === 'horeca' || storeType === 'horecalp' || Boolean(branding.hotel_module_enabled);
+};
 
 export const getStoreWaiters = (branding: any): StaffWaiter[] => {
-  if (branding?.waiter_list && Array.isArray(branding.waiter_list) && branding.waiter_list.length > 0) {
+  // STRICT SECTOR ISOLATION (RULE 0):
+  // Waiters/Garsonlar belong EXCLUSIVELY to horecaLP (cafe_restaurant / horeca / hotel).
+  // shopLP (retail/product), real estate, and automotive stores must NEVER have waiters or waiter lists.
+  if (!isHorecaStore(branding)) {
+    return [];
+  }
+  if (branding?.waiter_list && Array.isArray(branding.waiter_list)) {
     return branding.waiter_list;
   }
-  return DEFAULT_WAITERS;
+  return [];
 };
 
 export const generateWaiterWhatsappInviteUrl = (

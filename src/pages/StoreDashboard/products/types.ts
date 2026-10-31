@@ -8,7 +8,7 @@ export interface ProductsTabProps {
   onAddNew: () => void;
   onImport: () => void;
   onDelete: (id: number) => void;
-  onExportReport: () => void;
+  onExportReport: (customIncludeZeroStock?: boolean, customProducts?: any[]) => void;
   onApplyTaxRule?: (category: string, taxRate: number) => void;
   onBulkPriceUpdate?: () => void;
   onBulkRecalculatePrice2?: () => void;

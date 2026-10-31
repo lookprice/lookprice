@@ -348,34 +348,23 @@ export async function seedStoreSectorTaxonomy(
     try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
   }
 
-  // 1. Merge into branding.shipping_profiles / sector_categories
-  const currentCategorySpecs = branding.category_specs || {};
-  const currentCategoriesList = Array.isArray(branding.custom_categories) ? [...branding.custom_categories] : [];
+  // 1. Sector taxonomy packages are strictly for marketplace category matching / e-store bridge tools.
+  // They MUST NOT contaminate the store's primary product categories (branding.custom_categories).
   const hbSettings = branding.hepsiburada_settings || {};
   const hbMappings: Record<string, string> = hbSettings.categoryMappings || {};
+  const marketplaceCategorySpecs = branding.marketplace_category_specs || {};
 
   let totalCategoriesAdded = 0;
 
   for (const pkg of selectedPackages) {
     for (const item of pkg.categories) {
-      if (!currentCategoriesList.includes(item.category)) {
-        currentCategoriesList.push(item.category);
-        totalCategoriesAdded++;
-      }
-      if (!currentCategorySpecs[item.category]) {
-        currentCategorySpecs[item.category] = {
-          sub_categories: item.sub_categories,
-          hb_category_id: item.hb_category_id,
-          source: "hepsiburada_standard_taxonomy",
-          package_id: pkg.id
-        };
-      } else {
-        // Merge subcategories without duplicates
-        const existingSubs = currentCategorySpecs[item.category].sub_categories || [];
-        const mergedSubs = Array.from(new Set([...existingSubs, ...item.sub_categories]));
-        currentCategorySpecs[item.category].sub_categories = mergedSubs;
-        currentCategorySpecs[item.category].package_id = pkg.id;
-      }
+      totalCategoriesAdded++;
+      marketplaceCategorySpecs[item.category] = {
+        sub_categories: item.sub_categories,
+        hb_category_id: item.hb_category_id,
+        source: "hepsiburada_standard_taxonomy",
+        package_id: pkg.id
+      };
 
       if (item.hb_category_id) {
         const hbIdStr = String(item.hb_category_id);
@@ -391,8 +380,7 @@ export async function seedStoreSectorTaxonomy(
 
   hbSettings.categoryMappings = hbMappings;
   branding.hepsiburada_settings = hbSettings;
-  branding.custom_categories = currentCategoriesList;
-  branding.category_specs = currentCategorySpecs;
+  branding.marketplace_category_specs = marketplaceCategorySpecs;
   branding.sector_taxonomy_packages = Array.from(new Set([
     ...(branding.sector_taxonomy_packages || []),
     ...selectedPackages.map(p => p.id)
@@ -418,7 +406,7 @@ export async function seedStoreSectorTaxonomy(
 
   return {
     success: true,
-    addedCategoriesCount: totalCategoriesAdded || currentCategoriesList.length,
+    addedCategoriesCount: totalCategoriesAdded,
     mappedProductsCount: bridgeRes.categorizedProductsCount,
     packagesApplied: selectedPackages.map(p => p.name)
   };

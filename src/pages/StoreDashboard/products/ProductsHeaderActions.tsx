@@ -9,8 +9,7 @@ import {
   Cloud,
   Layers,
   Activity,
-  Barcode as BarcodeIcon,
-  FolderTree
+  Barcode as BarcodeIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/services/api";
@@ -31,7 +30,6 @@ interface ProductsHeaderActionsProps {
   isFixingNames: boolean;
   setIsMergeModalOpen: (open: boolean) => void;
   setIsEanModalOpen?: (open: boolean) => void;
-  setIsTaxonomyModalOpen?: (open: boolean) => void;
   setIsAiMenuModalOpen: (open: boolean) => void;
   driveConnected: boolean;
   isBackupLoading: boolean;
@@ -57,7 +55,6 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
   isFixingNames,
   setIsMergeModalOpen,
   setIsEanModalOpen,
-  setIsTaxonomyModalOpen,
   setIsAiMenuModalOpen,
   driveConnected,
   isBackupLoading,
@@ -208,19 +205,6 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
                 <BarcodeIcon className="h-4 w-4 text-blue-600 shrink-0" />
                 <span className="text-[11px] font-medium text-blue-900 hidden lg:inline whitespace-nowrap">
                   {lang === 'tr' ? "EAN Tamamla" : "Enrich EAN"}
-                </span>
-              </button>
-            )}
-            {setIsTaxonomyModalOpen && (
-              <button 
-                type="button"
-                onClick={() => setIsTaxonomyModalOpen(true)}
-                className="os-btn-secondary p-2 text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all border border-indigo-200 hover:border-indigo-300 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
-                title={lang === 'tr' ? "Standart Sektör & Hepsiburada Kategori Ağacını Eşitle" : "Sync Sector & Hepsiburada Taxonomy"}
-              >
-                <FolderTree className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span className="text-[11px] font-medium text-indigo-900 hidden lg:inline whitespace-nowrap">
-                  {lang === 'tr' ? "Kategori Şablonu" : "Taxonomy"}
                 </span>
               </button>
             )}

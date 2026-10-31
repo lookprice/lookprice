@@ -71,6 +71,8 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
       : (branding?.hotel_module_enabled || branding?.hotel_license_enabled || branding?.store_type === 'hotel')
   );
 
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.store_type === 'horeca' || branding?.store_type === 'horecalp' || branding?.page_layout_settings?.sector === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'horeca' || effectiveHotelActive;
+
   const [activeReportTab, setActiveReportTab] = useState<'combined' | 'hotel' | 'restaurant'>('combined');
   const currentTab = effectiveHotelActive ? activeReportTab : 'restaurant';
 
@@ -425,8 +427,8 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
                 </div>
               </div>
 
-              {/* Waiter Roster Performance & Turnover breakdown */}
-              {(() => {
+              {/* Waiter Roster Performance & Turnover breakdown (STRICTLY HORECALP ONLY) */}
+              {isCafeRestaurant && (() => {
                 const storeWaiters = getStoreWaiters(branding).filter(w => w.active);
                 if (!storeWaiters || storeWaiters.length === 0) return null;
                 const grandTotal = (reportData.grand_total || reportData.payments?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || Number(p.total) || 0), 0)) || 0;

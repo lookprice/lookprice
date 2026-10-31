@@ -316,31 +316,39 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   }, [storeId]);
 
   const categories = React.useMemo(() => {
-    if (backendCategories.length > 0) {
-      return backendCategories.map(bc => bc.category);
-    }
-    const cats = new Set<string>();
+    const catsInProducts = new Set<string>();
     allProducts.forEach(p => {
-      if (p.category) cats.add(p.category.trim());
-      if (p.category_2) cats.add(p.category_2.trim());
+      if (p.category && p.category.trim()) catsInProducts.add(p.category.trim());
+      if (p.category_2 && p.category_2.trim()) catsInProducts.add(p.category_2.trim());
     });
-    return Array.from(cats);
+    if (backendCategories.length > 0) {
+      const activeCats = backendCategories
+        .map(bc => bc.category)
+        .filter(c => catsInProducts.has(c));
+      if (activeCats.length > 0) {
+        return activeCats;
+      }
+    }
+    return Array.from(catsInProducts);
   }, [backendCategories, allProducts]);
 
   const subCategories = React.useMemo(() => {
     if (selectedCategory === "all") return [];
-    if (backendCategories.length > 0) {
-      const match = backendCategories.find(bc => bc.category === selectedCategory);
-      if (match) return match.sub_categories;
-    }
-    const subs = new Set<string>();
+    const subsInProducts = new Set<string>();
     allProducts.forEach(p => {
       if (p.category === selectedCategory || p.category_2 === selectedCategory) {
-        if (p.category === selectedCategory && p.sub_category) subs.add(p.sub_category.trim());
-        if (p.category_2 === selectedCategory && p.sub_category_2) subs.add(p.sub_category_2.trim());
+        if (p.category === selectedCategory && p.sub_category && p.sub_category.trim()) subsInProducts.add(p.sub_category.trim());
+        if (p.category_2 === selectedCategory && p.sub_category_2 && p.sub_category_2.trim()) subsInProducts.add(p.sub_category_2.trim());
       }
     });
-    return Array.from(subs);
+    if (backendCategories.length > 0) {
+      const match = backendCategories.find(bc => bc.category === selectedCategory);
+      if (match && Array.isArray(match.sub_categories)) {
+        const activeSubs = match.sub_categories.filter(s => subsInProducts.has(s));
+        if (activeSubs.length > 0) return activeSubs;
+      }
+    }
+    return Array.from(subsInProducts);
   }, [selectedCategory, backendCategories, allProducts]);
 
   const filteredProducts = React.useMemo(() => {

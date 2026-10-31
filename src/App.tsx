@@ -60,7 +60,7 @@ const NavigateWithParams = () => {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isDashboardRoute = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/admin');
+  const isDashboardRoute = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/admin') || location.pathname.startsWith('/superadmin');
   const { lang } = useLanguage();
   const initialHostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
   const cachedDomainSlug = typeof window !== 'undefined' ? sessionStorage.getItem(`detected_slug_${initialHostname}`) : null;
@@ -368,6 +368,7 @@ export default function App() {
                 <SuperAdminDashboard token={token} onLogout={handleLogout} />
               ) : <Navigate to="/login" />
             } />
+            <Route path="/superadmin" element={<Navigate to="/admin" replace />} />
 
             <Route path="/" element={
               <LandingPage />

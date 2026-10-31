@@ -77,7 +77,7 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
 
       <DashboardSidebar {...sidebarProps} />
 
-      <main className="flex-1 flex flex-col min-w-0 h-full max-h-full overflow-hidden relative">
+      <main className="flex-1 flex flex-col min-w-0 min-h-0 h-full max-h-full overflow-hidden relative">
         {/* Mobile Header with Hamburger Menu & Notification Bell */}
         <div className="lg:hidden flex items-center justify-between px-3.5 py-2.5 bg-white border-b border-slate-200 z-10 shrink-0">
           <div className="flex items-center min-w-0">
@@ -133,7 +133,7 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
           </div>
         )}
         
-        <div className="flex-1 overflow-y-auto overscroll-contain p-3.5 md:p-5 pb-32 sm:pb-24 bg-slate-50/50">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 md:p-5 pb-36 sm:pb-28 bg-slate-50/50">
           <div className="max-w-7xl mx-auto space-y-5 pb-12">
             <ErrorBoundary lang={lang}>
               {!hasRenderedChildren && loading ? (

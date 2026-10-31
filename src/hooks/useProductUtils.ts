@@ -98,9 +98,38 @@ export const useProductUtils = (user: any, currentStoreId: number | undefined, i
     }
   };
 
-  const handleExportProducts = () => {
+  const handleExportProducts = (customIncludeZeroStock?: boolean, customProducts?: any[]) => {
     const isTr = lang === 'tr';
     const t = translations[lang].dashboard;
+
+    let effectiveIncludeZero = customIncludeZeroStock;
+    if (effectiveIncludeZero === undefined && typeof window !== 'undefined') {
+      const saved = localStorage.getItem('products_include_zero_stock');
+      if (saved !== null) {
+        effectiveIncludeZero = saved === 'true';
+      }
+    }
+
+    let targetProducts = Array.isArray(customProducts) && customProducts.length > 0 ? customProducts : products;
+
+    if (effectiveIncludeZero === false) {
+      targetProducts = targetProducts.filter(p => {
+        let vars: any[] = [];
+        if (p.variants) {
+          if (typeof p.variants === 'string') {
+            try { vars = JSON.parse(p.variants); } catch (e) { vars = []; }
+          } else if (Array.isArray(p.variants)) {
+            vars = p.variants;
+          }
+        }
+        const effectiveStock = vars.length > 0
+          ? vars.reduce((sum: number, v: any) => sum + (Number(v.stock_quantity) || Number(v.stock) || 0), 0)
+          : Number(p.stock_quantity) || 0;
+        
+        const isService = p.product_type === 'service' || p.product_type === 'hizmet' || p.product_type === 'servis';
+        return isService || effectiveStock > 0;
+      });
+    }
 
     const extractImages = (p: any): string[] => {
       let list: string[] = [];
@@ -122,7 +151,7 @@ export const useProductUtils = (user: any, currentStoreId: number | undefined, i
 
     const rows: any[] = [];
 
-    products.forEach((p) => {
+    targetProducts.forEach((p) => {
       const imgs = extractImages(p);
       const mainImg = imgs[0] || p.image_url || '';
       const extra2 = imgs[1] || '';
@@ -151,6 +180,10 @@ export const useProductUtils = (user: any, currentStoreId: number | undefined, i
 
       if (hasVariants) {
         p.variants!.forEach((v: any) => {
+          const vStock = (v.stock_quantity !== undefined && v.stock_quantity !== null && v.stock_quantity !== '') ? Number(v.stock_quantity) : 0;
+          if (effectiveIncludeZero === false && vStock <= 0) {
+            return; // 0 stok seçili değilse 0 stoklu varyant satırını dahil etme
+          }
           rows.push({
             ...baseInfo,
             [isTr ? 'Varyant Durumu' : 'Variant Status']: isTr ? 'Varyantlı' : 'Variant',

@@ -118,15 +118,18 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                   />
                 </th>
               )}
-              {tableManager.metadataMode === 'expandable' && (
-                <th className="w-7 py-2 px-1 text-center text-[10px] text-slate-400 font-medium">
-                  <span className="sr-only">Expand</span>
-                </th>
-              )}
-              {!isCafe && tableManager.isColumnVisible('barcode') && (
+              {tableManager.isColumnVisible('barcode') && (
                 <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.barcode}</th>
               )}
-              <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.productName}</th>
+              {tableManager.isColumnVisible('image') && (
+                <th className="px-2 py-2 w-12 text-center text-[10px] font-medium text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Görsel' : 'Image'}</th>
+              )}
+              {tableManager.isColumnVisible('name') && (
+                <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.productName}</th>
+              )}
+              {tableManager.isColumnVisible('category') && (
+                <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.category}</th>
+              )}
               {showStoreName && tableManager.isColumnVisible('branch') && (
                 <th className="px-2.5 py-2 text-[10px] font-medium text-slate-500 uppercase tracking-wider">{t.branch}</th>
               )}

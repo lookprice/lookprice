@@ -45,7 +45,20 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [includeZeroStock, setIncludeZeroStock] = useState<boolean>(true);
+  const [includeZeroStock, setIncludeZeroStockState] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("products_include_zero_stock");
+      if (saved !== null) return saved === "true";
+    }
+    return false;
+  });
+
+  const setIncludeZeroStock = (val: boolean) => {
+    setIncludeZeroStockState(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("products_include_zero_stock", String(val));
+    }
+  };
   const [page, setPage] = useState(1);
   const itemsPerPage = 25;
   const [isFixingNames, setIsFixingNames] = useState(false);
@@ -76,7 +89,6 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const [sharingProduct, setSharingProduct] = useState<any>(null);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isEanModalOpen, setIsEanModalOpen] = useState(false);
-  const [isTaxonomyModalOpen, setIsTaxonomyModalOpen] = useState(false);
   const [isAiMenuModalOpen, setIsAiMenuModalOpen] = useState(false);
   const [showBulkPublishModal, setShowBulkPublishModal] = useState(false);
   const [showXRayModal, setShowXRayModal] = useState(false);
@@ -116,9 +128,10 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     tableKey: 'products-table',
     defaultMetadataMode: 'inline',
     columns: [
-      { id: 'barcode', label: t.barcode, defaultVisible: !isCafe, required: false },
+      { id: 'barcode', label: t.barcode, defaultVisible: true, required: false },
       { id: 'image', label: lang === 'tr' ? 'Görsel' : 'Image', defaultVisible: true, required: false },
       { id: 'name', label: t.productName, defaultVisible: true, required: true },
+      { id: 'category', label: t.category, defaultVisible: true, required: false },
       { id: 'branch', label: t.branch, defaultVisible: !!showStoreName, required: false },
       { id: 'price', label: t.price, defaultVisible: true, required: true },
       { id: 'cost', label: t.cost, defaultVisible: true, required: false },
@@ -611,7 +624,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         selectedIds={selectedIds}
         onAddNew={onAddNew}
         onImport={onImport}
-        onExportReport={onExportReport}
+        onExportReport={() => onExportReport && (onExportReport as any)(includeZeroStock, filteredProducts)}
         onOpenXRay={() => setShowXRayModal(true)}
         showXRay={showXRayButton}
         handleBulkDeleteSelected={handleBulkDeleteSelected}
@@ -619,7 +632,6 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         isFixingNames={isFixingNames}
         setIsMergeModalOpen={setIsMergeModalOpen}
         setIsEanModalOpen={setIsEanModalOpen}
-        setIsTaxonomyModalOpen={setIsTaxonomyModalOpen}
         setIsAiMenuModalOpen={setIsAiMenuModalOpen}
         driveConnected={driveConnected}
         isBackupLoading={isBackupLoading}
@@ -731,8 +743,6 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         setIsMergeModalOpen={setIsMergeModalOpen}
         isEanModalOpen={isEanModalOpen}
         setIsEanModalOpen={setIsEanModalOpen}
-        isTaxonomyModalOpen={isTaxonomyModalOpen}
-        setIsTaxonomyModalOpen={setIsTaxonomyModalOpen}
         isAiMenuModalOpen={isAiMenuModalOpen}
         setIsAiMenuModalOpen={setIsAiMenuModalOpen}
         showBulkPublishModal={showBulkPublishModal}

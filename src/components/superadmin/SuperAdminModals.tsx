@@ -568,9 +568,9 @@ export const EditStoreModal: React.FC<{
         {(store.store_type === 'product' || !store.store_type) && (
           <div className="p-3.5 bg-indigo-50/70 rounded-xl border border-indigo-200/80 mt-2 space-y-2.5">
             <div>
-              <span className="text-xs font-black text-indigo-950 block">🌳 Hepsiburada Kanonik Kategori & Sektör Taksonomisi (Sıfır Eşleştirme)</span>
+              <span className="text-xs font-black text-indigo-950 block">🛍️ E-Mağaza / Pazaryeri Kategori Eşleştirme Paketleri (Arka Plan Entegrasyonu)</span>
               <span className="text-[10px] text-indigo-800 font-medium block">
-                Seçilen sektörlerin Hepsiburada standart kategori ağacı, alt kategorileri ve zorunlu nitelikleri mağazaya otomatik yüklenir.
+                Bu paketler yalnızca Hepsiburada/Trendyol pazaryeri kategori eşleştirme motoru için kullanılır. Mağazanın ana ürün kategorilerine veya Hızlı POS ekranına otomatik kategori olarak ASLA eklenmez.
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -585,7 +585,7 @@ export const EditStoreModal: React.FC<{
                   ? store.sector_taxonomy_packages
                   : (Array.isArray(store.branding?.sector_taxonomy_packages)
                       ? store.branding.sector_taxonomy_packages
-                      : ["tech_computer", "photography_camera", "small_appliances", "consumer_electronics", "pet_shop"]);
+                      : []);
                 const isChecked = currentList.includes(pkg.id);
                 return (
                   <label
@@ -928,9 +928,9 @@ export const AddStoreModal: React.FC<{
                   {(newStore.store_type === 'product' || !newStore.store_type) && (
                     <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200/80 mt-2 space-y-2">
                       <div>
-                        <span className="text-xs font-black text-indigo-950 block">🌳 Kategori & Sektör Şablonu Seçimi (İsteğe Bağlı)</span>
+                        <span className="text-xs font-black text-indigo-950 block">🛍️ E-Mağaza / Pazaryeri Kategori Eşleştirme Paketleri (İsteğe Bağlı)</span>
                         <span className="text-[10px] text-indigo-800 font-medium block">
-                          Hiçbir kategori seçilmezse mağaza boş/sıfır kategoriyle açılır. Kitap konsepti seçilmezse genel perakende (shopLP) şablonu uygulanır ve kitap terimleri sızdırılmaz.
+                          Bu paketler yalnızca arka plandaki e-mağaza kategori eşleştirme motoru içindir. Mağaza ana kategorilerine veya Hızlı POS ekranına otomatik kategori eklenmez; ürün ana kategorileri tamamen operatör tarafından belirlenir.
                         </span>
                       </div>
                       <div className="grid grid-cols-1 gap-1.5">

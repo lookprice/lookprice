@@ -659,7 +659,8 @@ router.get("/categories", async (req: any, res) => {
       }
     });
 
-    // Also include store predefined categories from branding.category_specs / custom_categories
+    // Only include categories explicitly created by the operator (branding.operator_categories).
+    // NEVER inject background e-store / marketplace taxonomy packages into store product categories!
     try {
       const storeRes = await pool.query("SELECT branding FROM stores WHERE id = $1", [storeIdNum]);
       if (storeRes.rows.length > 0 && storeRes.rows[0].branding) {
@@ -667,17 +668,22 @@ router.get("/categories", async (req: any, res) => {
         if (typeof branding === "string") {
           try { branding = JSON.parse(branding); } catch (e) {}
         }
-        if (branding?.category_specs && typeof branding.category_specs === "object") {
-          for (const [cat, spec] of Object.entries<any>(branding.category_specs)) {
-            if (cat && typeof cat === "string") {
-              if (!catMap.has(cat)) catMap.set(cat, new Set<string>());
-              if (Array.isArray(spec?.sub_categories)) {
-                spec.sub_categories.forEach((s: string) => {
-                  if (s && typeof s === "string") catMap.get(cat)!.add(s);
-                });
+        if (Array.isArray(branding?.operator_categories)) {
+          branding.operator_categories.forEach((cat: any) => {
+            if (typeof cat === 'string' && cat.trim()) {
+              if (!catMap.has(cat.trim())) catMap.set(cat.trim(), new Set<string>());
+            } else if (cat && typeof cat === 'object' && cat.name) {
+              const catName = String(cat.name).trim();
+              if (catName) {
+                if (!catMap.has(catName)) catMap.set(catName, new Set<string>());
+                if (Array.isArray(cat.sub_categories)) {
+                  cat.sub_categories.forEach((s: string) => {
+                    if (s && typeof s === 'string' && s.trim()) catMap.get(catName)!.add(s.trim());
+                  });
+                }
               }
             }
-          }
+          });
         }
       }
     } catch (storeCatErr) {

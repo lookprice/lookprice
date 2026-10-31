@@ -8,7 +8,6 @@ import {
   MoreVertical, 
   Clock, 
   AlertCircle, 
-  ChevronRight, 
   Package, 
   FileText,
   Flame,
@@ -115,7 +114,6 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
   rowIndex,
   totalRows,
 }) => {
-  const isRowOpen = tableManager.isRowExpanded(p.id);
   const isNearBottom = totalRows !== undefined && rowIndex !== undefined && totalRows >= 4 && rowIndex >= totalRows - 2;
 
   // Fast Inline Price & Stock Editing States
@@ -208,19 +206,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
             />
           </td>
         )}
-        {tableManager.metadataMode === 'expandable' && (
-          <td className="w-7 py-1.5 px-1 text-center">
-            <button
-              type="button"
-              onClick={() => tableManager.toggleRowExpansion(p.id)}
-              className="p-1 rounded hover:bg-slate-200/70 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
-              title={isRowOpen ? (lang === 'tr' ? 'Detayları Gizle' : 'Collapse Details') : (lang === 'tr' ? 'Detayları Göster' : 'Expand Details')}
-            >
-              <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-150 ${isRowOpen ? 'rotate-90 text-indigo-600' : ''}`} />
-            </button>
-          </td>
-        )}
-        {!isCafe && tableManager.isColumnVisible('barcode') && (
+        {tableManager.isColumnVisible('barcode') && (
           <td className="px-2.5 py-1.5 whitespace-nowrap">
             <div className="flex flex-col gap-0.5">
               <span className="font-mono text-[10px] bg-slate-50 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200 font-medium">
@@ -245,50 +231,52 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
             </div>
           </td>
         )}
-        <td className="px-2.5 py-1.5">
-          <div className="flex items-center gap-2.5">
-            {tableManager.isColumnVisible('image') && (
-              <div 
-                className="relative group/img shrink-0 cursor-pointer"
-                onClick={() => !isViewer && onEdit(p)}
-                title={!isViewer ? (lang === 'tr' ? 'Ürünü düzenlemek için tıkla' : 'Click to edit product') : undefined}
-              >
-                {p.image_url ? (
-                  <img 
-                    src={normalizeImageUrl(p.image_url)} 
-                    alt={p.name} 
-                    className="w-8 h-8 rounded-lg object-contain p-0.5 bg-white border border-slate-200 shadow-2xs hover:scale-105 transition-transform"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      if (!target.dataset.fallback && p.image_url?.startsWith('http') && !p.image_url.includes('/api/proxy-image')) {
-                        target.dataset.fallback = '1';
-                        target.src = `/api/proxy-image?url=${encodeURIComponent(p.image_url)}`;
-                      } else {
-                        target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21 8-9-4-9 4v8l9 4 9-4V8z'/%3E%3Cpath d='M3.27 6.96 12 12.01l8.73-5.05'/%3E%3Cpath d='M12 22.08V12'/%3E%3C/svg%3E";
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-200 hover:border-indigo-300 transition-colors">
-                    <Package className="w-4 h-4 text-slate-400" />
-                    {!isViewer && (
-                      <button 
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAutoFindImages({ id: p.id });
-                        }}
-                        className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity rounded-lg cursor-pointer"
-                        title={lang === 'tr' ? 'Resim bul' : 'Find image'}
-                      >
-                        <Sparkles className="h-3 w-3 text-white" />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+        {tableManager.isColumnVisible('image') && (
+          <td className="px-2 py-1.5 w-12 text-center">
+            <div 
+              className="relative group/img mx-auto w-8 h-8 cursor-pointer"
+              onClick={() => !isViewer && onEdit(p)}
+              title={!isViewer ? (lang === 'tr' ? 'Ürünü düzenlemek için tıkla' : 'Click to edit product') : undefined}
+            >
+              {p.image_url ? (
+                <img 
+                  src={normalizeImageUrl(p.image_url)} 
+                  alt={p.name} 
+                  className="w-8 h-8 rounded-lg object-contain p-0.5 bg-white border border-slate-200 shadow-2xs hover:scale-105 transition-transform"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.dataset.fallback && p.image_url?.startsWith('http') && !p.image_url.includes('/api/proxy-image')) {
+                      target.dataset.fallback = '1';
+                      target.src = `/api/proxy-image?url=${encodeURIComponent(p.image_url)}`;
+                    } else {
+                      target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21 8-9-4-9 4v8l9 4 9-4V8z'/%3E%3Cpath d='M3.27 6.96 12 12.01l8.73-5.05'/%3E%3Cpath d='M12 22.08V12'/%3E%3C/svg%3E";
+                    }
+                  }}
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-200 hover:border-indigo-300 transition-colors">
+                  <Package className="w-4 h-4 text-slate-400" />
+                  {!isViewer && (
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAutoFindImages({ id: p.id });
+                      }}
+                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity rounded-lg cursor-pointer"
+                      title={lang === 'tr' ? 'Resim bul' : 'Find image'}
+                    >
+                      <Sparkles className="h-3 w-3 text-white" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </td>
+        )}
+        {tableManager.isColumnVisible('name') && (
+          <td className="px-2.5 py-1.5">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <div 
@@ -594,8 +582,18 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                 </div>
               )}
             </div>
-          </div>
-        </td>
+          </td>
+        )}
+        {tableManager.isColumnVisible('category') && (
+          <td className="px-2.5 py-1.5 whitespace-nowrap">
+            <span className="text-[11px] font-medium text-slate-700 bg-slate-100/90 px-2 py-0.5 rounded border border-slate-200/80 inline-flex items-center gap-1">
+              {p.sub_category || p.category || '-'}
+              {p.sub_category && p.category && p.sub_category !== p.category && (
+                <span className="text-slate-400 font-normal">({p.category})</span>
+              )}
+            </span>
+          </td>
+        )}
         {showStoreName && tableManager.isColumnVisible('branch') && (
           <td className="px-2.5 py-1.5 whitespace-nowrap">
             <span className="text-[9px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
@@ -924,162 +922,6 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
           </td>
         )}
       </tr>
-
-      {/* Nested / Expandable Sub-Row for Grouped Auxiliary Metadata */}
-      {(tableManager.metadataMode === 'nested' || (tableManager.metadataMode === 'expandable' && isRowOpen)) && (
-        <tr className="bg-slate-50/80 border-b border-slate-100">
-          <td colSpan={10} className="px-3 py-1.5 pl-8 sm:pl-10">
-            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-              {(p.sub_category || p.category) && (
-                <span className="font-semibold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs flex items-center gap-1">
-                  <span className="text-slate-400 font-normal">{lang === 'tr' ? 'Kategori:' : 'Category:'}</span>
-                  {p.sub_category || p.category}
-                  {p.sub_category && p.category && p.sub_category !== p.category && (
-                    <span className="text-slate-400 font-normal">({p.category})</span>
-                  )}
-                </span>
-              )}
-              {p.brand && (
-                <span className="font-semibold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs flex items-center gap-1">
-                  <span className="text-slate-400 font-normal">{lang === 'tr' ? 'Marka:' : 'Brand:'}</span>
-                  {p.brand}
-                </span>
-              )}
-              {p.cost_price > 0 && (() => {
-                const profit = calculateProfitMargin(p);
-                if (!profit) return null;
-                return (
-                  <span className={`font-medium px-2 py-0.5 rounded border shadow-2xs ${profit.margin < 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                    %{profit.margin.toFixed(1)} {lang === 'tr' ? 'Kâr Marjı' : 'Margin'}
-                  </span>
-                );
-              })()}
-              {isShopLp && connectedMarketplaces.hasAnyConnected && (
-                <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide items-center gap-1.5 w-full pb-0.5 max-w-[85vw] sm:max-w-[400px]">
-                  {connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && getHepsiburadaUrl(p) && (
-                    <a
-                      href={getHepsiburadaUrl(p)!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-medium text-orange-700 bg-orange-100 hover:bg-orange-200 border border-orange-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
-                      title={lang === 'tr' ? (p.hepsiburada_sku ? `Hepsiburada İlanı (${p.hepsiburada_sku})` : "Hepsiburada Canlı İlan") : "HB Live"}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
-                      HB ↗
-                    </a>
-                  )}
-                  {connectedMarketplaces.hepsiburada && isHepsiburadaPending(p) && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMarketplaceModalTab('hepsiburada');
-                        setMarketplaceModalStatus('pending');
-                        setShowMarketplaceListingsModal(true);
-                      }}
-                      className="font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
-                      title={lang === 'tr' ? 'Hepsiburada katalog ve barkod onay incelemesinde' : 'HB Catalog Pending Review'}
-                    >
-                      <Clock className="w-3 h-3 text-amber-600 animate-spin" />
-                      HB ONAY
-                    </button>
-                  )}
-                  {connectedMarketplaces.trendyol && p.is_trendyol_active && getTrendyolUrl(p) && (
-                    <a
-                      href={getTrendyolUrl(p)!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
-                      title={lang === 'tr' ? "Trendyol Canlı İlan" : "Trendyol Live"}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                      TY ↗
-                    </a>
-                  )}
-                  {connectedMarketplaces.trendyol && !p.is_trendyol_active && (String(p.trendyol_last_error || '').includes('incele') || String(p.trendyol_last_error || '').includes('bekleniyor') || String(p.trendyol_last_error || '').includes('kuyruğunda') || (!p.trendyol_last_error && p.marketplace_data?.trendyol?.batchRequestId)) && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMarketplaceModalTab('trendyol');
-                        setMarketplaceModalStatus('pending');
-                        setShowMarketplaceListingsModal(true);
-                      }}
-                      className="font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
-                      title={lang === 'tr' ? 'Trendyol katalog ve barkod onay incelemesinde' : 'Trendyol Catalog Pending Review'}
-                    >
-                      <Clock className="w-3 h-3 text-amber-600 animate-spin" />
-                      TY ONAY
-                    </button>
-                  )}
-                  {connectedMarketplaces.trendyol && !p.is_trendyol_active && p.trendyol_last_error && !String(p.trendyol_last_error).includes('incele') && !String(p.trendyol_last_error).includes('bekleniyor') && !String(p.trendyol_last_error).includes('kuyruğunda') && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMarketplaceModalTab('trendyol');
-                        setMarketplaceModalStatus('error');
-                        setShowMarketplaceListingsModal(true);
-                      }}
-                      className="font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
-                      title={`Trendyol Hatası: ${p.trendyol_last_error}`}
-                    >
-                      <AlertCircle className="w-3 h-3 text-rose-600" />
-                      TY Hatalı
-                    </button>
-                  )}
-                  {connectedMarketplaces.n11 && p.is_n11_active && (
-                    <a
-                      href={getN11Url(p) || undefined}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-medium text-red-800 bg-red-100 hover:bg-red-200 border border-red-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
-                      title={lang === 'tr' ? "N11 Canlı İlan" : "N11 Live"}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                      N11 ↗
-                    </a>
-                  )}
-                  {connectedMarketplaces.amazon && p.is_amazon_active && p.amazon_asin && String(p.amazon_asin).trim().length >= 9 && String(p.amazon_asin).toLowerCase() !== 'null' && (
-                    <a
-                      href={getAmazonUrl(p) || undefined}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-medium text-amber-300 bg-slate-900 hover:bg-black border border-amber-500/40 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
-                      title={lang === 'tr' ? "Amazon Canlı İlan" : "Amazon Live"}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                      AMZ ↗
-                    </a>
-                  )}
-                  {connectedMarketplaces.pazarama && p.is_pazarama_active && (
-                    <a
-                      href={getPazaramaUrl(p) || undefined}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-medium text-blue-800 bg-blue-100 hover:bg-blue-200 border border-blue-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
-                      title={lang === 'tr' ? "Pazarama Canlı İlan" : "Pazarama Live"}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                      PZR ↗
-                    </a>
-                  )}
-                </div>
-              )}
-              {p.description && (
-                <span className="text-slate-500 italic truncate max-w-xs sm:max-w-md" title={p.description}>
-                  &ldquo;{p.description}&rdquo;
-                </span>
-              )}
-            </div>
-          </td>
-        </tr>
-      )}
     </React.Fragment>
   );
 };
