@@ -203,3 +203,51 @@ export async function cleanDeepBase64(data: any, prefix: string): Promise<any> {
   }
   return data;
 }
+
+/**
+ * Rewrites legacy direct Supabase Storage URLs or /uploads paths to our resilient /api/storage/* endpoint
+ * so store & reference logos always load from Local Disk, PostgreSQL app_storage_files, 5TB Drive, or Brand SVG fallback
+ * even when Supabase Storage is in restricted status.
+ */
+export function normalizeStorageUrl(rawUrl: string | null | undefined, storeId?: number | string | null, brandName?: string | null): string {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  const trimmed = rawUrl.trim();
+  if (!trimmed || trimmed.startsWith('data:image/')) return trimmed;
+
+  let storagePath = '';
+
+  // 1. Direct Supabase Storage public URL -> extract filename
+  if (trimmed.includes('.supabase.co/storage/v1/object/public/')) {
+    const parts = trimmed.split('/storage/v1/object/public/')[1];
+    if (parts) {
+      const segs = parts.split('/');
+      // remove bucket name (e.g. 'lookdocu' or 'stores')
+      storagePath = segs.length > 1 ? segs.slice(1).join('/') : segs[0];
+    }
+  } else if (trimmed.startsWith('/uploads/lookdocu/')) {
+    storagePath = trimmed.replace('/uploads/lookdocu/', '');
+  } else if (trimmed.startsWith('/uploads/stores/')) {
+    storagePath = trimmed.replace('/uploads/stores/', '');
+  } else if (trimmed.startsWith('/uploads/')) {
+    storagePath = trimmed.replace('/uploads/', '');
+  } else if (trimmed.startsWith('/api/storage/')) {
+    storagePath = trimmed.replace('/api/storage/', '');
+  }
+
+  if (!storagePath) {
+    return trimmed;
+  }
+
+  // Strip existing query string from storagePath before re-attaching storeId/brand
+  const [cleanPath, existingQuery] = storagePath.split('?');
+  const params = new URLSearchParams(existingQuery || '');
+  if (storeId !== undefined && storeId !== null && String(storeId) !== '' && !params.has('storeId')) {
+    params.set('storeId', String(storeId));
+  }
+  if (brandName && !params.has('brand')) {
+    params.set('brand', String(brandName).slice(0, 40));
+  }
+  const qs = params.toString();
+  return `/api/storage/${cleanPath}${qs ? `?${qs}` : ''}`;
+}
+

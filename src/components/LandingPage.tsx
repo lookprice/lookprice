@@ -1296,9 +1296,7 @@ export const LandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-24">
             <div className="lg:col-span-1">
               <div className="flex items-center space-x-3 mb-8">
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-white/10">
-                  <Logo size={24} className="text-slate-950" />
-                </div>
+                <Logo size={40} />
                 <span className="text-xl font-black text-white tracking-tighter">Look<span className="text-indigo-500">Price</span></span>
               </div>
               <p className="text-slate-400 text-sm leading-relaxed mb-8 font-medium">

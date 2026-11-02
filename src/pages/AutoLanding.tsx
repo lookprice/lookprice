@@ -289,11 +289,18 @@ export default function AutoLanding() {
       {/* Top Navbar */}
       <nav className="bg-white border-b border-slate-100 py-4 px-6 md:px-12 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-lg">
-              LP
+          <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => navigate('/')}>
+            <div className="h-11 w-11 bg-white rounded-xl p-1 border border-slate-200 shadow-sm flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <img
+                src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+                alt="LookPrice.net"
+                className="w-full h-full object-contain"
+              />
             </div>
-            <span className="font-black text-xl tracking-tight text-slate-900">LookPrice</span>
+            <div className="flex items-baseline">
+              <span className="font-black text-xl tracking-tight text-slate-900">Look<span className="text-indigo-600">Price</span></span>
+              <span className="text-xs font-bold text-slate-400 ml-0.5">.net</span>
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
@@ -811,9 +818,15 @@ export default function AutoLanding() {
       {/* Footer */}
       <footer className="bg-slate-900 text-white py-12 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 border-b border-white/10 pb-8 mb-8">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center font-black">LP</div>
-            <span className="font-black text-lg">AutoLP</span>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-white rounded-xl p-1 flex items-center justify-center shadow-md shrink-0">
+              <img
+                src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+                alt="LookPrice.net"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <span className="font-black text-lg">AutoLP <span className="text-xs font-bold text-white/50">by LookPrice.net</span></span>
           </div>
           <p className="text-sm text-white/50 font-medium">{txt('© 2026 LookPrice. Tüm Hakları Saklıdır.', '© 2026 LookPrice. All Rights Reserved.', '© 2026 LookPrice. Με επιφύλαξη παντός δικαιώματος.')}</p>
         </div>

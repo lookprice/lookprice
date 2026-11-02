@@ -1375,6 +1375,126 @@ export async function ensureEnrakipsizTables() {
       ('hotel_channel', 'hotellp', 'Kanal Yöneticisi & Fiyat Matrisi', 'Sezonluk dinamik gecelik fiyatlar, hafta sonu çarpanları ve minimum konaklama kuralı tanımları.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80', FALSE, 3)
     `).catch((err) => console.error("Error seeding hotellp videos:", err));
   }
+
+  // Create lookprice_references table (Customer Web Showcases & References on lookprice.net)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS lookprice_references (
+      id SERIAL PRIMARY KEY,
+      store_id INTEGER NULL,
+      company_name TEXT NOT NULL,
+      sector TEXT NOT NULL DEFAULT 'product',
+      logo_url TEXT,
+      website_url TEXT,
+      city TEXT,
+      badge_text TEXT,
+      description TEXT,
+      primary_color TEXT DEFAULT '#4f46e5',
+      is_featured BOOLEAN DEFAULT TRUE,
+      is_active BOOLEAN DEFAULT TRUE,
+      order_index INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `).catch((err) => console.error("Error creating lookprice_references:", err));
+
+  // Create lookprice_partners table (Official Partners, MySoft, Integrators & Announcements)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS lookprice_partners (
+      id SERIAL PRIMARY KEY,
+      partner_name TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'e_transformation',
+      logo_url TEXT,
+      website_url TEXT,
+      badge_text TEXT,
+      announcement_title TEXT,
+      description TEXT,
+      brand_color TEXT DEFAULT '#4f46e5',
+      is_highlighted BOOLEAN DEFAULT FALSE,
+      is_active BOOLEAN DEFAULT TRUE,
+      order_index INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `).catch((err) => console.error("Error creating lookprice_partners:", err));
+
+  // Remove legacy ISM or combined placeholder rows if present
+  await pool.query(`
+    DELETE FROM lookprice_partners
+    WHERE partner_name ILIKE '%İSM Teknoloji%'
+       OR partner_name ILIKE '%ISM Teknoloji%'
+       OR partner_name IN ('N11 & Pazarama & Amazon TR', 'iyzico & PayTR', 'Google Merchant & Meta Business', 'MySoft Dijital Dönüşüm', 'Trendyol Pazaryeri')
+  `).catch(() => {});
+
+  const partnersCount = await pool.query("SELECT id FROM lookprice_partners LIMIT 2");
+  if (partnersCount.rows.length <= 1) {
+    await pool.query("DELETE FROM lookprice_partners").catch(() => {});
+    await pool.query(`
+      INSERT INTO lookprice_partners (partner_name, category, logo_url, website_url, badge_text, announcement_title, description, brand_color, is_highlighted, is_active, order_index)
+      VALUES
+      ('MySoft', 'partnership', '', 'https://www.mysoft.com.tr', '', 'e-Fatura, e-Arşiv & e-İrsaliye Özel Entegratörü', 'Doğrudan GİB lisanslı API bağlantısı ile tek tıkla e-Belge gönderimi, canlı mükellef sorgulama ve gelen fatura senkronizasyonu.', '#0284c7', TRUE, TRUE, 1),
+      ('iyzico', 'partnership', '', 'https://www.iyzico.com', '', 'BDDK Lisanslı Sanal POS & Ödeme Altyapısı', 'Mağaza web vitrinleri ve online tahsilatlarda 3D Secure korumalı, tüm banka kartlarıyla uyumlu taksitli ödeme geçidi.', '#1e40af', TRUE, TRUE, 2),
+      ('PayPal', 'partnership', '', 'https://www.paypal.com', '', 'Küresel Online Tahsilat & Döviz Ödeme Geçidi', 'Yurt dışı satışlar, çoklu döviz (USD, EUR, GBP) tahsilatları ve uluslararası e-ticaret ödemeleri için doğrudan entegrasyon.', '#003087', TRUE, TRUE, 3),
+      ('PayTR', 'partnership', '', 'https://www.paytr.com', '', 'Sanal POS & Linkle Tahsilat Çözümleri', 'E-ticaret ve B2B cari tahsilat süreçlerinde hızlı sanal POS ve güvenli ödeme altyapısı.', '#0f766e', TRUE, TRUE, 4),
+      ('Trendyol', 'marketplace', '', 'https://www.trendyol.com', '', 'Katalog, Anlık Stok, Fiyat & Sipariş Akışı', 'Otomatik kategori eşleştirme, döviz kuruna duyarlı fiyat güncelleme ve gelen siparişlerin tek tıkla faturaya dönüştürülmesi.', '#f27a1a', FALSE, TRUE, 10),
+      ('Hepsiburada', 'marketplace', '', 'https://www.hepsiburada.com', '', 'Barkodlu Ürün, Stok & Sipariş Entegrasyonu', 'Hepsiburada V3 API üzerinden ürün aktarımı, komisyon takibi ve çift yönlü merkezi stok kontrolü.', '#ff6000', FALSE, TRUE, 11),
+      ('N11', 'marketplace', '', 'https://www.n11.com', '', 'Mağaza Katalog & Anlık Stok Senkronizasyonu', 'SOAP/REST servisleri ile varyantlı ürün yönetimi, otomatik stok düşümü ve sipariş senkronizasyonu.', '#5c2d91', FALSE, TRUE, 12),
+      ('Pazarama', 'marketplace', '', 'https://www.pazarama.com', '', 'Ürün Kataloğu & Sipariş Otomasyonu', 'İş Bankası grup pazaryeri Pazarama ile tam uyumlu ürün, fiyat ve sipariş entegrasyonu.', '#e11d48', FALSE, TRUE, 13),
+      ('Amazon Türkiye', 'marketplace', '', 'https://www.amazon.com.tr', '', 'Merkezi Envanter & Döviz Bazlı Fiyatlama', 'Amazon SP-API altyapısı ile barkod bazlı envanter ve sipariş yönetimi.', '#ff9900', FALSE, TRUE, 14),
+      ('Google', 'tech_integration', '', 'https://merchants.google.com', '', 'Merchant Center XML, Analytics 4 & Harita Servisleri', 'Google Alışveriş canlı XML ürün beslemesi, GA4 dönüşüm takibi, Tag Manager ve etkileşimli harita altyapısı.', '#4285f4', FALSE, TRUE, 20),
+      ('Meta', 'tech_integration', '', 'https://business.facebook.com', '', 'Instagram Mağaza, Facebook Katalog & Pixel API', 'Sosyal medya mağazaları için otomatik ürün senkronizasyonu ve dönüşüm izleme entegrasyonu.', '#0668E1', FALSE, TRUE, 21),
+      ('Cloudflare', 'tech_integration', '', 'https://www.cloudflare.com', '', 'Küresel CDN, SSL & DDoS Koruma Katmanı', 'Tüm mağaza web siteleri ve özel alan adları için uçtan uca SSL sertifikasyonu, önbellekleme ve siber güvenlik.', '#f38020', FALSE, TRUE, 22),
+      ('TCMB', 'tech_integration', '', 'https://www.tcmb.gov.tr', '', 'Günlük Döviz Alış & Çapraz Kur Otomasyonu', 'Merkez Bankası resmi bülteninden otomatik ForexBuying kur çekimi ve çoklu para birimi değerlemesi.', '#1e293b', FALSE, TRUE, 23)
+    `).catch((err) => console.error("Error seeding lookprice_partners:", err));
+  }
+
+  const refsCount = await pool.query("SELECT id FROM lookprice_references LIMIT 1");
+  if (refsCount.rows.length === 0) {
+    try {
+      // Seed real active HQ stores first (excluding demo accounts)
+      const realStores = await pool.query(`
+        SELECT id, name, slug, store_type, logo_url, custom_domain, primary_color, address, branding
+        FROM stores
+        WHERE parent_id IS NULL
+          AND (status = 'active' OR status IS NULL)
+          AND slug NOT ILIKE '%demo%'
+        ORDER BY id DESC
+        LIMIT 8
+      `);
+      let orderIdx = 0;
+      for (const st of realStores.rows) {
+        let br: any = st.branding || {};
+        if (typeof br === 'string') {
+          try { br = JSON.parse(br); } catch (_) { br = {}; }
+        }
+        const compName = br.store_name || st.name || st.slug;
+        const sector = st.store_type || br.store_type || 'product';
+        const webUrl = st.custom_domain ? `https://${st.custom_domain.replace(/^https?:\/\//, '')}` : `/s/${st.slug}`;
+        const city = br.city || br.district || (st.address ? String(st.address).split('/').pop()?.trim().slice(0, 25) : 'Türkiye');
+        const sectorBadge =
+          sector === 'real_estate' ? 'Gayrimenkul Portföy & Harita Vitrini' :
+          sector === 'motor_vehicle' || sector === 'automotive' ? 'Oto Galeri & Filo Vitrini' :
+          sector === 'cafe_restaurant' ? 'QR Dijital Menü & Adisyon POS' :
+          sector === 'corporate_website' ? 'Kurumsal Web & Hizmet Vitrini' :
+          'Perakende E-Ticaret & Hızlı POS';
+        await pool.query(`
+          INSERT INTO lookprice_references (store_id, company_name, sector, logo_url, website_url, city, badge_text, description, primary_color, is_featured, is_active, order_index)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, TRUE, $10)
+        `, [
+          st.id,
+          compName,
+          sector,
+          st.logo_url || br.logo_url || '',
+          webUrl,
+          city || 'Türkiye',
+          sectorBadge,
+          `${compName} tüm dijital vitrin, stok, cari ve operasyon süreçlerinde LookPrice bulut altyapısını tercih etmektedir.`,
+          st.primary_color || br.primary_color || '#4f46e5',
+          orderIdx++
+        ]);
+      }
+    } catch (seedRefErr) {
+      console.error("Error seeding lookprice_references:", seedRefErr);
+    }
+  }
+
   enrakipsizTablesEnsured = true;
 }
 
@@ -1599,6 +1719,337 @@ router.post("/clean-gunes-plaza", async (req: any, res) => {
   } catch (e: any) {
     console.error("Clean Güneş Plaza error:", e);
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================================
+// SuperAdmin: LookPrice References & Official Partners Management
+// ============================================================================
+router.get("/references-partners", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    const { normalizeStorageUrl } = await import("./utils/imageStorage");
+
+    const [refsRes, partnersRes, storesRes] = await Promise.all([
+      pool.query(`
+        SELECT r.*,
+               s.slug as store_slug,
+               s.logo_url as live_store_logo,
+               s.custom_domain as live_custom_domain,
+               s.primary_color as live_primary_color,
+               s.store_type as live_store_type,
+               s.branding->>'logo_url' as live_branding_logo,
+               s.branding->>'store_name' as live_store_name
+        FROM lookprice_references r
+        LEFT JOIN stores s ON r.store_id = s.id
+        ORDER BY r.order_index ASC, r.id DESC
+      `),
+      pool.query(`SELECT * FROM lookprice_partners ORDER BY is_highlighted DESC, order_index ASC, id ASC`),
+      pool.query(`
+        SELECT id, name, slug, store_type, logo_url, custom_domain, primary_color, address,
+               branding->>'store_name' as branding_store_name,
+               branding->>'logo_url' as branding_logo_url,
+               branding->>'city' as branding_city
+        FROM stores
+        WHERE parent_id IS NULL
+        ORDER BY id DESC
+      `)
+    ]);
+
+    const references = refsRes.rows.map((r: any) => {
+      const resolvedLogo = r.logo_url || r.live_store_logo || r.live_branding_logo || '';
+      const companyName = r.company_name || r.live_store_name || 'Seçkin İşletme';
+      return {
+        ...r,
+        company_name: companyName,
+        logo_url: resolvedLogo
+          ? normalizeStorageUrl(resolvedLogo, r.store_id, companyName)
+          : `/api/storage/store_${r.store_id || r.id}_logo.svg? ${r.store_id ? `storeId=${r.store_id}&` : ''}brand=${encodeURIComponent(companyName)}&color=${encodeURIComponent(r.primary_color || r.live_primary_color || '#4f46e5')}`.replace('? ', '?'),
+        website_url: r.website_url || (r.live_custom_domain ? `https://${r.live_custom_domain}` : (r.store_slug ? `/s/${r.store_slug}` : ''))
+      };
+    });
+
+    const partners = partnersRes.rows.map((p: any) => ({
+      ...p,
+      logo_url: p.logo_url ? normalizeStorageUrl(p.logo_url, null, p.partner_name) : ''
+    }));
+
+    const availableStores = storesRes.rows.map((s: any) => {
+      const displayName = s.branding_store_name || s.name || s.slug;
+      const rawLogo = s.logo_url || s.branding_logo_url || '';
+      return {
+        id: s.id,
+        name: displayName,
+        slug: s.slug,
+        store_type: s.store_type || 'product',
+        custom_domain: s.custom_domain || '',
+        primary_color: s.primary_color || '#4f46e5',
+        city: s.branding_city || '',
+        logo_url: rawLogo
+          ? normalizeStorageUrl(rawLogo, s.id, displayName)
+          : `/api/storage/store_${s.id}_logo.svg?storeId=${s.id}&brand=${encodeURIComponent(displayName)}`
+      };
+    });
+
+    res.json({ references, partners, availableStores });
+  } catch (e: any) {
+    console.error("GET /api/admin/references-partners error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/references", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    const { saveBase64Image, normalizeStorageUrl } = await import("./utils/imageStorage");
+    const { publicApiCache } = await import("./public");
+
+    const {
+      id,
+      store_id,
+      company_name,
+      sector,
+      logo_url,
+      website_url,
+      city,
+      badge_text,
+      description,
+      primary_color,
+      is_featured,
+      is_active,
+      order_index
+    } = req.body;
+
+    if (!company_name) {
+      return res.status(400).json({ error: "Firma / Mağaza adı zorunludur." });
+    }
+
+    let finalLogoUrl = logo_url || '';
+    if (finalLogoUrl.startsWith('data:image/')) {
+      finalLogoUrl = await saveBase64Image(finalLogoUrl, `ref_logo_${store_id || 'ext'}`);
+    } else if (finalLogoUrl) {
+      finalLogoUrl = normalizeStorageUrl(finalLogoUrl, store_id || null, company_name);
+    }
+
+    if (id) {
+      await pool.query(`
+        UPDATE lookprice_references
+        SET store_id = $1, company_name = $2, sector = $3, logo_url = $4, website_url = $5,
+            city = $6, badge_text = $7, description = $8, primary_color = $9,
+            is_featured = $10, is_active = $11, order_index = $12
+        WHERE id = $13
+      `, [
+        store_id || null,
+        company_name,
+        sector || 'product',
+        finalLogoUrl,
+        website_url || '',
+        city || '',
+        badge_text || '',
+        description || '',
+        primary_color || '#4f46e5',
+        is_featured !== false,
+        is_active !== false,
+        Number(order_index || 0),
+        id
+      ]);
+    } else {
+      await pool.query(`
+        INSERT INTO lookprice_references (
+          store_id, company_name, sector, logo_url, website_url, city, badge_text, description, primary_color, is_featured, is_active, order_index
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [
+        store_id || null,
+        company_name,
+        sector || 'product',
+        finalLogoUrl,
+        website_url || '',
+        city || '',
+        badge_text || '',
+        description || '',
+        primary_color || '#4f46e5',
+        is_featured !== false,
+        is_active !== false,
+        Number(order_index || 0)
+      ]);
+    }
+
+    publicApiCache.del("lookprice_references_partners_v2");
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("POST /api/admin/references error:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/references/from-store", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    const { normalizeStorageUrl } = await import("./utils/imageStorage");
+    const { publicApiCache } = await import("./public");
+    const { storeId } = req.body;
+
+    if (!storeId) {
+      return res.status(400).json({ error: "storeId zorunludur." });
+    }
+
+    const existing = await pool.query("SELECT id FROM lookprice_references WHERE store_id = $1 LIMIT 1", [storeId]);
+    if (existing.rows.length > 0) {
+      await pool.query("DELETE FROM lookprice_references WHERE store_id = $1", [storeId]);
+      publicApiCache.del("lookprice_references_partners_v2");
+      return res.json({ success: true, added: false, message: "Mağaza referans vitrininden kaldırıldı." });
+    }
+
+    const sRes = await pool.query("SELECT id, name, slug, store_type, logo_url, custom_domain, primary_color, address, branding FROM stores WHERE id = $1 LIMIT 1", [storeId]);
+    if (sRes.rows.length === 0) {
+      return res.status(404).json({ error: "Mağaza bulunamadı." });
+    }
+
+    const st = sRes.rows[0];
+    let br: any = st.branding || {};
+    if (typeof br === 'string') {
+      try { br = JSON.parse(br); } catch (_) { br = {}; }
+    }
+
+    const compName = br.store_name || st.name || st.slug;
+    const sector = st.store_type || br.store_type || 'product';
+    const webUrl = st.custom_domain ? `https://${st.custom_domain.replace(/^https?:\/\//, '')}` : `/s/${st.slug}`;
+    const city = br.city || br.district || 'Türkiye';
+    const rawLogo = st.logo_url || br.logo_url || '';
+    const normalizedLogo = rawLogo ? normalizeStorageUrl(rawLogo, st.id, compName) : '';
+    const sectorBadge =
+      sector === 'real_estate' ? 'Gayrimenkul Portföy & Harita Vitrini' :
+      sector === 'motor_vehicle' || sector === 'automotive' ? 'Oto Galeri & Filo Vitrini' :
+      sector === 'cafe_restaurant' ? 'QR Dijital Menü & Adisyon POS' :
+      sector === 'corporate_website' ? 'Kurumsal Web & Hizmet Vitrini' :
+      'Perakende E-Ticaret & Hızlı POS';
+
+    await pool.query(`
+      INSERT INTO lookprice_references (
+        store_id, company_name, sector, logo_url, website_url, city, badge_text, description, primary_color, is_featured, is_active, order_index
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, TRUE, 0)
+    `, [
+      st.id,
+      compName,
+      sector,
+      normalizedLogo,
+      webUrl,
+      city,
+      sectorBadge,
+      `${compName} tüm dijital vitrin, stok, cari ve operasyon süreçlerinde LookPrice bulut altyapısını tercih etmektedir.`,
+      st.primary_color || br.primary_color || '#4f46e5'
+    ]);
+
+    publicApiCache.del("lookprice_references_partners_v2");
+    res.json({ success: true, added: true, message: "Mağaza referans vitrinine eklendi." });
+  } catch (e: any) {
+    console.error("POST /api/admin/references/from-store error:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.delete("/references/:id", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    const { publicApiCache } = await import("./public");
+    await pool.query("DELETE FROM lookprice_references WHERE id = $1", [req.params.id]);
+    publicApiCache.del("lookprice_references_partners_v2");
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/partners", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    const { saveBase64Image, normalizeStorageUrl } = await import("./utils/imageStorage");
+    const { publicApiCache } = await import("./public");
+
+    const {
+      id,
+      partner_name,
+      category,
+      logo_url,
+      website_url,
+      badge_text,
+      announcement_title,
+      description,
+      brand_color,
+      is_highlighted,
+      is_active,
+      order_index
+    } = req.body;
+
+    if (!partner_name) {
+      return res.status(400).json({ error: "İş ortağı / Entegrasyon adı zorunludur." });
+    }
+
+    let finalLogoUrl = logo_url || '';
+    if (finalLogoUrl.startsWith('data:image/')) {
+      finalLogoUrl = await saveBase64Image(finalLogoUrl, `partner_logo`);
+    } else if (finalLogoUrl) {
+      finalLogoUrl = normalizeStorageUrl(finalLogoUrl, null, partner_name);
+    }
+
+    if (id) {
+      await pool.query(`
+        UPDATE lookprice_partners
+        SET partner_name = $1, category = $2, logo_url = $3, website_url = $4,
+            badge_text = $5, announcement_title = $6, description = $7, brand_color = $8,
+            is_highlighted = $9, is_active = $10, order_index = $11
+        WHERE id = $12
+      `, [
+        partner_name,
+        category || 'e_transformation',
+        finalLogoUrl,
+        website_url || '',
+        badge_text || '',
+        announcement_title || '',
+        description || '',
+        brand_color || '#4f46e5',
+        Boolean(is_highlighted),
+        is_active !== false,
+        Number(order_index || 0),
+        id
+      ]);
+    } else {
+      await pool.query(`
+        INSERT INTO lookprice_partners (
+          partner_name, category, logo_url, website_url, badge_text, announcement_title, description, brand_color, is_highlighted, is_active, order_index
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [
+        partner_name,
+        category || 'e_transformation',
+        finalLogoUrl,
+        website_url || '',
+        badge_text || '',
+        announcement_title || '',
+        description || '',
+        brand_color || '#4f46e5',
+        Boolean(is_highlighted),
+        is_active !== false,
+        Number(order_index || 0)
+      ]);
+    }
+
+    publicApiCache.del("lookprice_references_partners_v2");
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("POST /api/admin/partners error:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.delete("/partners/:id", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    const { publicApiCache } = await import("./public");
+    await pool.query("DELETE FROM lookprice_partners WHERE id = $1", [req.params.id]);
+    publicApiCache.del("lookprice_references_partners");
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
   }
 });
 

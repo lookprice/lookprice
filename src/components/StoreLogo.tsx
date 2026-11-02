@@ -59,6 +59,18 @@ export function StoreLogo({
     );
   }
 
+  if (displayName === "LookPrice") {
+    return (
+      <div className={`${currentSize.outer} bg-white/95 shadow-md p-1 flex items-center justify-center shrink-0 border border-slate-200/80 dark:border-white/15 overflow-hidden ${className}`}>
+        <img
+          src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+          alt="LookPrice.net"
+          className={`w-full h-full object-contain ${currentSize.img} ${imgClassName}`}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={`${currentSize.outer} bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 shadow-md flex items-center justify-center text-white font-black tracking-wider shrink-0 border border-indigo-400/30 select-none ${className}`}>
       {initials}

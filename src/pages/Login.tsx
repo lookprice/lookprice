@@ -51,8 +51,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       >
         <div className="text-center mb-10">
           <div className="flex justify-center mb-6">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-              <div className="w-6 h-6 bg-black rounded-sm" />
+            <div className="w-16 h-16 bg-white rounded-2xl p-1.5 flex items-center justify-center shadow-lg">
+              <img
+                src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+                alt="LookPrice.net"
+                className="w-full h-full object-contain"
+              />
             </div>
           </div>
           <h2 className="text-3xl font-medium tracking-tight text-white">{t.loginTitle}</h2>

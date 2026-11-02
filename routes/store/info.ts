@@ -222,6 +222,18 @@ router.get("/", async (req: any, res) => {
       }
     }
 
+    const { normalizeStorageUrl } = await import("../utils/imageStorage");
+    if (store.logo_url || store.branding?.logo_url) {
+      const normalizedLogo = normalizeStorageUrl(store.logo_url || store.branding?.logo_url, store.id, store.name);
+      store.logo_url = normalizedLogo;
+      store.branding.logo_url = normalizedLogo;
+    }
+    if (store.favicon_url || store.branding?.favicon_url) {
+      const normalizedFavicon = normalizeStorageUrl(store.favicon_url || store.branding?.favicon_url, store.id, store.name);
+      store.favicon_url = normalizedFavicon;
+      store.branding.favicon_url = normalizedFavicon;
+    }
+
     res.json(store);
   } catch (error: any) {
     console.error("Error in GET /api/store/info:", error);

@@ -44,6 +44,15 @@ export default function RegisterPage() {
         className="w-full max-w-md bg-[#111] p-10 rounded-3xl shadow-2xl border border-white/10"
       >
         <div className="text-center mb-10">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 bg-white rounded-2xl p-1.5 flex items-center justify-center shadow-lg">
+              <img
+                src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+                alt="LookPrice.net"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
           <h2 className="text-3xl font-medium tracking-tight text-white">{lang === 'tr' ? 'Hesap Oluştur' : 'Create Account'}</h2>
         </div>
         

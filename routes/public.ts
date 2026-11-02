@@ -896,6 +896,24 @@ router.get("/store/:slug", async (req, res) => {
     store.blog_posts = blogRes.rows;
     store.consultants = consultantsRes2.rows;
 
+    // Normalize logo & favicon URLs so restricted Supabase Storage URLs always route through /api/storage/*
+    const { normalizeStorageUrl } = await import("./utils/imageStorage");
+    const displayStoreName = store.branding?.store_name || store.name || store.slug;
+    if (store.logo_url || store.branding?.logo_url) {
+      const normLogo = normalizeStorageUrl(store.logo_url || store.branding?.logo_url, store.id, displayStoreName);
+      store.logo_url = normLogo;
+      if (store.branding && typeof store.branding === 'object') {
+        store.branding.logo_url = normLogo;
+      }
+    }
+    if (store.favicon_url || store.branding?.favicon_url) {
+      const normFav = normalizeStorageUrl(store.favicon_url || store.branding?.favicon_url, store.id, displayStoreName);
+      store.favicon_url = normFav;
+      if (store.branding && typeof store.branding === 'object') {
+        store.branding.favicon_url = normFav;
+      }
+    }
+
     publicApiCache.set(cacheKey, store, 300);
     res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json(store);
@@ -947,11 +965,20 @@ router.get("/digital-menu/:storeIdentifier/info", async (req, res) => {
       try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
     }
 
+    const { normalizeStorageUrl } = await import("./utils/imageStorage");
+    const displayStoreName = branding?.store_name || store.name || store.slug;
+    const normLogo = (store.logo_url || branding?.logo_url)
+      ? normalizeStorageUrl(store.logo_url || branding?.logo_url, store.id, displayStoreName)
+      : '';
+    if (branding && typeof branding === 'object' && normLogo) {
+      branding.logo_url = normLogo;
+    }
+
     const payload = {
       id: store.id,
       name: store.name,
       slug: store.slug,
-      logo_url: store.logo_url,
+      logo_url: normLogo || store.logo_url,
       primary_color: store.primary_color,
       default_currency: store.default_currency || 'TRY',
       whatsapp_number: store.whatsapp_number,
@@ -3607,6 +3634,90 @@ router.post("/reconciliations/:reconId/respond", async (req: any, res) => {
   } catch (err: any) {
     console.error("Error in public POST /reconciliations/:reconId/respond:", err);
     return res.status(500).json({ error: err.message || "Failed to update reconciliation response" });
+  }
+});
+
+// Public GET: LookPrice Customer References (Live Websites) & Official Partners / Announcements
+router.get("/references-partners", async (req: any, res) => {
+  try {
+    const cacheKey = "lookprice_references_partners_v2";
+    const cached = publicApiCache.get(cacheKey);
+    if (cached) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      return res.json(cached);
+    }
+
+    const { ensureEnrakipsizTables } = await import("./admin");
+    const { normalizeStorageUrl } = await import("./utils/imageStorage");
+    await ensureEnrakipsizTables();
+
+    const [refsRes, partnersRes] = await Promise.all([
+      pool.query(`
+        SELECT r.*,
+               s.slug as store_slug,
+               s.logo_url as live_store_logo,
+               s.custom_domain as live_custom_domain,
+               s.primary_color as live_primary_color,
+               s.store_type as live_store_type,
+               s.branding->>'logo_url' as live_branding_logo,
+               s.branding->>'store_name' as live_store_name
+        FROM lookprice_references r
+        LEFT JOIN stores s ON r.store_id = s.id
+        WHERE r.is_active IS TRUE
+        ORDER BY r.is_featured DESC, r.order_index ASC, r.id DESC
+      `),
+      pool.query(`
+        SELECT * FROM lookprice_partners
+        WHERE is_active IS TRUE
+        ORDER BY is_highlighted DESC, order_index ASC, id ASC
+      `)
+    ]);
+
+    const references = refsRes.rows.map((r: any) => {
+      const companyName = r.company_name || r.live_store_name || "Seçkin İşletme";
+      const rawLogo = r.logo_url || r.live_store_logo || r.live_branding_logo || "";
+      const primaryColor = r.primary_color || r.live_primary_color || "#4f46e5";
+      const logoUrl = rawLogo
+        ? normalizeStorageUrl(rawLogo, r.store_id, companyName)
+        : `/api/storage/store_${r.store_id || r.id}_logo.svg?${r.store_id ? `storeId=${r.store_id}&` : ""}brand=${encodeURIComponent(companyName)}&color=${encodeURIComponent(primaryColor)}`;
+
+      const websiteUrl = r.website_url || (r.live_custom_domain ? `https://${r.live_custom_domain.replace(/^https?:\/\//, "")}` : (r.store_slug ? `/s/${r.store_slug}` : ""));
+
+      return {
+        id: r.id,
+        store_id: r.store_id,
+        company_name: companyName,
+        sector: r.sector || r.live_store_type || "product",
+        logo_url: logoUrl,
+        website_url: websiteUrl,
+        city: r.city || "Türkiye",
+        badge_text: r.badge_text || "",
+        description: r.description || "",
+        primary_color: primaryColor,
+        is_featured: Boolean(r.is_featured)
+      };
+    });
+
+    const partners = partnersRes.rows.map((p: any) => ({
+      id: p.id,
+      partner_name: p.partner_name,
+      category: p.category || "e_transformation",
+      logo_url: p.logo_url ? normalizeStorageUrl(p.logo_url, null, p.partner_name) : "",
+      website_url: p.website_url || "",
+      badge_text: p.badge_text || "",
+      announcement_title: p.announcement_title || "",
+      description: p.description || "",
+      brand_color: p.brand_color || "#4f46e5",
+      is_highlighted: Boolean(p.is_highlighted)
+    }));
+
+    const payload = { references, partners };
+    publicApiCache.set(cacheKey, payload, 120);
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    return res.json(payload);
+  } catch (err: any) {
+    console.error("Error in public GET /references-partners:", err);
+    return res.json({ references: [], partners: [] });
   }
 });
 

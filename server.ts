@@ -976,36 +976,51 @@ function sanitizeFilename(originalName: string): string {
 
     // 4. Intelligent Dynamic Store Logo / Brand Monogram Fallback (Cached in RAM to prevent repeated DB queries)
     if (isImage) {
+      const qStoreId = req.query.storeId ? parseInt(String(req.query.storeId), 10) : null;
+      const qBrand = req.query.brand ? String(req.query.brand).trim() : '';
+      const qColor = req.query.color ? String(req.query.color).trim() : '';
+      const fallbackCacheKey = `${filePath}__s:${qStoreId || ''}__b:${qBrand || ''}`;
+
+      const cachedFallback = storageRamCache.get(fallbackCacheKey);
+      if (cachedFallback) {
+        res.setHeader("Content-Type", "image/svg+xml");
+        res.setHeader("Cache-Control", "public, max-age=3600");
+        res.setHeader("ETag", cachedFallback.etag);
+        return res.status(200).send(cachedFallback.buffer);
+      }
+
       let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80" viewBox="0 0 240 80"><rect width="240" height="80" rx="8" fill="#1e293b"/><text x="120" y="46" font-family="system-ui,-apple-system,sans-serif" font-weight="600" font-size="18" fill="#ffffff" text-anchor="middle" letter-spacing="1">LOGO</text></svg>`;
       try {
         // Find if this file belongs to a store (lightweight projection: no full branding blob)
         const storeMatch = filePath.match(/^store_(\d+)_/);
+        const targetStoreId = qStoreId && !isNaN(qStoreId) ? qStoreId : (storeMatch && storeMatch[1] ? parseInt(storeMatch[1], 10) : null);
         let storeInfo: any = null;
 
-        if (storeMatch && storeMatch[1]) {
+        if (targetStoreId) {
           const sRes = await pool.query(
             "SELECT id, name, primary_color, branding->>'store_name' as store_name FROM stores WHERE id = $1 LIMIT 1",
-            [parseInt(storeMatch[1], 10)]
+            [targetStoreId]
           );
           if (sRes.rows.length > 0) storeInfo = sRes.rows[0];
         }
 
         if (!storeInfo) {
           const sRes = await pool.query(
-            "SELECT id, name, primary_color, branding->>'store_name' as store_name FROM stores WHERE logo_url LIKE $1 OR favicon_url LIKE $1 LIMIT 1",
+            "SELECT id, name, primary_color, branding->>'store_name' as store_name FROM stores WHERE logo_url LIKE $1 OR favicon_url LIKE $1 OR branding->>'logo_url' LIKE $1 LIMIT 1",
             [`%${filePath}%`]
           );
           if (sRes.rows.length > 0) storeInfo = sRes.rows[0];
         }
 
-        if (storeInfo) {
-          const brandName = (storeInfo.store_name || storeInfo.name || "SEÇKİN MAĞAZA").trim();
-          const primaryColor = storeInfo.primary_color || "#0f172a";
+        if (storeInfo || qBrand) {
+          const brandName = (storeInfo?.store_name || storeInfo?.name || qBrand || "SEÇKİN MAĞAZA").trim();
+          const primaryColor = storeInfo?.primary_color || qColor || "#4f46e5";
           const isFavicon = filePath.includes("favicon");
+          const displayBrand = brandName.length > 22 ? brandName.substring(0, 21) + "…" : brandName;
           
           svgContent = isFavicon
             ? `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${escapeXml(primaryColor)}"/><text x="32" y="41" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" fill="#ffffff" text-anchor="middle">${escapeXml(brandName.charAt(0).toUpperCase())}</text></svg>`
-            : `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="96" viewBox="0 0 360 96"><defs><linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escapeXml(primaryColor)}"/><stop offset="100%" stop-color="#0f172a"/></linearGradient></defs><rect width="360" height="96" rx="14" fill="url(#brandGrad)"/><rect x="2" y="2" width="356" height="92" rx="12" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/><circle cx="50" cy="48" r="26" fill="rgba(255,255,255,0.12)"/><text x="50" y="57" font-family="system-ui, -apple-system, sans-serif" font-weight="950" font-size="24" fill="#ffffff" text-anchor="middle">${escapeXml(brandName.charAt(0).toUpperCase())}</text><text x="96" y="55" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="20" fill="#ffffff" letter-spacing="0.5">${escapeXml(brandName.toUpperCase())}</text></svg>`;
+            : `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="96" viewBox="0 0 360 96"><defs><linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escapeXml(primaryColor)}"/><stop offset="100%" stop-color="#0f172a"/></linearGradient></defs><rect width="360" height="96" rx="14" fill="url(#brandGrad)"/><rect x="2" y="2" width="356" height="92" rx="12" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/><circle cx="50" cy="48" r="26" fill="rgba(255,255,255,0.12)"/><text x="50" y="57" font-family="system-ui, -apple-system, sans-serif" font-weight="950" font-size="24" fill="#ffffff" text-anchor="middle">${escapeXml(brandName.charAt(0).toUpperCase())}</text><text x="92" y="55" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="18" fill="#ffffff" letter-spacing="0.5">${escapeXml(displayBrand.toUpperCase())}</text></svg>`;
         }
       } catch (genErr) {
         console.warn("Dynamic brand monogram generation error:", genErr);
@@ -1017,7 +1032,7 @@ function sanitizeFilename(originalName: string): string {
         const firstKey = storageRamCache.keys().next().value;
         if (firstKey) storageRamCache.delete(firstKey);
       }
-      storageRamCache.set(filePath, {
+      storageRamCache.set(fallbackCacheKey, {
         buffer: svgBuffer,
         contentType: "image/svg+xml",
         contentLength: svgBuffer.length,

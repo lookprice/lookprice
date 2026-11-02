@@ -10,7 +10,8 @@ import {
   UserCircle,
   Layers,
   Sparkles,
-  Inbox
+  Inbox,
+  Handshake
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { translations } from "@/translations";
@@ -30,6 +31,7 @@ import { SuperAdminVideosManager } from "../components/superadmin/SuperAdminVide
 import { SuperAdminAuditLogs } from "../components/superadmin/SuperAdminAuditLogs";
 import { SuperAdminProfile } from "../components/superadmin/SuperAdminProfile";
 import { SuperAdminMarketingHub } from "../components/superadmin/SuperAdminMarketingHub";
+import { SuperAdminReferencesPartners } from "../components/superadmin/SuperAdminReferencesPartners";
 import { 
   SlideModal, 
   AdModal, 
@@ -87,14 +89,14 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     return 'commercial';
   });
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'marketing' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'marketing' | 'references' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>(() => {
     if (typeof window !== 'undefined') {
       const urlTab = new URLSearchParams(window.location.search).get('saTab');
-      if (urlTab && ['dashboard', 'requests', 'marketing', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(urlTab)) {
+      if (urlTab && ['dashboard', 'requests', 'marketing', 'references', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(urlTab)) {
         return urlTab as any;
       }
       const saved = localStorage.getItem('superAdminActiveTab');
-      if (saved && ['dashboard', 'requests', 'marketing', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(saved)) {
+      if (saved && ['dashboard', 'requests', 'marketing', 'references', 'enrakipsiz', 'videos', 'integrator', 'audit', 'profile'].includes(saved)) {
         return saved as any;
       }
     }
@@ -730,8 +732,12 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             <div className="bg-slate-900 text-white rounded-2xl p-3 sm:p-4 border border-slate-800 shadow-lg relative overflow-hidden">
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-800/90">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center shrink-0">
-                <ShieldCheck className="h-5 w-5 text-amber-400" />
+              <div className="h-10 w-10 rounded-xl bg-white p-1 border border-white/20 shadow-md flex items-center justify-center shrink-0 overflow-hidden">
+                <img
+                  src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+                  alt="LookPrice.net"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -809,6 +815,18 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             >
               <Sparkles className="h-3.5 w-3.5 text-amber-400" />
               <span>Pazarlama</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('references')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-tight transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                activeTab === 'references'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Handshake className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Referans & Partnerler</span>
             </button>
 
             <button
@@ -900,6 +918,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           </div>
         ) : activeTab === 'marketing' ? (
           <SuperAdminMarketingHub lang={lang} />
+        ) : activeTab === 'references' ? (
+          <SuperAdminReferencesPartners />
         ) : activeTab === 'enrakipsiz' ? (
           <EnrakipsizPortalManager 
             lang={lang}

@@ -23,10 +23,8 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20">
           <div className="flex items-center cursor-pointer group" onClick={() => navigate("/")}>
-            <div className="p-2 bg-slate-950 rounded-2xl shadow-lg shadow-slate-950/10 group-hover:scale-105 transition-transform">
-              <Logo size={24} className="text-white" />
-            </div>
-            <div className="ml-4 flex flex-col">
+            <Logo size={42} className="group-hover:scale-105 transition-transform" />
+            <div className="ml-3 flex flex-col">
               <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">Look<span className="text-indigo-600">Price</span></span>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">{lang === 'tr' ? 'Bulut Yönetim' : 'Cloud OS'}</span>
             </div>

@@ -745,5 +745,15 @@ export const api = {
   getGoogleDrive5TBAuthUrl: () => api.get("/api/google-drive/superadmin-auth-url"),
   triggerGoogleDrive5TBBackup: () => api.post("/api/google-drive/superadmin-backup", {}),
   triggerGoogleDrive5TBArchive: () => api.post("/api/google-drive/superadmin-archive-db", {}),
+
+  // LookPrice Customer References & Official Partners (MySoft, Integrators, Store Websites)
+  getPublicReferencesPartners: () => api.get("/api/public/references-partners"),
+  getAdminReferencesPartners: () => api.get("/api/admin/references-partners"),
+  saveAdminReference: (data: any) => api.post("/api/admin/references", data),
+  toggleStoreAsReference: (storeId: number) => api.post("/api/admin/references/from-store", { storeId }),
+  deleteAdminReference: (id: number) => api.delete(`/api/admin/references/${id}`),
+  saveAdminPartner: (data: any) => api.post("/api/admin/partners", data),
+  deleteAdminPartner: (id: number) => api.delete(`/api/admin/partners/${id}`),
 };
+
 

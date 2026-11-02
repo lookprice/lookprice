@@ -40,6 +40,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
 import { api } from "../services/api";
 import SEO from "./SEO";
+import { LandingReferencesAndPartners } from "./LandingReferencesAndPartners";
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -558,18 +559,41 @@ export const LandingPage = () => {
       />
 
       {/* Top Navigation */}
-      <header className="fixed top-0 left-0 right-0 z-[100] px-6 md:px-12 py-4 flex items-center justify-between bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
+      <header className="fixed top-0 left-0 right-0 z-[100] px-6 md:px-12 py-3.5 flex items-center justify-between bg-[#050505]/85 backdrop-blur-xl border-b border-white/5">
         <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => navigate("/")}>
           <div className="relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-            <div className="relative w-10 h-10 bg-white rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform shadow-lg">
-              <div className="w-5 h-5 bg-gradient-to-tr from-indigo-650 to-blue-600 rounded" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-500"></div>
+            <div className="relative w-11 h-11 bg-white rounded-xl p-1 flex items-center justify-center group-hover:scale-105 transition-transform shadow-lg overflow-hidden">
+              <img
+                src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+                alt="LookPrice.net"
+                className="w-full h-full object-contain"
+              />
             </div>
           </div>
-          <span className="text-xl font-black tracking-tighter text-white">Look<span className="text-indigo-500">Price</span></span>
+          <div className="flex items-baseline">
+            <span className="text-xl font-black tracking-tighter text-white">Look<span className="text-indigo-500">Price</span></span>
+            <span className="text-xs font-bold text-slate-400 ml-0.5">.net</span>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3 md:space-x-5">
+          {/* Quick Scroll Navigation Links */}
+          <nav className="hidden md:flex items-center gap-5 mr-2">
+            <a
+              href="#referanslarimiz"
+              className="text-xs font-black uppercase tracking-wider text-white/70 hover:text-indigo-400 transition-colors"
+            >
+              {txt('Referanslarımız', 'References', 'Πελάτες')}
+            </a>
+            <a
+              href="#is-ortaklarimiz"
+              className="text-xs font-black uppercase tracking-wider text-white/70 hover:text-amber-400 transition-colors"
+            >
+              {txt('İş Ortaklıklarımız', 'Partnerships', 'Συνεργασίες')}
+            </a>
+          </nav>
+
           {/* Language Switcher */}
           <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/10">
             {['tr', 'en', 'el'].map((l) => (
@@ -784,12 +808,21 @@ export const LandingPage = () => {
                   
                   {/* Floating Telemetry Badge inside Image */}
                   <div className="absolute bottom-6 left-6 right-6 p-4 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 flex items-center justify-between">
-                    <div>
-                      <div className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
-                        LOOKPRICE AUTO-SYNC
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-sm">
+                        <img
+                          src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+                          alt="LookPrice.net"
+                          className="w-full h-full object-contain"
+                        />
                       </div>
-                      <div className="text-xs font-bold text-white mt-0.5">
-                        {txt("Aktif Bulut Entegrasyonu", "Active Cloud Synced", "Ενεργός Συγχρονισμός Cloud")}
+                      <div>
+                        <div className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
+                          LOOKPRICE AUTO-SYNC
+                        </div>
+                        <div className="text-xs font-bold text-white mt-0.5">
+                          {txt("Aktif Bulut Entegrasyonu", "Active Cloud Synced", "Ενεργός Συγχρονισμός Cloud")}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -1112,13 +1145,16 @@ export const LandingPage = () => {
         </div>
       </section>
 
+      {/* Customer Reference Websites & Official Partners / Integrations Showcase */}
+      <LandingReferencesAndPartners lang={lang} />
+
       {/* Trust & Stability Badges */}
       <section className="py-16 border-t border-white/5 bg-[#030304]">
         <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
           {[
             { 
-              title: txt("GİB ve N11.com Entegratöründen", "Integrated GİB & N11", "Από τον Επίσημο Πάροχο GİB & N11"), 
-              desc: txt("Maliye Bakanlığı ve N11.com Resmi Entegratörü ISM TEKNOLOJİ'den", "From ISM TECHNOLOGY, official integrator of Ministry of Finance and N11.com", "Από την ISM TECHNOLOGY, επίσημο πάροχο του Υπουργείου Οικονομικών και N11.com") 
+              title: txt("GİB e-Belge & Pazaryeri Uyumu", "GİB e-Invoice & Marketplace Ready", "Συμβατότητα e-Invoice & Marketplace"), 
+              desc: txt("e-Fatura, e-Arşiv, e-İrsaliye ve ulusal e-pazaryerleri ile doğrudan entegre bulut mimarisi.", "Cloud architecture directly integrated with official e-invoice and national e-marketplaces.", "Αρχιτεκτονική cloud ενσωματωμένη με επίσημα συστήματα τιμολόγησης.") 
             },
             { 
               title: txt("1996 Yılından Beri Kurumsal Teknoloji", "Enterprise Tech Since 1996", "Εταιρική Τεχνολογία από το 1996"), 
@@ -1162,9 +1198,18 @@ export const LandingPage = () => {
               </button>
 
               <div className="mb-5">
-                <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                  LOOKPRICE DEMO
-                </span>
+                <div className="inline-flex items-center gap-2 bg-indigo-500/10 px-3 py-1.5 rounded-full border border-indigo-500/20">
+                  <div className="w-5 h-5 rounded bg-white p-0.5 flex items-center justify-center shrink-0">
+                    <img
+                      src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+                      alt="LookPrice.net"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest">
+                    LOOKPRICE DEMO
+                  </span>
+                </div>
                 <h3 className="text-2xl font-black mt-3">
                   {txt('Canlı Demo & İnceleme', 'Live Demo & Showcase', 'Ζωντανό Demo & Εξερεύνηση')}
                 </h3>
@@ -1452,9 +1497,19 @@ export const LandingPage = () => {
 
       {/* Footer */}
       <footer className="px-6 md:px-12 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 bg-[#050505]">
-        <div className="flex flex-col items-center md:items-start space-y-2">
-          <div className="flex items-center space-x-2">
-            <span className="font-black tracking-tight text-white">Look<span className="text-indigo-500">Price</span></span>
+        <div className="flex flex-col items-center md:items-start space-y-2.5">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-white rounded-xl p-1 flex items-center justify-center shadow-md shrink-0">
+              <img
+                src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+                alt="LookPrice.net"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-baseline">
+              <span className="text-lg font-black tracking-tight text-white">Look<span className="text-indigo-500">Price</span></span>
+              <span className="text-xs font-bold text-slate-400 ml-0.5">.net</span>
+            </div>
           </div>
           <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">
             {txt('BULUT TABANLI SEKTÖREL YÖNETİM SUITE', 'CLOUD-BASED SECTORAL SUITE', 'ΣΟΥΙΤΑ ΔΙΑΧΕΙΡΙΣΗΣ ΤΟΜΕΩΝ CLOUD')}
