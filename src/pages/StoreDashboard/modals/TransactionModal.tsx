@@ -473,18 +473,15 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       {/* View Statement Modal */}
       {showTransactionModal && selectedCompany && (
         <div className="fixed inset-0 z-[110] flex flex-col bg-black/70 backdrop-blur-xs p-0 m-0">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            className="bg-white rounded-none shadow-2xl w-screen max-w-none overflow-hidden flex flex-col h-screen border-0"
+          <div 
+            className="bg-white rounded-none shadow-2xl w-full max-w-none overflow-hidden flex flex-col h-full h-[100dvh] max-h-[100dvh] border-0"
           >
             {/* Header */}
-            <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-900 text-white shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
+            <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-slate-800 flex justify-between items-center gap-2 bg-slate-900 text-white shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm sm:text-base font-medium text-white truncate max-w-md sm:max-w-xl">
+                    <h3 className="text-sm sm:text-base font-bold text-white truncate max-w-[200px] sm:max-w-xl">
                       {selectedCompany.title || selectedCompany.name}
                     </h3>
                     {selectedCompany.tax_number && (
@@ -498,17 +495,18 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <button 
                   onClick={handleOpenNewTransaction}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  className="px-2.5 sm:px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-all flex items-center gap-1 shadow-sm cursor-pointer"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span>{t.newTransaction || (isTr ? "Yeni İşlem" : "New Transaction")}</span>
                 </button>
                 <button 
                   onClick={() => setShowTransactionModal(false)} 
-                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-slate-300 hover:text-white cursor-pointer"
+                  className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white cursor-pointer"
+                  title={t.close || "Kapat"}
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -516,7 +514,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             </div>
 
             {/* Filter & Action Bar */}
-            <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0 text-xs">
+            <div className="px-3 sm:px-4 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0 text-xs">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1">
                   <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</span>
@@ -616,7 +614,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <button 
                   onClick={handleExportTransactionsExcel}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-xs transition-all cursor-pointer shadow-xs"
@@ -1622,18 +1620,27 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             </div>
 
             {/* Compact Footer */}
-            <div className="px-5 py-2.5 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-xs shrink-0">
-              <span className="text-[11px] font-semibold text-slate-500">
+            <div className="px-3.5 sm:px-5 py-2.5 border-t border-slate-200 bg-slate-50 flex justify-between items-center gap-2 text-xs shrink-0">
+              <span className="text-[11px] font-semibold text-slate-600 truncate">
                 {selectedCompany.title || selectedCompany.name} &bull; {selectedCurrency}
               </span>
-              <button 
-                onClick={() => setShowTransactionModal(false)}
-                className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-medium text-xs transition-all cursor-pointer"
-              >
-                {t.close || "Kapat"}
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button 
+                  onClick={handleOpenNewTransaction}
+                  className="sm:hidden px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>{t.newTransaction || (isTr ? "Yeni İşlem" : "New")}</span>
+                </button>
+                <button 
+                  onClick={() => setShowTransactionModal(false)}
+                  className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-bold text-xs transition-all cursor-pointer"
+                >
+                  {t.close || "Kapat"}
+                </button>
+              </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       )}
 

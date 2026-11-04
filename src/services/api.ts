@@ -301,8 +301,19 @@ export const api = {
   addRealEstateContact: (data: any, storeId?: number) => api.post(`/api/real-estate/contacts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateRealEstateContact: (id: string, data: any, storeId?: number) => api.put(`/api/real-estate/contacts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteRealEstateContact: (id: string, storeId?: number) => api.delete(`/api/real-estate/contacts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  getPortfolioTransactions: (storeId?: number) => api.get(`/api/real-estate/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getPortfolioTransactions: (storeId?: number, filters?: { startDate?: string; endDate?: string; currency?: string; type?: string; category?: string }) => {
+    const params = new URLSearchParams();
+    if (storeId !== undefined && storeId !== null) params.set("storeId", String(storeId));
+    if (filters?.startDate) params.set("startDate", filters.startDate);
+    if (filters?.endDate) params.set("endDate", filters.endDate);
+    if (filters?.currency && filters.currency !== "all") params.set("currency", filters.currency);
+    if (filters?.type && filters.type !== "all") params.set("type", filters.type);
+    if (filters?.category && filters.category !== "all") params.set("category", filters.category);
+    const qs = params.toString();
+    return api.get(`/api/real-estate/transactions${qs ? `?${qs}` : ""}`);
+  },
   addPortfolioTransaction: (data: any, storeId?: number) => api.post(`/api/real-estate/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updatePortfolioTransaction: (id: number, data: any, storeId?: number) => api.put(`/api/real-estate/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deletePortfolioTransaction: (id: number, storeId?: number) => api.delete(`/api/real-estate/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getAcquisitionLeads: (source: string = "101evler", filter: string = "individual", keywords?: string) => api.post(`/api/real-estate/acquisition-radar`, { source, filter, keywords }),
   getSalesInvoiceHtml: (id: number, storeId?: number) => api.get(`/api/einvoice/${id}/html?type=sales${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),

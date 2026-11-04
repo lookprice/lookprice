@@ -727,7 +727,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     <ErrorBoundary lang={lang}>
       <div className="h-full h-[100dvh] max-h-screen max-h-[100dvh] flex flex-col overflow-hidden bg-slate-100/60 font-sans relative operator-compact-layout">
         {/* Unified LookPrice Executive Cockpit Command Bar (Pinned Top Bar) */}
-        <header className="shrink-0 z-20 px-3 sm:px-5 pt-3 pb-1.5 bg-slate-100/90 backdrop-blur-md border-b border-slate-200/50">
+        <header className="dashboard-top-header shrink-0 px-3 sm:px-5 pt-3 pb-1.5 bg-slate-100 border-b border-slate-200/50">
           <div className="max-w-[1440px] mx-auto">
             <div className="bg-slate-900 text-white rounded-2xl p-3 sm:p-4 border border-slate-800 shadow-lg relative overflow-hidden">
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-800/90">
@@ -894,7 +894,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
       </header>
 
         {/* Dedicated Smooth Single Vertical Scroll Area */}
-        <main ref={mainScrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-5 py-3">
+        <main ref={mainScrollRef} className="dashboard-scroll-area flex-1 min-h-0 overflow-y-auto px-3 sm:px-5 py-3">
           <div className="max-w-[1440px] mx-auto space-y-3 pb-36">
             {activeTab === 'requests' ? (
           <div className="space-y-4">

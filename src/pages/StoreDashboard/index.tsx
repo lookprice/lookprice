@@ -1403,16 +1403,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           </div>
         )}
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className={`transition-opacity duration-200 max-w-full overflow-x-clip ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
-          >
-            <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+        <div
+          key={activeTab}
+          className={`transition-opacity duration-150 max-w-full ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
+        >
+          <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
               {activeTab === "corporate-website" && permittedTabIds.has("corporate-website") && (
                 <CorporateWebsiteStudioTab
                   branding={branding}
@@ -1847,8 +1842,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 />
               )}
             </Suspense>
-          </motion.div>
-        </AnimatePresence>
+        </div>
       </div>
 
       <DashboardModals 

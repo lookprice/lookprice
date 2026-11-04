@@ -57,9 +57,9 @@
     -webkit-appearance: checkbox;
   }
 
-  /* Safari Touch Scroll Smoothness */
+  /* Safari Touch Scroll Smoothness (native momentum scrolling without stacking-context trap) */
   .overflow-y-auto, .overflow-x-auto, .overflow-auto {
-    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: auto;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -363,6 +363,31 @@ body:has(.dashboard-root-wrapper) {
 
 .input-compact-discount {
   max-width: 100px !important;
+}
+
+/* ==========================================================================
+   APPLE / iOS SAFARI (iPhone & iPad) MODAL & HEADER STACKING PROTECTION
+   ========================================================================== */
+/* 1. When any modal (.fixed.inset-0) is open inside an operator dashboard,
+      ensure top menu/logo bars never cover the modal header or action buttons */
+.operator-compact-layout:has(main .fixed.inset-0) .dashboard-top-header,
+.operator-compact-layout:has(.dashboard-scroll-area .fixed.inset-0) .dashboard-top-header {
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 1023px) {
+  .operator-compact-layout:has(main .fixed.inset-0) .dashboard-top-header,
+  .operator-compact-layout:has(.dashboard-scroll-area .fixed.inset-0) .dashboard-top-header {
+    display: none !important;
+  }
+}
+
+/* 2. Ensure full-screen modals inside fixed overlays always respect iPhone dynamic viewport height (100dvh) */
+.fixed.inset-0 > .h-screen,
+.fixed.inset-0 > div.h-screen {
+  height: 100dvh !important;
+  max-height: 100dvh !important;
 }
 
 

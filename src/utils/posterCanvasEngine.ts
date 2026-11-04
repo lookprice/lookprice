@@ -810,11 +810,11 @@ function renderStoryboardVideoStage(
 
   ctx.font = '700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(currentStory.subtitle.slice(0, 56), bannerX + 20, bannerY + 30);
+  ctx.fillText(currentStory.subtitle.slice(0, 56), bannerX + 20, bannerY + 30, bannerW - 40);
 
   ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#fbbf24';
-  ctx.fillText(`★ ${currentStory.highlight}`, bannerX + 20, bannerY + 52);
+  ctx.fillText(currentStory.highlight, bannerX + 20, bannerY + 52, bannerW - 40);
   ctx.restore();
 }
 
@@ -895,13 +895,13 @@ function renderSingleSlideMotionStage(
     if (slide.subtitle) {
       ctx.font = '700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(slide.subtitle.slice(0, 56), bannerX + 18, bannerY + 28);
+      ctx.fillText(slide.subtitle.slice(0, 56), bannerX + 18, bannerY + 28, bannerW - 36);
     }
 
     if (slide.badge) {
       ctx.font = '800 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.fillStyle = '#fbbf24';
-      ctx.fillText(`✦ ${slide.badge.slice(0, 42)}`, bannerX + 18, bannerY + 50);
+      ctx.fillText(slide.badge.slice(0, 42), bannerX + 18, bannerY + 50, bannerW - 36);
     }
   }
 
@@ -1048,11 +1048,6 @@ export const renderPosterToCanvas = (
   let cursorY = isSlideMode && slides.length > 1 ? (isStory ? 94 : 76) : (isStory ? 88 : 68);
 
   ctx.save();
-  const storeDisplay = (config.storeName || "SEÇKİN MAĞAZA").toUpperCase();
-  ctx.font = '900 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillStyle = config.template === 'modern_commerce' ? '#0f172a' : '#ffffff';
-  ctx.fillText(storeDisplay, paddingX, cursorY);
-
   // Right side slide indicator or category
   const badgeRight = isSlideMode
     ? `SLAYT ${activeSlideIdx + 1}/${slides.length}`
@@ -1064,6 +1059,13 @@ export const renderPosterToCanvas = (
   ctx.fill();
   ctx.fillStyle = isSlideMode ? '#38bdf8' : (config.template === 'modern_commerce' ? '#334155' : '#cbd5e1');
   ctx.fillText(badgeRight, width - paddingX - badgeW + 13, cursorY - 2);
+
+  // Store brand clamped so it never collides with the right badge
+  const storeDisplay = (config.storeName || "SEÇKİN MAĞAZA").toUpperCase();
+  const maxStoreBrandW = width - paddingX * 2 - badgeW - 24;
+  ctx.font = '900 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillStyle = config.template === 'modern_commerce' ? '#0f172a' : '#ffffff';
+  ctx.fillText(storeDisplay, paddingX, cursorY, maxStoreBrandW);
   ctx.restore();
 
   // 3. KICKER & HEADLINE (Compact & Clean)
@@ -1072,13 +1074,13 @@ export const renderPosterToCanvas = (
   const kickerText = (currentSlide?.kicker || config.kicker || "ÖZEL SENARYO & VİTRİN").toUpperCase();
   ctx.font = '800 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = config.template === 'modern_commerce' ? '#475569' : '#38bdf8';
-  ctx.fillText(kickerText, paddingX, cursorY);
+  ctx.fillText(kickerText, paddingX, cursorY, width - paddingX * 2);
 
   cursorY += isStory ? 60 : 52;
   const headlineText = (currentSlide?.headline || config.headline || "GERÇEK DENEYİM").toUpperCase();
   ctx.font = '900 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = config.template === 'modern_commerce' ? '#0f172a' : '#ffffff';
-  ctx.fillText(headlineText.slice(0, 32), paddingX, cursorY);
+  ctx.fillText(headlineText.slice(0, 32), paddingX, cursorY, width - paddingX * 2);
   ctx.restore();
 
   // 4. CENTRAL STAGE: INTERACTIVE SINGLE SLIDE MOTION STAGE OR COLLAGE
@@ -1106,36 +1108,39 @@ export const renderPosterToCanvas = (
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Product Name
+  const leftInfoMaxW = Math.floor(cardWidth * 0.6);
+
+  // Product Name (strictly bounded to left 60% of bottom card)
   const displayTitle = config.title && config.title.length > 42
     ? config.title.substring(0, 42) + "..."
     : (config.title || "Seçkin Ürün");
 
   ctx.font = '800 25px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(displayTitle, cardMargin + 28, infoY + 46);
+  ctx.fillText(displayTitle, cardMargin + 28, infoY + 46, leftInfoMaxW);
 
   // Promo / Benefit Badge inside bottom card
   const badgeStr = (currentSlide?.badge || config.badge || "Aynı Gün Hızlı Kargo & Orijinal Garanti");
   ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#38bdf8';
-  ctx.fillText(`✦ ${badgeStr.slice(0, 48)}`, cardMargin + 28, infoY + 80);
+  ctx.fillText(badgeStr.slice(0, 48), cardMargin + 28, infoY + 80, leftInfoMaxW);
 
   if (config.phone) {
     ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText(`İletişim & Sipariş: ${config.phone}`, cardMargin + 28, infoY + 108);
+    ctx.fillText(`İletişim & Sipariş: ${config.phone}`, cardMargin + 28, infoY + 108, leftInfoMaxW);
   }
 
-  // Price on Right
+  // Price on Right (strictly bounded to right 35% of bottom card)
+  const rightPriceMaxW = Math.floor(cardWidth * 0.34);
   ctx.textAlign = 'right';
   const rightEdge = cardMargin + cardWidth - 28;
 
   if (config.oldPrice) {
     ctx.font = '700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.fillStyle = '#f87171';
-    ctx.fillText(config.oldPrice, rightEdge, infoY + 42);
-    const oldW = ctx.measureText(config.oldPrice).width;
+    ctx.fillText(config.oldPrice, rightEdge, infoY + 42, rightPriceMaxW);
+    const oldW = Math.min(ctx.measureText(config.oldPrice).width, rightPriceMaxW);
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -1146,11 +1151,11 @@ export const renderPosterToCanvas = (
 
   ctx.font = '900 40px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#fbbf24';
-  ctx.fillText(config.price, rightEdge, infoY + (config.oldPrice ? 86 : 70));
+  ctx.fillText(config.price, rightEdge, infoY + (config.oldPrice ? 86 : 70), rightPriceMaxW);
 
   ctx.font = '700 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#cbd5e1';
-  ctx.fillText('HEMEN KEŞFET • GÜVENLİ ALIŞVERİŞ', rightEdge, infoY + (isStory ? 130 : 110));
+  ctx.fillText('HEMEN KEŞFET • GÜVENLİ ALIŞVERİŞ', rightEdge, infoY + (isStory ? 130 : 110), rightPriceMaxW);
   ctx.restore();
 
   ctx.restore();

@@ -118,18 +118,24 @@ export async function initRealEstateSchema() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS portfolio_transactions (
         id SERIAL PRIMARY KEY,
-        store_id INTEGER REFERENCES stores(id),
+        store_id INTEGER,
         type TEXT NOT NULL, -- 'income' or 'expense'
         category TEXT NOT NULL, -- 'commission', 'rent', 'advertising', 'salary', 'utilities', 'other'
         title TEXT NOT NULL,
         amount NUMERIC NOT NULL,
         currency TEXT NOT NULL DEFAULT 'TRY',
         date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        property_id INTEGER REFERENCES real_estate_properties(id) ON DELETE SET NULL,
+        property_id INTEGER,
         description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        payment_method TEXT DEFAULT 'cash',
+        reference_no TEXT,
+        contact_name TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    await pool.query(`ALTER TABLE portfolio_transactions DROP CONSTRAINT IF EXISTS portfolio_transactions_property_id_fkey;`).catch(() => {});
+    await pool.query(`ALTER TABLE portfolio_transactions DROP CONSTRAINT IF EXISTS portfolio_transactions_store_id_fkey;`).catch(() => {});
     // Create real_estate_contacts table for CRM
     await pool.query(`
       CREATE TABLE IF NOT EXISTS real_estate_contacts (
@@ -1173,20 +1179,133 @@ router.delete('/radar-news', authenticate, async (req: any, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-router.get('/transactions', authenticate, async (req: any, res) => {
-const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
+let portfolioTransactionsSchemaReady = false;
+async function ensurePortfolioTransactionsSchema() {
+  if (portfolioTransactionsSchemaReady) return;
   try {
-    const result = await pool.query(
-      `SELECT t.*, 
-              COALESCE(p.title, CONCAT(v.plate, ' - ', v.brand, ' ', v.model)) as property_title 
-       FROM portfolio_transactions t
-       LEFT JOIN real_estate_properties p ON t.property_id = p.id AND p.store_id = t.store_id
-       LEFT JOIN vehicles v ON t.property_id = v.id AND v.store_id = t.store_id
-       WHERE t.store_id = $1
-       ORDER BY t.date DESC, t.id DESC`,
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS portfolio_transactions (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER,
+        type TEXT NOT NULL,
+        category TEXT NOT NULL,
+        title TEXT NOT NULL,
+        amount NUMERIC NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'TRY',
+        date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        property_id INTEGER,
+        description TEXT,
+        payment_method TEXT DEFAULT 'cash',
+        reference_no TEXT,
+        contact_name TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await pool.query(`ALTER TABLE portfolio_transactions DROP CONSTRAINT IF EXISTS portfolio_transactions_property_id_fkey;`);
+    await pool.query(`ALTER TABLE portfolio_transactions DROP CONSTRAINT IF EXISTS portfolio_transactions_store_id_fkey;`);
+    await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'cash';`);
+    await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS reference_no TEXT;`);
+    await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS contact_name TEXT;`);
+    await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+    portfolioTransactionsSchemaReady = true;
+  } catch (err) {
+    console.warn("ensurePortfolioTransactionsSchema warning:", err);
+  }
+}
+
+function resolveTransactionStoreId(req: any): number | null {
+  const raw =
+    req.query?.storeId ??
+    req.query?.store_id ??
+    req.body?.store_id ??
+    req.body?.storeId ??
+    req.user?.user?.store_id ??
+    req.user?.store_id;
+  const parsed = Number(raw);
+  return !isNaN(parsed) && parsed > 0 ? parsed : null;
+}
+
+router.get('/transactions', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.json([]);
+  }
+
+  try {
+    // Self-heal any orphaned transactions where store_id was null or mismatched fallback 40
+    await pool.query(
+      `UPDATE portfolio_transactions SET store_id = $1 WHERE store_id IS NULL`,
       [storeId]
-    );
-    res.json(result.rows);
+    ).catch(() => {});
+
+    if (req.user?.store_id && Number(req.user.store_id) !== storeId) {
+      // If a user token had a fallback store_id (e.g. 40) that doesn't exist in stores table, migrate its records to actual storeId
+      const checkFallback = await pool.query(`SELECT id FROM stores WHERE id = $1`, [ Number(req.user.store_id) ]).catch(() => ({ rows: [] }));
+      if (checkFallback.rows.length === 0) {
+        await pool.query(
+          `UPDATE portfolio_transactions SET store_id = $1 WHERE store_id = $2`,
+          [storeId, Number(req.user.store_id)]
+        ).catch(() => {});
+      }
+    }
+
+    const { startDate, endDate, currency, type, category } = req.query;
+    const params: any[] = [storeId];
+    let whereClause = `WHERE t.store_id = $1`;
+
+    if (startDate) {
+      params.push(String(startDate));
+      whereClause += ` AND t.date >= $${params.length}::timestamp`;
+    }
+    if (endDate) {
+      params.push(`${String(endDate).split('T')[0]} 23:59:59`);
+      whereClause += ` AND t.date <= $${params.length}::timestamp`;
+    }
+    if (currency && currency !== 'all') {
+      params.push(String(currency));
+      whereClause += ` AND t.currency = $${params.length}`;
+    }
+    if (type && type !== 'all') {
+      params.push(String(type));
+      whereClause += ` AND t.type = $${params.length}`;
+    }
+    if (category && category !== 'all') {
+      params.push(String(category));
+      whereClause += ` AND t.category = $${params.length}`;
+    }
+
+    let rows: any[] = [];
+    try {
+      const result = await pool.query(
+        `SELECT t.*, 
+                CASE 
+                  WHEN p.id IS NOT NULL AND COALESCE(p.title, '') <> '' THEN p.title
+                  WHEN v.id IS NOT NULL THEN TRIM(CONCAT(COALESCE(v.plate, ''), ' - ', COALESCE(v.brand, ''), ' ', COALESCE(v.model, '')))
+                  ELSE NULL
+                END as property_title 
+         FROM portfolio_transactions t
+         LEFT JOIN real_estate_properties p ON t.property_id = p.id
+         LEFT JOIN vehicles v ON t.property_id = v.id
+         ${whereClause}
+         ORDER BY t.date DESC, t.id DESC`,
+        params
+      );
+      rows = result.rows;
+    } catch (joinErr) {
+      // Fallback if vehicles or real_estate_properties table is missing
+      const fallbackResult = await pool.query(
+        `SELECT t.*, NULL as property_title
+         FROM portfolio_transactions t
+         ${whereClause}
+         ORDER BY t.date DESC, t.id DESC`,
+        params
+      );
+      rows = fallbackResult.rows;
+    }
+
+    res.json(rows);
   } catch (error: any) {
     console.error("Fetch portfolio transactions error:", error);
     res.status(500).json({ error: error.message });
@@ -1195,63 +1314,141 @@ const storeId = req.query.store_id || req.query.storeId || req.body.store_id || 
 
 // POST /transactions - Record financial transaction (income/expense)
 router.post('/transactions', authenticate, async (req: any, res) => {
-const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
-  const { type, category, title, amount, currency, date, property_id, description } = req.body;
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  const { type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name } = req.body;
 
-  if (!type || !category || !title || !amount) {
+  if (!storeId) {
+    return res.status(400).json({ error: "Store ID is required." });
+  }
+  if (!type || !category || !title || amount === undefined || amount === null || amount === '') {
     return res.status(400).json({ error: "Type, category, title, and amount are required." });
   }
 
+  const parsedAmount = Number(amount);
+  if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ error: "Valid positive amount is required." });
+  }
+
+  const parsedPropertyId = property_id ? (Number(property_id) || null) : null;
+  const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
+
   try {
     const result = await pool.query(
-      `INSERT INTO portfolio_transactions (store_id, type, category, title, amount, currency, date, property_id, description)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO portfolio_transactions (store_id, type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         storeId, 
         type, 
         category, 
-        title, 
-        amount, 
+        String(title).trim(), 
+        parsedAmount, 
         currency || 'TRY', 
-        date || new Date().toISOString(), 
-        property_id || null, 
-        description || ''
+        txDate, 
+        parsedPropertyId, 
+        description || '',
+        payment_method || 'cash',
+        reference_no || '',
+        contact_name || ''
       ]
     );
     
+    const inserted = result.rows[0];
+
     // Log the transaction in the audit log if property_id was provided
-    if (property_id) {
+    if (parsedPropertyId) {
       try {
         await pool.query(
           `INSERT INTO property_audit_log (property_id, action, changed_by, details) 
            VALUES ($1, $2, $3, $4)`,
           [
-            property_id, 
+            parsedPropertyId, 
             'FINANCIAL_RECORD', 
-            req.user.id, 
-            `Created financial entry: ${type === 'income' ? 'Gelir' : 'Gider'} - ${title} (${amount} ${currency || 'TRY'})`
+            req.user?.id || null, 
+            `Created financial entry: ${type === 'income' ? 'Gelir' : 'Gider'} - ${title} (${parsedAmount} ${currency || 'TRY'})`
           ]
         );
       } catch (e) {}
     }
     
-    res.json(result.rows[0]);
+    res.json(inserted);
   } catch (error: any) {
     console.error("Create portfolio transaction error:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
+// PUT /transactions/:id - Update existing financial transaction
+router.put('/transactions/:id', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  const { id } = req.params;
+  const { type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name } = req.body;
+
+  if (!type || !category || !title || amount === undefined || amount === null) {
+    return res.status(400).json({ error: "Type, category, title, and amount are required." });
+  }
+
+  const parsedAmount = Number(amount);
+  const parsedPropertyId = property_id ? (Number(property_id) || null) : null;
+  const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
+
+  try {
+    const result = await pool.query(
+      `UPDATE portfolio_transactions
+       SET type = $1,
+           category = $2,
+           title = $3,
+           amount = $4,
+           currency = $5,
+           date = $6,
+           property_id = $7,
+           description = $8,
+           payment_method = $9,
+           reference_no = $10,
+           contact_name = $11,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $12 AND ($13::integer IS NULL OR store_id = $13)
+       RETURNING *`,
+      [
+        type,
+        category,
+        String(title).trim(),
+        parsedAmount,
+        currency || 'TRY',
+        txDate,
+        parsedPropertyId,
+        description || '',
+        payment_method || 'cash',
+        reference_no || '',
+        contact_name || '',
+        Number(id),
+        storeId
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Transaction not found or unauthorized." });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Update portfolio transaction error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // DELETE /transactions/:id - Remove financial record
 router.delete('/transactions/:id', authenticate, async (req: any, res) => {
-const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
   const { id } = req.params;
 
   try {
     const result = await pool.query(
-      `DELETE FROM portfolio_transactions WHERE id = $1 AND store_id = $2 RETURNING *`,
-      [id, storeId]
+      `DELETE FROM portfolio_transactions WHERE id = $1 AND ($2::integer IS NULL OR store_id = $2) RETURNING *`,
+      [Number(id), storeId]
     );
 
     if (result.rowCount === 0) {
@@ -1267,7 +1464,7 @@ const storeId = req.query.store_id || req.query.storeId || req.body.store_id || 
           [
             deleted.property_id, 
             'FINANCIAL_DELETE', 
-            req.user.id, 
+            req.user?.id || null, 
             `Deleted financial entry: ${deleted.title} (${deleted.amount} ${deleted.currency})`
           ]
         );

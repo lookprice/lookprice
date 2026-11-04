@@ -6,12 +6,13 @@ import { Bell, Loader2, Menu, WifiOff } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  modals?: React.ReactNode;
   sidebarProps: any;
   loading: boolean;
   lang: string;
 }
 
-export const DashboardLayout = ({ children, sidebarProps, loading, lang }: DashboardLayoutProps) => {
+export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang }: DashboardLayoutProps) => {
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [hasRenderedChildren, setHasRenderedChildren] = useState(Boolean(children));
 
@@ -79,7 +80,7 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0 h-full max-h-full overflow-hidden relative">
         {/* Mobile Header with Hamburger Menu & Notification Bell */}
-        <div className="lg:hidden flex items-center justify-between px-3.5 py-2.5 bg-white border-b border-slate-200 z-10 shrink-0">
+        <div className="dashboard-top-header lg:hidden flex items-center justify-between px-3.5 py-2.5 bg-white border-b border-slate-200 shrink-0">
           <div className="flex items-center min-w-0">
             <button onClick={() => sidebarProps.setSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">
               <Menu className="w-5 h-5" />
@@ -115,7 +116,7 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
 
         {/* Desktop Collapsed Header */}
         {sidebarProps.desktopSidebarCollapsed && (
-          <div className="hidden lg:flex items-center p-4 bg-white border-b border-slate-200/60 z-10 shadow-sm transition-all shrink-0">
+          <div className="dashboard-top-header hidden lg:flex items-center p-4 bg-white border-b border-slate-200/60 shadow-sm transition-all shrink-0">
             <button 
               onClick={() => sidebarProps.setDesktopSidebarCollapsed(false)} 
               className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 rounded-xl font-bold text-xs uppercase transition-all tracking-wider shrink-0 cursor-pointer"
@@ -133,7 +134,7 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
           </div>
         )}
         
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 md:p-5 pb-36 sm:pb-28 bg-slate-50/50">
+        <div className="dashboard-scroll-area flex-1 min-h-0 overflow-y-auto p-3.5 md:p-5 pb-36 sm:pb-28 bg-slate-50/50">
           <div className="max-w-7xl mx-auto space-y-5 pb-12">
             <ErrorBoundary lang={lang}>
               {!hasRenderedChildren && loading ? (
@@ -148,6 +149,9 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
           </div>
         </div>
       </main>
+
+      {/* Root-Level Modals Layer (Outside scroll container so iOS Safari never clips or covers modals) */}
+      {modals}
     </div>
   );
 };

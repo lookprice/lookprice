@@ -820,7 +820,46 @@ Kurumsal Web: https://lookprice.net`;
     );
   };
 
-  // Helper for Canvas text wrapping
+  // Helper for single-line clamped canvas text (guarantees zero horizontal overflow/overlap)
+  const drawClampedText = (
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number
+  ) => {
+    if (!text) return;
+    if (ctx.measureText(text).width <= maxWidth) {
+      ctx.fillText(text, x, y);
+      return;
+    }
+    let truncated = text;
+    while (truncated.length > 0 && ctx.measureText(truncated + '...').width > maxWidth) {
+      truncated = truncated.slice(0, -1);
+    }
+    ctx.fillText(truncated.trim() + '...', x, y);
+  };
+
+  // Format URLs cleanly for visual brochure/PDF display so long preview hostnames never overflow
+  const formatBrochureDisplayUrl = (rawUrl: string): string => {
+    if (!rawUrl) return 'lookprice.net';
+    try {
+      const parsed = new URL(rawUrl);
+      const host = parsed.hostname.toLowerCase();
+      const isInternalPreview =
+        host.includes('run.app') ||
+        host.includes('replit') ||
+        host.includes('localhost') ||
+        host.includes('127.0.0.1') ||
+        host.includes('aistudio');
+      const cleanHost = isInternalPreview ? 'lookprice.net' : parsed.host;
+      return `${cleanHost}${parsed.pathname === '/' ? '' : parsed.pathname}`;
+    } catch {
+      return rawUrl.replace(/^https?:\/\//i, '');
+    }
+  };
+
+  // Helper for Canvas text wrapping with strict line count and width clamping
   const wrapCanvasText = (
     ctx: CanvasRenderingContext2D,
     text: string,
@@ -830,29 +869,29 @@ Kurumsal Web: https://lookprice.net`;
     lineHeight: number,
     maxLines = 4
   ): number => {
-    const words = text.split(' ');
+    const words = text.trim().split(/\s+/);
     let line = '';
     let currentY = y;
     let linesDrawn = 0;
 
     for (let n = 0; n < words.length; n++) {
-      const testLine = line + words[n] + ' ';
+      const testLine = line ? `${line} ${words[n]}` : words[n];
       const metrics = ctx.measureText(testLine);
-      if (metrics.width > maxWidth && n > 0) {
+      if (metrics.width > maxWidth && line) {
         linesDrawn++;
         if (linesDrawn >= maxLines) {
-          ctx.fillText(line.trim() + '...', x, currentY);
+          drawClampedText(ctx, `${line}...`, x, currentY, maxWidth);
           return currentY + lineHeight;
         }
-        ctx.fillText(line.trim(), x, currentY);
-        line = words[n] + ' ';
+        drawClampedText(ctx, line, x, currentY, maxWidth);
+        line = words[n];
         currentY += lineHeight;
       } else {
         line = testLine;
       }
     }
-    if (line.trim()) {
-      ctx.fillText(line.trim(), x, currentY);
+    if (line) {
+      drawClampedText(ctx, line, x, currentY, maxWidth);
       currentY += lineHeight;
     }
     return currentY;
@@ -875,7 +914,7 @@ Kurumsal Web: https://lookprice.net`;
     ctx.closePath();
   };
 
-  // High-Resolution 1080x1350 Executive Corporate Brochure PNG Generator (Aligned with lookprice.net theme, Zero Emojis)
+  // High-Resolution 1080x1350 Executive Corporate Brochure PNG Generator (Aligned with lookprice.net theme, Zero Emojis, Zero Overlap)
   const handleDownloadBrochurePng = async () => {
     setIsGeneratingPng(true);
     try {
@@ -886,7 +925,7 @@ Kurumsal Web: https://lookprice.net`;
       if (!ctx) return;
 
       const cfg = SECTOR_CONFIGS[selectedSector];
-      const cleanBiz = businessName.trim();
+      const cleanBiz = businessName.trim() || 'DEĞERLİ İŞLETMEMİZ';
 
       // 1. Deep Obsidian Slate Background (lookprice.net aesthetic)
       const bgGrad = ctx.createLinearGradient(0, 0, 1080, 1350);
@@ -897,7 +936,7 @@ Kurumsal Web: https://lookprice.net`;
       ctx.fillRect(0, 0, 1080, 1350);
 
       // Subtle architectural grid lines
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.05)';
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.04)';
       ctx.lineWidth = 1;
       for (let gx = 60; gx < 1080; gx += 120) {
         ctx.beginPath();
@@ -920,68 +959,81 @@ Kurumsal Web: https://lookprice.net`;
       ctx.fillStyle = topBarGrad;
       ctx.fillRect(0, 0, 1080, 8);
 
-      // 2. Top Header Bar (y: 44)
+      // 2. Top Header Bar — Two-column isolated layout (Left: Brand + Sector, Right: Target Company Box)
+      ctx.textAlign = 'left';
       ctx.fillStyle = '#ffffff';
-      ctx.font = '800 28px Inter, system-ui, sans-serif';
-      ctx.fillText('LOOKPRICE', 60, 72);
+      ctx.font = '800 26px Inter, system-ui, sans-serif';
+      ctx.fillText('LOOKPRICE', 60, 52);
+      const lpWidth = ctx.measureText('LOOKPRICE').width;
 
       ctx.fillStyle = '#38bdf8';
-      ctx.font = '700 28px Inter, system-ui, sans-serif';
-      ctx.fillText('.NET', 228, 72);
+      ctx.font = '800 26px Inter, system-ui, sans-serif';
+      ctx.fillText('.NET', 60 + lpWidth + 2, 52);
 
+      // Sector sub-label placed cleanly on second line under LOOKPRICE.NET (max width 520px)
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '500 15px Inter, system-ui, sans-serif';
-      ctx.fillText(`|   ${cfg.productBrand.toUpperCase()}`, 305, 70);
+      ctx.font = '600 13px Inter, system-ui, sans-serif';
+      drawClampedText(ctx, cfg.productBrand.toUpperCase(), 60, 76, 520);
 
-      // Right-aligned target company reference (clean, corporate, no stars/emojis)
-      if (cleanBiz) {
-        ctx.textAlign = 'right';
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = '600 15px Inter, system-ui, sans-serif';
-        ctx.fillText(`KURUMSAL SUNUM DOSYASI: ${cleanBiz.toUpperCase()}`, 1020, 70);
-        ctx.textAlign = 'left';
-      }
+      // Right-aligned target company reference inside a dedicated executive badge box (x: 600..1020)
+      drawRoundRect(ctx, 600, 24, 420, 62, 10);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(51, 65, 85, 0.9)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '700 11px Inter, system-ui, sans-serif';
+      ctx.fillText('KURUMSAL SUNUM DOSYASI', 1002, 46);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '700 15px Inter, system-ui, sans-serif';
+      drawClampedText(ctx, cleanBiz.toUpperCase(), 1002, 70, 384);
+      ctx.textAlign = 'left';
 
       // Divider line under header
       ctx.strokeStyle = 'rgba(51, 65, 85, 0.8)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(60, 96);
-      ctx.lineTo(1020, 96);
+      ctx.moveTo(60, 102);
+      ctx.lineTo(1020, 102);
       ctx.stroke();
 
       // 3. Stage 1: Hero Hook ("Kurumsal Web Siteniz Hazır")
       ctx.fillStyle = '#38bdf8';
-      ctx.font = '700 14px Inter, system-ui, sans-serif';
-      ctx.fillText(cfg.heroKicker.toUpperCase(), 60, 134);
+      ctx.font = '700 13px Inter, system-ui, sans-serif';
+      drawClampedText(ctx, cfg.heroKicker.toUpperCase(), 60, 132, 960);
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = '800 36px Inter, system-ui, sans-serif';
+      ctx.font = '800 31px Inter, system-ui, sans-serif';
       const afterHeadlineY = wrapCanvasText(
         ctx,
         cfg.heroHeadline,
         60,
-        178,
+        168,
         960,
-        44,
+        38,
         2
       );
 
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '400 18px Inter, system-ui, sans-serif';
-      const afterSubY = wrapCanvasText(
+      ctx.font = '400 16.5px Inter, system-ui, sans-serif';
+      wrapCanvasText(
         ctx,
         cfg.heroSubheadline,
         60,
-        afterHeadlineY + 8,
+        afterHeadlineY + 4,
         960,
-        26,
+        24,
         2
       );
 
-      // 4. Stage 2: "Web Sitenizi Nasıl Kişiselleştirirsiniz?" 3-Column Strip
-      const custSectionY = Math.max(afterSubY + 18, 290);
-      drawRoundRect(ctx, 60, custSectionY, 960, 210, 14);
+      // 4. Stage 2: "Web Sitenizi Nasıl Kişiselleştirirsiniz?" 3-Column Strip (Fixed Y: 308..506)
+      const custSectionY = 308;
+      const custBoxH = 198;
+      drawRoundRect(ctx, 60, custSectionY, 960, custBoxH, 14);
       ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
       ctx.fill();
       ctx.strokeStyle = 'rgba(37, 99, 235, 0.45)';
@@ -990,13 +1042,19 @@ Kurumsal Web: https://lookprice.net`;
 
       // Section Header inside Customization Box
       ctx.fillStyle = '#60a5fa';
-      ctx.font = '700 13px Inter, system-ui, sans-serif';
-      ctx.fillText('KENDİ YÖNETİM PANELİNİZDEN DAKİKALAR İÇİNDE KİŞİSELLEŞTİRME ADIMLARI', 84, custSectionY + 30);
+      ctx.font = '700 12.5px Inter, system-ui, sans-serif';
+      drawClampedText(
+        ctx,
+        'KENDİ YÖNETİM PANELİNİZDEN DAKİKALAR İÇİNDE KİŞİSELLEŞTİRME ADIMLARI',
+        84,
+        custSectionY + 26,
+        912
+      );
 
       const colW = 296;
       cfg.customizationSteps.forEach((step, idx) => {
         const colX = 84 + idx * (colW + 14);
-        const stepTop = custSectionY + 48;
+        const stepTop = custSectionY + 42;
 
         // Vertical divider between columns
         if (idx > 0) {
@@ -1004,69 +1062,69 @@ Kurumsal Web: https://lookprice.net`;
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(colX - 8, stepTop);
-          ctx.lineTo(colX - 8, custSectionY + 190);
+          ctx.lineTo(colX - 8, custSectionY + custBoxH - 16);
           ctx.stroke();
         }
 
-        // Step number badge
-        drawRoundRect(ctx, colX, stepTop, 36, 24, 6);
-        ctx.fillStyle = 'rgba(37, 99, 235, 0.2)';
+        // Step number badge next to title
+        drawRoundRect(ctx, colX, stepTop, 32, 22, 6);
+        ctx.fillStyle = 'rgba(37, 99, 235, 0.22)';
         ctx.fill();
         ctx.fillStyle = '#60a5fa';
-        ctx.font = '700 13px Inter, system-ui, sans-serif';
-        ctx.fillText(step.stepNumber, colX + 10, stepTop + 17);
+        ctx.font = '700 12px Inter, system-ui, sans-serif';
+        ctx.fillText(step.stepNumber, colX + 8, stepTop + 15);
 
-        // Step title
+        // Step title (2 lines max, beside/aligned with badge)
         ctx.fillStyle = '#f8fafc';
-        ctx.font = '700 16px Inter, system-ui, sans-serif';
-        const afterStepTitleY = wrapCanvasText(
+        ctx.font = '700 15px Inter, system-ui, sans-serif';
+        wrapCanvasText(
           ctx,
           step.title,
-          colX,
-          stepTop + 46,
-          colW - 10,
-          21,
+          colX + 40,
+          stepTop + 15,
+          colW - 48,
+          19,
           2
         );
 
-        // Step desc
+        // Step desc (starts cleanly below the 2-line title zone)
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '400 13.5px Inter, system-ui, sans-serif';
+        ctx.font = '400 13px Inter, system-ui, sans-serif';
         wrapCanvasText(
           ctx,
           step.desc,
           colX,
-          afterStepTitleY + 4,
+          stepTop + 54,
           colW - 10,
-          19,
+          18.5,
           4
         );
       });
 
       // 5. Stage 3: The Big Picture Header ("Web Sitenizin Arkasındaki Bulut Gücü")
-      const bigPicHeaderY = custSectionY + 244;
+      const bigPicHeaderY = 534;
       ctx.fillStyle = '#38bdf8';
-      ctx.font = '700 13px Inter, system-ui, sans-serif';
-      ctx.fillText('SADECE WEB SİTESİ DEĞİL — BÜYÜK RESMİ KEŞFEDİN', 60, bigPicHeaderY);
+      ctx.font = '700 12.5px Inter, system-ui, sans-serif';
+      drawClampedText(ctx, 'SADECE WEB SİTESİ DEĞİL — BÜYÜK RESMİ KEŞFEDİN', 60, bigPicHeaderY, 960);
 
       ctx.fillStyle = '#f8fafc';
-      ctx.font = '700 21px Inter, system-ui, sans-serif';
-      const afterLeadY = wrapCanvasText(
+      ctx.font = '700 18.5px Inter, system-ui, sans-serif';
+      wrapCanvasText(
         ctx,
         cfg.sweetenerLead,
         60,
-        bigPicHeaderY + 28,
+        bigPicHeaderY + 26,
         960,
-        28,
+        25,
         2
       );
 
-      // 6. 6 Value Pillar Cards (2 columns x 3 rows)
-      const gridStartY = afterLeadY + 14;
+      // 6. 6 Value Pillar Cards (2 columns x 3 rows, Y: 614..1098)
+      const gridStartY = 614;
       const cardW = 470;
-      const cardH = 148;
+      const cardH = 152;
       const gapX = 20;
-      const gapY = 16;
+      const gapY = 14;
 
       cfg.valuePillars.slice(0, 6).forEach((pillar, idx) => {
         const col = idx % 2;
@@ -1086,81 +1144,123 @@ Kurumsal Web: https://lookprice.net`;
         ctx.fillStyle = '#2563eb';
         ctx.fill();
 
-        // Number tag
+        // Number badge pill
+        drawRoundRect(ctx, cx + 18, cy + 16, 30, 22, 5);
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+        ctx.fill();
         ctx.fillStyle = '#38bdf8';
-        ctx.font = '700 13px Inter, system-ui, sans-serif';
-        ctx.fillText(pillar.code, cx + 22, cy + 30);
+        ctx.font = '700 12px Inter, system-ui, sans-serif';
+        ctx.fillText(pillar.code, cx + 25, cy + 31);
 
-        // Pillar Title
+        // Pillar Title (2 lines max, strictly bounded)
         ctx.fillStyle = '#ffffff';
-        ctx.font = '700 17px Inter, system-ui, sans-serif';
-        const afterPillarTitleY = wrapCanvasText(
+        ctx.font = '700 15.5px Inter, system-ui, sans-serif';
+        wrapCanvasText(
           ctx,
           pillar.title,
-          cx + 50,
-          cy + 30,
-          cardW - 68,
-          22,
+          cx + 56,
+          cy + 31,
+          cardW - 72,
+          20,
           2
         );
 
-        // Pillar Description
+        // Pillar Description (starts at fixed offset cy + 74 so it never overlaps 2-line title)
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '400 14px Inter, system-ui, sans-serif';
+        ctx.font = '400 13.5px Inter, system-ui, sans-serif';
         wrapCanvasText(
           ctx,
           pillar.desc,
-          cx + 22,
-          Math.max(afterPillarTitleY + 6, cy + 58),
-          cardW - 40,
-          20,
+          cx + 18,
+          cy + 74,
+          cardW - 34,
+          19,
           4
         );
       });
 
-      // 7. Bottom Footer: Live Demo Links & Contact Credentials
-      const footerY = 1145;
-      drawRoundRect(ctx, 60, footerY, 960, 155, 14);
+      // 7. Bottom Footer: Live Demo Links & Contact Credentials (Y: 1122..1302)
+      const footerY = 1122;
+      const footerH = 178;
+      drawRoundRect(ctx, 60, footerY, 960, footerH, 14);
       ctx.fillStyle = '#090d16';
       ctx.fill();
       ctx.strokeStyle = 'rgba(37, 99, 235, 0.4)';
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
+      const displayWebUrl = formatBrochureDisplayUrl(customWebDemoUrl);
+      const displaySectorUrl = formatBrochureDisplayUrl(customSectorDemoUrl);
+      const displayLoginUrl = formatBrochureDisplayUrl(`${baseOrigin}/login`);
+      const leftFooterMaxW = 600;
+
+      ctx.textAlign = 'left';
       ctx.fillStyle = '#38bdf8';
-      ctx.font = '700 13px Inter, system-ui, sans-serif';
-      ctx.fillText('CANLI VİTRİN VE YÖNETİM PANELİ TEST BAĞLANTILARI', 86, footerY + 32);
+      ctx.font = '700 12px Inter, system-ui, sans-serif';
+      drawClampedText(
+        ctx,
+        'CANLI VİTRİN VE YÖNETİM PANELİ TEST BAĞLANTILARI',
+        84,
+        footerY + 30,
+        leftFooterMaxW
+      );
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = '600 15.5px Inter, system-ui, sans-serif';
-      ctx.fillText(`Kurumsal Web Vitrini:  ${customWebDemoUrl}`, 86, footerY + 62);
-      ctx.fillText(`${cfg.shortLabel} Vitrini:  ${customSectorDemoUrl}`, 86, footerY + 90);
+      ctx.font = '600 14.5px Inter, system-ui, sans-serif';
+      drawClampedText(ctx, `Kurumsal Web Vitrini:  ${displayWebUrl}`, 84, footerY + 58, leftFooterMaxW);
+      drawClampedText(ctx, `${cfg.shortLabel} Vitrini:  ${displaySectorUrl}`, 84, footerY + 84, leftFooterMaxW);
 
       if (includeCredentials) {
         ctx.fillStyle = '#93c5fd';
-        ctx.font = '500 14.5px Inter, system-ui, sans-serif';
-        ctx.fillText(
-          `Yönetim Paneli Girişi (${baseOrigin}/login)   |   Kullanıcı: ${demoLoginEmail}   |   Şifre: ${demoLoginPass}`,
-          86,
-          footerY + 122
+        ctx.font = '500 13.5px Inter, system-ui, sans-serif';
+        drawClampedText(
+          ctx,
+          `Yönetim Paneli Girişi: ${displayLoginUrl}`,
+          84,
+          footerY + 116,
+          leftFooterMaxW
+        );
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '700 14px Inter, system-ui, sans-serif';
+        drawClampedText(
+          ctx,
+          `Kullanıcı E-Posta: ${demoLoginEmail}   |   Şifre: ${demoLoginPass}`,
+          84,
+          footerY + 142,
+          leftFooterMaxW
         );
       } else {
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '500 14.5px Inter, system-ui, sans-serif';
-        ctx.fillText(cfg.brochureTagline, 86, footerY + 122);
+        ctx.font = '500 13.5px Inter, system-ui, sans-serif';
+        wrapCanvasText(ctx, cfg.brochureTagline, 84, footerY + 118, leftFooterMaxW, 20, 2);
       }
 
-      // Right side contact box inside footer
+      // Vertical separator between links and contact column
+      ctx.strokeStyle = 'rgba(51, 65, 85, 0.8)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(706, footerY + 22);
+      ctx.lineTo(706, footerY + footerH - 22);
+      ctx.stroke();
+
+      // Right side contact box inside footer (strictly bounded to 272px width)
+      const rightFooterMaxW = 272;
       ctx.textAlign = 'right';
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '700 16px Inter, system-ui, sans-serif';
-      ctx.fillText(senderName, 994, footerY + 62);
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = '700 18px Inter, system-ui, sans-serif';
-      ctx.fillText(senderPhone, 994, footerY + 90);
       ctx.fillStyle = '#64748b';
-      ctx.font = '500 13px Inter, system-ui, sans-serif';
-      ctx.fillText('www.lookprice.net', 994, footerY + 122);
+      ctx.font = '700 11px Inter, system-ui, sans-serif';
+      ctx.fillText('KURUMSAL İLETİŞİM', 996, footerY + 42);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 15.5px Inter, system-ui, sans-serif';
+      drawClampedText(ctx, senderName, 996, footerY + 74, rightFooterMaxW);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '800 18px Inter, system-ui, sans-serif';
+      drawClampedText(ctx, senderPhone, 996, footerY + 106, rightFooterMaxW);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '600 13.5px Inter, system-ui, sans-serif';
+      drawClampedText(ctx, 'www.lookprice.net', 996, footerY + 138, rightFooterMaxW);
       ctx.textAlign = 'left';
 
       const dataUrl = canvas.toDataURL('image/png', 1.0);
@@ -1174,10 +1274,13 @@ Kurumsal Web: https://lookprice.net`;
     }
   };
 
-  // A4 Executive Print Brochure (Zero external CDN, pure inline CSS, lookprice.net aesthetic, zero emojis)
+  // A4 Executive Print Brochure (Zero external CDN, pure inline CSS, lookprice.net aesthetic, zero emojis, zero overlap)
   const handlePrintA4Brochure = () => {
     const cfg = SECTOR_CONFIGS[selectedSector];
     const cleanBiz = businessName.trim() || 'Değerli İşletmemiz';
+    const displayWebUrl = formatBrochureDisplayUrl(customWebDemoUrl);
+    const displaySectorUrl = formatBrochureDisplayUrl(customSectorDemoUrl);
+    const displayLoginUrl = formatBrochureDisplayUrl(`${baseOrigin}/login`);
     const printWin = window.open('', '_blank', 'width=960,height=1080');
     if (!printWin) return;
 
@@ -1234,32 +1337,58 @@ Kurumsal Web: https://lookprice.net`;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 6mm;
       border-bottom: 1px solid #1e293b;
-      padding-bottom: 4mm;
+      padding-bottom: 3.5mm;
+    }
+    .brand-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1mm;
+      max-width: 58%;
     }
     .brand {
       font-size: 16pt;
       font-weight: 800;
       letter-spacing: -0.5px;
       color: #ffffff;
+      line-height: 1.1;
     }
     .brand span { color: #38bdf8; }
     .brand-sub {
-      font-size: 8.5pt;
+      font-size: 8.2pt;
       font-weight: 600;
       color: #94a3b8;
-      margin-left: 8px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .target-badge {
-      font-size: 8.5pt;
-      font-weight: 600;
-      color: #cbd5e1;
+      max-width: 40%;
+      text-align: right;
       background: #0f172a;
       border: 1px solid #334155;
-      padding: 4px 10px;
+      padding: 2.2mm 3.5mm;
       border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .target-kicker {
+      font-size: 6.8pt;
+      font-weight: 700;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.8mm;
+    }
+    .target-name {
+      font-size: 9pt;
+      font-weight: 700;
+      color: #f8fafc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .hero-block {
       margin-top: 4mm;
@@ -1273,15 +1402,15 @@ Kurumsal Web: https://lookprice.net`;
       margin-bottom: 2mm;
     }
     .headline {
-      font-size: 18pt;
+      font-size: 17.5pt;
       font-weight: 800;
       line-height: 1.22;
       color: #ffffff;
       letter-spacing: -0.4px;
-      margin-bottom: 2.5mm;
+      margin-bottom: 2.2mm;
     }
     .subheadline {
-      font-size: 9.8pt;
+      font-size: 9.5pt;
       line-height: 1.45;
       color: #94a3b8;
     }
@@ -1289,8 +1418,8 @@ Kurumsal Web: https://lookprice.net`;
       background: #0f172a;
       border: 1px solid #1d4ed8;
       border-radius: 8px;
-      padding: 4.5mm;
-      margin-top: 4mm;
+      padding: 4.2mm;
+      margin-top: 3.8mm;
     }
     .cust-header {
       font-size: 8pt;
@@ -1298,7 +1427,7 @@ Kurumsal Web: https://lookprice.net`;
       color: #60a5fa;
       letter-spacing: 0.8px;
       text-transform: uppercase;
-      margin-bottom: 3mm;
+      margin-bottom: 2.8mm;
     }
     .cust-grid {
       display: grid;
@@ -1316,19 +1445,19 @@ Kurumsal Web: https://lookprice.net`;
       margin-bottom: 1mm;
     }
     .cust-title {
-      font-size: 9.5pt;
+      font-size: 9.2pt;
       font-weight: 700;
       color: #ffffff;
       line-height: 1.25;
-      margin-bottom: 1.5mm;
+      margin-bottom: 1.2mm;
     }
     .cust-desc {
-      font-size: 8pt;
-      line-height: 1.4;
+      font-size: 7.9pt;
+      line-height: 1.38;
       color: #94a3b8;
     }
     .big-picture-header {
-      margin-top: 4.5mm;
+      margin-top: 4mm;
     }
     .big-picture-kicker {
       font-size: 8pt;
@@ -1339,7 +1468,7 @@ Kurumsal Web: https://lookprice.net`;
       margin-bottom: 1mm;
     }
     .big-picture-lead {
-      font-size: 10pt;
+      font-size: 9.8pt;
       font-weight: 600;
       color: #e2e8f0;
       line-height: 1.38;
@@ -1347,51 +1476,56 @@ Kurumsal Web: https://lookprice.net`;
     .pillars-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 3.5mm;
-      margin-top: 3.5mm;
+      gap: 3.2mm;
+      margin-top: 3.2mm;
     }
     .pillar-card {
       background: #0f172a;
       border: 1px solid #1e293b;
       border-left: 3px solid #2563eb;
       border-radius: 6px;
-      padding: 3.5mm 4mm;
+      padding: 3.2mm 3.8mm;
     }
     .pillar-top {
       display: flex;
       align-items: baseline;
       gap: 6px;
-      margin-bottom: 1.5mm;
+      margin-bottom: 1.2mm;
     }
     .pillar-code {
       font-size: 8.5pt;
       font-weight: 800;
       color: #38bdf8;
+      flex-shrink: 0;
     }
     .pillar-title {
-      font-size: 9.8pt;
+      font-size: 9.5pt;
       font-weight: 700;
       color: #ffffff;
+      line-height: 1.25;
     }
     .pillar-desc {
-      font-size: 8.2pt;
-      line-height: 1.42;
+      font-size: 8pt;
+      line-height: 1.4;
       color: #94a3b8;
     }
     .footer-box {
       background: #090d16;
       border: 1px solid #1e293b;
       border-radius: 8px;
-      padding: 4mm 5mm;
+      padding: 3.8mm 4.8mm;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: 4mm;
+      gap: 5mm;
+      margin-top: 3.5mm;
     }
     .footer-links {
       display: flex;
       flex-direction: column;
-      gap: 1.5mm;
+      gap: 1.2mm;
+      max-width: 65%;
+      overflow: hidden;
     }
     .footer-label {
       font-size: 7.5pt;
@@ -1401,32 +1535,40 @@ Kurumsal Web: https://lookprice.net`;
       letter-spacing: 0.6px;
     }
     .footer-url {
-      font-size: 8.8pt;
+      font-size: 8.5pt;
       font-weight: 600;
       color: #f8fafc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .footer-cred {
-      font-size: 8pt;
+      font-size: 7.8pt;
       color: #93c5fd;
-      margin-top: 1mm;
+      margin-top: 0.8mm;
+      line-height: 1.35;
     }
     .footer-contact {
       text-align: right;
+      border-left: 1px solid #1e293b;
+      padding-left: 4.5mm;
+      flex-shrink: 0;
+      max-width: 33%;
     }
     .footer-sender {
-      font-size: 9.5pt;
+      font-size: 9pt;
       font-weight: 700;
       color: #ffffff;
     }
     .footer-phone {
-      font-size: 11pt;
+      font-size: 10.5pt;
       font-weight: 800;
       color: #38bdf8;
       margin-top: 1mm;
     }
     .footer-domain {
-      font-size: 8pt;
-      color: #64748b;
+      font-size: 7.8pt;
+      color: #94a3b8;
       margin-top: 1mm;
     }
   </style>
@@ -1434,11 +1576,14 @@ Kurumsal Web: https://lookprice.net`;
 <body>
   <div>
     <div class="top-bar">
-      <div>
-        <span class="brand">LOOKPRICE<span>.NET</span></span>
-        <span class="brand-sub">${cfg.productBrand}</span>
+      <div class="brand-col">
+        <div class="brand">LOOKPRICE<span>.NET</span></div>
+        <div class="brand-sub">${cfg.productBrand}</div>
       </div>
-      <div class="target-badge">${cleanBiz} (${branchCount > 1 ? `${branchCount} Şubeli Yapı` : 'Kurumsal İşletme'})</div>
+      <div class="target-badge">
+        <div class="target-kicker">KURUMSAL SUNUM DOSYASI</div>
+        <div class="target-name">${cleanBiz}</div>
+      </div>
     </div>
 
     <div class="hero-block">
@@ -1467,11 +1612,11 @@ Kurumsal Web: https://lookprice.net`;
   <div class="footer-box">
     <div class="footer-links">
       <div class="footer-label">Canlı Kurumsal Web &amp; Sektörel Vitrin Bağlantıları</div>
-      <div class="footer-url">Kurumsal Web Vitrini: ${customWebDemoUrl}</div>
-      <div class="footer-url">${cfg.shortLabel} Vitrini: ${customSectorDemoUrl}</div>
+      <div class="footer-url">Kurumsal Web Vitrini: ${displayWebUrl}</div>
+      <div class="footer-url">${cfg.shortLabel} Vitrini: ${displaySectorUrl}</div>
       ${
         includeCredentials
-          ? `<div class="footer-cred">Yönetim Paneli Test Girişi (${baseOrigin}/login) — Kullanıcı: ${demoLoginEmail} | Şifre: ${demoLoginPass}</div>`
+          ? `<div class="footer-cred">Yönetim Paneli Girişi (${displayLoginUrl})<br/>Kullanıcı E-Posta: <strong>${demoLoginEmail}</strong> &nbsp;|&nbsp; Şifre: <strong>${demoLoginPass}</strong></div>`
           : `<div class="footer-cred">${cfg.brochureTagline}</div>`
       }
     </div>

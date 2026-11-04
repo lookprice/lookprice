@@ -110,7 +110,7 @@ export const DashboardSidebar = ({
       </AnimatePresence>
 
       <aside className={`
-        fixed ${!desktopSidebarCollapsed ? 'lg:static' : ''} inset-y-0 left-0 w-64 bg-slate-950 text-slate-400 z-50 transition-transform duration-300 ease-in-out shrink-0 border-r border-slate-800/80 select-none
+        fixed ${!desktopSidebarCollapsed ? 'lg:static' : ''} inset-y-0 left-0 w-64 bg-slate-950 text-slate-400 z-40 lg:z-auto transition-transform duration-300 ease-in-out shrink-0 border-r border-slate-800/80 select-none
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
         ${!desktopSidebarCollapsed && !sidebarOpen ? 'lg:translate-x-0' : ''}
       `}>

@@ -600,7 +600,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   return (
     <APIProvider apiKey={MAP_KEY}>
-      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-4">
       <SEO
         title={`${product.name} | ${store?.name}`}
         description={product.description?.substring(0, 160)}
@@ -612,7 +612,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/40 backdrop-blur-xl animate-in fade-in duration-300"
+        className="fixed inset-0 bg-black/50 backdrop-blur-xl animate-in fade-in duration-300"
       />
 
       {/* Desktop External Floating Prev/Next Buttons */}
@@ -639,8 +639,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </button>
           )}
 
-          {/* Top Floating Segment / Category Switcher (Completely outside modal card - zero overlap with data) */}
-          <div className="fixed top-2.5 sm:top-4 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-1.5 bg-slate-900/95 text-white backdrop-blur-xl px-3 py-1.5 rounded-full shadow-2xl border border-slate-700/80 max-w-[92vw] sm:max-w-md transition-all">
+          {/* Desktop Top Floating Segment Switcher (Hidden on mobile where it is integrated into the modal header bar) */}
+          <div className="hidden md:flex fixed top-4 left-1/2 -translate-x-1/2 z-[80] items-center gap-1.5 bg-slate-900/95 text-white backdrop-blur-xl px-3 py-1.5 rounded-full shadow-2xl border border-slate-700/80 max-w-md transition-all">
             <button
               type="button"
               onClick={() => handleNavigate(prevProduct)}
@@ -657,7 +657,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <span className="opacity-40">/</span>
               <span>{segmentProducts.length}</span>
               {product.category && (
-                <span className="hidden sm:inline text-[10px] font-sans text-slate-300/90 truncate max-w-[130px] ml-1">
+                <span className="text-[10px] font-sans text-slate-300/90 truncate max-w-[130px] ml-1">
                   {product.category}
                 </span>
               )}
@@ -678,23 +678,95 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       )}
 
       <motion.div
-        initial={{ scale: 0.95, opacity: 0, y: 15 }}
+        initial={{ scale: 0.96, opacity: 0, y: 12 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 15 }}
-        className="bg-white w-full max-w-4xl lg:max-w-5xl rounded-none sm:rounded-2xl md:rounded-3xl shadow-2xl relative z-10 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row h-[100dvh] sm:h-auto sm:max-h-[92dvh] md:max-h-[88dvh] border-0 sm:border border-slate-200 mt-0 custom-scrollbar"
+        exit={{ scale: 0.96, opacity: 0, y: 12 }}
+        className="bg-white w-full max-w-4xl lg:max-w-5xl rounded-2xl md:rounded-3xl shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row h-auto max-h-[96dvh] sm:max-h-[92dvh] md:max-h-[88dvh] border border-slate-200 mt-0"
       >
+        {/* Mobile Dedicated Top Control Bar (Keeps share, prev/next & close buttons out of the product image) */}
+        <div className="flex md:hidden items-center justify-between gap-2 px-3 py-2 bg-white border-b border-slate-100 shrink-0 z-30">
+          {/* Left: Share & WhatsApp */}
+          <div className="flex items-center gap-1 bg-slate-50 px-1.5 py-1 rounded-xl border border-slate-200/80">
+            <button
+              onClick={shareProduct}
+              type="button"
+              className="p-1 text-slate-600 hover:text-indigo-600 rounded-md transition-colors cursor-pointer"
+              title={lang === "tr" ? "Paylaş" : "Share"}
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={shareOnWhatsApp}
+              type="button"
+              className="p-1 text-emerald-600 hover:text-emerald-700 rounded-md transition-colors cursor-pointer"
+              title="WhatsApp"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+            </button>
+            <button
+              onClick={copyLink}
+              type="button"
+              className="p-1 text-slate-600 hover:text-slate-900 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+              title={lang === "tr" ? "Linki Kopyala" : "Copy Link"}
+            >
+              {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Link2 className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Center: Prev / Next Product Switcher */}
+          {segmentProducts.length > 1 && (
+            <div className="flex items-center gap-1 bg-slate-900 text-white px-2.5 py-1 rounded-full shadow-sm border border-slate-800">
+              <button
+                type="button"
+                onClick={() => handleNavigate(prevProduct)}
+                disabled={!prevProduct}
+                className="px-1.5 py-0.5 hover:bg-white/15 rounded-full disabled:opacity-25 disabled:pointer-events-none transition-all cursor-pointer flex items-center gap-0.5 text-[11px] font-bold text-white"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span className="text-[10px]">{lang === "tr" ? "Önceki" : "Prev"}</span>
+              </button>
+              <div className="flex items-center gap-1 px-1.5 text-[11px] font-mono text-slate-300 select-none border-x border-white/20">
+                <span className="font-bold text-white">{currentIndex + 1}</span>
+                <span className="opacity-40">/</span>
+                <span>{segmentProducts.length}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleNavigate(nextProduct)}
+                disabled={!nextProduct}
+                className="px-1.5 py-0.5 hover:bg-white/15 rounded-full disabled:opacity-25 disabled:pointer-events-none transition-all cursor-pointer flex items-center gap-0.5 text-[11px] font-bold text-white"
+              >
+                <span className="text-[10px]">{lang === "tr" ? "Sonraki" : "Next"}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Right: Close Button */}
+          <button
+            onClick={onClose}
+            type="button"
+            className="p-2 bg-slate-900 text-white hover:bg-slate-800 rounded-full transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Desktop Close Button */}
         <button
           onClick={onClose}
           type="button"
-          className="absolute top-3 right-3 p-2 bg-slate-900/90 text-white hover:bg-slate-800 rounded-full transition-all z-50 shadow-lg active:scale-95 cursor-pointer"
+          className="hidden md:flex absolute top-3 right-3 p-2 bg-slate-900/90 text-white hover:bg-slate-800 rounded-full transition-all z-50 shadow-lg active:scale-95 cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
 
-        {/* Product Image Column */}
-        <div className="w-full md:w-[46%] lg:w-[48%] shrink-0 h-[270px] sm:h-[340px] md:h-auto md:min-h-[460px] bg-slate-50/70 flex flex-col relative border-b md:border-b-0 md:border-r border-slate-200 transition-all duration-500 overflow-hidden justify-between items-center">
-          {/* Share Buttons Floating Pill */}
-          <div className="absolute top-3 left-3 flex items-center gap-1 z-20 bg-white/90 backdrop-blur-md px-2 py-1 rounded-xl border border-slate-200/80 shadow-xs">
+        {/* Product Image Column — Expanded height & minimal padding on mobile so product images fill the stage */}
+        <div className="w-full md:w-[46%] lg:w-[48%] shrink-0 h-[44dvh] min-h-[330px] max-h-[430px] sm:h-[400px] md:h-auto md:max-h-none md:min-h-[460px] bg-slate-50/60 flex flex-col relative border-b md:border-b-0 md:border-r border-slate-200 transition-all duration-500 overflow-hidden justify-between items-center">
+          {/* Desktop Share Buttons Floating Pill */}
+          <div className="hidden md:flex absolute top-3 left-3 items-center gap-1 z-20 bg-white/90 backdrop-blur-md px-2 py-1 rounded-xl border border-slate-200/80 shadow-xs">
             <button
               onClick={shareProduct}
               type="button"
@@ -730,7 +802,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
           {/* View Mode Switcher */}
           {(product.type === "real_estate" || product.type === "vehicle" || store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") && (
-            <div className="absolute top-3 right-12 z-30 transition-all duration-500">
+            <div className="absolute top-2.5 right-2.5 md:top-3 md:right-12 z-30 transition-all duration-500">
               <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-slate-800 flex gap-1 shadow-lg">
                 <button
                   type="button"
@@ -759,10 +831,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               lang={lang} 
             />
           ) : productImages.length > 0 ? (
-            <div className="w-full h-full flex-1 min-h-0 flex flex-col justify-between bg-slate-50/70 relative p-2.5 sm:p-3.5 overflow-hidden">
-              {/* Main Viewport Box - Strictly bounded so images never overflow their frame */}
+            <div className="w-full h-full flex-1 min-h-0 flex flex-col justify-between bg-slate-50/70 relative p-1.5 sm:p-3 overflow-hidden">
+              {/* Main Viewport Box - Maximized visual area on mobile */}
               <div
-                className="flex-1 w-full min-h-0 relative flex items-center justify-center group/gallery cursor-zoom-in overflow-hidden rounded-xl bg-white border border-slate-200/70 p-2 shadow-2xs"
+                className="flex-1 w-full min-h-0 relative flex items-center justify-center group/gallery cursor-zoom-in overflow-hidden rounded-xl bg-white border border-slate-200/70 p-1 sm:p-2 shadow-2xs"
                 onClick={() => setIsLightboxOpen(true)}
                 title={
                   lang === "tr" ? "Büyütmek için tıklayın" : "Click to enlarge"
@@ -858,13 +930,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Thumbnails list below inside normal frame */}
               {productImages.length > 1 && (
-                <div className="flex gap-1.5 justify-start sm:justify-center items-center pt-2 px-1 overflow-x-auto no-scrollbar scrollbar-none scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-full z-10 shrink-0">
+                <div className="flex gap-1.5 justify-start sm:justify-center items-center pt-1.5 px-0.5 overflow-x-auto no-scrollbar scrollbar-none scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-full z-10 shrink-0">
                   {productImages.map((img, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setActiveImageIdx(idx)}
-                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg overflow-hidden border-2 bg-white transition-all flex-shrink-0 cursor-pointer p-0.5 ${activeImageIdx === idx ? "border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs" : "border-slate-200 hover:border-slate-400 opacity-75 hover:opacity-100"}`}
+                      className={`w-11 h-11 sm:w-12 sm:h-12 rounded-lg overflow-hidden border-2 bg-white transition-all flex-shrink-0 cursor-pointer p-0.5 ${activeImageIdx === idx ? "border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs" : "border-slate-200 hover:border-slate-400 opacity-75 hover:opacity-100"}`}
                     >
                       <img
                         src={getAnnotatedImageUrl(img)}
@@ -901,10 +973,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           )}
         </div>
 
-        {/* Product Details Column */}
-        <div className="w-full md:w-[54%] lg:w-[52%] flex flex-col min-h-0 h-full max-h-none md:max-h-[88dvh] bg-white">
+        {/* Product Details Column — Hugs content on mobile without dead empty space */}
+        <div className="w-full md:w-[54%] lg:w-[52%] flex flex-col flex-1 min-h-0 md:max-h-[88dvh] bg-white overflow-hidden">
           {/* Scrollable Content Pane */}
-          <div className="flex-1 min-h-0 p-3.5 sm:p-4 md:p-5 overflow-y-auto no-scrollbar space-y-2.5 pb-24 sm:pb-5">
+          <div className="flex-1 min-h-0 p-3.5 sm:p-4 md:p-5 overflow-y-auto no-scrollbar space-y-2.5">
             {/* Metadata Badges (Category, Author, Publisher, Brand, Stock) */}
             {(() => {
               // Strict sectoral isolation: Books / Authors / Publishers ONLY exist if the store itself is a bookstore
@@ -1431,11 +1503,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
 
           {/* Sticky Bottom Action Bar (Branch Selector & Buy / Add-to-Cart) */}
-          <div className="p-3 sm:p-3.5 bg-slate-50/90 backdrop-blur-md border-t border-slate-200/80 shrink-0 z-20">
+          <div className="p-3 sm:p-3.5 bg-slate-50/95 backdrop-blur-md border-t border-slate-200/80 shrink-0 z-20">
             {store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" ||
             product.type === "vehicle" ||
             product.type === "real_estate" ? (
               <div className="flex items-center gap-2">
+                {store?.phone && (
+                  <button
+                    onClick={() => {
+                      window.open(`tel:${store.phone.replace(/[^0-9+]/g, "")}`, "_self");
+                    }}
+                    type="button"
+                    className="h-10 sm:h-11 px-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer shrink-0"
+                  >
+                    <span className="truncate">{lang === "tr" ? "Randevu Al" : "Book Info"}</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     if (waPhone) {
@@ -1600,38 +1684,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             )}
           </div>
         </div>
-
-        {/* Mobile Sticky Contact Bar */}
-        {(store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" || product.type === "vehicle" || product.type === "real_estate") && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-50 flex gap-3 pb-safe">
-            <button
-              onClick={() => {
-                const phone = store?.phone;
-                if (phone) {
-                  window.open(`tel:${phone.replace(/[^0-9+]/g, "")}`, "_self");
-                }
-              }}
-              className="flex-1 py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 shadow-lg"
-            >
-              {lang === "tr" ? "Randevu Al" : "Book Info"}
-            </button>
-            <button
-              onClick={() => {
-                if (waPhone) {
-                  const message = lang === "tr"
-                    ? `Merhaba, #${product.id} portföy numaralı ${product.name} ilanı hakkında bilgi almak istiyorum.`
-                    : `Hello, I would like to inquire about listing #${product.id} - ${product.name}.`;
-                  window.open(`https://wa.me/${waPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`, "_blank");
-                }
-              }}
-              className="flex-[1.5] py-3.5 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 shadow-lg"
-              style={{ backgroundColor: "#25D366" }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></svg>
-              {lang === "tr" ? "Hızlı İletişim" : "WhatsApp"}
-            </button>
-          </div>
-        )}
       </motion.div>
 
       {/* Lightbox / Fullscreen Image Viewer Modal Overlay */}
