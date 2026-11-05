@@ -16,6 +16,8 @@ export interface PortfolioTransaction {
   payment_method?: string;
   reference_no?: string;
   contact_name?: string;
+  account_id?: number | null;
+  account_name?: string | null;
   created_at?: string;
   updated_at?: string;
 }

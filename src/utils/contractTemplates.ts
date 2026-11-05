@@ -21,6 +21,8 @@ export interface ContractPlaceholderValues {
   isSigned?: boolean;
   signingName?: string;
   signatureImage?: string;
+  isFurnishedRental?: boolean;
+  fixturePhotosCount?: number;
 }
 
 export function renderSignatureOrStamp(clientName: string, isSigned?: boolean, signatureImage?: string): string {
@@ -538,6 +540,21 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     </tr>
   </table>
 
+  ${v.isFurnishedRental ? `
+  <div style="margin: 20px 0; padding: 14px 18px; border: 2px solid #0284c7; border-radius: 8px; background-color: #f0f9ff;">
+    <div style="font-weight: 800; font-size: 13px; color: #0369a1; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between;">
+      <span>🔒 EŞYALI KİRALAMA & DEMİRBAŞ TESPİT / RESİM ONAYI</span>
+      ${v.fixturePhotosCount ? `<span style="font-size: 11px; background-color: #bae6fd; color: #0369a1; padding: 2px 8px; border-radius: 6px; font-weight: bold;">${v.fixturePhotosCount} Adet Demirbaş Fotoğrafı Kayıtlı</span>` : ''}
+    </div>
+    <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 6px 0; line-height: 1.5; font-style: italic; background: #ffffff; padding: 10px 14px; border-left: 4px solid #0284c7; border-radius: 4px;">
+      "Mülk'ü kiralarken içerisinde bulunan Eşya / demirbaşları inceledim, gördüm. Eşyalara ait resimleri de inceledim, gördüm. Onaylıyorum. kabulümdür."
+    </div>
+    <div style="font-size: 11px; color: #475569; margin-top: 4px;">
+      Kiracı; mülkte bulunan tüm mobilya, beyaz eşya ve demirbaşların zaman damgalı fotoğraflarını incelemiş, sağlam ve eksiksiz olduğunu teyit ederek sözleşme ekini onaylamıştır.
+    </div>
+  </div>
+  ` : ''}
+
   <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">SÖZLEŞME ŞARTLARI (TR)</h3>
   <ol style="font-size: 12px; color: #334155; padding-left: 20px; text-align: justify; margin-bottom: 25px;">
     <li><strong>Kira Süresi:</strong> Kira sözleşmesi aksi belirtilmedikçe <strong>${v.rentDuration || "1 (Bir) yıl"}</strong> sürelidir. Süre sonunda taraflar fesih bildiriminde bulunmazsa sözleşme aynı şartlarla birer yıl uzar.</li>
@@ -545,6 +562,7 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     <li><strong>Depozito:</strong> Kiracı, mülke gelebilecek zararlara karşılık <strong>${formatDepositWithWords(v.depositAmount || "1 Aylık Kira Bedeli")}</strong> tutarında depozitoyu başlangıçta ödemiştir.</li>
     <li><strong>Kullanım Amacı:</strong> Taşınmaz sadece konut/işyeri amacıyla kullanılabilir, alt kiralama yapılamaz.</li>
     <li><strong>Demirbaşlar:</strong> Kiracı, mülkü teslim aldığı andaki demirbaşları korumakla ve sözleşme sonunda eksiksiz teslim etmekle yükümlüdür.</li>
+    ${v.isFurnishedRental ? `<li><strong>Eşya ve Demirbaş Beyanı:</strong> Kiracı; <em>"Mülk'ü kiralarken içerisinde bulunan Eşya / demirbaşları inceledim, gördüm. Eşyalara ait resimleri de inceledim, gördüm. Onaylıyorum. kabulümdür."</em> beyanını gayrikabili rücu kabul ve taahhüt etmiştir.</li>` : ''}
   </ol>
 
   <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">LEASE TERMS (EN)</h3>
@@ -554,6 +572,7 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     <li><strong>Security Deposit:</strong> The tenant has paid a security deposit of <strong>${formatDepositWithWords(v.depositAmount || "one month's rent")}</strong> for potential property damages.</li>
     <li><strong>Usage Purpose:</strong> The property shall only be used as a residence/office and cannot be sub-leased.</li>
     <li><strong>Fixtures:</strong> The tenant is responsible for protecting all fixtures and returning them in full at the end of the term.</li>
+    ${v.isFurnishedRental ? `<li><strong>Furnished Inventory Acknowledgment:</strong> The tenant expressly confirms: <em>"I have inspected and verified the fixtures/furniture in the property upon leasing. I have also inspected and verified the fixture photos. I approve and accept."</em></li>` : ''}
   </ol>
 
   <div style="margin-top: 40px; display: flex; justify-content: space-between; gap: 40px;">
@@ -575,6 +594,7 @@ Bu sözleşme 6 ay süreyle geçerlidir.
 **Mülk:** ${v.propertyTitle}
 **Kira Bedeli:** ${v.propertyPrice}
 **Tarih:** ${v.contractDate}
+${v.isFurnishedRental ? `\n> **EŞYA VE DEMİRBAŞ ONAYI:** "Mülk'ü kiralarken içerisinde bulunan Eşya / demirbaşları inceledim, gördüm. Eşyalara ait resimleri de inceledim, gördüm. Onaylıyorum. kabulümdür."\n` : ''}
 `;
       return { html, markdown };
     }

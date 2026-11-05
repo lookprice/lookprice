@@ -17,7 +17,8 @@ import {
   Ruler,
   Compass,
   Check,
-  ArrowRight
+  ArrowRight,
+  ShieldAlert
 } from "lucide-react";
 import { toast } from "sonner";
 import { RealEstateViewMode } from "./types";
@@ -35,6 +36,7 @@ interface RealEstateCardProps {
   onEdit: (p: any) => void;
   onDelete: (id: any) => void;
   onViewDocs: (p: any) => void;
+  onOpenFixtureVault?: (p: any) => void;
 }
 
 export const RealEstateCard: React.FC<RealEstateCardProps> = ({
@@ -48,7 +50,8 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
   onGoToPipeline,
   onEdit,
   onDelete,
-  onViewDocs
+  onViewDocs,
+  onOpenFixtureVault
 }) => {
   return (
     <div 
@@ -256,7 +259,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               >
                 <FileSignature className="w-4 h-4" />
               </button>
-              {property.listing_intent !== "rent" && (
+              {property.listing_intent !== "rent" ? (
                 <button
                   onClick={() => onOpenTapu(property)}
                   className="flex items-center justify-center p-2.5 bg-amber-500 text-white hover:bg-amber-600 rounded-xl transition-all shadow active:scale-95 border border-amber-600 shrink-0"
@@ -264,7 +267,20 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                 >
                   <Award className="w-4 h-4" />
                 </button>
-              )}
+              ) : (property.furnished === true || property.furnished === "true" || property.furnished === "esyali" || property.furnished === "furnished" || property.sector_data?.furnished === true || property.sector_data?.furnished === "esyali") && onOpenFixtureVault ? (
+                <button
+                  onClick={() => onOpenFixtureVault(property)}
+                  className="flex items-center justify-center p-2.5 bg-sky-600 text-white hover:bg-sky-500 rounded-xl transition-all shadow active:scale-95 border border-sky-700 shrink-0 relative cursor-pointer"
+                  title="Eşya & Demirbaş Fotoğraf Deposu (Gizli Arşiv)"
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  {Array.isArray(property.fixture_photos) && property.fixture_photos.length > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border-2 border-white shadow">
+                      {property.fixture_photos.length}
+                    </span>
+                  )}
+                </button>
+              ) : null}
               <button 
                 onClick={() => onOpenSocialShare(property)}
                 className="flex items-center justify-center p-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-all shadow active:scale-95 border border-indigo-100 shrink-0"

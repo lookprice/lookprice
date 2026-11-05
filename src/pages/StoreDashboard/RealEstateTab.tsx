@@ -70,6 +70,8 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
   const [socialShareProperty, setSocialShareProperty] = useState<any>(null);
   const [isTapuModalOpen, setIsTapuModalOpen] = useState(false);
   const [tapuProperty, setTapuProperty] = useState<any>(null);
+  const [isFixtureVaultModalOpen, setIsFixtureVaultModalOpen] = useState(false);
+  const [fixtureVaultProperty, setFixtureVaultProperty] = useState<any>(null);
   const [viewDocsProperty, setViewDocsProperty] = useState<any>(null);
 
   const [statusTabFilter, setStatusTabFilter] = useState<RealEstateStatusFilter>('all');
@@ -216,6 +218,10 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
               }}
               onDelete={onDelete}
               onViewDocs={(p) => setViewDocsProperty(p)}
+              onOpenFixtureVault={(p) => {
+                setFixtureVaultProperty(p);
+                setIsFixtureVaultModalOpen(true);
+              }}
             />
           ))}
         </div>
@@ -235,6 +241,10 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
         setIsTapuModalOpen={setIsTapuModalOpen}
         tapuProperty={tapuProperty}
         setTapuProperty={setTapuProperty}
+        isFixtureVaultModalOpen={isFixtureVaultModalOpen}
+        setIsFixtureVaultModalOpen={setIsFixtureVaultModalOpen}
+        fixtureVaultProperty={fixtureVaultProperty}
+        setFixtureVaultProperty={setFixtureVaultProperty}
         isTourModalOpen={isTourModalOpen}
         setIsTourModalOpen={setIsTourModalOpen}
         activeTourProperty={activeTourProperty}

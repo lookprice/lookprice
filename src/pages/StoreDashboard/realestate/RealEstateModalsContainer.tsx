@@ -8,6 +8,7 @@ const RealEstateModal = React.lazy(() => import("@/components/RealEstateModal").
 const LegalContractModal = React.lazy(() => import("@/components/LegalContractModal").then(m => ({ default: m.LegalContractModal })));
 const SocialMediaShareModal = React.lazy(() => import("@/components/SocialMediaShareModal").then(m => ({ default: m.SocialMediaShareModal })));
 const TapuTakipModal = React.lazy(() => import("@/components/TapuTakipModal").then(m => ({ default: m.TapuTakipModal })));
+const FixtureVaultModal = React.lazy(() => import("@/components/realestate/FixtureVaultModal").then(m => ({ default: m.FixtureVaultModal })));
 
 interface RealEstateModalsContainerProps {
   isModalOpen: boolean;
@@ -30,6 +31,10 @@ interface RealEstateModalsContainerProps {
   setIsSocialShareModalOpen: (open: boolean) => void;
   socialShareProperty: any;
   setSocialShareProperty: (p: any) => void;
+  isFixtureVaultModalOpen?: boolean;
+  setIsFixtureVaultModalOpen?: (open: boolean) => void;
+  fixtureVaultProperty?: any;
+  setFixtureVaultProperty?: (p: any) => void;
   viewDocsProperty: any;
   setViewDocsProperty: (p: any) => void;
   storeId?: number;
@@ -62,6 +67,10 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
   setIsSocialShareModalOpen,
   socialShareProperty,
   setSocialShareProperty,
+  isFixtureVaultModalOpen,
+  setIsFixtureVaultModalOpen,
+  fixtureVaultProperty,
+  setFixtureVaultProperty,
   viewDocsProperty,
   setViewDocsProperty,
   storeId,
@@ -179,6 +188,30 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
             }}
             property={socialShareProperty}
             branding={branding}
+          />
+        </React.Suspense>
+      )}
+
+      {/* Fixtures & Inventory Vault Modal (Internal Secret Legal Archive for Furnished Rentals) */}
+      {fixtureVaultProperty && (
+        <React.Suspense fallback={null}>
+          <FixtureVaultModal
+            isOpen={!!isFixtureVaultModalOpen}
+            onClose={() => {
+              if (setIsFixtureVaultModalOpen) setIsFixtureVaultModalOpen(false);
+              if (setFixtureVaultProperty) setFixtureVaultProperty(null);
+            }}
+            property={fixtureVaultProperty}
+            onUpdateFixtures={async (updatedPhotos) => {
+              if (!onSave || !fixtureVaultProperty) return;
+              await onSave({
+                ...fixtureVaultProperty,
+                fixture_photos: updatedPhotos
+              });
+              if (setFixtureVaultProperty) {
+                setFixtureVaultProperty((prev: any) => prev ? { ...prev, fixture_photos: updatedPhotos } : null);
+              }
+            }}
           />
         </React.Suspense>
       )}

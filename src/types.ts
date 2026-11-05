@@ -487,8 +487,19 @@ export interface RealEstateProperty {
     size?: string;
     details?: any;
   }[];
+  fixture_photos?: FixturePhotoItem[];
   created_at: string;
   updated_at: string;
+}
+
+export interface FixturePhotoItem {
+  id: string;
+  url: string;
+  name: string;
+  timestamp_str: string;
+  captured_at: string;
+  notes?: string;
+  room?: string;
 }
 
 export interface Driver {

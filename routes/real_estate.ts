@@ -84,6 +84,7 @@ export async function initRealEstateSchema() {
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS cati_terasi BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS is_trade_in_available BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS sector_data JSONB;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS fixture_photos JSONB DEFAULT '[]'::jsonb;`);
 
     // Create Audit Log table
     await pool.query(`
@@ -434,9 +435,19 @@ router.get('/properties', authenticate, async (req: any, res) => {
         ...secData
       };
 
+      let fixturePhotos = [];
+      if (row.fixture_photos) {
+        if (Array.isArray(row.fixture_photos)) {
+          fixturePhotos = row.fixture_photos;
+        } else if (typeof row.fixture_photos === 'string') {
+          try { fixturePhotos = JSON.parse(row.fixture_photos); } catch(e) { fixturePhotos = []; }
+        }
+      }
+
       return {
         ...row,
         ...secData,
+        fixture_photos: fixturePhotos,
         sector_data: secData,
         responsible_agent: row.consultant_name || row.responsible_agent || 'Belirtilmedi',
         branch_name: row.branch_name_official || row.branch_name || 'Merkez Ofis',
@@ -485,8 +496,8 @@ router.post('/properties', authenticate, async (req: any, res) => {
         branch_name, responsible_agent, sharing_scope, reserved_by_branch, reservation_notes,
         authorized_branch_id, responsible_consultant_id, is_verified, documents,
         owner_name, owner_phone, owner_id_number, tour_blueprint, reference_no, listing_intent,
-        deposit, billing_period, subtype, kktc_sub_region, trafo_bedeli, kdv_status, cati_terasi, auto_post_instagram, is_trade_in_available, address, sector_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55) RETURNING *`,
+        deposit, billing_period, subtype, kktc_sub_region, trafo_bedeli, kdv_status, cati_terasi, auto_post_instagram, is_trade_in_available, address, sector_data, fixture_photos
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56) RETURNING *`,
       [
         storeId, property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
@@ -508,7 +519,8 @@ router.post('/properties', authenticate, async (req: any, res) => {
         !!property.auto_post_instagram,
         !!property.is_trade_in_available,
         property.address || '',
-        JSON.stringify(property.sector_data || {})
+        JSON.stringify(property.sector_data || {}),
+        JSON.stringify(property.fixture_photos || [])
       ]
     );
     const newProperty = result.rows[0];
@@ -672,8 +684,8 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         authorized_branch_id = $34, responsible_consultant_id = $35, is_verified = $36, documents = $37,
         owner_name = $38, owner_phone = $39, owner_id_number = $40, tour_blueprint = $41, listing_intent = $42, reference_no = $43,
         deposit = $44, billing_period = $45, subtype = $46, kktc_sub_region = $47, trafo_bedeli = $48, kdv_status = $49, cati_terasi = $50, auto_post_instagram = $51, is_trade_in_available = $52,
-        address = $53, sector_data = $54, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $55 AND (store_id = $56 OR authorized_branch_id = $56) RETURNING *`,
+        address = $53, sector_data = $54, fixture_photos = $55, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $56 AND (store_id = $57 OR authorized_branch_id = $57) RETURNING *`,
       [
         property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
@@ -696,6 +708,7 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         !!property.is_trade_in_available,
         property.address || '',
         JSON.stringify(mergedSectorData || {}),
+        typeof property.fixture_photos === 'string' ? property.fixture_photos : JSON.stringify(property.fixture_photos || []),
         id,
         storeId
       ]
@@ -714,9 +727,21 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
     }
     if (!secData || typeof secData !== 'object') secData = {};
     updatedProperty.sector_data = secData;
+
+    let fixturePhotos = [];
+    if (updatedProperty.fixture_photos) {
+      if (Array.isArray(updatedProperty.fixture_photos)) {
+        fixturePhotos = updatedProperty.fixture_photos;
+      } else if (typeof updatedProperty.fixture_photos === 'string') {
+        try { fixturePhotos = JSON.parse(updatedProperty.fixture_photos); } catch(e) { fixturePhotos = []; }
+      }
+    }
+    updatedProperty.fixture_photos = fixturePhotos;
+
     res.json({
       ...updatedProperty,
       ...secData,
+      fixture_photos: fixturePhotos,
       sector_data: secData
     });
 
@@ -808,6 +833,39 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
   } catch (error: any) {
     console.error('Error updating property:', error);
     res.status(500).json({ error: 'Internal server error: ' + error.message });
+  }
+});
+
+// PUT route to update fixture photos directly (Internal Legal Vault)
+router.put('/properties/:id/fixtures', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const { fixture_photos } = req.body;
+  const storeId = req.body.store_id || req.body.storeId || req.query.store_id || req.user.user?.store_id || req.user.store_id;
+
+  try {
+    const photosArr = Array.isArray(fixture_photos) ? fixture_photos : [];
+    const photosJson = JSON.stringify(photosArr);
+
+    const result = await pool.query(
+      `UPDATE real_estate_properties 
+       SET fixture_photos = $1::jsonb, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2 AND (store_id = $3 OR authorized_branch_id = $3) 
+       RETURNING id, fixture_photos`,
+      [photosJson, id, storeId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Property not found or unauthorized' });
+    }
+
+    let parsed = result.rows[0].fixture_photos;
+    if (typeof parsed === 'string') {
+      try { parsed = JSON.parse(parsed); } catch(e) { parsed = []; }
+    }
+    res.json({ success: true, fixture_photos: parsed || [] });
+  } catch (err: any) {
+    console.error('Error updating fixture photos:', err);
+    res.status(500).json({ error: 'Failed to update fixture vault: ' + err.message });
   }
 });
 
@@ -1239,9 +1297,25 @@ async function ensurePortfolioTransactionsSchema() {
     `);
     await pool.query(`ALTER TABLE portfolio_transactions DROP CONSTRAINT IF EXISTS portfolio_transactions_property_id_fkey;`);
     await pool.query(`ALTER TABLE portfolio_transactions DROP CONSTRAINT IF EXISTS portfolio_transactions_store_id_fkey;`);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS store_financial_accounts (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        account_type TEXT NOT NULL DEFAULT 'bank',
+        account_name TEXT NOT NULL,
+        bank_name TEXT,
+        account_number TEXT,
+        currency TEXT NOT NULL DEFAULT 'TRY',
+        initial_balance NUMERIC DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'cash';`);
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS reference_no TEXT;`);
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS contact_name TEXT;`);
+    await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS account_id INTEGER;`);
+    await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS account_name TEXT;`);
     await pool.query(`ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     portfolioTransactionsSchemaReady = true;
   } catch (err) {
@@ -1347,11 +1421,120 @@ router.get('/transactions', authenticate, async (req: any, res) => {
   }
 });
 
+// Financial Accounts CRUD Endpoints (Multi-Bank, Credit Cards, Cash & Checks)
+router.get('/financial-accounts', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  if (!storeId) {
+    return res.json([]);
+  }
+  try {
+    const result = await pool.query(
+      `SELECT * FROM store_financial_accounts WHERE store_id = $1 ORDER BY account_type ASC, id ASC`,
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Fetch financial accounts error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/financial-accounts', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  const { account_type, account_name, bank_name, account_number, currency, initial_balance } = req.body;
+
+  if (!storeId || !account_name) {
+    return res.status(400).json({ error: "Store ID and account name are required." });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO store_financial_accounts (store_id, account_type, account_name, bank_name, account_number, currency, initial_balance)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        storeId,
+        account_type || 'bank',
+        String(account_name).trim(),
+        bank_name ? String(bank_name).trim() : null,
+        account_number ? String(account_number).trim() : null,
+        currency || 'TRY',
+        Number(initial_balance) || 0
+      ]
+    );
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Create financial account error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/financial-accounts/:id', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  const { id } = req.params;
+  const { account_type, account_name, bank_name, account_number, currency, initial_balance } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE store_financial_accounts
+       SET account_type = COALESCE($1, account_type),
+           account_name = COALESCE($2, account_name),
+           bank_name = $3,
+           account_number = $4,
+           currency = COALESCE($5, currency),
+           initial_balance = COALESCE($6, initial_balance),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7 AND ($8::integer IS NULL OR store_id = $8)
+       RETURNING *`,
+      [
+        account_type,
+        account_name ? String(account_name).trim() : null,
+        bank_name ? String(bank_name).trim() : null,
+        account_number ? String(account_number).trim() : null,
+        currency,
+        initial_balance !== undefined ? Number(initial_balance) : null,
+        Number(id),
+        storeId
+      ]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Financial account not found." });
+    }
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Update financial account error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/financial-accounts/:id', authenticate, async (req: any, res) => {
+  await ensurePortfolioTransactionsSchema();
+  const storeId = resolveTransactionStoreId(req);
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM store_financial_accounts WHERE id = $1 AND ($2::integer IS NULL OR store_id = $2) RETURNING *`,
+      [Number(id), storeId]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Financial account not found." });
+    }
+    res.json({ success: true, deleted: result.rows[0] });
+  } catch (error: any) {
+    console.error("Delete financial account error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST /transactions - Record financial transaction (income/expense)
 router.post('/transactions', authenticate, async (req: any, res) => {
   await ensurePortfolioTransactionsSchema();
   const storeId = resolveTransactionStoreId(req);
-  const { type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name } = req.body;
+  const { type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name, account_id, account_name } = req.body;
 
   if (!storeId) {
     return res.status(400).json({ error: "Store ID is required." });
@@ -1366,12 +1549,13 @@ router.post('/transactions', authenticate, async (req: any, res) => {
   }
 
   const parsedPropertyId = property_id ? (Number(property_id) || null) : null;
+  const parsedAccountId = account_id ? (Number(account_id) || null) : null;
   const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
 
   try {
     const result = await pool.query(
-      `INSERT INTO portfolio_transactions (store_id, type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO portfolio_transactions (store_id, type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name, account_id, account_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         storeId, 
@@ -1385,7 +1569,9 @@ router.post('/transactions', authenticate, async (req: any, res) => {
         description || '',
         payment_method || 'cash',
         reference_no || '',
-        contact_name || ''
+        contact_name || '',
+        parsedAccountId,
+        account_name ? String(account_name).trim() : null
       ]
     );
     
@@ -1419,7 +1605,7 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
   await ensurePortfolioTransactionsSchema();
   const storeId = resolveTransactionStoreId(req);
   const { id } = req.params;
-  const { type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name } = req.body;
+  const { type, category, title, amount, currency, date, property_id, description, payment_method, reference_no, contact_name, account_id, account_name } = req.body;
 
   if (!type || !category || !title || amount === undefined || amount === null) {
     return res.status(400).json({ error: "Type, category, title, and amount are required." });
@@ -1427,6 +1613,7 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
 
   const parsedAmount = Number(amount);
   const parsedPropertyId = property_id ? (Number(property_id) || null) : null;
+  const parsedAccountId = account_id ? (Number(account_id) || null) : null;
   const txDate = date ? new Date(date).toISOString() : new Date().toISOString();
 
   try {
@@ -1443,8 +1630,10 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
            payment_method = $9,
            reference_no = $10,
            contact_name = $11,
+           account_id = $12,
+           account_name = $13,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $12 AND ($13::integer IS NULL OR store_id = $13)
+       WHERE id = $14 AND ($15::integer IS NULL OR store_id = $15)
        RETURNING *`,
       [
         type,
@@ -1458,6 +1647,8 @@ router.put('/transactions/:id', authenticate, async (req: any, res) => {
         payment_method || 'cash',
         reference_no || '',
         contact_name || '',
+        parsedAccountId,
+        account_name ? String(account_name).trim() : null,
         Number(id),
         storeId
       ]

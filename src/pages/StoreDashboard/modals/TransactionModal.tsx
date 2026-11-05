@@ -589,7 +589,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1">
-                  <span className="text-[10px] font-medium text-slate-400 uppercase">{t.startDate || "Başlangıç"}</span>
                   <input 
                     type="date" 
                     value={transactionStartDate} 
@@ -597,7 +596,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     className="text-xs font-semibold text-slate-700 outline-none bg-transparent"
                   />
                   <span className="text-slate-300">-</span>
-                  <span className="text-[10px] font-medium text-slate-400 uppercase">{t.endDate || "Bitiş"}</span>
                   <input 
                     type="date" 
                     value={transactionEndDate} 
@@ -614,43 +612,22 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button 
                   onClick={handleExportTransactionsExcel}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-xs transition-all cursor-pointer shadow-xs"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer shadow-xs shrink-0"
                   title={isTr ? "Excel (XLSX) Formatında Dışa Aktar" : "Export to Excel"}
                 >
                   <FileDown className="h-3.5 w-3.5 text-white" />
-                  <span>{isTr ? 'Excel Ekstre' : 'Excel Statement'}</span>
+                  <span>XLS</span>
                 </button>
                 <button 
                   onClick={handleExportTransactionsPDF}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg font-medium text-xs hover:bg-slate-50 transition-all cursor-pointer shadow-xs"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer shadow-xs shrink-0"
+                  title={isTr ? "PDF Ekstre İndir / Yazdır" : "Download / Print PDF"}
                 >
                   <FileDown className="h-3.5 w-3.5 text-slate-500" />
-                  <span>{t.pdfStatement || "PDF Ekstre"}</span>
-                </button>
-                <button 
-                  onClick={() => {
-                    if (selectedCurrency === 'TRY') {
-                      alert(isTr ? 'Kur farkı hesaplaması için dövizli (USD, EUR, GBP) bir hesap seçilmelidir.' : 'Please select a foreign currency account.');
-                      return;
-                    }
-                    const rateStr = prompt(isTr ? `Güncel ${selectedCurrency} kuru (örn: 35.50):` : `Enter current ${selectedCurrency} rate:`, '35.00');
-                    if (!rateStr) return;
-                    const rate = parseFloat(rateStr.replace(',', '.'));
-                    const balance = Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances?.[selectedCurrency] || 0);
-                    if (isNaN(rate)) return;
-                    const diff = Number((Math.abs(balance) * 1.5).toFixed(2));
-                    alert(isTr 
-                      ? `💱 Otomatik Kur Farkı Hesaplandı: ${diff} ${selectedCurrency}.\nKur farkı geliri/gideri cari hesaba başarıyla yansıtıldı.`
-                      : `Exchange difference calculated: ${diff} ${selectedCurrency}. Recorded.`);
-                  }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg font-medium text-xs hover:bg-amber-100 transition-all cursor-pointer shadow-xs"
-                  title={isTr ? "Döviz Kur Farkı Hesapla ve Yansıt" : "Calculate Exchange Difference"}
-                >
-                  <Calculator className="h-3.5 w-3.5 text-amber-600" />
-                  <span>{isTr ? 'Kur Farkı' : 'Exchange Diff'}</span>
+                  <span>PDF</span>
                 </button>
                 <button 
                   onClick={async () => {
@@ -815,7 +792,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       alert(isTr ? 'Mutabakat linki oluşturulurken bir hata oluştu.' : 'Failed to create reconciliation link.');
                     }
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-xs transition-all shadow-xs cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition-all shadow-xs cursor-pointer shrink-0"
                   title={isTr ? "Online Mutabakat Linki Oluştur" : "Create Digital Reconciliation"}
                 >
                   <FileCheck className="h-3.5 w-3.5" />

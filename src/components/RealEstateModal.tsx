@@ -22,6 +22,8 @@ import { RealEstateMetricsFeaturesTab } from "./realestate/modal/RealEstateMetri
 import { RealEstateMediaTab } from "./realestate/modal/RealEstateMediaTab";
 import { RealEstateDescriptionTab } from "./realestate/modal/RealEstateDescriptionTab";
 import { RealEstateDocsPublishTab } from "./realestate/modal/RealEstateDocsPublishTab";
+import { RealEstateFixtureTab } from "./realestate/modal/RealEstateFixtureTab";
+import { ShieldAlert } from "lucide-react";
 
 interface RealEstateModalProps {
   isOpen: boolean;
@@ -44,7 +46,7 @@ const parsePriceInput = (val: string): number => {
   return digits ? parseInt(digits, 10) : 0;
 };
 
-type TabId = "basic" | "owner" | "metrics" | "media" | "description" | "docs";
+type TabId = "basic" | "owner" | "metrics" | "media" | "description" | "docs" | "fixtures";
 
 const TABS: { id: TabId; label: string; icon: any; short: string }[] = [
   { id: "basic", label: "1. Temel & Fiyat", icon: DollarSign, short: "Temel & Fiyat" },
@@ -327,7 +329,8 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         sharing_scope: property.sharing_scope || "shared_pool",
         reserved_by_branch: property.reserved_by_branch || "",
         reservation_notes: property.reservation_notes || "",
-        documents: property.documents || []
+        documents: property.documents || [],
+        fixture_photos: property.fixture_photos || []
       });
     } else {
       setFormData({
@@ -546,7 +549,21 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     setFormData({ ...formData, documents: updatedDocs });
   };
 
-  const currentTabIndex = TABS.findIndex((t) => t.id === activeTab);
+  const isFurnishedRental = formData.listing_intent === "rent" && (
+    formData.furnished === true ||
+    formData.furnished === "true" ||
+    formData.furnished === "esyali" ||
+    formData.furnished === "furnished"
+  );
+
+  const currentTabs: { id: TabId; label: string; icon: any; short: string }[] = [
+    ...TABS,
+    ...(isFurnishedRental ? [
+      { id: "fixtures" as TabId, label: "7. 🔒 Eşya Deposu", icon: ShieldAlert, short: "Eşya Deposu" }
+    ] : [])
+  ];
+
+  const currentTabIndex = currentTabs.findIndex((t) => t.id === activeTab);
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4">
@@ -673,7 +690,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         {/* FUTURISTIC SEGMENTED TAB BAR (If tabs mode) */}
         {viewMode === "tabs" && (
           <div className="bg-slate-50 border-b border-slate-200 px-3 py-1 flex items-center gap-1 overflow-x-auto custom-scrollbar shrink-0">
-            {TABS.map((tab) => {
+            {currentTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
@@ -716,6 +733,17 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       }`}
                     >
                       {formData.documents?.length}
+                    </span>
+                  )}
+                  {tab.id === "fixtures" && (formData.fixture_photos?.length || 0) > 0 && (
+                    <span
+                      className={`text-[9px] px-1 rounded-full font-mono font-black ${
+                        isActive
+                          ? "bg-white text-sky-700"
+                          : "bg-sky-100 text-sky-700"
+                      }`}
+                    >
+                      {formData.fixture_photos?.length}
                     </span>
                   )}
                 </button>
@@ -790,6 +818,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               handleRemoveDocument={handleRemoveDocument}
             />
           )}
+
+          {/* SECTION 7: EŞYA RESİM DEPOSU (Sadece Kiralık ve Eşyalı Mülkler İçin) */}
+          {isFurnishedRental && (viewMode === "all" || activeTab === "fixtures") && (
+            <RealEstateFixtureTab
+              formData={formData}
+              setFormData={setFormData}
+            />
+          )}
         </div>
 
         {/* FIXED BOTTOM ACTION BAR */}
@@ -804,10 +840,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             ) : viewMode === "tabs" ? (
               <div className="text-[11px] font-bold text-slate-500 hidden sm:flex items-center gap-1.5">
                 <span>
-                  Adım {currentTabIndex + 1} / {TABS.length}:
+                  Adım {currentTabIndex + 1} / {currentTabs.length}:
                 </span>
                 <span className="text-indigo-600 font-black">
-                  {TABS[currentTabIndex]?.short}
+                  {currentTabs[currentTabIndex]?.short}
                 </span>
               </div>
             ) : null}
@@ -818,7 +854,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             {viewMode === "tabs" && currentTabIndex > 0 && (
               <button
                 type="button"
-                onClick={() => setActiveTab(TABS[currentTabIndex - 1].id)}
+                onClick={() => setActiveTab(currentTabs[currentTabIndex - 1].id)}
                 className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -826,10 +862,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </button>
             )}
 
-            {viewMode === "tabs" && currentTabIndex < TABS.length - 1 && (
+            {viewMode === "tabs" && currentTabIndex < currentTabs.length - 1 && (
               <button
                 type="button"
-                onClick={() => setActiveTab(TABS[currentTabIndex + 1].id)}
+                onClick={() => setActiveTab(currentTabs[currentTabIndex + 1].id)}
                 className="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-black flex items-center gap-1 transition-all cursor-pointer"
               >
                 <span>İleri</span>

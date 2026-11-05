@@ -283,8 +283,25 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     paymentDay: paymentDay,
     isSigned: signed,
     signingName: signingName,
-    signatureImage: signatureImage
+    signatureImage: signatureImage,
+    isFurnishedRental: property.listing_intent === 'rent' && (
+      property.furnished === true ||
+      (property as any).furnished === 'true' ||
+      (property as any).furnished === 'esyali' ||
+      (property as any).furnished === 'furnished' ||
+      property.sector_data?.furnished === true ||
+      property.sector_data?.furnished === 'esyali' ||
+      property.sector_data?.furnished === 'furnished'
+    ),
+    fixturePhotosCount: Array.isArray(property.fixture_photos) 
+      ? property.fixture_photos.length 
+      : (typeof (property as any).fixture_photos === 'string' 
+          ? JSON.parse((property as any).fixture_photos || '[]').length 
+          : 0)
   };
+
+  const isFurnishedRental = placeholderValues.isFurnishedRental;
+  const fixturePhotosCount = placeholderValues.fixturePhotosCount || 0;
 
   const { html, markdown } = currentTemplate.getTemplate(placeholderValues);
 
@@ -677,6 +694,25 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                         />
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {isFurnishedRental && (
+                  <div className="p-3 bg-sky-950/50 border border-sky-800/80 rounded-2xl space-y-1.5 mt-2">
+                    <div className="flex items-center justify-between text-sky-300 text-xs font-black">
+                      <span className="flex items-center gap-1.5">
+                        🔒 Eşyalı Kiralama & Demirbaş Onayı
+                      </span>
+                      <span className="bg-sky-500/20 text-sky-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                        {fixturePhotosCount} Demirbaş Kayıtlı
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-sky-200/95 font-semibold leading-relaxed italic bg-slate-900/60 p-2 rounded-xl border border-sky-900/40">
+                      "Mülk'ü kiralarken içerisinde bulunan Eşya / demirbaşları inceledim, gördüm. Eşyalara ait resimleri de inceledim, gördüm. Onaylıyorum. kabulümdür."
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Bu yasal kabul maddesi kira sözleşmesi şartlarına eklenmiştir.
+                    </p>
                   </div>
                 )}
               </div>
