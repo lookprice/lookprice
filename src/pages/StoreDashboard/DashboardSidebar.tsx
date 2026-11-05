@@ -96,23 +96,25 @@ export const DashboardSidebar = ({
 
   return (
     <>
-      {/* Mobile Sidebar Overlay */}
+      {/* Sidebar Overlay Backdrop (Both Mobile & Desktop Drawer) */}
       <AnimatePresence>
-        {sidebarOpen && (
+        {(sidebarOpen || !desktopSidebarCollapsed) && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-slate-900/40 z-40 backdrop-blur-sm lg:hidden"
+            onClick={() => {
+              setSidebarOpen(false);
+              setDesktopSidebarCollapsed(true);
+            }}
+            className="fixed inset-0 bg-slate-950/60 z-50 backdrop-blur-xs transition-opacity"
           />
         )}
       </AnimatePresence>
 
       <aside className={`
-        fixed ${!desktopSidebarCollapsed ? 'lg:static' : ''} inset-y-0 left-0 w-64 bg-slate-950 text-slate-400 z-40 lg:z-auto transition-transform duration-300 ease-in-out shrink-0 border-r border-slate-800/80 select-none
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-        ${!desktopSidebarCollapsed && !sidebarOpen ? 'lg:translate-x-0' : ''}
+        fixed inset-y-0 left-0 w-64 bg-slate-950 text-slate-400 z-50 transition-transform duration-300 ease-in-out shrink-0 border-r border-slate-800/80 select-none shadow-2xl
+        ${(sidebarOpen || !desktopSidebarCollapsed) ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
           {/* Header Block */}
@@ -130,11 +132,14 @@ export const DashboardSidebar = ({
               </div>
             </div>
             
-            {/* Desktop Collapse Button */}
+            {/* Close / Collapse Button */}
             <button
-              onClick={() => setDesktopSidebarCollapsed(true)}
-              className="hidden lg:flex items-center justify-center p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
-              title={t?.collapseSidebar || "Menüyü Gizle"}
+              onClick={() => {
+                setSidebarOpen(false);
+                setDesktopSidebarCollapsed(true);
+              }}
+              className="flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+              title={t?.collapseSidebar || (lang === 'tr' ? "Menüyü Gizle" : "Close Menu")}
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
@@ -168,6 +173,7 @@ export const DashboardSidebar = ({
                                   setActiveTab(item.id);
                                 });
                                 setSidebarOpen(false);
+                                setDesktopSidebarCollapsed(true);
                               }}
                               className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
                                 activeTab === item.id 
@@ -204,6 +210,7 @@ export const DashboardSidebar = ({
                         setActiveTab(navItem.id);
                       });
                       setSidebarOpen(false);
+                      setDesktopSidebarCollapsed(true);
                     }}
                     className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
                       activeTab === navItem.id 

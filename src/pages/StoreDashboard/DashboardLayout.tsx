@@ -79,63 +79,68 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
       <DashboardSidebar {...sidebarProps} />
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0 h-full max-h-full overflow-hidden relative">
-        {/* Mobile Header with Hamburger Menu & Notification Bell */}
-        <div className="dashboard-top-header lg:hidden flex items-center justify-between px-3.5 py-2.5 bg-white border-b border-slate-200 shrink-0">
-          <div className="flex items-center min-w-0">
-            <button onClick={() => sidebarProps.setSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">
-              <Menu className="w-5 h-5" />
-            </button>
-            <div className="ml-2 flex items-center gap-2 min-w-0">
-              <StoreLogo logoUrl={headerLogoUrl} storeName={headerStoreName} size="xs" />
-              <div className="font-semibold text-slate-900 truncate tracking-tight uppercase text-xs sm:text-sm">
-                {headerStoreName}
-              </div>
-            </div>
-          </div>
-
-          {sidebarProps?.setActiveTab && (
-            <button
-              type="button"
-              onClick={() => sidebarProps.setActiveTab("notifications")}
-              className={`relative p-2 rounded-lg border transition-colors cursor-pointer shrink-0 ${
-                sidebarProps.activeTab === "notifications"
-                  ? "bg-slate-900 text-white border-slate-900 shadow-xs"
-                  : "bg-white hover:bg-slate-100 text-slate-700 border-slate-200"
-              }`}
-              title={lang === "tr" ? "Bildirim Merkezi" : "Notifications"}
-            >
-              <Bell className="w-4 h-4" />
-              {Number(sidebarProps?.totalUrgentNotifications || 0) > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-mono font-medium flex items-center justify-center bg-slate-900 text-white border border-slate-700 shadow-xs">
-                  {sidebarProps.totalUrgentNotifications}
-                </span>
-              )}
-            </button>
-          )}
-        </div>
-
-        {/* Desktop Collapsed Header */}
-        {sidebarProps.desktopSidebarCollapsed && (
-          <div className="dashboard-top-header hidden lg:flex items-center p-4 bg-white border-b border-slate-200/60 shadow-sm transition-all shrink-0">
+        {/* Unified Full-Screen Top Header with Accessible Menü Toggle Button */}
+        <div className="dashboard-top-header flex items-center justify-between px-3 sm:px-4 py-2 bg-white border-b border-slate-200/80 shrink-0 shadow-2xs z-20 select-none">
+          <div className="flex items-center gap-2.5 min-w-0">
             <button 
-              onClick={() => sidebarProps.setDesktopSidebarCollapsed(false)} 
-              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 rounded-xl font-bold text-xs uppercase transition-all tracking-wider shrink-0 cursor-pointer"
-              title={lang === 'tr' ? 'Menüyü Aç' : 'Open Sidebar'}
+              onClick={() => {
+                sidebarProps.setSidebarOpen(true);
+                sidebarProps.setDesktopSidebarCollapsed(false);
+              }} 
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+              title={lang === 'tr' ? 'Menüyü Aç' : 'Open Menu'}
             >
               <Menu className="w-4 h-4" />
-              <span>{lang === 'tr' ? 'Menüyü Aç' : 'Open Menu'}</span>
+              <span>{lang === 'tr' ? 'Menü' : 'Menu'}</span>
             </button>
-            <div className="ml-4 flex items-center gap-2.5 min-w-0">
+
+            <div className="flex items-center gap-2 min-w-0">
               <StoreLogo logoUrl={headerLogoUrl} storeName={headerStoreName} size="xs" />
-              <div className="font-black text-slate-900 truncate tracking-tight uppercase text-xs">
+              <div className="font-black text-slate-900 truncate tracking-tight uppercase text-xs sm:text-sm">
                 {headerStoreName}
               </div>
             </div>
           </div>
-        )}
+
+          <div className="flex items-center gap-2 shrink-0">
+            {sidebarProps?.publicUrl && (
+              <a
+                href={sidebarProps.publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-xs font-bold transition-all border border-slate-200/70"
+                title={lang === 'tr' ? 'Müşteri Web Sitesi' : 'Customer Website'}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>{lang === 'tr' ? 'Web Sitesi' : 'Website'}</span>
+              </a>
+            )}
+
+            {sidebarProps?.setActiveTab && (
+              <button
+                type="button"
+                onClick={() => sidebarProps.setActiveTab("notifications")}
+                className={`relative p-1.5 sm:p-2 rounded-lg border transition-colors cursor-pointer shrink-0 ${
+                  sidebarProps.activeTab === "notifications"
+                    ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                    : "bg-white hover:bg-slate-100 text-slate-700 border-slate-200"
+                }`}
+                title={lang === "tr" ? "Bildirim Merkezi" : "Notifications"}
+              >
+                <Bell className="w-4 h-4" />
+                {Number(sidebarProps?.totalUrgentNotifications || 0) > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-mono font-bold flex items-center justify-center bg-rose-600 text-white shadow-xs">
+                    {sidebarProps.totalUrgentNotifications}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
         
-        <div className="dashboard-scroll-area flex-1 min-h-0 overflow-y-auto p-3.5 md:p-5 pb-36 sm:pb-28 bg-slate-50/50">
-          <div className="max-w-7xl mx-auto space-y-5 pb-12">
+        {/* Full-Screen Workspace Area (w-full max-w-full without artificial 7xl width restrictions) */}
+        <div className="dashboard-scroll-area flex-1 min-h-0 overflow-y-auto p-2 sm:p-3 md:p-3.5 pb-28 bg-slate-50/50">
+          <div className="w-full max-w-full space-y-3 pb-8">
             <ErrorBoundary lang={lang}>
               {!hasRenderedChildren && loading ? (
                 <div className="flex flex-col items-center justify-center h-64">

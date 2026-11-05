@@ -618,11 +618,45 @@ router.post('/properties', authenticate, async (req: any, res) => {
 // PUT route to update a property
 router.put('/properties/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const property = req.body;
-  const storeId = req.body.store_id || req.body.storeId || req.query.store_id || req.query.storeId || req.user.user?.store_id || req.user.store_id;
-  const ownerInfo = property.owner_info || {};
+  const incoming = req.body || {};
+  const storeId = incoming.store_id || incoming.storeId || req.query.store_id || req.query.storeId || req.user.user?.store_id || req.user.store_id;
 
   try {
+    const existingRes = await pool.query(
+      "SELECT * FROM real_estate_properties WHERE id = $1 AND (store_id = $2 OR authorized_branch_id = $2)",
+      [id, storeId]
+    );
+    if (existingRes.rowCount === 0) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+    const existing = existingRes.rows[0];
+    let existingSecData = existing.sector_data;
+    if (typeof existingSecData === 'string') {
+      try { existingSecData = JSON.parse(existingSecData); } catch (e) { existingSecData = {}; }
+    }
+    if (!existingSecData || typeof existingSecData !== 'object') existingSecData = {};
+
+    let incomingSecData = incoming.sector_data;
+    if (typeof incomingSecData === 'string') {
+      try { incomingSecData = JSON.parse(incomingSecData); } catch (e) { incomingSecData = {}; }
+    }
+
+    const mergedSectorData = incomingSecData && typeof incomingSecData === 'object'
+      ? { ...existingSecData, ...incomingSecData }
+      : existingSecData;
+
+    const property = {
+      ...existing,
+      ...incoming,
+      sector_data: mergedSectorData
+    };
+
+    const ownerInfo = incoming.owner_info || {
+      fullName: property.owner_name ?? existing.owner_name ?? '',
+      phone: property.owner_phone ?? existing.owner_phone ?? '',
+      idNumber: property.owner_id_number ?? existing.owner_id_number ?? ''
+    };
+
     // Check if demo store, strictly force is_on_enrakipsiz to FALSE for demo stores
     const storeDemoCheck = await pool.query("SELECT slug, branding FROM stores WHERE id = $1", [storeId]);
     const isDemoStore = storeDemoCheck.rows[0]?.slug?.includes('demo') || storeDemoCheck.rows[0]?.branding?.is_demo === true || storeDemoCheck.rows[0]?.branding?.is_demo === 'true';
@@ -646,9 +680,10 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         property.in_gated_community, property.dues, property.dues_currency, property.country, property.kktc_region, property.kktc_title_type, property.images,
         property.virtual_tour_url, property.ai_tour_enabled, property.seller_type, property.status, effectiveIsOnEnrakipsiz,
         property.branch_name || 'Merkez Ofis', property.responsible_agent || '', property.sharing_scope || 'shared_pool', property.reserved_by_branch || '', property.reservation_notes || '', 
-        property.authorized_branch_id, property.responsible_consultant_id, !!property.is_verified, JSON.stringify(property.documents || []),
+        property.authorized_branch_id, property.responsible_consultant_id, !!property.is_verified,
+        typeof property.documents === 'string' ? property.documents : JSON.stringify(property.documents || []),
         ownerInfo.fullName || '', ownerInfo.phone || '', ownerInfo.idNumber || '',
-        property.tour_blueprint ? JSON.stringify(property.tour_blueprint) : null,
+        property.tour_blueprint ? (typeof property.tour_blueprint === 'string' ? property.tour_blueprint : JSON.stringify(property.tour_blueprint)) : null,
         property.listing_intent || 'sale', property.reference_no || null,
         Number(property.deposit) || 0,
         property.billing_period || 'monthly',
@@ -660,7 +695,7 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         !!property.auto_post_instagram,
         !!property.is_trade_in_available,
         property.address || '',
-        JSON.stringify(property.sector_data || {}),
+        JSON.stringify(mergedSectorData || {}),
         id,
         storeId
       ]
@@ -685,8 +720,8 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
       sector_data: secData
     });
 
-    // Background Instagram Posting on Update
-    if (updatedProperty.images?.length > 0) {
+    // Background Instagram Posting on Update (skip for internal pipeline stage updates)
+    if (updatedProperty.images?.length > 0 && !incoming._skip_instagram_post) {
       (async () => {
         try {
           const { InstagramService } = await import('../src/services/instagramService');

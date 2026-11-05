@@ -1,29 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Users, 
   ChevronRight, 
+  ChevronDown,
   Clock, 
   MapPin, 
   Plus, 
-  MoreVertical, 
   Search,
-  Filter,
   TrendingUp,
-  Target,
   Handshake,
   CheckCircle2,
   Calendar,
   MessageSquare,
   DollarSign,
-  ArrowRight,
-  AlertCircle,
   X,
   Edit2,
-  Trash2,
   Info,
   RotateCcw,
-  FileCheck,
-  Ban
+  Archive,
+  Layers,
+  LayoutList,
+  Columns3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../services/api';
@@ -43,11 +39,11 @@ interface RealEstateCRMProps {
 }
 
 const STAGES = [
-  { id: 'planned', title: '1. Geziler', icon: Calendar, color: 'bg-indigo-500', description: 'Gelecek randevular ve yer göstermeler.' },
-  { id: 'analysis', title: '2. Analiz', icon: Search, color: 'bg-slate-500', description: 'Görüşme tamamlandı, geri dönüş bekleniyor.' },
-  { id: 'negotiation', title: '3. Pazarlık', icon: TrendingUp, color: 'bg-amber-500', description: 'Ciddi teklif alındı, pazarlık & opsiyon aktif.' },
-  { id: 'negative', title: '4. Olumsuz', icon: X, color: 'bg-rose-500', description: 'Sonuçsuz kalan veya olumsuz geziler.' },
-  { id: 'closed', title: '5. Kapanan', icon: Handshake, color: 'bg-emerald-500', description: 'Satış veya kiralama sonuçlandırıldı.' },
+  { id: 'planned', title: '1. Geziler', shortTitle: '1. Geziler', icon: Calendar, color: 'bg-indigo-500', badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200', isArchive: false, description: 'Gelecek randevular ve yer göstermeler.' },
+  { id: 'analysis', title: '2. Analiz', shortTitle: '2. Analiz', icon: Search, color: 'bg-slate-600', badgeClass: 'bg-slate-100 text-slate-700 border-slate-200', isArchive: false, description: 'Görüşme tamamlandı, geri dönüş bekleniyor.' },
+  { id: 'negotiation', title: '3. Pazarlık', shortTitle: '3. Pazarlık', icon: TrendingUp, color: 'bg-amber-500', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200', isArchive: false, description: 'Ciddi teklif alındı, pazarlık & opsiyon aktif.' },
+  { id: 'negative', title: '4. Olumsuz', shortTitle: '4. Olumsuz', icon: X, color: 'bg-rose-500', badgeClass: 'bg-rose-50 text-rose-700 border-rose-200', isArchive: true, description: 'Sonuçsuz kalan veya olumsuz tamamlanan iş takipleri (Arşiv).' },
+  { id: 'closed', title: '5. Başarılı', shortTitle: '5. Başarılı', icon: Handshake, color: 'bg-emerald-500', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200', isArchive: true, description: 'Satış veya kiralama başarıyla sonuçlandırıldı (Arşiv).' },
 ];
 
 export const RealEstateCRM = ({ 
@@ -60,9 +56,18 @@ export const RealEstateCRM = ({
   searchQuery: externalSearchQuery,
   hideHeader = false
 }: RealEstateCRMProps) => {
-  const [dealCards, setDealCards] = useState<any[]>([]);
   const [internalSearchQuery, setInternalSearchQuery] = useState("");
-  const [mobileStageFilter, setMobileStageFilter] = useState<string>('all');
+  // Default filter: 'active' shows only 1. Geziler, 2. Analiz, 3. Pazarlık (hides archived 4. Olumsuz & 5. Başarılı)
+  const [stageFilter, setStageFilter] = useState<string>('active');
+  // Default layout: 'horizontal' (full-page collapsible stage rows) or 'columns' (compact 3-column active kanban)
+  const [layoutMode, setLayoutMode] = useState<'horizontal' | 'columns'>('horizontal');
+  // Track which individual deal cards are expanded ("kısa künye" accordion)
+  const [expandedDeals, setExpandedDeals] = useState<Record<string, boolean>>({});
+  // Track which stage sections are collapsed in horizontal mode
+  const [collapsedStages, setCollapsedStages] = useState<Record<string, boolean>>({});
+  // Optimistic local overrides so stage changes reflect immediately without waiting for parent refetch
+  const [localPropertyOverrides, setLocalPropertyOverrides] = useState<Record<number, { status?: string; sector_data?: any }>>({});
+
   const [activeProperty, setActiveProperty] = useState<any>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
 
@@ -91,27 +96,78 @@ export const RealEstateCRM = ({
   const [closingNotes, setClosingNotes] = useState("");
 
   const [negativeReason, setNegativeReason] = useState("");
-
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Build Pipeline deals matching Requirements 1, 2, and 3
-  useEffect(() => {
-    const deals = properties.map(p => {
-      const propertyTasks = tasks.filter(t => t.property_id === p.id && t.task_type === 'tour');
+  const toggleDealExpand = (dealId: string) => {
+    setExpandedDeals(prev => ({ ...prev, [dealId]: !prev[dealId] }));
+  };
+
+  const toggleStageCollapse = (stageId: string) => {
+    setCollapsedStages(prev => ({ ...prev, [stageId]: !prev[stageId] }));
+  };
+
+  // Helper to persist property stage & status to real_estate_properties (with optimistic state update)
+  const persistPropertyStageUpdate = async (property: any, newStatus: string, updatedSectorData: any) => {
+    // 1. Optimistic local state update so UI moves the item immediately
+    setLocalPropertyOverrides(prev => ({
+      ...prev,
+      [property.id]: {
+        status: newStatus,
+        sector_data: updatedSectorData
+      }
+    }));
+
+    // 2. Persist to backend real_estate_properties table
+    const payload = {
+      ...property,
+      status: newStatus,
+      sector_data: updatedSectorData,
+      store_id: storeId,
+      _skip_instagram_post: true
+    };
+
+    try {
+      await api.updateProperty(property.id, payload);
+    } catch (primaryErr) {
+      // Fallback for legacy product-based records if any
+      await api.updateProduct(property.id, {
+        status: newStatus,
+        sector_data: updatedSectorData
+      }, storeId);
+    }
+  };
+
+  // Build Pipeline deals with local optimistic overrides merged
+  const dealCards = useMemo(() => {
+    return properties.map(rawProp => {
+      const localOverride = localPropertyOverrides[rawProp.id];
+      const mergedSectorData = {
+        ...(typeof rawProp.sector_data === 'object' && rawProp.sector_data ? rawProp.sector_data : {}),
+        ...(localOverride?.sector_data || {})
+      };
+      const p = {
+        ...rawProp,
+        status: localOverride?.status ?? rawProp.status,
+        sector_data: mergedSectorData
+      };
+
+      const propertyTasks = tasks.filter(t => Number(t.property_id) === Number(p.id) && t.task_type === 'tour');
       
-      let stage = 'planned';
+      // Priority 1: Explicit pipeline_stage or status set by operator
+      const overrideStage = p.sector_data?.pipeline_stage || p.pipeline_stage;
 
-      // Custom override stage saved in sector_data or status
-      const overrideStage = p.sector_data?.pipeline_stage;
+      let stage: string | null = null;
 
-      if (p.status === 'sold' || p.status === 'rented') {
+      if (overrideStage === 'closed' || p.status === 'sold' || p.status === 'rented') {
         stage = 'closed';
-      } else if (p.status === 'optioned' || overrideStage === 'negotiation') {
-        stage = 'negotiation';
-      } else if (p.status === 'negative' || overrideStage === 'negative') {
+      } else if (overrideStage === 'negative' || p.status === 'negative') {
         stage = 'negative';
+      } else if (overrideStage === 'negotiation' || p.status === 'optioned') {
+        stage = 'negotiation';
       } else if (overrideStage === 'analysis') {
         stage = 'analysis';
+      } else if (overrideStage === 'planned') {
+        stage = 'planned';
       } else if (propertyTasks.length > 0) {
         const hasPending = propertyTasks.some(t => !t.is_completed);
         const hasCompleted = propertyTasks.some(t => t.is_completed);
@@ -124,21 +180,26 @@ export const RealEstateCRM = ({
         } else if (hasCompleted) {
           stage = 'analysis';
         }
-      } else {
-        // REQUIREMENT 3: If no tours and status is active, DO NOT display on pipeline
-        return null;
       }
+
+      if (!stage) return null;
 
       return {
         id: `deal-${p.id}`,
         property: p,
         tasks: propertyTasks,
-        stage: stage
+        stage
       };
-    }).filter(Boolean);
+    }).filter(Boolean) as any[];
+  }, [properties, tasks, localPropertyOverrides]);
 
-    setDealCards(deals);
-  }, [properties, tasks]);
+  const formatFormattedPrice = (price: any, currency: string) => {
+    if (!price && price !== 0) return '';
+    const num = Number(String(price).replace(/[^0-9.-]+/g, ''));
+    const currSymbol = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : (currency || '₺');
+    if (isNaN(num)) return `${price} ${currSymbol}`;
+    return `${new Intl.NumberFormat('tr-TR').format(num)} ${currSymbol}`;
+  };
 
   // Action: Open Analysis Modal
   const handleCompleteTour = (task: any, property: any) => {
@@ -167,26 +228,29 @@ export const RealEstateCRM = ({
         });
       }
 
-      let newStatus = activeProperty.status;
-      let newSectorData = { ...(activeProperty.sector_data || {}) };
+      let newStatus = activeProperty.status || 'active';
+      const newSectorData = {
+        ...(activeProperty.sector_data || {}),
+        last_analysis_note: analysisNote,
+        analyzed_at: new Date().toISOString()
+      };
 
       if (analysisOutcome === 'negotiation') {
         newStatus = 'optioned';
         newSectorData.pipeline_stage = 'negotiation';
-        toast.success("Gezi tamamlandı ve Pazarlık (3. Aşama) sürecine aktarıldı!");
+        toast.success("Gezi tamamlandı ve 3. Pazarlık aşamasına aktarıldı!");
       } else if (analysisOutcome === 'negative') {
         newStatus = 'negative';
         newSectorData.pipeline_stage = 'negative';
-        toast.success("Gezi tamamlandı ve Olumsuz (4. Aşama) kaydoldu.");
+        newSectorData.negative_reason = analysisNote;
+        toast.success("Gezi tamamlandı ve 4. Olumsuz (Arşiv) listesine aktarıldı.");
       } else {
+        if (newStatus === 'optioned' || newStatus === 'negative') newStatus = 'active';
         newSectorData.pipeline_stage = 'analysis';
-        toast.success("Gezi tamamlandı ve Analiz (2. Aşama) sürecine aktarıldı.");
+        toast.success("Gezi tamamlandı ve 2. Analiz aşamasına aktarıldı.");
       }
 
-      await api.updateProduct(activeProperty.id, { 
-        status: newStatus,
-        sector_data: newSectorData
-      }, storeId);
+      await persistPropertyStageUpdate(activeProperty, newStatus, newSectorData);
 
       setShowAnalysisModal(false);
       setAnalysisNote("");
@@ -225,9 +289,9 @@ export const RealEstateCRM = ({
   // Action: Move to Negotiation (3. Aşama)
   const handleOpenNegotiation = (property: any) => {
     setActiveProperty(property);
-    setOfferAmount(property.price ? String(property.price) : "");
-    setDepositAmount("");
-    setNegotiationNotes("");
+    setOfferAmount(property.sector_data?.offer_amount || (property.price ? String(property.price) : ""));
+    setDepositAmount(property.sector_data?.deposit_amount || "");
+    setNegotiationNotes(property.sector_data?.negotiation_notes || "");
     setShowNegotiationModal(true);
   };
 
@@ -243,15 +307,13 @@ export const RealEstateCRM = ({
         pipeline_stage: 'negotiation',
         offer_amount: offerAmount,
         deposit_amount: depositAmount,
-        negotiation_notes: negotiationNotes
+        negotiation_notes: negotiationNotes,
+        negotiation_at: new Date().toISOString()
       };
 
-      await api.updateProduct(activeProperty.id, { 
-        status: 'optioned',
-        sector_data: updatedSectorData
-      }, storeId);
+      await persistPropertyStageUpdate(activeProperty, 'optioned', updatedSectorData);
 
-      toast.success("Portföy Pazarlık / Opsiyonlu aşamasına aktarıldı!");
+      toast.success("Portföy 3. Pazarlık / Opsiyonlu aşamasına aktarıldı!");
       setShowNegotiationModal(false);
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -261,12 +323,12 @@ export const RealEstateCRM = ({
     }
   };
 
-  // Action: Move to Closing (5. Aşama)
+  // Action: Move to Closing / Başarılı (5. Aşama)
   const handleOpenClosing = (property: any) => {
     setActiveProperty(property);
     setFinalPrice(property.sector_data?.offer_amount || String(property.price || ''));
-    setClientInfo("");
-    setClosingNotes("");
+    setClientInfo(property.sector_data?.closed_client || "");
+    setClosingNotes(property.sector_data?.closing_notes || "");
     setShowClosingModal(true);
   };
 
@@ -277,7 +339,7 @@ export const RealEstateCRM = ({
     }
     setIsSubmitting(true);
     try {
-      const isRent = activeProperty.sector_data?.listing_intent === 'rent';
+      const isRent = activeProperty.listing_intent === 'rent' || activeProperty.sector_data?.listing_intent === 'rent';
       const newStatus = isRent ? 'rented' : 'sold';
 
       const updatedSectorData = {
@@ -289,12 +351,9 @@ export const RealEstateCRM = ({
         closed_at: new Date().toISOString()
       };
 
-      await api.updateProduct(activeProperty.id, { 
-        status: newStatus,
-        sector_data: updatedSectorData
-      }, storeId);
+      await persistPropertyStageUpdate(activeProperty, newStatus, updatedSectorData);
 
-      toast.success(isRent ? "İşlem Başarıyla Tamamlandı: Kiralandı!" : "İşlem Başarıyla Tamamlandı: Satıldı!");
+      toast.success(isRent ? "İşlem Başarılı (5. Aşama): Kiralandı!" : "İşlem Başarılı (5. Aşama): Satıldı!");
       setShowClosingModal(false);
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -308,7 +367,7 @@ export const RealEstateCRM = ({
   const handleOpenNegative = (property: any, task?: any) => {
     setActiveProperty(property);
     setSelectedTask(task || null);
-    setNegativeReason("");
+    setNegativeReason(property.sector_data?.negative_reason || "");
     setShowNegativeModal(true);
   };
 
@@ -319,7 +378,7 @@ export const RealEstateCRM = ({
     }
     setIsSubmitting(true);
     try {
-      if (selectedTask) {
+      if (selectedTask && !selectedTask.is_completed) {
         await api.completeTask(selectedTask.id, storeId, {
           completion_note: `[OLUMSUZ]: ${negativeReason}`,
           completed_at: new Date().toISOString()
@@ -333,12 +392,9 @@ export const RealEstateCRM = ({
         negative_at: new Date().toISOString()
       };
 
-      await api.updateProduct(activeProperty.id, { 
-        status: 'negative',
-        sector_data: updatedSectorData
-      }, storeId);
+      await persistPropertyStageUpdate(activeProperty, 'negative', updatedSectorData);
 
-      toast.info("Portföy süreci Olumsuz / Sonuçsuz olarak işaretlendi.");
+      toast.info("Portföy 4. Olumsuz (Arşiv) listesine aktarıldı.");
       setShowNegativeModal(false);
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -348,70 +404,214 @@ export const RealEstateCRM = ({
     }
   };
 
-  // Action: Reactivate Deal
-  const handleReactivate = async (property: any) => {
+  // Direct Stage Change (Quick dropdown or button transition)
+  const handleDirectStageChange = async (property: any, targetStage: string) => {
+    if (targetStage === 'negotiation') {
+      handleOpenNegotiation(property);
+      return;
+    }
+    if (targetStage === 'closed') {
+      handleOpenClosing(property);
+      return;
+    }
+    if (targetStage === 'negative') {
+      handleOpenNegative(property);
+      return;
+    }
+
     try {
       const updatedSectorData = {
         ...(property.sector_data || {}),
-        pipeline_stage: 'planned'
+        pipeline_stage: targetStage
+      };
+      const newStatus = 'active';
+      await persistPropertyStageUpdate(property, newStatus, updatedSectorData);
+      const stageObj = STAGES.find(s => s.id === targetStage);
+      toast.success(`Portföy "${stageObj?.title || targetStage}" aşamasına taşındı.`);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      toast.error("Statü değiştirilemedi.");
+    }
+  };
+
+  // Action: Reactivate Deal
+  const handleReactivate = async (property: any, targetStage: 'planned' | 'analysis' = 'planned') => {
+    try {
+      const updatedSectorData = {
+        ...(property.sector_data || {}),
+        pipeline_stage: targetStage
       };
 
-      await api.updateProduct(property.id, { 
-        status: 'active',
-        sector_data: updatedSectorData
-      }, storeId);
+      await persistPropertyStageUpdate(property, 'active', updatedSectorData);
 
-      toast.success("Portföy süreci yeniden canlandırıldı ve Geziler aşamasına alındı!");
+      toast.success(`Portföy yeniden aktif sürece (${targetStage === 'analysis' ? '2. Analiz' : '1. Geziler'}) alındı!`);
       if (onRefresh) onRefresh();
     } catch (err) {
       toast.error("Yeniden canlandırılamadı.");
     }
   };
 
-  const filteredDeals = dealCards.filter(deal => {
-    const searchLower = (activeSearch || "").toLowerCase();
-    return (
+  const filteredDeals = useMemo(() => {
+    const searchLower = (activeSearch || "").toLowerCase().trim();
+    if (!searchLower) return dealCards;
+    return dealCards.filter(deal => (
       deal.property.title?.toLowerCase().includes(searchLower) ||
       deal.property.reference_no?.toLowerCase().includes(searchLower) ||
-      deal.property.location?.toLowerCase().includes(searchLower)
-    );
-  });
+      deal.property.location?.toLowerCase().includes(searchLower) ||
+      deal.property.kktc_region?.toLowerCase().includes(searchLower)
+    ));
+  }, [dealCards, activeSearch]);
+
+  // Determine which stages are displayed based on stageFilter
+  // 'active' -> only 1. Geziler, 2. Analiz, 3. Pazarlık (hides 4. Olumsuz & 5. Başarılı)
+  // 'all' -> all 5 stages
+  // or specific stage id ('planned', 'analysis', 'negotiation', 'negative', 'closed')
+  const visibleStages = useMemo(() => {
+    if (stageFilter === 'active') {
+      return STAGES.filter(s => !s.isArchive);
+    }
+    if (stageFilter === 'all') {
+      return STAGES;
+    }
+    return STAGES.filter(s => s.id === stageFilter);
+  }, [stageFilter]);
+
+  const activeTotalCount = filteredDeals.filter(d => d.stage === 'planned' || d.stage === 'analysis' || d.stage === 'negotiation').length;
+  const allExpanded = filteredDeals.length > 0 && filteredDeals.every(d => expandedDeals[d.id]);
+
+  const handleToggleAllDeals = () => {
+    if (allExpanded) {
+      setExpandedDeals({});
+    } else {
+      const next: Record<string, boolean> = {};
+      filteredDeals.forEach(d => { next[d.id] = true; });
+      setExpandedDeals(next);
+    }
+  };
 
   return (
-    <div className="flex flex-col lg:h-[calc(100vh-180px)] min-h-[500px] gap-2.5">
-      {/* High-Tech Trigger & Status Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/90 border border-slate-200/80 p-2 rounded-xl shadow-2xs">
-        <div className="hidden sm:flex items-center gap-2 flex-wrap text-[11px] font-bold">
-          <span className="text-slate-500 uppercase tracking-widest text-[9px] font-black mr-1">Satış Hunisi:</span>
-          
-          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/80 rounded-md flex items-center gap-1">
-            <Calendar className="w-3 h-3 text-indigo-600" />
-            <span>1. Geziler: {dealCards.filter(d => d.stage === 'planned').length}</span>
-          </span>
+    <div className="flex flex-col gap-2">
+      {/* Compact Top Control & Stage Filter Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 bg-white border border-slate-200/90 px-2.5 py-2 rounded-xl shadow-2xs">
+        {/* Stage Filter Selector (Active Workflow vs Archived Completed Stages) */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setStageFilter('active')}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
+              stageFilter === 'active'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+            title="Sadece aktif devam eden iş takiplerini (1. Geziler, 2. Analiz, 3. Pazarlık) gösterir"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Aktif Süreçler</span>
+            <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${stageFilter === 'active' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              {activeTotalCount}
+            </span>
+          </button>
 
-          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-md flex items-center gap-1">
-            <Search className="w-3 h-3 text-slate-500" />
-            <span>2. Analiz: {dealCards.filter(d => d.stage === 'analysis').length}</span>
-          </span>
+          {/* Active Stage Pills (1, 2, 3) */}
+          {STAGES.filter(s => !s.isArchive).map(stage => {
+            const count = filteredDeals.filter(d => d.stage === stage.id).length;
+            const isSelected = stageFilter === stage.id;
+            const Icon = stage.icon;
+            return (
+              <button
+                key={stage.id}
+                type="button"
+                onClick={() => setStageFilter(isSelected ? 'active' : stage.id)}
+                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                  isSelected
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-black'
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                }`}
+              >
+                <Icon className={`w-3 h-3 ${isSelected ? 'text-white' : 'text-slate-500'}`} />
+                <span>{stage.title}</span>
+                <span className={`px-1 py-0.2 rounded text-[10px] font-mono font-black ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
 
-          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200/80 rounded-md flex items-center gap-1">
-            <TrendingUp className="w-3 h-3 text-amber-600" />
-            <span>3. Pazarlık: {dealCards.filter(d => d.stage === 'negotiation').length}</span>
-          </span>
+          <div className="h-4 w-px bg-slate-200 mx-0.5 hidden sm:block" />
 
-          <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200/80 rounded-md flex items-center gap-1">
-            <X className="w-3 h-3 text-rose-600" />
-            <span>4. Olumsuz: {dealCards.filter(d => d.stage === 'negative').length}</span>
-          </span>
-
-          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-md flex items-center gap-1">
-            <Handshake className="w-3 h-3 text-emerald-600" />
-            <span>5. Kapanan: {dealCards.filter(d => d.stage === 'closed').length}</span>
-          </span>
+          {/* Archived / Completed Stage Pills (4. Olumsuz & 5. Başarılı - Hidden by default unless clicked) */}
+          <div className="flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-lg border border-slate-200/70">
+            <span className="text-[9px] font-black uppercase text-slate-400 px-1.5 hidden xl:inline-flex items-center gap-1">
+              <Archive className="w-2.5 h-2.5" />
+              Tamamlanan:
+            </span>
+            {STAGES.filter(s => s.isArchive).map(stage => {
+              const count = filteredDeals.filter(d => d.stage === stage.id).length;
+              const isSelected = stageFilter === stage.id;
+              const Icon = stage.icon;
+              const activeClass = stage.id === 'closed'
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                : 'bg-rose-600 text-white border-rose-600 shadow-2xs';
+              return (
+                <button
+                  key={stage.id}
+                  type="button"
+                  onClick={() => setStageFilter(isSelected ? 'active' : stage.id)}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer border ${
+                    isSelected
+                      ? activeClass
+                      : 'bg-white/90 hover:bg-white text-slate-600 border-slate-200/80'
+                  }`}
+                  title={`${stage.title} listesini görüntülemek için tıklayın (Varsayılan olarak gizlidir)`}
+                >
+                  <Icon className="w-3 h-3" />
+                  <span>{stage.title}</span>
+                  <span className={`px-1 rounded text-[9px] font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Trigger Controls & Search */}
-        <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+        {/* Right Controls: Layout Mode, Expand/Collapse All, New Tour */}
+        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+          {/* Layout Switcher: Horizontal Full-Page Rows vs Columns */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px] font-bold">
+            <button
+              type="button"
+              onClick={() => setLayoutMode('horizontal')}
+              className={`px-2 py-1 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                layoutMode === 'horizontal' ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Tam Sayfa Yatay Satır Görünümü"
+            >
+              <LayoutList className="w-3 h-3" />
+              <span className="hidden sm:inline">Satır</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLayoutMode('columns')}
+              className={`px-2 py-1 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                layoutMode === 'columns' ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Sütun (Kanban) Görünümü"
+            >
+              <Columns3 className="w-3 h-3" />
+              <span className="hidden sm:inline">Sütun</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleToggleAllDeals}
+            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+            title="Tüm portföy künyelerini aç veya kapat"
+          >
+            {allExpanded ? 'Künyeleri Daralt' : 'Künyeleri Aç'}
+          </button>
+
           <button
             type="button"
             onClick={(e) => {
@@ -419,17 +619,17 @@ export const RealEstateCRM = ({
               e.stopPropagation();
               onOpenTourModal(null);
             }}
-            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
             title="Sisteme yeni bir gezi / gösterim kaydı ekler"
           >
             <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            <span>+ Yeni Gezi Planla</span>
+            <span>Yeni Gezi</span>
           </button>
 
           {!hideHeader && onOpenCalendar && (
             <button
               onClick={onOpenCalendar}
-              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1"
+              className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold rounded-lg text-[11px] transition-colors cursor-pointer flex items-center gap-1"
             >
               <Calendar className="w-3.5 h-3.5 text-indigo-600" />
               <span>Takvim</span>
@@ -437,12 +637,12 @@ export const RealEstateCRM = ({
           )}
 
           {!hideHeader && externalSearchQuery === undefined && (
-            <div className="relative w-44">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <div className="relative w-40">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Portföy veya ref no ara..."
-                className="w-full pl-8 pr-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                placeholder="Portföy / Ref ara..."
+                className="w-full pl-6 pr-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-800 outline-none focus:border-indigo-500"
                 value={internalSearchQuery}
                 onChange={(e) => setInternalSearchQuery(e.target.value)}
               />
@@ -451,305 +651,387 @@ export const RealEstateCRM = ({
         </div>
       </div>
 
-      {/* MOBILE STAGE QUICK FILTER PILLS */}
-      <div className="flex sm:hidden items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-        <button
-          type="button"
-          onClick={() => setMobileStageFilter('all')}
-          className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border transition-all cursor-pointer ${
-            mobileStageFilter === 'all'
-              ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-              : 'bg-white text-slate-600 border-slate-200'
-          }`}
-        >
-          Tümü ({filteredDeals.length})
-        </button>
-        {STAGES.map(stage => {
-          const count = filteredDeals.filter(d => d.stage === stage.id).length;
-          const isSelected = mobileStageFilter === stage.id;
+      {/* Main Pipeline Container */}
+      <div className={
+        layoutMode === 'horizontal' || visibleStages.length === 1
+          ? "space-y-2.5"
+          : `grid grid-cols-1 md:grid-cols-${Math.min(visibleStages.length, 3)} lg:grid-cols-${visibleStages.length} gap-2.5 items-start`
+      }>
+        {visibleStages.map(stage => {
+          const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
+          const isStageCollapsed = !!collapsedStages[stage.id] && visibleStages.length > 1;
+          const StageIcon = stage.icon;
+
           return (
-            <button
+            <div
               key={stage.id}
-              type="button"
-              onClick={() => setMobileStageFilter(stage.id)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tight shrink-0 border transition-all flex items-center gap-1 cursor-pointer ${
-                isSelected
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
-                  : 'bg-white text-slate-700 border-slate-200'
-              }`}
+              className="bg-white border border-slate-200/90 rounded-xl shadow-2xs overflow-hidden flex flex-col"
             >
-              <span>{stage.title}</span>
-              <span className={`px-1 py-0.2 rounded text-[9px] font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Kanban Board - 5 Stages */}
-      <div className="flex-1 overflow-x-auto pb-2 custom-scrollbar">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 h-full w-full min-w-0">
-          {STAGES.map(stage => {
-            const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
-            const hiddenOnMobile = mobileStageFilter !== 'all' && mobileStageFilter !== stage.id;
-
-            return (
-              <div key={stage.id} className={`${hiddenOnMobile ? 'hidden sm:flex' : 'flex'} flex-col gap-2 min-w-0 bg-slate-50/70 border border-slate-200/80 rounded-xl p-2`}>
-                {/* Stage Column Header */}
-                <div className="flex items-center justify-between px-1.5 py-1 border-b border-slate-200/70 pb-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className={`w-2.5 h-2.5 rounded-full ${stage.color} shrink-0`} />
-                    <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate">{stage.title}</h3>
-                  </div>
-                  <span className="text-[10px] font-black bg-slate-200/80 text-slate-700 px-1.5 py-0.2 rounded-md shrink-0">
-                    {stageDeals.length}
+              {/* Stage Header Bar (Clickable to collapse/expand section) */}
+              <div
+                onClick={() => visibleStages.length > 1 && toggleStageCollapse(stage.id)}
+                className={`flex items-center justify-between px-3 py-2 bg-slate-50/90 border-b border-slate-200/70 ${
+                  visibleStages.length > 1 ? 'cursor-pointer hover:bg-slate-100/80' : ''
+                } transition-colors`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {visibleStages.length > 1 && (
+                    isStageCollapsed ? (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    )
+                  )}
+                  <span className={`w-2.5 h-2.5 rounded-full ${stage.color} shrink-0`} />
+                  <StageIcon className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight truncate">
+                    {stage.title}
+                  </h3>
+                  {stage.isArchive && (
+                    <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 rounded text-[9px] font-black uppercase">
+                      Arşiv Listesi
+                    </span>
+                  )}
+                  <span className="hidden md:inline text-[10px] text-slate-400 font-semibold truncate">
+                    — {stage.description}
                   </span>
                 </div>
 
-                {/* Column Body */}
-                <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-0.5">
-                  <AnimatePresence mode="popLayout">
-                    {stageDeals.map(deal => {
-                      const latestTask = deal.tasks.sort((a:any, b:any) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime())[0];
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {stageFilter === stage.id && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setStageFilter('active');
+                      }}
+                      className="px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold cursor-pointer"
+                    >
+                      Aktif Süreçlere Dön
+                    </button>
+                  )}
+                  <span className="text-[11px] font-black bg-slate-900 text-white px-2 py-0.5 rounded-md font-mono">
+                    {stageDeals.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Stage Deals List (Compact 1-Line Collapsible "Kısa Künye" Items) */}
+              {!isStageCollapsed && (
+                <div className="divide-y divide-slate-100 max-h-[620px] overflow-y-auto custom-scrollbar">
+                  {stageDeals.length === 0 ? (
+                    <div className="py-5 px-3 text-center flex items-center justify-center gap-2 text-slate-400">
+                      <Info className="w-3.5 h-3.5 shrink-0" />
+                      <span className="text-[11px] font-bold">Bu aşamada kayıtlı portföy takibi bulunmuyor.</span>
+                    </div>
+                  ) : (
+                    stageDeals.map(deal => {
+                      const isExpanded = !!expandedDeals[deal.id];
+                      const sortedTasks = [...deal.tasks].sort((a: any, b: any) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
+                      const latestTask = sortedTasks[0];
                       const sector = deal.property.sector_data || {};
+                      const formattedPrice = formatFormattedPrice(deal.property.price, deal.property.currency);
 
                       return (
-                        <motion.div
+                        <div
                           key={deal.id}
-                          layout
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          className="bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all group relative overflow-hidden space-y-2"
+                          className={`transition-colors ${isExpanded ? 'bg-indigo-50/20' : 'hover:bg-slate-50/80'}`}
                         >
-                          {/* Property Header */}
-                          <div className="flex items-start gap-2">
-                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
-                              {deal.property.images?.[0] ? (
-                                <img src={deal.property.images[0]} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                  <MapPin className="w-4 h-4" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="text-[9px] font-mono font-bold bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
-                                  REF: {deal.property.reference_no || 'N/A'}
-                                </span>
-                              </div>
-                              <h4 className="text-xs font-black text-slate-900 truncate mt-0.5 leading-tight">
-                                {deal.property.title}
-                              </h4>
-                              <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium mt-0.5">
-                                <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span className="truncate">{deal.property.location || 'KKTC'}</span>
-                              </div>
-                            </div>
-                          </div>
+                          {/* COMPACT 1-LINE SUMMARY ROW ("KISA KÜNYE") */}
+                          <div
+                            onClick={() => toggleDealExpand(deal.id)}
+                            className="px-2.5 py-1.5 flex items-center justify-between gap-2 cursor-pointer select-none"
+                          >
+                            {/* Left: Chevron + Thumbnail + Ref + Title + Location */}
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <button
+                                type="button"
+                                className="p-0.5 text-slate-400 hover:text-slate-700 shrink-0"
+                                title={isExpanded ? "Detayı Gizle" : "Detayı Göster"}
+                              >
+                                {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-indigo-600" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                              </button>
 
-                          {/* Tour / Activity Log Info */}
-                          {latestTask && (
-                            <div className={`rounded-lg p-2 border text-[10px] ${latestTask.is_completed ? 'bg-slate-50 border-slate-200' : 'bg-indigo-50/60 border-indigo-100'}`}>
-                              <div className="flex items-center justify-between mb-1">
-                                <div className={`flex items-center gap-1 font-black ${latestTask.is_completed ? 'text-slate-600' : 'text-indigo-700'}`}>
-                                  {latestTask.is_completed ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-indigo-600" />}
-                                  <span>{latestTask.is_completed ? 'Tamamlanan Gezi' : 'Planlanan Randevu'}</span>
-                                </div>
-                                {!latestTask.is_completed && (
-                                  <button 
-                                    onClick={() => handleReschedule(latestTask)}
-                                    className="p-0.5 hover:bg-white rounded text-indigo-600 transition-all cursor-pointer"
-                                    title="Tarih/Saat Revize Et"
-                                  >
-                                    <Edit2 className="w-3 h-3" />
-                                  </button>
+                              <div className="w-7 h-7 rounded-md overflow-hidden bg-slate-100 shrink-0 border border-slate-200/80">
+                                {deal.property.images?.[0] ? (
+                                  <img src={deal.property.images[0]} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                    <MapPin className="w-3 h-3" />
+                                  </div>
                                 )}
                               </div>
-                              <p className={`font-semibold leading-tight line-clamp-2 ${latestTask.is_completed ? 'text-slate-600' : 'text-indigo-950'}`}>
-                                {latestTask.description}
-                              </p>
-                              <div className="flex items-center gap-1 mt-1 text-[9px] font-bold text-slate-500">
-                                <Calendar className="w-3 h-3 text-slate-400" />
-                                <span>
-                                  {latestTask.due_date ? format(parseISO(latestTask.due_date), 'd MMM HH:mm', { locale: tr }) : 'Tarih Belirtilmedi'}
-                                </span>
-                              </div>
-                              {latestTask.completion_note && (
-                                <div className="mt-1.5 pt-1 border-t border-slate-200/60">
-                                  <p className="text-[9px] text-slate-600 italic bg-white/80 p-1 rounded border border-slate-100 line-clamp-2">
-                                    {latestTask.completion_note}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          )}
 
-                          {/* Special Details for Negotiation & Closed Stages */}
-                          {stage.id === 'negotiation' && sector.offer_amount && (
-                            <div className="p-1.5 bg-amber-50 rounded-lg border border-amber-200/80 text-[10px] space-y-0.5">
-                              <p className="font-extrabold text-amber-900 flex justify-between">
-                                <span>Teklif Tutarı:</span>
-                                <span>{sector.offer_amount} {deal.property.currency}</span>
-                              </p>
-                              {sector.deposit_amount && (
-                                <p className="font-bold text-amber-800 flex justify-between">
-                                  <span>Kapora:</span>
-                                  <span>{sector.deposit_amount}</span>
-                                </p>
-                              )}
-                            </div>
-                          )}
+                              <span className="text-[10px] font-mono font-black bg-slate-100 text-slate-700 border border-slate-200/80 px-1.5 py-0.5 rounded shrink-0">
+                                {deal.property.reference_no || `#${deal.property.id}`}
+                              </span>
 
-                          {stage.id === 'closed' && (
-                            <div className="p-1.5 bg-emerald-50 rounded-lg border border-emerald-200/80 text-[10px] space-y-0.5">
-                              <p className="font-black text-emerald-900 flex justify-between">
-                                <span>Sonuç:</span>
-                                <span>{deal.property.status === 'sold' ? 'SATILDI' : 'KİRALANDI'}</span>
-                              </p>
-                              {sector.final_price && (
-                                <p className="font-bold text-emerald-800 flex justify-between">
-                                  <span>Nihai Tutar:</span>
-                                  <span>{sector.final_price} {deal.property.currency}</span>
-                                </p>
-                              )}
-                              {sector.closed_client && (
-                                <p className="text-[9px] text-emerald-700 font-semibold truncate">
-                                  Müşteri: {sector.closed_client}
-                                </p>
-                              )}
-                            </div>
-                          )}
+                              <span className="text-xs font-black text-slate-900 truncate">
+                                {deal.property.title}
+                              </span>
 
-                          {stage.id === 'negative' && sector.negative_reason && (
-                            <div className="p-1.5 bg-rose-50 rounded-lg border border-rose-200/80 text-[10px]">
-                              <p className="font-bold text-rose-800 line-clamp-2">
-                                Neden: {sector.negative_reason}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Footer & Action Buttons */}
-                          <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 gap-1.5">
-                            <div className="flex flex-col">
-                              <span className="text-[8px] font-bold text-slate-400 uppercase">Liste Fiyatı</span>
-                              <span className="text-xs font-black text-slate-900">
-                                {deal.property.price} {deal.property.currency}
+                              <span className="hidden md:inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-500 shrink-0 bg-slate-100/70 px-1.5 py-0.5 rounded">
+                                <MapPin className="w-2.5 h-2.5 text-slate-400" />
+                                <span className="truncate max-w-[120px]">{deal.property.location || deal.property.kktc_region || 'KKTC'}</span>
                               </span>
                             </div>
-                            
-                            {/* STAGE SPECIFIC INTERACTIVE ACTION BUTTONS */}
-                            <div className="flex items-center gap-1 shrink-0">
-                              {stage.id === 'planned' && (
-                                <>
-                                  <button 
-                                    onClick={() => handleCompleteTour(latestTask, deal.property)}
-                                    className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer shadow-2xs"
-                                  >
-                                    Geziyi Tamamla
-                                  </button>
-                                  <button 
-                                    onClick={() => handleOpenNegative(deal.property, latestTask)}
-                                    className="p-1 bg-slate-100 hover:bg-rose-50 text-rose-500 rounded-lg transition-all cursor-pointer"
-                                    title="Olumsuza Taşı"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                </>
-                              )}
 
-                              {stage.id === 'analysis' && (
-                                <>
-                                  <button 
-                                    onClick={() => handleOpenNegotiation(deal.property)}
-                                    className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
-                                  >
-                                    <DollarSign className="w-3 h-3" />
-                                    Pazarlık
-                                  </button>
-                                  <button 
-                                    onClick={() => handleOpenNegative(deal.property)}
-                                    className="p-1 bg-slate-100 hover:bg-rose-50 text-rose-500 rounded-lg transition-all cursor-pointer"
-                                    title="Olumsuza Taşı"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                </>
-                              )}
-
-                              {stage.id === 'negotiation' && (
-                                <>
-                                  <button 
-                                    onClick={() => handleOpenClosing(deal.property)}
-                                    className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
-                                  >
-                                    <Handshake className="w-3 h-3" />
-                                    Kapat
-                                  </button>
-                                  <button 
-                                    onClick={() => handleOpenNegative(deal.property)}
-                                    className="p-1 bg-slate-100 hover:bg-rose-50 text-rose-500 rounded-lg transition-all cursor-pointer"
-                                    title="Olumsuza Taşı"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                </>
-                              )}
-
-                              {stage.id === 'negative' && (
-                                <button 
-                                  onClick={() => handleReactivate(deal.property)}
-                                  className="px-2 py-1 bg-slate-800 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
-                                >
-                                  <RotateCcw className="w-3 h-3" />
-                                  Canlandır
-                                </button>
+                            {/* Middle/Right: Brief Status Pill + Price + Quick Action Buttons */}
+                            <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                              {/* Brief contextual badge */}
+                              {stage.id === 'negotiation' && sector.offer_amount && (
+                                <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[10px] font-black">
+                                  Teklif: {sector.offer_amount} {deal.property.currency}
+                                </span>
                               )}
 
                               {stage.id === 'closed' && (
-                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[9px] font-black uppercase flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  Tamamlandı
+                                <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-black">
+                                  {deal.property.status === 'rented' ? 'KİRALANDI' : 'SATILDI'}
+                                  {sector.final_price ? ` • ${sector.final_price} ${deal.property.currency}` : ''}
                                 </span>
                               )}
+
+                              {stage.id === 'negative' && sector.negative_reason && (
+                                <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 bg-rose-50 text-rose-800 border border-rose-200 rounded text-[10px] font-bold max-w-[180px] truncate">
+                                  {sector.negative_reason}
+                                </span>
+                              )}
+
+                              {latestTask && stage.id !== 'closed' && stage.id !== 'negative' && (
+                                <span className={`hidden xl:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                  latestTask.is_completed
+                                    ? 'bg-slate-50 text-slate-600 border-slate-200'
+                                    : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                }`}>
+                                  <Clock className="w-2.5 h-2.5" />
+                                  {latestTask.due_date ? format(parseISO(latestTask.due_date), 'd MMM HH:mm', { locale: tr }) : 'Gezi'}
+                                </span>
+                              )}
+
+                              {/* Price */}
+                              <span className="text-xs font-black text-slate-900 font-mono min-w-[75px] text-right">
+                                {formattedPrice}
+                              </span>
+
+                              {/* Stage Quick Action Buttons */}
+                              <div className="flex items-center gap-1">
+                                {stage.id === 'planned' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCompleteTour(latestTask, deal.property)}
+                                      className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[10px] font-black transition-all cursor-pointer shadow-2xs"
+                                      title="Geziyi tamamla ve Analiz/Pazarlık aşamasına aktar"
+                                    >
+                                      Analize Al
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenNegative(deal.property, latestTask)}
+                                      className="p-1 bg-slate-100 hover:bg-rose-50 text-rose-600 rounded-md transition-all cursor-pointer"
+                                      title="4. Olumsuz (Arşiv) Listesine Taşı"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+
+                                {stage.id === 'analysis' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenNegotiation(deal.property)}
+                                      className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-md text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                                      title="3. Pazarlık aşamasına geçir"
+                                    >
+                                      <DollarSign className="w-3 h-3" />
+                                      <span>Pazarlık</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenClosing(deal.property)}
+                                      className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[10px] font-black transition-all cursor-pointer hidden sm:flex items-center gap-1 shadow-2xs"
+                                      title="5. Başarılı (Satıldı/Kiralandı) olarak tamamla"
+                                    >
+                                      <Handshake className="w-3 h-3" />
+                                      <span>Başarılı</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenNegative(deal.property)}
+                                      className="p-1 bg-slate-100 hover:bg-rose-50 text-rose-600 rounded-md transition-all cursor-pointer"
+                                      title="4. Olumsuz (Arşiv) Listesine Taşı"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+
+                                {stage.id === 'negotiation' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenClosing(deal.property)}
+                                      className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                                      title="5. Başarılı (Satıldı/Kiralandı) olarak tamamla"
+                                    >
+                                      <Handshake className="w-3 h-3" />
+                                      <span>Başarılı</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenNegative(deal.property)}
+                                      className="p-1 bg-slate-100 hover:bg-rose-50 text-rose-600 rounded-md transition-all cursor-pointer"
+                                      title="4. Olumsuz (Arşiv) Listesine Taşı"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+
+                                {(stage.id === 'negative' || stage.id === 'closed') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReactivate(deal.property, 'analysis')}
+                                    className="px-2 py-1 bg-slate-800 hover:bg-indigo-600 text-white rounded-md text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                                    title="Arşivden çıkar ve aktif sürece geri al"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                    <span>Canlandır</span>
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          {/* Additional showing button if needed */}
-                          {(stage.id === 'planned' || stage.id === 'analysis') && (
-                            <button 
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                onOpenTourModal(deal.property);
-                              }}
-                              className="w-full py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600 transition-all cursor-pointer flex items-center justify-center gap-1"
-                            >
-                              <Plus className="w-3 h-3" />
-                              Ek Gezi / Randevu Planla
-                            </button>
-                          )}
-                        </motion.div>
-                      );
-                    })}
+                          {/* EXPANDED ACCORDION DETAILS */}
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden border-t border-slate-200/60 bg-slate-50/70"
+                              >
+                                <div className="p-2.5 space-y-2 text-xs">
+                                  {/* Direct Stage Switcher & Quick Tour Button */}
+                                  <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-2 rounded-lg border border-slate-200/80">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-[10px] font-black uppercase text-slate-400 mr-1">Aşama Değiştir:</span>
+                                      {STAGES.map(s => {
+                                        const isCurrent = stage.id === s.id;
+                                        return (
+                                          <button
+                                            key={s.id}
+                                            type="button"
+                                            onClick={() => !isCurrent && handleDirectStageChange(deal.property, s.id)}
+                                            className={`px-2 py-0.5 rounded text-[10px] font-black border transition-all cursor-pointer ${
+                                              isCurrent
+                                                ? 'bg-slate-900 text-white border-slate-900'
+                                                : 'bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border-slate-200'
+                                            }`}
+                                          >
+                                            {s.title}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
 
-                    {stageDeals.length === 0 && (
-                      <div className="py-6 px-2 text-center bg-white/50 border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-1">
-                        <Info className="w-4 h-4 text-slate-300" />
-                        <p className="text-[10px] font-bold text-slate-400">
-                          Bu aşamada fırsat yok
-                        </p>
-                      </div>
-                    )}
-                  </AnimatePresence>
+                                    <button
+                                      type="button"
+                                      onClick={() => onOpenTourModal(deal.property)}
+                                      className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                      <span>Ek Gezi / Randevu Planla</span>
+                                    </button>
+                                  </div>
+
+                                  {/* Stage-Specific Details (Analysis / Negotiation / Negative / Closed) */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {/* Left: Latest Task / Showing Details */}
+                                    <div className="bg-white p-2 rounded-lg border border-slate-200/80 space-y-1">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-black uppercase text-slate-400">
+                                          Son Gezi / Randevu Kaydı ({deal.tasks.length} Gezi)
+                                        </span>
+                                        {latestTask && !latestTask.is_completed && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleReschedule(latestTask)}
+                                            className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+                                          >
+                                            <Edit2 className="w-2.5 h-2.5" />
+                                            Tarih Revize Et
+                                          </button>
+                                        )}
+                                      </div>
+                                      {latestTask ? (
+                                        <>
+                                          <p className="text-[11px] font-bold text-slate-800">{latestTask.description}</p>
+                                          <p className="text-[10px] font-semibold text-slate-500">
+                                            Tarih: {latestTask.due_date ? format(parseISO(latestTask.due_date), 'd MMMM yyyy HH:mm', { locale: tr }) : 'Belirtilmedi'}
+                                          </p>
+                                          {latestTask.completion_note && (
+                                            <p className="text-[10px] text-slate-700 bg-slate-50 p-1.5 rounded border border-slate-200/70 italic">
+                                              {latestTask.completion_note}
+                                            </p>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <p className="text-[11px] text-slate-400 font-semibold">Kayıtlı gezi detayı bulunmuyor.</p>
+                                      )}
+                                    </div>
+
+                                    {/* Right: Financial / Stage Notes */}
+                                    <div className="bg-white p-2 rounded-lg border border-slate-200/80 space-y-1">
+                                      <span className="text-[10px] font-black uppercase text-slate-400">Süreç & Teklif Özeti</span>
+                                      {sector.last_analysis_note && (
+                                        <p className="text-[11px] text-slate-700">
+                                          <strong className="text-slate-900">Analiz Notu:</strong> {sector.last_analysis_note}
+                                        </p>
+                                      )}
+                                      {sector.offer_amount && (
+                                        <p className="text-[11px] text-amber-800 font-bold">
+                                          <strong>Teklif:</strong> {sector.offer_amount} {deal.property.currency}
+                                          {sector.deposit_amount ? ` | Kapora: ${sector.deposit_amount}` : ''}
+                                        </p>
+                                      )}
+                                      {sector.negotiation_notes && (
+                                        <p className="text-[10px] text-slate-600">{sector.negotiation_notes}</p>
+                                      )}
+                                      {sector.final_price && (
+                                        <p className="text-[11px] text-emerald-800 font-bold">
+                                          <strong>Kapanış Fiyatı:</strong> {sector.final_price} {deal.property.currency}
+                                          {sector.closed_client ? ` | Müşteri: ${sector.closed_client}` : ''}
+                                        </p>
+                                      )}
+                                      {sector.negative_reason && (
+                                        <p className="text-[11px] text-rose-700 font-bold">
+                                          <strong>Olumsuzluk Nedeni:</strong> {sector.negative_reason}
+                                        </p>
+                                      )}
+                                      {!sector.last_analysis_note && !sector.offer_amount && !sector.final_price && !sector.negative_reason && (
+                                        <p className="text-[11px] text-slate-400 font-semibold">
+                                          Lokasyon: {deal.property.location || deal.property.kktc_region || 'KKTC'} • Liste Fiyatı: {formattedPrice}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* 1. ANALYSIS MODAL */}
@@ -781,8 +1063,8 @@ export const RealEstateCRM = ({
 
               <div className="space-y-3 font-bold text-xs">
                 <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80">
-                   <span className="text-[10px] font-black text-slate-400 uppercase">Gezilen Portföy:</span>
-                   <p className="text-xs font-black text-slate-900 leading-tight mt-0.5">{activeProperty?.title}</p>
+                  <span className="text-[10px] font-black text-slate-400 uppercase">Gezilen Portföy:</span>
+                  <p className="text-xs font-black text-slate-900 leading-tight mt-0.5">{activeProperty?.title}</p>
                 </div>
 
                 <div>
@@ -795,7 +1077,6 @@ export const RealEstateCRM = ({
                   />
                 </div>
 
-                {/* Outcome Target */}
                 <div>
                   <label className="text-[10px] font-black text-slate-500 uppercase mb-1 block">Sonraki Süreç Aşaması</label>
                   <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80">
@@ -932,7 +1213,7 @@ export const RealEstateCRM = ({
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900">Pazarlık & Kapora Süreci</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">3. Aşamaya Taşı</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">3. Pazarlık Aşamasına Taşı</p>
                 </div>
               </div>
 
@@ -980,7 +1261,7 @@ export const RealEstateCRM = ({
                   onClick={submitNegotiation}
                   className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Kaydediliyor...' : 'Pazarlık Aşamasına Al (Opsiyonla)'}
+                  {isSubmitting ? 'Kaydediliyor...' : '3. Pazarlık Aşamasına Al (Opsiyonla)'}
                 </button>
               </div>
             </motion.div>
@@ -988,7 +1269,7 @@ export const RealEstateCRM = ({
         )}
       </AnimatePresence>
 
-      {/* 4. CLOSING MODAL */}
+      {/* 4. CLOSING / BAŞARILI MODAL */}
       <AnimatePresence>
         {showClosingModal && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs">
@@ -1010,8 +1291,8 @@ export const RealEstateCRM = ({
                   <Handshake className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">İşlem Kapanış (Satıldı / Kiralandı)</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">5. Aşamada Tamamla</p>
+                  <h3 className="text-base font-black text-slate-900">Başarılı Kapanış (Satıldı / Kiralandı)</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">5. Başarılı (Arşiv) Listesine Kaydet</p>
                 </div>
               </div>
 
@@ -1054,7 +1335,7 @@ export const RealEstateCRM = ({
                   onClick={submitClosing}
                   className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Kaydediliyor...' : 'İşlemi Tamamla & Kapat'}
+                  {isSubmitting ? 'Kaydediliyor...' : 'Başarılı Olarak Tamamla'}
                 </button>
               </div>
             </motion.div>
@@ -1085,7 +1366,7 @@ export const RealEstateCRM = ({
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900">Olumsuz / Sonuçsuz İşaretle</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">4. Aşamaya Taşı</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">4. Olumsuz (Arşiv) Listesine Taşı</p>
                 </div>
               </div>
 
@@ -1118,7 +1399,7 @@ export const RealEstateCRM = ({
                   onClick={submitNegative}
                   className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Kaydediliyor...' : 'Olumsuzlarak Kaydet'}
+                  {isSubmitting ? 'Kaydediliyor...' : 'Olumsuz Olarak Kaydet'}
                 </button>
               </div>
             </motion.div>

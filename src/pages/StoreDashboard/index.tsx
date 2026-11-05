@@ -462,7 +462,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [showUserModal, setShowUserModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
-    return localStorage.getItem('desktopSidebarCollapsed') === 'true';
+    return localStorage.getItem('desktopSidebarCollapsed') !== 'false';
   });
 
   const companyList = Array.isArray(companies) ? companies : [];
