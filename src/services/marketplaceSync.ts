@@ -1181,7 +1181,7 @@ export async function syncProductStockToMarketplaces(
 
     // 2. Hepsiburada Real-Time Sync
     const hbSettings = store.hepsiburada_settings || branding.hepsiburada_settings;
-    if (hbSettings?.merchantId && hbSettings?.apiKey && hbSettings?.apiSecret) {
+    if (hbSettings?.merchantId && hbSettings?.apiSecret) {
       const hbProducts = products.filter(p => {
         const cleanHbSku = p.hepsiburada_sku && String(p.hepsiburada_sku).trim().toLowerCase() !== 'null' ? String(p.hepsiburada_sku).trim() : null;
         return Boolean(p.is_hepsiburada_active) && Boolean(cleanHbSku);
@@ -1190,7 +1190,7 @@ export async function syncProductStockToMarketplaces(
       if (hbProducts.length > 0) {
         try {
           const { HepsiburadaService } = await import("./backend/hepsiburadaService.js");
-          const hbService = new HepsiburadaService(hbSettings, storeId);
+          const hbService = new HepsiburadaService({ ...hbSettings, apiKey: hbSettings.apiKey || "lookprice_dev" }, storeId);
 
           const hbItems = hbProducts.map(p => {
             let mpData = p.marketplace_data;

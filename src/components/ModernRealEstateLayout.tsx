@@ -318,7 +318,16 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
 
       // 8. Rental Specific - Furnished match
       if (listingTypeFilter === 'rent' && activeFurnished !== "all") {
-        const isFurnished = p.sector_data?.furnished === true;
+        const isFurnished = Boolean(
+          p.furnished === true ||
+          (p as any).furnished === "true" ||
+          (p as any).furnished === "esyali" ||
+          p.sector_data?.furnished === true ||
+          p.sector_data?.furnished === "true" ||
+          p.sector_data?.furnished === "esyali" ||
+          (p.sector_data?.furnished_status || "").toLowerCase().includes("full") ||
+          (p.name || "").toLowerCase().includes("eşyalı")
+        );
         const targetFurnished = activeFurnished === "furnished";
         if (isFurnished !== targetFurnished) return false;
       }

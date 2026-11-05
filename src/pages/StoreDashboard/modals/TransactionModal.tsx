@@ -1094,14 +1094,16 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                             </div>
                           </>
                         )}
-                        <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
-                          <span className="text-[10px] font-medium text-amber-700 uppercase">
-                            {isTr ? `Birleşik (${defaultCurr})` : `Combined (${defaultCurr})`}:
-                          </span>
-                          <span className="font-medium font-mono text-amber-950">
-                            {totalBaseNet.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {defaultCurr}
-                          </span>
-                        </div>
+                        {selectedCurrency === 'ALL' && (
+                          <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+                            <span className="text-[10px] font-medium text-amber-700 uppercase">
+                              {isTr ? `Birleşik (${defaultCurr})` : `Combined (${defaultCurr})`}:
+                            </span>
+                            <span className="font-medium font-mono text-amber-950">
+                              {totalBaseNet.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {defaultCurr}
+                            </span>
+                          </div>
+                        )}
                         <div className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-medium text-[11px]">
                           {filteredTransactions.length} {isTr ? 'İşlem' : 'Records'}
                         </div>

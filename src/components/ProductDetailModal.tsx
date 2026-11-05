@@ -1233,8 +1233,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   rooms: (product as any).rooms || (product.sector_data as any)?.rooms,
                   building_age: (product as any).building_age || (product.sector_data as any)?.building_age,
                   floor: (product as any).floor || (product.sector_data as any)?.floor,
-                  heating: (product as any).heating || (product.sector_data as any)?.heating,
-                  furnished: (product as any).furnished !== undefined ? (product as any).furnished : (product.sector_data as any)?.furnished,
+                  furnished: Boolean(
+                    (product as any).furnished === true ||
+                    (product as any).furnished === "true" ||
+                    (product as any).furnished === "esyali" ||
+                    (product as any).furnished === "furnished" ||
+                    (product.sector_data as any)?.furnished === true ||
+                    (product.sector_data as any)?.furnished === "true" ||
+                    (product.sector_data as any)?.furnished === "esyali" ||
+                    (product.sector_data as any)?.furnished === "furnished" ||
+                    (product.sector_data as any)?.furnished_status === "full" ||
+                    (product.name || "").toLowerCase().includes("eşyalı") ||
+                    (product.description || "").toLowerCase().includes("eşyalı")
+                  ),
                   is_trade_in_available: (product as any).is_trade_in_available !== undefined ? (product as any).is_trade_in_available : (product.sector_data as any)?.is_trade_in_available,
                 } : {})
               }}

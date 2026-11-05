@@ -344,7 +344,19 @@ export const ListingDetailModal = ({
                     })()}
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                       <span className="text-[10px] font-bold text-slate-400 uppercase block">Eşya Durumu</span>
-                      <span className="text-xs font-black text-slate-900">{sec.furnished ? 'Eşyalı' : 'Eşyasız'}</span>
+                      <span className="text-xs font-black text-slate-900">
+                        {Boolean(
+                          sec.furnished === true ||
+                          sec.furnished === "true" ||
+                          sec.furnished === "esyali" ||
+                          sec.furnished === "furnished" ||
+                          (item as any).furnished === true ||
+                          (item as any).furnished === "true" ||
+                          (item as any).furnished === "esyali" ||
+                          (sec as any).furnished_status === "full" ||
+                          (item.title || "").toLowerCase().includes("eşyalı")
+                        ) ? '🛋️ Eşyalı' : '📦 Eşyasız'}
+                      </span>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                       <span className="text-[10px] font-bold text-slate-400 uppercase block">Bulunduğu Kat</span>

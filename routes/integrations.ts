@@ -2155,13 +2155,20 @@ router.post("/hepsiburada/sync-inventory", authenticate, async (req: any, res) =
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
   try {
-    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = storeRes.rows[0];
+    let settings = row?.hepsiburada_settings || row?.branding?.hepsiburada_settings || {};
+    if (typeof settings === "string") {
+      try { settings = JSON.parse(settings); } catch { settings = {}; }
+    }
+    const merchantId = String(settings?.merchantId || "").trim();
+    const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
+    const apiSecret = String(settings?.apiSecret || "").trim();
+    if (!merchantId || !apiSecret) {
       return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
     }
 
-    const hbService = new HepsiburadaService(settings, storeId);
+    const hbService = new HepsiburadaService({ ...settings, merchantId, apiKey, apiSecret }, storeId);
     const result = await hbService.syncAllActiveProducts();
     res.json({ success: true, ...result });
   } catch (error: any) {
@@ -2224,8 +2231,13 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
     if (typeof sec === "string") { try { sec = JSON.parse(sec); } catch { sec = {}; } }
     const altBc = Array.isArray(sec?.alternate_barcodes) ? sec.alternate_barcodes.map(String) : [];
 
+    let mpDataPre: any = product.marketplace_data;
+    if (typeof mpDataPre === "string") { try { mpDataPre = JSON.parse(mpDataPre); } catch { mpDataPre = {}; } }
+    const preHbPid = String(mpDataPre?.hepsiburada?.productId || "").trim().toLowerCase();
+
     const matched = listings.find((l: any) => {
       const lHbSku = (l.hepsiburadaSku || "").trim();
+      const lPid = (l.productId || "").trim();
       const lMSku = (l.merchantSku || "").trim();
       const lBarcode = (l.barcode || "").trim();
       const lName = (l.productName || "").trim();
@@ -2233,6 +2245,9 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
       const lMSkuDigits = lMSku.replace(/\D/g, "");
 
       if (currentHbSku && lHbSku && norm(currentHbSku) === norm(lHbSku)) return true;
+      if (currentHbSku && lPid && norm(currentHbSku) === norm(lPid)) return true;
+      if (preHbPid && lPid && norm(preHbPid) === norm(lPid)) return true;
+      if (preHbPid && lHbSku && norm(preHbPid) === norm(lHbSku)) return true;
       if (barcode && lBarcode && norm(barcode) === norm(lBarcode)) return true;
       if (barcode && lMSku && norm(barcode) === norm(lMSku)) return true;
       if (sku && lMSku && norm(sku) === norm(lMSku)) return true;
@@ -2714,18 +2729,6 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       }
     }
 
-    // 2. Send to Listing Price & Stock Inventory Update
-    const hbEffectiveMerchantSku = hbData.merchantSku || hbData.hepsiburadaSku || p.barcode.trim();
-    const result = await hbService.updatePriceAndStock([
-      {
-        HepsiburadaSku: p.hepsiburada_sku || hbData.hepsiburadaSku || "",
-        MerchantSku: hbEffectiveMerchantSku,
-        Price: effectivePrice,
-        AvailableStock: parseInt(p.stock_quantity || "0", 10),
-        DispatchTime: settings.defaultDispatchTime || 1,
-      }
-    ]);
-
     // Check if user passed a Hepsiburada SKU or direct URL in request body
     let inputHbUrl = req.body.hepsiburadaUrl || req.body.hepsiburada_url;
     let inputHbSku = req.body.hepsiburadaSku || req.body.hepsiburada_sku;
@@ -2738,24 +2741,49 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     }
 
     let resolvedHbSku = inputHbSku || p.hepsiburada_sku || hbData.hepsiburadaSku || hbData.hbSku || "";
-    if (!resolvedHbSku) {
+    let resolvedHbProductId = hbData.productId || "";
+    let resolvedHbMerchantSku = hbData.merchantSku || p.barcode.trim();
+
+    // Always reconcile with live Hepsiburada listings if resolvedHbSku is empty OR is a parent Catalog ID (HBC0... without V)
+    const upperInitialSku = String(resolvedHbSku || "").trim().toUpperCase();
+    const isParentCatalogIdOnly =
+      upperInitialSku &&
+      (upperInitialSku.startsWith("HBC0") || upperInitialSku.startsWith("HB0")) &&
+      !upperInitialSku.startsWith("HBCV") &&
+      !upperInitialSku.startsWith("HBV");
+
+    if (!resolvedHbSku || isParentCatalogIdOnly || !hbData.merchantSku) {
       try {
-        const listings = await hbService.fetchMerchantListings({ limit: 100 });
-        const matched = listings.find((l: any) => 
-          (l.merchantSku && l.merchantSku.toLowerCase() === p.barcode.trim().toLowerCase()) ||
-          (l.barcode && l.barcode.toLowerCase() === p.barcode.trim().toLowerCase()) ||
-          (l.hepsiburadaSku && hbData.hepsiburadaSku && l.hepsiburadaSku.toLowerCase() === hbData.hepsiburadaSku.toLowerCase())
+        const listings = await hbService.fetchMerchantListings({ limit: 500 });
+        const norm = (s: any) => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        const matched = listings.find((l: any) =>
+          (resolvedHbSku && l.hepsiburadaSku && norm(l.hepsiburadaSku) === norm(resolvedHbSku)) ||
+          (resolvedHbSku && l.productId && norm(l.productId) === norm(resolvedHbSku)) ||
+          (resolvedHbProductId && l.productId && norm(l.productId) === norm(resolvedHbProductId)) ||
+          (l.merchantSku && norm(l.merchantSku) === norm(p.barcode)) ||
+          (l.barcode && norm(l.barcode) === norm(p.barcode)) ||
+          (p.sku && l.merchantSku && norm(l.merchantSku) === norm(p.sku))
         );
         if (matched) {
-          resolvedHbSku = matched.hepsiburadaSku || matched.merchantSku;
-          if (matched.merchantSku && !hbData.merchantSku) {
-            hbData.merchantSku = matched.merchantSku;
-          }
+          if (matched.hepsiburadaSku) resolvedHbSku = matched.hepsiburadaSku;
+          if (matched.productId) resolvedHbProductId = matched.productId;
+          if (matched.merchantSku) resolvedHbMerchantSku = matched.merchantSku;
         }
       } catch (lErr) {
         // non-blocking
       }
     }
+
+    // 2. Send to Listing Price & Stock Inventory Update using the exact resolved variant SKU and merchantSku
+    const result = await hbService.updatePriceAndStock([
+      {
+        HepsiburadaSku: resolvedHbSku || p.hepsiburada_sku || hbData.hepsiburadaSku || "",
+        MerchantSku: resolvedHbMerchantSku,
+        Price: effectivePrice,
+        AvailableStock: parseInt(p.stock_quantity || "0", 10),
+        DispatchTime: settings.defaultDispatchTime || 1,
+      }
+    ]);
 
     const isLive = Boolean(resolvedHbSku);
     const upperHbSku = String(resolvedHbSku || '').toUpperCase();
@@ -2775,6 +2803,8 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     if (isLive) {
       if (inputHbUrl && !inputHbUrl.includes('/ara?')) {
         resolvedHbProductUrl = inputHbUrl.includes('magaza=') ? inputHbUrl : (inputHbUrl.includes('?') ? `${inputHbUrl}&magaza=Enrakipsiz` : `${inputHbUrl}?magaza=Enrakipsiz`);
+      } else if (resolvedHbProductId) {
+        resolvedHbProductUrl = `https://www.hepsiburada.com/${hbSlug}-pm-${String(resolvedHbProductId).trim().toLowerCase()}?magaza=Enrakipsiz`;
       } else if (isMasterHbSku) {
         resolvedHbProductUrl = `https://www.hepsiburada.com/${hbSlug}-pm-${String(resolvedHbSku).trim().toLowerCase()}?magaza=Enrakipsiz`;
       } else if (isVariantHbSku) {
@@ -2791,8 +2821,11 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       ...hbData,
       categoryId: categoryId ? Number(categoryId) : undefined,
       attributes,
+      price: numericEffectivePrice,
+      stock: Number(p.stock_quantity || 0),
       hepsiburadaSku: resolvedHbSku || hbData.hepsiburadaSku || null,
-      productId: hbData.productId || (isMasterHbSku ? resolvedHbSku : null),
+      merchantSku: resolvedHbMerchantSku,
+      productId: resolvedHbProductId || hbData.productId || (isMasterHbSku ? resolvedHbSku : null),
       status: isLive ? 'ACTIVE' : 'PENDING_APPROVAL',
       productUrl: resolvedHbProductUrl,
       catalogTrackingId: catalogTrackingId || hbData.catalogTrackingId,
@@ -2916,11 +2949,20 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
       if (typeof mpData === "string") {
         try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
       }
+      mpData = mpData || {};
+      if (!mpData.hepsiburada) mpData.hepsiburada = {};
+      if (!mpData.hepsiburada.attributes) mpData.hepsiburada.attributes = {};
+      mpData.hepsiburada.price = effectivePrice;
+      mpData.hepsiburada.attributes.price = String(effectivePrice);
+      mpData.hepsiburada.lastSync = new Date().toISOString();
+
       const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode.trim();
 
       validItems.push({
+        productId: p.id,
+        mpData,
         MerchantSku: hbMerchantSku,
-        HepsiburadaSku: p.hepsiburada_sku || "",
+        HepsiburadaSku: p.hepsiburada_sku || mpData?.hepsiburada?.hepsiburadaSku || "",
         Price: effectivePrice,
         AvailableStock: parseInt(p.stock_quantity || "0", 10),
         DispatchTime: cleanSettings.defaultDispatchTime || 1,
@@ -2931,17 +2973,28 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
       return res.status(400).json({ error: "Seçilen ürünlerin hiçbirinde geçerli barkod bulunamadı.", skipped: skippedItems });
     }
 
-    const result = await hbService.updatePriceAndStock(validItems);
-
-    // Only mark as active if the product already has a confirmed Hepsiburada SKU
-    await pool.query(
-      `UPDATE products 
-       SET is_hepsiburada_active = (CASE WHEN (hepsiburada_sku IS NOT NULL AND hepsiburada_sku != '') THEN true ELSE false END), 
-           hepsiburada_last_sync = NOW(), 
-           hepsiburada_last_error = NULL 
-       WHERE store_id = $1 AND barcode = ANY($2)`,
-      [storeId, validItems.map(i => i.MerchantSku)]
+    const result = await hbService.updatePriceAndStock(
+      validItems.map(({ MerchantSku, HepsiburadaSku, Price, AvailableStock, DispatchTime }) => ({
+        MerchantSku,
+        HepsiburadaSku,
+        Price,
+        AvailableStock,
+        DispatchTime,
+      }))
     );
+
+    // Update marketplace_data price & sync timestamp by exact product ID
+    for (const item of validItems) {
+      await pool.query(
+        `UPDATE products 
+         SET is_hepsiburada_active = (CASE WHEN (hepsiburada_sku IS NOT NULL AND hepsiburada_sku != '') THEN true ELSE false END), 
+             hepsiburada_last_sync = NOW(), 
+             hepsiburada_last_error = NULL,
+             marketplace_data = $1
+         WHERE store_id = $2 AND id = $3`,
+        [JSON.stringify(item.mpData), storeId, item.productId]
+      );
+    }
 
     res.json({ 
       success: true, 

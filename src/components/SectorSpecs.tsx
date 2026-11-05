@@ -832,16 +832,38 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           </p>
         </div>
       )}
-      {data.furnished !== undefined && category !== "land" && (
-        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
-          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
-            {lang === "tr" ? "EŞYA DURUMU" : "FURNISHED STATUS"}
-          </p>
-          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
-            {data.furnished ? (lang === "tr" ? "Eşyalı" : "Furnished") : (lang === "tr" ? "Boş / Eşyasız" : "Unfurnished")}
-          </p>
-        </div>
-      )}
+      {category !== "land" && (() => {
+        const hasFurnishedField = data.furnished !== undefined || (data as any).furnished_status !== undefined;
+        const nameHasFurnished = (name || "").toLowerCase().includes("eşyalı") || (description || "").toLowerCase().includes("eşyalı");
+        
+        if (!hasFurnishedField && !nameHasFurnished) return null;
+
+        const isFurn = Boolean(
+          data.furnished === true ||
+          (data as any).furnished === "true" ||
+          (data as any).furnished === "esyali" ||
+          (data as any).furnished === "furnished" ||
+          (data as any).furnished_status === "full" ||
+          (data as any).furnished_status === "tam" ||
+          nameHasFurnished
+        );
+
+        return (
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+            <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+              {lang === "tr" ? "EŞYA DURUMU" : "FURNISHED STATUS"}
+            </p>
+            <p className="text-sm font-black text-slate-900 transition-colors uppercase flex items-center gap-1.5">
+              <span>{isFurn ? "🛋️" : "📦"}</span>
+              <span>
+                {isFurn 
+                  ? (lang === "tr" ? "Eşyalı (Tam Eşyalı)" : "Furnished") 
+                  : (lang === "tr" ? "Boş / Eşyasız" : "Unfurnished")}
+              </span>
+            </p>
+          </div>
+        );
+      })()}
       {data.in_gated_community !== undefined && category !== "land" && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">

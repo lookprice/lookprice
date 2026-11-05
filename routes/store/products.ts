@@ -1127,6 +1127,10 @@ router.put("/bulk-update-price", async (req: any, res) => {
       { count: result.rowCount }
     );
 
+    import("../../src/services/cronJobs.js").then(({ syncMarketplacePricesOnRateChange }) => {
+      syncMarketplacePricesOnRateChange(Number(storeId)).catch(() => {});
+    }).catch(() => {});
+
     res.json({ success: true, count: result.rowCount });
   } catch (e: any) {
     console.error("Bulk price update error:", e);
@@ -1783,37 +1787,55 @@ router.put("/:id", async (req: any, res) => {
     );
 
     // Auto-sync revised price & stock to Hepsiburada if product is active on HB
-    const isHbActive = existingProductRes.rows[0]?.is_hepsiburada_active || existingProductRes.rows[0]?.hepsiburada_sku;
+    const isHbActive = existingProductRes.rows[0]?.is_hepsiburada_active || finalHbSku || existingProductRes.rows[0]?.hepsiburada_sku;
+    const effectiveCurrency = (currency || existingProductRes.rows[0]?.currency || "TRY").toUpperCase();
     if (isHbActive) {
       (async () => {
         try {
           const storeRes = await pool.query("SELECT hepsiburada_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
           const st = storeRes.rows[0];
           const hbSettings = st?.hepsiburada_settings || st?.branding?.hepsiburada_settings;
-          if (hbSettings?.merchantId && hbSettings?.apiKey && hbSettings?.apiSecret) {
+          if (hbSettings?.merchantId && hbSettings?.apiSecret) {
             const { HepsiburadaService } = await import("../../src/services/backend/hepsiburadaService.js");
-            const hbService = new HepsiburadaService(hbSettings, storeId);
+            const hbService = new HepsiburadaService(
+              { ...hbSettings, apiKey: hbSettings.apiKey || "lookprice_dev" },
+              storeId
+            );
             
             const rates = st?.currency_rates || st?.branding?.currency_rates || {};
             let rawPrice = parseFloat(String(finalPrice || "0"));
-            const curr = (currency || "TRY").toUpperCase();
-            if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
-            else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
-            else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+            if (effectiveCurrency === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+            else if (effectiveCurrency === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+            else if (effectiveCurrency === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
 
-            const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, category, sub_category);
+            const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, finalCategory, finalSubCategory);
             const hbMerchantSku = finalMarketplaceData?.hepsiburada?.merchantSku || existingProductRes.rows[0]?.marketplace_data?.hepsiburada?.merchantSku || finalBarcode;
+            const resolvedSku = finalHbSku || finalMarketplaceData?.hepsiburada?.hepsiburadaSku || existingProductRes.rows[0]?.hepsiburada_sku || "";
 
             await hbService.updatePriceAndStock([{
               MerchantSku: hbMerchantSku,
-              HepsiburadaSku: existingProductRes.rows[0]?.hepsiburada_sku || "",
+              HepsiburadaSku: resolvedSku,
               Price: effectivePrice,
               AvailableStock: parseInt(String(newStock || 0), 10),
               DispatchTime: hbSettings.defaultDispatchTime || 1,
             }]);
             await pool.query(
-              "UPDATE products SET hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL WHERE id = $1",
-              [id]
+              `UPDATE products 
+               SET hepsiburada_last_sync = NOW(), 
+                   hepsiburada_last_error = NULL,
+                   marketplace_data = jsonb_set(
+                     jsonb_set(
+                       COALESCE(marketplace_data::jsonb, '{}'::jsonb),
+                       '{hepsiburada,price}',
+                       to_jsonb($2::numeric),
+                       true
+                     ),
+                     '{hepsiburada,attributes,price}',
+                     to_jsonb($3::text),
+                     true
+                   )
+               WHERE id = $1`,
+              [id, effectivePrice, String(effectivePrice)]
             );
           }
         } catch (hbSyncErr: any) {
@@ -1839,12 +1861,11 @@ router.put("/:id", async (req: any, res) => {
             
             const rates = st?.currency_rates || st?.branding?.currency_rates || {};
             let rawPrice = parseFloat(String(finalPrice || "0"));
-            const curr = (currency || "TRY").toUpperCase();
-            if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
-            else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
-            else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+            if (effectiveCurrency === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+            else if (effectiveCurrency === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+            else if (effectiveCurrency === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
 
-            const effectivePrice = amzService.calculateMarketplacePrice(rawPrice, category, sub_category);
+            const effectivePrice = amzService.calculateMarketplacePrice(rawPrice, finalCategory, finalSubCategory);
             const amzSku = existingProductRes.rows[0]?.amazon_sku || finalMarketplaceData?.amazon?.sku || existingProductRes.rows[0]?.sku || finalBarcode;
 
             if (amzSku) {
@@ -1882,12 +1903,11 @@ router.put("/:id", async (req: any, res) => {
             const auth = { appKey: n11Settings.appKey.trim(), appSecret: n11Settings.appSecret.trim() };
             const rates = st?.currency_rates || st?.branding?.currency_rates || {};
             let rawPrice = parseFloat(String(finalPrice || "0"));
-            const curr = (currency || "TRY").toUpperCase();
-            if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
-            else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
-            else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+            if (effectiveCurrency === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+            else if (effectiveCurrency === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+            else if (effectiveCurrency === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
 
-            const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, category, sub_category, n11Settings);
+            const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, finalCategory, finalSubCategory, n11Settings);
             const sellerCode = finalBarcode || existingProductRes.rows[0]?.sku;
 
             if (sellerCode && effectivePrice > 0) {
@@ -1923,12 +1943,11 @@ router.put("/:id", async (req: any, res) => {
 
               const rates = st?.currency_rates || st?.branding?.currency_rates || {};
               let rawPrice = parseFloat(String(finalPrice || "0"));
-              const curr = (currency || "TRY").toUpperCase();
-              if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
-              else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
-              else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+              if (effectiveCurrency === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+              else if (effectiveCurrency === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+              else if (effectiveCurrency === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
 
-              const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, category, sub_category, tySettings);
+              const effectivePrice = N11Service.calculateMarketplacePrice(rawPrice, finalCategory, finalSubCategory, tySettings);
               const roundedPrice = Math.round(effectivePrice * 100) / 100;
 
               const payload = {

@@ -848,30 +848,146 @@ export class HepsiburadaService {
     const headers = this.getHeaders();
     const merchantId = this.config.merchantId;
 
-    const payloadV1 = items.map((item) => {
+    // PRE-FLIGHT LIVE LISTING SKU & MERCHANTSKU AUTO-RESOLVER (Self-Healing Architecture)
+    // Prevents "ListingNotFound" (when parent productId HBC0... is stored instead of variant HBCV...)
+    // and "MismatchingSkusSpecified" (when local barcode differs from HB's registered merchantSku).
+    const normKey = (s: any) =>
+      String(s || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+    let liveListings: any[] = [];
+    try {
+      liveListings = await this.fetchMerchantListings({ limit: 500 });
+    } catch {
+      liveListings = [];
+    }
+
+    const byHbSku = new Map<string, any>();
+    const byProductId = new Map<string, any>();
+    const byMerchantSku = new Map<string, any>();
+    const byBarcode = new Map<string, any>();
+
+    for (const l of liveListings) {
+      if (l.hepsiburadaSku) byHbSku.set(normKey(l.hepsiburadaSku), l);
+      if (l.productId) {
+        // Prefer ACTIVE/salable variant if multiple variants share a parent productId
+        const existing = byProductId.get(normKey(l.productId));
+        if (!existing || (l.isSalable && !existing.isSalable)) {
+          byProductId.set(normKey(l.productId), l);
+        }
+      }
+      if (l.merchantSku) byMerchantSku.set(normKey(l.merchantSku), l);
+      if (l.barcode) byBarcode.set(normKey(l.barcode), l);
+    }
+
+    const resolvedItems: HepsiburadaInventoryItem[] = [];
+    for (const rawItem of items) {
+      const origHbSku = String(rawItem.HepsiburadaSku || "").trim();
+      const origMerchantSku = String(rawItem.MerchantSku || "").trim();
+
+      const matchedLive =
+        (origHbSku ? byHbSku.get(normKey(origHbSku)) : undefined) ||
+        (origHbSku ? byProductId.get(normKey(origHbSku)) : undefined) ||
+        (origMerchantSku ? byMerchantSku.get(normKey(origMerchantSku)) : undefined) ||
+        (origMerchantSku ? byBarcode.get(normKey(origMerchantSku)) : undefined) ||
+        (origMerchantSku ? byHbSku.get(normKey(origMerchantSku)) : undefined) ||
+        (origMerchantSku ? byProductId.get(normKey(origMerchantSku)) : undefined);
+
+      let finalHbSku = origHbSku;
+      let finalMerchantSku = origMerchantSku;
+
+      if (matchedLive) {
+        if (matchedLive.hepsiburadaSku) {
+          finalHbSku = String(matchedLive.hepsiburadaSku).trim();
+        }
+        if (matchedLive.merchantSku) {
+          finalMerchantSku = String(matchedLive.merchantSku).trim();
+        }
+
+        // Self-heal database record if HepsiburadaSku (e.g. HBC0 -> HBCV) or MerchantSku changed
+        if (finalHbSku !== origHbSku || finalMerchantSku !== origMerchantSku) {
+          const healPid = String(matchedLive.productId || origHbSku || "").trim();
+          pool
+            .query(
+              `UPDATE products
+               SET hepsiburada_sku = $1,
+                   marketplace_data = jsonb_set(
+                     jsonb_set(
+                       jsonb_set(
+                         COALESCE(marketplace_data::jsonb, '{}'::jsonb),
+                         '{hepsiburada,hepsiburadaSku}',
+                         to_jsonb($1::text),
+                         true
+                       ),
+                       '{hepsiburada,merchantSku}',
+                       to_jsonb($2::text),
+                       true
+                     ),
+                     '{hepsiburada,productId}',
+                     to_jsonb($3::text),
+                     true
+                   )
+               WHERE store_id = $4
+                 AND (
+                   hepsiburada_sku = $5
+                   OR barcode = $6
+                   OR sku = $6
+                   OR marketplace_data->'hepsiburada'->>'productId' = $5
+                   OR marketplace_data->'hepsiburada'->>'hepsiburadaSku' = $5
+                 )`,
+              [finalHbSku, finalMerchantSku, healPid, this.storeId, origHbSku || finalHbSku, origMerchantSku]
+            )
+            .catch(() => {});
+        }
+      }
+
+      resolvedItems.push({
+        ...rawItem,
+        HepsiburadaSku: finalHbSku,
+        MerchantSku: finalMerchantSku,
+      });
+    }
+
+    // For batch uploads (>1 item), filter out items that have no valid variant HB SKU and aren't in live listings
+    // to prevent Hepsiburada's internal JSON->XML converter from failing the whole batch with "MissingHeaders" or "ListingNotFound".
+    const uploadableItems =
+      resolvedItems.length > 1
+        ? resolvedItems.filter((it) => {
+            const s = String(it.HepsiburadaSku || "").trim().toUpperCase();
+            return s.length > 0 && (s.startsWith("HBCV") || s.startsWith("HBV") || byHbSku.has(normKey(s)));
+          })
+        : resolvedItems;
+
+    const effectiveUploadItems = uploadableItems.length > 0 ? uploadableItems : resolvedItems;
+
+    const payloadV1 = effectiveUploadItems.map((item) => {
       const entry: any = {
+        hepsiburadaSku: item.HepsiburadaSku ? String(item.HepsiburadaSku).trim() : "",
         merchantSku: String(item.MerchantSku).trim(),
-        price: Number(item.Price),
-        availableStock: Number(item.AvailableStock),
+        price: Number(Number(item.Price || 0).toFixed(2)),
+        availableStock: Math.max(0, Math.floor(Number(item.AvailableStock) || 0)),
         dispatchTime: Number(item.DispatchTime || this.config.defaultDispatchTime || 1),
         maximumPurchasableQuantity: Number(item.MaximumPurchasableQuantity || 10),
       };
-      if (item.HepsiburadaSku && item.HepsiburadaSku.trim()) {
-        entry.hepsiburadaSku = item.HepsiburadaSku.trim();
+      if (!entry.hepsiburadaSku) {
+        delete entry.hepsiburadaSku;
       }
       return entry;
     });
 
-    const payloadV2 = items.map((item) => {
+    const payloadV2 = effectiveUploadItems.map((item) => {
       const entry: any = {
+        HepsiburadaSku: item.HepsiburadaSku ? String(item.HepsiburadaSku).trim() : "",
         MerchantSku: String(item.MerchantSku).trim(),
-        Price: Number(item.Price),
-        AvailableStock: Number(item.AvailableStock),
+        Price: Number(Number(item.Price || 0).toFixed(2)),
+        AvailableStock: Math.max(0, Math.floor(Number(item.AvailableStock) || 0)),
         DispatchTime: Number(item.DispatchTime || this.config.defaultDispatchTime || 1),
         MaximumPurchasableQuantity: Number(item.MaximumPurchasableQuantity || 10),
       };
-      if (item.HepsiburadaSku && item.HepsiburadaSku.trim()) {
-        entry.HepsiburadaSku = item.HepsiburadaSku.trim();
+      if (!entry.HepsiburadaSku) {
+        delete entry.HepsiburadaSku;
       }
       return entry;
     });
@@ -915,34 +1031,57 @@ export class HepsiburadaService {
             response.data?.taskId ||
             response.data?.data?.trackingId;
 
+          // Also push to dedicated high-priority Price Uploads endpoint for immediate price propagation
+          const priceUploadPayload = payloadV1
+            .filter((x) => x.hepsiburadaSku && x.merchantSku && x.price > 0)
+            .map((x) => ({
+              hepsiburadaSku: x.hepsiburadaSku,
+              merchantSku: x.merchantSku,
+              price: x.price,
+            }));
+          if (priceUploadPayload.length > 0) {
+            axios
+              .post(`${listingDirectUrl}/listings/merchantid/${merchantId}/price-uploads`, priceUploadPayload, {
+                headers,
+                timeout: 15000,
+              })
+              .catch(() => {});
+          }
+
           let priceValidations: any[] = Array.isArray(response.data?.priceValidations) ? response.data.priceValidations : [];
           let uploadErrors: any[] = Array.isArray(response.data?.errors) ? response.data.errors : [];
 
-          if (trackingId && items.length <= 10) {
-            try {
-              await new Promise((r) => setTimeout(r, 1200));
-              const taskStatus = await this.checkTaskStatus(String(trackingId));
-              if (Array.isArray(taskStatus?.priceValidations) && taskStatus.priceValidations.length > 0) {
-                priceValidations = taskStatus.priceValidations;
+          if (trackingId && effectiveUploadItems.length <= 20) {
+            for (let attempt = 0; attempt < 4; attempt++) {
+              try {
+                await new Promise((r) => setTimeout(r, attempt === 0 ? 1200 : 1400));
+                const taskStatus = await this.checkTaskStatus(String(trackingId));
+                if (Array.isArray(taskStatus?.priceValidations) && taskStatus.priceValidations.length > 0) {
+                  priceValidations = taskStatus.priceValidations;
+                }
+                if (Array.isArray(taskStatus?.errors) && taskStatus.errors.length > 0) {
+                  uploadErrors = taskStatus.errors;
+                }
+                const st = String(taskStatus?.status || "").toLowerCase();
+                if (st === "done" || st === "completed" || st === "failed" || uploadErrors.length > 0 || priceValidations.length > 0) {
+                  break;
+                }
+              } catch {
+                break;
               }
-              if (Array.isArray(taskStatus?.errors) && taskStatus.errors.length > 0) {
-                uploadErrors = taskStatus.errors;
-              }
-            } catch {
-              // ignore status check delay error
             }
           }
 
           if (priceValidations.length > 0) {
             for (const pv of priceValidations) {
-              const sku = pv?.merchantSku || pv?.MerchantSku || pv?.hepsiburadaSku || pv?.HepsiburadaSku || items[0]?.MerchantSku;
+              const sku = pv?.merchantSku || pv?.MerchantSku || pv?.hepsiburadaSku || pv?.HepsiburadaSku || effectiveUploadItems[0]?.MerchantSku;
               if (sku) {
                 await pool.query(
                   `UPDATE products 
                    SET is_hepsiburada_active = false, 
                        hepsiburada_last_error = 'Yüksek Fiyat',
                        marketplace_data = jsonb_set(COALESCE(marketplace_data::jsonb, '{}'::jsonb), '{hepsiburada,priceAlert}', 'true'::jsonb, true)
-                   WHERE store_id = $1 AND (barcode = $2 OR sku = $2 OR hepsiburada_sku = $2)`,
+                   WHERE store_id = $1 AND (barcode = $2 OR sku = $2 OR hepsiburada_sku = $2 OR marketplace_data->'hepsiburada'->>'merchantSku' = $2)`,
                   [this.storeId, String(sku)]
                 ).catch(() => {});
               }
@@ -953,16 +1092,22 @@ export class HepsiburadaService {
           }
 
           if (uploadErrors.length > 0 && items.length === 1) {
-            const firstErr = uploadErrors[0]?.message || uploadErrors[0]?.error || JSON.stringify(uploadErrors[0]);
+            const firstErrObj = uploadErrors[0];
+            const firstErr =
+              firstErrObj?.message ||
+              firstErrObj?.error ||
+              (Array.isArray(firstErrObj?.errors) ? firstErrObj.errors.join(", ") : null) ||
+              JSON.stringify(firstErrObj);
             if (/fiyat|price|aralığın|fahiş|tavan|taban/i.test(String(firstErr))) {
               throw new Error("Yüksek Fiyat");
             }
+            throw new Error(`Hepsiburada İlan Güncelleme Reddi: ${firstErr}`);
           }
 
           return {
             success: true,
             trackingId,
-            message: `${items.length} adet ürün fiyat/stok güncellemesi Hepsiburada (${ep.name}) kuyruğuna iletildi.`,
+            message: `${effectiveUploadItems.length} adet ürün fiyat/stok güncellemesi Hepsiburada (${ep.name}) kuyruğuna iletildi ve doğrulandı.`,
             details: response.data,
           };
         } catch (err: any) {
@@ -1092,10 +1237,17 @@ export class HepsiburadaService {
     failedCount: number;
     trackingId?: string;
   }> {
+    // Reconcile live listings first so parent productIds (HBC0...) and merchantSkus are healed before bulk upload
+    try {
+      await this.matchListingsWithStoreProducts({ importMissing: false });
+    } catch {
+      // continue even if pre-match warning occurs
+    }
+
     const prodRes = await pool.query(
       `SELECT id, name, category, sub_category, barcode, price, currency, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data 
        FROM products 
-       WHERE store_id = $1 AND (is_hepsiburada_active = true OR barcode IS NOT NULL) AND barcode != ''`,
+       WHERE store_id = $1 AND (is_hepsiburada_active = true OR (hepsiburada_sku IS NOT NULL AND hepsiburada_sku != ''))`,
       [this.storeId]
     );
 
@@ -1108,7 +1260,10 @@ export class HepsiburadaService {
     const storeRow = storeRes.rows[0];
     const rates = storeRow?.currency_rates || storeRow?.branding?.currency_rates || {};
 
-    const inventoryItems: HepsiburadaInventoryItem[] = products.map((p) => {
+    const inventoryItems: HepsiburadaInventoryItem[] = [];
+    const productUpdates: Array<{ id: number; mpData: any }> = [];
+
+    for (const p of products) {
       let rawPrice = parseFloat(p.price || "0");
       const curr = (p.currency || "TRY").toUpperCase();
       if (curr === "USD" && rates.USD) {
@@ -1124,32 +1279,48 @@ export class HepsiburadaService {
       if (typeof mpData === "string") {
         try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
       }
-      const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode;
+      mpData = mpData || {};
+      if (!mpData.hepsiburada) mpData.hepsiburada = {};
+      if (!mpData.hepsiburada.attributes) mpData.hepsiburada.attributes = {};
+      mpData.hepsiburada.price = effectivePrice;
+      mpData.hepsiburada.attributes.price = String(effectivePrice);
+      mpData.hepsiburada.lastSync = new Date().toISOString();
 
-      return {
-        MerchantSku: hbMerchantSku,
-        HepsiburadaSku: p.hepsiburada_sku || "",
-        Price: effectivePrice,
-        AvailableStock: parseInt(p.stock_quantity || "0", 10),
-        DispatchTime: this.config.defaultDispatchTime || 1,
-      };
-    });
+      const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode || p.hepsiburada_sku;
+      const hbSku = p.hepsiburada_sku || mpData?.hepsiburada?.hepsiburadaSku || "";
+
+      if (hbMerchantSku && effectivePrice > 0) {
+        inventoryItems.push({
+          MerchantSku: hbMerchantSku,
+          HepsiburadaSku: hbSku,
+          Price: effectivePrice,
+          AvailableStock: Math.max(0, parseInt(p.stock_quantity || "0", 10)),
+          DispatchTime: this.config.defaultDispatchTime || 1,
+        });
+        productUpdates.push({ id: p.id, mpData });
+      }
+    }
+
+    if (inventoryItems.length === 0) {
+      return { total: 0, successCount: 0, failedCount: 0 };
+    }
 
     try {
       const res = await this.updatePriceAndStock(inventoryItems);
-      // Mark products as active (only if price > 0 and stock > 0) and record sync timestamp
-      await pool.query(
-        `UPDATE products 
-         SET is_hepsiburada_active = (CASE WHEN CAST(price AS NUMERIC) > 0 AND stock_quantity > 0 AND is_hepsiburada_active = true THEN true ELSE false END), 
-             hepsiburada_last_sync = NOW(), 
-             hepsiburada_last_error = NULL 
-         WHERE store_id = $1 AND barcode = ANY($2)`,
-        [this.storeId, inventoryItems.map((i) => i.MerchantSku)]
-      );
+      for (const u of productUpdates) {
+        await pool.query(
+          `UPDATE products 
+           SET hepsiburada_last_sync = NOW(), 
+               hepsiburada_last_error = NULL,
+               marketplace_data = $1
+           WHERE id = $2 AND store_id = $3`,
+          [JSON.stringify(u.mpData), u.id, this.storeId]
+        );
+      }
 
       return {
-        total: products.length,
-        successCount: products.length,
+        total: inventoryItems.length,
+        successCount: inventoryItems.length,
         failedCount: 0,
         trackingId: res.trackingId,
       };
@@ -1533,20 +1704,19 @@ export class HepsiburadaService {
 
     for (const listing of sortedListings) {
       const hbSku = (listing.hepsiburadaSku || "").trim();
+      const lPid = (listing.productId || "").trim();
       const mSku = (listing.merchantSku || "").trim();
       const barcode = (listing.barcode || "").trim();
       const pName = (listing.productName || "").trim();
       const cleanMSku = mSku.replace(/_\d+$/, "").replace(/-s$/i, "").trim();
       const mSkuDigits = mSku.replace(/\D/g, "");
 
-      // Find local product
-      let matchedProd = storeProducts.find((p) => {
+      const availableProducts = storeProducts.filter((p) => !activeMatchedIds.has(p.id));
+
+      // Tier 1: Exact HB-SKU, Parent Catalog ProductId (-pm-HBC0...), Exact Barcode, or Alternate Barcode
+      let matchedProd = availableProducts.find((p) => {
         const pBarcode = (p.barcode || "").trim();
-        const pBcDigits = pBarcode.replace(/\D/g, "");
-        const pSku = (p.sku || "").trim();
-        const pCode = (p.product_code || "").trim();
         const pHbSku = (p.hepsiburada_sku || "").trim();
-        const pNameStr = (p.name || "").trim();
 
         let rawAltBc = p.alternate_barcodes;
         if (typeof rawAltBc === "string") { try { rawAltBc = JSON.parse(rawAltBc); } catch { rawAltBc = []; } }
@@ -1556,29 +1726,65 @@ export class HepsiburadaService {
         if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch { mpData = {}; } }
         const mpHbSku = (mpData?.hepsiburada?.hepsiburadaSku || mpData?.hepsiburadaSku || "").trim();
         const mpHbPid = (mpData?.hepsiburada?.productId || "").trim();
+        const mpHbMSku = (mpData?.hepsiburada?.merchantSku || "").trim();
 
-        // 1. Direct HB-SKU / Barcode / SKU exact match
         if (hbSku && pHbSku && normalizeStr(pHbSku) === normalizeStr(hbSku)) return true;
         if (hbSku && mpHbSku && normalizeStr(mpHbSku) === normalizeStr(hbSku)) return true;
         if (hbSku && mpHbPid && normalizeStr(mpHbPid) === normalizeStr(hbSku)) return true;
+        if (lPid && pHbSku && normalizeStr(pHbSku) === normalizeStr(lPid)) return true;
+        if (lPid && mpHbSku && normalizeStr(mpHbSku) === normalizeStr(lPid)) return true;
+        if (lPid && mpHbPid && normalizeStr(mpHbPid) === normalizeStr(lPid)) return true;
         if (hbSku && pBarcode && normalizeStr(pBarcode) === normalizeStr(hbSku)) return true;
 
         if (mSku && pBarcode && normalizeStr(pBarcode) === normalizeStr(mSku)) return true;
-        if (mSku && pSku && normalizeStr(pSku) === normalizeStr(mSku)) return true;
-        if (mSku && pCode && normalizeStr(pCode) === normalizeStr(mSku)) return true;
+        if (mSku && mpHbMSku && normalizeStr(mpHbMSku) === normalizeStr(mSku)) return true;
         if (barcode && pBarcode && normalizeStr(pBarcode) === normalizeStr(barcode)) return true;
-        if (altBc.some(b => normalizeStr(b) === normalizeStr(mSku) || normalizeStr(b) === normalizeStr(barcode))) return true;
+        if (altBc.some((b) => normalizeStr(b) === normalizeStr(mSku) || normalizeStr(b) === normalizeStr(barcode))) return true;
+        return false;
+      });
 
-        if (pName && pNameStr && normalizeStr(pNameStr) === normalizeStr(pName)) return true;
+      // Tier 2: Exact SKU / Product Code / Digits-Only Barcode / Exact Product Name
+      if (!matchedProd) {
+        matchedProd = availableProducts.find((p) => {
+          const pBarcode = (p.barcode || "").trim();
+          const pBcDigits = pBarcode.replace(/\D/g, "");
+          const pSku = (p.sku || "").trim();
+          const pCode = (p.product_code || "").trim();
+          const pNameStr = (p.name || "").trim();
 
-        // 2. Digits-only match (handles leading zero differences or 12 vs 13 digits)
-        if (mSkuDigits && mSkuDigits.length >= 8 && pBcDigits) {
-          if (pBcDigits === mSkuDigits) return true;
-          if (pBcDigits.endsWith(mSkuDigits) || mSkuDigits.endsWith(pBcDigits)) return true;
-        }
+          if (mSku && pSku && normalizeStr(pSku) === normalizeStr(mSku)) return true;
+          if (mSku && pCode && normalizeStr(pCode) === normalizeStr(mSku)) return true;
+          if (cleanMSku && pSku && normalizeStr(pSku) === normalizeStr(cleanMSku)) return true;
+          if (cleanMSku && pCode && normalizeStr(pCode) === normalizeStr(cleanMSku)) return true;
+          if (pName && pNameStr && normalizeStr(pNameStr) === normalizeStr(pName)) return true;
 
-        // 3. Clean Model / Part Number in Name, Code, Barcode (e.g. M90, EAP787, DA-70167, TRU23786, UC232A)
-        if (cleanMSku && cleanMSku.length >= 3 && !cleanMSku.startsWith("HBCV") && !cleanMSku.startsWith("HBV") && !cleanMSku.startsWith("20025")) {
+          if (mSkuDigits && mSkuDigits.length >= 8 && pBcDigits) {
+            if (pBcDigits === mSkuDigits) return true;
+            if (pBcDigits.endsWith(mSkuDigits) || mSkuDigits.endsWith(pBcDigits)) return true;
+          }
+          return false;
+        });
+      }
+
+      // Tier 3: Clean Model / Part Number in Name, Code, Barcode with Capacity Conflict Guard
+      if (!matchedProd && cleanMSku && cleanMSku.length >= 3 && !cleanMSku.startsWith("HBCV") && !cleanMSku.startsWith("HBV") && !cleanMSku.startsWith("20025")) {
+        const capMatch = cleanMSku.match(/(?:^|[^0-9])(8|16|32|64|120|128|240|256|480|500|512|960|1000|2000)\s*(gb|g|tb)\b/i);
+        const requiredCapNum = capMatch ? capMatch[1] : null;
+
+        matchedProd = availableProducts.find((p) => {
+          const pBarcode = (p.barcode || "").trim();
+          const pSku = (p.sku || "").trim();
+          const pCode = (p.product_code || "").trim();
+          const pNameStr = (p.name || "").trim();
+
+          // If listing merchantSku specifies a capacity (e.g. 120G, 64G), candidate product name must match that capacity
+          if (requiredCapNum) {
+            const capRegex = new RegExp(`(?:^|[^0-9])${requiredCapNum}\\s*(?:gb|g|tb)\\b`, "i");
+            if (!capRegex.test(pNameStr) && !capRegex.test(pSku) && !capRegex.test(pCode)) {
+              return false;
+            }
+          }
+
           const normClean = normalizeStr(cleanMSku);
           const normName = normalizeStr(pNameStr);
           const normBarcode = normalizeStr(pBarcode);
@@ -1586,38 +1792,40 @@ export class HepsiburadaService {
           const normCode = normalizeStr(pCode);
 
           if (normClean && normName && normName.includes(normClean)) return true;
-          if (normClean && normCode && (normCode === normClean || (normCode.length >= 4 && normClean.includes(normCode)) || normCode.includes(normClean))) return true;
-          if (normClean && normSku && (normSku === normClean || (normSku.length >= 4 && normClean.includes(normSku)) || normSku.includes(normClean))) return true;
-          if (normClean && normBarcode && (normBarcode === normClean || (normBarcode.length >= 6 && normBarcode.includes(normClean)))) return true;
 
-          // Sub-tokens (e.g. HS-SSD-C100/120G -> C100 and 120G, ATEN-UC232A -> UC232A, L32656-005 -> L32656)
-          const tokens = cleanMSku.split(/[-_/ ]+/).filter(t => t.length >= 3 && !["SSD", "USB", "KABLO", "GIGABIT", "DÖNÜŞTÜRÜCÜ"].includes(t.toUpperCase()));
+          const tokens = cleanMSku
+            .split(/[-_/ ]+/)
+            .filter((t) => t.length >= 3 && !["SSD", "USB", "KABLO", "GIGABIT", "DÖNÜŞTÜRÜCÜ"].includes(t.toUpperCase()));
           if (tokens.length > 0) {
-            const allTokensInName = tokens.every(t => normName && normName.includes(normalizeStr(t)));
+            const allTokensInName = tokens.every((t) => normName && normName.includes(normalizeStr(t)));
             if (allTokensInName) return true;
           }
 
-          // Significant alphanumeric token (e.g. UC232A, L32656)
-          for (const token of tokens) {
-            const nTok = normalizeStr(token);
-            if (nTok.length >= 5 && ((normName && normName.includes(nTok)) || (normBarcode && normBarcode.includes(nTok)))) {
-              return true;
+          if (!requiredCapNum) {
+            if (normClean && normCode && (normCode === normClean || (normCode.length >= 5 && normClean.includes(normCode)) || normCode.includes(normClean))) return true;
+            if (normClean && normSku && (normSku === normClean || (normSku.length >= 5 && normClean.includes(normSku)) || normSku.includes(normClean))) return true;
+            if (normClean && normBarcode && (normBarcode === normClean || (normBarcode.length >= 6 && normBarcode.includes(normClean)))) return true;
+
+            for (const token of tokens) {
+              const nTok = normalizeStr(token);
+              if (nTok.length >= 5 && ((normName && normName.includes(nTok)) || (normBarcode && normBarcode.includes(nTok)))) {
+                return true;
+              }
+            }
+
+            const numPart = cleanMSku.replace(/^[a-zA-Z]+/, "");
+            if (numPart && numPart.length >= 5) {
+              if (normBarcode && normBarcode.includes(numPart)) return true;
+              if (normName && normName.includes(numPart)) return true;
             }
           }
 
-          // Number part in barcode (e.g. TRU16977 -> 16977 in barcode 8713439169775)
-          const numPart = cleanMSku.replace(/^[a-zA-Z]+/, "");
-          if (numPart && numPart.length >= 5) {
-            if (normBarcode && normBarcode.includes(numPart)) return true;
-            if (normName && normName.includes(numPart)) return true;
-          }
-        }
-
-        return false;
-      });
+          return false;
+        });
+      }
 
       if (matchedProd) {
-        if (activeMatchedIds.has(matchedProd.id)) continue;
+        activeMatchedIds.add(matchedProd.id);
 
         // Update matched product in database
         let mpData: any = matchedProd.marketplace_data;
@@ -1625,7 +1833,7 @@ export class HepsiburadaService {
           try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
         }
         mpData = mpData || {};
-        const resolvedPid = (listing as any).productId || hbSku || mpData?.hepsiburada?.productId || matchedProd.hepsiburada_sku || '';
+        const resolvedPid = lPid || hbSku || mpData?.hepsiburada?.productId || matchedProd.hepsiburada_sku || '';
         const upperPid = String(resolvedPid || '').toUpperCase();
         const isMasterPid = Boolean(
           resolvedPid && 
@@ -1649,9 +1857,6 @@ export class HepsiburadaService {
         const isLiveOnHb = listing.status === 'ACTIVE' && listing.isSalable !== false && Number(listing.availableStock ?? pStock) > 0;
         const isManuallyUnpublished = mpData.hepsiburada?.manuallyUnpublished === true && !isLiveOnHb;
         const isValidForListing = !isManuallyUnpublished && pPrice > 0 && pStock > 0 && isLiveOnHb;
-        if (isValidForListing) {
-          activeMatchedIds.add(matchedProd.id);
-        }
 
         let rawPriceTry = Number(matchedProd.price || 0);
         const curr = String(matchedProd.currency || "TRY").toUpperCase();
@@ -1710,6 +1915,8 @@ export class HepsiburadaService {
         const needsDbWrite =
           Boolean(matchedProd.is_hepsiburada_active) !== Boolean(isValidForListing) ||
           (hbSku && matchedProd.hepsiburada_sku !== hbSku) ||
+          (mSku && prevHb.merchantSku !== mSku) ||
+          (resolvedPid && prevHb.productId !== resolvedPid) ||
           (matchedProd.hepsiburada_last_error || null) !== (hbErrorMsg || null) ||
           prevHb.status !== newStatus ||
           Boolean(prevHb.priceAlert) !== Boolean(hbPriceAlert) ||
@@ -1749,6 +1956,7 @@ export class HepsiburadaService {
           productName: matchedProd.name,
           barcode: matchedProd.barcode,
           hepsiburadaSku: hbSku || matchedProd.hepsiburada_sku,
+          parentProductId: lPid || null,
           price: policyPrice || listing.price,
           stock: listing.availableStock,
           updateSql: needsDbWrite ? {
@@ -1780,6 +1988,18 @@ export class HepsiburadaService {
       await Promise.all(chunk.map(async (item) => {
         if (item.updateSql) {
           await pool.query(item.updateSql.text, item.updateSql.values);
+        }
+        // Clean up any duplicate/stale assignment of the same HB SKU or Parent Product ID on other products
+        if (item.hepsiburadaSku) {
+          await pool.query(
+            `UPDATE products
+             SET hepsiburada_sku = NULL,
+                 is_hepsiburada_active = false
+             WHERE store_id = $1
+               AND id != $2
+               AND (hepsiburada_sku = $3 OR ($4::text IS NOT NULL AND hepsiburada_sku = $4))`,
+            [this.storeId, item.productId, item.hepsiburadaSku, item.parentProductId || null]
+          ).catch(() => {});
         }
       }));
     }

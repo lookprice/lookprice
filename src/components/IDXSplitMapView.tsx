@@ -509,9 +509,22 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
       // Furnished Status Filter
       if (furnishedFilter !== 'all') {
-        const pFurn = (p.sector_data?.furnished_status || "").toLowerCase();
-        if (furnishedFilter === 'full' && !pFurn.includes('full') && !pFurn.includes('tam')) return false;
-        if (furnishedFilter === 'unfurnished' && (pFurn.includes('full') || pFurn.includes('eşyalı'))) return false;
+        const isFurn = Boolean(
+          p.furnished === true ||
+          (p as any).furnished === "true" ||
+          (p as any).furnished === "esyali" ||
+          (p as any).furnished === "furnished" ||
+          p.sector_data?.furnished === true ||
+          p.sector_data?.furnished === "true" ||
+          p.sector_data?.furnished === "esyali" ||
+          p.sector_data?.furnished === "furnished" ||
+          (p.sector_data?.furnished_status || "").toLowerCase().includes('full') ||
+          (p.sector_data?.furnished_status || "").toLowerCase().includes('tam') ||
+          (p.name || "").toLowerCase().includes('eşyalı') ||
+          (p.description || "").toLowerCase().includes('eşyalı')
+        );
+        if (furnishedFilter === 'full' && !isFurn) return false;
+        if (furnishedFilter === 'unfurnished' && isFurn) return false;
       }
 
       // Land KAKS Filter (Arsa İmar Oranı)
@@ -1289,11 +1302,28 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                                   );
                                 }
                                 return (
-                                  <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider backdrop-blur-md shadow-md ${
-                                    isRent ? "bg-emerald-600/90 text-white" : "bg-indigo-600/90 text-white"
-                                  }`}>
-                                    {isRent ? "KİRALIK" : "SATILIK"}
-                                  </span>
+                                  <div className="flex flex-col gap-1">
+                                    <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider backdrop-blur-md shadow-md ${
+                                      isRent ? "bg-emerald-600/90 text-white" : "bg-indigo-600/90 text-white"
+                                    }`}>
+                                      {isRent ? "KİRALIK" : "SATILIK"}
+                                    </span>
+                                    {Boolean(
+                                      p.furnished === true ||
+                                      (p as any).furnished === "true" ||
+                                      (p as any).furnished === "esyali" ||
+                                      (p as any).furnished === "furnished" ||
+                                      p.sector_data?.furnished === true ||
+                                      p.sector_data?.furnished === "true" ||
+                                      p.sector_data?.furnished === "esyali" ||
+                                      (p.sector_data?.furnished_status || "").toLowerCase().includes("full") ||
+                                      (p.name || "").toLowerCase().includes("eşyalı")
+                                    ) && (
+                                      <span className="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider bg-indigo-950/85 text-indigo-300 border border-indigo-400/40 backdrop-blur-md shadow-md">
+                                        🛋️ Eşyalı
+                                      </span>
+                                    )}
+                                  </div>
                                 );
                               })()}
                               {p.reference_no && (
@@ -1321,9 +1351,28 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                             </div>
 
                             <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-slate-800">
-                              <div className="flex items-center gap-3 text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                              <div className="flex items-center gap-2.5 text-[10px] font-bold text-slate-600 dark:text-slate-400">
                                 {p.sector_data?.rooms && <span>🛏️ {p.sector_data.rooms}</span>}
                                 {p.sector_data?.square_meters && <span>📏 {p.sector_data.square_meters} m²</span>}
+                                {(() => {
+                                  const isFurn = Boolean(
+                                    p.furnished === true ||
+                                    (p as any).furnished === "true" ||
+                                    (p as any).furnished === "esyali" ||
+                                    (p as any).furnished === "furnished" ||
+                                    p.sector_data?.furnished === true ||
+                                    p.sector_data?.furnished === "true" ||
+                                    p.sector_data?.furnished === "esyali" ||
+                                    (p.sector_data?.furnished_status || "").toLowerCase().includes("full") ||
+                                    (p.name || "").toLowerCase().includes("eşyalı")
+                                  );
+                                  if (isFurn) {
+                                    return <span className="text-indigo-600 dark:text-indigo-400 font-black">🛋️ Eşyalı</span>;
+                                  } else if (isRent) {
+                                    return <span className="text-slate-500 font-medium">📦 Eşyasız</span>;
+                                  }
+                                  return null;
+                                })()}
                               </div>
                               <div className="text-right">
                                 <p className="text-base font-black text-slate-900 dark:text-amber-400 tracking-tight">{priceStr}</p>
@@ -1398,11 +1447,28 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                             );
                           }
                           return (
-                            <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider backdrop-blur-md shadow-md ${
-                              isRent ? "bg-emerald-600/90 text-white" : "bg-indigo-600/90 text-white"
-                            }`}>
-                              {isRent ? "KİRALIK" : "SATILIK"}
-                            </span>
+                            <div className="flex gap-1.5">
+                              <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider backdrop-blur-md shadow-md ${
+                                isRent ? "bg-emerald-600/90 text-white" : "bg-indigo-600/90 text-white"
+                              }`}>
+                                {isRent ? "KİRALIK" : "SATILIK"}
+                              </span>
+                              {Boolean(
+                                p.furnished === true ||
+                                (p as any).furnished === "true" ||
+                                (p as any).furnished === "esyali" ||
+                                (p as any).furnished === "furnished" ||
+                                p.sector_data?.furnished === true ||
+                                p.sector_data?.furnished === "true" ||
+                                p.sector_data?.furnished === "esyali" ||
+                                (p.sector_data?.furnished_status || "").toLowerCase().includes("full") ||
+                                (p.name || "").toLowerCase().includes("eşyalı")
+                              ) && (
+                                <span className="px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider bg-indigo-950/85 text-indigo-300 border border-indigo-400/40 backdrop-blur-md shadow-md">
+                                  🛋️ Eşyalı
+                                </span>
+                              )}
+                            </div>
                           );
                         })()}
                       </div>
@@ -1431,9 +1497,28 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                       </div>
 
                       <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-                        <div className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                          {p.sector_data?.rooms && <span>🛏️ {p.sector_data.rooms} &nbsp;</span>}
+                        <div className="text-xs font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                          {p.sector_data?.rooms && <span>🛏️ {p.sector_data.rooms}</span>}
                           {p.sector_data?.square_meters && <span>📏 {p.sector_data.square_meters} m²</span>}
+                          {(() => {
+                            const isFurn = Boolean(
+                              p.furnished === true ||
+                              (p as any).furnished === "true" ||
+                              (p as any).furnished === "esyali" ||
+                              (p as any).furnished === "furnished" ||
+                              p.sector_data?.furnished === true ||
+                              p.sector_data?.furnished === "true" ||
+                              p.sector_data?.furnished === "esyali" ||
+                              (p.sector_data?.furnished_status || "").toLowerCase().includes("full") ||
+                              (p.name || "").toLowerCase().includes("eşyalı")
+                            );
+                            if (isFurn) {
+                              return <span className="text-indigo-600 dark:text-indigo-400 font-black">🛋️ Eşyalı</span>;
+                            } else if (isRent) {
+                              return <span className="text-slate-500 font-medium">📦 Eşyasız</span>;
+                            }
+                            return null;
+                          })()}
                         </div>
                         <p className="text-lg font-black text-slate-900 dark:text-amber-400">{priceStr}</p>
                       </div>

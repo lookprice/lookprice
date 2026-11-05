@@ -166,8 +166,8 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
   }, [property]);
 
   const [photos, setPhotos] = useState<FixturePhotoItem[]>(initialPhotos);
+  const [presetList, setPresetList] = useState<string[]>(PRESET_FIXTURE_NAMES);
   const [selectedName, setSelectedName] = useState<string>(PRESET_FIXTURE_NAMES[0]);
-  const [customName, setCustomName] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [inspectPhoto, setInspectPhoto] = useState<FixturePhotoItem | null>(null);
@@ -182,7 +182,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentItemName = customName.trim() ? customName.trim() : selectedName;
+  const currentItemName = selectedName;
 
   const handleLiveCaptured = async (stampedDataUrl: string, timestampStr: string, isoDate: string) => {
     const newItem: FixturePhotoItem = {
@@ -238,7 +238,6 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
       setPhotos(updated);
       toast.success(`${newItems.length} adet demirbaş görseli zaman damgası yakılarak arşive eklendi.`);
       
-      // Persist directly
       await saveToDatabase(updated);
     } catch (err: any) {
       console.error("Fixture upload error:", err);
@@ -332,7 +331,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                   EŞYALI KİRALIK MÜLK DEMİRBAŞ TESPİT TUTANAĞI
                 </h1>
                 <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
-                  Portföy Ref: <strong>${property.reference_no || `LP-${property.id}`}</strong> • ${property.title}
+                  Portföy Ref: <strong>${property.reference_no || `LP-${property.id}`}</strong>
                 </div>
               </div>
               <div style="text-align: right; font-size: 11px; color: #64748b;">
@@ -381,26 +380,23 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
     >
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-5xl h-[92vh] max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl relative text-slate-100">
         
-        {/* Header with High-Contrast Security Notice */}
-        <div className="bg-slate-950/90 border-b border-slate-800 p-4 sm:px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
-              <Camera className="w-5 h-5" />
+        {/* Header */}
+        <div className="bg-slate-950/90 border-b border-slate-800 p-3 sm:px-5 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
+              <Camera className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
-                  Eşya & Demirbaş Fotoğraf Deposu
+                <h2 className="text-sm sm:text-base font-black text-white tracking-tight">
+                  Eşyalar
                 </h2>
-                <span className="bg-sky-500/20 text-sky-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-sky-500/30 uppercase">
-                  Gizli Arşiv
-                </span>
                 <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-emerald-500/30 uppercase">
                   Kiralık & Eşyalı
                 </span>
               </div>
-              <p className="text-xs text-slate-400 truncate max-w-md sm:max-w-xl">
-                Ref: <strong className="text-white">{property.reference_no || `LP-${property.id}`}</strong> • {property.title}
+              <p className="text-[11px] text-slate-400 font-mono">
+                Ref: <strong className="text-white">{property.reference_no || `LP-${property.id}`}</strong>
               </p>
             </div>
           </div>
@@ -409,7 +405,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
             {photos.length > 0 && (
               <button
                 onClick={handlePrintInspectionReport}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition border border-slate-700"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition border border-slate-700 cursor-pointer"
                 title="Tutanak Yazdır / PDF"
               >
                 <Printer className="w-3.5 h-3.5" />
@@ -418,7 +414,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
             )}
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition"
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -426,9 +422,9 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
         </div>
 
         {/* Strict Anti-Public Guarantee Banner */}
-        <div className="bg-sky-950/40 border-b border-sky-900/60 px-4 py-2.5 sm:px-6 flex items-start sm:items-center gap-2.5 shrink-0 text-sky-200 text-xs">
-          <ShieldAlert className="w-4 h-4 text-sky-400 shrink-0 mt-0.5 sm:mt-0" />
-          <div className="flex-1 text-[11px] sm:text-xs leading-relaxed">
+        <div className="bg-sky-950/40 border-b border-sky-900/60 px-4 py-2 sm:px-6 flex items-center gap-2 shrink-0 text-sky-200 text-xs">
+          <ShieldAlert className="w-4 h-4 text-sky-400 shrink-0" />
+          <div className="flex-1 text-[11px] leading-relaxed">
             <span className="font-extrabold text-sky-300">GİZLİ HUKUKİ ARŞİV KORUMASI: </span>
             Bu fotoğraflar web sitesinde, vitrinde veya halka açık hiçbir ortamda <strong className="text-white underline">kesinlikle yayınlanmaz</strong>. 
             Yalnızca kira sözleşmesi eki, teslim-tesellüm tutanağı ve olası tahliye/hasar anlaşmazlıkları için kurum içi kanıt olarak tutulur.
@@ -436,37 +432,63 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
         </div>
 
         {/* Upload Control Strip */}
-        <div className="p-4 sm:px-6 bg-slate-900/90 border-b border-slate-800 shrink-0">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+        <div className="p-3 sm:px-5 bg-slate-900/90 border-b border-slate-800 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div className="flex-1">
               <label className="text-[10px] font-bold text-slate-400 block mb-1">
-                Demirbaş / Eşya Adı (Fotoğrafın Üzerine Kazınır)
+                Demirbaş / Eşya Seçimi (Düzenlenebilir / Yeni Eklenebilir)
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="flex items-center gap-2">
                 <select
                   value={selectedName}
-                  onChange={(e) => {
-                    setSelectedName(e.target.value);
-                    setCustomName("");
-                  }}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-bold focus:outline-none focus:border-sky-500"
+                  onChange={(e) => setSelectedName(e.target.value)}
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 font-bold focus:outline-none focus:border-sky-500 cursor-pointer text-[11px]"
                 >
-                  {PRESET_FIXTURE_NAMES.map(name => (
+                  {presetList.map(name => (
                     <option key={name} value={name}>{name}</option>
                   ))}
                 </select>
-                <input
-                  type="text"
-                  placeholder="Veya Özel Eşya Adı (Örn: Çift Kapılı Gardırop)"
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
-                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newName = prompt("Yeni Demirbaş / Eşya Adı Girin:", "Salon - L Koltuk");
+                    if (newName && newName.trim()) {
+                      const trimmed = newName.trim();
+                      if (!presetList.includes(trimmed)) {
+                        setPresetList([...presetList, trimmed]);
+                      }
+                      setSelectedName(trimmed);
+                      toast.success(`"${trimmed}" listeye eklendi ve seçildi.`);
+                    }
+                  }}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-xl text-[11px] font-black transition border border-slate-700 cursor-pointer shrink-0"
+                  title="Yeni Eşya Adı Ekle"
+                >
+                  + Yeni Eşya Ekle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (presetList.length <= 1) {
+                      toast.error("En az bir eşya adı kalmalıdır.");
+                      return;
+                    }
+                    if (confirm(`"${selectedName}" eşyasını listeden silmek istiyor musunuz?`)) {
+                      const filtered = presetList.filter(n => n !== selectedName);
+                      setPresetList(filtered);
+                      setSelectedName(filtered[0]);
+                      toast.success("Eşya listeden kaldırıldı.");
+                    }
+                  }}
+                  className="px-2 py-1.5 bg-rose-950/50 hover:bg-rose-900/60 text-rose-300 rounded-xl text-[11px] font-black transition border border-rose-900/60 cursor-pointer shrink-0"
+                  title="Seçili Eşyayı Sil"
+                >
+                  Sil
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-2 sm:pt-0">
-              {/* Direct Camera Input with capture="environment" for mobile/tablet fallback */}
+            <div className="flex items-center gap-2 pt-1 sm:pt-0 shrink-0">
               <input
                 ref={cameraInputRef}
                 type="file"
@@ -475,8 +497,6 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                 className="hidden"
                 onChange={handleFileUpload}
               />
-
-              {/* Standard File Picker */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -486,80 +506,69 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                 onChange={handleFileUpload}
               />
 
-              {/* Trademark LookPrice "Canlı Foto Çek 📸" Button */}
               <button
                 type="button"
                 disabled={isProcessing}
-                onClick={() => {
-                  // If on desktop or browser supports mediaDevices, open live viewfinder; also cameraInput available
-                  setIsLiveCameraOpen(true);
-                }}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 active:scale-95 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/25 transition disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                onClick={() => setIsLiveCameraOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 active:scale-95 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/25 transition disabled:opacity-50 whitespace-nowrap cursor-pointer"
                 title="Canlı kamera vizörünü aç ve doğrudan damgalı çek"
               >
-                <Camera className="w-4 h-4 animate-pulse" />
+                <Camera className="w-3.5 h-3.5 animate-pulse" />
                 <span>Canlı Foto Çek 📸</span>
               </button>
 
-              {/* Standard File Upload Button */}
               <button
                 type="button"
                 disabled={isProcessing}
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition disabled:opacity-50 whitespace-nowrap cursor-pointer"
                 title="Galeriden veya bilgisayardan görsel seç"
               >
-                <Upload className="w-4 h-4" />
+                <Upload className="w-3.5 h-3.5" />
                 <span>Galeriden Yükle</span>
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-400">
-            <Info className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-            <span>
-              Yüklenen her görselin alt bandına <strong>Gün.Ay.Yıl, Saat:Dakika:Saniye</strong> ve <strong>"{currentItemName}"</strong> etiketi dijital mühür olarak kalıcı şekilde işlenir.
-            </span>
-          </div>
         </div>
 
-        {/* Gallery / Vault Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {/* Gallery / Vault Content (Scrollable, preventing vertical blowout) */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5">
           {photos.length === 0 ? (
-            <div className="h-full min-h-[280px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-800 rounded-3xl">
-              <div className="w-14 h-14 rounded-3xl bg-slate-800/80 flex items-center justify-center text-slate-500 mb-3">
-                <Camera className="w-7 h-7" />
+            <div className="h-full min-h-[220px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-800 rounded-2xl">
+              <div className="w-12 h-12 rounded-2xl bg-slate-800/80 flex items-center justify-center text-slate-500 mb-2">
+                <Camera className="w-6 h-6" />
               </div>
-              <h3 className="text-sm font-bold text-white mb-1">
+              <h3 className="text-xs font-bold text-white mb-1">
                 Henüz Demirbaş Fotoğrafı Eklenmedi
               </h3>
-              <p className="text-xs text-slate-400 max-w-sm mb-4">
-                Kiralık mülk içerisindeki klima, beyaz eşya, mobilya ve sayaçları fotoğraflayarak yasal zaman damgalı delil arşivi oluşturun.
+              <p className="text-[11px] text-slate-400 max-w-sm mb-3">
+                Kiralık mülk içerisindeki eşyaları fotoğraflayarak yasal zaman damgalı delil arşivi oluşturun.
               </p>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700"
+                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5" />
                 <span>İlk Fotoğrafı Çek / Yükle</span>
               </button>
             </div>
           ) : (
             <div>
-              <div className="flex items-center justify-between mb-3 text-xs">
-                <span className="font-bold text-slate-300">
-                  Kayıtlı Demirbaş Listesi ({photos.length} Adet)
+              <div className="flex items-center justify-between mb-2.5 text-xs">
+                <span className="font-bold text-slate-300 text-xs">
+                  Eşyalar Listesi ({photos.length} Adet)
                 </span>
-                <span className="text-slate-500 text-[11px]">
+                <span className="text-slate-500 text-[10px]">
                   Tıklayarak tam boy inceleyebilir veya silebilirsiniz
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                 {photos.map((item) => (
                   <div
                     key={item.id}
-                    className="group bg-slate-950 border border-slate-800 hover:border-sky-500/50 rounded-2xl overflow-hidden transition-all shadow-md flex flex-col"
+                    className="group bg-slate-950 border border-slate-800 hover:border-sky-500/50 rounded-xl overflow-hidden transition-all shadow flex flex-col"
                   >
                     <div 
                       className="relative aspect-video bg-black cursor-pointer overflow-hidden"
@@ -581,7 +590,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                       </div>
                     </div>
 
-                    <div className="p-3 flex items-center justify-between gap-2 shrink-0 bg-slate-950">
+                    <div className="p-2.5 flex items-center justify-between gap-2 shrink-0 bg-slate-950">
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-white truncate" title={item.name}>
                           {item.name}
@@ -595,7 +604,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setInspectPhoto(item)}
-                          className="p-1.5 text-slate-400 hover:text-sky-400 rounded-lg transition"
+                          className="p-1.5 text-slate-400 hover:text-sky-400 rounded-lg transition cursor-pointer"
                           title="İncele"
                         >
                           <ZoomIn className="w-3.5 h-3.5" />
@@ -603,7 +612,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleDeletePhoto(item.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg transition"
+                          className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg transition cursor-pointer"
                           title="Sil"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -617,18 +626,18 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
           )}
         </div>
 
-        {/* Footer with Contract Clause reminder */}
-        <div className="p-3 sm:px-6 bg-slate-950 border-t border-slate-800 shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
-          <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-            <FileCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>
-              Kira Sözleşmesi Zorunlu Maddesi: <em className="text-slate-200">"Mülk'ü kiralarken içerisinde bulunan Eşya / demirbaşları inceledim, gördüm. Eşyalara ait resimleri de inceledim, gördüm. Onaylıyorum. kabulümdür."</em>
+        {/* Footer */}
+        <div className="p-3 sm:px-5 bg-slate-950 border-t border-slate-800 shrink-0 flex items-center justify-between gap-2 text-xs">
+          <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
+            <FileCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="truncate">
+              Kira sözleşmesinde eşya demirbaş maddesi aktif.
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition self-end sm:self-auto"
+            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
           >
             Tamamla & Kapat
           </button>
@@ -651,14 +660,14 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                     e.stopPropagation();
                     handleDeletePhoto(inspectPhoto.id);
                   }}
-                  className="px-3 py-1.5 bg-rose-600/80 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-rose-600/80 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Fotoğrafı Sil</span>
                 </button>
                 <button
                   onClick={() => setInspectPhoto(null)}
-                  className="p-2 text-slate-400 hover:text-white rounded-xl"
+                  className="p-2 text-slate-400 hover:text-white rounded-xl cursor-pointer"
                 >
                   <X className="w-6 h-6" />
                 </button>

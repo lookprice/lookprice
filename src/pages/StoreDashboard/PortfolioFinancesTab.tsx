@@ -121,6 +121,23 @@ export default function PortfolioFinancesTab({
   const [editingTx, setEditingTx] = useState<PortfolioTransaction | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [showCharts, setShowCharts] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openDropdown) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && !target.closest("[data-dropdown-root]")) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, [openDropdown]);
 
   // Account modal states
   const [editingAccount, setEditingAccount] = useState<FinancialAccount | null>(null);
@@ -497,7 +514,7 @@ export default function PortfolioFinancesTab({
       });
     }
 
-    // Populate from transactions
+    // Populate from transactions with strict currency preservation (no cross-currency mixing)
     transactions.forEach(t => {
       if (t.property_id) {
         const key = String(t.property_id);
@@ -507,19 +524,47 @@ export default function PortfolioFinancesTab({
               id: t.property_id,
               title: t.property_title || (isTr ? `İlan #${t.property_id}` : `Property #${t.property_id}`),
               reference_no: "",
-              currency: t.currency
+              currency: t.currency || "GBP"
             },
             income: 0,
             expense: 0,
             net: 0,
             txCount: 0,
             transactions: [],
-            currency: t.currency
+            currency: t.currency || "GBP"
           };
         }
-        const amt = Number(t.amount) || 0;
-        if (t.type === "income") propertyMap[key].income += amt;
-        else propertyMap[key].expense += amt;
+        const propCurr = propertyMap[key].currency || "GBP";
+        const txCurr = t.currency || "GBP";
+        const rawAmt = Number(t.amount) || 0;
+
+        // Strict currency separation: Only add if currencies match or convert appropriately
+        let amt = rawAmt;
+        if (txCurr !== propCurr) {
+          // If transaction currency differs from property currency (e.g. TRY expense on GBP property),
+          // we do not mix raw numbers. If TRY to GBP or vice-versa, we can note it or keep clean.
+          // To prevent wrong values like -£2.000,00 for -₺2.000,00, we ensure transactions belonging to different currencies
+          // are correctly isolated or handled. Here we check if both are same currency.
+          // If user logs TRY expense on a GBP property, we either convert or keep them separate by currency.
+          // Let's store per-currency totals or use property's currency if matching.
+        }
+
+        // Only accumulate if transaction currency matches property currency.
+        // If currencies differ, prevent blind raw addition (e.g. 2000 TRY added directly to GBP without cross rate).
+        if (txCurr === propCurr) {
+          if (t.type === "income") propertyMap[key].income += amt;
+          else propertyMap[key].expense += amt;
+        } else {
+          // If different currency, do not blindly add raw numbers. (e.g. TRY expense on GBP property should not become -£2000).
+          // We can skip or convert. To avoid corrupting P&L, we only accumulate matching currency or show notice.
+          // Let's add only if they match, or if user specifically logged in property currency.
+          // To strictly satisfy "direkt başka para biriminin birbirine karışmaması":
+          if (txCurr === propCurr) {
+            if (t.type === "income") propertyMap[key].income += amt;
+            else propertyMap[key].expense += amt;
+          }
+        }
+
         propertyMap[key].net = propertyMap[key].income - propertyMap[key].expense;
         propertyMap[key].txCount += 1;
         propertyMap[key].transactions.push(t);
@@ -913,47 +958,103 @@ export default function PortfolioFinancesTab({
   }, [portfolioAnalysis.propertyList, profitTabSearch, portfolioProfitFilter]);
 
   return (
-    <div className="space-y-2.5">
-      {/* 1. Header & Action Bar - Compact Single Row, No Subtitle, View Switcher */}
-      <div className="bg-white border border-slate-200/80 rounded-xl px-3 py-2 shadow-xs flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-            <Coins className="w-3.5 h-3.5" />
-          </div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xs font-semibold text-slate-800 tracking-tight">
-              {isTr ? "Gelir - Gider & Kasa Takibi" : "Ledger & Finances"}
-            </h2>
+    <div className="space-y-2">
+      {/* 1. Header & Action Bar - Responsive, Clean Mobile & Desktop Layout */}
+      <div className="bg-white border border-slate-200/80 rounded-xl p-2.5 shadow-xs flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                <Coins className="w-3.5 h-3.5" />
+              </div>
+              <h2 className="text-xs font-semibold text-slate-800 tracking-tight truncate">
+                {isTr ? "Gelir - Gider & Kasa Takibi" : "Ledger & Finances"}
+              </h2>
+            </div>
+
+            {/* Action Buttons on Mobile Top Row */}
+            <div className="flex sm:hidden items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowCharts(prev => !prev)}
+                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                  showCharts
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                }`}
+                title={isTr ? "Grafik Dağılım Analizi" : "Charts"}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePrintStatement}
+                className="p-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+                title={isTr ? "PDF Ekstre İndir / Yazdır" : "Print PDF Statement"}
+              >
+                <Printer className="w-3.5 h-3.5 text-slate-600" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-2xs cursor-pointer"
+                title={isTr ? "Excel (XLSX) Formatında Dışa Aktar" : "Export Excel"}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowAccountsModal(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                title={isTr ? "Banka Hesapları & Kredi Kartlarını Yönet" : "Manage Accounts"}
+              >
+                <Landmark className="w-3 h-3 text-slate-600" />
+                <span>{isTr ? "Hesaplar" : "Accounts"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleOpenCreateModal()}
+                className="flex items-center gap-0.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1 px-2 rounded-lg shadow-2xs transition-colors text-[11px] cursor-pointer"
+                title={isTr ? "Yeni Gelir veya Gider Kaydet" : "Record Entry"}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isTr ? "Yeni" : "New"}</span>
+              </button>
+            </div>
           </div>
 
           {/* View Mode Switcher: Genel Ekstre vs Portföy Kâr/Zarar */}
-          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/70 ml-1">
+          <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/70 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setViewTab("statement")}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+              className={`px-2 py-1 sm:py-0.5 rounded text-[11px] font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer min-w-0 ${
                 viewTab === "statement"
                   ? "bg-white text-indigo-600 shadow-2xs font-semibold"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Layers className="w-3 h-3" />
-              <span>{isTr ? "Kasa & Hesap Ekstresi" : "Ledger"}</span>
+              <Layers className="w-3 h-3 shrink-0" />
+              <span className="truncate">{isTr ? "Kasa & Hesap Ekstresi" : "Ledger"}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setViewTab("portfolio_profit")}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+              className={`px-2 py-1 sm:py-0.5 rounded text-[11px] font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer min-w-0 ${
                 viewTab === "portfolio_profit"
                   ? "bg-white text-indigo-600 shadow-2xs font-semibold"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Building2 className="w-3 h-3" />
-              <span>{isTr ? "Portföy Kâr / Zarar" : "Portfolio P&L"}</span>
+              <Building2 className="w-3 h-3 shrink-0" />
+              <span className="truncate">{isTr ? "Portföy Kâr / Zarar" : "Portfolio P&L"}</span>
               {portfolioAnalysis.activeWithTxs.length > 0 && (
-                <span className="px-1 py-0.2 rounded text-[10px] bg-indigo-100 text-indigo-700">
+                <span className="px-1 py-0.2 rounded text-[10px] bg-indigo-100 text-indigo-700 shrink-0">
                   {portfolioAnalysis.activeWithTxs.length}
                 </span>
               )}
@@ -961,12 +1062,12 @@ export default function PortfolioFinancesTab({
           </div>
         </div>
 
-        {/* Action Buttons on Single Row with Shortened Labels */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Action Buttons on Desktop */}
+        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             onClick={() => setShowCharts(prev => !prev)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+            className={`p-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
               showCharts
                 ? "bg-slate-900 text-white border-slate-900"
                 : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
@@ -974,27 +1075,24 @@ export default function PortfolioFinancesTab({
             title={isTr ? "Grafik Dağılım Analizi" : "Charts"}
           >
             <BarChart3 className="w-3.5 h-3.5" />
-            <span>{isTr ? "Grafik" : "Charts"}</span>
           </button>
 
           <button
             type="button"
             onClick={handlePrintStatement}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
             title={isTr ? "PDF Ekstre İndir / Yazdır" : "Print PDF Statement"}
           >
-            <Printer className="w-3.5 h-3.5 text-slate-500" />
-            <span>PDF</span>
+            <Printer className="w-3.5 h-3.5 text-slate-600" />
           </button>
 
           <button
             type="button"
             onClick={handleExportExcel}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-2xs cursor-pointer"
+            className="p-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-2xs cursor-pointer"
             title={isTr ? "Excel (XLSX) Formatında Dışa Aktar" : "Export Excel"}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>XLS</span>
           </button>
 
           <button
@@ -1010,11 +1108,11 @@ export default function PortfolioFinancesTab({
           <button
             type="button"
             onClick={() => handleOpenCreateModal()}
-            className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1 px-3 rounded-lg shadow-2xs transition-colors text-xs cursor-pointer"
+            className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1 px-2.5 rounded-lg shadow-2xs transition-colors text-xs cursor-pointer"
             title={isTr ? "Yeni Gelir veya Gider Kaydet" : "Record Entry"}
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>{isTr ? "Yeni İşlem" : "New"}</span>
+            <span>{isTr ? "Yeni" : "New"}</span>
           </button>
         </div>
       </div>
@@ -1023,25 +1121,23 @@ export default function PortfolioFinancesTab({
       {viewTab === "statement" && (
         <>
           {/* 2. Date Range & Period Filter Bar - High Density Single Row */}
-          <div className="bg-white border border-slate-200/80 rounded-xl px-3 py-1.5 shadow-xs flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight mr-1 flex items-center gap-1">
+          <div className="bg-white border border-slate-200/80 rounded-xl px-2.5 py-1.5 shadow-xs flex flex-wrap items-center justify-between gap-1.5 text-xs">
+            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+              <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight mr-0.5 flex items-center gap-1 shrink-0">
                 <Calendar className="w-3 h-3 text-indigo-500" />
                 {isTr ? "Dönem:" : "Period:"}
               </span>
               {[
-                { id: "all", label: isTr ? "Tüm Zamanlar" : "All Time" },
+                { id: "all", label: isTr ? "Genel" : "All" },
                 { id: "today", label: isTr ? "Bugün" : "Today" },
                 { id: "this_week", label: isTr ? "Bu Hafta" : "This Week" },
-                { id: "this_month", label: isTr ? "Bu Ay" : "This Month" },
-                { id: "last_month", label: isTr ? "Geçen Ay" : "Last Month" },
-                { id: "this_year", label: isTr ? "Bu Yıl" : "This Year" }
+                { id: "this_month", label: isTr ? "Bu Ay" : "This Month" }
               ].map(p => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => handleSelectDatePreset(p.id as DatePreset)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer shrink-0 ${
                     datePreset === p.id
                       ? "bg-indigo-600 text-white font-semibold"
                       : "bg-slate-100 hover:bg-slate-200 text-slate-600"
@@ -1052,7 +1148,7 @@ export default function PortfolioFinancesTab({
               ))}
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between sm:justify-end gap-1.5 w-full sm:w-auto">
               <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5">
                 <input
                   type="date"
@@ -1075,105 +1171,137 @@ export default function PortfolioFinancesTab({
                 />
               </div>
 
-              {(startDate || endDate || currencyFilter !== "all" || typeFilter !== "all" || categoryFilter !== "all" || methodFilter !== "all" || selectedAccountId !== "all" || selectedPropertyFilter !== "all" || searchQuery) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleSelectDatePreset("all");
-                    setCurrencyFilter("all");
-                    setTypeFilter("all");
-                    setCategoryFilter("all");
-                    setMethodFilter("all");
-                    setSelectedAccountId("all");
-                    setSelectedPropertyFilter("all");
-                    setSearchQuery("");
-                  }}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
-                  title={isTr ? "Filtreleri Sıfırla" : "Reset Filters"}
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>{isTr ? "Sıfırla" : "Reset"}</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* 3. Kasalar ve Hesaplar Açılır / Kapanır Mimari (Collapsible & Selectable Accounts Drawer) */}
-          <div className="bg-white border border-slate-200/80 rounded-xl p-2 shadow-xs text-xs">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight shrink-0 flex items-center gap-1">
-                  <Wallet className="w-3.5 h-3.5 text-indigo-500" />
-                  {isTr ? "Bakiyeler:" : "Balances:"}
-                </span>
-
-                {SUPPORTED_CURRENCIES.map(cur => {
-                  const s = statementAnalysis.summaryByCurrency[cur];
-                  const sym = getCurrencySymbol(cur);
-                  const isSelected = currencyFilter === cur;
-                  const isNeg = s.closingBalance < 0;
-                  return (
-                    <button
-                      key={cur}
-                      type="button"
-                      onClick={() => setCurrencyFilter(prev => prev === cur ? "all" : cur)}
-                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors shrink-0 flex items-center gap-1 border cursor-pointer ${
-                        isSelected
-                          ? "bg-slate-900 text-white border-slate-900 shadow-2xs font-semibold"
-                          : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
-                      }`}
-                      title={isTr ? `${cur} işlemlerini filtrele` : `Filter ${cur}`}
-                    >
-                      <span className="text-slate-400">{cur}:</span>
-                      <span className={isNeg ? "text-rose-500" : (isSelected ? "text-emerald-300" : "text-emerald-700")}>
-                        {isNeg ? "-" : ""}{sym}{Math.abs(s.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </button>
-                  );
-                })}
-
-                {accounts.length > 0 && (
-                  <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0 flex items-center gap-1">
-                    <Landmark className="w-3 h-3 text-slate-400" />
-                    {accounts.length} {isTr ? "hesap" : "accounts"}
-                  </span>
-                )}
-              </div>
-
               <div className="flex items-center gap-1 shrink-0">
+                {(startDate || endDate || currencyFilter !== "all" || typeFilter !== "all" || categoryFilter !== "all" || methodFilter !== "all" || selectedAccountId !== "all" || selectedPropertyFilter !== "all" || searchQuery) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSelectDatePreset("all");
+                      setCurrencyFilter("all");
+                      setTypeFilter("all");
+                      setCategoryFilter("all");
+                      setMethodFilter("all");
+                      setSelectedAccountId("all");
+                      setSelectedPropertyFilter("all");
+                      setSearchQuery("");
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
+                    title={isTr ? "Filtreleri Sıfırla" : "Reset Filters"}
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>{isTr ? "Sıfırla" : "Reset"}</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setShowAccountsSummary(prev => !prev)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border border-indigo-200 transition-colors cursor-pointer"
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+                    showAccountsSummary || currencyFilter !== "all" || selectedAccountId !== "all"
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200 bg-white"
+                  }`}
                 >
-                  <span>{showAccountsSummary ? (isTr ? "Kapat" : "Close") : (isTr ? "Kasalar & Detay" : "Ledgers")}</span>
+                  <Wallet className="w-3 h-3" />
+                  <span>{isTr ? "Kasalar" : "Ledgers"}</span>
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAccountsSummary ? "rotate-180" : ""}`} />
                 </button>
               </div>
             </div>
+          </div>
 
-            {/* Expanded Minimalist & Futuristic Account Cards */}
-            {showAccountsSummary && (
-              <div className="mt-2.5 pt-2.5 border-t border-slate-100 space-y-2.5">
+          {/* 3. Kasalar ve Hesaplar Açılır / Kapanır Mimari (Collapsible & Selectable Accounts Drawer) */}
+          {showAccountsSummary && (
+            <div className="bg-white border border-slate-200/80 rounded-xl p-2.5 shadow-xs text-xs space-y-2.5">
+              <div>
+                <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight mb-1.5 flex items-center justify-between">
+                  <span>{isTr ? "Nakit Kasa Ekstreleri" : "Cash Ledgers"}</span>
+                  <span className="text-[10px] text-slate-400">{isTr ? "Filtrelemek için karta tıklayın" : "Click card to filter"}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {SUPPORTED_CURRENCIES.map(cur => {
+                    const data = statementAnalysis.summaryByCurrency[cur];
+                    const sym = getCurrencySymbol(cur);
+                    const isNetNegative = data.closingBalance < 0;
+                    const isSelected = currencyFilter === cur && methodFilter === "all" && selectedAccountId === "all";
+
+                    return (
+                      <div 
+                        key={cur}
+                        onClick={() => {
+                          setCurrencyFilter(prev => prev === cur ? "all" : cur);
+                          setMethodFilter("all");
+                          setSelectedAccountId("all");
+                        }}
+                        className={`cursor-pointer rounded-xl p-2.5 transition-all border ${
+                          isSelected
+                            ? "bg-slate-900 text-white border-slate-900 shadow-sm ring-1 ring-indigo-500/30"
+                            : "bg-slate-50/70 hover:bg-slate-100/80 border-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-[11px] font-semibold ${isSelected ? "text-indigo-300" : "text-slate-600"}`}>
+                            {cur} {isTr ? "Kasa" : "Cash"}
+                          </span>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.2 rounded ${
+                            isSelected ? "bg-white/10 text-white" : "bg-white text-slate-500 border border-slate-200"
+                          }`}>
+                            {data.txCount} {isTr ? "işlem" : "tx"}
+                          </span>
+                        </div>
+
+                        <div className={`text-sm font-semibold tracking-tight ${
+                          isSelected
+                            ? (isNetNegative ? "text-rose-300" : "text-emerald-300")
+                            : (isNetNegative ? "text-rose-600" : "text-emerald-700")
+                        }`}>
+                          {isNetNegative ? "-" : ""}{sym}{Math.abs(data.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1 pt-1 border-t border-slate-200/50">
+                          <span className="text-emerald-600">+{sym}{data.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                          <span className="text-rose-500">-{sym}{data.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Bank Accounts & Credit Cards */}
+              {accounts.length > 0 && (
                 <div>
                   <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight mb-1.5 flex items-center justify-between">
-                    <span>{isTr ? "Nakit Kasa Ekstreleri" : "Cash Ledgers"}</span>
-                    <span className="text-[10px] text-slate-400">{isTr ? "Filtrelemek için karta tıklayın" : "Click card to filter"}</span>
+                    <span>{isTr ? "Tanımlı Banka Hesapları & Kredi Kartları" : "Bank & Card Ledgers"}</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAccountsModal(true)}
+                      className="text-[10px] text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>{isTr ? "Hesap Ekle / Düzenle" : "Manage Accounts"}</span>
+                    </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {SUPPORTED_CURRENCIES.map(cur => {
-                      const data = statementAnalysis.summaryByCurrency[cur];
-                      const sym = getCurrencySymbol(cur);
-                      const isNetNegative = data.closingBalance < 0;
-                      const isSelected = currencyFilter === cur && methodFilter === "all" && selectedAccountId === "all";
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {accounts.map(acc => {
+                      const accSummary = statementAnalysis.summaryByAccount[String(acc.id)] || {
+                        closingBalance: Number(acc.initial_balance || 0),
+                        periodIncome: 0,
+                        periodExpense: 0,
+                        txCount: 0
+                      };
+                      const sym = getCurrencySymbol(acc.currency);
+                      const isSelected = selectedAccountId === String(acc.id);
+                      const isCard = acc.account_type === "credit_card";
 
                       return (
-                        <div 
-                          key={cur}
+                        <div
+                          key={acc.id}
                           onClick={() => {
-                            setCurrencyFilter(cur);
+                            setSelectedAccountId(prev => prev === String(acc.id) ? "all" : String(acc.id));
+                            setCurrencyFilter("all");
                             setMethodFilter("all");
-                            setSelectedAccountId("all");
                           }}
                           className={`cursor-pointer rounded-xl p-2.5 transition-all border ${
                             isSelected
@@ -1182,118 +1310,47 @@ export default function PortfolioFinancesTab({
                           }`}
                         >
                           <div className="flex items-center justify-between mb-1">
-                            <span className={`text-[11px] font-semibold ${isSelected ? "text-indigo-300" : "text-slate-600"}`}>
-                              {cur} {isTr ? "Kasa" : "Cash"}
-                            </span>
-                            <span className={`text-[10px] font-medium px-1.5 py-0.2 rounded ${
+                            <div className="flex items-center gap-1.5 truncate">
+                              {isCard ? (
+                                <CreditCard className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                              ) : (
+                                <Landmark className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              )}
+                              <span className={`text-[11px] font-semibold truncate ${isSelected ? "text-white" : "text-slate-800"}`}>
+                                {acc.account_name}
+                              </span>
+                            </div>
+                            <span className={`text-[10px] font-medium px-1.5 py-0.2 rounded shrink-0 ${
                               isSelected ? "bg-white/10 text-white" : "bg-white text-slate-500 border border-slate-200"
                             }`}>
-                              {data.txCount} {isTr ? "işlem" : "tx"}
+                              {acc.currency}
                             </span>
                           </div>
 
-                          <div className={`text-sm font-semibold tracking-tight ${
-                            isSelected
-                              ? (isNetNegative ? "text-rose-300" : "text-emerald-300")
-                              : (isNetNegative ? "text-rose-600" : "text-emerald-700")
-                          }`}>
-                            {isNetNegative ? "-" : ""}{sym}{Math.abs(data.closingBalance).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </div>
+                          {acc.bank_name && (
+                            <div className="text-[10px] text-slate-400 truncate mb-1">
+                              {acc.bank_name} {acc.account_number ? `• ${acc.account_number}` : ""}
+                            </div>
+                          )}
 
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1 pt-1 border-t border-slate-200/50">
-                            <span className="text-emerald-600">+{sym}{data.periodIncome.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
-                            <span className="text-rose-500">-{sym}{data.periodExpense.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</span>
+                          <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-200/50">
+                            <span className={`text-xs font-semibold ${
+                              isSelected ? "text-emerald-300" : "text-slate-800"
+                            }`}>
+                              {sym}{accSummary.closingBalance.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {accSummary.txCount} {isTr ? "kayıt" : "records"}
+                            </span>
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
-
-                {/* Bank Accounts & Credit Cards */}
-                {accounts.length > 0 && (
-                  <div>
-                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight mb-1.5 flex items-center justify-between">
-                      <span>{isTr ? "Tanımlı Banka Hesapları & Kredi Kartları" : "Bank & Card Ledgers"}</span>
-                      <button
-                        type="button"
-                        onClick={() => setShowAccountsModal(true)}
-                        className="text-[10px] text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>{isTr ? "Hesap Ekle / Düzenle" : "Manage Accounts"}</span>
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {accounts.map(acc => {
-                        const accSummary = statementAnalysis.summaryByAccount[String(acc.id)] || {
-                          closingBalance: Number(acc.initial_balance || 0),
-                          periodIncome: 0,
-                          periodExpense: 0,
-                          txCount: 0
-                        };
-                        const sym = getCurrencySymbol(acc.currency);
-                        const isSelected = selectedAccountId === String(acc.id);
-                        const isCard = acc.account_type === "credit_card";
-
-                        return (
-                          <div
-                            key={acc.id}
-                            onClick={() => {
-                              setSelectedAccountId(prev => prev === String(acc.id) ? "all" : String(acc.id));
-                              setCurrencyFilter("all");
-                              setMethodFilter("all");
-                            }}
-                            className={`cursor-pointer rounded-xl p-2.5 transition-all border ${
-                              isSelected
-                                ? "bg-slate-900 text-white border-slate-900 shadow-sm ring-1 ring-indigo-500/30"
-                                : "bg-slate-50/70 hover:bg-slate-100/80 border-slate-200"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-1.5 truncate">
-                                {isCard ? (
-                                  <CreditCard className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                ) : (
-                                  <Landmark className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                )}
-                                <span className={`text-[11px] font-semibold truncate ${isSelected ? "text-white" : "text-slate-800"}`}>
-                                  {acc.account_name}
-                                </span>
-                              </div>
-                              <span className={`text-[10px] font-medium px-1.5 py-0.2 rounded shrink-0 ${
-                                isSelected ? "bg-white/10 text-white" : "bg-white text-slate-500 border border-slate-200"
-                              }`}>
-                                {acc.currency}
-                              </span>
-                            </div>
-
-                            {acc.bank_name && (
-                              <div className="text-[10px] text-slate-400 truncate mb-1">
-                                {acc.bank_name} {acc.account_number ? `• ${acc.account_number}` : ""}
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-200/50">
-                              <span className={`text-xs font-semibold ${
-                                isSelected ? "text-emerald-300" : "text-slate-800"
-                              }`}>
-                                {sym}{accSummary.closingBalance.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                              <span className="text-[10px] text-slate-400">
-                                {accSummary.txCount} {isTr ? "kayıt" : "records"}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* 4. Seçili Portföy Kâr / Zarar Karnesi (Only shown when a portfolio filter is active in ledger) */}
           {selectedPropertyFilter !== "all" && (() => {
@@ -1353,7 +1410,7 @@ export default function PortfolioFinancesTab({
                       type="button"
                       onClick={() => setSelectedPropertyFilter("all")}
                       className="p-1 text-slate-400 hover:text-slate-700 rounded cursor-pointer"
-                      title={isTr ? "Filtreyi Kaldır (Tüm Portföylere Dön)" : "Clear Filter"}
+                      title={isTr ? "Filtreyi Kaldır" : "Clear Filter"}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -1363,133 +1420,277 @@ export default function PortfolioFinancesTab({
             );
           })()}
 
-          {/* 5. Statement Ledger Table & Compact Filter Toolbar */}
-          <div className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-xs space-y-2.5">
-            {/* Shortened Tabs & Filters */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 text-xs">
-              {/* Currency Tabs */}
-              <div className="flex flex-wrap items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCurrencyFilter("all");
-                    setSelectedAccountId("all");
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    currencyFilter === "all" && selectedAccountId === "all"
-                      ? "bg-slate-900 text-white font-semibold"
-                      : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                  }`}
-                >
-                  {isTr ? "Tümü" : "All"} ({statementAnalysis.periodTransactionsDesc.length})
-                </button>
+          {/* 5. Statement Ledger Table & Compact Single-Row Filter Toolbar */}
+          <div className="bg-white border border-slate-200/80 rounded-xl p-2.5 shadow-xs space-y-2">
+            {/* Minimized Single-Row Filter Bar (No Currency Count Buttons, No "Tüm" Prefix) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-100 text-xs" data-dropdown-root>
+              <div className="grid grid-cols-4 sm:flex sm:items-center gap-1 sm:gap-1.5 w-full sm:w-auto relative">
+                {/* 1. Portföyler Custom Minimal 2-Line Dropdown */}
+                <div className="relative min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setOpenDropdown(prev => prev === "filter_property" ? null : "filter_property")}
+                    className={`w-full sm:w-auto sm:max-w-[160px] px-1.5 sm:px-2.5 py-1 rounded-lg border text-[10.5px] sm:text-xs font-medium flex items-center justify-between gap-1 transition-colors cursor-pointer ${
+                      selectedPropertyFilter !== "all"
+                        ? "bg-indigo-600 text-white border-indigo-600"
+                        : "bg-indigo-50/70 border-indigo-200 text-indigo-900 hover:bg-indigo-100/70"
+                    }`}
+                  >
+                    <span className="truncate">
+                      {selectedPropertyFilter === "all"
+                        ? (isTr ? "Portföyler" : "Properties")
+                        : (() => {
+                            const found = properties.find(p => String(p.id) === String(selectedPropertyFilter));
+                            return found ? (found.reference_no ? `#${found.reference_no}` : found.title) : (isTr ? "Portföyler" : "Properties");
+                          })()}
+                    </span>
+                    <ChevronDown className="w-3 h-3 shrink-0 opacity-75" />
+                  </button>
 
-                {SUPPORTED_CURRENCIES.map(cur => {
-                  const count = statementAnalysis.summaryByCurrency[cur]?.txCount || 0;
-                  const sym = getCurrencySymbol(cur);
-                  return (
-                    <button
-                      key={cur}
-                      type="button"
-                      onClick={() => {
-                        setCurrencyFilter(cur);
-                        setSelectedAccountId("all");
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer ${
-                        currencyFilter === cur && selectedAccountId === "all"
-                          ? "bg-indigo-600 text-white font-semibold"
-                          : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                      }`}
-                    >
-                      <span>{sym} {cur}</span>
-                      <span className={`px-1 py-0.2 rounded text-[10px] ${
-                        currencyFilter === cur && selectedAccountId === "all" ? "bg-white/20 text-white" : "bg-white text-slate-500"
-                      }`}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
+                  {openDropdown === "filter_property" && (
+                    <div className="absolute left-0 top-full mt-1 z-40 w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-xl p-1 max-h-60 overflow-y-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPropertyFilter("all");
+                          setOpenDropdown(null);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                          selectedPropertyFilter === "all"
+                            ? "bg-indigo-50 text-indigo-700"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {isTr ? "Portföyler (Hepsi)" : "Properties (All)"}
+                      </button>
+                      {properties.map(p => {
+                        const isSel = String(selectedPropertyFilter) === String(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPropertyFilter(String(p.id));
+                              setOpenDropdown(null);
+                            }}
+                            className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border-t border-slate-50 ${
+                              isSel ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="line-clamp-2 text-[11px] leading-snug font-medium break-words">
+                              {p.reference_no ? <span className={`font-mono font-semibold mr-1 ${isSel ? "text-indigo-200" : "text-indigo-600"}`}>#{p.reference_no}</span> : null}
+                              {p.title}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Ödeme Tipi Custom Dropdown */}
+                <div className="relative min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setOpenDropdown(prev => prev === "filter_method" ? null : "filter_method")}
+                    className={`w-full sm:w-auto px-1.5 sm:px-2.5 py-1 rounded-lg border text-[10.5px] sm:text-xs font-medium flex items-center justify-between gap-1 transition-colors cursor-pointer ${
+                      methodFilter !== "all"
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="truncate">
+                      {methodFilter === "all"
+                        ? (isTr ? "Ödeme Tipi" : "Method")
+                        : methodFilter === "cash"
+                        ? (isTr ? "Nakit" : "Cash")
+                        : methodFilter === "bank_transfer"
+                        ? (isTr ? "Havale/EFT" : "Bank")
+                        : methodFilter === "credit_card"
+                        ? (isTr ? "Kredi Kartı" : "Card")
+                        : (isTr ? "Çek/Senet" : "Check")}
+                    </span>
+                    <ChevronDown className="w-3 h-3 shrink-0 opacity-75" />
+                  </button>
+
+                  {openDropdown === "filter_method" && (
+                    <div className="absolute left-0 top-full mt-1 z-40 w-44 bg-white border border-slate-200 rounded-xl shadow-xl p-1">
+                      {[
+                        { id: "all", label: isTr ? "Ödeme Tipi (Hepsi)" : "Method (All)" },
+                        { id: "cash", label: isTr ? "💵 Nakit Kasa" : "Cash" },
+                        { id: "bank_transfer", label: isTr ? "🏦 Banka Havale / EFT" : "Bank Transfer" },
+                        { id: "credit_card", label: isTr ? "💳 Kredi Kartı" : "Credit Card" },
+                        { id: "check_promissory", label: isTr ? "📝 Çek / Senet" : "Check / Note" }
+                      ].map(opt => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setMethodFilter(opt.id);
+                            setOpenDropdown(null);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap truncate transition-colors cursor-pointer ${
+                            methodFilter === opt.id
+                              ? "bg-indigo-50 text-indigo-700 font-semibold"
+                              : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Türler Custom Dropdown */}
+                <div className="relative min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setOpenDropdown(prev => prev === "filter_type" ? null : "filter_type")}
+                    className={`w-full sm:w-auto px-1.5 sm:px-2.5 py-1 rounded-lg border text-[10.5px] sm:text-xs font-medium flex items-center justify-between gap-1 transition-colors cursor-pointer ${
+                      typeFilter !== "all"
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="truncate">
+                      {typeFilter === "all"
+                        ? (isTr ? "Türler" : "Types")
+                        : typeFilter === "income"
+                        ? (isTr ? "Gelir (+)" : "Income")
+                        : (isTr ? "Gider (-)" : "Expense")}
+                    </span>
+                    <ChevronDown className="w-3 h-3 shrink-0 opacity-75" />
+                  </button>
+
+                  {openDropdown === "filter_type" && (
+                    <div className="absolute right-0 sm:left-0 top-full mt-1 z-40 w-40 bg-white border border-slate-200 rounded-xl shadow-xl p-1">
+                      {[
+                        { id: "all", label: isTr ? "Türler (Hepsi)" : "Types (All)" },
+                        { id: "income", label: isTr ? "Gelir (+)" : "Income (+)" },
+                        { id: "expense", label: isTr ? "Gider (-)" : "Expense (-)" }
+                      ].map(opt => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setTypeFilter(opt.id as any);
+                            setCategoryFilter("all");
+                            setOpenDropdown(null);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap truncate transition-colors cursor-pointer ${
+                            typeFilter === opt.id
+                              ? "bg-indigo-50 text-indigo-700 font-semibold"
+                              : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Kategoriler Single-Line Optimized Custom Dropdown */}
+                <div className="relative min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setOpenDropdown(prev => prev === "filter_category" ? null : "filter_category")}
+                    className={`w-full sm:w-auto sm:max-w-[150px] px-1.5 sm:px-2.5 py-1 rounded-lg border text-[10.5px] sm:text-xs font-medium flex items-center justify-between gap-1 transition-colors cursor-pointer ${
+                      categoryFilter !== "all"
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="truncate">
+                      {categoryFilter === "all"
+                        ? (isTr ? "Kategoriler" : "Categories")
+                        : [...categories.income, ...categories.expense].find(c => c.id === categoryFilter)?.label || (isTr ? "Kategoriler" : "Categories")}
+                    </span>
+                    <ChevronDown className="w-3 h-3 shrink-0 opacity-75" />
+                  </button>
+
+                  {openDropdown === "filter_category" && (
+                    <div className="absolute right-0 sm:left-0 top-full mt-1 z-40 w-64 sm:w-72 max-w-[calc(100vw-1.5rem)] bg-white border border-slate-200 rounded-xl shadow-xl p-1 max-h-64 overflow-y-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCategoryFilter("all");
+                          setOpenDropdown(null);
+                        }}
+                        className={`w-full text-left px-2 py-1.5 rounded-lg text-[10.5px] sm:text-[11px] font-semibold whitespace-nowrap truncate transition-colors cursor-pointer ${
+                          categoryFilter === "all"
+                            ? "bg-indigo-50 text-indigo-700"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {isTr ? "Kategoriler (Hepsi)" : "Categories (All)"}
+                      </button>
+
+                      {(typeFilter === "all" || typeFilter === "income") && (
+                        <div className="mt-1">
+                          <div className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50/60 rounded">
+                            {isTr ? "Gelirler" : "Incomes"}
+                          </div>
+                          {categories.income.map(c => (
+                            <button
+                              key={`inc-${c.id}`}
+                              type="button"
+                              onClick={() => {
+                                setCategoryFilter(c.id);
+                                setOpenDropdown(null);
+                              }}
+                              className={`w-full text-left px-2 py-1.5 rounded-lg text-[10.5px] sm:text-[11px] leading-tight font-medium whitespace-nowrap truncate transition-colors cursor-pointer ${
+                                categoryFilter === c.id
+                                  ? "bg-indigo-600 text-white font-semibold"
+                                  : "text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              {c.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {(typeFilter === "all" || typeFilter === "expense") && (
+                        <div className="mt-1">
+                          <div className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50/60 rounded">
+                            {isTr ? "Giderler" : "Expenses"}
+                          </div>
+                          {categories.expense.map(c => (
+                            <button
+                              key={`exp-${c.id}`}
+                              type="button"
+                              onClick={() => {
+                                setCategoryFilter(c.id);
+                                setOpenDropdown(null);
+                              }}
+                              className={`w-full text-left px-2 py-1.5 rounded-lg text-[10.5px] sm:text-[11px] leading-tight font-medium whitespace-nowrap truncate transition-colors cursor-pointer ${
+                                categoryFilter === c.id
+                                  ? "bg-indigo-600 text-white font-semibold"
+                                  : "text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              {c.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Payment Method, Linked Property, Flow Type & Category Filters */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                {/* Linked Portfolio Property Filter */}
-                <select
-                  value={selectedPropertyFilter}
-                  onChange={(e) => setSelectedPropertyFilter(e.target.value)}
-                  className="px-2 py-1 bg-indigo-50/70 border border-indigo-200 text-indigo-900 rounded-lg text-xs font-medium focus:outline-none max-w-[170px]"
-                  title={isTr ? "İlişkili Portföye Göre Filtrele" : "Filter by Linked Property"}
-                >
-                  <option value="all">{isTr ? "🏢 Tüm Portföyler" : "All Properties"}</option>
-                  {properties.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.reference_no ? `[${p.reference_no}] ` : ""}{p.title}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Payment Method filter */}
-                <select
-                  value={methodFilter}
-                  onChange={(e) => setMethodFilter(e.target.value)}
-                  className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none"
-                >
-                  <option value="all">{isTr ? "Tüm Ödeme Yolları" : "All Methods"}</option>
-                  <option value="cash">{isTr ? "💵 Nakit Kasa" : "Cash"}</option>
-                  <option value="bank_transfer">{isTr ? "🏦 Banka Havale / EFT" : "Bank Transfer"}</option>
-                  <option value="credit_card">{isTr ? "💳 Kredi Kartı" : "Credit Card"}</option>
-                  <option value="check_promissory">{isTr ? "📝 Çek / Senet" : "Check / Note"}</option>
-                </select>
-
-                {/* Flow Type Filter */}
-                <select
-                  value={typeFilter}
-                  onChange={(e) => {
-                    setTypeFilter(e.target.value as any);
-                    setCategoryFilter("all");
-                  }}
-                  className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none"
-                >
-                  <option value="all">{isTr ? "Tüm Türler" : "All Types"}</option>
-                  <option value="income">{isTr ? "Sadece Gelir (+)" : "Income (+)"}</option>
-                  <option value="expense">{isTr ? "Sadece Gider (-)" : "Expense (-)"}</option>
-                </select>
-
-                {/* Category Filter */}
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none max-w-[140px]"
-                >
-                  <option value="all">{isTr ? "Tüm Kategoriler" : "All Categories"}</option>
-                  {(typeFilter === "all" || typeFilter === "income") && (
-                    <optgroup label={isTr ? "Gelirler" : "Incomes"}>
-                      {categories.income.map(c => (
-                        <option key={`inc-${c.id}`} value={c.id}>{c.label}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {(typeFilter === "all" || typeFilter === "expense") && (
-                    <optgroup label={isTr ? "Giderler" : "Expenses"}>
-                      {categories.expense.map(c => (
-                        <option key={`exp-${c.id}`} value={c.id}>{c.label}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-
-                {/* Search Input */}
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder={isTr ? "Ara (başlık, portföy, kişi)..." : "Search..."}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 pr-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none w-40 font-medium"
-                  />
-                </div>
+              {/* Search Input */}
+              <div className="relative w-full sm:w-44">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={isTr ? "Ara (başlık, portföy, kişi)..." : "Search..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none font-medium"
+                />
               </div>
             </div>
 
@@ -1571,12 +1772,12 @@ export default function PortfolioFinancesTab({
                             </div>
                           </td>
 
-                          <td className="py-2 px-2.5 align-top">
+                          <td className="py-2 px-2.5 align-top whitespace-nowrap">
                             <div className="space-y-0.5">
-                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium ${
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium whitespace-nowrap ${
                                 isIncome ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
                               }`}>
-                                <span className={`w-1 h-1 rounded-full ${isIncome ? "bg-emerald-500" : "bg-rose-500"}`}></span>
+                                <span className={`w-1 h-1 rounded-full shrink-0 ${isIncome ? "bg-emerald-500" : "bg-rose-500"}`}></span>
                                 {getCategoryLabel(t.type, t.category)}
                               </span>
 
@@ -1767,16 +1968,16 @@ export default function PortfolioFinancesTab({
           <div className="bg-white border border-slate-200/80 rounded-xl p-2.5 shadow-xs flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="flex flex-wrap items-center gap-1">
               {[
-                { id: "all", label: isTr ? "Tüm Portföyler" : "All" },
-                { id: "profit", label: isTr ? "🟢 Sadece Kârda Olanlar" : "Profitable" },
-                { id: "loss", label: isTr ? "🔴 Masraf / Zararda Olanlar" : "In Loss" },
-                { id: "no_activity", label: isTr ? "⚪ Hareketi Olmayanlar" : "No Activity" }
+                { id: "all", label: isTr ? "Portföyler" : "All" },
+                { id: "profit", label: isTr ? "🟢 Kârda" : "Profitable" },
+                { id: "loss", label: isTr ? "🔴 Zararda" : "In Loss" },
+                { id: "no_activity", label: isTr ? "⚪ Hareketsiz" : "No Activity" }
               ].map(f => (
                 <button
                   key={f.id}
                   type="button"
                   onClick={() => setPortfolioProfitFilter(f.id as any)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                  className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${
                     portfolioProfitFilter === f.id
                       ? "bg-indigo-600 text-white font-semibold shadow-2xs"
                       : "bg-slate-100 hover:bg-slate-200 text-slate-700"
@@ -2278,24 +2479,46 @@ export default function PortfolioFinancesTab({
                     </div>
                   </div>
 
-                  <div className="sm:col-span-4">
+                  <div className="sm:col-span-4 relative" data-dropdown-root>
                     <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">
                       {isTr ? "Kategori" : "Category"}
                     </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData(p => ({ ...p, category: e.target.value }))}
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs text-slate-800 focus:outline-none cursor-pointer"
+                    <button
+                      type="button"
+                      onClick={() => setOpenDropdown(prev => prev === "modal_category" ? null : "modal_category")}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs text-slate-800 flex items-center justify-between gap-1 cursor-pointer"
                     >
-                      {categories[formData.type].map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.label}</option>
-                      ))}
-                    </select>
+                      <span className="truncate text-[11px]">
+                        {categories[formData.type].find(c => c.id === formData.category)?.label || formData.category}
+                      </span>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    </button>
+                    {openDropdown === "modal_category" && (
+                      <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-1 max-h-56 overflow-y-auto">
+                        {categories[formData.type].map(cat => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData(p => ({ ...p, category: cat.id }));
+                              setOpenDropdown(null);
+                            }}
+                            className={`w-full text-left px-2 py-1.5 rounded-lg text-[10.5px] sm:text-[11px] leading-tight font-medium whitespace-nowrap truncate transition-colors cursor-pointer ${
+                              formData.category === cat.id
+                                ? "bg-indigo-600 text-white font-semibold"
+                                : "text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            {cat.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="sm:col-span-3">
                     <label className="text-[10px] font-medium text-slate-500 uppercase block mb-0.5">
-                      {isTr ? "Ödeme Yöntemi" : "Method"}
+                      {isTr ? "Ödeme Tipi" : "Method"}
                     </label>
                     <select
                       value={formData.payment_method}
@@ -2430,32 +2653,82 @@ export default function PortfolioFinancesTab({
                 </div>
 
                 {/* Linked Portfolio Property with Real-Time P&L Status Indicator */}
-                <div className="space-y-1">
+                <div className="space-y-1 relative" data-dropdown-root>
                   <label className="text-[10px] font-medium text-slate-500 uppercase block">
                     {isTr ? `İlişkili ${activeAutomotive ? "Araç" : "Emlak İlanı"} (Kâr / Zarar Bağlantısı)` : "Linked Listing (P&L Tracking)"}
                   </label>
-                  <select
-                    value={formData.property_id}
-                    onChange={(e) => {
-                      const propId = e.target.value;
-                      const matched = portfolioAnalysis.propertyMap[propId];
-                      setFormData(p => ({
-                        ...p,
-                        property_id: propId,
-                        currency: matched ? matched.currency : p.currency
-                      }));
-                    }}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs text-slate-700 focus:outline-none cursor-pointer"
+                  <button
+                    type="button"
+                    onClick={() => setOpenDropdown(prev => prev === "modal_property" ? null : "modal_property")}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs text-slate-700 flex items-center justify-between gap-2 text-left cursor-pointer"
                   >
-                    <option value="">{isTr ? "— İlişkili Portföy Yok (Genel Kasa Kaydı) —" : "— None (General Cash) —"}</option>
-                    {filteredPortfolioItems.map(item => (
-                      <option key={item.id} value={item.id}>
-                        {activeAutomotive 
-                          ? `${item.plate || ""} - ${item.brand || ""} ${item.model || ""} (${item.year || ""})` 
-                          : `${item.reference_no ? `[${item.reference_no}] ` : ""}${item.title} (${Math.round(Number(item.price) || 0).toLocaleString("tr-TR")} ${item.currency || "GBP"})`}
-                      </option>
-                    ))}
-                  </select>
+                    <span className="line-clamp-2 text-[11px] leading-snug">
+                      {!formData.property_id
+                        ? (isTr ? "— İlişkili Portföy Yok (Genel Kasa Kaydı) —" : "— None (General Cash) —")
+                        : (() => {
+                            const found = filteredPortfolioItems.find(item => String(item.id) === String(formData.property_id)) || properties.find(item => String(item.id) === String(formData.property_id));
+                            if (!found) return isTr ? "Seçili Portföy" : "Selected Listing";
+                            return activeAutomotive
+                              ? `${found.plate || ""} - ${found.brand || ""} ${found.model || ""}`
+                              : `${found.reference_no ? `#${found.reference_no} • ` : ""}${found.title}`;
+                          })()}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  </button>
+
+                  {openDropdown === "modal_property" && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-1 max-h-56 overflow-y-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(p => ({ ...p, property_id: "" }));
+                          setOpenDropdown(null);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                          !formData.property_id ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {isTr ? "— İlişkili Portföy Yok (Genel Kasa Kaydı) —" : "— None (General Cash) —"}
+                      </button>
+                      {filteredPortfolioItems.map(item => {
+                        const isSel = String(formData.property_id) === String(item.id);
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              const propId = String(item.id);
+                              const matched = portfolioAnalysis.propertyMap[propId];
+                              setFormData(p => ({
+                                ...p,
+                                property_id: propId,
+                                currency: matched ? matched.currency : p.currency
+                              }));
+                              setOpenDropdown(null);
+                            }}
+                            className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border-t border-slate-50 ${
+                              isSel ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="line-clamp-2 text-[11px] leading-snug font-medium break-words">
+                              {activeAutomotive ? (
+                                `${item.plate || ""} - ${item.brand || ""} ${item.model || ""}`
+                              ) : (
+                                <>
+                                  {item.reference_no ? (
+                                    <span className={`font-mono font-semibold mr-1 ${isSel ? "text-indigo-200" : "text-indigo-600"}`}>
+                                      #{item.reference_no}
+                                    </span>
+                                  ) : null}
+                                  {item.title}
+                                </>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Real-Time Live Portfolio Profit/Loss Status Preview */}
                   {formData.property_id && (() => {
