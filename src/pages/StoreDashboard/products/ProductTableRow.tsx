@@ -588,9 +588,6 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
           <td className="px-2.5 py-1.5 whitespace-nowrap">
             <span className="text-[11px] font-medium text-slate-700 bg-slate-100/90 px-2 py-0.5 rounded border border-slate-200/80 inline-flex items-center gap-1">
               {p.sub_category || p.category || '-'}
-              {p.sub_category && p.category && p.sub_category !== p.category && (
-                <span className="text-slate-400 font-normal">({p.category})</span>
-              )}
             </span>
           </td>
         )}

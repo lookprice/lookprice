@@ -32,7 +32,9 @@ import {
   MessageSquare,
   Calendar,
   Eye,
-  FolderArchive
+  FolderArchive,
+  MoreVertical,
+  ChevronDown
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
@@ -89,6 +91,17 @@ const CompaniesTab = ({
   const deferredSearch = useDeferredValue(search);
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
+  const [showMobileToolbarMenu, setShowMobileToolbarMenu] = useState(false);
+  const [openRowMenuId, setOpenRowMenuId] = useState<string | number | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenRowMenuId(null);
+      setShowMobileToolbarMenu(false);
+    };
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     try {
@@ -434,15 +447,191 @@ const CompaniesTab = ({
   );
   const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
 
+  const handleCreateCompanyReconciliation = async (c: any) => {
+    try {
+      const reconId = Date.now();
+      const curr = defaultCurrency || 'TRY';
+      const currentStoreId = c.store_id || branding?.id || storeId || 1;
+      
+      let allTransactions: any[] = [];
+      try {
+        const res = await api.getCompanyTransactions(c.id, "", "", currentStoreId);
+        allTransactions = res.transactions || res || [];
+      } catch (e) {
+        console.error("Error fetching transactions for reconciliation:", e);
+      }
+
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth();
+
+      let targetMonth = currentMonth - 1;
+      let targetYear = currentYear;
+      if (targetMonth < 0) {
+        targetMonth = 11;
+        targetYear = currentYear - 1;
+      }
+
+      const targetStart = new Date(targetYear, targetMonth, 1);
+      const targetEnd = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
+
+      const formatDate = (d: Date) => formatDateTR(d);
+
+      const monthNamesTr = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+      const monthNamesEn = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const periodMonthName = isTr ? `${monthNamesTr[targetMonth]} ${targetYear}` : `${monthNamesEn[targetMonth]} ${targetYear}`;
+
+      const currencyTxs = allTransactions.filter((tx: any) => (tx.currency || 'TRY') === curr);
+      currencyTxs.sort((a: any, b: any) => new Date(a.transaction_date || a.date).getTime() - new Date(b.transaction_date || b.date).getTime());
+
+      const carryTxs = currencyTxs.filter((tx: any) => {
+        const d = new Date(tx.transaction_date || tx.date);
+        return d < targetStart;
+      });
+
+      const carryOverBalance = carryTxs.reduce((sum: number, tx: any) => {
+        const amt = Number(tx.amount || 0);
+        return sum + (tx.type === 'debt' ? amt : -amt);
+      }, 0);
+
+      const periodTxs = currencyTxs.filter((tx: any) => {
+        const d = new Date(tx.transaction_date || tx.date);
+        return d >= targetStart && d <= targetEnd;
+      });
+
+      let runningBalance = carryOverBalance;
+      const formattedPeriodTxs = periodTxs.map((tx: any) => {
+        const amt = Number(tx.amount || 0);
+        const isDebt = tx.type === 'debt';
+        runningBalance += isDebt ? amt : -amt;
+        return {
+          date: formatDate(new Date(tx.transaction_date || tx.date)),
+          description: tx.description || (tx.type === 'debt' ? (isTr ? 'Satış Faturası' : 'Sales Invoice') : (isTr ? 'Ödeme / Tahsilat' : 'Payment / Collection')),
+          debt: isDebt ? amt : 0,
+          credit: !isDebt ? amt : 0,
+          balance: runningBalance
+        };
+      });
+
+      const babsInvoices = periodTxs.filter((tx: any) => {
+        const desc = (tx.description || '').toLowerCase();
+        const isInvoice = desc.includes('fatura') || desc.includes('invoice');
+        if (!isInvoice) return false;
+        const amt = Number(tx.amount || 0);
+        const rate = tx.exchange_rate ? Number(tx.exchange_rate) : (tx.currency === 'USD' ? 33 : tx.currency === 'EUR' ? 36 : 1);
+        const amtTry = amt * rate;
+        const exclVatTry = amtTry / 1.2;
+        return exclVatTry >= 5000;
+      });
+
+      const babsInvoiceCount = babsInvoices.length;
+      const babsTotalSum = babsInvoices.reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
+
+      const rawStoreName = (branding?.legal_name || branding?.einvoice_settings?.title || branding?.store_name || branding?.name || branding?.title || '').trim();
+      const finalStoreName = rawStoreName && !rawStoreName.toLowerCase().includes('lookprice') 
+        ? rawStoreName 
+        : (branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' 
+            ? 'Seçkin Otomotiv' 
+            : (branding?.store_type === 'real_estate' ? 'Seçkin Emlak' : 'Seçkin Mağaza'));
+      
+      const finalStoreAddress = (
+        branding?.legal_address || 
+        branding?.einvoice_settings?.address || 
+        branding?.address || 
+        branding?.location || 
+        (branding?.city ? `${branding.city}, Türkiye` : '')
+      ).trim();
+
+      const finalStoreTaxOffice = (
+        branding?.legal_tax_office || 
+        branding?.einvoice_settings?.tax_office || 
+        branding?.tax_office || 
+        ''
+      ).trim();
+
+      const finalStoreTaxNumber = (
+        branding?.legal_tax_number || 
+        branding?.einvoice_settings?.vkn || 
+        branding?.tax_id || 
+        branding?.tax_number || 
+        branding?.vkn || 
+        ''
+      ).trim();
+
+      const reconObj = {
+        id: reconId,
+        storeId: currentStoreId || 1,
+        companyId: c.id,
+        storeName: finalStoreName,
+        storeAddress: finalStoreAddress,
+        storeTaxOffice: finalStoreTaxOffice,
+        storeTaxNumber: finalStoreTaxNumber,
+        companyTitle: c.title,
+        companyAddress: c.address || 'Firma Adresi Belirtilmemiş',
+        taxOffice: c.tax_office,
+        taxNumber: c.tax_number,
+        currency: curr,
+        balance: runningBalance,
+        carryOverBalance: carryOverBalance,
+        startDate: formatDate(targetStart),
+        periodMonthName: periodMonthName,
+        transactions: formattedPeriodTxs,
+        babsInvoiceCount: babsInvoiceCount,
+        babsTotalSum: babsTotalSum,
+        date: formatDate(today),
+        status: 'pending',
+        isArchived: false,
+        notes: `${curr} Cari Hesap Mutabakatı`
+      };
+
+      const existing = JSON.parse(localStorage.getItem(`storeReconciliations_${currentStoreId}`) || '[]');
+      localStorage.setItem(`storeReconciliations_${currentStoreId}`, JSON.stringify([reconObj, ...existing]));
+      localStorage.setItem(`recon_${reconId}`, JSON.stringify(reconObj));
+
+      try {
+        await api.createReconciliation(reconObj, currentStoreId || 1);
+      } catch (dbErr) {
+        console.warn("Could not persist reconciliation to DB immediately, cached locally:", dbErr);
+      }
+
+      const link = `${window.location.origin}/reconciliation/${reconId}`;
+      navigator.clipboard.writeText(link);
+      setReconciliations(prev => [reconObj, ...prev.filter(item => String(item.id) !== String(reconId))]);
+      setReconViewMode('active');
+      setReconStatusFilter('all');
+      setReconCompanyFilter('ALL');
+      setReconPeriodFilter('ALL');
+      setSelectedReconDetail(reconObj);
+      setRecentlyCreatedRecon({
+        id: reconId,
+        link,
+        companyTitle: c.title,
+        periodMonthName: periodMonthName,
+        balance: runningBalance,
+        currency: curr
+      });
+      setShowReconHistory(true);
+      alert(isTr 
+        ? `🔗 Dijital Mutabakat Linki Oluşturuldu & Panoya Kopyalandı!\n\n${link}\n\nMüşterinize/Tedarikçinize WhatsApp üzerinden ileterek online onay alabilirsiniz. Şimdi "Dijital Mutabakat Geçmişi & Canlı Durum Takibi" ekranına yönlendiriliyorsunuz.`
+        : `Digital Reconciliation Link created & copied!\n\n${link}\n\nRedirecting to Digital Reconciliation History & Live Status Tracking.`);
+      handleRefreshRecons();
+    } catch (err) {
+      console.error("Failed to create reconciliation link:", err);
+      alert(isTr ? 'Mutabakat linki oluşturulurken bir hata oluştu.' : 'Failed to create reconciliation link.');
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-200 shadow-sm backdrop-blur-sm">
-        <div className="relative flex-1 w-full max-w-md">
+    <div className="space-y-4">
+      {/* Compact Single-Row Toolbar (Desktop) & Collapsible Action Menu (Mobile) */}
+      <div className="flex items-center gap-2 bg-slate-50/70 p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-xs relative">
+        {/* Expanded Search Input */}
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input 
             type="text" 
-            placeholder={t.searchCompany}
-            className="w-full pl-10 pr-10 py-2 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all text-sm placeholder:text-slate-400"
+            placeholder={t.searchCompany || (isTr ? "Cari unvan, yetkili, telefon veya VKN ara..." : "Search company...")}
+            className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500/10 focus:border-slate-400 transition-all text-xs sm:text-sm placeholder:text-slate-400"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -455,75 +644,155 @@ const CompaniesTab = ({
                   localStorage.removeItem(`companies_search_${storeId}`);
                 } catch {}
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
               title={isTr ? "Aramayı Temizle" : "Clear search"}
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {onNewCompany && !isViewer && (
-            <button 
-              onClick={onNewCompany}
-              className="flex items-center gap-2 bg-slate-900 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md hover:shadow-indigo-600/20 active:scale-95 transition-all cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              <span>{t.registerCompany}</span>
-            </button>
-          )}
+
+        {/* Always Visible Primary Button: Yeni Cari */}
+        {onNewCompany && !isViewer && (
           <button 
+            type="button"
+            onClick={onNewCompany}
+            className="flex items-center gap-1.5 bg-slate-900 hover:bg-indigo-600 text-white px-3 sm:px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer shrink-0 whitespace-nowrap"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>{isTr ? "Yeni Cari" : "New Account"}</span>
+          </button>
+        )}
+
+        {/* Desktop Single-Row Secondary Controls */}
+        <div className="hidden lg:flex items-center gap-2 shrink-0">
+          <button 
+            type="button"
             onClick={() => {
               handleRefreshRecons();
               setShowReconHistory(true);
             }}
-            className="flex items-center gap-2 bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-all cursor-pointer whitespace-nowrap"
+            title={isTr ? "Mutabakat Geçmişi & Durum Takibi" : "Reconciliation History & Status"}
           >
-            <History className="h-4 w-4" />
-            {isTr ? 'Mutabakat Geçmişi & Durum Takibi' : 'Reconciliation History & Status'}
+            <History className="h-3.5 w-3.5" />
+            <span>{isTr ? "Mutabakatlar" : "Reconciliations"}</span>
           </button>
+
           {!isViewer && (
             <button
+              type="button"
               onClick={handleMergeDuplicates}
               disabled={isMerging}
-              className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3.5 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 disabled:opacity-50 transition-all cursor-pointer shadow-xs active:scale-95"
+              className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold hover:bg-emerald-100 disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap"
               title={isTr ? "Aynı VKN/TCKN ve unvana sahip mükerrer cari hesapları ve hareketlerini tek bir çatı altında birleştirir" : "Consolidate duplicate accounts with same Tax ID/VKN"}
             >
-              <Layers className={`h-4 w-4 text-emerald-600 ${isMerging ? 'animate-spin' : ''}`} />
-              <span>{isMerging ? (isTr ? "Konsolide Ediliyor..." : "Merging...") : (isTr ? "Mükerrer Carileri Birleştir (VKN)" : "Merge Duplicates")}</span>
+              <Layers className={`h-3.5 w-3.5 text-emerald-600 ${isMerging ? 'animate-spin' : ''}`} />
+              <span>{isMerging ? (isTr ? "Birleştiriliyor..." : "Merging...") : (isTr ? "Birleştir (VKN)" : "Merge (VKN)")}</span>
             </button>
           )}
+
           <button 
+            type="button"
             onClick={() => onExportReport && (onExportReport as any)(filteredCompanies, includeZero)}
-            className="flex items-center justify-center bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 bg-white text-slate-700 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer whitespace-nowrap"
           >
-            <Download className="h-4 w-4 mr-2 text-slate-500" /> {t.export}
+            <Download className="h-3.5 w-3.5 text-slate-500" />
+            <span>{t.export || (isTr ? "Dışa Aktar" : "Export")}</span>
           </button>
-          <label className="flex items-center cursor-pointer group">
-            <div className="relative flex items-center">
-              <input 
-                type="checkbox" 
-                className="peer h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/10 transition-all cursor-pointer"
-                checked={includeZero}
-                onChange={(e) => onIncludeZeroChange(e.target.checked)}
-              />
-            </div>
-            <span className="ml-2 text-xs font-medium text-slate-500 group-hover:text-slate-700 transition-colors">{t.showZeroBalance}</span>
+
+          <label className="flex items-center gap-1.5 cursor-pointer bg-white border border-slate-200 px-2.5 py-2 rounded-xl hover:bg-slate-50 transition-colors whitespace-nowrap">
+            <input 
+              type="checkbox" 
+              className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900/10 transition-all cursor-pointer"
+              checked={includeZero}
+              onChange={(e) => onIncludeZeroChange(e.target.checked)}
+            />
+            <span className="text-[11px] font-semibold text-slate-600">{isTr ? "0 Bakiyeler" : "Show 0"}</span>
           </label>
+        </div>
+
+        {/* Mobile / Tablet Collapsible Dropdown Trigger */}
+        <div className="lg:hidden relative shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => setShowMobileToolbarMenu(prev => !prev)}
+            className="flex items-center gap-1 bg-white text-slate-700 border border-slate-200 px-2.5 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all cursor-pointer"
+            title={isTr ? "Diğer İşlemler" : "More Actions"}
+          >
+            <MoreVertical className="h-4 w-4 text-slate-600" />
+            <ChevronDown className={`h-3.5 w-3.5 text-slate-500 transition-transform ${showMobileToolbarMenu ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showMobileToolbarMenu && (
+            <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 z-40 space-y-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileToolbarMenu(false);
+                  handleRefreshRecons();
+                  setShowReconHistory(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors text-left"
+              >
+                <History className="h-4 w-4 shrink-0" />
+                <span>{isTr ? "Mutabakatlar (Durum Takibi)" : "Reconciliations"}</span>
+              </button>
+
+              {!isViewer && (
+                <button
+                  type="button"
+                  disabled={isMerging}
+                  onClick={() => {
+                    setShowMobileToolbarMenu(false);
+                    handleMergeDuplicates();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 transition-colors text-left"
+                >
+                  <Layers className="h-4 w-4 shrink-0" />
+                  <span>{isTr ? "Mükerrer Birleştir (VKN)" : "Merge Duplicates (VKN)"}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileToolbarMenu(false);
+                  if (onExportReport) (onExportReport as any)(filteredCompanies, includeZero);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+              >
+                <Download className="h-4 w-4 shrink-0 text-slate-500" />
+                <span>{t.export || (isTr ? "Dışa Aktar (Excel)" : "Export")}</span>
+              </button>
+
+              <div className="border-t border-slate-100 pt-1 mt-1">
+                <label className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/10 cursor-pointer"
+                    checked={includeZero}
+                    onChange={(e) => onIncludeZeroChange(e.target.checked)}
+                  />
+                  <span className="text-xs font-semibold text-slate-700">{t.showZeroBalance || (isTr ? "Bakiyesi 0 olanları göster" : "Show 0 balances")}</span>
+                </label>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden zebra-border">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-visible zebra-border">
         {/* Table View */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
-                <th className="py-3 px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.companyTitle}</th>
-                <th className="py-3 px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.taxInfo}</th>
-                <th className="py-3 px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.contactPerson}</th>
-                <th className="py-3 px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.balance}</th>
-                <th className="py-3 px-6 text-xs font-medium text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
+                <th className="py-3 px-4 sm:px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.companyTitle}</th>
+                <th className="py-3 px-4 sm:px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.taxInfo}</th>
+                <th className="py-3 px-4 sm:px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.contactPerson}</th>
+                <th className="py-3 px-4 sm:px-6 text-xs font-medium text-slate-500 uppercase tracking-wider">{t.balance}</th>
+                <th className="py-3 px-4 sm:px-6 text-xs font-medium text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -534,276 +803,141 @@ const CompaniesTab = ({
                   </td>
                 </tr>
               ) : (
-                paginatedCompanies.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 px-6">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 font-medium text-sm shrink-0 border border-slate-200">
-                          {c.title ? c.title.charAt(0).toUpperCase() : 'C'}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-slate-900 text-[13px] tracking-tight truncate max-w-[220px]" title={c.title}>{c.title}</p>
-                          <p className="text-xs text-slate-500 font-medium">{c.phone || c.email || '-'}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <p className="text-xs font-medium text-slate-800">{c.tax_office || '-'}</p>
-                      <p className="text-xs font-mono text-slate-500">{c.tax_number || '-'}</p>
-                    </td>
-                    <td className="py-4 px-6 text-xs font-medium text-slate-700">
-                      {c.contact_person || '-'}
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        {c.balances && Object.keys(c.balances).length > 0 ? (
-                          Object.entries(c.balances || {}).map(([currency, bal]) => {
-                            const numBal = Number(bal);
-                            if (numBal === 0) return null;
-                            const isDebt = numBal > 0;
-                            return (
-                              <div key={currency} className={`flex items-center gap-2 pl-3 pr-2 py-1 rounded-lg border transition-all ${isDebt ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}>
-                                <div className="flex flex-col items-end leading-none">
-                                  <span className="text-xs font-medium font-mono tabular-nums">
-                                    {Math.abs(numBal).toLocaleString(isTr ? 'tr-TR' : 'en-US')}
-                                  </span>
-                                  <span className="text-[8px] font-medium uppercase tracking-widest opacity-70">
-                                    {isDebt ? t.statements.debt : t.statements.credit}
-                                  </span>
-                                </div>
-                                <div className={`px-1.5 py-0.5 rounded md text-[10px] font-medium ${isDebt ? 'bg-rose-600/10' : 'bg-emerald-600/10'}`}>
-                                  {currency.substring(0, 3)}
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="flex items-center gap-2 pl-3 pr-2 py-1 rounded-lg border bg-slate-50 border-slate-100 text-slate-400 opacity-60">
-                            <span className="text-xs font-medium font-mono">0</span>
-                            <div className="px-1.5 py-0.5 rounded md text-[10px] font-medium bg-slate-200">
-                              {defaultCurrency}
-                            </div>
+                paginatedCompanies.map((c, rowIdx) => {
+                  const isMenuOpen = openRowMenuId === c.id;
+                  const openUpwards = rowIdx >= paginatedCompanies.length - 2 && paginatedCompanies.length > 3;
+
+                  return (
+                    <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3.5 px-4 sm:px-6">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 font-medium text-sm shrink-0 border border-slate-200">
+                            {c.title ? c.title.charAt(0).toUpperCase() : 'C'}
                           </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button 
-                          onClick={() => onViewTransactions(c)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                          title={t.viewTransactions}
-                        >
-                          <FileText className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const reconId = Date.now();
-                              const curr = defaultCurrency || 'TRY';
-                              const currentStoreId = c.store_id || branding?.id || storeId || 1;
-                              
-                              // Fetch all transactions to calculate dynamic carry-over and period details
-                              let allTransactions: any[] = [];
-                              try {
-                                const res = await api.getCompanyTransactions(c.id, "", "", currentStoreId);
-                                allTransactions = res.transactions || res || [];
-                              } catch (e) {
-                                console.error("Error fetching transactions for reconciliation:", e);
-                              }
+                          <div>
+                            <p className="font-semibold text-slate-900 text-[13px] tracking-tight truncate max-w-[220px]" title={c.title}>{c.title}</p>
+                            <p className="text-xs text-slate-500 font-medium">{c.phone || c.email || '-'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 sm:px-6">
+                        <p className="text-xs font-medium text-slate-800">{c.tax_office || '-'}</p>
+                        <p className="text-xs font-mono text-slate-500">{c.tax_number || '-'}</p>
+                      </td>
+                      <td className="py-3.5 px-4 sm:px-6 text-xs font-medium text-slate-700">
+                        {c.contact_person || '-'}
+                      </td>
+                      <td className="py-3.5 px-4 sm:px-6">
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          {c.balances && Object.keys(c.balances).length > 0 ? (
+                            Object.entries(c.balances || {}).map(([currency, bal]) => {
+                              const numBal = Number(bal);
+                              if (numBal === 0) return null;
+                              const isDebt = numBal > 0;
+                              return (
+                                <div key={currency} className={`flex items-center gap-2 pl-3 pr-2 py-1 rounded-lg border transition-all ${isDebt ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}>
+                                  <div className="flex flex-col items-end leading-none">
+                                    <span className="text-xs font-medium font-mono tabular-nums">
+                                      {Math.abs(numBal).toLocaleString(isTr ? 'tr-TR' : 'en-US')}
+                                    </span>
+                                    <span className="text-[8px] font-medium uppercase tracking-widest opacity-70">
+                                      {isDebt ? t.statements.debt : t.statements.credit}
+                                    </span>
+                                  </div>
+                                  <div className={`px-1.5 py-0.5 rounded md text-[10px] font-medium ${isDebt ? 'bg-rose-600/10' : 'bg-emerald-600/10'}`}>
+                                    {currency.substring(0, 3)}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="flex items-center gap-2 pl-3 pr-2 py-1 rounded-lg border bg-slate-50 border-slate-100 text-slate-400 opacity-60">
+                              <span className="text-xs font-medium font-mono">0</span>
+                              <div className="px-1.5 py-0.5 rounded md text-[10px] font-medium bg-slate-200">
+                                {defaultCurrency}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 sm:px-6 py-3.5 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1.5 relative" onClick={(e) => e.stopPropagation()}>
+                          {/* Primary Visible Action: Hareketleri Gör */}
+                          <button 
+                            type="button"
+                            onClick={() => onViewTransactions(c)}
+                            className="p-2 text-indigo-600 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/70 rounded-lg transition-all cursor-pointer"
+                            title={t.viewTransactions || (isTr ? "Hareketleri Gör" : "View Statement")}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
 
-                              const today = new Date();
-                              const currentYear = today.getFullYear();
-                              const currentMonth = today.getMonth(); // 0-indexed
-
-                              let targetMonth = currentMonth - 1;
-                              let targetYear = currentYear;
-                              if (targetMonth < 0) {
-                                targetMonth = 11;
-                                targetYear = currentYear - 1;
-                              }
-
-                              const targetStart = new Date(targetYear, targetMonth, 1);
-                              const targetEnd = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
-
-                              const formatDate = (d: Date) => formatDateTR(d);
-
-                              const monthNamesTr = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
-                              const monthNamesEn = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                              const periodMonthName = isTr ? `${monthNamesTr[targetMonth]} ${targetYear}` : `${monthNamesEn[targetMonth]} ${targetYear}`;
-
-                              // Filter transactions for this specific currency
-                              const currencyTxs = allTransactions.filter((tx: any) => (tx.currency || 'TRY') === curr);
-
-                              // Sort transactions by date ascending for correct running balance math
-                              currencyTxs.sort((a: any, b: any) => new Date(a.transaction_date || a.date).getTime() - new Date(b.transaction_date || b.date).getTime());
-
-                              // Calculate Carry-Over Balance (transactions before targetStart)
-                              const carryTxs = currencyTxs.filter((tx: any) => {
-                                const d = new Date(tx.transaction_date || tx.date);
-                                return d < targetStart;
-                              });
-
-                              const carryOverBalance = carryTxs.reduce((sum: number, tx: any) => {
-                                const amt = Number(tx.amount || 0);
-                                return sum + (tx.type === 'debt' ? amt : -amt);
-                              }, 0);
-
-                              // Calculate Period Transactions (transactions inside targetMonth)
-                              const periodTxs = currencyTxs.filter((tx: any) => {
-                                const d = new Date(tx.transaction_date || tx.date);
-                                return d >= targetStart && d <= targetEnd;
-                              });
-
-                              let runningBalance = carryOverBalance;
-                              const formattedPeriodTxs = periodTxs.map((tx: any) => {
-                                const amt = Number(tx.amount || 0);
-                                const isDebt = tx.type === 'debt';
-                                runningBalance += isDebt ? amt : -amt;
-                                return {
-                                  date: formatDate(new Date(tx.transaction_date || tx.date)),
-                                  description: tx.description || (tx.type === 'debt' ? (isTr ? 'Satış Faturası' : 'Sales Invoice') : (isTr ? 'Ödeme / Tahsilat' : 'Payment / Collection')),
-                                  debt: isDebt ? amt : 0,
-                                  credit: !isDebt ? amt : 0,
-                                  balance: runningBalance
-                                };
-                              });
-
-                              // BA/BS calculation: USD/EUR/TRY invoices in target period whose TRY equivalent excluding VAT is >= 5000 TL
-                              const babsInvoices = periodTxs.filter((tx: any) => {
-                                const desc = (tx.description || '').toLowerCase();
-                                const isInvoice = desc.includes('fatura') || desc.includes('invoice');
-                                if (!isInvoice) return false;
-                                const amt = Number(tx.amount || 0);
-                                const rate = tx.exchange_rate ? Number(tx.exchange_rate) : (tx.currency === 'USD' ? 33 : tx.currency === 'EUR' ? 36 : 1);
-                                const amtTry = amt * rate;
-                                const exclVatTry = amtTry / 1.2;
-                                return exclVatTry >= 5000;
-                              });
-
-                              const babsInvoiceCount = babsInvoices.length;
-                              const babsTotalSum = babsInvoices.reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
-
-                              const rawStoreName = (branding?.legal_name || branding?.einvoice_settings?.title || branding?.store_name || branding?.name || branding?.title || '').trim();
-                              const finalStoreName = rawStoreName && !rawStoreName.toLowerCase().includes('lookprice') 
-                                ? rawStoreName 
-                                : (branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' 
-                                    ? 'Seçkin Otomotiv' 
-                                    : (branding?.store_type === 'real_estate' ? 'Seçkin Emlak' : 'Seçkin Mağaza'));
-                              
-                              const finalStoreAddress = (
-                                branding?.legal_address || 
-                                branding?.einvoice_settings?.address || 
-                                branding?.address || 
-                                branding?.location || 
-                                (branding?.city ? `${branding.city}, Türkiye` : '')
-                              ).trim();
-
-                              const finalStoreTaxOffice = (
-                                branding?.legal_tax_office || 
-                                branding?.einvoice_settings?.tax_office || 
-                                branding?.tax_office || 
-                                ''
-                              ).trim();
-
-                              const finalStoreTaxNumber = (
-                                branding?.legal_tax_number || 
-                                branding?.einvoice_settings?.vkn || 
-                                branding?.tax_id || 
-                                branding?.tax_number || 
-                                branding?.vkn || 
-                                ''
-                              ).trim();
-
-                              const reconObj = {
-                                id: reconId,
-                                storeId: currentStoreId || 1,
-                                companyId: c.id,
-                                storeName: finalStoreName,
-                                storeAddress: finalStoreAddress,
-                                storeTaxOffice: finalStoreTaxOffice,
-                                storeTaxNumber: finalStoreTaxNumber,
-                                companyTitle: c.title,
-                                companyAddress: c.address || 'Firma Adresi Belirtilmemiş',
-                                taxOffice: c.tax_office,
-                                taxNumber: c.tax_number,
-                                currency: curr,
-                                balance: runningBalance,
-                                carryOverBalance: carryOverBalance,
-                                startDate: formatDate(targetStart),
-                                periodMonthName: periodMonthName,
-                                transactions: formattedPeriodTxs,
-                                babsInvoiceCount: babsInvoiceCount,
-                                babsTotalSum: babsTotalSum,
-                                date: formatDate(today),
-                                status: 'pending',
-                                isArchived: false,
-                                notes: `${curr} Cari Hesap Mutabakatı`
-                              };
-
-                              const existing = JSON.parse(localStorage.getItem(`storeReconciliations_${currentStoreId}`) || '[]');
-                              localStorage.setItem(`storeReconciliations_${currentStoreId}`, JSON.stringify([reconObj, ...existing]));
-                              localStorage.setItem(`recon_${reconId}`, JSON.stringify(reconObj));
-
-                              try {
-                                await api.createReconciliation(reconObj, currentStoreId || 1);
-                              } catch (dbErr) {
-                                console.warn("Could not persist reconciliation to DB immediately, cached locally:", dbErr);
-                              }
-
-                              const link = `${window.location.origin}/reconciliation/${reconId}`;
-                              navigator.clipboard.writeText(link);
-                              setReconciliations(prev => [reconObj, ...prev.filter(item => String(item.id) !== String(reconId))]);
-                              setReconViewMode('active');
-                              setReconStatusFilter('all');
-                              setReconCompanyFilter('ALL');
-                              setReconPeriodFilter('ALL');
-                              setSelectedReconDetail(reconObj);
-                              setRecentlyCreatedRecon({
-                                id: reconId,
-                                link,
-                                companyTitle: c.title,
-                                periodMonthName: periodMonthName,
-                                balance: runningBalance,
-                                currency: curr
-                              });
-                              setShowReconHistory(true);
-                              alert(isTr 
-                                ? `🔗 Dijital Mutabakat Linki Oluşturuldu & Panoya Kopyalandı!\n\n${link}\n\nMüşterinize/Tedarikçinize WhatsApp üzerinden ileterek online onay alabilirsiniz. Şimdi "Dijital Mutabakat Geçmişi & Canlı Durum Takibi" ekranına yönlendiriliyorsunuz.`
-                                : `Digital Reconciliation Link created & copied!\n\n${link}\n\nRedirecting to Digital Reconciliation History & Live Status Tracking.`);
-                              handleRefreshRecons();
-                            } catch (err) {
-                              console.error("Failed to create reconciliation link:", err);
-                              alert(isTr ? 'Mutabakat linki oluşturulurken bir hata oluştu.' : 'Failed to create reconciliation link.');
-                            }
-                          }}
-                          className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-emerald-200 cursor-pointer"
-                          title={isTr ? 'Dijital Mutabakat Gönder' : 'Send Digital Reconciliation'}
-                        >
-                          <FileCheck className="h-3.5 w-3.5" />
-                        </button>
-                        {!isViewer && (
-                          <>
-                            <button 
-                              onClick={() => onEdit(c)}
-                              className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer"
-                              title={t.edit}
+                          {/* Collapsible Dropdown Trigger for Other Actions (Desktop & Mobile) */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setOpenRowMenuId(prev => prev === c.id ? null : c.id)}
+                              className={`p-2 rounded-lg border transition-all cursor-pointer ${
+                                isMenuOpen
+                                  ? 'bg-slate-900 text-white border-slate-900'
+                                  : 'text-slate-500 hover:text-slate-800 bg-slate-50/70 hover:bg-slate-100 border-slate-200/70'
+                              }`}
+                              title={isTr ? "Diğer Seçenekler" : "More Options"}
                             >
-                              <Edit2 className="h-3.5 w-3.5" />
+                              <MoreVertical className="h-4 w-4" />
                             </button>
-                            <button 
-                              onClick={() => onDelete(c.id)}
-                              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
-                              title={t.delete}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+
+                            {isMenuOpen && (
+                              <div
+                                className={`absolute right-0 ${openUpwards ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-48 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 z-40 text-left space-y-0.5`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenRowMenuId(null);
+                                    handleCreateCompanyReconciliation(c);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
+                                >
+                                  <FileCheck className="h-3.5 w-3.5 shrink-0" />
+                                  <span>{isTr ? "Dijital Mutabakat Gönder" : "Send Reconciliation"}</span>
+                                </button>
+
+                                {!isViewer && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenRowMenuId(null);
+                                        onEdit(c);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition-colors cursor-pointer"
+                                    >
+                                      <Edit2 className="h-3.5 w-3.5 shrink-0" />
+                                      <span>{t.edit || (isTr ? "Düzenle" : "Edit")}</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenRowMenuId(null);
+                                        onDelete(c.id);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                                      <span>{t.delete || (isTr ? "Sil" : "Delete")}</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

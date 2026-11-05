@@ -213,6 +213,7 @@ export interface Store {
     theme_variety?: 'modern' | 'minimal' | 'bold' | 'luxury';
     sector?: string;
     table_count?: number;
+    netflix_config?: any;
   };
   menu_links?: any[];
   footer_links?: any[];

@@ -237,42 +237,22 @@ export const useCompanyExport = (
           return;
         }
 
-        if (txCurr === defaultCurr && primaryFxCurr) {
-          if (isExchangeDiffInvoice) {
-            enrichedTransactions.push({
-              ...tx,
-              statementCurr: defaultCurr,
-              statementAmt: rawAmt,
-              statementRate: 1,
-              fxCurr: primaryFxCurr,
-              fxAmt: null,
-              fxRate: 1,
-              baseAmt: rawAmt,
-              targetBalCurr: primaryFxCurr,
-              targetBalAmt: 0,
-              isCross: false,
-              isExchangeDiffInvoice: true
-            });
-            return;
-          } else {
-            const impliedRate = (Number(tx.exchange_rate) > 1 ? Number(tx.exchange_rate) : (crossRate > 1 ? crossRate : resolveRate(primaryFxCurr, storeRates[primaryFxCurr])));
-            const impliedFxAmt = impliedRate > 1 ? Number((rawAmt / impliedRate).toFixed(2)) : null;
-            enrichedTransactions.push({
-              ...tx,
-              statementCurr: defaultCurr,
-              statementAmt: rawAmt,
-              statementRate: impliedRate,
-              fxCurr: impliedFxAmt ? primaryFxCurr : '',
-              fxAmt: impliedFxAmt,
-              fxRate: impliedRate,
-              baseAmt: rawAmt,
-              targetBalCurr: impliedFxAmt ? primaryFxCurr : defaultCurr,
-              targetBalAmt: impliedFxAmt || rawAmt,
-              isCross: Boolean(impliedFxAmt),
-              crossNote: impliedFxAmt ? `${impliedFxAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${primaryFxCurr} Karşılığı (Kur: ${impliedRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
-            });
-            return;
-          }
+        if (txCurr === defaultCurr) {
+          enrichedTransactions.push({
+            ...tx,
+            statementCurr: defaultCurr,
+            statementAmt: rawAmt,
+            statementRate: 1,
+            fxCurr: '',
+            fxAmt: null,
+            fxRate: 1,
+            baseAmt: rawAmt,
+            targetBalCurr: defaultCurr,
+            targetBalAmt: rawAmt,
+            isCross: false,
+            isExchangeDiffInvoice
+          });
+          return;
         }
 
         const baseAmt = Number((rawAmt * rate).toFixed(2));
@@ -295,25 +275,6 @@ export const useCompanyExport = (
       }
 
       if (selectedCurrency === defaultCurr) {
-        if (isCrossFromTRY) {
-          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * crossRate).toFixed(2));
-          enrichedTransactions.push({
-            ...tx,
-            statementCurr: defaultCurr,
-            statementAmt: tryAmt,
-            statementRate: crossRate > 0 ? crossRate : rate,
-            fxCurr: txCurr,
-            fxAmt: rawAmt,
-            fxRate: crossRate > 0 ? crossRate : rate,
-            baseAmt: tryAmt,
-            targetBalCurr: txCurr,
-            targetBalAmt: rawAmt,
-            isCross: true,
-            crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${(crossRate > 0 ? crossRate : rate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
-          });
-          return;
-        }
-
         if (txCurr === defaultCurr) {
           const hasTargetCross = Boolean(txCrossCurr && txCrossCurr !== defaultCurr);
           const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (hasTargetCross && crossRate > 0 ? Number((rawAmt / crossRate).toFixed(2)) : null);
@@ -324,29 +285,13 @@ export const useCompanyExport = (
             statementRate: 1,
             fxCurr: hasTargetCross ? txCrossCurr : '',
             fxAmt: hasTargetCross ? fxAmt : null,
-            fxRate: crossRate > 0 ? crossRate : (rate > 1 ? rate : 1),
+            fxRate: hasTargetCross && crossRate > 0 ? crossRate : 1,
             baseAmt: rawAmt,
             targetBalCurr: defaultCurr,
             targetBalAmt: rawAmt,
             isCross: hasTargetCross
           });
-          return;
         }
-
-        const tryAmt = Number((rawAmt * rate).toFixed(2));
-        enrichedTransactions.push({
-          ...tx,
-          statementCurr: defaultCurr,
-          statementAmt: tryAmt,
-          statementRate: rate,
-          fxCurr: txCurr,
-          fxAmt: rawAmt,
-          fxRate: rate,
-          baseAmt: tryAmt,
-          targetBalCurr: txCurr,
-          targetBalAmt: rawAmt,
-          isForeignInBase: true
-        });
         return;
       }
 
@@ -722,11 +667,13 @@ export const useCompanyExport = (
         ])
       ].filter(c => c && c !== defaultCurr && c !== 'ALL')
     ));
-    const primaryFxCurr = (selectedCurrency !== 'ALL' && selectedCurrency !== defaultCurr)
-      ? selectedCurrency.toUpperCase()
-      : (detectedFxCurrencies[0] || '');
+    const primaryFxCurr = selectedCurrency === defaultCurr
+      ? ''
+      : (selectedCurrency !== 'ALL'
+        ? selectedCurrency.toUpperCase()
+        : (detectedFxCurrencies[0] || ''));
 
-    // Track last known exchange rate for primaryFxCurr so plain TRY rows can also compute FX equivalent if needed
+    // Track last known exchange rate for primaryFxCurr so cross-currency rows have a fallback rate if needed
     let lastKnownFxRate = primaryFxCurr ? resolveRate(primaryFxCurr, storeRates[primaryFxCurr]) : 1;
 
     const enrichedExcelTxs: any[] = [];
@@ -794,46 +741,24 @@ export const useCompanyExport = (
           return;
         }
 
-        // Plain TRY transaction in a statement that has a foreign currency (e.g. USD)
+        // Plain TRY transaction in a statement that has a foreign currency (e.g. USD):
+        // Adjusts TRY balance only and keeps FX (USD/EUR/GBP) balance unchanged!
         if (txCurr === defaultCurr && primaryFxCurr) {
-          if (isKurFarki) {
-            // Exchange rate difference invoice (Kur Farkı Faturası): adjusts TRY balance only, keeps FX balance unchanged
-            enrichedExcelTxs.push({
-              ...tx,
-              statementCurr: defaultCurr,
-              statementAmt: rawAmt,
-              statementRate: 1,
-              fxCurr: primaryFxCurr,
-              fxAmt: 0,
-              fxRate: 1,
-              baseAmt: rawAmt,
-              targetBalCurr: primaryFxCurr,
-              targetBalAmt: 0,
-              isCross: false,
-              isKurFarki: true
-            });
-            return;
-          } else {
-            // Operational TRY payment/collection/invoice on a foreign currency account: compute FX equivalent using active rate
-            const effRate = crossRate > 1 ? crossRate : (rate > 1 ? rate : lastKnownFxRate);
-            const fxEquiv = effRate > 0 ? Number((rawAmt / effRate).toFixed(2)) : 0;
-            enrichedExcelTxs.push({
-              ...tx,
-              statementCurr: defaultCurr,
-              statementAmt: rawAmt,
-              statementRate: effRate,
-              fxCurr: primaryFxCurr,
-              fxAmt: fxEquiv,
-              fxRate: effRate,
-              baseAmt: rawAmt,
-              targetBalCurr: primaryFxCurr,
-              targetBalAmt: fxEquiv,
-              isCross: true,
-              isKurFarki: false,
-              crossNote: fxEquiv > 0 ? `${fxEquiv.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${primaryFxCurr} Karşılığı (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
-            });
-            return;
-          }
+          enrichedExcelTxs.push({
+            ...tx,
+            statementCurr: defaultCurr,
+            statementAmt: rawAmt,
+            statementRate: 1,
+            fxCurr: primaryFxCurr,
+            fxAmt: 0,
+            fxRate: 1,
+            baseAmt: rawAmt,
+            targetBalCurr: primaryFxCurr,
+            targetBalAmt: 0,
+            isCross: false,
+            isKurFarki
+          });
+          return;
         }
 
         const baseAmt = Number((rawAmt * rate).toFixed(2));
@@ -857,64 +782,27 @@ export const useCompanyExport = (
       }
 
       if (selectedCurrency === defaultCurr) {
-        if (isCrossFromTRY) {
-          const effRate = crossRate > 1 ? crossRate : rate;
-          const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * effRate).toFixed(2));
-          enrichedExcelTxs.push({
-            ...tx,
-            statementCurr: defaultCurr,
-            statementAmt: tryAmt,
-            statementRate: effRate,
-            fxCurr: txCurr,
-            fxAmt: rawAmt,
-            fxRate: effRate,
-            baseAmt: tryAmt,
-            targetBalCurr: txCurr,
-            targetBalAmt: rawAmt,
-            isCross: true,
-            isKurFarki: false,
-            crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
-          });
-          return;
-        }
-
         if (txCurr === defaultCurr) {
           const hasTargetCross = Boolean(txCrossCurr && txCrossCurr !== defaultCurr);
-          const effRate = crossRate > 1 ? crossRate : (rate > 1 ? rate : (primaryFxCurr ? lastKnownFxRate : 1));
-          const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (hasTargetCross && effRate > 0 ? Number((rawAmt / effRate).toFixed(2)) : (!isKurFarki && primaryFxCurr && effRate > 1 ? Number((rawAmt / effRate).toFixed(2)) : null));
-          const targetCurr = hasTargetCross ? txCrossCurr : (primaryFxCurr || defaultCurr);
+          const effRate = hasTargetCross ? (crossRate > 1 ? crossRate : rate) : 1;
+          const fxAmt = hasTargetCross
+            ? (rawCrossAmt > 0 ? rawCrossAmt : (effRate > 0 ? Number((rawAmt / effRate).toFixed(2)) : 0))
+            : 0;
           enrichedExcelTxs.push({
             ...tx,
             statementCurr: defaultCurr,
             statementAmt: rawAmt,
-            statementRate: isKurFarki ? 1 : effRate,
-            fxCurr: targetCurr !== defaultCurr ? targetCurr : '',
-            fxAmt: isKurFarki ? 0 : fxAmt,
-            fxRate: isKurFarki ? 1 : effRate,
+            statementRate: hasTargetCross ? effRate : 1,
+            fxCurr: hasTargetCross ? txCrossCurr : '',
+            fxAmt: hasTargetCross ? fxAmt : 0,
+            fxRate: hasTargetCross ? effRate : 1,
             baseAmt: rawAmt,
-            targetBalCurr: targetCurr,
-            targetBalAmt: isKurFarki ? 0 : (fxAmt || 0),
-            isCross: hasTargetCross || Boolean(!isKurFarki && primaryFxCurr && fxAmt),
+            targetBalCurr: hasTargetCross ? txCrossCurr : defaultCurr,
+            targetBalAmt: hasTargetCross ? (fxAmt || 0) : 0,
+            isCross: hasTargetCross,
             isKurFarki
           });
-          return;
         }
-
-        const tryAmt = Number((rawAmt * rate).toFixed(2));
-        enrichedExcelTxs.push({
-          ...tx,
-          statementCurr: defaultCurr,
-          statementAmt: tryAmt,
-          statementRate: rate,
-          fxCurr: txCurr,
-          fxAmt: rawAmt,
-          fxRate: rate,
-          baseAmt: tryAmt,
-          targetBalCurr: txCurr,
-          targetBalAmt: rawAmt,
-          isForeignInBase: true,
-          isKurFarki
-        });
         return;
       }
 
@@ -1180,6 +1068,7 @@ export const useCompanyExport = (
       // Per-Currency Summary & Current Rate Valuation / Exchange Difference Helper Rows
       Object.entries(runningBalancesByCurr).forEach(([currKey, endBal]) => {
         const c = currKey.toUpperCase();
+        if (selectedCurrency !== 'ALL' && c !== selectedCurrency.toUpperCase()) return;
         const finalBal = Number((endBal || 0).toFixed(2));
         const currDeb = Number((totalOrigDebitByCurr[c] || 0).toFixed(2));
         const currCred = Number((totalOrigCreditByCurr[c] || 0).toFixed(2));

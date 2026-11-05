@@ -921,44 +921,23 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       return;
                     }
 
-                    // Plain default-currency (TRY) transaction on a foreign-currency account
-                    if (txCurr === defaultCurr && primaryFxCurr) {
-                      if (isExchangeDiffInvoice) {
-                        // Kur Farkı Faturası: Adjusts only TRY balance, keeps FX balance unchanged
-                        enrichedTransactions.push({
-                          ...tx,
-                          statementCurr: defaultCurr,
-                          statementAmt: rawAmt,
-                          statementRate: 1,
-                          fxCurr: primaryFxCurr,
-                          fxAmt: null,
-                          fxRate: 1,
-                          baseAmt: rawAmt,
-                          targetBalCurr: primaryFxCurr,
-                          targetBalAmt: 0,
-                          isCross: false,
-                          isExchangeDiffInvoice: true
-                        });
-                        return;
-                      } else {
-                        const impliedRate = (Number(tx.exchange_rate) > 1 ? Number(tx.exchange_rate) : (crossRate > 1 ? crossRate : resolveRate(primaryFxCurr, storeRates[primaryFxCurr])));
-                        const impliedFxAmt = impliedRate > 1 ? Number((rawAmt / impliedRate).toFixed(2)) : null;
-                        enrichedTransactions.push({
-                          ...tx,
-                          statementCurr: defaultCurr,
-                          statementAmt: rawAmt,
-                          statementRate: impliedRate,
-                          fxCurr: impliedFxAmt ? primaryFxCurr : '',
-                          fxAmt: impliedFxAmt,
-                          fxRate: impliedRate,
-                          baseAmt: rawAmt,
-                          targetBalCurr: impliedFxAmt ? primaryFxCurr : defaultCurr,
-                          targetBalAmt: impliedFxAmt || rawAmt,
-                          isCross: Boolean(impliedFxAmt),
-                          crossNote: impliedFxAmt ? `${impliedFxAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${primaryFxCurr} Karşılığı (Kur: ${impliedRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
-                        });
-                        return;
-                      }
+                    // Plain default-currency (TRY) transaction: adjusts TRY balance only, never inflates FX balance
+                    if (txCurr === defaultCurr) {
+                      enrichedTransactions.push({
+                        ...tx,
+                        statementCurr: defaultCurr,
+                        statementAmt: rawAmt,
+                        statementRate: 1,
+                        fxCurr: '',
+                        fxAmt: null,
+                        fxRate: 1,
+                        baseAmt: rawAmt,
+                        targetBalCurr: defaultCurr,
+                        targetBalAmt: rawAmt,
+                        isCross: false,
+                        isExchangeDiffInvoice
+                      });
+                      return;
                     }
 
                     // Standard single currency transaction in ALL view
@@ -982,27 +961,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   }
 
                   if (selectedCurrency === defaultCurr) {
-                    // 1. Transaction entered in TRY or cross-settled from TRY
-                    if (isCrossFromTRY) {
-                      const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * crossRate).toFixed(2));
-                      enrichedTransactions.push({
-                        ...tx,
-                        statementCurr: defaultCurr,
-                        statementAmt: tryAmt,
-                        statementRate: crossRate > 0 ? crossRate : rate,
-                        fxCurr: txCurr,
-                        fxAmt: rawAmt,
-                        fxRate: crossRate > 0 ? crossRate : rate,
-                        baseAmt: tryAmt,
-                        targetBalCurr: txCurr,
-                        targetBalAmt: rawAmt,
-                        isCross: true,
-                        crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${(crossRate > 0 ? crossRate : rate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
-                      });
-                      return;
-                    }
-
-                    // 2. Transaction is directly in base currency (TRY)
+                    // Only transactions recorded in base currency (TRY) belong in the TRY statement
                     if (txCurr === defaultCurr) {
                       const hasTargetCross = Boolean(txCrossCurr && txCrossCurr !== defaultCurr);
                       const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (hasTargetCross && crossRate > 0 ? Number((rawAmt / crossRate).toFixed(2)) : null);
@@ -1013,30 +972,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                         statementRate: 1,
                         fxCurr: hasTargetCross ? txCrossCurr : '',
                         fxAmt: hasTargetCross ? fxAmt : null,
-                        fxRate: crossRate > 0 ? crossRate : (rate > 1 ? rate : 1),
+                        fxRate: hasTargetCross && crossRate > 0 ? crossRate : 1,
                         baseAmt: rawAmt,
                         targetBalCurr: defaultCurr,
                         targetBalAmt: rawAmt,
                         isCross: hasTargetCross
                       });
-                      return;
                     }
-
-                    // 3. Foreign Currency Invoice or transaction (USD, EUR, GBP) reflected in TRY
-                    const tryAmt = Number((rawAmt * rate).toFixed(2));
-                    enrichedTransactions.push({
-                      ...tx,
-                      statementCurr: defaultCurr,
-                      statementAmt: tryAmt,
-                      statementRate: rate,
-                      fxCurr: txCurr,
-                      fxAmt: rawAmt,
-                      fxRate: rate,
-                      baseAmt: tryAmt,
-                      targetBalCurr: txCurr,
-                      targetBalAmt: rawAmt,
-                      isForeignInBase: true
-                    });
                     return;
                   }
 

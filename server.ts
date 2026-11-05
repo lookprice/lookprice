@@ -334,23 +334,7 @@ async function startServer() {
     next();
   });
 
-  // 3. Initialize Database & Self-healing Schemas in background (Non-blocking for fast server boot)
-  initDb().then(async () => {
-    console.log("initDb finished.");
-    console.log("Running self-healing module schemas sequentially in background...");
-    try { await initProductSchema(); } catch (e) { console.error("Error in initProductSchema:", e); }
-    try { await initPurchaseInvoiceSchema(); } catch (e) { console.error("Error in initPurchaseInvoiceSchema:", e); }
-    try { await initCargoSchema(); } catch (e) { console.error("Error in initCargoSchema:", e); }
-    try { await initRealEstateSchema(); } catch (e) { console.error("Error in initRealEstateSchema:", e); }
-    try { await initFleetSchema(); } catch (e) { console.error("Error in initFleetSchema:", e); }
-    try { await ensureEnrakipsizTables(); } catch (e) { console.error("Error in ensureEnrakipsizTables:", e); }
-    console.log("Self-healing module schemas completed.");
-    startCronJobs();
-    aiWorkerService.startWorker();
-  }).catch((err) => {
-    console.error("Error in database initialization:", err);
-  });
-
+  // 3. Database & Self-healing Schemas are initialized right after the HTTP server starts listening
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
@@ -1615,25 +1599,41 @@ function sanitizeFilename(originalName: string): string {
     }
   });
 
-  // Vite Integration for Development
+  // Vite Integration for Development (Non-blocking port bind for instant startup probe response)
+  let viteInstance: any = null;
+  let viteReadyPromise: Promise<any> | null = null;
+
   if (process.env.NODE_ENV !== "production") {
     console.log("Running in DEVELOPMENT mode");
-    const vite = await createViteServer({
+    viteReadyPromise = createViteServer({
       server: { middlewareMode: true },
       appType: "custom",
-    });
-    
-    app.get("/api/vite-config", (req, res) => {
-      res.json({ define: vite.config.define });
+    }).then((v) => {
+      viteInstance = v;
+      console.log("Vite middleware server ready.");
+      return v;
     });
 
-    app.use(vite.middlewares);
+    app.get("/api/vite-config", async (req, res) => {
+      const vite = viteInstance || (await viteReadyPromise);
+      res.json({ define: vite?.config?.define || {} });
+    });
+
+    app.use(async (req, res, next) => {
+      if (req.originalUrl.startsWith("/api") || req.originalUrl.startsWith("/uploads")) return next();
+      try {
+        const vite = viteInstance || (await viteReadyPromise);
+        return vite.middlewares(req, res, next);
+      } catch (e) {
+        return next(e);
+      }
+    });
 
     // Serve index.html with transformed Vite tags and injected metadata
     app.use("*", async (req, res, next) => {
       if (req.originalUrl.startsWith("/api") || req.originalUrl.startsWith("/uploads")) return next();
       try {
-        const fs = await import("fs");
+        const vite = viteInstance || (await viteReadyPromise);
         const url = req.originalUrl;
         let template = fs.readFileSync(path.resolve(__dirname, "index.html"), "utf-8");
         
@@ -1680,7 +1680,7 @@ function sanitizeFilename(originalName: string): string {
         }
         res.status(200).set({ "Content-Type": "text/html" }).end(template);
       } catch (e: any) {
-        vite.ssrFixStacktrace(e);
+        if (viteInstance) viteInstance.ssrFixStacktrace(e);
         next(e);
       }
     });
@@ -1693,7 +1693,6 @@ function sanitizeFilename(originalName: string): string {
       if (req.originalUrl.startsWith("/api") || req.originalUrl.startsWith("/uploads")) return next();
       
       try {
-        const fs = await import("fs");
         console.log(`Serving index.html for path: ${req.originalUrl}`);
         const indexPath = path.join(distPath, "index.html");
         if (!fs.existsSync(indexPath)) {
@@ -1701,18 +1700,6 @@ function sanitizeFilename(originalName: string): string {
           return res.status(404).send("index.html not found");
         }
         let template = fs.readFileSync(indexPath, "utf-8");
-        
-        // Inject process.env into the head
-        const envVars = {
-          GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.Gemini_API_Key || process.env.GOOGLE_API_KEY || process.env.API_KEY || "",
-          GOOGLE_MAPS_PLATFORM_KEY: process.env.GOOGLE_MAPS_PLATFORM_KEY || "",
-          Gemini_API_Key: process.env.Gemini_API_Key || process.env.GEMINI_API_KEY || "",
-          GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || "",
-          API_KEY: process.env.API_KEY || process.env.GEMINI_API_KEY || "",
-          VITE_API_KEY: process.env.VITE_API_KEY || process.env.API_KEY || "",
-          VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "",
-          NODE_ENV: process.env.NODE_ENV || "production"
-        };
 
         const [customMetaTags, seoBodySnapshot] = await Promise.all([
           generateMetaTags(req.originalUrl, req),
@@ -1763,39 +1750,56 @@ function sanitizeFilename(originalName: string): string {
   console.log("Starting server listener...");
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
-    
-    // Initialize Startup Self-Healing & Critical Invariant Guards
-    try {
-      import("./src/services/backend/systemGuardService").then(({ runStartupSystemGuards }) => {
-        runStartupSystemGuards();
-      }).catch(err => {
-        console.warn("[SYSTEM-GUARD] Failed to run startup guards:", err.message);
-      });
-    } catch (e: any) {
-      console.warn("[SYSTEM-GUARD] Error loading startup guards:", e.message);
-    }
 
-    // Initialize GİB / MySoft Background Sync Cron
-    try {
-      import("./src/services/backend/gibSyncCron").then(({ initGibSyncScheduler }) => {
-        initGibSyncScheduler();
-      }).catch(err => {
-        console.warn("[GİB-CRON] Failed to start scheduler:", err.message);
-      });
-    } catch (e: any) {
-      console.warn("[GİB-CRON] Error loading scheduler:", e.message);
-    }
+    const startBackgroundServices = async () => {
+      try {
+        if (viteReadyPromise) {
+          await viteReadyPromise.catch(() => {});
+        }
+        await initDb();
+        console.log("initDb finished.");
+        console.log("Running self-healing module schemas sequentially in background...");
+        try { await initProductSchema(); } catch (e) { console.error("Error in initProductSchema:", e); }
+        try { await initPurchaseInvoiceSchema(); } catch (e) { console.error("Error in initPurchaseInvoiceSchema:", e); }
+        try { await initCargoSchema(); } catch (e) { console.error("Error in initCargoSchema:", e); }
+        try { await initRealEstateSchema(); } catch (e) { console.error("Error in initRealEstateSchema:", e); }
+        try { await initFleetSchema(); } catch (e) { console.error("Error in initFleetSchema:", e); }
+        try { await ensureEnrakipsizTables(); } catch (e) { console.error("Error in ensureEnrakipsizTables:", e); }
+        console.log("Self-healing module schemas completed.");
+        startCronJobs();
+        aiWorkerService.startWorker();
 
-    // Initialize Amazon PII Masking Cron (Data Protection Policy)
-    try {
-      import("./src/services/backend/piiMaskingCron").then(({ initPiiMaskingScheduler }) => {
-        initPiiMaskingScheduler();
-      }).catch(err => {
-        console.warn("[PII-MASKING-CRON] Failed to start scheduler:", err.message);
-      });
-    } catch (e: any) {
-      console.warn("[PII-MASKING-CRON] Error loading scheduler:", e.message);
-    }
+        // Initialize Startup Self-Healing & Critical Invariant Guards
+        try {
+          const { runStartupSystemGuards } = await import("./src/services/backend/systemGuardService");
+          runStartupSystemGuards();
+        } catch (err: any) {
+          console.warn("[SYSTEM-GUARD] Failed to run startup guards:", err?.message || err);
+        }
+
+        // Initialize GİB / MySoft Background Sync Cron
+        try {
+          const { initGibSyncScheduler } = await import("./src/services/backend/gibSyncCron");
+          initGibSyncScheduler();
+        } catch (err: any) {
+          console.warn("[GİB-CRON] Failed to start scheduler:", err?.message || err);
+        }
+
+        // Initialize Amazon PII Masking Cron (Data Protection Policy)
+        try {
+          const { initPiiMaskingScheduler } = await import("./src/services/backend/piiMaskingCron");
+          initPiiMaskingScheduler();
+        } catch (err: any) {
+          console.warn("[PII-MASKING-CRON] Failed to start scheduler:", err?.message || err);
+        }
+      } catch (err) {
+        console.error("Error in background database initialization:", err);
+      }
+    };
+
+    setTimeout(() => {
+      startBackgroundServices();
+    }, 500);
   });
 }
 

@@ -11,7 +11,8 @@ import {
   X,
   Check,
   Globe,
-  RefreshCw
+  RefreshCw,
+  ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
@@ -63,6 +64,7 @@ export default function EWaybillsTab({ storeId: propStoreId, lang, api, branding
   const [newStartSeq, setNewStartSeq] = useState("");
   const [newPrefix, setNewPrefix] = useState("IRS");
   const [savingSeries, setSavingSeries] = useState(false);
+  const [showMobileToolbar, setShowMobileToolbar] = useState(false);
 
   // Filter/Search states
   const [search, setSearch] = useState(() => {
@@ -485,77 +487,151 @@ export default function EWaybillsTab({ storeId: propStoreId, lang, api, branding
     } catch (err: any) { toast.error(err.message, { id: lid }); }
   };
 
+  const handleExportExcel = () => {
+    const clean = waybills.map(w => ({
+      ID: w.id,
+      [isTr ? "No" : "No"]: w.waybill_number,
+      [isTr ? "Tarih" : "Date"]: formatDateTR(w.waybill_date),
+      [isTr ? "Alıcı" : "Receiver"]: w.company_title || w.company_name || `${w.customer_name || ''} ${w.customer_surname || ''}`,
+      [isTr ? "Plaka" : "Plate"]: w.plate_number,
+      [isTr ? "Durum" : "Status"]: w.status
+    }));
+    const ws = XLSX.utils.json_to_sheet(clean);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "e-İrsaliyeler");
+    XLSX.writeFile(wb, `E_Irsaliyeler_${formatFileDateTR()}.xlsx`);
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 flex items-center gap-2">
-            <Truck className="h-6 w-6 text-indigo-600" />
-            {isTr ? "Sevk ve Taşıma İrsaliyeleri" : "Waybills & Shipments"}
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">{isTr ? "Ürün sevkiyatlarını takip edin ve e-Faturaya dönüştürün." : "Track shipments and convert to e-Invoices."}</p>
-        </div>
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <button onClick={handleOpenCreateNew} className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm shadow-sm cursor-pointer">
-            <Plus className="h-4 w-4" /> {isTr ? "İrsaliye Oluştur" : "Create Waybill"}
-          </button>
-          <button onClick={() => {
-            const clean = waybills.map(w => ({ ID: w.id, [isTr ? "No" : "No"]: w.waybill_number, [isTr ? "Tarih" : "Date"]: formatDateTR(w.waybill_date), [isTr ? "Alıcı" : "Receiver"]: w.company_title || w.company_name || `${w.customer_name || ''} ${w.customer_surname || ''}`, [isTr ? "Plaka" : "Plate"]: w.plate_number, [isTr ? "Durum" : "Status"]: w.status }));
-            const ws = XLSX.utils.json_to_sheet(clean); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "e-İrsaliyeler"); XLSX.writeFile(wb, `E_Irsaliyeler_${formatFileDateTR()}.xlsx`);
-          }} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium transition flex items-center justify-center gap-2 text-sm cursor-pointer">
-            <FileDown className="h-4 w-4 text-emerald-600" /> {isTr ? "Excel Çıktısı" : "Export Excel"}
-          </button>
-        </div>
-      </div>
-
-      {/* ENTEGRASYON & SERİ YAŞAM DÖNGÜSÜ BİLGİ ŞERİDİ */}
-      <div className="bg-slate-900 border border-slate-800 text-white p-4 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0">
-            <Globe className="w-4 h-4 text-blue-400" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-semibold text-white uppercase tracking-wider">
-                {isTr ? "E-İrsaliye Entegrasyon & Seri Radarı" : "E-Waybill Integration & Series Radar"}
-              </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                {seriesInfo?.provider === 'mysoft' ? "MySoft GİB Entegratörü Aktif" : (isTr ? "GİB Entegratör Bağlantısı Aktif" : "Integrator Connected")}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {seriesInfo?.vkn ? `VKN: ${seriesInfo.vkn}` : ""} {seriesInfo?.username ? `• Hesap: ${seriesInfo.username}` : ""} • {isTr ? "GİB UBL 2.1 e-İrsaliye Şematron Standartları Devrede" : "UBL 2.1 Active"}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">{isTr ? "Seri & Yıl" : "Series & Year"}</span>
-            <span className="font-mono font-semibold text-white">{seriesInfo?.prefix || 'IRS'} • {seriesInfo?.year || '2026'}</span>
+    <div className="space-y-3">
+      <div className="bg-white px-3.5 py-2.5 rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 shrink-0">
+            <Truck className="h-5 w-5 text-indigo-600 shrink-0" />
+            <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-slate-900 whitespace-nowrap">
+              {isTr ? "E-İrsaliye" : "E-Waybill"}
+            </h1>
           </div>
 
-          <div className="bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">{isTr ? "Son Kesilen İrsaliye" : "Last Issued"}</span>
-            <span className="font-mono font-medium text-slate-300">{seriesInfo?.lastNumber || "-"}</span>
-          </div>
-
-          <div className="bg-indigo-950/60 border border-indigo-700/60 px-3 py-1.5 rounded-xl text-xs">
-            <span className="text-[10px] text-indigo-300 uppercase tracking-wider block">{isTr ? "Sıradaki Otomatik No" : "Next Number"}</span>
-            <span className="font-mono font-bold text-indigo-400">{seriesInfo?.nextNumber || "-"}</span>
-          </div>
-
+          {/* Mobile Collapsible Toggle Button (Default Hidden) */}
           <button
             type="button"
-            onClick={() => setShowSeriesModal(true)}
-            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition flex items-center gap-1.5 text-xs font-medium cursor-pointer shadow-2xs"
-            title={isTr ? "E-İrsaliye Seri ve Sayaç Ayarları" : "Configure Series Counter"}
+            onClick={() => setShowMobileToolbar(!showMobileToolbar)}
+            className={`md:hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer select-none ${
+              showMobileToolbar
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+            }`}
           >
-            <Sliders className="w-3.5 h-3.5 text-indigo-400" />
-            <span>{isTr ? "Seri / Sayaç Ayarla" : "Configure Series"}</span>
+            <Sliders className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+            <span>{isTr ? "Seri & İşlemler" : "Series & Actions"}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${showMobileToolbar ? 'rotate-180 text-indigo-600' : ''}`} />
           </button>
+
+          {/* Desktop Single-Row Series & Action Bar */}
+          <div className="hidden md:flex items-center gap-2 flex-nowrap overflow-x-auto no-scrollbar ml-auto">
+            <div className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl text-xs flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">{isTr ? "Seri & Yıl" : "Series"}</span>
+              <span className="font-mono font-semibold text-slate-800">{seriesInfo?.prefix || 'IRS'} • {seriesInfo?.year || '2026'}</span>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl text-xs flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">{isTr ? "Son Kesilen İrsaliye" : "Last Issued"}</span>
+              <span className="font-mono font-medium text-slate-700">{seriesInfo?.lastNumber || "-"}</span>
+            </div>
+
+            <div className="bg-indigo-50/70 border border-indigo-200 px-2.5 py-1 rounded-xl text-xs flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] text-indigo-500 uppercase tracking-wider font-medium">{isTr ? "Sıradaki Otomatik No" : "Next No"}</span>
+              <span className="font-mono font-bold text-indigo-700">{seriesInfo?.nextNumber || "-"}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowSeriesModal(true)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition flex items-center gap-1.5 text-xs font-medium cursor-pointer shrink-0 whitespace-nowrap"
+              title={isTr ? "E-İrsaliye Seri ve Sayaç Ayarları" : "Configure Series Counter"}
+            >
+              <Sliders className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span>{isTr ? "Seri / Sayaç Ayarla" : "Configure Series"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenCreateNew}
+              className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition flex items-center justify-center gap-1.5 text-xs shadow-2xs cursor-pointer shrink-0 whitespace-nowrap"
+            >
+              <Plus className="h-3.5 w-3.5 shrink-0" />
+              <span>{isTr ? "Yeni" : "New"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              title={isTr ? "Excel Çıktısı" : "Export Excel"}
+              className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition flex items-center justify-center cursor-pointer shrink-0"
+            >
+              <FileDown className="h-4 w-4 text-emerald-600" />
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Collapsible Single-Row Toolbar (Default Hidden) */}
+        <AnimatePresence>
+          {showMobileToolbar && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="md:hidden overflow-hidden"
+            >
+              <div className="pt-2.5 mt-2.5 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-nowrap">
+                <div className="bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl text-[11px] flex items-center gap-1 shrink-0">
+                  <span className="text-[9px] text-slate-400 uppercase font-medium">{isTr ? "Seri:" : "Series:"}</span>
+                  <span className="font-mono font-semibold text-slate-800">{seriesInfo?.prefix || 'IRS'}•{seriesInfo?.year || '2026'}</span>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl text-[11px] flex items-center gap-1 shrink-0">
+                  <span className="text-[9px] text-slate-400 uppercase font-medium">{isTr ? "Son:" : "Last:"}</span>
+                  <span className="font-mono font-medium text-slate-700">{seriesInfo?.lastNumber || "-"}</span>
+                </div>
+
+                <div className="bg-indigo-50/70 border border-indigo-200 px-2 py-1 rounded-xl text-[11px] flex items-center gap-1 shrink-0">
+                  <span className="text-[9px] text-indigo-500 uppercase font-medium">{isTr ? "Sıradaki:" : "Next:"}</span>
+                  <span className="font-mono font-bold text-indigo-700">{seriesInfo?.nextNumber || "-"}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowSeriesModal(true)}
+                  className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition flex items-center gap-1 text-[11px] font-medium cursor-pointer shrink-0 whitespace-nowrap"
+                  title={isTr ? "E-İrsaliye Seri ve Sayaç Ayarları" : "Configure Series Counter"}
+                >
+                  <Sliders className="w-3 h-3 text-indigo-600 shrink-0" />
+                  <span>{isTr ? "Seri / Sayaç Ayarla" : "Series"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenCreateNew}
+                  className="px-2.5 py-1 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition flex items-center justify-center gap-1 text-[11px] shadow-2xs cursor-pointer shrink-0 whitespace-nowrap"
+                >
+                  <Plus className="h-3.5 w-3.5 shrink-0" />
+                  <span>{isTr ? "Yeni" : "New"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  title={isTr ? "Excel Çıktısı" : "Export Excel"}
+                  className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition flex items-center justify-center cursor-pointer shrink-0"
+                >
+                  <FileDown className="h-3.5 w-3.5 text-emerald-600" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {selectedIds.length > 0 && (

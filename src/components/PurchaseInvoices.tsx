@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import React, { useState, useEffect, useDeferredValue, useMemo } from "react";
+import React, { useState, useEffect, useDeferredValue, useMemo, useRef } from "react";
 import { 
   Plus, 
   Search, 
@@ -16,7 +16,11 @@ import {
   CheckCircle2,
   Receipt,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Percent,
+  ChevronDown,
+  Layers,
+  Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { normalizeSearch } from "../lib/searchUtils";
@@ -92,6 +96,21 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
+  const [showStats, setShowStats] = useState(false);
+  const [showToolbar, setShowToolbar] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setStatusDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'backdated_carryover' | 'approved' | 'expense'>(() => {
     if (initialFilter && ['pending', 'backdated_carryover', 'approved', 'expense'].includes(initialFilter)) {
       return initialFilter;
@@ -99,23 +118,54 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     return 'all';
   });
 
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(() => {
+    if (initialFilter && ['pending', 'backdated_carryover', 'approved', 'expense'].includes(initialFilter)) {
+      return [initialFilter];
+    }
+    return [];
+  });
+
   useEffect(() => {
     if (initialFilter && ['all', 'pending', 'backdated_carryover', 'approved', 'expense'].includes(initialFilter)) {
       setStatusFilter(initialFilter);
+      setSelectedStatuses(initialFilter === 'all' ? [] : [initialFilter]);
     }
   }, [initialFilter]);
+
+  const toggleStatusSelection = (statusKey: string) => {
+    if (statusKey === 'all') {
+      setSelectedStatuses([]);
+      setStatusFilter('all');
+      if (onClearInitialFilter) onClearInitialFilter();
+      setPage(1);
+      return;
+    }
+    setSelectedStatuses((prev) => {
+      const exists = prev.includes(statusKey);
+      const next = exists ? prev.filter((k) => k !== statusKey) : [...prev, statusKey];
+      setStatusFilter(next.length === 1 ? (next[0] as any) : 'all');
+      return next;
+    });
+    setPage(1);
+  };
 
   const filteredInvoices = useMemo(() => {
     if (!Array.isArray(invoices)) return [];
     return invoices.filter((inv: any) => {
-      if (statusFilter === 'pending') {
-        if (inv.status !== 'pending') return false;
-      } else if (statusFilter === 'backdated_carryover') {
-        if (!Boolean(inv.is_out_of_sequence || inv.is_prev_month_carryover)) return false;
-      } else if (statusFilter === 'approved') {
-        if (!(inv.status === 'approved' || inv.status === 'completed')) return false;
-      } else if (statusFilter === 'expense') {
-        if (inv.is_expense !== true) return false;
+      if (selectedStatuses.length > 0) {
+        const matchesSelected = selectedStatuses.some((st) => {
+          if (st === 'pending') return inv.status === 'pending';
+          if (st === 'backdated_carryover') return Boolean(inv.is_out_of_sequence || inv.is_prev_month_carryover);
+          if (st === 'approved') return inv.status === 'approved' || inv.status === 'completed';
+          if (st === 'expense') return inv.is_expense === true;
+          return true;
+        });
+        if (!matchesSelected) return false;
+      } else if (statusFilter !== 'all') {
+        if (statusFilter === 'pending' && inv.status !== 'pending') return false;
+        if (statusFilter === 'backdated_carryover' && !Boolean(inv.is_out_of_sequence || inv.is_prev_month_carryover)) return false;
+        if (statusFilter === 'approved' && !(inv.status === 'approved' || inv.status === 'completed')) return false;
+        if (statusFilter === 'expense' && inv.is_expense !== true) return false;
       }
 
       // Real-time client-side search guard: ensures active search is never lost even if backend returns full list
@@ -132,7 +182,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
 
       return true;
     });
-  }, [invoices, statusFilter, search, activeSearch]);
+  }, [invoices, selectedStatuses, statusFilter, search, activeSearch]);
 
   const pendingCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.status === 'pending').length : 0, [invoices]);
   const backdatedCarryoverCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.is_out_of_sequence || i.is_prev_month_carryover).length : 0, [invoices]);
@@ -816,193 +866,307 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   };
 
   return (
-    <div className="w-full max-w-full px-2 sm:px-4 space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-medium text-slate-900 tracking-tight flex items-center gap-2">
-            <FileDown className="h-5 w-5 text-indigo-600" />
-            {isTr ? "Alış Faturaları" : "Purchase Invoices"}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            {isTr ? "Tedarikçilerden gelen faturaları girin ve stoklarınızı güncelleyin." : "Enter invoices from suppliers and update your stock."}
-          </p>
-        </div>
-      </div>
+    <div className="w-full max-w-full px-2 sm:px-4 space-y-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg sm:text-2xl font-medium text-slate-900 tracking-tight flex items-center gap-2 truncate">
+          <FileDown className="h-5 w-5 text-indigo-600 shrink-0" />
+          <span className="truncate">{isTr ? "Alış Faturaları" : "Purchase Invoices"}</span>
+        </h2>
 
-      <PurchaseInvoiceStats 
-        isTr={isTr}
-        totalDeductibleTax={totalDeductibleTax}
-        totalPurchaseAmount={totalPurchaseAmount}
-        totalExpenseAmount={totalExpenseAmount}
-        totalGrandTotal={totalGrandTotal}
-        branding={branding}
-      />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowStats(!showStats)}
+            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium border shadow-2xs transition-all cursor-pointer select-none ${
+              showStats
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                : 'bg-white border-slate-200 text-slate-700 hover:text-indigo-600 hover:border-indigo-300'
+            }`}
+            title={isTr ? "Finansal Göstergeler & KDV Özeti" : "Financial Summary & VAT"}
+          >
+            <Percent className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+            <span className="hidden sm:inline">{isTr ? "KDV & Finansal Özet" : "Financial Summary"}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${showStats ? 'rotate-180 text-indigo-600' : ''}`} />
+          </button>
 
-      {/* Quick Status / Scenario Filter Pills */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setStatusFilter("all");
-            if (onClearInitialFilter) onClearInitialFilter();
-          }}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-            statusFilter === "all"
-              ? "bg-slate-900 text-white shadow-xs"
-              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-          }`}
-        >
-          {isTr ? `Tümü (${invoices.length})` : `All (${invoices.length})`}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setStatusFilter("backdated_carryover")}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
-            statusFilter === "backdated_carryover"
-              ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-              : "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
-          }`}
-        >
-          <AlertTriangle className="w-3.5 h-3.5" />
-          <span>{isTr ? "Ara Tarihli & Devir" : "Backdated & Carryover"}</span>
-          {backdatedCarryoverCount > 0 && (
-            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-purple-200 text-purple-900">
-              {backdatedCarryoverCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setStatusFilter("pending")}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
-            statusFilter === "pending"
-              ? "bg-amber-600 text-white border-amber-600 shadow-xs"
-              : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5" />
-          <span>{isTr ? "Onay Bekleyenler" : "Pending Approval"}</span>
-          {pendingCount > 0 && (
-            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-amber-200 text-amber-900">
-              {pendingCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setStatusFilter("approved")}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
-            statusFilter === "approved"
-              ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-              : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-          }`}
-        >
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>{isTr ? "Onaylanan & İşlenen" : "Approved"}</span>
-          {approvedCount > 0 && (
-            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-emerald-200 text-emerald-900">
-              {approvedCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setStatusFilter("expense")}
-          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
-            statusFilter === "expense"
-              ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-              : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-          }`}
-        >
-          <Receipt className="w-3.5 h-3.5" />
-          <span>{isTr ? "Gider Faturaları" : "Expense Invoices"}</span>
-          {expenseCount > 0 && (
-            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-black bg-blue-200 text-blue-900">
-              {expenseCount}
-            </span>
-          )}
-        </button>
-      </div>
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex-1 flex flex-wrap items-center gap-3 w-full">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder={isTr ? "Fatura No veya Cari ara..." : "Search invoice no or company..."}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setActiveSearch("");
-                  try {
-                    localStorage.removeItem(`purchase_search_${storeId || 'default'}`);
-                  } catch {}
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-colors"
-                title={isTr ? "Aramayı Temizle" : "Clear search"}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+          <button
+            type="button"
+            onClick={() => setShowToolbar(!showToolbar)}
+            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium border shadow-2xs transition-all cursor-pointer select-none ${
+              showToolbar || selectedStatuses.length > 0 || Boolean(search)
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                : 'bg-white border-slate-200 text-slate-700 hover:text-indigo-600 hover:border-indigo-300'
+            }`}
+            title={isTr ? "Filtre, Arama & İşlemler" : "Filters, Search & Actions"}
+          >
+            <Search className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+            <span className="hidden sm:inline">{isTr ? "Filtre, Arama & Ekle" : "Filter, Search & Add"}</span>
+            {selectedStatuses.length > 0 && (
+              <span className="px-1.5 py-0.2 text-[10px] rounded-full font-bold bg-indigo-100 text-indigo-700">
+                {selectedStatuses.length}
+              </span>
             )}
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
-            />
-            <span className="text-slate-400">-</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
-            />
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          {branding?.einvoice_settings?.is_active && (
-            <button 
-              onClick={handleSyncInbox}
-              disabled={syncing}
-              className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-medium transition-all hover:bg-indigo-100 disabled:opacity-50"
-            >
-              <CloudDownload className={`h-4 w-4 inline mr-2 ${syncing ? 'animate-bounce' : ''}`} />
-              {isTr ? "Senkronize Et" : "Sync"}
-            </button>
-          )}
-          <button
-            onClick={exportToExcel}
-            className="p-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-all text-xs font-medium flex items-center gap-2 shadow-sm"
-            title={isTr ? "Excel'e Aktar" : "Export to Excel"}
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span className="hidden sm:inline">{isTr ? "Excel (XLS)" : "Excel (XLS)"}</span>
-          </button>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-medium text-sm hover:bg-slate-800 transition-all shadow-lg flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            {isTr ? "Fatura Ekle" : "Add Invoice"}
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${showToolbar ? 'rotate-180 text-indigo-600' : ''}`} />
           </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showStats && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <PurchaseInvoiceStats 
+              isTr={isTr}
+              totalDeductibleTax={totalDeductibleTax}
+              totalPurchaseAmount={totalPurchaseAmount}
+              totalExpenseAmount={totalExpenseAmount}
+              totalGrandTotal={totalGrandTotal}
+              branding={branding}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showToolbar && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-visible"
+          >
+            <div className="flex flex-wrap lg:flex-nowrap items-center justify-between gap-2 bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-xs">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 flex-1 min-w-0 w-full">
+                {/* Multi-Select Shortened Status Filter Dropdown */}
+                <div className="relative shrink-0" ref={statusDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl font-semibold text-xs border transition-all cursor-pointer ${
+                      selectedStatuses.length > 0
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                    title={isTr ? "Fatura Durum Filtresi (Çoklu Seçim)" : "Invoice Status Filter (Multi-Select)"}
+                  >
+                    <Layers className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline whitespace-nowrap">
+                      {selectedStatuses.length === 0
+                        ? (isTr ? `Tümü (${invoices.length})` : `All (${invoices.length})`)
+                        : selectedStatuses.length === 1
+                          ? (selectedStatuses[0] === 'backdated_carryover'
+                              ? (isTr ? `Devir (${backdatedCarryoverCount})` : `Carryover (${backdatedCarryoverCount})`)
+                              : selectedStatuses[0] === 'pending'
+                                ? (isTr ? `Bekleyen (${pendingCount})` : `Pending (${pendingCount})`)
+                                : selectedStatuses[0] === 'approved'
+                                  ? (isTr ? `Onaylanan (${approvedCount})` : `Approved (${approvedCount})`)
+                                  : (isTr ? `Gider (${expenseCount})` : `Expense (${expenseCount})`))
+                          : (isTr ? `${selectedStatuses.length} Durum` : `${selectedStatuses.length} Selected`)}
+                    </span>
+                    {selectedStatuses.length > 0 && (
+                      <span className="sm:hidden px-1.5 py-0.2 text-[10px] rounded-full font-bold bg-white/25 text-white">
+                        {selectedStatuses.length}
+                      </span>
+                    )}
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 shrink-0 ${statusDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {statusDropdownOpen && (
+                    <div className="absolute left-0 top-full mt-1.5 z-50 w-60 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                      <button
+                        type="button"
+                        onClick={() => toggleStatusSelection('all')}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          selectedStatuses.length === 0
+                            ? 'bg-slate-900 text-white'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span>{isTr ? "Tümü" : "All"}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-bold ${selectedStatuses.length === 0 ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                            {invoices.length}
+                          </span>
+                          {selectedStatuses.length === 0 && <Check className="w-3.5 h-3.5" />}
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleStatusSelection('backdated_carryover')}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          selectedStatuses.includes('backdated_carryover')
+                            ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                          <span>{isTr ? "Devir & Ara Tarih" : "Carryover"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.2 text-[10px] rounded-full font-bold bg-purple-100 text-purple-800">
+                            {backdatedCarryoverCount}
+                          </span>
+                          {selectedStatuses.includes('backdated_carryover') && <Check className="w-3.5 h-3.5 text-purple-600" />}
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleStatusSelection('pending')}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          selectedStatuses.includes('pending')
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span>{isTr ? "Bekleyenler" : "Pending"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.2 text-[10px] rounded-full font-bold bg-amber-100 text-amber-800">
+                            {pendingCount}
+                          </span>
+                          {selectedStatuses.includes('pending') && <Check className="w-3.5 h-3.5 text-amber-600" />}
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleStatusSelection('approved')}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          selectedStatuses.includes('approved')
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>{isTr ? "Onaylananlar" : "Approved"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.2 text-[10px] rounded-full font-bold bg-emerald-100 text-emerald-800">
+                            {approvedCount}
+                          </span>
+                          {selectedStatuses.includes('approved') && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleStatusSelection('expense')}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          selectedStatuses.includes('expense')
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Receipt className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span>{isTr ? "Giderler" : "Expenses"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.2 text-[10px] rounded-full font-bold bg-blue-100 text-blue-800">
+                            {expenseCount}
+                          </span>
+                          {selectedStatuses.includes('expense') && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Search Input */}
+                <div className="relative flex-1 min-w-[140px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder={isTr ? "Fatura No veya Cari ara..." : "Search invoice no or company..."}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs sm:text-sm"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        setActiveSearch("");
+                        try {
+                          localStorage.removeItem(`purchase_search_${storeId || 'default'}`);
+                        } catch {}
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-colors"
+                      title={isTr ? "Aramayı Temizle" : "Clear search"}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Date Pickers */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-medium text-slate-600"
+                  />
+                  <span className="text-slate-300">-</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-medium text-slate-600"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons (Icon-only on mobile, text + icon on desktop) */}
+              <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                {branding?.einvoice_settings?.is_active && (
+                  <button 
+                    onClick={handleSyncInbox}
+                    disabled={syncing}
+                    className="p-2 sm:px-3 sm:py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-medium transition-all hover:bg-indigo-100 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                    title={isTr ? "Senkronize Et" : "Sync"}
+                  >
+                    <CloudDownload className={`h-4 w-4 shrink-0 ${syncing ? 'animate-bounce' : ''}`} />
+                    <span className="hidden sm:inline whitespace-nowrap">{isTr ? "Senkronize Et" : "Sync"}</span>
+                  </button>
+                )}
+                <button
+                  onClick={exportToExcel}
+                  className="p-2 sm:px-3 sm:py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-all text-xs font-medium flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  title={isTr ? "Excel'e Aktar" : "Export to Excel"}
+                >
+                  <FileSpreadsheet className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline whitespace-nowrap">{isTr ? "Excel" : "Excel"}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    resetForm();
+                    setShowModal(true);
+                  }}
+                  className="p-2 sm:px-4 sm:py-1.5 bg-slate-900 text-white rounded-xl font-medium text-xs sm:text-sm hover:bg-slate-800 transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  title={isTr ? "Fatura Ekle" : "Add Invoice"}
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline whitespace-nowrap">{isTr ? "Fatura Ekle" : "Add Invoice"}</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <PurchaseInvoiceTable 
         invoices={filteredInvoices.slice((page - 1) * itemsPerPage, page * itemsPerPage)}

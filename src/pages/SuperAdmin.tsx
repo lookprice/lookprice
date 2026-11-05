@@ -984,7 +984,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
               setStoreToDelete={setStoreToDelete}
               onToggleHotel={handleToggleHotel}
               onToggleBookstore={handleToggleBookstore}
-              onNavigateToMultiTenancy={() => setActiveTab('tenants')}
+              onNavigateToMultiTenancy={() => setActiveTab('dashboard')}
               activeSegment={storeSegment}
               onSelectSegment={(seg) => {
                 setStoreSegment(seg);

@@ -131,6 +131,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
 
   const [marketplaceFilter, setMarketplaceFilter] = useState<'all' | 'web' | 'trendyol' | 'hepsiburada' | 'amazon' | 'n11' | 'pazarama'>('all');
   const [showStats, setShowStats] = useState(false);
+  const [showSearchToolbar, setShowSearchToolbar] = useState(false);
+  const [showStatusFilters, setShowStatusFilters] = useState(false);
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
@@ -1278,16 +1280,56 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
 
   return (
     <div className="w-full px-4 sm:px-6">
-      {/* Collapsible Financial Summary & VAT Dashboard */}
-      <div className="flex items-center justify-between">
+      {/* Collapsible Top Toggles: Financial Summary, Search/Add Toolbar, and Status/Channel Filters */}
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap overflow-x-auto no-scrollbar mb-2.5">
         <button
           type="button"
           onClick={() => setShowStats(!showStats)}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-300 shadow-2xs transition-all cursor-pointer select-none"
+          className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium border shadow-2xs transition-all cursor-pointer select-none shrink-0 ${
+            showStats
+              ? 'bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950/50 dark:border-indigo-700 dark:text-indigo-300'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-300'
+          }`}
         >
-          <Percent className="w-3.5 h-3.5 text-indigo-500" />
-          <span>{isTr ? "Finansal Göstergeler & KDV Özeti" : "Financial Summary & VAT"}</span>
-          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${showStats ? 'rotate-180 text-indigo-600' : ''}`} />
+          <Percent className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+          <span className="hidden sm:inline">{isTr ? "Finansal Göstergeler & KDV Özeti" : "Financial Summary & VAT"}</span>
+          <span className="sm:hidden">{isTr ? "KDV & Özet" : "Summary"}</span>
+          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${showStats ? 'rotate-180 text-indigo-600' : ''}`} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowSearchToolbar(!showSearchToolbar)}
+          className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium border shadow-2xs transition-all cursor-pointer select-none shrink-0 ${
+            showSearchToolbar || Boolean(search)
+              ? 'bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950/50 dark:border-indigo-700 dark:text-indigo-300'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-300'
+          }`}
+        >
+          <Search className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+          <span className="hidden sm:inline">{isTr ? "Fatura Ara, Tarih & Ekle" : "Search, Date & Add"}</span>
+          <span className="sm:hidden">{isTr ? "Ara & Ekle" : "Search & Add"}</span>
+          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${showSearchToolbar ? 'rotate-180 text-indigo-600' : ''}`} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowStatusFilters(!showStatusFilters)}
+          className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium border shadow-2xs transition-all cursor-pointer select-none shrink-0 ${
+            showStatusFilters || statusFilter !== 'all' || (showMarketplaceFilter && marketplaceFilter !== 'all')
+              ? 'bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950/50 dark:border-indigo-700 dark:text-indigo-300'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-300'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+          <span className="hidden sm:inline">{isTr ? "Durum & Kanallar" : "Status & Channels"}</span>
+          <span className="sm:hidden">{isTr ? "Filtreler" : "Filters"}</span>
+          {(notSentCount > 0 || statusFilter !== 'all') && (
+            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-semibold bg-blue-100 text-blue-700">
+              {notSentCount}
+            </span>
+          )}
+          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${showStatusFilters ? 'rotate-180 text-indigo-600' : ''}`} />
         </button>
       </div>
 
@@ -1298,7 +1340,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+            className="overflow-hidden mb-2.5"
           >
             <SalesInvoiceStats 
               isTr={isTr}
@@ -1311,302 +1353,326 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="flex-1 flex flex-wrap items-center gap-2.5 w-full">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder={isTr ? "Fatura no, müşteri ara..." : "Search invoice, customer..."}
-              className="w-full pl-9 pr-9 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs sm:text-sm"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setActiveSearch("");
-                  try {
-                    localStorage.removeItem(`sales_search_${storeId || 'default'}`);
-                  } catch {}
-                }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-colors"
-                title={isTr ? "Aramayı Temizle" : "Clear search"}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <input 
-              type="date"
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            <span className="text-slate-300">-</span>
-            <input 
-              type="date"
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <button 
-            onClick={handleExportExcel}
-            className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all shadow-2xs cursor-pointer"
-            title={isTr ? "Excel'e Aktar" : "Export to Excel"}
+      <AnimatePresence>
+        {showSearchToolbar && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden mb-2.5"
           >
-            <FileDown className="h-4 w-4 mx-auto" />
-          </button>
-          <button 
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="flex-1 md:flex-none px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 flex items-center justify-center gap-1.5 cursor-pointer"
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2.5 bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-xs">
+              <div className="flex-1 flex flex-wrap items-center gap-2 w-full">
+                <div className="relative flex-1 min-w-[160px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder={isTr ? "Fatura no, müşteri ara..." : "Search invoice, customer..."}
+                    className="w-full pl-9 pr-9 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs sm:text-sm"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        setActiveSearch("");
+                        try {
+                          localStorage.removeItem(`sales_search_${storeId || 'default'}`);
+                        } catch {}
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-colors"
+                      title={isTr ? "Aramayı Temizle" : "Clear search"}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                  <input 
+                    type="date"
+                    className="flex-1 sm:flex-none px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                  <span className="text-slate-300">-</span>
+                  <input 
+                    type="date"
+                    className="flex-1 sm:flex-none px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <button 
+                  onClick={handleExportExcel}
+                  className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all shadow-2xs cursor-pointer"
+                  title={isTr ? "Excel'e Aktar" : "Export to Excel"}
+                >
+                  <FileDown className="h-4 w-4 mx-auto" />
+                </button>
+                <button 
+                  onClick={() => {
+                    resetForm();
+                    setShowModal(true);
+                  }}
+                  className="flex-1 md:flex-none px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  {isTr ? "Fatura Ekle" : "Add Invoice"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showStatusFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-visible mb-3"
           >
-            <Plus className="h-4 w-4" />
-            {isTr ? "Fatura Ekle" : "Add Invoice"}
-          </button>
-        </div>
-      </div>
+            <div className="flex items-center justify-between gap-1 sm:gap-1.5 flex-nowrap w-full">
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-nowrap min-w-0">
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter('all'); setPage(1); }}
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-xl font-medium text-xs transition-all cursor-pointer shrink-0 ${
+                    statusFilter === 'all' 
+                      ? 'bg-slate-800 text-white shadow-xs' 
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                  title={isTr ? "Tüm Faturalar" : "All Invoices"}
+                >
+                  {isTr ? "Tümü" : "All"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter(statusFilter === 'not_sent' ? 'all' : 'not_sent'); setPage(1); }}
+                  className={`px-2 sm:px-2.5 py-1.5 rounded-xl font-medium text-xs transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border shrink-0 ${
+                    statusFilter === 'not_sent' 
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-500' 
+                      : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
+                  }`}
+                  title={isTr ? "GİB'e Gönderilmemiş Faturalar" : "Invoices Not Sent to GİB"}
+                >
+                  <CloudOff className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  <span className="hidden sm:inline font-semibold">{isTr ? "Gönderilmedi" : "Not Sent"}</span>
+                  {notSentCount > 0 && (
+                    <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-medium ${
+                      statusFilter === 'not_sent' ? 'bg-white/25 text-white' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {notSentCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter(statusFilter === 'draft' ? 'all' : 'draft'); setPage(1); }}
+                  className={`px-2 sm:px-2.5 py-1.5 rounded-xl font-medium text-xs transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border shrink-0 ${
+                    statusFilter === 'draft' 
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-xs ring-1 ring-amber-500' 
+                      : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50 hover:border-amber-300'
+                  }`}
+                  title={isTr ? "Taslak Faturalar" : "Drafts"}
+                >
+                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  <span className="hidden sm:inline font-semibold">{isTr ? "Taslak" : "Draft"}</span>
+                  {draftCount > 0 && (
+                    <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-medium ${
+                      statusFilter === 'draft' ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {draftCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter(statusFilter === 'rejected' ? 'all' : 'rejected'); setPage(1); }}
+                  className={`px-2 sm:px-2.5 py-1.5 rounded-xl font-medium text-xs transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border shrink-0 ${
+                    statusFilter === 'rejected' 
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-1 ring-rose-500' 
+                      : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 hover:border-rose-300'
+                  }`}
+                  title={isTr ? "Reddedilenler / İptal / Hatalı" : "Rejected / Cancelled / Error"}
+                >
+                  <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  <span className="hidden sm:inline font-semibold">{isTr ? "İptal / Hata" : "Cancelled"}</span>
+                  {rejectedCount > 0 && (
+                    <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-medium ${
+                      statusFilter === 'rejected' ? 'bg-white/25 text-white' : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {rejectedCount}
+                    </span>
+                  )}
+                </button>
 
-      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between mb-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => { setStatusFilter('all'); setPage(1); }}
-            className={`px-3 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition-all cursor-pointer ${
-              statusFilter === 'all' 
-                ? 'bg-slate-800 text-white shadow-xs' 
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-            title={isTr ? "Tüm Faturalar" : "All Invoices"}
-          >
-            {isTr ? "Tümü" : "All"}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setStatusFilter(statusFilter === 'not_sent' ? 'all' : 'not_sent'); setPage(1); }}
-            className={`px-2.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
-              statusFilter === 'not_sent' 
-                ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-500' 
-                : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
-            }`}
-            title={isTr ? "GİB'e Gönderilmemiş Faturalar" : "Invoices Not Sent to GİB"}
-          >
-            <CloudOff className="h-4 w-4 shrink-0" />
-            <span className="font-semibold">{isTr ? "Gönderilmedi" : "Not Sent"}</span>
-            {notSentCount > 0 && (
-              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-medium ${
-                statusFilter === 'not_sent' ? 'bg-white/25 text-white' : 'bg-blue-100 text-blue-800'
-              }`}>
-                {notSentCount}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setStatusFilter(statusFilter === 'draft' ? 'all' : 'draft'); setPage(1); }}
-            className={`px-2.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
-              statusFilter === 'draft' 
-                ? 'bg-amber-600 text-white border-amber-600 shadow-xs ring-1 ring-amber-500' 
-                : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50 hover:border-amber-300'
-            }`}
-            title={isTr ? "Taslak Faturalar" : "Drafts"}
-          >
-            <Clock className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline font-semibold">{isTr ? "Taslak" : "Draft"}</span>
-            {draftCount > 0 && (
-              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-medium ${
-                statusFilter === 'draft' ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-800'
-              }`}>
-                {draftCount}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setStatusFilter(statusFilter === 'rejected' ? 'all' : 'rejected'); setPage(1); }}
-            className={`px-2.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
-              statusFilter === 'rejected' 
-                ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-1 ring-rose-500' 
-                : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 hover:border-rose-300'
-            }`}
-            title={isTr ? "Reddedilenler / İptal / Hatalı" : "Rejected / Cancelled / Error"}
-          >
-            <XCircle className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline font-semibold">{isTr ? "İptal / Hata" : "Cancelled"}</span>
-            {rejectedCount > 0 && (
-              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-medium ${
-                statusFilter === 'rejected' ? 'bg-white/25 text-white' : 'bg-rose-100 text-rose-800'
-              }`}>
-                {rejectedCount}
-              </span>
-            )}
-          </button>
-
-          {(statusFilter !== 'all' || (showMarketplaceFilter && marketplaceFilter !== 'all')) && (
-            <button
-              type="button"
-              onClick={() => { setStatusFilter('all'); setMarketplaceFilter('all'); setPage(1); }}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded-xl transition-all cursor-pointer ml-1"
-              title={isTr ? "Tüm Filtreleri Temizle" : "Clear All Filters"}
-            >
-              <X className="w-3 h-3 text-slate-400" />
-              <span>{isTr ? "Temizle" : "Clear"}</span>
-            </button>
-          )}
-
-          {/* CONTEMPORARY E-MARKETPLACE FILTER POPOVER (NO PRIMITIVE EMOJIS) */}
-          {showMarketplaceFilter && (
-            <div className="relative ml-auto sm:ml-2" ref={marketplaceDropdownRef}>
-              <button
-                type="button"
-                onClick={() => setMarketplaceDropdownOpen(!marketplaceDropdownOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 text-slate-800 dark:text-slate-100 font-medium text-xs rounded-xl shadow-2xs transition-all cursor-pointer"
-              >
-                {marketplaceFilter === 'all' && <Store className="w-3.5 h-3.5 text-indigo-500" />}
-                {marketplaceFilter === 'web' && <Globe className="w-3.5 h-3.5 text-blue-500" />}
-                {marketplaceFilter === 'trendyol' && <ShoppingBag className="w-3.5 h-3.5 text-orange-500" />}
-                {marketplaceFilter === 'hepsiburada' && <ShoppingBag className="w-3.5 h-3.5 text-amber-500" />}
-                {marketplaceFilter === 'amazon' && <Box className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />}
-                {marketplaceFilter === 'n11' && <Tag className="w-3.5 h-3.5 text-red-500" />}
-                {marketplaceFilter === 'pazarama' && <Store className="w-3.5 h-3.5 text-purple-500" />}
-
-                <span>
-                  {marketplaceFilter === 'all' && (isTr ? 'Kanallar' : 'Channels')}
-                  {marketplaceFilter === 'web' && (isTr ? 'Doğrudan Web' : 'Direct Web')}
-                  {marketplaceFilter === 'trendyol' && 'Trendyol'}
-                  {marketplaceFilter === 'hepsiburada' && 'Hepsiburada'}
-                  {marketplaceFilter === 'amazon' && 'Amazon'}
-                  {marketplaceFilter === 'n11' && 'N11'}
-                  {marketplaceFilter === 'pazarama' && 'Pazarama'}
-                </span>
-
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${marketplaceDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {marketplaceDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-50 w-56 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl space-y-1 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+                {(statusFilter !== 'all' || (showMarketplaceFilter && marketplaceFilter !== 'all')) && (
                   <button
                     type="button"
-                    onClick={() => { setMarketplaceFilter('all'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'all' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    onClick={() => { setStatusFilter('all'); setMarketplaceFilter('all'); setPage(1); }}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded-xl transition-all cursor-pointer shrink-0"
+                    title={isTr ? "Tüm Filtreleri Temizle" : "Clear All Filters"}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-                        <Store className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                      </div>
-                      <span>{isTr ? 'Tüm Kanallar' : 'All Channels'}</span>
-                    </div>
-                    {marketplaceFilter === 'all' && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+                    <X className="w-3 h-3 text-slate-400" />
+                    <span className="hidden sm:inline">{isTr ? "Temizle" : "Clear"}</span>
                   </button>
+                )}
+              </div>
 
+              {/* CONTEMPORARY E-MARKETPLACE FILTER POPOVER (NO PRIMITIVE EMOJIS) */}
+              {showMarketplaceFilter && (
+                <div className="relative shrink-0 ml-auto" ref={marketplaceDropdownRef}>
                   <button
                     type="button"
-                    onClick={() => { setMarketplaceFilter('web'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'web' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                    onClick={() => setMarketplaceDropdownOpen(!marketplaceDropdownOpen)}
+                    className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 text-slate-800 dark:text-slate-100 font-medium text-xs rounded-xl shadow-2xs transition-all cursor-pointer"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                        <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <span>{isTr ? 'Doğrudan Web' : 'Direct Web'}</span>
-                    </div>
-                    {marketplaceFilter === 'web' && <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+                    {marketplaceFilter === 'all' && <Store className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                    {marketplaceFilter === 'web' && <Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
+                    {marketplaceFilter === 'trendyol' && <ShoppingBag className="w-3.5 h-3.5 text-orange-500 shrink-0" />}
+                    {marketplaceFilter === 'hepsiburada' && <ShoppingBag className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+                    {marketplaceFilter === 'amazon' && <Box className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
+                    {marketplaceFilter === 'n11' && <Tag className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+                    {marketplaceFilter === 'pazarama' && <Store className="w-3.5 h-3.5 text-purple-500 shrink-0" />}
+
+                    <span className="truncate max-w-[80px] sm:max-w-none">
+                      {marketplaceFilter === 'all' && (isTr ? 'Kanallar' : 'Channels')}
+                      {marketplaceFilter === 'web' && (isTr ? 'Web' : 'Web')}
+                      {marketplaceFilter === 'trendyol' && 'Trendyol'}
+                      {marketplaceFilter === 'hepsiburada' && 'Hepsiburada'}
+                      {marketplaceFilter === 'amazon' && 'Amazon'}
+                      {marketplaceFilter === 'n11' && 'N11'}
+                      {marketplaceFilter === 'pazarama' && 'Pazarama'}
+                    </span>
+
+                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${marketplaceDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
 
-                  {connectedMarketplaces.trendyol && (
-                    <button
-                      type="button"
-                      onClick={() => { setMarketplaceFilter('trendyol'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'trendyol' ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-lg bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center">
-                          <ShoppingBag className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                  {marketplaceDropdownOpen && (
+                    <div className="absolute right-0 top-full mt-1.5 z-50 w-56 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl space-y-1 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+                      <button
+                        type="button"
+                        onClick={() => { setMarketplaceFilter('all'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'all' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+                            <Store className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                          </div>
+                          <span>{isTr ? 'Tüm Kanallar' : 'All Channels'}</span>
                         </div>
-                        <span>Trendyol</span>
-                      </div>
-                      {marketplaceFilter === 'trendyol' && <Check className="w-4 h-4 text-orange-600 dark:text-orange-400" />}
-                    </button>
-                  )}
+                        {marketplaceFilter === 'all' && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+                      </button>
 
-                  {connectedMarketplaces.hepsiburada && (
-                    <button
-                      type="button"
-                      onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'hepsiburada' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
-                          <ShoppingBag className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <button
+                        type="button"
+                        onClick={() => { setMarketplaceFilter('web'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'web' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                            <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <span>{isTr ? 'Doğrudan Web' : 'Direct Web'}</span>
                         </div>
-                        <span>Hepsiburada</span>
-                      </div>
-                      {marketplaceFilter === 'hepsiburada' && <Check className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
-                    </button>
-                  )}
+                        {marketplaceFilter === 'web' && <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+                      </button>
 
-                  {connectedMarketplaces.amazon && (
-                    <button
-                      type="button"
-                      onClick={() => { setMarketplaceFilter('amazon'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'amazon' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-lg bg-amber-200/60 dark:bg-amber-900/60 flex items-center justify-center">
-                          <Box className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300" />
-                        </div>
-                        <span>Amazon</span>
-                      </div>
-                      {marketplaceFilter === 'amazon' && <Check className="w-4 h-4 text-amber-700 dark:text-amber-300" />}
-                    </button>
-                  )}
+                      {connectedMarketplaces.trendyol && (
+                        <button
+                          type="button"
+                          onClick={() => { setMarketplaceFilter('trendyol'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'trendyol' ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-6 h-6 rounded-lg bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center">
+                              <ShoppingBag className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                            </div>
+                            <span>Trendyol</span>
+                          </div>
+                          {marketplaceFilter === 'trendyol' && <Check className="w-4 h-4 text-orange-600 dark:text-orange-400" />}
+                        </button>
+                      )}
 
-                  {connectedMarketplaces.n11 && (
-                    <button
-                      type="button"
-                      onClick={() => { setMarketplaceFilter('n11'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'n11' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-lg bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
-                          <Tag className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-                        </div>
-                        <span>N11</span>
-                      </div>
-                      {marketplaceFilter === 'n11' && <Check className="w-4 h-4 text-red-600 dark:text-red-400" />}
-                    </button>
-                  )}
+                      {connectedMarketplaces.hepsiburada && (
+                        <button
+                          type="button"
+                          onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'hepsiburada' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                              <ShoppingBag className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <span>Hepsiburada</span>
+                          </div>
+                          {marketplaceFilter === 'hepsiburada' && <Check className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
+                        </button>
+                      )}
 
-                  {connectedMarketplaces.pazarama && (
-                    <button
-                      type="button"
-                      onClick={() => { setMarketplaceFilter('pazarama'); setPage(1); setMarketplaceDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'pazarama' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
-                          <Store className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <span>Pazarama</span>
-                      </div>
-                      {marketplaceFilter === 'pazarama' && <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />}
-                    </button>
+                      {connectedMarketplaces.amazon && (
+                        <button
+                          type="button"
+                          onClick={() => { setMarketplaceFilter('amazon'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'amazon' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-6 h-6 rounded-lg bg-amber-200/60 dark:bg-amber-900/60 flex items-center justify-center">
+                              <Box className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300" />
+                            </div>
+                            <span>Amazon</span>
+                          </div>
+                          {marketplaceFilter === 'amazon' && <Check className="w-4 h-4 text-amber-700 dark:text-amber-300" />}
+                        </button>
+                      )}
+
+                      {connectedMarketplaces.n11 && (
+                        <button
+                          type="button"
+                          onClick={() => { setMarketplaceFilter('n11'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'n11' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-6 h-6 rounded-lg bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
+                              <Tag className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                            </div>
+                            <span>N11</span>
+                          </div>
+                          {marketplaceFilter === 'n11' && <Check className="w-4 h-4 text-red-600 dark:text-red-400" />}
+                        </button>
+                      )}
+
+                      {connectedMarketplaces.pazarama && (
+                        <button
+                          type="button"
+                          onClick={() => { setMarketplaceFilter('pazarama'); setPage(1); setMarketplaceDropdownOpen(false); }}
+                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${marketplaceFilter === 'pazarama' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 font-medium' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'}`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+                              <Store className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <span>Pazarama</span>
+                          </div>
+                          {marketplaceFilter === 'pazarama' && <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <SalesInvoiceTable 
         invoices={filteredInvoices.slice((page - 1) * itemsPerPage, page * itemsPerPage)}

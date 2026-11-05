@@ -192,50 +192,10 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
             >
               <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
               <span className="text-[11px] font-medium text-amber-900 hidden lg:inline whitespace-nowrap">
-                {lang === 'tr' ? "Mükerrer Birleştir" : "Merge Duplicates"}
+                {lang === 'tr' ? "Birleştir" : "Merge"}
               </span>
             </button>
-            {setIsEanModalOpen && (
-              <button 
-                type="button"
-                onClick={() => setIsEanModalOpen(true)}
-                className="os-btn-secondary p-2 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all border border-blue-200 hover:border-blue-300 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
-                title={lang === 'tr' ? "Geçici Barkodları Orijinal EAN-13 Barkodlarına Dönüştür" : "Enrich Temporary Barcodes to Original EAN"}
-              >
-                <BarcodeIcon className="h-4 w-4 text-blue-600 shrink-0" />
-                <span className="text-[11px] font-medium text-blue-900 hidden lg:inline whitespace-nowrap">
-                  {lang === 'tr' ? "EAN Tamamla" : "Enrich EAN"}
-                </span>
-              </button>
-            )}
           </>
-        )}
-
-        {driveConnected && (
-          <button 
-            type="button"
-            onClick={async () => {
-              setIsBackupLoading(true);
-              const promise = api.exportToGoogleDrive({ targetType: 'products', format: 'xls' });
-              toast.promise(promise, {
-                loading: 'Ürün şeması Google Drive\'a yedekleniyor...',
-                success: 'Ürün şeması Excel formatında Google Drive\'a başarıyla kaydoldu!',
-                error: 'Google Drive yedeklemesi başarısız oldu.'
-              });
-              try {
-                await promise;
-              } catch (e) {
-                console.error(e);
-              } finally {
-                setIsBackupLoading(false);
-              }
-            }}
-            disabled={isBackupLoading}
-            className="os-btn-secondary p-2 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
-            title={lang === 'tr' ? "Google Drive'a Yedekle" : "Backup to Google Drive"}
-          >
-            <Cloud className="h-4 w-4 text-emerald-600" />
-          </button>
         )}
       </div>
     </div>

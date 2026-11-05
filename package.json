@@ -10,7 +10,7 @@
     "start": "NODE_ENV=production node --max-old-space-size=450 dist/server.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit",
+    "lint": "esbuild src/main.tsx server.ts --bundle --platform=node --target=node22 --outdir=/tmp/lint-check --format=esm --packages=external --loader:.png=dataurl --loader:.jpg=dataurl --loader:.svg=dataurl --loader:.css=empty",
     "verify:critical": "tsx scripts/verifyCriticalFlows.ts",
     "postinstall": "node scripts/patch-html2canvas.cjs"
   },
