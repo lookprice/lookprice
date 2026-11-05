@@ -81,7 +81,7 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0 h-full max-h-full overflow-hidden relative">
         {/* Unified Full-Screen Top Header with Accessible Menü Toggle Button */}
-        <div className="dashboard-top-header flex items-center justify-between px-3 sm:px-4 py-2 bg-white border-b border-slate-200/80 shrink-0 shadow-2xs z-20 select-none">
+        <div className="dashboard-top-header flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 min-h-[54px] sm:min-h-[58px] bg-white border-b border-slate-200/80 shrink-0 shadow-2xs z-20 select-none">
           <div className="flex items-center gap-2.5 min-w-0">
             <button 
               onClick={() => {
@@ -97,7 +97,7 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
 
             <div className="flex items-center gap-2 min-w-0">
               <StoreLogo logoUrl={headerLogoUrl} storeName={headerStoreName} size="xs" />
-              <div className="font-black text-slate-900 truncate tracking-tight uppercase text-xs sm:text-sm">
+              <div className="font-black text-slate-900 truncate tracking-tight uppercase text-xs sm:text-sm max-w-[110px] xs:max-w-[140px] sm:max-w-xs md:max-w-md">
                 {headerStoreName}
               </div>
             </div>
@@ -122,6 +122,7 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
               storeId={sidebarProps?.currentStoreId}
               lang={lang}
               onRefreshNotifications={sidebarProps?.onRefreshNotifications}
+              hideHeaderButton={true}
             />
 
             {sidebarProps?.setActiveTab && (

@@ -103,6 +103,7 @@ interface OutlookTasksNotesHubProps {
   storeId?: number;
   lang?: string;
   onRefreshNotifications?: () => void;
+  hideHeaderButton?: boolean;
 }
 
 const STATE_COLOR_CLASSES: Record<string, { bg: string; text: string; border: string; dot: string }> = {
@@ -146,16 +147,25 @@ const STICKY_NOTE_STYLES: Record<string, { card: string; header: string; border:
 export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
   storeId,
   lang = "tr",
-  onRefreshNotifications
+  onRefreshNotifications,
+  hideHeaderButton = false
 }) => {
   const isTr = lang === "tr";
 
   // Workspace Drawer & Mini Pull-Tab States
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const handleCustomOpen = (e: any) => {
+      if (e?.detail?.section) setActiveSection(e.detail.section);
+      setIsOpen(true);
+    };
+    window.addEventListener("open-tasks-notes-hub", handleCustomOpen);
+    return () => window.removeEventListener("open-tasks-notes-hub", handleCustomOpen);
+  }, []);
   const [activeSection, setActiveSection] = useState<"tasks" | "notes" | "workflow">("tasks");
   const [topPullExpanded, setTopPullExpanded] = useState(false);
-  const [bottomPullExpanded, setBottomPullExpanded] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -170,8 +180,8 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
   const [branches, setBranches] = useState<Array<{ id: number; name: string }>>([]);
   const [users, setUsers] = useState<Array<{ id: number; email: string; role: string }>>([]);
 
-  // Scope & Filters
-  const [scope, setScope] = useState<"all" | "personal" | "shared">("all");
+  // Scope & Filters (Default: personal as requested)
+  const [scope, setScope] = useState<"all" | "personal" | "shared">("personal");
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
   const [taskFilter, setTaskFilter] = useState<string>("active"); // 'all' | 'active' | 'overdue_today' | 'high' | 'completed' | state_key
   const [taskSearch, setTaskSearch] = useState("");
@@ -660,40 +670,42 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
 
   return (
     <>
-      {/* 1. HEADER QUICK-LAUNCH ICON BUTTON (Placed next to Notification Bell in DashboardLayout) */}
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => {
-            setActiveSection("tasks");
-            setIsOpen(true);
-          }}
-          className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
-            isOpen
-              ? "bg-slate-900 text-white border-slate-900 shadow-xs"
-              : overdueOrHighCount > 0
-              ? "bg-amber-50 hover:bg-amber-100 text-slate-950 border-amber-300"
-              : "bg-white hover:bg-slate-100 text-slate-800 border-slate-200"
-          }`}
-          title={isTr ? "Outlook Görevler & Sarı Yapışkan Notlar (Alt+T / Alt+N)" : "Outlook Tasks & Sticky Notes"}
-        >
-          <CheckSquare className="w-4 h-4 text-amber-600 shrink-0" />
-          <span className="hidden md:inline text-xs font-black tracking-tight">
-            {isTr ? "Görev & Not" : "Tasks & Notes"}
-          </span>
-          {(activeTasksCount > 0 || activeNotesCount > 0) && (
-            <span
-              className={`min-w-[18px] h-4 px-1 rounded-full text-[10px] font-mono font-black flex items-center justify-center ${
-                overdueOrHighCount > 0
-                  ? "bg-rose-600 text-white animate-pulse"
-                  : "bg-amber-400 text-slate-950"
-              }`}
-            >
-              {activeTasksCount}
+      {/* 1. HEADER QUICK-LAUNCH ICON BUTTON (Only if !hideHeaderButton) */}
+      {!hideHeaderButton && (
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveSection("tasks");
+              setIsOpen(true);
+            }}
+            className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
+              isOpen
+                ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                : overdueOrHighCount > 0
+                ? "bg-amber-50 hover:bg-amber-100 text-slate-950 border-amber-300"
+                : "bg-white hover:bg-slate-100 text-slate-800 border-slate-200"
+            }`}
+            title={isTr ? "Outlook Görevler & Sarı Yapışkan Notlar (Alt+T / Alt+N)" : "Outlook Tasks & Sticky Notes"}
+          >
+            <CheckSquare className="w-4 h-4 text-amber-600 shrink-0" />
+            <span className="hidden md:inline text-xs font-black tracking-tight">
+              {isTr ? "Görev & Not" : "Tasks & Notes"}
             </span>
-          )}
-        </button>
-      </div>
+            {(activeTasksCount > 0 || activeNotesCount > 0) && (
+              <span
+                className={`min-w-[18px] h-4 px-1 rounded-full text-[10px] font-mono font-black flex items-center justify-center ${
+                  overdueOrHighCount > 0
+                    ? "bg-rose-600 text-white animate-pulse"
+                    : "bg-amber-400 text-slate-950"
+                }`}
+              >
+                {activeTasksCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* 2. TOP-CENTER HIDDEN PULL-TAB MENU (Mobile & Desktop Quick Access Handle) */}
       {mounted && typeof document !== "undefined" && createPortal(
@@ -771,62 +783,7 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
       document.body
     )}
 
-      {/* 3. BOTTOM-CENTER HIDDEN PULL-TAB MENU (Especially for Mobile Thumb Ergonomics) */}
-      {mounted && typeof document !== "undefined" && createPortal(
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[99990] flex flex-col items-center pointer-events-none sm:hidden">
-          {bottomPullExpanded && (
-            <div className="pointer-events-auto mb-1 bg-slate-900 text-white border border-slate-700 rounded-xl shadow-2xl px-2.5 py-2 flex items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSection("tasks");
-                  setIsOpen(true);
-                  setBottomPullExpanded(false);
-                }}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-black"
-              >
-                <CheckSquare className="w-3.5 h-3.5 text-amber-400" />
-                <span>{isTr ? `Görevler (${activeTasksCount})` : `Tasks (${activeTasksCount})`}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSection("notes");
-                  setIsOpen(true);
-                  setBottomPullExpanded(false);
-                }}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#fde047] text-slate-950 text-xs font-black"
-              >
-                <StickyNote className="w-3.5 h-3.5 text-slate-950" />
-                <span>{isTr ? `Notlar (${activeNotesCount})` : `Notes (${activeNotesCount})`}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setBottomPullExpanded(false)}
-                className="p-1 text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => setBottomPullExpanded((prev) => !prev)}
-            className="pointer-events-auto flex items-center gap-1.5 px-4 py-1 bg-slate-900 text-white rounded-t-xl border-x border-t border-slate-700 shadow-lg"
-          >
-            <ChevronUp className={`w-3.5 h-3.5 text-amber-400 transition-transform ${bottomPullExpanded ? "rotate-180" : ""}`} />
-            <span className="text-[10px] font-black uppercase tracking-wider">
-              {isTr ? "Görev & Sarı Not" : "Tasks & Notes"}
-            </span>
-            {activeTasksCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[9px] font-mono font-black">
-                {activeTasksCount}
-              </span>
-            )}
-          </button>
-        </div>,
-        document.body
-      )}
+
 
       {/* 4. REAL-TIME ACOUSTIC TASK REMINDER POPUP (Outlook 2007 Reminder Dialog) */}
       {mounted && typeof document !== "undefined" && activeReminderTasks.length > 0 && createPortal(
@@ -943,29 +900,29 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
       {/* 5. MAIN OUTLOOK 2007 TASKS & STICKY NOTES WORKSPACE MODAL / DRAWER */}
       {mounted && typeof document !== "undefined" && isOpen && createPortal(
         <div
-          className="fixed inset-0 z-[99999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-1.5 sm:p-3 overflow-hidden pointer-events-auto"
+          className="fixed inset-0 z-[99999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-1 sm:p-3 overflow-hidden pointer-events-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsOpen(false);
           }}
         >
-          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-6xl h-[92vh] max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl text-slate-950 select-none relative z-[100000]">
-            {/* TOP CORPORATE BAR (Single Module Header Rule & High Contrast Rule) */}
-            <div className="bg-slate-900 text-white px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 shrink-0">
-              {/* Primary Navigation Pills: Tasks | Sticky Notes | State-Machine */}
-              <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-6xl h-[98vh] sm:h-[92vh] max-h-[98dvh] sm:max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl text-slate-950 select-none relative z-[100000]">
+            {/* TOP CORPORATE BAR (Single Module Header Rule & High Contrast Rule - Single Row Non-Wrapping) */}
+            <div className="bg-slate-900 text-white px-2.5 sm:px-3.5 py-1.5 sm:py-2 flex items-center justify-between gap-1 sm:gap-2 border-b border-slate-800 shrink-0 flex-nowrap">
+              {/* Primary Navigation Icons (Tasks & Notes with Badges, Icon-Only) */}
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   type="button"
                   onClick={() => setActiveSection("tasks")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                     activeSection === "tasks"
                       ? "bg-amber-400 text-slate-950 shadow-xs"
                       : "bg-slate-800 text-slate-200 hover:bg-slate-700"
                   }`}
+                  title={isTr ? "Görevler (Tasks)" : "Tasks"}
                 >
-                  <CheckSquare className="w-3.5 h-3.5" />
-                  <span>{isTr ? "Görevler (Tasks)" : "Tasks"}</span>
+                  <CheckSquare className="w-4 h-4" />
                   <span
-                    className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                    className={`px-1 py-0.2 rounded text-[10px] font-mono font-black ${
                       activeSection === "tasks" ? "bg-slate-950 text-amber-400" : "bg-slate-700 text-white"
                     }`}
                   >
@@ -976,16 +933,16 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveSection("notes")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                     activeSection === "notes"
                       ? "bg-[#fde047] text-slate-950 shadow-xs"
                       : "bg-slate-800 text-slate-200 hover:bg-slate-700"
                   }`}
+                  title={isTr ? "Yapışkan Notlar (Notes)" : "Sticky Notes"}
                 >
-                  <StickyNote className="w-3.5 h-3.5" />
-                  <span>{isTr ? "Yapışkan Notlar (Notes)" : "Sticky Notes"}</span>
+                  <StickyNote className="w-4 h-4 text-slate-950" />
                   <span
-                    className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                    className={`px-1 py-0.2 rounded text-[10px] font-mono font-black ${
                       activeSection === "notes" ? "bg-slate-950 text-[#fde047]" : "bg-slate-700 text-white"
                     }`}
                   >
@@ -996,63 +953,39 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveSection("workflow")}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                  className={`flex items-center justify-center p-1.5 sm:px-2 sm:py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                     activeSection === "workflow"
                       ? "bg-indigo-500 text-white shadow-xs"
                       : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                   }`}
                   title={isTr ? "Esnek Durum Makinesi (State-Machine) İş Akışı" : "State-Machine Workflow"}
                 >
-                  <GitBranch className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{isTr ? "Durum Motoru" : "State Engine"}</span>
+                  <GitBranch className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Multi-User / Multi-Branch Scope & Audio Controls */}
-              <div className="flex items-center gap-1.5 ml-auto">
-                {/* Personal vs Shared Scope */}
-                <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700 text-[11px] font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setScope("personal")}
-                    className={`px-2 py-1 rounded-md flex items-center gap-1 cursor-pointer ${
-                      scope === "personal" ? "bg-amber-400 text-slate-950 font-black" : "text-slate-300 hover:text-white"
-                    }`}
-                    title={isTr ? "Sadece Kişisel Görev ve Notlarım" : "My Personal Tasks & Notes"}
-                  >
-                    <User className="w-3 h-3" />
-                    <span className="hidden sm:inline">{isTr ? "Kişisel" : "Personal"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setScope("shared")}
-                    className={`px-2 py-1 rounded-md flex items-center gap-1 cursor-pointer ${
-                      scope === "shared" ? "bg-amber-400 text-slate-950 font-black" : "text-slate-300 hover:text-white"
-                    }`}
-                    title={isTr ? "Şube & Mağaza Ortak Görev/Notlar" : "Shared Branch/Store"}
-                  >
-                    <Users className="w-3 h-3" />
-                    <span className="hidden sm:inline">{isTr ? "Ekip" : "Shared"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setScope("all")}
-                    className={`px-2 py-1 rounded-md cursor-pointer ${
-                      scope === "all" ? "bg-amber-400 text-slate-950 font-black" : "text-slate-300 hover:text-white"
-                    }`}
-                  >
-                    {isTr ? "Tümü" : "All"}
-                  </button>
-                </div>
+              {/* Multi-User / Multi-Branch Scope & Controls - ALL IN SINGLE ROW */}
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
+                {/* Personal / Shared / All Dropdown Select (Default: Kişisel) */}
+                <select
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value as any)}
+                  className="bg-slate-800 text-amber-300 border border-slate-700 rounded-lg px-2 py-1 text-[11px] sm:text-xs font-bold outline-none cursor-pointer"
+                  title={isTr ? "Kapsam Seçimi" : "Scope"}
+                >
+                  <option value="personal">{isTr ? "Bireysel" : "Personal"}</option>
+                  <option value="shared">{isTr ? "Grup / Ekip" : "Shared"}</option>
+                  <option value="all">{isTr ? "Tümü" : "All"}</option>
+                </select>
 
                 {/* Multi-Branch Selector if branches exist */}
                 {branches.length > 0 && (
                   <select
                     value={selectedBranchId || ""}
                     onChange={(e) => setSelectedBranchId(e.target.value ? Number(e.target.value) : null)}
-                    className="bg-slate-800 text-white border border-slate-700 rounded-lg px-2 py-1 text-[11px] font-bold w-28 outline-none"
+                    className="bg-slate-800 text-white border border-slate-700 rounded-lg px-1.5 py-1 text-[11px] font-bold w-20 sm:w-28 outline-none"
                   >
-                    <option value="">{isTr ? "Tüm Şubeler" : "All Branches"}</option>
+                    <option value="">{isTr ? "Şubeler" : "Branches"}</option>
                     {branches.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.name}
@@ -1061,7 +994,7 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                   </select>
                 )}
 
-                {/* Audio Reminder Toggle & Test */}
+                {/* Audio Reminder Toggle */}
                 <button
                   type="button"
                   onClick={toggleSound}
@@ -1073,32 +1006,34 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                   title={
                     soundEnabled
                       ? isTr
-                        ? "Sesli Uyarılar Açık (Test için tıkla)"
+                        ? "Sesli Uyarılar Açık"
                         : "Sound Alerts On"
                       : isTr
                       ? "Sesli Uyarılar Kapalı"
                       : "Sound Alerts Muted"
                   }
                 >
-                  {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                  {soundEnabled ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                 </button>
 
+                {/* Refresh */}
                 <button
                   type="button"
                   onClick={() => fetchBootstrap(false)}
                   className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 cursor-pointer"
                   title={isTr ? "Yenile" : "Refresh"}
                 >
-                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-amber-400" : ""}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? "animate-spin text-amber-400" : ""}`} />
                 </button>
 
+                {/* Close */}
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
                   className="p-1.5 bg-slate-800 hover:bg-rose-600 text-white rounded-lg border border-slate-700 transition-colors cursor-pointer"
                   title={isTr ? "Kapat" : "Close"}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
               </div>
             </div>
@@ -1106,132 +1041,119 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
             {/* ==================== SECTION 1: OUTLOOK 2007 TASKS (GÖREVLER) ==================== */}
             {activeSection === "tasks" && (
               <div className="flex-1 min-h-0 flex flex-col bg-slate-50 overflow-hidden">
-                {/* Outlook 2007 Fast Task Creation Row ("Yeni görev eklemek için buraya yazın...") */}
+                {/* Outlook 2007 Fast Task Creation Row - Compact & Space-Efficient */}
                 <form
                   onSubmit={handleCreateQuickTask}
-                  className="bg-white border-b border-slate-200 px-3 py-2 flex flex-wrap items-center gap-1.5 shrink-0"
+                  className="bg-white border-b border-slate-200 px-2 sm:px-3 py-1.5 flex flex-wrap items-center gap-1.5 shrink-0"
                 >
-                  <input
-                    type="text"
-                    value={quickTaskTitle}
-                    onChange={(e) => setQuickTaskTitle(e.target.value)}
-                    placeholder={
-                      isTr
-                        ? "Yeni görev eklemek için buraya yazın (Örn: Kira sözleşmesi onayı, Tedarikçi ödemesi)..."
-                        : "Type a new task here..."
-                    }
-                    className="flex-1 min-w-[200px] px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-950 placeholder:text-slate-500 outline-none focus:border-slate-900 focus:bg-white"
-                  />
-
-                  {/* Priority Compact Select (Rule 13: w-28) */}
-                  <select
-                    value={quickTaskPriority}
-                    onChange={(e) => setQuickTaskPriority(e.target.value as any)}
-                    className="w-28 px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-black text-slate-900 outline-none"
-                    title={isTr ? "Öncelik Sırası" : "Priority"}
-                  >
-                    <option value="low">{isTr ? "Düşük Öncelik" : "Low"}</option>
-                    <option value="normal">{isTr ? "Normal" : "Normal"}</option>
-                    <option value="high">{isTr ? "Yüksek (!)" : "High (!)"}</option>
-                  </select>
-
-                  {/* Initial State Compact Select (Rule 13: w-32) */}
-                  <select
-                    value={quickTaskState}
-                    onChange={(e) => setQuickTaskState(e.target.value)}
-                    className="w-32 px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 outline-none"
-                    title={isTr ? "Başlangıç Durumu" : "Initial State"}
-                  >
-                    {states.map((st) => (
-                      <option key={st.state_key} value={st.state_key}>
-                        {isTr ? st.label_tr : st.label_en}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Due Date & Time Compact Input */}
-                  <div className="flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-lg px-2 py-1">
-                    <Calendar className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                  <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
                     <input
-                      type="datetime-local"
-                      value={quickTaskDueDate}
-                      onChange={(e) => setQuickTaskDueDate(e.target.value)}
-                      className="text-[11px] font-mono font-bold text-slate-900 bg-transparent outline-none w-36"
-                      title={isTr ? "Son Teslim Tarihi ve Alarm Zamanı" : "Due Date & Reminder"}
+                      type="text"
+                      value={quickTaskTitle}
+                      onChange={(e) => setQuickTaskTitle(e.target.value)}
+                      placeholder={
+                        isTr
+                          ? "Yeni görev eklemek için buraya yazın..."
+                          : "Type a new task here..."
+                      }
+                      className="flex-1 min-w-0 px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-950 placeholder:text-slate-500 outline-none focus:border-slate-900 focus:bg-white"
                     />
                   </div>
 
-                  {/* Visibility Compact Select (Rule 13: w-24) */}
-                  <select
-                    value={quickTaskVisibility}
-                    onChange={(e) => setQuickTaskVisibility(e.target.value as any)}
-                    className="w-24 px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none"
-                    title={isTr ? "Görünürlük (Kişisel / Şube / Mağaza)" : "Visibility"}
-                  >
-                    <option value="personal">{isTr ? "Kişisel" : "Personal"}</option>
-                    <option value="branch">{isTr ? "Şube" : "Branch"}</option>
-                    <option value="store">{isTr ? "Mağaza" : "Store"}</option>
-                  </select>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {/* Priority Compact Select (Rule 13: compact w-20 to w-24) */}
+                    <select
+                      value={quickTaskPriority}
+                      onChange={(e) => setQuickTaskPriority(e.target.value as any)}
+                      className="w-20 sm:w-24 px-1.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[10px] sm:text-xs font-black text-slate-900 outline-none"
+                      title={isTr ? "Öncelik Sırası" : "Priority"}
+                    >
+                      <option value="low">{isTr ? "Düşük" : "Low"}</option>
+                      <option value="normal">{isTr ? "Normal" : "Normal"}</option>
+                      <option value="high">{isTr ? "Yüksek (!)" : "High (!)"}</option>
+                    </select>
 
-                  <button
-                    type="submit"
-                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-black flex items-center gap-1 cursor-pointer shrink-0 shadow-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{isTr ? "Görev Ekle" : "Add Task"}</span>
-                  </button>
+                    {/* Initial State Compact Select */}
+                    <select
+                      value={quickTaskState}
+                      onChange={(e) => setQuickTaskState(e.target.value)}
+                      className="w-24 sm:w-28 px-1.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[10px] sm:text-xs font-bold text-slate-900 outline-none"
+                      title={isTr ? "Başlangıç Durumu" : "Initial State"}
+                    >
+                      {states.map((st) => (
+                        <option key={st.state_key} value={st.state_key}>
+                          {isTr ? st.label_tr : st.label_en}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Due Date Compact Picker without manual text noise */}
+                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-lg px-1.5 py-0.5">
+                      <Calendar className="w-3 h-3 text-slate-600 shrink-0" />
+                      <input
+                        type="date"
+                        value={quickTaskDueDate ? quickTaskDueDate.slice(0, 10) : ""}
+                        onChange={(e) =>
+                          setQuickTaskDueDate(
+                            e.target.value ? new Date(e.target.value + "T18:00:00").toISOString() : ""
+                          )
+                        }
+                        className="text-[10px] sm:text-[11px] font-bold text-slate-900 bg-transparent outline-none w-24 sm:w-28 py-0.5 cursor-pointer"
+                        title={isTr ? "Son Teslim Tarihi" : "Due Date"}
+                      />
+                    </div>
+
+                    {/* Visibility Compact Select */}
+                    <select
+                      value={quickTaskVisibility}
+                      onChange={(e) => setQuickTaskVisibility(e.target.value as any)}
+                      className="w-18 sm:w-22 px-1.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[10px] sm:text-xs font-bold text-slate-900 outline-none"
+                      title={isTr ? "Görünürlük (Kişisel / Şube / Mağaza)" : "Visibility"}
+                    >
+                      <option value="personal">{isTr ? "Kişisel" : "Personal"}</option>
+                      <option value="branch">{isTr ? "Şube" : "Branch"}</option>
+                      <option value="store">{isTr ? "Mağaza" : "Store"}</option>
+                    </select>
+
+                    <button
+                      type="submit"
+                      className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-black flex items-center gap-1 cursor-pointer shrink-0 shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{isTr ? "Ekle" : "Add"}</span>
+                    </button>
+                  </div>
                 </form>
 
-                {/* Filter & Search Sub-Bar */}
-                <div className="bg-slate-100 border-b border-slate-200 px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 shrink-0">
-                  <div className="flex items-center gap-1 overflow-x-auto">
-                    {[
-                      { id: "active", label: isTr ? "Aktif Görevler" : "Active" },
-                      { id: "overdue_today", label: isTr ? "Bugün & Gecikenler" : "Due Today / Overdue" },
-                      { id: "high", label: isTr ? "Yüksek Öncelik (!)" : "High Priority" },
-                      { id: "completed", label: isTr ? "Tamamlananlar" : "Completed" },
-                      { id: "all", label: isTr ? "Tümü" : "All" }
-                    ].map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => setTaskFilter(f.id)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-black whitespace-nowrap transition-colors cursor-pointer ${
-                          taskFilter === f.id
-                            ? "bg-slate-900 text-white"
-                            : "bg-white text-slate-700 hover:bg-slate-200 border border-slate-300"
-                        }`}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
+                {/* Filter & Search Sub-Bar (Integrated Single Row for Maximum Mobile Height) */}
+                <div className="bg-slate-100 border-b border-slate-200 px-2 sm:px-3 py-1 sm:py-1.5 flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  <select
+                    value={taskFilter}
+                    onChange={(e) => setTaskFilter(e.target.value)}
+                    className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-[11px] font-black text-slate-900 outline-none w-36 sm:w-48 shrink-0 shadow-2xs"
+                  >
+                    <option value="active">{isTr ? "Aktif Görevler" : "Active"}</option>
+                    <option value="overdue_today">{isTr ? "Bugün & Gecikenler" : "Due Today / Overdue"}</option>
+                    <option value="high">{isTr ? "Yüksek Öncelik (!)" : "High Priority"}</option>
+                    <option value="completed">{isTr ? "Tamamlananlar" : "Completed"}</option>
+                    <option value="all">{isTr ? "Tümü" : "All"}</option>
+                    <optgroup label={isTr ? "Durumlar (States)" : "States"}>
+                      {states.map((st) => (
+                        <option key={st.state_key} value={st.state_key}>
+                          {isTr ? st.label_tr : st.label_en}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
 
-                    <span className="h-4 w-px bg-slate-300 mx-1" />
-
-                    {states.map((st) => (
-                      <button
-                        key={st.state_key}
-                        type="button"
-                        onClick={() => setTaskFilter(taskFilter === st.state_key ? "active" : st.state_key)}
-                        className={`px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap border cursor-pointer ${
-                          taskFilter === st.state_key
-                            ? "bg-slate-900 text-white border-slate-900"
-                            : "bg-white text-slate-700 border-slate-300 hover:bg-slate-200"
-                        }`}
-                      >
-                        {isTr ? st.label_tr : st.label_en}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="relative w-48">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={taskSearch}
                       onChange={(e) => setTaskSearch(e.target.value)}
                       placeholder={isTr ? "Görevlerde ara..." : "Search tasks..."}
-                      className="w-full pl-7 pr-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 outline-none focus:border-slate-900"
+                      className="w-full pl-6.5 pr-2 py-1 bg-white border border-slate-300 rounded-lg text-[11px] sm:text-xs font-semibold text-slate-900 outline-none focus:border-slate-900"
                     />
                   </div>
                 </div>
@@ -1240,12 +1162,12 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                 <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
                   {/* Task Table / List */}
                   <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-200 bg-white">
-                    {/* Table Header */}
-                    <div className="sticky top-0 z-10 bg-slate-100 border-b border-slate-300 px-3 py-1.5 grid grid-cols-12 gap-2 text-[10px] font-black uppercase tracking-wider text-slate-700">
-                      <div className="col-span-5 sm:col-span-5">{isTr ? "Görev Konusu & Bağlı Notlar" : "Task Subject"}</div>
-                      <div className="col-span-3 sm:col-span-2">{isTr ? "Durum (State)" : "State"}</div>
-                      <div className="col-span-2 sm:col-span-2">{isTr ? "Tamamlanma %" : "Complete %"}</div>
-                      <div className="col-span-2 sm:col-span-3 text-right">{isTr ? "Son Teslim Tarihi" : "Due Date"}</div>
+                    {/* Table Header - Shortened Column Names */}
+                    <div className="sticky top-0 z-10 bg-slate-100 border-b border-slate-300 px-2 sm:px-3 py-1 grid grid-cols-12 gap-1 sm:gap-2 text-[10px] font-black uppercase tracking-wider text-slate-700">
+                      <div className="col-span-5 sm:col-span-5">{isTr ? "GÖREV" : "TASK"}</div>
+                      <div className="col-span-3 sm:col-span-2">{isTr ? "DURUM" : "STATE"}</div>
+                      <div className="col-span-2 sm:col-span-2">{isTr ? "%" : "%"}</div>
+                      <div className="col-span-2 sm:col-span-3 text-right">{isTr ? "TARİH" : "DATE"}</div>
                     </div>
 
                     {filteredTasks.length === 0 ? (
@@ -1393,10 +1315,10 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                             </div>
 
                             {/* Col 4: Due Date & Reminder Indicator */}
-                            <div className="col-span-2 sm:col-span-3 flex items-center justify-end gap-1.5 text-right">
+                            <div className="col-span-2 sm:col-span-3 flex items-center justify-end gap-1 text-right">
                               {task.due_date ? (
                                 <span
-                                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                                  className={`px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-bold whitespace-nowrap ${
                                     isOverdue
                                       ? "bg-rose-600 text-white font-black"
                                       : isDone
@@ -1406,13 +1328,18 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                                 >
                                   {new Date(task.due_date).toLocaleDateString("tr-TR", {
                                     day: "2-digit",
-                                    month: "short",
-                                    hour: "2-digit",
-                                    minute: "2-digit"
+                                    month: "short"
                                   })}
+                                  <span className="hidden sm:inline">
+                                    {" "}
+                                    {new Date(task.due_date).toLocaleTimeString("tr-TR", {
+                                      hour: "2-digit",
+                                      minute: "2-digit"
+                                    })}
+                                  </span>
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-slate-400">{isTr ? "Tarihsiz" : "No Date"}</span>
+                                <span className="text-[9px] sm:text-[10px] text-slate-400">{isTr ? "Tarihsiz" : "No Date"}</span>
                               )}
 
                               <button
@@ -1421,7 +1348,7 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                                   e.stopPropagation();
                                   handleDeleteTask(task.id);
                                 }}
-                                className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
+                                className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer shrink-0"
                                 title={isTr ? "Görevi Sil" : "Delete Task"}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1434,7 +1361,13 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                   </div>
 
                   {/* Right Inspector: Selected Task Details & Attached Yellow Sticky Notes */}
-                  <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-slate-300 bg-slate-50 flex flex-col max-h-[44vh] lg:max-h-none overflow-y-auto p-3 space-y-3 shrink-0">
+                  <div
+                    className={`w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-slate-300 bg-slate-50 flex flex-col ${
+                      selectedTask
+                        ? "max-h-[48vh] lg:max-h-none p-2.5 sm:p-3 space-y-2.5"
+                        : "hidden lg:flex p-4 space-y-2"
+                    } overflow-y-auto shrink-0`}
+                  >
                     {selectedTask ? (
                       <>
                         <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-200">
@@ -1621,12 +1554,12 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                         </div>
                       </>
                     ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 p-4 space-y-2">
-                        <SlidersHorizontal className="w-7 h-7 text-slate-400" />
-                        <div className="text-xs font-bold text-slate-700">
+                      <div className="h-full hidden lg:flex flex-col items-center justify-center text-center text-slate-500 p-4 space-y-1.5">
+                        <SlidersHorizontal className="w-5 h-5 text-slate-400" />
+                        <div className="text-[11px] font-bold text-slate-600">
                           {isTr
-                            ? "Detaylarını görmek, sesli alarm kurmak veya sarı yapışkan not iliştirmek için listeden bir göreve tıklayın."
-                            : "Select a task to inspect details, set audio reminders, or attach sticky notes."}
+                            ? "Detayları görmek için listeden bir göreve tıklayın."
+                            : "Select a task to inspect details."}
                         </div>
                       </div>
                     )}
@@ -1638,21 +1571,53 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
             {/* ==================== SECTION 2: OUTLOOK 2007 YELLOW STICKY NOTES (NOTLAR) ==================== */}
             {activeSection === "notes" && (
               <div className="flex-1 min-h-0 flex flex-col sm:flex-row bg-slate-100 overflow-hidden">
-                {/* Left Classic Outlook Folder Tree */}
-                <div className="w-full sm:w-56 bg-white border-b sm:border-b-0 sm:border-r border-slate-300 p-2.5 flex flex-col gap-1.5 shrink-0">
+                {/* Left Classic Outlook Folder Tree (Desktop) / Top Dropdown Single-Row (Mobile) */}
+                <div className="w-full sm:w-56 bg-white border-b sm:border-b-0 sm:border-r border-slate-300 p-2 sm:p-2.5 flex sm:flex-col gap-1.5 shrink-0 items-center sm:items-stretch">
                   <button
                     type="button"
                     onClick={() => {
                       setShowNewNoteComposer(true);
                       setNewNoteFolder(selectedFolder === "ALL" ? "Genel" : selectedFolder);
                     }}
-                    className="w-full py-2 px-3 bg-[#fde047] hover:bg-[#facc15] text-slate-950 border border-amber-400 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                    className="py-1.5 px-3 sm:py-2 sm:px-3 bg-[#fde047] hover:bg-[#facc15] text-slate-950 border border-amber-400 rounded-xl font-black text-xs flex items-center justify-center gap-1 shadow-xs cursor-pointer shrink-0"
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>{isTr ? "Yeni Sarı Not Kağıdı" : "New Sticky Note"}</span>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isTr ? "Yeni Not" : "New Note"}</span>
                   </button>
 
-                  <div className="flex sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto pt-1">
+                  {/* Mobile Folder Selector Dropdown (Single Row with New Note Button) */}
+                  <div className="flex-1 sm:hidden min-w-0">
+                    <select
+                      value={showArchivedNotes ? "ARCHIVED" : selectedFolder}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "ARCHIVED") {
+                          setShowArchivedNotes(true);
+                        } else {
+                          setShowArchivedNotes(false);
+                          setSelectedFolder(val);
+                        }
+                      }}
+                      className="w-full bg-slate-50 border border-slate-300 text-slate-950 font-bold text-xs rounded-xl px-2 py-1.5 outline-none"
+                    >
+                      <option value="ALL">
+                        {isTr ? `Tüm Notlar (${activeNotesCount})` : `All Notes (${activeNotesCount})`}
+                      </option>
+                      {folders.map((f) => (
+                        <option key={f} value={f}>
+                          {f} ({notes.filter((n) => !n.is_archived && n.folder_name === f).length})
+                        </option>
+                      ))}
+                      <option value="ARCHIVED">
+                        {isTr
+                          ? `Arşivlenenler (${notes.filter((n) => n.is_archived).length})`
+                          : `Archived`}
+                      </option>
+                    </select>
+                  </div>
+
+                  {/* Desktop Classic Outlook Folder Tree */}
+                  <div className="hidden sm:flex flex-col gap-1 overflow-y-auto pt-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -1757,9 +1722,9 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
 
                 {/* Right Corkboard / Sticky Notes Canvas */}
                 <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                  {/* Search & Filter Bar */}
-                  <div className="bg-white border-b border-slate-200 px-3 py-2 flex items-center justify-between gap-2 shrink-0">
-                    <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                  {/* Search & Filter Bar (Label hidden on mobile, search full width) */}
+                  <div className="bg-white border-b border-slate-200 px-2 sm:px-3 py-1.5 sm:py-2 flex items-center justify-between gap-2 shrink-0">
+                    <div className="hidden sm:flex text-xs font-black text-slate-900 items-center gap-1.5">
                       <StickyNote className="w-4 h-4 text-amber-500" />
                       <span>
                         {showArchivedNotes
@@ -1774,7 +1739,7 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                       </span>
                     </div>
 
-                    <div className="relative w-56">
+                    <div className="relative w-full sm:w-56">
                       <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"

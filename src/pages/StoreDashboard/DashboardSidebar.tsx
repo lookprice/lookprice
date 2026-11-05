@@ -16,7 +16,8 @@ import {
   RefreshCw,
   ExternalLink,
   Calendar,
-  UserCheck
+  UserCheck,
+  CheckSquare
 } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
@@ -289,6 +290,27 @@ export const DashboardSidebar = ({
                 </div>
                 <span className="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
                   {!isPortfolio && !isCafeRestaurant && !isCorporateWebsite ? 'Afiş' : 'QR'}
+                </span>
+              </button>
+
+              {/* Outlook 2007 Tasks & Yellow Sticky Notes Hub */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('open-tasks-notes-hub', { detail: { section: 'tasks' } }));
+                  setSidebarOpen(false);
+                }}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-300 hover:bg-amber-400/10 transition-all border border-amber-400/20 group cursor-pointer"
+                title={lang === 'tr' ? 'Outlook Görevler & Sarı Yapışkan Notlar (Ajanda)' : 'Outlook Tasks & Sticky Notes'}
+              >
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <CheckSquare className="h-4 w-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
+                  <span className="truncate tracking-tight font-black">
+                    {lang === 'tr' ? 'Görevler & Notlar' : 'Tasks & Notes'}
+                  </span>
+                </div>
+                <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded uppercase font-mono">
+                  Ajanda
                 </span>
               </button>
               {isCafeRestaurant && currentStoreId && (
