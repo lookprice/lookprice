@@ -165,8 +165,26 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               </span>
             )}
             {property.listing_intent === 'rent' && (
-              <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md text-[10px] font-extrabold border border-amber-100">
-                {property.furnished ? 'Tam Eşyalı' : 'Eşyasız'}
+              <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${
+                Boolean(
+                  property.furnished === true ||
+                  (property as any).furnished === 'true' ||
+                  (property as any).furnished === 'esyali' ||
+                  (property as any).furnished === 'furnished' ||
+                  property.sector_data?.furnished === true ||
+                  property.sector_data?.furnished === 'esyali'
+                )
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                  : 'bg-amber-50 text-amber-800 border-amber-200'
+              }`}>
+                {Boolean(
+                  property.furnished === true ||
+                  (property as any).furnished === 'true' ||
+                  (property as any).furnished === 'esyali' ||
+                  (property as any).furnished === 'furnished' ||
+                  property.sector_data?.furnished === true ||
+                  property.sector_data?.furnished === 'esyali'
+                ) ? '🛋️ Eşyalı' : '📦 Eşyasız'}
               </span>
             )}
             {property.block_plot && (

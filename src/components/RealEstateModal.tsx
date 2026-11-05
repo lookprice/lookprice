@@ -330,7 +330,18 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         reserved_by_branch: property.reserved_by_branch || "",
         reservation_notes: property.reservation_notes || "",
         documents: property.documents || [],
-        fixture_photos: property.fixture_photos || []
+        fixture_photos: property.fixture_photos || [],
+        furnished:
+          property.furnished === true ||
+          (property as any).furnished === "true" ||
+          (property as any).furnished === "esyali" ||
+          (property as any).furnished === "furnished" ||
+          sec.furnished === true ||
+          sec.furnished === "esyali" ||
+          sec.furnished === "furnished" ||
+          sec.furnished === "true" ||
+          (property.title || "").toLowerCase().includes("eşyalı") ||
+          (property.title || "").toLowerCase().includes("esyali")
       });
     } else {
       setFormData({

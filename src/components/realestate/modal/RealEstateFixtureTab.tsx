@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { RealEstateProperty, FixturePhotoItem } from "@/types";
 import { toast } from "sonner";
+import { LiveCameraCaptureModal } from "../LiveCameraCaptureModal";
 
 interface RealEstateFixtureTabProps {
   formData: Partial<RealEstateProperty>;
@@ -145,9 +146,23 @@ export const RealEstateFixtureTab: React.FC<RealEstateFixtureTabProps> = ({
   const [customName, setCustomName] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [inspectPhoto, setInspectPhoto] = useState<FixturePhotoItem | null>(null);
+  const [isLiveCameraOpen, setIsLiveCameraOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const currentItemName = customName.trim() ? customName.trim() : selectedName;
+
+  const handleLiveCaptured = (stampedDataUrl: string, timestampStr: string, isoDate: string) => {
+    const newItem: FixturePhotoItem = {
+      id: `fix-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      url: stampedDataUrl,
+      name: currentItemName,
+      timestamp_str: timestampStr,
+      captured_at: isoDate
+    };
+    const updated = [newItem, ...photos];
+    setFormData(prev => ({ ...prev, fixture_photos: updated }));
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -271,38 +286,57 @@ export const RealEstateFixtureTab: React.FC<RealEstateFixtureTabProps> = ({
           />
         </div>
 
-        <div className="flex items-center justify-between pt-1 gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-1 gap-2">
           <span className="text-[10px] text-slate-500 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-            <span>Fotoğraf yüklendiğinde güncel gün, saat ve saniye otomatik olarak damgalanır.</span>
+            <span>Fotoğraf çekildiğinde güncel gün, saat ve saniye otomatik olarak damgalanır.</span>
           </span>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          <button
-            type="button"
-            disabled={isProcessing}
-            onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer disabled:opacity-50"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>İşleniyor...</span>
-              </>
-            ) : (
-              <>
-                <Upload className="w-4 h-4" />
-                <span>Fotoğraf Çek / Yükle</span>
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            {/* Direct Camera Input with capture="environment" for mobile/tablet fallback */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+
+            {/* Standard File Picker */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+
+            {/* LookPrice "Canlı Foto Çek 📸" Button */}
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={() => setIsLiveCameraOpen(true)}
+              className="px-3 py-1.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black text-xs rounded-xl transition flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer disabled:opacity-50"
+              title="Canlı kamera vizörünü aç ve doğrudan damgalı çek"
+            >
+              <Camera className="w-4 h-4 animate-pulse" />
+              <span>Canlı Foto Çek 📸</span>
+            </button>
+
+            {/* Standard File Upload Button */}
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
+              title="Galeriden veya bilgisayardan görsel seç"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Galeriden Yükle</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -422,6 +456,16 @@ export const RealEstateFixtureTab: React.FC<RealEstateFixtureTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* Live Interactive Camera Capture Modal */}
+      <LiveCameraCaptureModal
+        isOpen={isLiveCameraOpen}
+        onClose={() => setIsLiveCameraOpen(false)}
+        itemName={currentItemName}
+        propertyRef={formData.reference_no || "LP-PORTFOY"}
+        propertyTitle={formData.title || "Kiralık Eşyalı Mülk"}
+        onPhotoCaptured={handleLiveCaptured}
+      />
     </div>
   );
 };

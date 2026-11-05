@@ -389,8 +389,8 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
             </div>
           </div>
 
-          {/* Residence Toggles (Trafo, KDV, Çatı Terası, Site İçi) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-700">
+          {/* Residence Toggles (Trafo, KDV, Eşya, Çatı Terası, Site İçi) */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-700">
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input
                 type="checkbox"
@@ -400,7 +400,7 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
                 }
                 className="w-3.5 h-3.5 text-indigo-600 rounded"
               />
-              <span>Trafo Bedeli Ödendi</span>
+              <span>Trafo Ödendi</span>
             </label>
 
             <div className="flex items-center gap-1">
@@ -414,6 +414,27 @@ export const RealEstateMetricsFeaturesTab: React.FC<RealEstateMetricsFeaturesTab
               >
                 <option value="to_be_paid">Ödenecek</option>
                 <option value="paid">Ödendi</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-slate-500">Eşya:</span>
+              <select
+                className="px-1.5 py-0.5 border border-slate-200 rounded text-xs font-bold bg-white"
+                value={
+                  formData.furnished === true ||
+                  (formData.furnished as any) === "true" ||
+                  (formData.furnished as any) === "esyali" ||
+                  (formData.furnished as any) === "furnished"
+                    ? "esyali"
+                    : "esyasiz"
+                }
+                onChange={(e) =>
+                  setFormData({ ...formData, furnished: e.target.value === "esyali" })
+                }
+              >
+                <option value="esyasiz">📦 Eşyasız</option>
+                <option value="esyali">🛋️ Eşyalı</option>
               </select>
             </div>
 

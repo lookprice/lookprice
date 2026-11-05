@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { RealEstateProperty, FixturePhotoItem } from "@/types";
 import { toast } from "sonner";
+import { LiveCameraCaptureModal } from "./LiveCameraCaptureModal";
 
 interface FixtureVaultModalProps {
   isOpen: boolean;
@@ -170,8 +171,10 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [inspectPhoto, setInspectPhoto] = useState<FixturePhotoItem | null>(null);
+  const [isLiveCameraOpen, setIsLiveCameraOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     setPhotos(initialPhotos);
@@ -180,6 +183,19 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
   if (!isOpen) return null;
 
   const currentItemName = customName.trim() ? customName.trim() : selectedName;
+
+  const handleLiveCaptured = async (stampedDataUrl: string, timestampStr: string, isoDate: string) => {
+    const newItem: FixturePhotoItem = {
+      id: `fix-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      url: stampedDataUrl,
+      name: currentItemName,
+      timestamp_str: timestampStr,
+      captured_at: isoDate
+    };
+    const updated = [newItem, ...photos];
+    setPhotos(updated);
+    await saveToDatabase(updated);
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -449,7 +465,18 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
               </div>
             </div>
 
-            <div className="flex items-end gap-2 pt-2 sm:pt-0">
+            <div className="flex items-center gap-2 pt-2 sm:pt-0">
+              {/* Direct Camera Input with capture="environment" for mobile/tablet fallback */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+
+              {/* Standard File Picker */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -458,23 +485,32 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                 className="hidden"
                 onChange={handleFileUpload}
               />
+
+              {/* Trademark LookPrice "Canlı Foto Çek 📸" Button */}
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => {
+                  // If on desktop or browser supports mediaDevices, open live viewfinder; also cameraInput available
+                  setIsLiveCameraOpen(true);
+                }}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 active:scale-95 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/25 transition disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                title="Canlı kamera vizörünü aç ve doğrudan damgalı çek"
+              >
+                <Camera className="w-4 h-4 animate-pulse" />
+                <span>Canlı Foto Çek 📸</span>
+              </button>
+
+              {/* Standard File Upload Button */}
               <button
                 type="button"
                 disabled={isProcessing}
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-bold text-xs rounded-xl shadow-lg shadow-sky-600/20 transition disabled:opacity-50 whitespace-nowrap w-full sm:w-auto"
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                title="Galeriden veya bilgisayardan görsel seç"
               >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Zaman Damgası Kazınıyor...</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    <span>Fotoğraf Çek / Yükle</span>
-                  </>
-                )}
+                <Upload className="w-4 h-4" />
+                <span>Galeriden Yükle</span>
               </button>
             </div>
           </div>
@@ -641,6 +677,16 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Live Interactive Camera Capture Modal */}
+        <LiveCameraCaptureModal
+          isOpen={isLiveCameraOpen}
+          onClose={() => setIsLiveCameraOpen(false)}
+          itemName={currentItemName}
+          propertyRef={property.reference_no || `LP-${property.id}`}
+          propertyTitle={property.title || "Kiralık Eşyalı Mülk"}
+          onPhotoCaptured={handleLiveCaptured}
+        />
       </div>
     </div>
   );
