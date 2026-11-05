@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   X,
   ChevronLeft,
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { RealEstateProperty } from "../types";
 import { api } from "../services/api";
+import { computeRealEstateRefCounters } from "../utils/referenceCounter";
 
 import { RealEstateBasicTab } from "./realestate/modal/RealEstateBasicTab";
 import { RealEstateOwnerLocationTab } from "./realestate/modal/RealEstateOwnerLocationTab";
@@ -26,6 +27,8 @@ interface RealEstateModalProps {
   property?: RealEstateProperty | null;
   storeId?: number;
   userRole?: string;
+  safeProperties?: any[];
+  defaultStoreName?: string;
 }
 
 const formatPriceDisplay = (val: number | string | undefined | null): string => {
@@ -57,8 +60,13 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   onSave,
   property,
   storeId,
-  userRole = "admin"
+  userRole = "admin",
+  safeProperties = [],
+  defaultStoreName = "Rodel Investment"
 }) => {
+  const refCounters = useMemo(() => {
+    return computeRealEstateRefCounters(safeProperties, defaultStoreName);
+  }, [safeProperties, defaultStoreName]);
   const isOfficeManager = [
     "superadmin",
     "admin",
@@ -185,7 +193,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
   useEffect(() => {
     setValidationError(null);
-    if (property) {
+    if (property && (property as any).id) {
       const sec =
         typeof (property as any).sector_data === "string"
           ? (() => {
@@ -338,21 +346,28 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
           (property.title || "").toLowerCase().includes("esyali")
       });
     } else {
+      const targetIntent = (property?.listing_intent as any) || "sale";
+      const autoRef =
+        property?.reference_no ||
+        (targetIntent === "rent"
+          ? refCounters.rent.suggestedRef
+          : refCounters.sale.suggestedRef);
       setFormData({
-        title: "",
-        price: 0,
-        currency: "GBP",
-        type: "residence",
-        subtype: "",
-        listing_intent: "sale",
-        deposit: 0,
+        title: property?.title || "",
+        reference_no: autoRef,
+        price: property?.price || 0,
+        currency: property?.currency || "GBP",
+        type: (property?.type as any) || "residence",
+        subtype: property?.subtype || "",
+        listing_intent: targetIntent,
+        deposit: property?.deposit || 0,
         billing_period: "monthly",
         status: "active",
-        location: "",
-        description: "",
-        room_count: "",
-        square_meters: 0,
-        sqm_gross: 0,
+        location: property?.location || "",
+        description: property?.description || "",
+        room_count: property?.room_count || "",
+        square_meters: property?.square_meters || 0,
+        sqm_gross: property?.sqm_gross || 0,
         block_plot: "",
         facade: "",
         building_age: "",
@@ -363,8 +378,8 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         in_gated_community: false,
         dues: 0,
         dues_currency: "GBP",
-        country: "KKTC",
-        kktc_region: "Girne",
+        country: property?.country || "KKTC",
+        kktc_region: property?.kktc_region || "Girne",
         kktc_sub_region: "",
         kktc_title_type: "Eşdeğer Koçan",
         trafo_bedeli: false,
@@ -390,7 +405,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     setDocName("");
     setDocUrl("");
     setSelectedDocFile(null);
-  }, [property, isOpen]);
+  }, [property, isOpen, refCounters]);
 
   if (!isOpen) return null;
 
@@ -720,6 +735,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               formatPriceDisplay={formatPriceDisplay}
               parsePriceInput={parsePriceInput}
               setValidationError={setValidationError}
+              refCounters={refCounters}
             />
           )}
 

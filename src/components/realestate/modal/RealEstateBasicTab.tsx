@@ -1,6 +1,7 @@
 import React from "react";
 import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from "../../../data/realEstateConfig";
 import { RealEstateProperty } from "../../../types";
+import { RealEstateRefCounters } from "../../../utils/referenceCounter";
 
 interface RealEstateBasicTabProps {
   formData: Partial<RealEstateProperty>;
@@ -8,6 +9,7 @@ interface RealEstateBasicTabProps {
   formatPriceDisplay: (val: number | string | undefined | null) => string;
   parsePriceInput: (val: string) => number;
   setValidationError: (val: string | null) => void;
+  refCounters?: RealEstateRefCounters;
 }
 
 export const RealEstateBasicTab: React.FC<RealEstateBasicTabProps> = ({
@@ -15,8 +17,13 @@ export const RealEstateBasicTab: React.FC<RealEstateBasicTabProps> = ({
   setFormData,
   formatPriceDisplay,
   parsePriceInput,
-  setValidationError
+  setValidationError,
+  refCounters
 }) => {
+  const isRent = formData.listing_intent === "rent";
+  const currentCounter = isRent ? refCounters?.rent : refCounters?.sale;
+  const activeSuggestedRef = currentCounter?.suggestedRef || "";
+
   return (
     <div className="bg-white border-2 border-slate-300 rounded-xl p-2.5 sm:p-3 space-y-2.5 shadow-2xs">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
@@ -29,7 +36,21 @@ export const RealEstateBasicTab: React.FC<RealEstateBasicTabProps> = ({
           <div className="inline-flex p-0.5 bg-slate-100 border border-slate-300 rounded-lg">
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, listing_intent: "sale" })}
+              onClick={() => {
+                const isSwitching = formData.listing_intent !== "sale";
+                const wasSuggested =
+                  !formData.reference_no ||
+                  formData.reference_no === refCounters?.rent.suggestedRef ||
+                  formData.reference_no.startsWith("REF-");
+                setFormData((prev) => ({
+                  ...prev,
+                  listing_intent: "sale",
+                  reference_no:
+                    isSwitching && wasSuggested && refCounters?.sale.suggestedRef
+                      ? refCounters.sale.suggestedRef
+                      : prev.reference_no
+                }));
+              }}
               className={`px-3 py-1 rounded-md text-[11px] font-black transition-all cursor-pointer ${
                 formData.listing_intent === "sale"
                   ? "bg-slate-900 text-white shadow-xs"
@@ -40,7 +61,21 @@ export const RealEstateBasicTab: React.FC<RealEstateBasicTabProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, listing_intent: "rent" })}
+              onClick={() => {
+                const isSwitching = formData.listing_intent !== "rent";
+                const wasSuggested =
+                  !formData.reference_no ||
+                  formData.reference_no === refCounters?.sale.suggestedRef ||
+                  formData.reference_no.startsWith("REF-");
+                setFormData((prev) => ({
+                  ...prev,
+                  listing_intent: "rent",
+                  reference_no:
+                    isSwitching && wasSuggested && refCounters?.rent.suggestedRef
+                      ? refCounters.rent.suggestedRef
+                      : prev.reference_no
+                }));
+              }}
               className={`px-3 py-1 rounded-md text-[11px] font-black transition-all cursor-pointer ${
                 formData.listing_intent === "rent"
                   ? "bg-amber-400 text-slate-950 shadow-xs border border-amber-500"
@@ -58,18 +93,36 @@ export const RealEstateBasicTab: React.FC<RealEstateBasicTabProps> = ({
 
       {/* Reference & Title */}
       <div className="flex flex-col sm:flex-row items-center gap-2">
-        <div className="w-full sm:w-36 shrink-0">
-          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
-            Portföy Ref No *
-          </label>
+        <div className="w-full sm:w-56 shrink-0">
+          <div className="flex items-center justify-between mb-0.5">
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-700">
+              Portföy Ref No *
+            </label>
+            {activeSuggestedRef && formData.reference_no !== activeSuggestedRef && (
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, reference_no: activeSuggestedRef }))}
+                className="text-[9px] font-black text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.2 rounded border border-indigo-200 cursor-pointer"
+                title={`Sayaçtan devam eden önerilen kodu getir: ${activeSuggestedRef}`}
+              >
+                + Önerileni Getir
+              </button>
+            )}
+          </div>
           <input
             type="text"
             required
-            placeholder="TR-1002"
-            className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-black text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+            placeholder={activeSuggestedRef || "RODEL-K-429 E.C"}
+            className="w-full px-2.5 py-1 h-8 bg-white border border-slate-300 rounded-lg text-xs font-mono font-black text-slate-900 outline-none focus:bg-white focus:border-indigo-600 focus:ring-1 focus:ring-indigo-500 shadow-2xs"
             value={formData.reference_no || ""}
             onChange={(e) => setFormData({ ...formData, reference_no: e.target.value })}
           />
+          {currentCounter && currentCounter.lastNum > 0 && (
+            <div className="text-[9px] font-bold text-slate-500 mt-0.5 flex items-center justify-between">
+              <span>Son: #{currentCounter.lastNum}</span>
+              <span className="font-mono text-slate-700">Devam: {currentCounter.suggestedRef}</span>
+            </div>
+          )}
         </div>
         <div className="flex-1 w-full">
           <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">

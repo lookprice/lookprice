@@ -132,8 +132,17 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
         driveConnected={driveConnected}
         isBackupLoading={isBackupLoading}
         setIsBackupLoading={setIsBackupLoading}
-        onAddNewProperty={() => {
-          setSelectedProperty(null);
+        onAddNewProperty={(intent, customRef) => {
+          if (intent || customRef) {
+            setSelectedProperty({
+              listing_intent: intent || 'sale',
+              reference_no: customRef || '',
+              country: 'KKTC',
+              kktc_region: 'Girne'
+            });
+          } else {
+            setSelectedProperty(null);
+          }
           setIsModalOpen(true);
         }}
         search={search}

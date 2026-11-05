@@ -1,0 +1,140 @@
+export interface RefCounterDetails {
+  lastNum: number;
+  lastRef: string;
+  nextNum: number;
+  suggestedRef: string;
+  prefix: string;
+  suffix: string;
+}
+
+export interface RealEstateRefCounters {
+  rent: RefCounterDetails;
+  sale: RefCounterDetails;
+}
+
+/**
+ * Computes the last used reference number and the next continuous reference code
+ * for both Kiralık (Rent: e.g. RODEL-K-428 E.C -> 429) and Satılık (Sale: e.g. RODEL-S-301 E.C -> 302).
+ */
+export function computeRealEstateRefCounters(properties: any[], defaultStoreName?: string): RealEstateRefCounters {
+  const safeList = Array.isArray(properties) ? properties : [];
+
+  let maxRentNum = 0;
+  let lastRentRef = "";
+  let rentPrefix = "";
+  let rentSuffix = "";
+
+  let maxSaleNum = 0;
+  let lastSaleRef = "";
+  let salePrefix = "";
+  let saleSuffix = "";
+
+  // Derive default prefix from store name if available (e.g. "Rodel Investment" -> "RODEL")
+  const derivedPrefix = (defaultStoreName || "")
+    .trim()
+    .split(/\s+/)[0]
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "") || "RODEL";
+
+  for (const p of safeList) {
+    const rawRef = String(p.reference_no || "").trim();
+    if (!rawRef) continue;
+
+    // Determine intent
+    const isRent = p.listing_intent === "rent" || /-K-|-K\b|\bK-/i.test(rawRef);
+    const isSale = p.listing_intent === "sale" || /-S-|-S\b|\bS-/i.test(rawRef);
+
+    // 1. Full pattern match: [PREFIX]-[K/S]-[NUM] [SUFFIX] (e.g. "RODEL-K-428 E.C" or "RODEL-S-301 E.C")
+    const fullMatch = rawRef.match(/^([A-Za-z0-9ğüşıöçĞÜŞİÖÇ\.\-_]+?)[-_ ]+([KSks])[-_ ]+(\d+)(?:[-_ ]+(.*))?$/);
+    if (fullMatch) {
+      const pfx = fullMatch[1].toUpperCase();
+      const type = fullMatch[2].toUpperCase();
+      const num = parseInt(fullMatch[3], 10);
+      const sfx = (fullMatch[4] || "").trim().toUpperCase();
+
+      if (type === "K" || isRent) {
+        if (num > maxRentNum) {
+          maxRentNum = num;
+          lastRentRef = rawRef;
+          if (pfx) rentPrefix = pfx;
+          if (sfx) rentSuffix = sfx;
+        }
+      } else if (type === "S" || isSale) {
+        if (num > maxSaleNum) {
+          maxSaleNum = num;
+          lastSaleRef = rawRef;
+          if (pfx) salePrefix = pfx;
+          if (sfx) saleSuffix = sfx;
+        }
+      }
+      continue;
+    }
+
+    // 2. Pattern match without prefix: K-428 or S-301
+    const subMatch = rawRef.match(/(?:^|[^A-Za-z0-9])([KSks])[-_ ]*(\d+)(?:[-_ ]+(.*))?/);
+    if (subMatch) {
+      const type = subMatch[1].toUpperCase();
+      const num = parseInt(subMatch[2], 10);
+      const sfx = (subMatch[3] || "").trim().toUpperCase();
+
+      if (type === "K" || isRent) {
+        if (num > maxRentNum) {
+          maxRentNum = num;
+          lastRentRef = rawRef;
+          if (sfx && !rentSuffix) rentSuffix = sfx;
+        }
+      } else if (type === "S" || isSale) {
+        if (num > maxSaleNum) {
+          maxSaleNum = num;
+          lastSaleRef = rawRef;
+          if (sfx && !saleSuffix) saleSuffix = sfx;
+        }
+      }
+      continue;
+    }
+
+    // 3. Digits extraction fallback
+    const digitsMatch = rawRef.match(/\d+/);
+    if (digitsMatch) {
+      const num = parseInt(digitsMatch[0], 10);
+      if (isRent && num > maxRentNum) {
+        maxRentNum = num;
+        lastRentRef = rawRef;
+      } else if (isSale && num > maxSaleNum) {
+        maxSaleNum = num;
+        lastSaleRef = rawRef;
+      }
+    }
+  }
+
+  // Fallbacks if prefixes weren't discovered
+  const activeRentPrefix = rentPrefix || salePrefix || derivedPrefix;
+  const activeSalePrefix = salePrefix || rentPrefix || derivedPrefix;
+  const activeRentSuffix = rentSuffix || saleSuffix || "";
+  const activeSaleSuffix = saleSuffix || rentSuffix || "";
+
+  const nextRentNum = maxRentNum > 0 ? maxRentNum + 1 : 101;
+  const nextSaleNum = maxSaleNum > 0 ? maxSaleNum + 1 : 101;
+
+  const suggestedRentRef = `${activeRentPrefix}-K-${nextRentNum}${activeRentSuffix ? ` ${activeRentSuffix}` : ""}`.trim();
+  const suggestedSaleRef = `${activeSalePrefix}-S-${nextSaleNum}${activeSaleSuffix ? ` ${activeSaleSuffix}` : ""}`.trim();
+
+  return {
+    rent: {
+      lastNum: maxRentNum,
+      lastRef: lastRentRef || (maxRentNum > 0 ? `K-${maxRentNum}` : "-"),
+      nextNum: nextRentNum,
+      suggestedRef: suggestedRentRef,
+      prefix: activeRentPrefix,
+      suffix: activeRentSuffix
+    },
+    sale: {
+      lastNum: maxSaleNum,
+      lastRef: lastSaleRef || (maxSaleNum > 0 ? `S-${maxSaleNum}` : "-"),
+      nextNum: nextSaleNum,
+      suggestedRef: suggestedSaleRef,
+      prefix: activeSalePrefix,
+      suffix: activeSaleSuffix
+    }
+  };
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   CheckSquare,
   StickyNote,
@@ -151,9 +152,14 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
 
   // Workspace Drawer & Mini Pull-Tab States
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [activeSection, setActiveSection] = useState<"tasks" | "notes" | "workflow">("tasks");
   const [topPullExpanded, setTopPullExpanded] = useState(false);
   const [bottomPullExpanded, setBottomPullExpanded] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Data States
   const [loading, setLoading] = useState(false);
@@ -690,8 +696,9 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
       </div>
 
       {/* 2. TOP-CENTER HIDDEN PULL-TAB MENU (Mobile & Desktop Quick Access Handle) */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 z-[85] flex flex-col items-center pointer-events-none">
-        {topPullExpanded && (
+      {mounted && typeof document !== "undefined" && createPortal(
+        <div className="fixed top-0 left-1/2 -translate-x-1/2 z-[99990] flex flex-col items-center pointer-events-none">
+          {topPullExpanded && (
           <div className="pointer-events-auto mt-1 bg-slate-900 text-white border border-slate-700 rounded-xl shadow-2xl px-2.5 py-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
             <button
               type="button"
@@ -760,65 +767,70 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
           )}
           <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${topPullExpanded ? "rotate-180" : ""}`} />
         </button>
-      </div>
+      </div>,
+      document.body
+    )}
 
       {/* 3. BOTTOM-CENTER HIDDEN PULL-TAB MENU (Especially for Mobile Thumb Ergonomics) */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[85] flex flex-col items-center pointer-events-none sm:hidden">
-        {bottomPullExpanded && (
-          <div className="pointer-events-auto mb-1 bg-slate-900 text-white border border-slate-700 rounded-xl shadow-2xl px-2.5 py-2 flex items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveSection("tasks");
-                setIsOpen(true);
-                setBottomPullExpanded(false);
-              }}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-black"
-            >
-              <CheckSquare className="w-3.5 h-3.5 text-amber-400" />
-              <span>{isTr ? `Görevler (${activeTasksCount})` : `Tasks (${activeTasksCount})`}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveSection("notes");
-                setIsOpen(true);
-                setBottomPullExpanded(false);
-              }}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#fde047] text-slate-950 text-xs font-black"
-            >
-              <StickyNote className="w-3.5 h-3.5 text-slate-950" />
-              <span>{isTr ? `Notlar (${activeNotesCount})` : `Notes (${activeNotesCount})`}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setBottomPullExpanded(false)}
-              className="p-1 text-slate-400 hover:text-white"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={() => setBottomPullExpanded((prev) => !prev)}
-          className="pointer-events-auto flex items-center gap-1.5 px-4 py-1 bg-slate-900 text-white rounded-t-xl border-x border-t border-slate-700 shadow-lg"
-        >
-          <ChevronUp className={`w-3.5 h-3.5 text-amber-400 transition-transform ${bottomPullExpanded ? "rotate-180" : ""}`} />
-          <span className="text-[10px] font-black uppercase tracking-wider">
-            {isTr ? "Görev & Sarı Not" : "Tasks & Notes"}
-          </span>
-          {activeTasksCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[9px] font-mono font-black">
-              {activeTasksCount}
-            </span>
+      {mounted && typeof document !== "undefined" && createPortal(
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[99990] flex flex-col items-center pointer-events-none sm:hidden">
+          {bottomPullExpanded && (
+            <div className="pointer-events-auto mb-1 bg-slate-900 text-white border border-slate-700 rounded-xl shadow-2xl px-2.5 py-2 flex items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSection("tasks");
+                  setIsOpen(true);
+                  setBottomPullExpanded(false);
+                }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-black"
+              >
+                <CheckSquare className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isTr ? `Görevler (${activeTasksCount})` : `Tasks (${activeTasksCount})`}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSection("notes");
+                  setIsOpen(true);
+                  setBottomPullExpanded(false);
+                }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#fde047] text-slate-950 text-xs font-black"
+              >
+                <StickyNote className="w-3.5 h-3.5 text-slate-950" />
+                <span>{isTr ? `Notlar (${activeNotesCount})` : `Notes (${activeNotesCount})`}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setBottomPullExpanded(false)}
+                className="p-1 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           )}
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => setBottomPullExpanded((prev) => !prev)}
+            className="pointer-events-auto flex items-center gap-1.5 px-4 py-1 bg-slate-900 text-white rounded-t-xl border-x border-t border-slate-700 shadow-lg"
+          >
+            <ChevronUp className={`w-3.5 h-3.5 text-amber-400 transition-transform ${bottomPullExpanded ? "rotate-180" : ""}`} />
+            <span className="text-[10px] font-black uppercase tracking-wider">
+              {isTr ? "Görev & Sarı Not" : "Tasks & Notes"}
+            </span>
+            {activeTasksCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[9px] font-mono font-black">
+                {activeTasksCount}
+              </span>
+            )}
+          </button>
+        </div>,
+        document.body
+      )}
 
       {/* 4. REAL-TIME ACOUSTIC TASK REMINDER POPUP (Outlook 2007 Reminder Dialog) */}
-      {activeReminderTasks.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-[9998] w-[92vw] max-w-sm bg-white border-2 border-slate-900 rounded-2xl shadow-2xl overflow-hidden text-slate-950 animate-in fade-in slide-in-from-bottom-4">
+      {mounted && typeof document !== "undefined" && activeReminderTasks.length > 0 && createPortal(
+        <div className="fixed bottom-4 right-4 z-[99995] w-[92vw] max-w-sm bg-white border-2 border-slate-900 rounded-2xl shadow-2xl overflow-hidden text-slate-950 animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-slate-900 text-white px-3.5 py-2 flex items-center justify-between border-b border-slate-800">
             <div className="flex items-center gap-2">
               <BellRing className="w-4 h-4 text-amber-400 animate-bounce" />
@@ -924,18 +936,19 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
               </div>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 5. MAIN OUTLOOK 2007 TASKS & STICKY NOTES WORKSPACE MODAL / DRAWER */}
-      {isOpen && (
+      {mounted && typeof document !== "undefined" && isOpen && createPortal(
         <div
-          className="fixed inset-0 z-[9990] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-1.5 sm:p-3"
+          className="fixed inset-0 z-[99999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-1.5 sm:p-3 overflow-hidden pointer-events-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsOpen(false);
           }}
         >
-          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-6xl h-[92vh] max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl text-slate-950 select-none">
+          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-6xl h-[92vh] max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl text-slate-950 select-none relative z-[100000]">
             {/* TOP CORPORATE BAR (Single Module Header Rule & High Contrast Rule) */}
             <div className="bg-slate-900 text-white px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 shrink-0">
               {/* Primary Navigation Pills: Tasks | Sticky Notes | State-Machine */}
@@ -2203,8 +2216,10 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
 };
+

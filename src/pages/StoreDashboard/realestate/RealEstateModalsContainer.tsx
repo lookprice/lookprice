@@ -99,6 +99,8 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
             property={selectedProperty}
             storeId={storeId || user?.store_id}
             userRole={userRole}
+            safeProperties={safeProperties}
+            defaultStoreName={branding?.store_name || branding?.name || "Rodel Investment"}
             onSave={async (p) => {
               try {
                 if (onSave) {

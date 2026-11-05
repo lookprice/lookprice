@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Building2,
   Share2,
@@ -11,12 +11,15 @@ import {
   CalendarDays,
   Layout,
   ArrowLeft,
-  List
+  List,
+  Hash,
+  Copy
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/services/api";
 import { RealEstateViewMode, RealEstateStatusFilter } from "./types";
 import { formatNumberVal } from "./RealEstatePrintPoster";
+import { computeRealEstateRefCounters } from "@/utils/referenceCounter";
 
 interface RealEstateHeaderToolbarProps {
   viewMode: RealEstateViewMode;
@@ -25,7 +28,7 @@ interface RealEstateHeaderToolbarProps {
   driveConnected: boolean;
   isBackupLoading: boolean;
   setIsBackupLoading: (loading: boolean) => void;
-  onAddNewProperty: () => void;
+  onAddNewProperty: (intent?: 'sale' | 'rent', suggestedRef?: string) => void;
   search: string;
   setSearch: (s: string) => void;
   filterScope: string;
@@ -73,6 +76,18 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
   soldCount,
   rentedCount
 }) => {
+  const refCounters = useMemo(() => {
+    return computeRealEstateRefCounters(safeProperties, "Rodel Investment");
+  }, [safeProperties]);
+
+  const handleCopyRef = (refCode: string, typeName: string) => {
+    if (!refCode || refCode === "-") return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(refCode);
+      toast.success(`${typeName} Ref Kodu kopyalandı: ${refCode}`);
+    }
+  };
+
   return (
     <>
       {/* TOP NAVIGATION BAR FOR PIPELINE & CALENDAR MODES */}
@@ -215,12 +230,83 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
               </button>
 
               <button
-                onClick={onAddNewProperty}
+                onClick={() => onAddNewProperty()}
                 className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
                 <span>+ Portföy</span>
               </button>
+            </div>
+          </div>
+
+          {/* Row 1.5: REFERENCE COUNTER WIDGET (KİRALIK & SATILIK ARDIŞIK SAYAÇ GÖSTERGESİ) */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-xl border border-slate-700/80 shadow-xs">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              {/* Header / Label */}
+              <div className="flex items-center gap-1.5 pr-2.5 border-r border-slate-700/80 text-[10px] font-black uppercase tracking-wider text-amber-400">
+                <Hash className="w-3.5 h-3.5 text-amber-400" />
+                <span>Portföy Ref Sayaç</span>
+              </div>
+
+              {/* Kiralık Sayacı (K-428 -> 429) */}
+              <div className="flex items-center gap-1.5 bg-slate-900/90 px-2 py-0.5 rounded-lg border border-amber-500/40 text-xs">
+                <span className="text-[10px] font-black text-amber-400 uppercase tracking-tight">Kiralık:</span>
+                <span className="text-[10px] font-medium text-slate-300">
+                  Son: <strong className="font-mono font-bold text-amber-300">#{refCounters.rent.lastNum || "-"}</strong>
+                </span>
+                <span className="text-slate-500 text-[10px]">→</span>
+                <span className="text-[10px] font-bold text-slate-300">Devam/Yeni:</span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyRef(refCounters.rent.suggestedRef, "Kiralık")}
+                  className="font-mono font-black text-[11px] bg-amber-400 hover:bg-amber-300 text-slate-950 px-2 py-0.5 rounded shadow-2xs border border-amber-300 transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                  title="Kiralık Ref Kodunu Kopyala"
+                >
+                  <span>{refCounters.rent.suggestedRef}</span>
+                  <Copy className="w-2.5 h-2.5 opacity-70" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAddNewProperty('rent', refCounters.rent.suggestedRef)}
+                  className="px-1.5 py-0.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 rounded text-[10px] font-black transition-colors cursor-pointer flex items-center gap-0.5"
+                  title="Bu Ref No ile Yeni Kiralık İlanı Aç"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                  <span className="hidden sm:inline">Kiralık Ekle</span>
+                </button>
+              </div>
+
+              {/* Satılık Sayacı (S-301 -> 302) */}
+              <div className="flex items-center gap-1.5 bg-slate-900/90 px-2 py-0.5 rounded-lg border border-indigo-500/40 text-xs">
+                <span className="text-[10px] font-black text-indigo-300 uppercase tracking-tight">Satılık:</span>
+                <span className="text-[10px] font-medium text-slate-300">
+                  Son: <strong className="font-mono font-bold text-indigo-200">#{refCounters.sale.lastNum || "-"}</strong>
+                </span>
+                <span className="text-slate-500 text-[10px]">→</span>
+                <span className="text-[10px] font-bold text-slate-300">Devam/Yeni:</span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyRef(refCounters.sale.suggestedRef, "Satılık")}
+                  className="font-mono font-black text-[11px] bg-indigo-500 hover:bg-indigo-400 text-white px-2 py-0.5 rounded shadow-2xs border border-indigo-400 transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                  title="Satılık Ref Kodunu Kopyala"
+                >
+                  <span>{refCounters.sale.suggestedRef}</span>
+                  <Copy className="w-2.5 h-2.5 opacity-70" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAddNewProperty('sale', refCounters.sale.suggestedRef)}
+                  className="px-1.5 py-0.5 bg-indigo-500/20 hover:bg-indigo-500 text-indigo-300 hover:text-white rounded text-[10px] font-black transition-colors cursor-pointer flex items-center gap-0.5"
+                  title="Bu Ref No ile Yeni Satılık İlanı Aç"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                  <span className="hidden sm:inline">Satılık Ekle</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="text-[10px] font-medium text-slate-400 hidden xl:flex items-center gap-1">
+              <span>Son kullanılan numaralardan otomatik devam eden ardışık sayaç</span>
             </div>
           </div>
 
