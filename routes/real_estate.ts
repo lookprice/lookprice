@@ -443,10 +443,27 @@ router.get('/properties', authenticate, async (req: any, res) => {
           try { fixturePhotos = JSON.parse(row.fixture_photos); } catch(e) { fixturePhotos = []; }
         }
       }
+      if ((!fixturePhotos || fixturePhotos.length === 0) && Array.isArray(secData.fixture_photos)) {
+        fixturePhotos = secData.fixture_photos;
+      }
+
+      const isFurnishedBool = Boolean(
+        row.furnished === true ||
+        row.furnished === 'true' ||
+        row.furnished === 'esyali' ||
+        row.furnished === 'furnished' ||
+        secData.furnished === true ||
+        secData.furnished === 'true' ||
+        secData.furnished === 'esyali' ||
+        secData.furnished === 'furnished'
+      );
+      secData.furnished = isFurnishedBool;
+      secData.fixture_photos = fixturePhotos;
 
       return {
         ...row,
         ...secData,
+        furnished: isFurnishedBool,
         fixture_photos: fixturePhotos,
         sector_data: secData,
         responsible_agent: row.consultant_name || row.responsible_agent || 'Belirtilmedi',
@@ -487,6 +504,25 @@ router.post('/properties', authenticate, async (req: any, res) => {
     const isDemoStore = storeDemoCheck.rows[0]?.slug?.includes('demo') || storeDemoCheck.rows[0]?.branding?.is_demo === true || storeDemoCheck.rows[0]?.branding?.is_demo === 'true';
     const effectiveIsOnEnrakipsiz = isDemoStore ? false : !!property.is_on_enrakipsiz;
 
+    const normalizedFurnished = Boolean(
+      property.furnished === true ||
+      property.furnished === 'true' ||
+      property.furnished === 'esyali' ||
+      property.furnished === 'furnished' ||
+      property.sector_data?.furnished === true ||
+      property.sector_data?.furnished === 'true' ||
+      property.sector_data?.furnished === 'esyali' ||
+      property.sector_data?.furnished === 'furnished'
+    );
+    const normalizedFixturePhotos = Array.isArray(property.fixture_photos)
+      ? property.fixture_photos
+      : (Array.isArray(property.sector_data?.fixture_photos) ? property.sector_data.fixture_photos : []);
+    const postSectorData = {
+      ...(property.sector_data || {}),
+      furnished: normalizedFurnished,
+      fixture_photos: normalizedFixturePhotos
+    };
+
     const result = await pool.query(
       `INSERT INTO real_estate_properties (
         store_id, title, description, price, currency, location, type, room_count, square_meters, 
@@ -500,9 +536,9 @@ router.post('/properties', authenticate, async (req: any, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56) RETURNING *`,
       [
         storeId, property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
-        property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
-        property.in_gated_community, property.dues, property.dues_currency, property.country, property.kktc_region, property.kktc_title_type, property.images,
-        property.virtual_tour_url, property.ai_tour_enabled, property.seller_type, property.status, effectiveIsOnEnrakipsiz,
+        property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, normalizedFurnished,
+        !!property.in_gated_community, property.dues, property.dues_currency, property.country, property.kktc_region, property.kktc_title_type, property.images,
+        property.virtual_tour_url, !!property.ai_tour_enabled, property.seller_type, property.status, effectiveIsOnEnrakipsiz,
         property.branch_name || 'Merkez Ofis', property.responsible_agent || '', property.sharing_scope || 'shared_pool', property.reserved_by_branch || '', property.reservation_notes || '',
         property.authorized_branch_id, property.responsible_consultant_id, !!property.is_verified, JSON.stringify(property.documents || []),
         ownerInfo.fullName || '', ownerInfo.phone || '', ownerInfo.idNumber || '',
@@ -519,8 +555,8 @@ router.post('/properties', authenticate, async (req: any, res) => {
         !!property.auto_post_instagram,
         !!property.is_trade_in_available,
         property.address || '',
-        JSON.stringify(property.sector_data || {}),
-        JSON.stringify(property.fixture_photos || [])
+        JSON.stringify(postSectorData),
+        JSON.stringify(normalizedFixturePhotos)
       ]
     );
     const newProperty = result.rows[0];
@@ -674,6 +710,31 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
     const isDemoStore = storeDemoCheck.rows[0]?.slug?.includes('demo') || storeDemoCheck.rows[0]?.branding?.is_demo === true || storeDemoCheck.rows[0]?.branding?.is_demo === 'true';
     const effectiveIsOnEnrakipsiz = isDemoStore ? false : !!property.is_on_enrakipsiz;
 
+    const normalizedFurnished = Boolean(
+      property.furnished === true ||
+      property.furnished === 'true' ||
+      property.furnished === 'esyali' ||
+      property.furnished === 'furnished' ||
+      mergedSectorData?.furnished === true ||
+      mergedSectorData?.furnished === 'true' ||
+      mergedSectorData?.furnished === 'esyali' ||
+      mergedSectorData?.furnished === 'furnished'
+    );
+
+    let resolvedFixturePhotos = property.fixture_photos;
+    if (typeof resolvedFixturePhotos === 'string') {
+      try { resolvedFixturePhotos = JSON.parse(resolvedFixturePhotos); } catch (e) { resolvedFixturePhotos = []; }
+    }
+    if (!Array.isArray(resolvedFixturePhotos)) {
+      resolvedFixturePhotos = Array.isArray(mergedSectorData?.fixture_photos) ? mergedSectorData.fixture_photos : [];
+    }
+
+    const finalSectorData = {
+      ...(mergedSectorData || {}),
+      furnished: normalizedFurnished,
+      fixture_photos: resolvedFixturePhotos
+    };
+
     const result = await pool.query(
       `UPDATE real_estate_properties SET 
         title = $1, description = $2, price = $3, currency = $4, location = $5, type = $6, room_count = $7, square_meters = $8,
@@ -688,9 +749,9 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
        WHERE id = $56 AND (store_id = $57 OR authorized_branch_id = $57) RETURNING *`,
       [
         property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
-        property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
-        property.in_gated_community, property.dues, property.dues_currency, property.country, property.kktc_region, property.kktc_title_type, property.images,
-        property.virtual_tour_url, property.ai_tour_enabled, property.seller_type, property.status, effectiveIsOnEnrakipsiz,
+        property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, normalizedFurnished,
+        !!property.in_gated_community, property.dues, property.dues_currency, property.country, property.kktc_region, property.kktc_title_type, property.images,
+        property.virtual_tour_url, !!property.ai_tour_enabled, property.seller_type, property.status, effectiveIsOnEnrakipsiz,
         property.branch_name || 'Merkez Ofis', property.responsible_agent || '', property.sharing_scope || 'shared_pool', property.reserved_by_branch || '', property.reservation_notes || '', 
         property.authorized_branch_id, property.responsible_consultant_id, !!property.is_verified,
         typeof property.documents === 'string' ? property.documents : JSON.stringify(property.documents || []),
@@ -707,8 +768,8 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         !!property.auto_post_instagram,
         !!property.is_trade_in_available,
         property.address || '',
-        JSON.stringify(mergedSectorData || {}),
-        typeof property.fixture_photos === 'string' ? property.fixture_photos : JSON.stringify(property.fixture_photos || []),
+        JSON.stringify(finalSectorData),
+        JSON.stringify(resolvedFixturePhotos),
         id,
         storeId
       ]
@@ -848,7 +909,9 @@ router.put('/properties/:id/fixtures', authenticate, async (req: any, res) => {
 
     const result = await pool.query(
       `UPDATE real_estate_properties 
-       SET fixture_photos = $1::jsonb, updated_at = CURRENT_TIMESTAMP 
+       SET fixture_photos = $1::jsonb,
+           sector_data = jsonb_set(COALESCE(sector_data, '{}'::jsonb), '{fixture_photos}', $1::jsonb, true),
+           updated_at = CURRENT_TIMESTAMP 
        WHERE id = $2 AND (store_id = $3 OR authorized_branch_id = $3) 
        RETURNING id, fixture_photos`,
       [photosJson, id, storeId]

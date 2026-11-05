@@ -2710,21 +2710,54 @@ router.get("/real-estate/:id", async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Property not found" });
     }
-    res.json(result.rows[0]);
+    const row = result.rows[0];
+    let secData = row.sector_data;
+    if (typeof secData === "string") {
+      try { secData = JSON.parse(secData); } catch (e) { secData = {}; }
+    }
+    if (!secData || typeof secData !== "object") secData = {};
+
+    let fixturePhotos = [];
+    if (row.fixture_photos) {
+      if (Array.isArray(row.fixture_photos)) fixturePhotos = row.fixture_photos;
+      else if (typeof row.fixture_photos === "string") {
+        try { fixturePhotos = JSON.parse(row.fixture_photos); } catch (e) { fixturePhotos = []; }
+      }
+    }
+    if ((!fixturePhotos || fixturePhotos.length === 0) && Array.isArray(secData.fixture_photos)) {
+      fixturePhotos = secData.fixture_photos;
+    }
+
+    res.json({
+      ...row,
+      ...secData,
+      fixture_photos: fixturePhotos,
+      sector_data: secData
+    });
   } catch (e: any) {
     console.error('API Error:', e);
     res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
-// Public Real Estate Property Signature Save
+// Public Real Estate Property Signature / Fixture Approval & Rejection Save
 router.post("/real-estate/:id/sign", async (req, res) => {
   try {
     const { id } = req.params;
-    const { clientName, clientIdentity, clientPhone, commissionRate, templateId, signatureImage } = req.body;
+    const {
+      clientName,
+      clientIdentity,
+      clientPhone,
+      commissionRate,
+      templateId,
+      signatureImage,
+      decision = "approved",
+      rejectionReason = "",
+      fixtureApproved = false
+    } = req.body;
 
     if (!clientName || !clientIdentity || !clientPhone) {
-      return res.status(400).json({ error: "Lütfen tüm imza alanlarını doldurunuz." });
+      return res.status(400).json({ error: "Lütfen ad soyad, kimlik/pasaport ve telefon alanlarını doldurunuz." });
     }
 
     let propRes = await pool.query("SELECT * FROM real_estate_properties WHERE id = $1", [id]);
@@ -2740,12 +2773,21 @@ router.post("/real-estate/:id/sign", async (req, res) => {
 
     const property = propRes.rows[0];
     const existingDocs = property.documents ? (typeof property.documents === 'string' ? JSON.parse(property.documents) : property.documents) : [];
+    let existingSecData = property.sector_data;
+    if (typeof existingSecData === 'string') {
+      try { existingSecData = JSON.parse(existingSecData); } catch (e) { existingSecData = {}; }
+    }
+    if (!existingSecData || typeof existingSecData !== 'object') existingSecData = {};
 
     const nowD = new Date();
-    const trDateStr = `${String(nowD.getDate()).padStart(2, '0')}/${String(nowD.getMonth() + 1).padStart(2, '0')}/${String(nowD.getFullYear()).slice(-2)}`;
+    const trDateStr = `${String(nowD.getDate()).padStart(2, '0')}.${String(nowD.getMonth() + 1).padStart(2, '0')}.${nowD.getFullYear()} ${String(nowD.getHours()).padStart(2, '0')}:${String(nowD.getMinutes()).padStart(2, '0')}`;
+    const isRejected = decision === "rejected";
+
     const newDoc = {
       id: `virtual-contract-${Date.now()}`,
-      name: `Dijital İmzalı Sözleşme - ${clientName} (${trDateStr})`,
+      name: isRejected
+        ? `RET / Düzeltme Talebi (Sözleşme & Eşya Listesi) - ${clientName} (${trDateStr})`
+        : `Dijital İmzalı Sözleşme & Eşya Tutanağı - ${clientName} (${trDateStr})`,
       category: "contract",
       file_url: "is_virtual_contract",
       upload_date: trDateStr,
@@ -2756,21 +2798,43 @@ router.post("/real-estate/:id/sign", async (req, res) => {
         clientPhone,
         commissionRate: commissionRate || "3",
         contractDate: trDateStr,
-        signed: true,
+        signed: !isRejected,
+        decision: isRejected ? "rejected" : "approved",
+        rejectionReason: rejectionReason || "",
+        fixtureApproved: !isRejected && Boolean(fixtureApproved),
         signingName: clientName,
         ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
-        signatureImage
+        signatureImage: isRejected ? "" : signatureImage
       }
     };
 
     const updatedDocs = [...existingDocs, newDoc];
+    const updatedSecData = {
+      ...existingSecData,
+      fixture_approval_status: isRejected ? "rejected" : "approved",
+      fixture_approval_note: isRejected ? (rejectionReason || "Müşteri eşya/sözleşme listesinde düzeltme talep etti.") : "Müşteri sözleşmeyi ve eşya listesini/resimlerini inceleyerek dijital imzayla onayladı.",
+      fixture_approval_date: trDateStr,
+      fixture_approved_by: `${clientName} (${clientPhone})`
+    };
 
-    await pool.query(
-      `UPDATE ${tableName} SET documents = $1 WHERE id = $2`,
-      [JSON.stringify(updatedDocs), id]
-    );
+    if (tableName === "real_estate_properties") {
+      await pool.query(
+        `UPDATE real_estate_properties SET documents = $1, sector_data = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
+        [JSON.stringify(updatedDocs), JSON.stringify(updatedSecData), id]
+      );
+    } else {
+      await pool.query(
+        `UPDATE ${tableName} SET documents = $1 WHERE id = $2`,
+        [JSON.stringify(updatedDocs), id]
+      );
+    }
 
-    res.json({ success: true, document: newDoc });
+    res.json({
+      success: true,
+      decision: isRejected ? "rejected" : "approved",
+      document: newDoc,
+      sector_data: updatedSecData
+    });
   } catch (error: any) {
     console.error("Error signing real estate contract:", error);
     res.status(500).json({ error: error.message });

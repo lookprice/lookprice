@@ -483,3 +483,22 @@ This file outlines strict engineering, performance, and naming directives that m
 - **5. Fatura Stok Hareketlerinde Gerçek Fatura Tarihi Zorunluluğu (`invoice_date` Preservation)**:
   - Alış ve satış faturalarına ait stok hareketleri (`stock_movements`), faturanın kaydedildiği veya güncellendiği anın zaman damgasını (`CURRENT_TIMESTAMP`) DEĞİL; faturanın gerçek düzenlenme tarihini (`purchase_invoices.invoice_date` / `sales_invoices.invoice_date`) `created_at` olarak almalıdır.
 
+---
+
+## 33. Antik Çağ İkonları Yasağı, Açık Hava Yüksek Kontrast Kurumsal Palet ve Eşyalar (Demirbaş) Müşteri Onay/Red Anayasası
+
+- **1. Antik Çağ İkonları ve İlkel Emoji Yasağı (Zero-Antique-Icon Protocol)**:
+  - Hiçbir LookPrice panelinde (`StoreDashboard`, `SuperAdmin`, `StaffDashboard`, `RealEstateModal`, sekme başlıkları, butonlar ve modallarda) **antik çağ ikonları, gereksiz dekoratif ikon kalabalığı ve ilkel emojiler (`🔒`, `🔑`, `🛋️`, `📦`, `🏷️`, `✨`, `💡`, `📸` vb.) KESİNLİKLE GÖSTERİLMEYECEKTİR**.
+  - Sekme başlıkları (örn. `1. Temel & Fiyat`, `2. Mülk Sahibi & Konum`, `3. Metrikler & Donanım`, `4. Görseller & Medya`, `5. İlan Metni & Notlar`, `6. Evrak & Yayın`, `7. Eşyalar`) yalnızca net, ciddi ve kurumsal tipografi ile yazılmalıdır.
+
+- **2. restateLP Açık Hava / Güneş Işığı Yüksek Kontrast Kurumsal Renk Standardı (Daylight High-Contrast Broker Standard)**:
+  - Emlak danışmanları ve brokerlar cep telefonları ve tabletleri ile çoğunlukla güneşli, açık hava ortamlarında sahada işlem yapmaktadır.
+  - Karanlık modallarda koyu arka plan (`bg-slate-900` / `bg-slate-950`) üzerine koyu input ve silik metin kullanımı saha ve masaüstü kullanımında okunabilirliği yok ettiği için KESİNLİKLE YASAKTIR.
+  - Tüm `restateLP` modalları (`FixtureVaultModal`, `LiveCameraCaptureModal`, `RealEstateModal`, `LegalContractModal` vb.) **Yüksek Kontrastlı Kurumsal Aydınlık Palet** (`bg-white` ve `bg-slate-50` zeminler, belirgin `border-slate-300` çerçeveler, `text-slate-950` net koyu tipografi, `bg-slate-900` / `bg-indigo-600` üzerinde `text-white` keskin aksiyon butonları) ile tasarlanmalıdır.
+
+- **3. Eşyalar (Demirbaş) Modülü, Seçili Eşya Filtreleme, Satır Bazlı PDF Tutanak ve WhatsApp Müşteri Onay/Red Sistemi**:
+  - **Minimal İsimlendirme**: Modül ve sekme adı her yerde **`Eşyalar`** (7. sekmede `7. Eşyalar`), seçim alanı başlığı ise parantez içi açıklama olmadan **`Eşya Seçimi`** olarak gösterilir. Mülk referansı yalnızca `Ref: <Kod>` olarak yazılır; `"Gizli Arşiv"` rozeti veya uzun açıklama metinleri kullanılmaz.
+  - **Fotoğraf Dijital Mühür Standardı**: Çekilen veya yüklenen eşya fotoğraflarının alt bandında sol tarafta yalnızca `REF: <Kod>`, sağ alt köşede ise yalnızca **`HUKUKİ DELİL`** ibaresi ve tarih/saat yer alır.
+  - **Eşya Seçimi & Seçili Eşyaya Ait Çoklu Fotoğraf Görünümü**: `Eşya Seçimi` açılır listesindeki yazı boyutu kompakt (`text-[11px]`) tutulur; seçilen eşyanın varsayılan ismi doğrudan düzenlenebilir, yeni eşya eklenebilir veya silinebilir (ikinci bir serbest metin kutusu bulunmaz). Bir eşya seçildiğinde alt bölümde doğrudan o eşyaya ait fotoğraflar (birden fazla fotoğraf destekli) gösterilir; fotoğrafı henüz çekilmemiş bir eşya seçildiğinde alt alan boş görünerek operatörün eksik eşyayı anında fark etmesi sağlanır.
+  - **Satır Bazlı Kompakt PDF Tutanak ve Kira Sözleşmesi Entegrasyonu**: Demirbaş tespit tutanağı ve kira sözleşmesi eki, sayfalarca A4 israfına yol açan dev bloklar yerine **satır satır kompakt tablo/liste** (Sıra No, Eşya Adı & Nitelik/Durum, Zaman Damgası ve yan yana kompakt küçük resimler) şeklinde oluşturulur ve doğrudan PDF olarak indirilebilir.
+  - **WhatsApp Müşteri Onay / Red ve Çıkış Depozito Güvence Politikası**: Kira sözleşmesi, ekli eşya listesi ve mühürlü eşya fotoğrafları tek tıkla WhatsApp üzerinden kiralayacak müşteriye gönderilir. Müşteri mobil bağlantıda tüm eşyaları ve fotoğraflarını inceleyip **Onaylıyorum (İmzala)** veya **Reddediyorum / Düzeltme Talebi** aksiyonu verebilir; sonuç anında portföy kaydına işlenir. Ayrıca tahliye anında giriş fotoğrafları ile çıkış durumu karşılaştırılarak depozito iadesinin bu dijital tutanağa göre yapılacağını hükme bağlayan **Tahliye & Depozito Eşya Durum Güvencesi** maddesi sözleşmede yer alır.

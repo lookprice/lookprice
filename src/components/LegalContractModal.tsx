@@ -297,7 +297,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       ? property.fixture_photos.length 
       : (typeof (property as any).fixture_photos === 'string' 
           ? JSON.parse((property as any).fixture_photos || '[]').length 
-          : 0)
+          : 0),
+    fixturePhotos: Array.isArray(property.fixture_photos)
+      ? property.fixture_photos
+      : (typeof (property as any).fixture_photos === 'string'
+          ? (() => { try { return JSON.parse((property as any).fixture_photos || '[]'); } catch { return []; } })()
+          : (Array.isArray(property.sector_data?.fixture_photos) ? property.sector_data.fixture_photos : []))
   };
 
   const isFurnishedRental = placeholderValues.isFurnishedRental;
@@ -350,7 +355,10 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       return;
     }
     const formattedPhone = formatPhoneForWhatsApp(clientPhone);
-    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*[LP-${property.id}] ${property.title}* portföyü için hazırlanan resmi *${currentTemplate.titleTr}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 ${window.location.origin}/contract/sign/${property.id}?client=${encodeURIComponent(clientName || '')}&phone=${encodeURIComponent(clientPhone)}&identity=${encodeURIComponent(clientIdentity)}&templateId=${selectedTemplateId}&commissionRate=${encodeURIComponent(commissionRate)}&contractDate=${encodeURIComponent(placeholderValues.contractDate)}&splitRatio=${encodeURIComponent(splitRatio)}&contractDuration=${encodeURIComponent(contractDuration)}&evictionDate=${encodeURIComponent(evictionDate)}&depositAmount=${encodeURIComponent(depositAmount)}&rentDuration=${encodeURIComponent(rentDuration)}&paymentDay=${encodeURIComponent(paymentDay)}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    const fixtureNotice = isFurnishedRental && fixturePhotosCount > 0
+      ? `\n• *Ek-1 Eşya & Demirbaş Teslim Listesi:* ${fixturePhotosCount} Adet Zaman Damgalı Eşya Fotoğrafı`
+      : "";
+    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}* portföyü için hazırlanan resmi *${currentTemplate.titleTr}* belgesi onayınıza sunulmuştur.${fixtureNotice}\n\nBelgeyi${isFurnishedRental ? ', eşya listesini ve eşya fotoğraflarını' : ''} mobil cihazınızdan incelemek, *ONAYLAMAK / İMZALAMAK* veya *DÜZELTME TALEP ETMEK* için lütfen aşağıdaki bağlantıya tıklayınız:\n\n${window.location.origin}/contract/sign/${property.id}?client=${encodeURIComponent(clientName || '')}&phone=${encodeURIComponent(clientPhone)}&identity=${encodeURIComponent(clientIdentity)}&templateId=${selectedTemplateId}&commissionRate=${encodeURIComponent(commissionRate)}&contractDate=${encodeURIComponent(placeholderValues.contractDate)}&splitRatio=${encodeURIComponent(splitRatio)}&contractDuration=${encodeURIComponent(contractDuration)}&evictionDate=${encodeURIComponent(evictionDate)}&depositAmount=${encodeURIComponent(depositAmount)}&rentDuration=${encodeURIComponent(rentDuration)}&paymentDay=${encodeURIComponent(paymentDay)}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -408,19 +416,19 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
           onClose();
         }
       }}
-      className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
+      className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4 bg-slate-900/75 backdrop-blur-xs overflow-hidden animate-in fade-in duration-200"
     >
-      <div className="bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] w-full max-w-6xl h-[92vh] max-h-[92dvh] flex flex-col md:flex-row overflow-hidden shadow-2xl relative border border-slate-800/80">
+      <div className="bg-white rounded-2xl w-full max-w-6xl h-[92vh] max-h-[92dvh] flex flex-col md:flex-row overflow-hidden shadow-2xl relative border-2 border-slate-300 text-slate-950">
         
         {/* Mobile Tab Bar & Header */}
-        <div className="md:hidden flex items-center justify-between bg-slate-950 border-b border-slate-800 p-2.5 shrink-0 gap-2">
-          <div className="flex bg-slate-900 p-1 rounded-xl gap-1 flex-1">
+        <div className="md:hidden flex items-center justify-between bg-slate-900 border-b border-slate-800 p-2 shrink-0 gap-2">
+          <div className="flex bg-slate-800 p-1 rounded-xl gap-1 flex-1">
             <button
               onClick={() => setActiveMobileTab('params')}
               className={`flex-1 py-1.5 text-center text-xs font-black rounded-lg transition-all ${
                 activeMobileTab === 'params' 
-                  ? 'bg-indigo-600 text-white shadow-sm' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-amber-400 text-slate-950 shadow-sm' 
+                  : 'text-slate-300 hover:text-white'
               }`}
             >
               Sözleşme Bilgileri
@@ -429,8 +437,8 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
               onClick={() => setActiveMobileTab('preview')}
               className={`flex-1 py-1.5 text-center text-xs font-black rounded-lg transition-all ${
                 activeMobileTab === 'preview' 
-                  ? 'bg-indigo-600 text-white shadow-sm' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-amber-400 text-slate-950 shadow-sm' 
+                  : 'text-slate-300 hover:text-white'
               }`}
             >
               Sözleşme Ön İzleme
@@ -439,27 +447,28 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
           <button 
             onClick={onClose}
-            className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl transition-all shrink-0 active:scale-95 cursor-pointer"
+            className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all shrink-0 active:scale-95 cursor-pointer"
             title="Kapat"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Left Side: Parameters Form */}
-        <div className={`w-full md:w-[40%] bg-slate-950 p-4 sm:p-6 flex-col justify-between border-r border-slate-800 overflow-y-auto ${
+        {/* Left Side: Parameters Form - High-Contrast Daylight Corporate Theme */}
+        <div className={`w-full md:w-[40%] bg-slate-50 p-4 sm:p-5 flex-col justify-between border-r-2 border-slate-300 overflow-y-auto text-slate-950 ${
           activeMobileTab === 'params' ? 'flex' : 'hidden md:flex'
         }`}>
-          <div className="space-y-6">
-            <div className="flex justify-between items-start">
+          <div className="space-y-4">
+            <div className="flex justify-between items-start border-b border-slate-200 pb-3">
               <div>
-                <span className="text-[10px] bg-indigo-600/20 text-indigo-400 font-black tracking-widest px-2 py-0.5 rounded-md uppercase font-mono">CRM Legal Integration</span>
-                <h3 className="text-xl font-black text-white mt-1">Sözleşme Jeneratörü</h3>
-                <p className="text-slate-400 text-xs">FTSO ve Kıbrıs mevzuatına uygun tanzim şablonları</p>
+                <span className="text-[10px] bg-slate-900 text-white font-black tracking-widest px-2 py-0.5 rounded uppercase font-mono">
+                  Ref: {property.reference_no || `LP-${property.id}`}
+                </span>
+                <h3 className="text-base sm:text-lg font-black text-slate-950 mt-1">Sözleşme & Eşya Tutanağı</h3>
               </div>
               <button 
                 onClick={onClose}
-                className="hidden md:flex p-2 bg-slate-800/80 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/80 hover:border-rose-500/30 rounded-xl transition-all shrink-0 cursor-pointer"
+                className="hidden md:flex p-1.5 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-300 rounded-lg transition-all shrink-0 cursor-pointer"
                 title="Kapat"
               >
                 <X className="w-4 h-4" />
@@ -467,9 +476,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
             </div>
 
             {/* Template Selector */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">1. Sözleşme Tipi Seçin</span>
-              <div className="grid grid-cols-1 gap-2">
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">1. Sözleşme Tipi Seçin</span>
+              <div className="grid grid-cols-1 gap-1.5">
                 {filteredTemplates.map((template) => (
                   <button
                     key={template.id}
@@ -477,16 +486,16 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       setSelectedTemplateId(template.id);
                       setSigned(false);
                     }}
-                    className={`p-3 rounded-2xl flex items-start gap-3 transition-all text-left border ${
+                    className={`p-2.5 rounded-xl flex items-start gap-2.5 transition-all text-left border-2 cursor-pointer ${
                       selectedTemplateId === template.id 
-                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/15' 
-                        : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-900/90'
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-sm' 
+                        : 'bg-white border-slate-300 text-slate-900 hover:bg-slate-100'
                     }`}
                   >
-                    <FileText className={`w-5 h-5 shrink-0 mt-0.5 ${selectedTemplateId === template.id ? 'text-white' : 'text-slate-400'}`} />
+                    <FileText className={`w-4 h-4 shrink-0 mt-0.5 ${selectedTemplateId === template.id ? 'text-amber-400' : 'text-slate-600'}`} />
                     <div>
                       <h5 className="text-xs font-black leading-tight">{template.titleTr}</h5>
-                      <p className="text-[9px] text-slate-400 mt-1 line-clamp-1 group-hover:text-slate-300">
+                      <p className={`text-[10px] mt-0.5 line-clamp-1 ${selectedTemplateId === template.id ? 'text-slate-300' : 'text-slate-600'}`}>
                         {template.descriptionTr}
                       </p>
                     </div>
@@ -496,18 +505,18 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
             </div>
 
             {/* Placeholder Parameters */}
-            <div className="space-y-3.5">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">2. Müşteri & Sözleşme Bilgileri</span>
+            <div className="space-y-3">
+              <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">2. Müşteri & Sözleşme Bilgileri</span>
               
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 gap-2.5">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 ml-1">Müşteri Tam Adı / Temsilci</label>
+                  <label className="text-[10px] font-black text-slate-900 ml-0.5">Müşteri Tam Adı / Temsilci *</label>
                   <div className="relative">
                     <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                     <input 
                       type="text"
-                      className="w-full bg-slate-900 border border-slate-800 pl-9 pr-4 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
-                      placeholder="Örn: John Smith"
+                      className="w-full bg-white border-2 border-slate-300 pl-9 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
+                      placeholder="Örn: Ahmet Yılmaz"
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
                     />
@@ -516,12 +525,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 ml-1">Kimlik / Pasaport No</label>
+                    <label className="text-[10px] font-black text-slate-900 ml-0.5">Kimlik / Pasaport No *</label>
                     <div className="relative">
                       <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
                         type="text"
-                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-white border-2 border-slate-300 pl-9 pr-2.5 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                         placeholder="Örn: 99123456"
                         value={clientIdentity}
                         onChange={(e) => setClientIdentity(e.target.value)}
@@ -530,13 +539,13 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 ml-1">Telefon Numarası</label>
+                    <label className="text-[10px] font-black text-slate-900 ml-0.5">Telefon (WhatsApp) *</label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
                         type="text"
-                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
-                        placeholder="Örn: +(90) 533 ... veya 0533..."
+                        className="w-full bg-white border-2 border-slate-300 pl-9 pr-2.5 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
+                        placeholder="Örn: 0533..."
                         value={clientPhone}
                         onChange={(e) => setClientPhone(e.target.value)}
                       />
@@ -547,10 +556,10 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   {property.listing_intent === 'rent' ? (
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 ml-1">Hizmet Komisyon Bedeli</label>
+                      <label className="text-[10px] font-black text-slate-900 ml-0.5">Hizmet Komisyon Bedeli</label>
                       <input 
                         type="text"
-                        className="w-full bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-white border-2 border-slate-300 px-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                         placeholder="Örn: 1 Aylık Kira Bedeli"
                         value={commissionRate}
                         onChange={(e) => setCommissionRate(e.target.value)}
@@ -558,12 +567,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 ml-1">Hizmet Komisyonu (%)</label>
+                      <label className="text-[10px] font-black text-slate-900 ml-0.5">Hizmet Komisyonu (%)</label>
                       <div className="relative">
-                        <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-bold">%</span>
+                        <span className="absolute left-3 top-2 text-xs text-slate-600 font-black">%</span>
                         <input 
                           type="number"
-                          className="w-full bg-slate-900 border border-slate-800 pl-7 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-white border-2 border-slate-300 pl-7 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                           placeholder="5"
                           min="1"
                           max="10"
@@ -575,12 +584,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                   )}
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 ml-1">Sözleşme İmza Tarihi</label>
+                    <label className="text-[10px] font-black text-slate-900 ml-0.5">Sözleşme İmza Tarihi</label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
                         type="date"
-                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500 [&::-webkit-calendar-picker-indicator]:invert"
+                        className="w-full bg-white border-2 border-slate-300 pl-9 pr-2.5 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                         value={contractDate}
                         onChange={(e) => setContractDate(e.target.value)}
                       />
@@ -590,12 +599,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
                 {selectedTemplateId === "inter_branch_split" && (
                   <div className="space-y-1 mt-1">
-                    <label className="text-[10px] font-bold text-slate-400 ml-1">Paylaşım (Split) Oranı</label>
+                    <label className="text-[10px] font-black text-slate-900 ml-0.5">Paylaşım (Split) Oranı</label>
                     <div className="relative">
                       <Percent className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
                         type="text"
-                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-white border-2 border-slate-300 pl-9 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                         placeholder="Örn: 50 / 50"
                         value={splitRatio}
                         onChange={(e) => setSplitRatio(e.target.value)}
@@ -606,12 +615,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
                 {selectedTemplateId === "rental_authorization" && (
                   <div className="space-y-1 mt-1">
-                    <label className="text-[10px] font-bold text-slate-400 ml-1">Yetki Belgesi Süresi</label>
+                    <label className="text-[10px] font-black text-slate-900 ml-0.5">Yetki Belgesi Süresi</label>
                     <div className="relative">
                       <Bookmark className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
                         type="text"
-                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-white border-2 border-slate-300 pl-9 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                         placeholder="Örn: 12 Ay / 12 Months"
                         value={contractDuration}
                         onChange={(e) => setContractDuration(e.target.value)}
@@ -622,12 +631,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
                 {selectedTemplateId === "eviction_undertaking" && (
                   <div className="space-y-1 mt-1">
-                    <label className="text-[10px] font-bold text-slate-400 ml-1">Tahliye Hedef Tarihi</label>
+                    <label className="text-[10px] font-black text-slate-900 ml-0.5">Tahliye Hedef Tarihi</label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
                         type="date"
-                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500 [&::-webkit-calendar-picker-indicator]:invert"
+                        className="w-full bg-white border-2 border-slate-300 pl-9 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                         value={evictionDate}
                         onChange={(e) => setEvictionDate(e.target.value)}
                       />
@@ -637,12 +646,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
                 {selectedTemplateId === "sales_brokerage" && (
                   <div className="space-y-1 mt-1">
-                    <label className="text-[10px] font-bold text-slate-400 ml-1">Kapora Tutarı / Deposit</label>
+                    <label className="text-[10px] font-black text-slate-900 ml-0.5">Kapora Tutarı / Deposit</label>
                     <div className="relative">
                       <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
                         type="text"
-                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-white border-2 border-slate-300 pl-9 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                         placeholder="Örn: 5.000 GBP"
                         value={depositAmount}
                         onChange={(e) => setDepositAmount(e.target.value)}
@@ -654,12 +663,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 {selectedTemplateId === "rental_agreement" && (
                   <div className="space-y-2 mt-1">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 ml-1">Kira Süresi / Lease Duration</label>
+                      <label className="text-[10px] font-black text-slate-900 ml-0.5">Kira Süresi / Lease Duration</label>
                       <div className="relative">
                         <Bookmark className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                         <input 
                           type="text"
-                          className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-white border-2 border-slate-300 pl-9 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                           placeholder="Örn: 1 Yıl"
                           value={rentDuration}
                           onChange={(e) => setRentDuration(e.target.value)}
@@ -668,12 +677,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 ml-1">Kira Ödeme Günü / Payment Day</label>
+                      <label className="text-[10px] font-black text-slate-900 ml-0.5">Kira Ödeme Günü / Payment Day</label>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                         <input 
                           type="text"
-                          className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-white border-2 border-slate-300 pl-9 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                           placeholder="Örn: Her ayın en geç 5. günü"
                           value={paymentDay}
                           onChange={(e) => setPaymentDay(e.target.value)}
@@ -682,12 +691,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 ml-1">Depozito Tutarı / Security Deposit</label>
+                      <label className="text-[10px] font-black text-slate-900 ml-0.5">Depozito Tutarı / Security Deposit</label>
                       <div className="relative">
                         <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                         <input 
                           type="text"
-                          className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-white border-2 border-slate-300 pl-9 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
                           placeholder="Örn: 1 Aylık Kira Bedeli veya 10.000 TL"
                           value={depositAmount}
                           onChange={(e) => setDepositAmount(e.target.value)}
@@ -698,20 +707,15 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 )}
 
                 {isFurnishedRental && (
-                  <div className="p-3 bg-sky-950/50 border border-sky-800/80 rounded-2xl space-y-1.5 mt-2">
-                    <div className="flex items-center justify-between text-sky-300 text-xs font-black">
-                      <span className="flex items-center gap-1.5">
-                        🔒 Eşyalı Kiralama & Demirbaş Onayı
-                      </span>
-                      <span className="bg-sky-500/20 text-sky-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                        {fixturePhotosCount} Demirbaş Kayıtlı
+                  <div className="p-2.5 bg-amber-50 border-2 border-amber-300 rounded-xl space-y-1 mt-1">
+                    <div className="flex items-center justify-between text-slate-950 text-xs font-black">
+                      <span>EK-1 Eşya Listesi Aktif</span>
+                      <span className="bg-slate-900 text-white px-2 py-0.5 rounded text-[10px] font-black">
+                        {fixturePhotosCount} Fotoğraf
                       </span>
                     </div>
-                    <p className="text-[11px] text-sky-200/95 font-semibold leading-relaxed italic bg-slate-900/60 p-2 rounded-xl border border-sky-900/40">
-                      "Mülk'ü kiralarken içerisinde bulunan Eşya / demirbaşları inceledim, gördüm. Eşyalara ait resimleri de inceledim, gördüm. Onaylıyorum. kabulümdür."
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      Bu yasal kabul maddesi kira sözleşmesi şartlarına eklenmiştir.
+                    <p className="text-[10px] text-slate-800 font-bold leading-snug">
+                      Eşya listesi, zaman damgalı fotoğraflar ve çıkış depozito güvence maddesi sözleşmeye otomatik eklenmiştir.
                     </p>
                   </div>
                 )}
@@ -719,11 +723,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
             </div>
 
             {/* Digital Stamp Feature */}
-            <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+            <div className="p-3.5 bg-white border-2 border-slate-300 rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileCheck className="w-4 h-4 text-indigo-400" />
-                  <span className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Hızlı Dijital Onay İmza</span>
+                <div className="flex items-center gap-1.5">
+                  <FileCheck className="w-4 h-4 text-indigo-600" />
+                  <span className="text-[10px] font-black uppercase text-slate-950 tracking-wider">Hızlı Dijital Onay İmza</span>
                 </div>
                 {signed && (
                   <button 
@@ -732,26 +736,22 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       setSignatureImage("");
                       setIsSigningActive(false);
                     }}
-                    className="text-[9px] text-slate-400 hover:text-white uppercase font-black tracking-wider transition-colors"
+                    className="text-[10px] text-rose-600 hover:text-rose-700 uppercase font-black tracking-wider transition-colors cursor-pointer"
                   >
                     Yeniden Düzenle
                   </button>
                 )}
               </div>
-              
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                Müşteriyle ofiste veya tablet üzerinden yan yanayken, ismini yazıp ekrana çizdirerek imzayı sözleşmeye anında monte edebilirsiniz.
-              </p>
 
               {signed ? (
                 <div className="space-y-2">
-                  <div className="bg-emerald-950/40 border border-emerald-900/60 p-2.5 rounded-xl text-center text-xs text-emerald-400 font-bold flex flex-col items-center justify-center gap-2">
+                  <div className="bg-emerald-50 border-2 border-emerald-500 p-2.5 rounded-xl text-center text-xs text-emerald-900 font-black flex flex-col items-center justify-center gap-1.5">
                     <div className="flex items-center gap-1.5">
-                      <CheckCircle className="w-4 h-4 text-emerald-400" /> Dijital Damga & İmza Basıldı
+                      <CheckCircle className="w-4 h-4 text-emerald-600" /> Dijital Damga & İmza Basıldı
                     </div>
-                    <span className="text-[10px] text-slate-300">İmzalayan: {signingName}</span>
+                    <span className="text-[10px] text-slate-700">İmzalayan: {signingName}</span>
                     {signatureImage && (
-                      <div className="mt-2 bg-white p-1.5 rounded-lg border border-slate-800/20 max-w-[120px]">
+                      <div className="mt-1 bg-white p-1.5 rounded-lg border border-slate-300 max-w-[120px]">
                         <img src={signatureImage} alt="Drawn signature" className="max-h-[40px] max-w-full block" />
                       </div>
                     )}
@@ -760,20 +760,20 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                     <button 
                       onClick={handleSaveContract}
                       disabled={saving}
-                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs rounded-xl flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50"
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs rounded-xl flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50 cursor-pointer"
                     >
                       <Save className="w-4 h-4" /> {saving ? "Sözleşme Kaydediliyor..." : "Sözleşmeyi Güvenli Depoya Kaydet"}
                     </button>
                   )}
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-slate-400">Onaylayan Adı Soyadı / Name</label>
+                    <label className="text-[10px] font-black text-slate-900">Onaylayan Adı Soyadı / Name</label>
                     <input 
                       type="text" 
                       placeholder="Müşteri onay adı..." 
-                      className="w-full bg-slate-950 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-white outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 border-2 border-slate-300 px-3 py-2 rounded-xl text-xs font-black text-slate-950 outline-none focus:border-indigo-600"
                       value={signingName}
                       onChange={(e) => setSigningName(e.target.value)}
                     />
@@ -782,17 +782,17 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                   {/* Draw area */}
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label className="text-[9px] font-bold text-slate-400">Parmağıyla / Mouse ile İmzalasın</label>
+                      <label className="text-[10px] font-black text-slate-900">Parmağıyla / Mouse ile İmzalasın</label>
                       <button 
                         onClick={clearCanvas}
                         type="button"
-                        className="text-[9px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 uppercase"
+                        className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 uppercase cursor-pointer"
                       >
-                        <RotateCcw className="w-2.5 h-2.5" /> Temizle
+                        <RotateCcw className="w-3 h-3" /> Temizle
                       </button>
                     </div>
 
-                    <div className="border border-slate-800 rounded-xl overflow-hidden bg-white relative">
+                    <div className="border-2 border-slate-300 rounded-xl overflow-hidden bg-white relative">
                       <canvas 
                         ref={canvasRef}
                         width={300}
@@ -808,8 +808,8 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       />
                       {!isSigningActive && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-                          <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase flex items-center gap-1 animate-pulse">
-                            ✍️ BURAYA PARMAKLA ÇİZDİRİN
+                          <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                            BURAYA PARMAKLA İMZALATIN
                           </span>
                         </div>
                       )}
@@ -839,7 +839,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       setSignatureImage(dataUrl);
                       setSigned(true);
                     }}
-                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase rounded-xl transition-all"
+                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase rounded-xl transition-all cursor-pointer shadow-xs"
                   >
                     Sözleşmeye Monte Et & Mühürle
                   </button>
@@ -847,10 +847,6 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
               )}
             </div>
           </div>
-
-          <p className="text-[9px] text-slate-500 text-center mt-6">
-            Premium Real Estate Engine • 2026 Legal Sync v4
-          </p>
         </div>
 
         {/* Right Side: Contract Live Rendering */}

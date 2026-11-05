@@ -1839,6 +1839,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   storeId={currentStoreId!} 
                   isAutomotive={isAutomotive} 
                   isRealEstate={isRealEstate}
+                  branding={branding}
                 />
               )}
             </Suspense>

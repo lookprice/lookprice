@@ -805,37 +805,43 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-slate-50/30">
               {(() => {
                 const defaultCurr = (branding?.default_currency || branding?.currency || 'TRY').toUpperCase();
-                const storeRates: Record<string, number> = { USD: 34.50, EUR: 37.80, GBP: 45.20, TRY: 1, [defaultCurr]: 1 };
+                // Base TCMB rates: how many TRY equals 1 unit of each currency
+                const tryRates: Record<string, number> = { USD: 34.50, EUR: 37.80, GBP: 45.20, TRY: 1 };
                 const rawRates = branding?.currency_rates || {};
                 if (typeof rawRates === 'object' && rawRates !== null) {
                   Object.keys(rawRates).forEach(k => {
+                    const ku = k.toUpperCase();
                     const v = parseFloat(rawRates[k]);
-                    if (!isNaN(v) && v > 0) storeRates[k.toUpperCase()] = v;
+                    if (ku === 'TRY') {
+                      tryRates.TRY = 1;
+                    } else if (!isNaN(v) && v > 1.05) {
+                      tryRates[ku] = v;
+                    }
                   });
                 }
-                const resolveRate = (curr: string, txRate: any) => {
+
+                const getTryRate = (curr: string, customRate?: any): number => {
                   const c = (curr || defaultCurr).toUpperCase();
-                  if (c === defaultCurr) return 1;
-                  const r = Number(txRate || 0);
-                  if (!isNaN(r) && r > 0 && r !== 1) return r;
-                  return storeRates[c] || 1;
+                  if (c === 'TRY') return 1;
+                  const r = Number(customRate || 0);
+                  if (!isNaN(r) && r > 1.05) return r;
+                  return tryRates[c] || 1;
+                };
+
+                // Convert an amount from `fromCurr` to `toCurr` using TCMB / transaction rates
+                const convertCurrency = (amt: number, fromCurr: string, toCurr: string, txRate?: any): { amount: number; rate: number } => {
+                  const f = (fromCurr || defaultCurr).toUpperCase();
+                  const t = (toCurr || defaultCurr).toUpperCase();
+                  if (f === t) return { amount: Number(amt.toFixed(2)), rate: 1 };
+                  const fTry = f === 'TRY' ? 1 : getTryRate(f, txRate);
+                  const tTry = t === 'TRY' ? 1 : getTryRate(t, f === 'TRY' ? txRate : undefined);
+                  const inTry = amt * fTry;
+                  const converted = tTry > 0 ? Number((inTry / tTry).toFixed(2)) : Number(amt.toFixed(2));
+                  const displayRate = f === 'TRY' ? tTry : (t === 'TRY' ? fTry : Number((fTry / tTry).toFixed(4)));
+                  return { amount: converted, rate: displayRate };
                 };
 
                 const safeTransactions = Array.isArray(companyTransactions) ? companyTransactions : [];
-
-                // Detect primary foreign currency of this account (e.g. USD, EUR, GBP) if any
-                const detectedFxCurrencies = new Set<string>();
-                Object.keys(openingBalances || {}).forEach(k => {
-                  const ku = k.toUpperCase();
-                  if (ku !== defaultCurr && Math.abs(Number(openingBalances[k] || 0)) > 0.005) detectedFxCurrencies.add(ku);
-                });
-                safeTransactions.forEach((tx: any) => {
-                  const c1 = (tx.currency || defaultCurr).toUpperCase();
-                  const c2 = (tx.cross_currency || '').toUpperCase();
-                  if (c1 && c1 !== defaultCurr) detectedFxCurrencies.add(c1);
-                  if (c2 && c2 !== defaultCurr) detectedFxCurrencies.add(c2);
-                });
-                const primaryFxCurr = Array.from(detectedFxCurrencies)[0] || '';
 
                 const enrichedTransactions: any[] = [];
                 safeTransactions.forEach((tx: any) => {
@@ -843,62 +849,61 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   const txCrossCurr = (tx.cross_currency || '').toUpperCase();
                   const rawAmt = Number(tx.amount || 0);
                   const rawCrossAmt = Number(tx.cross_amount || 0);
-                  const rate = resolveRate(txCurr, tx.exchange_rate);
-                  const crossRate = Number(tx.cross_rate || rate || 1);
+                  const rawCrossRate = Number(tx.cross_rate || 0);
                   const descLower = (tx.description || '').toLowerCase();
                   const isExchangeDiffInvoice = descLower.includes('kur fark');
 
                   // Detect cross-currency transaction where entry was in TRY (TL) converting to foreign target (USD/EUR/GBP)
-                  const isCrossFromTRY = (txCrossCurr === defaultCurr && rawCrossAmt > 0 && txCurr !== defaultCurr) ||
-                    ((descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:')) && txCurr !== defaultCurr);
+                  const isCrossFromTRY = (txCrossCurr === 'TRY' && rawCrossAmt > 0 && txCurr !== 'TRY') ||
+                    ((descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:')) && txCurr !== 'TRY');
                   
-                  // Also detect cross-currency where entry was in foreign currency converting to TRY
-                  const isCrossToTRY = (txCurr === defaultCurr && txCrossCurr && txCrossCurr !== defaultCurr);
+                  // Also detect cross-currency where entry was in TRY targeting a foreign cross_currency
+                  const isCrossToFX = (txCurr === 'TRY' && txCrossCurr && txCrossCurr !== 'TRY');
 
                   if (selectedCurrency === 'ALL') {
-                    // Rule: Kayıt işlemi hangi para birimi ile yapılmışsa o para birimi ekstrede asıl kayıtta (statementCurr / statementAmt)
-                    // görünecek ve dönüştürülen para birimi de bilgi / karşı tutar kısmında (fxCurr / fxAmt) görünecek!
                     if (isCrossFromTRY) {
-                      const effRate = crossRate > 1 ? crossRate : (rate > 1 ? rate : resolveRate(txCurr, storeRates[txCurr]));
-                      const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * effRate).toFixed(2));
+                      const effTryRate = rawCrossRate > 1.05 ? rawCrossRate : getTryRate(txCurr, tx.exchange_rate);
+                      const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * effTryRate).toFixed(2));
+                      const baseConv = convertCurrency(rawAmt, txCurr, defaultCurr, effTryRate);
                       enrichedTransactions.push({
                         ...tx,
-                        statementCurr: defaultCurr,
+                        statementCurr: 'TRY',
                         statementAmt: tryAmt,
-                        statementRate: effRate,
+                        statementRate: effTryRate,
                         fxCurr: txCurr,
                         fxAmt: rawAmt,
-                        fxRate: effRate,
-                        baseAmt: tryAmt,
+                        fxRate: effTryRate,
+                        baseAmt: baseConv.amount,
                         targetBalCurr: txCurr,
                         targetBalAmt: rawAmt,
                         isCross: true,
-                        crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+                        crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${effTryRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
                       });
                       return;
                     }
 
-                    if (isCrossToTRY) {
-                      const effRate = crossRate > 1 ? crossRate : resolveRate(txCrossCurr, storeRates[txCrossCurr]);
-                      const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (effRate > 0 ? Number((rawAmt / effRate).toFixed(2)) : null);
+                    if (isCrossToFX) {
+                      const effTryRate = rawCrossRate > 1.05 ? rawCrossRate : getTryRate(txCrossCurr, tx.exchange_rate);
+                      const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (effTryRate > 0 ? Number((rawAmt / effTryRate).toFixed(2)) : null);
+                      const baseConv = fxAmt ? convertCurrency(fxAmt, txCrossCurr, defaultCurr, effTryRate) : convertCurrency(rawAmt, 'TRY', defaultCurr, effTryRate);
                       enrichedTransactions.push({
                         ...tx,
-                        statementCurr: defaultCurr,
+                        statementCurr: 'TRY',
                         statementAmt: rawAmt,
-                        statementRate: effRate > 0 ? effRate : 1,
+                        statementRate: effTryRate > 0 ? effTryRate : 1,
                         fxCurr: txCrossCurr,
                         fxAmt: fxAmt,
-                        fxRate: effRate,
-                        baseAmt: rawAmt,
+                        fxRate: effTryRate,
+                        baseAmt: baseConv.amount,
                         targetBalCurr: txCrossCurr,
                         targetBalAmt: fxAmt || 0,
                         isCross: true,
-                        crossNote: fxAmt ? `${Number(fxAmt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCrossCurr} Mahsubu (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
+                        crossNote: fxAmt ? `${Number(fxAmt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCrossCurr} Mahsubu (Kur: ${effTryRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
                       });
                       return;
                     }
 
-                    // Plain default-currency (TRY) transaction: adjusts TRY balance only, never inflates FX balance
+                    // Plain default-currency transaction
                     if (txCurr === defaultCurr) {
                       enrichedTransactions.push({
                         ...tx,
@@ -917,19 +922,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       return;
                     }
 
-                    // Standard single currency transaction in ALL view
-                    const baseAmt = Number((rawAmt * rate).toFixed(2));
-                    const fxCurr = txCrossCurr || (txCurr !== defaultCurr ? txCurr : '');
-                    const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (txCurr !== defaultCurr ? rawAmt : null);
+                    // Transaction in a non-default currency (e.g. TRY or EUR or USD when defaultCurr is GBP, or USD/EUR/GBP when defaultCurr is TRY)
+                    const baseConv = convertCurrency(rawAmt, txCurr, defaultCurr, tx.exchange_rate);
                     enrichedTransactions.push({
                       ...tx,
                       statementCurr: txCurr,
                       statementAmt: rawAmt,
-                      statementRate: rate,
-                      fxCurr,
-                      fxAmt,
-                      fxRate: crossRate > 0 ? crossRate : rate,
-                      baseAmt,
+                      statementRate: baseConv.rate,
+                      fxCurr: defaultCurr,
+                      fxAmt: baseConv.amount,
+                      fxRate: baseConv.rate,
+                      baseAmt: baseConv.amount,
                       targetBalCurr: txCurr,
                       targetBalAmt: rawAmt,
                       isCross: Boolean(txCrossCurr && txCrossCurr !== txCurr)
@@ -937,70 +940,78 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     return;
                   }
 
-                  if (selectedCurrency === defaultCurr) {
-                    // Only transactions recorded in base currency (TRY) belong in the TRY statement
-                    if (txCurr === defaultCurr) {
-                      const hasTargetCross = Boolean(txCrossCurr && txCrossCurr !== defaultCurr);
-                      const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (hasTargetCross && crossRate > 0 ? Number((rawAmt / crossRate).toFixed(2)) : null);
+                  // Single Currency Tab Selected (selectedCurrency !== 'ALL')
+                  const activeTabCurr = selectedCurrency.toUpperCase();
+
+                  // 1. Transaction currency matches selected tab currency
+                  if (txCurr === activeTabCurr) {
+                    const hasCrossOffset = Boolean(txCrossCurr && txCrossCurr !== activeTabCurr) ||
+                      (activeTabCurr !== 'TRY' && (descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:')));
+                    
+                    if (hasCrossOffset) {
+                      const offsetCurr = (txCrossCurr && txCrossCurr !== activeTabCurr) ? txCrossCurr : 'TRY';
+                      const convOffset = convertCurrency(rawAmt, activeTabCurr, offsetCurr, rawCrossRate > 1.05 ? rawCrossRate : tx.exchange_rate);
+                      const offsetAmt = rawCrossAmt > 0 ? rawCrossAmt : convOffset.amount;
+                      const offsetRate = rawCrossRate > 1.05 ? rawCrossRate : convOffset.rate;
+                      const baseConv = convertCurrency(rawAmt, activeTabCurr, defaultCurr, offsetRate);
                       enrichedTransactions.push({
                         ...tx,
-                        statementCurr: defaultCurr,
+                        statementCurr: activeTabCurr,
                         statementAmt: rawAmt,
-                        statementRate: 1,
-                        fxCurr: hasTargetCross ? txCrossCurr : '',
-                        fxAmt: hasTargetCross ? fxAmt : null,
-                        fxRate: hasTargetCross && crossRate > 0 ? crossRate : 1,
-                        baseAmt: rawAmt,
-                        targetBalCurr: defaultCurr,
+                        statementRate: offsetRate,
+                        fxCurr: offsetCurr,
+                        fxAmt: offsetAmt,
+                        fxRate: offsetRate,
+                        baseAmt: baseConv.amount,
+                        targetBalCurr: activeTabCurr,
                         targetBalAmt: rawAmt,
-                        isCross: hasTargetCross
+                        isCross: true,
+                        crossNote: `${offsetAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${offsetCurr === 'TRY' ? '₺' : offsetCurr} ile Mahsup Edildi (Kur: ${offsetRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
                       });
+                      return;
                     }
+
+                    // Normal single-currency transaction in activeTabCurr
+                    const baseConv = convertCurrency(rawAmt, activeTabCurr, defaultCurr, tx.exchange_rate);
+                    const isDifferentFromDefault = activeTabCurr !== defaultCurr;
+                    enrichedTransactions.push({
+                      ...tx,
+                      statementCurr: activeTabCurr,
+                      statementAmt: rawAmt,
+                      statementRate: isDifferentFromDefault ? baseConv.rate : 1,
+                      fxCurr: isDifferentFromDefault ? defaultCurr : '',
+                      fxAmt: isDifferentFromDefault ? baseConv.amount : null,
+                      fxRate: isDifferentFromDefault ? baseConv.rate : 1,
+                      baseAmt: baseConv.amount,
+                      targetBalCurr: activeTabCurr,
+                      targetBalAmt: rawAmt,
+                      isCross: false,
+                      isExchangeDiffInvoice
+                    });
                     return;
                   }
 
-                  // Selected is a foreign currency tab (e.g. USD, EUR, GBP)
-                  if (selectedCurrency !== defaultCurr && selectedCurrency !== 'ALL') {
-                    // 1. Transaction currency matches selected foreign currency
-                    if (txCurr === selectedCurrency) {
-                      const hasTryCross = txCrossCurr === defaultCurr || descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:');
-                      const tryAmt = rawCrossAmt > 0 ? rawCrossAmt : Number((rawAmt * (crossRate > 0 ? crossRate : rate)).toFixed(2));
-                      enrichedTransactions.push({
-                        ...tx,
-                        statementCurr: selectedCurrency,
-                        statementAmt: rawAmt,
-                        statementRate: crossRate > 0 ? crossRate : rate,
-                        fxCurr: defaultCurr,
-                        fxAmt: tryAmt,
-                        fxRate: crossRate > 0 ? crossRate : rate,
-                        baseAmt: tryAmt,
-                        targetBalCurr: selectedCurrency,
-                        targetBalAmt: rawAmt,
-                        isCross: hasTryCross,
-                        crossNote: hasTryCross ? `${tryAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${(crossRate > 0 ? crossRate : rate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
-                      });
-                      return;
-                    }
-
-                    // 2. Cross currency matches selected foreign currency (e.g. paid in TRY targeting USD)
-                    if (txCrossCurr === selectedCurrency) {
-                      const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (crossRate > 0 ? Number((rawAmt / crossRate).toFixed(2)) : rawAmt);
-                      enrichedTransactions.push({
-                        ...tx,
-                        statementCurr: selectedCurrency,
-                        statementAmt: fxAmt,
-                        statementRate: crossRate,
-                        fxCurr: txCurr,
-                        fxAmt: rawAmt,
-                        fxRate: crossRate,
-                        baseAmt: Number((rawAmt * (txCurr === defaultCurr ? 1 : rate)).toFixed(2)),
-                        targetBalCurr: selectedCurrency,
-                        targetBalAmt: fxAmt,
-                        isCross: true,
-                        crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${txCurr} Karşılığı`
-                      });
-                      return;
-                    }
+                  // 2. Cross currency matches selected tab currency (e.g. recorded in TRY targeting USD/GBP)
+                  if (txCrossCurr === activeTabCurr) {
+                    const convTarget = convertCurrency(rawAmt, txCurr, activeTabCurr, rawCrossRate > 1.05 ? rawCrossRate : tx.exchange_rate);
+                    const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : convTarget.amount;
+                    const effRate = rawCrossRate > 1.05 ? rawCrossRate : convTarget.rate;
+                    const baseConv = convertCurrency(fxAmt, activeTabCurr, defaultCurr, effRate);
+                    enrichedTransactions.push({
+                      ...tx,
+                      statementCurr: activeTabCurr,
+                      statementAmt: fxAmt,
+                      statementRate: effRate,
+                      fxCurr: txCurr,
+                      fxAmt: rawAmt,
+                      fxRate: effRate,
+                      baseAmt: baseConv.amount,
+                      targetBalCurr: activeTabCurr,
+                      targetBalAmt: fxAmt,
+                      isCross: true,
+                      crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${txCurr} Karşılığı (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+                    });
+                    return;
                   }
                 });
 
@@ -1016,16 +1027,18 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 let initialBaseCarry = 0;
                 if (selectedCurrency === 'ALL') {
                   Object.entries(openingBalances || {}).forEach(([cKey, obVal]) => {
-                    const r = resolveRate(cKey, storeRates[cKey.toUpperCase()]);
-                    initialBaseCarry = Number((initialBaseCarry + Number(obVal || 0) * r).toFixed(2));
+                    const conv = convertCurrency(Number(obVal || 0), cKey, defaultCurr);
+                    initialBaseCarry = Number((initialBaseCarry + conv.amount).toFixed(2));
                   });
                 } else if (openingBalances?.[selectedCurrency]) {
-                  const r = resolveRate(selectedCurrency, storeRates[selectedCurrency.toUpperCase()]);
-                  initialBaseCarry = Number((Number(openingBalances[selectedCurrency] || 0) * r).toFixed(2));
+                  const conv = convertCurrency(Number(openingBalances[selectedCurrency] || 0), selectedCurrency, defaultCurr);
+                  initialBaseCarry = conv.amount;
                 }
 
                 const totalBaseNet = filteredTransactions.reduce((acc, tx) => {
-                  const baseAmt = Number(tx.baseAmt || (Number(tx.amount || 0) * resolveRate(tx.currency, tx.exchange_rate)).toFixed(2));
+                  const baseAmt = tx.baseAmt !== undefined && tx.baseAmt !== null
+                    ? Number(tx.baseAmt)
+                    : convertCurrency(Number(tx.amount || 0), tx.currency || defaultCurr, defaultCurr, tx.exchange_rate).amount;
                   return Number((acc + (tx.type === 'debt' ? baseAmt : -baseAmt)).toFixed(2));
                 }, initialBaseCarry);
 
@@ -1100,7 +1113,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                               {isTr ? `Birleşik (${defaultCurr})` : `Combined (${defaultCurr})`}:
                             </span>
                             <span className="font-medium font-mono text-amber-950">
-                              {totalBaseNet.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {defaultCurr}
+                              {Math.abs(totalBaseNet).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {defaultCurr}
+                              <span className="text-[10px] ml-1 opacity-75">
+                                {Math.abs(totalBaseNet) < 0.005 ? (isTr ? '(Kapalı)' : '(Closed)') : totalBaseNet > 0 ? (isTr ? '(B)' : '(D)') : (isTr ? '(A)' : '(C)')}
+                              </span>
                             </span>
                           </div>
                         )}
@@ -1156,9 +1172,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                 <th className="py-2 px-3 text-[10px] font-medium text-rose-700 uppercase tracking-wider text-right">{t.statements?.debt || "Borç"}</th>
                                 <th className="py-2 px-3 text-[10px] font-medium text-emerald-700 uppercase tracking-wider text-right">{t.statements?.credit || "Alacak"}</th>
                                 <th className="py-2 px-3 text-[10px] font-medium text-slate-700 uppercase tracking-wider text-right">{t.statements?.balance || "Bakiye"}</th>
-                                <th className="py-2 px-3 text-[10px] font-medium text-indigo-700 uppercase tracking-wider text-right bg-indigo-50/60">
-                                  {isTr ? `Birleşik Bakiye (${defaultCurr})` : `Combined (${defaultCurr})`}
-                                </th>
+                                {selectedCurrency === 'ALL' && (
+                                  <th className="py-2 px-3 text-[10px] font-medium text-indigo-700 uppercase tracking-wider text-right bg-indigo-50/60">
+                                    {isTr ? `Birleşik Bakiye (${defaultCurr})` : `Combined (${defaultCurr})`}
+                                  </th>
+                                )}
                                 <th className="py-2 px-3 text-[10px] font-medium text-slate-600 uppercase tracking-wider text-right w-16">{isTr ? 'İşlem' : 'Action'}</th>
                               </tr>
                             </thead>
@@ -1188,17 +1206,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                         <td className="py-2 px-3 text-right text-amber-900 font-mono font-medium">
                                           {Number(openingBalances[selectedCurrency]).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
                                         </td>
-                                        <td className="py-2 px-3 text-right text-amber-950 font-mono font-medium bg-amber-100/40">
-                                          {runningBaseBal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {defaultCurr}
-                                        </td>
                                         <td className="py-2 px-3 text-right text-amber-700">-</td>
                                       </tr>
                                     ) : null}
                                     {filteredTransactions.map((tx: any) => {
                                       const amt = Number(tx.statementAmt || tx.amount || 0);
                                       const curr = (tx.statementCurr || tx.currency || defaultCurr).toUpperCase();
-                                      const rate = Number(tx.statementRate || resolveRate(curr, tx.exchange_rate));
-                                      const baseAmt = Number(tx.baseAmt || (amt * (curr === defaultCurr ? 1 : rate)).toFixed(2));
+                                      const fallbackConv = convertCurrency(amt, curr, defaultCurr, tx.exchange_rate);
+                                      const rate = Number(tx.statementRate || fallbackConv.rate || 1);
+                                      const baseAmt = tx.baseAmt !== undefined && tx.baseAmt !== null
+                                        ? Number(tx.baseAmt)
+                                        : fallbackConv.amount;
                                       const isDebt = tx.type === 'debt';
 
                                       if (tx.targetBalCurr && tx.targetBalCurr !== curr) {
@@ -1495,13 +1513,15 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                                               {Math.abs(rowRunningBalance) < 0.005 ? (isTr ? '(Kapalı)' : '(Closed)') : rowRunningBalance > 0 ? (isTr ? '(B)' : '(D)') : (isTr ? '(A)' : '(C)')}
                                             </span>
                                           </td>
-                                          <td className="py-2 px-3 text-right font-mono font-medium whitespace-nowrap text-indigo-950 bg-indigo-50/30">
-                                            {Math.abs(runningBaseBal).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            <span className="text-[10px] ml-1 font-medium text-indigo-700">{defaultCurr}</span>
-                                            <span className="text-[10px] ml-1 opacity-75 text-indigo-600">
-                                              {Math.abs(runningBaseBal) < 0.005 ? (isTr ? '(Kapalı)' : '(Closed)') : runningBaseBal > 0 ? (isTr ? '(B)' : '(D)') : (isTr ? '(A)' : '(C)')}
-                                            </span>
-                                          </td>
+                                          {selectedCurrency === 'ALL' && (
+                                            <td className="py-2 px-3 text-right font-mono font-medium whitespace-nowrap text-indigo-950 bg-indigo-50/30">
+                                              {Math.abs(runningBaseBal).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                              <span className="text-[10px] ml-1 font-medium text-indigo-700">{defaultCurr}</span>
+                                              <span className="text-[10px] ml-1 opacity-75 text-indigo-600">
+                                                {Math.abs(runningBaseBal) < 0.005 ? (isTr ? '(Kapalı)' : '(Closed)') : runningBaseBal > 0 ? (isTr ? '(B)' : '(D)') : (isTr ? '(A)' : '(C)')}
+                                              </span>
+                                            </td>
+                                          )}
                                           <td className="py-2 px-3.5 text-right whitespace-nowrap">
                                             <div className="flex justify-end items-center gap-1">
                                               <button 
@@ -1826,6 +1846,22 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       </span>
                     </div>
                   )}
+
+                  {(() => {
+                    const storeDefCurr = (branding?.default_currency || branding?.currency || 'TRY').toUpperCase();
+                    if (!formTargetCurrency && storeDefCurr !== 'TRY' && parseAmount(formAmount) > 0) {
+                      const defTryRate = getSuggestedRate(storeDefCurr) || 45.20;
+                      return (
+                        <div className="p-2 bg-indigo-50/70 border border-indigo-200 rounded-xl flex items-center justify-between gap-2 text-[11px] text-indigo-950">
+                          <span>{isTr ? `Birleşik Ekstre (${storeDefCurr}) Karşılığı:` : `Combined (${storeDefCurr}) Equivalent:`}</span>
+                          <span className="font-mono font-semibold text-indigo-700">
+                            ~{(parseAmount(formAmount) / defTryRate).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {storeDefCurr}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               )}
 

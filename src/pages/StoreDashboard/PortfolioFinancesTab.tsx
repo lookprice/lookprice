@@ -42,6 +42,7 @@ interface PortfolioFinancesTabProps {
   storeId: number;
   isAutomotive?: boolean;
   isRealEstate?: boolean;
+  branding?: any;
 }
 
 export interface FinancialAccount {
@@ -64,7 +65,8 @@ const SUPPORTED_CURRENCIES = ["GBP", "EUR", "USD", "TRY"] as const;
 export default function PortfolioFinancesTab({ 
   storeId, 
   isAutomotive = false, 
-  isRealEstate = false 
+  isRealEstate = false,
+  branding
 }: PortfolioFinancesTabProps) {
   const { lang } = useLanguage();
   const isTr = lang === "tr";
@@ -83,6 +85,71 @@ export default function PortfolioFinancesTab({
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [showAccountsModal, setShowAccountsModal] = useState(false);
   const [showAccountsSummary, setShowAccountsSummary] = useState(false);
+
+  // Store default currency & exchange rates for cross-currency portfolio P&L
+  const [storeDefaultCurrency, setStoreDefaultCurrency] = useState<string>(
+    (branding?.default_currency || branding?.currency || (activeAutomotive ? "TRY" : "GBP")).toUpperCase()
+  );
+  const [storeCurrencyRates, setStoreCurrencyRates] = useState<Record<string, number>>(() => {
+    const base: Record<string, number> = { USD: 34.50, EUR: 37.80, GBP: 45.20, TRY: 1 };
+    const raw = branding?.currency_rates || {};
+    if (typeof raw === "object" && raw !== null) {
+      Object.keys(raw).forEach(k => {
+        const v = parseFloat(raw[k]);
+        if (!isNaN(v) && v > 1.05) base[k.toUpperCase()] = v;
+      });
+    }
+    base.TRY = 1;
+    return base;
+  });
+
+  useEffect(() => {
+    if (branding?.default_currency || branding?.currency) {
+      setStoreDefaultCurrency((branding.default_currency || branding.currency).toUpperCase());
+    }
+    if (branding?.currency_rates && typeof branding.currency_rates === "object") {
+      setStoreCurrencyRates(prev => {
+        const next = { ...prev };
+        Object.keys(branding.currency_rates).forEach(k => {
+          const v = parseFloat(branding.currency_rates[k]);
+          if (!isNaN(v) && v > 1.05) next[k.toUpperCase()] = v;
+        });
+        next.TRY = 1;
+        return next;
+      });
+    }
+  }, [branding?.default_currency, branding?.currency, branding?.currency_rates]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    api.getStoreInfo(storeId)
+      .then((info: any) => {
+        if (!info) return;
+        const defCur = (info.default_currency || info.currency || (activeAutomotive ? "TRY" : "GBP")).toUpperCase();
+        setStoreDefaultCurrency(defCur);
+        const rawRates = info.currency_rates || {};
+        const parsedRates: Record<string, number> = { USD: 34.50, EUR: 37.80, GBP: 45.20, TRY: 1 };
+        if (typeof rawRates === "object" && rawRates !== null) {
+          Object.keys(rawRates).forEach(k => {
+            const v = parseFloat(rawRates[k]);
+            if (!isNaN(v) && v > 1.05) parsedRates[k.toUpperCase()] = v;
+          });
+        }
+        parsedRates["TRY"] = 1;
+        setStoreCurrencyRates(parsedRates);
+      })
+      .catch(err => console.error("Error fetching store currency info:", err));
+  }, [storeId, activeAutomotive]);
+
+  const convertPortfolioCurrency = useCallback((amount: number, fromCurr: string, toCurr: string) => {
+    const val = Number(amount) || 0;
+    const f = (fromCurr || storeDefaultCurrency).toUpperCase();
+    const t = (toCurr || storeDefaultCurrency).toUpperCase();
+    if (f === t || val === 0) return val;
+    const fromTry = f === "TRY" ? 1 : (storeCurrencyRates[f] || 35);
+    const toTry = t === "TRY" ? 1 : (storeCurrencyRates[t] || 35);
+    return Number(((val * fromTry) / toTry).toFixed(2));
+  }, [storeDefaultCurrency, storeCurrencyRates]);
 
   // Vehicles for automotive finances
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -274,7 +341,7 @@ export default function PortfolioFinancesTab({
   const handleOpenCreateModal = (preselectedPropertyId?: string | number) => {
     setEditingTx(null);
     setPortfolioSearch("");
-    const defaultCur = currencyFilter !== "all" ? currencyFilter : (activeAutomotive ? "TRY" : "GBP");
+    const defaultCur = currencyFilter !== "all" ? currencyFilter : (storeDefaultCurrency || (activeAutomotive ? "TRY" : "GBP"));
     setFormData({
       type: "income",
       category: activeAutomotive ? "car_sales" : "commission",
@@ -298,17 +365,22 @@ export default function PortfolioFinancesTab({
     setEditingTx(tx);
     setPortfolioSearch("");
     const txDateStr = tx.date ? new Date(tx.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
+    const txCurr = tx.currency || storeDefaultCurrency || (activeAutomotive ? "TRY" : "GBP");
+    const txMethod = tx.payment_method || "cash";
+    const resolvedAccName = (txMethod === "cash" && !tx.account_id)
+      ? `${txCurr} Nakit Kasa`
+      : (tx.account_name || "");
     setFormData({
       type: tx.type,
       category: tx.category,
       title: tx.title || "",
       amount: String(tx.amount || ""),
-      currency: tx.currency || (activeAutomotive ? "TRY" : "GBP"),
+      currency: txCurr,
       date: txDateStr,
       property_id: tx.property_id ? String(tx.property_id) : "",
-      payment_method: tx.payment_method || "cash",
+      payment_method: txMethod,
       account_id: tx.account_id ? String(tx.account_id) : "",
-      account_name: tx.account_name || "",
+      account_name: resolvedAccName,
       reference_no: tx.reference_no || "",
       contact_name: tx.contact_name || "",
       description: tx.description || ""
@@ -348,7 +420,9 @@ export default function PortfolioFinancesTab({
     }
 
     let resolvedAccountName = formData.account_name;
-    if (!resolvedAccountName) {
+    if (formData.payment_method === "cash" && !formData.account_id) {
+      resolvedAccountName = `${formData.currency} Nakit Kasa`;
+    } else if (!resolvedAccountName || /^(GBP|EUR|USD|TRY)\s+Nakit\s+Kasa$/i.test(resolvedAccountName.trim())) {
       if (formData.payment_method === "cash") {
         resolvedAccountName = `${formData.currency} Nakit Kasa`;
       } else if (formData.payment_method === "bank_transfer") {
@@ -474,7 +548,19 @@ export default function PortfolioFinancesTab({
     return `${getCurrencySymbol(cur)}${formatted}`;
   };
 
-  // Comprehensive Real Estate / Vehicle Portfolio Profit & Loss Analysis Engine
+  const getResolvedAccountName = useCallback((t: PortfolioTransaction) => {
+    const method = t.payment_method || "cash";
+    const cur = (t.currency || storeDefaultCurrency || "GBP").toUpperCase();
+    const rawName = (t.account_name || "").trim();
+    if (method === "cash" && !t.account_id) {
+      if (!rawName || /^(GBP|EUR|USD|TRY)\s+(Nakit\s+Kasa|Cash)$/i.test(rawName) || rawName === "Nakit Kasa" || rawName === "Cash") {
+        return `${cur} ${isTr ? "Nakit Kasa" : "Cash"}`;
+      }
+    }
+    return rawName || getPaymentMethodLabel(method);
+  }, [storeDefaultCurrency, isTr]);
+
+  // Comprehensive Real Estate / Vehicle Portfolio Profit & Loss Analysis Engine (With Cross-Currency Conversion)
   const portfolioAnalysis = useMemo(() => {
     const propertyMap: Record<string, {
       property: any;
@@ -495,7 +581,7 @@ export default function PortfolioFinancesTab({
         net: 0,
         txCount: 0,
         transactions: [],
-        currency: p.currency || "GBP"
+        currency: (p.currency || storeDefaultCurrency || "GBP").toUpperCase()
       };
     });
 
@@ -509,12 +595,12 @@ export default function PortfolioFinancesTab({
           net: 0,
           txCount: 0,
           transactions: [],
-          currency: v.currency || "TRY"
+          currency: (v.currency || storeDefaultCurrency || "TRY").toUpperCase()
         };
       });
     }
 
-    // Populate from transactions with strict currency preservation (no cross-currency mixing)
+    // Populate from transactions with automatic cross-currency conversion to portfolio/default currency
     transactions.forEach(t => {
       if (t.property_id) {
         const key = String(t.property_id);
@@ -524,59 +610,47 @@ export default function PortfolioFinancesTab({
               id: t.property_id,
               title: t.property_title || (isTr ? `İlan #${t.property_id}` : `Property #${t.property_id}`),
               reference_no: "",
-              currency: t.currency || "GBP"
+              currency: (storeDefaultCurrency || t.currency || "GBP").toUpperCase()
             },
             income: 0,
             expense: 0,
             net: 0,
             txCount: 0,
             transactions: [],
-            currency: t.currency || "GBP"
+            currency: (storeDefaultCurrency || t.currency || "GBP").toUpperCase()
           };
         }
-        const propCurr = propertyMap[key].currency || "GBP";
-        const txCurr = t.currency || "GBP";
+        const propCurr = (propertyMap[key].currency || storeDefaultCurrency || "GBP").toUpperCase();
+        const txCurr = (t.currency || propCurr).toUpperCase();
         const rawAmt = Number(t.amount) || 0;
 
-        // Strict currency separation: Only add if currencies match or convert appropriately
-        let amt = rawAmt;
-        if (txCurr !== propCurr) {
-          // If transaction currency differs from property currency (e.g. TRY expense on GBP property),
-          // we do not mix raw numbers. If TRY to GBP or vice-versa, we can note it or keep clean.
-          // To prevent wrong values like -£2.000,00 for -₺2.000,00, we ensure transactions belonging to different currencies
-          // are correctly isolated or handled. Here we check if both are same currency.
-          // If user logs TRY expense on a GBP property, we either convert or keep them separate by currency.
-          // Let's store per-currency totals or use property's currency if matching.
-        }
+        // Convert cross-currency income/expense into the portfolio's currency
+        const convertedAmt = txCurr === propCurr
+          ? rawAmt
+          : convertPortfolioCurrency(rawAmt, txCurr, propCurr);
 
-        // Only accumulate if transaction currency matches property currency.
-        // If currencies differ, prevent blind raw addition (e.g. 2000 TRY added directly to GBP without cross rate).
-        if (txCurr === propCurr) {
-          if (t.type === "income") propertyMap[key].income += amt;
-          else propertyMap[key].expense += amt;
+        if (t.type === "income") {
+          propertyMap[key].income = Number((propertyMap[key].income + convertedAmt).toFixed(2));
         } else {
-          // If different currency, do not blindly add raw numbers. (e.g. TRY expense on GBP property should not become -£2000).
-          // We can skip or convert. To avoid corrupting P&L, we only accumulate matching currency or show notice.
-          // Let's add only if they match, or if user specifically logged in property currency.
-          // To strictly satisfy "direkt başka para biriminin birbirine karışmaması":
-          if (txCurr === propCurr) {
-            if (t.type === "income") propertyMap[key].income += amt;
-            else propertyMap[key].expense += amt;
-          }
+          propertyMap[key].expense = Number((propertyMap[key].expense + convertedAmt).toFixed(2));
         }
 
-        propertyMap[key].net = propertyMap[key].income - propertyMap[key].expense;
+        propertyMap[key].net = Number((propertyMap[key].income - propertyMap[key].expense).toFixed(2));
         propertyMap[key].txCount += 1;
-        propertyMap[key].transactions.push(t);
+        propertyMap[key].transactions.push({
+          ...t,
+          convertedAmount: convertedAmt,
+          portfolioCurrency: propCurr
+        });
       }
     });
 
     const propertyList = Object.values(propertyMap);
     const activeWithTxs = propertyList.filter(p => p.txCount > 0);
 
-    const totalIncome = activeWithTxs.reduce((sum, p) => sum + p.income, 0);
-    const totalExpense = activeWithTxs.reduce((sum, p) => sum + p.expense, 0);
-    const totalNet = totalIncome - totalExpense;
+    const totalIncome = Number(activeWithTxs.reduce((sum, p) => sum + convertPortfolioCurrency(p.income, p.currency, storeDefaultCurrency), 0).toFixed(2));
+    const totalExpense = Number(activeWithTxs.reduce((sum, p) => sum + convertPortfolioCurrency(p.expense, p.currency, storeDefaultCurrency), 0).toFixed(2));
+    const totalNet = Number((totalIncome - totalExpense).toFixed(2));
     const profitableCount = activeWithTxs.filter(p => p.net > 0).length;
     const lossCount = activeWithTxs.filter(p => p.net < 0).length;
 
@@ -590,7 +664,7 @@ export default function PortfolioFinancesTab({
       profitableCount,
       lossCount
     };
-  }, [properties, vehicles, transactions, activeAutomotive, isTr]);
+  }, [properties, vehicles, transactions, activeAutomotive, isTr, storeDefaultCurrency, convertPortfolioCurrency]);
 
   // Compute Chronological Running Balances & Date-Range Statement Data per Currency
   const statementAnalysis = useMemo(() => {
@@ -810,7 +884,7 @@ export default function PortfolioFinancesTab({
         [isTr ? "Kategori" : "Category"]: getCategoryLabel(t.type, t.category),
         [isTr ? "İşlem Başlığı" : "Title"]: t.title || "",
         [isTr ? "İlişkili Portföy" : "Linked Property"]: t.property_title || "-",
-        [isTr ? "Hesap / Kasa" : "Account"]: t.account_name || getPaymentMethodLabel(t.payment_method),
+        [isTr ? "Hesap / Kasa" : "Account"]: getResolvedAccountName(t),
         [isTr ? "Ödeme Yöntemi" : "Payment Method"]: getPaymentMethodLabel(t.payment_method),
         [isTr ? "İlgili Kişi / Kurum" : "Contact"]: t.contact_name || "-",
         [isTr ? "Belge No" : "Ref No"]: t.reference_no || "-",
@@ -890,7 +964,7 @@ export default function PortfolioFinancesTab({
                 <td>${t.date ? new Date(t.date).toLocaleDateString("tr-TR") : "-"}</td>
                 <td>${t.title || ""}</td>
                 <td>${t.property_title || "-"}</td>
-                <td>${t.account_name || getPaymentMethodLabel(t.payment_method)}</td>
+                <td>${getResolvedAccountName(t)}</td>
                 <td>${getCategoryLabel(t.type, t.category)}</td>
                 <td class="right inc">${t.type === "income" ? `+${formatMoney(t.amount, t.currency)}` : "-"}</td>
                 <td class="right exp">${t.type === "expense" ? `-${formatMoney(t.amount, t.currency)}` : "-"}</td>
@@ -1148,8 +1222,8 @@ export default function PortfolioFinancesTab({
               ))}
             </div>
 
-            <div className="flex items-center justify-between sm:justify-end gap-1.5 w-full sm:w-auto">
-              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5">
+            <div className="flex items-center justify-between sm:justify-end gap-1 w-full sm:w-auto">
+              <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-50 border border-slate-200 rounded-lg px-1.5 sm:px-2 py-0.5 min-w-0">
                 <input
                   type="date"
                   value={startDate}
@@ -1157,7 +1231,7 @@ export default function PortfolioFinancesTab({
                     setStartDate(e.target.value);
                     setDatePreset("custom");
                   }}
-                  className="bg-transparent text-[11px] font-medium text-slate-700 focus:outline-none w-24"
+                  className="bg-transparent text-[10.5px] sm:text-[11px] font-medium text-slate-700 focus:outline-none w-[86px] sm:w-24"
                 />
                 <span className="text-slate-300">-</span>
                 <input
@@ -1167,7 +1241,7 @@ export default function PortfolioFinancesTab({
                     setEndDate(e.target.value);
                     setDatePreset("custom");
                   }}
-                  className="bg-transparent text-[11px] font-medium text-slate-700 focus:outline-none w-24"
+                  className="bg-transparent text-[10.5px] sm:text-[11px] font-medium text-slate-700 focus:outline-none w-[86px] sm:w-24"
                 />
               </div>
 
@@ -1185,26 +1259,25 @@ export default function PortfolioFinancesTab({
                       setSelectedPropertyFilter("all");
                       setSearchQuery("");
                     }}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
+                    className="flex items-center justify-center p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/70 transition-colors cursor-pointer shrink-0"
                     title={isTr ? "Filtreleri Sıfırla" : "Reset Filters"}
                   >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>{isTr ? "Sıfırla" : "Reset"}</span>
+                    <RotateCcw className="w-3.5 h-3.5" />
                   </button>
                 )}
 
                 <button
                   type="button"
                   onClick={() => setShowAccountsSummary(prev => !prev)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+                  className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer shrink-0 ${
                     showAccountsSummary || currencyFilter !== "all" || selectedAccountId !== "all"
                       ? "bg-indigo-600 text-white border-indigo-600"
                       : "text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200 bg-white"
                   }`}
                 >
-                  <Wallet className="w-3 h-3" />
+                  <Wallet className="w-3 h-3 shrink-0" />
                   <span>{isTr ? "Kasalar" : "Ledgers"}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAccountsSummary ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`w-3 h-3 transition-transform shrink-0 ${showAccountsSummary ? "rotate-180" : ""}`} />
                 </button>
               </div>
             </div>
@@ -1791,7 +1864,7 @@ export default function PortfolioFinancesTab({
                                 ) : (
                                   <Wallet className="w-2.5 h-2.5 text-slate-400" />
                                 )}
-                                <span className="truncate max-w-[160px]">{t.account_name || getPaymentMethodLabel(t.payment_method)}</span>
+                                <span className="truncate max-w-[160px]">{getResolvedAccountName(t)}</span>
                               </div>
                             </div>
                           </td>
@@ -1915,10 +1988,10 @@ export default function PortfolioFinancesTab({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-xs">
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight block">
-                {isTr ? "Toplam Portföy Gelirleri" : "Total Portfolio Income"}
+                {isTr ? `Toplam Portföy Gelirleri (${storeDefaultCurrency})` : `Total Portfolio Income (${storeDefaultCurrency})`}
               </span>
               <div className="text-sm font-semibold text-emerald-600 mt-0.5">
-                +£{portfolioAnalysis.totalIncome.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
+                +{getCurrencySymbol(storeDefaultCurrency)}{portfolioAnalysis.totalIncome.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[10px] text-slate-400 mt-0.5">
                 {portfolioAnalysis.activeWithTxs.length} {isTr ? "hareket gören ilan" : "active listings"}
@@ -1927,24 +2000,24 @@ export default function PortfolioFinancesTab({
 
             <div className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-xs">
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight block">
-                {isTr ? "Toplam Masraf & Giderler" : "Total Portfolio Expenses"}
+                {isTr ? `Toplam Masraf & Giderler (${storeDefaultCurrency})` : `Total Portfolio Expenses (${storeDefaultCurrency})`}
               </span>
               <div className="text-sm font-semibold text-rose-600 mt-0.5">
-                -£{portfolioAnalysis.totalExpense.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
+                -{getCurrencySymbol(storeDefaultCurrency)}{portfolioAnalysis.totalExpense.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[10px] text-slate-400 mt-0.5">
-                {isTr ? "İlan, reklam, tapu, tadilat" : "Marketing, legal, fees"}
+                {isTr ? "Çapraz kur dönüşümlü toplam" : "Cross-currency converted total"}
               </div>
             </div>
 
             <div className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-xs">
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight block">
-                {isTr ? "Net Portföy Kârı" : "Net Portfolio Profit"}
+                {isTr ? `Net Portföy Kârı (${storeDefaultCurrency})` : `Net Portfolio Profit (${storeDefaultCurrency})`}
               </span>
               <div className={`text-sm font-semibold mt-0.5 ${
                 portfolioAnalysis.totalNet >= 0 ? "text-emerald-700" : "text-rose-700"
               }`}>
-                {portfolioAnalysis.totalNet < 0 ? "-" : "+"}£{Math.abs(portfolioAnalysis.totalNet).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
+                {portfolioAnalysis.totalNet < 0 ? "-" : "+"}{getCurrencySymbol(storeDefaultCurrency)}{Math.abs(portfolioAnalysis.totalNet).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[10px] text-slate-400 mt-0.5">
                 {portfolioAnalysis.totalNet >= 0 ? (isTr ? "🟢 Genel Portföy Kârda" : "Overall Profitable") : (isTr ? "🔴 Masraf Ağırlıklı" : "Net Loss")}
@@ -2468,7 +2541,16 @@ export default function PortfolioFinancesTab({
                       />
                       <select
                         value={formData.currency}
-                        onChange={(e) => setFormData(p => ({ ...p, currency: e.target.value }))}
+                        onChange={(e) => {
+                          const newCur = e.target.value;
+                          setFormData(p => ({
+                            ...p,
+                            currency: newCur,
+                            account_name: p.payment_method === "cash" && !p.account_id
+                              ? `${newCur} Nakit Kasa`
+                              : p.account_name
+                          }));
+                        }}
                         className="w-20 shrink-0 px-2 py-1.5 bg-slate-900 text-white border border-slate-900 rounded-r-lg font-medium text-xs focus:outline-none cursor-pointer"
                       >
                         <option value="GBP">GBP (£)</option>
@@ -2698,11 +2780,9 @@ export default function PortfolioFinancesTab({
                             type="button"
                             onClick={() => {
                               const propId = String(item.id);
-                              const matched = portfolioAnalysis.propertyMap[propId];
                               setFormData(p => ({
                                 ...p,
-                                property_id: propId,
-                                currency: matched ? matched.currency : p.currency
+                                property_id: propId
                               }));
                               setOpenDropdown(null);
                             }}
@@ -2730,23 +2810,34 @@ export default function PortfolioFinancesTab({
                     </div>
                   )}
 
-                  {/* Real-Time Live Portfolio Profit/Loss Status Preview */}
+                  {/* Real-Time Live Portfolio Profit/Loss Status Preview (With Cross-Currency Conversion) */}
                   {formData.property_id && (() => {
                     const currentPropData = portfolioAnalysis.propertyMap[String(formData.property_id)];
                     if (!currentPropData) return null;
-                    const isProfit = currentPropData.net >= 0;
-                    const sym = getCurrencySymbol(currentPropData.currency);
-                    const enteredAmt = Number(String(formData.amount).replace(/,/g, ".")) || 0;
+                    const propCurr = (currentPropData.currency || storeDefaultCurrency || "GBP").toUpperCase();
+                    const sym = getCurrencySymbol(propCurr);
+                    const enteredRawAmt = Number(String(formData.amount).replace(/,/g, ".")) || 0;
+                    const enteredConvertedAmt = convertPortfolioCurrency(enteredRawAmt, formData.currency, propCurr);
+
+                    let baseNetWithoutCurrentEdit = currentPropData.net;
+                    if (editingTx && String(editingTx.property_id) === String(formData.property_id)) {
+                      const oldConverted = convertPortfolioCurrency(Number(editingTx.amount) || 0, editingTx.currency || propCurr, propCurr);
+                      baseNetWithoutCurrentEdit = editingTx.type === "income"
+                        ? Number((currentPropData.net - oldConverted).toFixed(2))
+                        : Number((currentPropData.net + oldConverted).toFixed(2));
+                    }
+
                     const projectedNet = formData.type === "income" 
-                      ? currentPropData.net + enteredAmt 
-                      : currentPropData.net - enteredAmt;
+                      ? Number((baseNetWithoutCurrentEdit + enteredConvertedAmt).toFixed(2))
+                      : Number((baseNetWithoutCurrentEdit - enteredConvertedAmt).toFixed(2));
+                    const isProfit = currentPropData.net >= 0;
 
                     return (
                       <div className="bg-indigo-50/50 border border-indigo-200/80 rounded-lg p-2 text-xs space-y-1 mt-1">
                         <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700">
                           <span className="flex items-center gap-1">
                             <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-                            {isTr ? "Portföyün Canlı Finansal Durumu" : "Portfolio Financial Status"}
+                            {isTr ? `Portföyün Canlı Finansal Durumu (${propCurr})` : `Portfolio Financial Status (${propCurr})`}
                           </span>
                           <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
                             isProfit ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
@@ -2772,12 +2863,22 @@ export default function PortfolioFinancesTab({
                           </div>
                         </div>
 
-                        {enteredAmt > 0 && (
-                          <div className="text-[10px] text-indigo-700 bg-white/70 rounded p-1 flex items-center justify-between mt-0.5 border border-indigo-100">
-                            <span>{isTr ? "Bu işlem sonrası yeni net kâr/zarar:" : "Projected P&L:"}</span>
-                            <span className="font-semibold">
-                              {projectedNet < 0 ? "-" : "+"}{sym}{Math.abs(projectedNet).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
-                            </span>
+                        {enteredRawAmt > 0 && (
+                          <div className="text-[10px] text-indigo-700 bg-white/80 rounded p-1.5 space-y-0.5 mt-0.5 border border-indigo-100">
+                            {formData.currency !== propCurr && (
+                              <div className="flex items-center justify-between text-slate-600">
+                                <span>{isTr ? `Çapraz Kur Dönüşümü (${formData.currency} ➔ ${propCurr}):` : `Cross Rate (${formData.currency} ➔ ${propCurr}):`}</span>
+                                <span className="font-mono font-semibold text-indigo-600">
+                                  {getCurrencySymbol(formData.currency)}{enteredRawAmt.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ≈ {sym}{enteredConvertedAmt.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between">
+                              <span>{isTr ? "Bu işlem sonrası yeni net kâr/zarar:" : "Projected P&L:"}</span>
+                              <span className="font-semibold">
+                                {projectedNet < 0 ? "-" : "+"}{sym}{Math.abs(projectedNet).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>

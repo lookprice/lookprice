@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   X,
-  Building2,
-  DollarSign,
-  MapPin,
-  Layers,
-  Image as ImageIcon,
-  AlignLeft,
-  Award,
   ChevronLeft,
   ChevronRight,
   Sliders,
@@ -23,7 +16,6 @@ import { RealEstateMediaTab } from "./realestate/modal/RealEstateMediaTab";
 import { RealEstateDescriptionTab } from "./realestate/modal/RealEstateDescriptionTab";
 import { RealEstateDocsPublishTab } from "./realestate/modal/RealEstateDocsPublishTab";
 import { RealEstateFixtureTab } from "./realestate/modal/RealEstateFixtureTab";
-import { ShieldAlert } from "lucide-react";
 
 interface RealEstateModalProps {
   isOpen: boolean;
@@ -48,13 +40,13 @@ const parsePriceInput = (val: string): number => {
 
 type TabId = "basic" | "owner" | "metrics" | "media" | "description" | "docs" | "fixtures";
 
-const TABS: { id: TabId; label: string; icon: any; short: string }[] = [
-  { id: "basic", label: "1. Temel & Fiyat", icon: DollarSign, short: "Temel & Fiyat" },
-  { id: "owner", label: "2. Mülk Sahibi & Konum", icon: MapPin, short: "Mülk Sahibi" },
-  { id: "metrics", label: "3. Metrikler & Donanım", icon: Layers, short: "Metrikler" },
-  { id: "media", label: "4. Görseller & Medya", icon: ImageIcon, short: "Görseller" },
-  { id: "description", label: "5. İlan Metni & Notlar", icon: AlignLeft, short: "Açıklama" },
-  { id: "docs", label: "6. Evrak & Yayın", icon: Award, short: "Evrak & Yayın" }
+const TABS: { id: TabId; label: string; short: string }[] = [
+  { id: "basic", label: "1. Temel & Fiyat", short: "Temel & Fiyat" },
+  { id: "owner", label: "2. Mülk Sahibi & Konum", short: "Mülk Sahibi" },
+  { id: "metrics", label: "3. Metrikler & Donanım", short: "Metrikler" },
+  { id: "media", label: "4. Görseller & Medya", short: "Görseller" },
+  { id: "description", label: "5. İlan Metni & Notlar", short: "Açıklama" },
+  { id: "docs", label: "6. Evrak & Yayın", short: "Evrak & Yayın" }
 ];
 
 export const RealEstateModal: React.FC<RealEstateModalProps> = ({
@@ -508,11 +500,19 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
       yol_var: !!(formData as any).yol_var,
       elektrik_altyapisi: !!(formData as any).elektrik_var,
       su_altyapisi: !!(formData as any).su_var,
-      kadastro_yolu: !!(formData as any).yol_var
+      kadastro_yolu: !!(formData as any).yol_var,
+      fixture_photos: Array.isArray(formData.fixture_photos) ? formData.fixture_photos : []
     };
 
     const dataToSave = {
       ...formData,
+      furnished: Boolean(
+        formData.furnished === true ||
+        (formData.furnished as any) === "true" ||
+        (formData.furnished as any) === "esyali" ||
+        (formData.furnished as any) === "furnished"
+      ),
+      fixture_photos: Array.isArray(formData.fixture_photos) ? formData.fixture_photos : [],
       block_plot:
         formData.ada || formData.parsel
           ? `${formData.ada || ""}/${formData.parsel || ""}`
@@ -567,10 +567,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     formData.furnished === "furnished"
   );
 
-  const currentTabs: { id: TabId; label: string; icon: any; short: string }[] = [
+  const currentTabs: { id: TabId; label: string; short: string }[] = [
     ...TABS,
     ...(isFurnishedRental ? [
-      { id: "fixtures" as TabId, label: "7. 🔒 Eşya Deposu", icon: ShieldAlert, short: "Eşya Deposu" }
+      { id: "fixtures" as TabId, label: "7. Eşyalar", short: "Eşyalar" }
     ] : [])
   ];
 
@@ -578,48 +578,35 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4">
-      {/* High-tech backdrop */}
       <div
-        className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs"
+        className="absolute inset-0 bg-slate-900/75 backdrop-blur-xs"
         onClick={onClose}
       />
 
-      {/* Modal Main Frame - Viewport Fit Compact & Futuristic */}
-      <div className="bg-white rounded-2xl w-full max-w-4xl relative z-10 flex flex-col max-h-[85vh] shadow-2xl border border-slate-200 overflow-hidden text-slate-900">
-        {/* TOP FUTURISTIC BAR */}
-        <div className="bg-slate-900 text-white px-3.5 py-2 flex items-center justify-between gap-2.5 border-b border-slate-800 shrink-0 select-none">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-400 shrink-0">
-              <Building2 className="w-3.5 h-3.5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-black tracking-widest text-indigo-400 uppercase font-mono">
-                  RESTATELP
-                </span>
-                <span className="text-[9px] bg-white/10 px-1.5 py-0.2 rounded text-slate-300 font-mono font-bold">
-                  {formData.reference_no || "REF-AUTO"}
-                </span>
-              </div>
-              <h3 className="text-xs font-black text-white truncate">
-                {property
-                  ? `Portföy Düzenle: ${property.title || property.reference_no}`
-                  : "Yeni Gayrimenkul Portföyü Girişi"}
-              </h3>
-            </div>
+      {/* Modal Main Frame - Daylight High-Contrast Corporate */}
+      <div className="bg-white rounded-2xl w-full max-w-4xl relative z-10 flex flex-col max-h-[90vh] shadow-2xl border-2 border-slate-300 overflow-hidden text-slate-950">
+        {/* TOP HEADER BAR - Clean, Uncrowded Mobile Layout, Zero Icons */}
+        <div className="bg-slate-900 text-white px-3 py-2.5 flex items-center justify-between gap-2 border-b border-slate-800 shrink-0 select-none">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="text-[11px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-mono font-black shrink-0">
+              Ref: {formData.reference_no || "AUTO"}
+            </span>
+            <h3 className="text-xs sm:text-sm font-black text-white truncate">
+              {property ? "Portföy Düzenle" : "Yeni Portföy"}
+            </h3>
           </div>
 
           {/* Quick Header Switchers & Close */}
           <div className="flex items-center gap-1.5 shrink-0">
             {/* Intent Switcher */}
-            <div className="flex bg-slate-800/90 p-0.5 rounded-lg border border-slate-700/60">
+            <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, listing_intent: "sale" })}
-                className={`px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer ${
+                className={`px-2 py-1 rounded text-[10px] font-black transition-all cursor-pointer ${
                   formData.listing_intent === "sale"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-emerald-500 text-slate-950 shadow-xs"
+                    : "text-slate-300 hover:text-white"
                 }`}
               >
                 SATILIK
@@ -627,10 +614,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, listing_intent: "rent" })}
-                className={`px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer ${
+                className={`px-2 py-1 rounded text-[10px] font-black transition-all cursor-pointer ${
                   formData.listing_intent === "rent"
-                    ? "bg-sky-600 text-white shadow-xs"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-amber-400 text-slate-950 shadow-xs"
+                    : "text-slate-300 hover:text-white"
                 }`}
               >
                 KİRALIK
@@ -638,7 +625,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             </div>
 
             {/* Region Switcher */}
-            <div className="hidden sm:flex bg-slate-800/90 p-0.5 rounded-lg border border-slate-700/60">
+            <div className="hidden sm:flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
               <button
                 type="button"
                 onClick={() =>
@@ -648,10 +635,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     currency: formData.currency || "GBP"
                   })
                 }
-                className={`px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer ${
+                className={`px-2 py-1 rounded text-[10px] font-black transition-all cursor-pointer ${
                   formData.country === "KKTC"
                     ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-400 hover:text-white"
+                    : "text-slate-300 hover:text-white"
                 }`}
               >
                 KKTC
@@ -661,10 +648,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 onClick={() =>
                   setFormData({ ...formData, country: "TR", currency: "TRY" })
                 }
-                className={`px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer ${
+                className={`px-2 py-1 rounded text-[10px] font-black transition-all cursor-pointer ${
                   formData.country === "TR"
                     ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-400 hover:text-white"
+                    : "text-slate-300 hover:text-white"
                 }`}
               >
                 TR
@@ -680,29 +667,28 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   ? "Tüm alanları tek listede göster"
                   : "Adım adım sekmeli görünüme geç"
               }
-              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 rounded-lg text-[10px] font-black flex items-center gap-1 transition-colors cursor-pointer"
             >
               <Sliders className="w-3 h-3" />
               <span className="hidden md:inline">
-                {viewMode === "tabs" ? "Tüm Alanlar" : "Sekmeli Mod"}
+                {viewMode === "tabs" ? "Tümü" : "Sekmeli"}
               </span>
             </button>
 
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* FUTURISTIC SEGMENTED TAB BAR (If tabs mode) */}
+        {/* SEGMENTED TAB BAR (Zero Antique Icons, High Contrast) */}
         {viewMode === "tabs" && (
-          <div className="bg-slate-50 border-b border-slate-200 px-3 py-1 flex items-center gap-1 overflow-x-auto custom-scrollbar shrink-0">
+          <div className="bg-slate-100 border-b-2 border-slate-300 px-2.5 py-1.5 flex items-center gap-1 overflow-x-auto custom-scrollbar shrink-0">
             {currentTabs.map((tab) => {
-              const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
@@ -712,24 +698,19 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     setActiveTab(tab.id);
                     setValidationError(null);
                   }}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all shrink-0 cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all shrink-0 cursor-pointer border ${
                     isActive
-                      ? "bg-indigo-600 text-white shadow-xs"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/70"
+                      ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                      : "bg-white text-slate-900 border-slate-300 hover:bg-slate-200"
                   }`}
                 >
-                  <Icon
-                    className={`w-3.5 h-3.5 ${
-                      isActive ? "text-white" : "text-slate-400"
-                    }`}
-                  />
                   <span>{tab.label}</span>
                   {tab.id === "media" && (formData.images?.length || 0) > 0 && (
                     <span
-                      className={`text-[9px] px-1 rounded-full font-mono font-black ${
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono font-black ${
                         isActive
-                          ? "bg-white text-indigo-700"
-                          : "bg-indigo-100 text-indigo-700"
+                          ? "bg-amber-400 text-slate-950"
+                          : "bg-slate-200 text-slate-900"
                       }`}
                     >
                       {formData.images?.length}
@@ -737,10 +718,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   )}
                   {tab.id === "docs" && (formData.documents?.length || 0) > 0 && (
                     <span
-                      className={`text-[9px] px-1 rounded-full font-mono font-black ${
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono font-black ${
                         isActive
-                          ? "bg-white text-indigo-700"
-                          : "bg-emerald-100 text-emerald-700"
+                          ? "bg-amber-400 text-slate-950"
+                          : "bg-slate-200 text-slate-900"
                       }`}
                     >
                       {formData.documents?.length}
@@ -748,10 +729,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   )}
                   {tab.id === "fixtures" && (formData.fixture_photos?.length || 0) > 0 && (
                     <span
-                      className={`text-[9px] px-1 rounded-full font-mono font-black ${
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono font-black ${
                         isActive
-                          ? "bg-white text-sky-700"
-                          : "bg-sky-100 text-sky-700"
+                          ? "bg-amber-400 text-slate-950"
+                          : "bg-indigo-100 text-indigo-900"
                       }`}
                     >
                       {formData.fixture_photos?.length}

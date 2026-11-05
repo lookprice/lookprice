@@ -289,7 +289,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                 <button
                   onClick={() => onOpenFixtureVault(property)}
                   className="flex items-center justify-center p-2.5 bg-sky-600 text-white hover:bg-sky-500 rounded-xl transition-all shadow active:scale-95 border border-sky-700 shrink-0 relative cursor-pointer"
-                  title="Eşya & Demirbaş Fotoğraf Deposu (Gizli Arşiv)"
+                  title="Eşyalar"
                 >
                   <ShieldAlert className="w-4 h-4" />
                   {Array.isArray(property.fixture_photos) && property.fixture_photos.length > 0 && (

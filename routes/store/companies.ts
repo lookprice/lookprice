@@ -444,21 +444,25 @@ router.get("/:id/transactions", async (req: any, res) => {
   const { startDate, endDate } = req.query;
   
   try {
-    // Fetch store currency rates and default currency for fallback when currency is non-default
+    // Fetch store currency rates (TCMB rates relative to TRY) and default currency
     let storeRates: Record<string, number> = { USD: 34.50, EUR: 37.80, GBP: 45.20, TRY: 1 };
     let defaultCurrency = 'TRY';
     if (storeId) {
       try {
-        const storeRes = await pool.query("SELECT currency, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+        const storeRes = await pool.query("SELECT currency, default_currency, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
         if (storeRes.rows.length > 0) {
           const row = storeRes.rows[0];
-          defaultCurrency = (row.branding?.default_currency || row.branding?.currency || row.currency || 'TRY').toUpperCase();
-          storeRates[defaultCurrency] = 1;
-          const rates = row.currency_rates || row.branding?.currency_rates || {};
+          defaultCurrency = (row.default_currency || row.branding?.default_currency || row.branding?.currency || row.currency || 'TRY').toUpperCase();
+          const rates = { ...(row.branding?.currency_rates || {}), ...(row.currency_rates || {}) };
           if (typeof rates === 'object' && rates !== null) {
             Object.keys(rates).forEach(k => {
+              const ku = k.toUpperCase();
               const val = parseFloat(rates[k]);
-              if (!isNaN(val) && val > 0) storeRates[k.toUpperCase()] = val;
+              if (ku === 'TRY') {
+                storeRates.TRY = 1;
+              } else if (!isNaN(val) && val > 1.05) {
+                storeRates[ku] = val;
+              }
             });
           }
         }
@@ -467,25 +471,23 @@ router.get("/:id/transactions", async (req: any, res) => {
       }
     }
 
+    const convertToDefaultCurr = (amt: number, fromCurr: string, customRate?: number): number => {
+      const f = (fromCurr || defaultCurrency).toUpperCase();
+      const t = defaultCurrency.toUpperCase();
+      if (f === t) return Number(amt.toFixed(2));
+      const fTry = f === 'TRY' ? 1 : ((customRate && customRate > 1.05) ? customRate : (storeRates[f] || 1));
+      const tTry = t === 'TRY' ? 1 : (storeRates[t] || 1);
+      return tTry > 0 ? Number(((amt * fTry) / tTry).toFixed(2)) : Number(amt.toFixed(2));
+    };
+
     let openingBalances: Record<string, number> = {};
     let openingBalancesBase: Record<string, number> = {};
     if (startDate && startDate !== "") {
       const obQuery = `
         SELECT 
           COALESCE(c.currency, $4) as currency, 
-          COALESCE(SUM(CASE WHEN c.type = 'debt' THEN c.amount ELSE -c.amount END), 0)::FLOAT as balance,
-          COALESCE(SUM(
-            (CASE WHEN c.type = 'debt' THEN c.amount ELSE -c.amount END) * 
-            (CASE 
-              WHEN UPPER(COALESCE(c.currency, $4)) = $4 THEN 1
-              WHEN COALESCE(NULLIF(c.exchange_rate, 0), NULLIF(si.exchange_rate, 0), NULLIF(pi.exchange_rate, 0), 1) > 1 
-                THEN COALESCE(NULLIF(c.exchange_rate, 0), NULLIF(si.exchange_rate, 0), NULLIF(pi.exchange_rate, 0), 1)
-              ELSE 1
-            END)
-          ), 0)::FLOAT as base_balance
+          COALESCE(SUM(CASE WHEN c.type = 'debt' THEN c.amount ELSE -c.amount END), 0)::FLOAT as balance
         FROM current_account_transactions c
-        LEFT JOIN sales_invoices si ON c.sales_invoice_id = si.id
-        LEFT JOIN purchase_invoices pi ON c.purchase_invoice_id = pi.id
         WHERE c.company_id = $1 AND (c.store_id = $2 OR c.store_id IS NULL) AND c.transaction_date < $3
         GROUP BY COALESCE(c.currency, $4)
       `;
@@ -493,15 +495,7 @@ router.get("/:id/transactions", async (req: any, res) => {
       obResult.rows.forEach(row => {
         const currKey = (row.currency || defaultCurrency).toUpperCase();
         openingBalances[currKey] = row.balance;
-        if (currKey === defaultCurrency) {
-          openingBalancesBase[currKey] = row.balance;
-        } else {
-          // If base_balance equals balance because historical rows had rate=1, fallback to storeRates[currKey]
-          const fallbackRate = storeRates[currKey] || 1;
-          openingBalancesBase[currKey] = (Math.abs(row.base_balance - row.balance) < 0.01 && fallbackRate > 1)
-            ? Number((row.balance * fallbackRate).toFixed(2))
-            : Number(row.base_balance.toFixed(2));
-        }
+        openingBalancesBase[currKey] = convertToDefaultCurr(Number(row.balance || 0), currKey);
       });
     }
 
@@ -780,15 +774,11 @@ router.get("/:id/transactions", async (req: any, res) => {
         if (matchCode) docNo = matchCode[1].trim();
       }
 
-      // Currency and Exchange Rate Consolidation
+      // Currency and Exchange Rate Consolidation (against TRY base)
       const curr = (row.currency || row.si_currency || row.pi_currency || defaultCurrency).toUpperCase();
       let rate = Number(row.exchange_rate || row.si_exchange_rate || row.pi_exchange_rate || 0);
-      if (isNaN(rate) || rate <= 0 || (curr !== defaultCurrency && rate === 1)) {
-        if (curr !== defaultCurrency && storeRates[curr]) {
-          rate = storeRates[curr];
-        } else {
-          rate = 1;
-        }
+      if (isNaN(rate) || rate <= 0 || (curr !== 'TRY' && rate <= 1.05)) {
+        rate = curr !== 'TRY' ? (storeRates[curr] || 1) : 1;
       }
 
       // Due Date and Payment Terms Calculation

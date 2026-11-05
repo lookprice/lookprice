@@ -2,13 +2,11 @@ import React, { useState, useRef, useEffect } from "react";
 import { 
   X, 
   Camera, 
-  RotateCcw, 
   Check, 
-  Sparkles, 
   AlertCircle,
   Clock,
-  ShieldCheck,
-  SwitchCamera
+  SwitchCamera,
+  Upload
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,6 +14,7 @@ interface LiveCameraCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
   itemName: string;
+  itemCondition?: string;
   propertyRef: string;
   propertyTitle: string;
   onPhotoCaptured: (stampedDataUrl: string, timestampStr: string, isoDate: string) => void;
@@ -25,11 +24,12 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   isOpen,
   onClose,
   itemName,
+  itemCondition,
   propertyRef,
-  propertyTitle,
   onPhotoCaptured
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fallbackFileInputRef = useRef<HTMLInputElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -38,7 +38,6 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   const [capturedCount, setCapturedCount] = useState<number>(0);
   const [currentTimeStr, setCurrentTimeStr] = useState<string>("");
 
-  // Live clock on HUD
   useEffect(() => {
     if (!isOpen) return;
     const interval = setInterval(() => {
@@ -51,15 +50,12 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     return () => clearInterval(interval);
   }, [isOpen]);
 
-  // Start / restart camera stream
   useEffect(() => {
     if (!isOpen) {
       stopCamera();
       return;
     }
-
     startCamera(facingMode);
-
     return () => {
       stopCamera();
     };
@@ -77,7 +73,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     setErrorMsg(null);
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setErrorMsg("Tarayıcınız canlı kamera akışını desteklemiyor.");
+      setErrorMsg("Tarayıcınız canlı kamera akışını desteklemiyor. Cihaz kamerası ile çekim yapabilirsiniz.");
       return;
     }
 
@@ -97,7 +93,6 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
         videoRef.current.play().catch(e => console.warn("Video play error:", e));
       }
     } catch (err: any) {
-      console.warn("Camera access failed with preferred facingMode, retrying generic video:", err);
       try {
         const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         setStream(fallbackStream);
@@ -106,13 +101,84 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
           videoRef.current.play().catch(() => {});
         }
       } catch (fallbackErr: any) {
-        setErrorMsg("Kamera başlatılamadı veya izin verilmedi. Lütfen kamera izni verdiğinizden emin olun.");
+        setErrorMsg("Kamera başlatılamadı veya izin verilmedi. Cihaz kamerasını kullanarak doğrudan çekim yapabilirsiniz.");
       }
     }
   };
 
   const toggleFacingMode = () => {
     setFacingMode(prev => prev === "environment" ? "user" : "environment");
+  };
+
+  const stampCanvasAndEmit = (sourceCanvasOrImg: HTMLVideoElement | HTMLImageElement, width: number, height: number) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas context is unavailable");
+
+    ctx.drawImage(sourceCanvasOrImg, 0, 0, width, height);
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const day = pad(now.getDate());
+    const month = pad(now.getMonth() + 1);
+    const year = now.getFullYear();
+    const hours = pad(now.getHours());
+    const minutes = pad(now.getMinutes());
+    const seconds = pad(now.getSeconds());
+
+    const dateStr = `${day}.${month}.${year}`;
+    const timeStr = `${hours}:${minutes}:${seconds}`;
+    const timestampStr = `${dateStr} ${timeStr}`;
+    const isoDate = now.toISOString();
+
+    const bannerHeight = Math.max(54, Math.floor(height * 0.085));
+    const bannerY = height - bannerHeight;
+
+    ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
+    ctx.fillRect(0, bannerY, width, bannerHeight);
+
+    ctx.fillStyle = "#0284c7";
+    ctx.fillRect(0, bannerY, width, Math.max(3, Math.floor(bannerHeight * 0.05)));
+
+    const primaryFontSize = Math.max(14, Math.floor(bannerHeight * 0.28));
+    const secondaryFontSize = Math.max(11, Math.floor(bannerHeight * 0.22));
+
+    // Left text: Item name + Ref code only
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold ${primaryFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    const textLeftMargin = Math.max(16, Math.floor(width * 0.02));
+    const line1Y = bannerY + bannerHeight * 0.38;
+    const line2Y = bannerY + bannerHeight * 0.72;
+
+    const cleanItemName = (itemName || "Eşya").toUpperCase();
+    const condSuffix = itemCondition ? ` • ${itemCondition.toUpperCase()}` : "";
+    ctx.fillText(`${cleanItemName}${condSuffix}`, textLeftMargin, line1Y);
+
+    ctx.fillStyle = "#cbd5e1";
+    ctx.font = `600 ${secondaryFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.fillText(`REF: ${propertyRef || "LP-PORTFOY"}`, textLeftMargin, line2Y);
+
+    // Right text: Date/Time + "hukuki delil"
+    const textRightMargin = width - Math.max(16, Math.floor(width * 0.02));
+    ctx.textAlign = "right";
+
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = `bold ${primaryFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace`;
+    ctx.fillText(`${dateStr} ${timeStr}`, textRightMargin, line1Y);
+
+    ctx.fillStyle = "#fbbf24";
+    ctx.font = `bold ${secondaryFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.fillText(`hukuki delil`, textRightMargin, line2Y);
+
+    const stampedDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+    onPhotoCaptured(stampedDataUrl, timestampStr, isoDate);
+    setCapturedCount(prev => prev + 1);
+    toast.success(`"${itemName}" çekildi ve damgalandı.`);
   };
 
   const takeSnapshot = async () => {
@@ -126,80 +192,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       const video = videoRef.current;
       const width = video.videoWidth || 1280;
       const height = video.videoHeight || 720;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-
-      if (!ctx) throw new Error("Canvas context is unavailable");
-
-      // Draw video frame
-      ctx.drawImage(video, 0, 0, width, height);
-
-      // Generate current timestamp
-      const now = new Date();
-      const pad = (n: number) => String(n).padStart(2, "0");
-      const day = pad(now.getDate());
-      const month = pad(now.getMonth() + 1);
-      const year = now.getFullYear();
-      const hours = pad(now.getHours());
-      const minutes = pad(now.getMinutes());
-      const seconds = pad(now.getSeconds());
-
-      const dateStr = `${day}.${month}.${year}`;
-      const timeStr = `${hours}:${minutes}:${seconds}`;
-      const timestampStr = `${dateStr} ${timeStr}`;
-      const isoDate = now.toISOString();
-
-      // Timestamp bottom banner
-      const bannerHeight = Math.max(54, Math.floor(height * 0.085));
-      const bannerY = height - bannerHeight;
-
-      ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
-      ctx.fillRect(0, bannerY, width, bannerHeight);
-
-      ctx.fillStyle = "#0284c7";
-      ctx.fillRect(0, bannerY, width, Math.max(3, Math.floor(bannerHeight * 0.05)));
-
-      const primaryFontSize = Math.max(14, Math.floor(bannerHeight * 0.28));
-      const secondaryFontSize = Math.max(11, Math.floor(bannerHeight * 0.22));
-
-      // Left text
-      ctx.fillStyle = "#ffffff";
-      ctx.font = `bold ${primaryFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-
-      const textLeftMargin = Math.max(16, Math.floor(width * 0.02));
-      const line1Y = bannerY + bannerHeight * 0.38;
-      const line2Y = bannerY + bannerHeight * 0.72;
-
-      const cleanItemName = (itemName || "Demirbaş Eşya").toUpperCase();
-      ctx.fillText(`🔒 ${cleanItemName}`, textLeftMargin, line1Y);
-
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = `600 ${secondaryFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-      const shortTitle = propertyTitle.length > 40 ? propertyTitle.substring(0, 37) + "..." : propertyTitle;
-      ctx.fillText(`MÜLK: ${propertyRef || "LP-PORTFOY"} • ${shortTitle}`, textLeftMargin, line2Y);
-
-      // Right text
-      const textRightMargin = width - Math.max(16, Math.floor(width * 0.02));
-      ctx.textAlign = "right";
-
-      ctx.fillStyle = "#38bdf8";
-      ctx.font = `bold ${primaryFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace`;
-      ctx.fillText(`📅 ${dateStr}  ⏰ ${timeStr}`, textRightMargin, line1Y);
-
-      ctx.fillStyle = "#f59e0b";
-      ctx.font = `bold ${secondaryFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-      ctx.fillText(`HUKUKİ DELİL & GİZLİ ARŞİV • WEB'DE YAYINLANMAZ`, textRightMargin, line2Y);
-
-      const stampedDataUrl = canvas.toDataURL("image/jpeg", 0.88);
-
-      onPhotoCaptured(stampedDataUrl, timestampStr, isoDate);
-      setCapturedCount(prev => prev + 1);
-      toast.success(`"${itemName}" başarıyla çekildi ve zaman damgalandı.`);
+      stampCanvasAndEmit(video, width, height);
     } catch (err: any) {
       console.error("Snapshot error:", err);
       toast.error("Fotoğraf çekilirken hata oluştu: " + err.message);
@@ -208,71 +201,107 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     }
   };
 
+  const handleNativeCameraFallback = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsCapturing(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          stampCanvasAndEmit(img, img.naturalWidth || img.width || 1280, img.naturalHeight || img.height || 720);
+        } catch (err: any) {
+          toast.error("Fotoğraf işlenemedi: " + err.message);
+        } finally {
+          setIsCapturing(false);
+          if (fallbackFileInputRef.current) fallbackFileInputRef.current.value = "";
+        }
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   if (!isOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 z-[160] flex items-center justify-center p-2 sm:p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in select-none"
+      className="fixed inset-0 z-[160] flex items-center justify-center p-2 sm:p-4 bg-slate-900/75 backdrop-blur-xs animate-in fade-in select-none"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col relative text-white">
+      {/* Daylight High-Contrast Corporate Modal Frame */}
+      <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col relative text-slate-950 max-h-[92dvh]">
         
         {/* Top bar */}
-        <div className="bg-slate-950 px-4 py-3 flex items-center justify-between border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400">
-              <Camera className="w-4 h-4 animate-pulse" />
-            </div>
-            <div>
-              <h3 className="text-sm font-black flex items-center gap-1.5">
-                <span>Canlı Kamera Vizörü</span>
-                <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono uppercase tracking-wider animate-pulse">
-                  CANLI
-                </span>
+        <div className="bg-slate-900 text-white px-3.5 py-2.5 flex items-center justify-between border-b border-slate-800 shrink-0">
+          <div className="min-w-0 pr-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs sm:text-sm font-black text-white truncate">
+                Canlı Kamera
               </h3>
-              <p className="text-[11px] text-slate-400">
-                Hedef: <strong className="text-sky-300">{itemName}</strong>
-              </p>
+              <span className="bg-emerald-500 text-slate-950 text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider shrink-0">
+                AKTİF
+              </span>
             </div>
+            <p className="text-[11px] text-slate-200 truncate">
+              Seçili Eşya: <strong className="text-amber-300 font-black">{itemName}</strong>
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={toggleFacingMode}
               type="button"
-              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition flex items-center gap-1 text-xs cursor-pointer"
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 rounded-lg transition flex items-center gap-1 text-[11px] font-bold cursor-pointer"
               title="Ön/Arka Kamera Değiştir"
             >
-              <SwitchCamera className="w-4 h-4" />
-              <span className="hidden sm:inline text-[11px]">Kamera Çevir</span>
+              <SwitchCamera className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Kamera Çevir</span>
             </button>
             <button
               onClick={onClose}
               type="button"
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition cursor-pointer"
+              className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Viewfinder Canvas / Video */}
-        <div className="relative aspect-[4/3] sm:aspect-video bg-black flex items-center justify-center overflow-hidden">
+        <div className="relative aspect-[4/3] sm:aspect-video bg-slate-950 flex items-center justify-center overflow-hidden">
+          <input
+            ref={fallbackFileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleNativeCameraFallback}
+          />
           {errorMsg ? (
-            <div className="p-6 text-center max-w-md">
-              <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-2" />
-              <p className="text-sm font-bold text-rose-300">{errorMsg}</p>
-              <p className="text-xs text-slate-400 mt-2">
-                Tarayıcı izinlerinden kamerayı aktif edebilir veya cihazınızın yerel kamera uygulamasını kullanabilirsiniz.
-              </p>
-              <button
-                onClick={() => startCamera(facingMode)}
-                className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition cursor-pointer"
-              >
-                Yeniden Dene
-              </button>
+            <div className="p-4 text-center max-w-md bg-white m-3 rounded-xl border-2 border-slate-300 shadow-lg text-slate-950">
+              <AlertCircle className="w-8 h-8 text-rose-600 mx-auto mb-1.5" />
+              <p className="text-xs font-black text-slate-950">{errorMsg}</p>
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => startCamera(facingMode)}
+                  className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-950 rounded-lg text-xs font-black transition cursor-pointer"
+                >
+                  Tekrar Dene
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fallbackFileInputRef.current?.click()}
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Cihaz Kamerası / Galeri Aç</span>
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -284,69 +313,62 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 className="w-full h-full object-cover"
               />
 
-              {/* Shutter flash animation */}
               {flash && (
                 <div className="absolute inset-0 bg-white opacity-80 pointer-events-none transition-opacity duration-150" />
               )}
 
-              {/* Target Aim Reticle */}
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-48 h-48 sm:w-64 sm:h-64 border-2 border-dashed border-sky-400/40 rounded-3xl flex items-center justify-center">
-                  <div className="w-4 h-4 border-2 border-sky-400 rounded-full opacity-60" />
-                </div>
-              </div>
-
               {/* Top HUD Badges */}
-              <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-                <div className="bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] font-mono text-sky-300 border border-slate-800 flex items-center gap-1.5 shadow">
-                  <Clock className="w-3.5 h-3.5 text-sky-400" />
+              <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
+                <div className="bg-white/95 px-2.5 py-1 rounded-lg text-[10px] font-mono font-black text-slate-950 border border-slate-300 flex items-center gap-1 shadow">
+                  <Clock className="w-3 h-3 text-indigo-600" />
                   <span>{currentTimeStr || "Saat Damgalanıyor"}</span>
                 </div>
                 {capturedCount > 0 && (
-                  <div className="bg-emerald-600/90 text-white text-[11px] font-black px-2.5 py-1 rounded-xl shadow flex items-center gap-1">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{capturedCount} Çekildi</span>
+                  <div className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg shadow flex items-center gap-1">
+                    <Check className="w-3 h-3" />
+                    <span>{capturedCount} Fotoğraf Çekildi</span>
                   </div>
                 )}
               </div>
 
               {/* Bottom HUD Preview Bar */}
-              <div className="absolute bottom-2 left-2 right-2 bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800/80 pointer-events-none flex items-center justify-between text-[10px]">
+              <div className="absolute bottom-2 left-2 right-2 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-700 pointer-events-none flex items-center justify-between text-[10px]">
                 <span className="font-bold text-white truncate max-w-[200px] sm:max-w-xs">
-                  🔒 {itemName}
+                  {itemName} • Ref: {propertyRef}
                 </span>
-                <span className="text-amber-400 font-semibold truncate hidden sm:inline">
-                  Hukuki Delil & Damgalı Arşiv
+                <span className="text-amber-400 font-bold truncate">
+                  hukuki delil
                 </span>
               </div>
             </>
           )}
         </div>
 
-        {/* Bottom Shutter Controls */}
-        <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-3">
-          <div className="text-[11px] text-slate-400 hidden sm:block">
-            <span>Butona her basıldığında fotoğraf mühürlenip arşive eklenir.</span>
-          </div>
-
-          <div className="flex-1 sm:flex-none flex items-center justify-center gap-3">
-            <button
-              type="button"
-              disabled={!stream || isCapturing}
-              onClick={takeSnapshot}
-              className="px-6 py-3 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 active:scale-95 text-white font-black text-sm rounded-2xl shadow-xl shadow-sky-600/30 flex items-center gap-2 cursor-pointer disabled:opacity-50 transition-all w-full sm:w-auto justify-center"
-            >
-              <Camera className="w-5 h-5" />
-              <span>{isCapturing ? "Damgalanıyor..." : "ŞİMDİ ÇEK & DAMGALA 📸"}</span>
-            </button>
-          </div>
+        {/* Bottom Shutter Controls - Strict 2-Column Mobile Grid so Tamamla never overflows */}
+        <div className="p-2.5 sm:p-3 bg-slate-50 border-t-2 border-slate-200 grid grid-cols-2 gap-2 items-center shrink-0">
+          <button
+            type="button"
+            disabled={isCapturing}
+            onClick={() => {
+              if (stream) {
+                takeSnapshot();
+              } else {
+                fallbackFileInputRef.current?.click();
+              }
+            }}
+            className="w-full py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
+          >
+            <Camera className="w-4 h-4 shrink-0" />
+            <span className="truncate">{isCapturing ? "Damgalanıyor..." : "Çek & Damgala"}</span>
+          </button>
 
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition cursor-pointer"
+            className="w-full py-2.5 px-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
           >
-            Tamamla
+            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="truncate">Tamamla {capturedCount > 0 ? `(${capturedCount})` : ""}</span>
           </button>
         </div>
       </div>

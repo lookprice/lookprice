@@ -23,6 +23,13 @@ export interface ContractPlaceholderValues {
   signatureImage?: string;
   isFurnishedRental?: boolean;
   fixturePhotosCount?: number;
+  fixturePhotos?: {
+    id?: string;
+    name: string;
+    condition?: string;
+    timestamp_str?: string;
+    url?: string;
+  }[];
 }
 
 export function renderSignatureOrStamp(clientName: string, isSigned?: boolean, signatureImage?: string): string {
@@ -487,103 +494,151 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     descriptionTr: "Kiracı ve mülk sahibi arasında yapılan standart kira sözleşmesi.",
     descriptionEn: "Standard lease agreement between landlord and tenant.",
     getTemplate: (v) => {
+      const rawFixtures = Array.isArray(v.fixturePhotos) ? v.fixturePhotos : [];
+      const groupedFixturesMap = new Map<
+        string,
+        { name: string; condition: string; timestamp: string; urls: string[] }
+      >();
+      rawFixtures.forEach((fp) => {
+        const baseName = (fp.name || "Eşya").replace(/\s*\(#\d+\)\s*$/, "").trim();
+        const existing = groupedFixturesMap.get(baseName);
+        if (existing) {
+          if (fp.url) existing.urls.push(fp.url);
+        } else {
+          groupedFixturesMap.set(baseName, {
+            name: baseName,
+            condition: fp.condition || "Sağlam / Çalışır",
+            timestamp: fp.timestamp_str || v.contractDate,
+            urls: fp.url ? [fp.url] : []
+          });
+        }
+      });
+      const groupedFixtures = Array.from(groupedFixturesMap.values());
+
+      const fixtureTableRowsHtml = groupedFixtures
+        .map(
+          (g, idx) => `
+          <tr style="border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;">
+            <td style="padding: 5px 8px; font-weight: 800; color: #0f172a; font-size: 11px; text-align: center; width: 32px;">${idx + 1}</td>
+            <td style="padding: 5px 8px; font-weight: 800; color: #0f172a; font-size: 11px;">${g.name}</td>
+            <td style="padding: 5px 8px; font-weight: 700; color: #0369a1; font-size: 10px; width: 110px;">${g.condition}</td>
+            <td style="padding: 5px 8px; font-family: monospace; font-weight: 700; color: #334155; font-size: 10px; width: 115px;">${g.timestamp}</td>
+            <td style="padding: 4px 8px;">
+              <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+                ${g.urls
+                  .map(
+                    (u) =>
+                      `<img src="${u}" alt="${g.name}" style="width: 54px; height: 38px; object-fit: cover; border-radius: 4px; border: 1px solid #94a3b8; background: #0f172a;" />`
+                  )
+                  .join("")}
+              </div>
+            </td>
+          </tr>
+        `
+        )
+        .join("");
+
       const html = `
-<div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
-  <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 20px;">
-    <h1 style="font-size: 24px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">KİRA SÖZLEŞMESİ</h1>
-    <h2 style="font-size: 14px; font-weight: bold; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 0.1em;">LEASE AGREEMENT</h2>
+<div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 32px; color: #0f172a; line-height: 1.55;">
+  <div style="text-align: center; margin-bottom: 24px; border-bottom: 3px double #94a3b8; padding-bottom: 16px;">
+    <h1 style="font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">KİRA SÖZLEŞMESİ</h1>
+    <h2 style="font-size: 13px; font-weight: bold; color: #475569; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 0.1em;">LEASE AGREEMENT & FURNISHED INVENTORY PROTOCOL</h2>
   </div>
 
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
     <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">MÜLK SAHİBİ / LANDLORD</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.storeName} (Veya Temsil Ettiği Mal Sahibi)</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold; width: 30%;">MÜLK SAHİBİ / LANDLORD</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1;">${v.storeName} (Veya Temsil Ettiği Mal Sahibi)</td>
     </tr>
     <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİRACI / TENANT</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.clientName}</strong></td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold;">KİRACI / TENANT</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1;"><strong>${v.clientName}</strong></td>
     </tr>
     <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">T.C. / PASAPORT NO</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.clientIdentity}</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold;">T.C. / PASAPORT NO</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1;">${v.clientIdentity}</td>
     </tr>
     <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">TELEFON / PHONE</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.clientPhone}</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold;">TELEFON / PHONE</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1;">${v.clientPhone}</td>
     </tr>
     <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİRALANAN MÜLK / PROPERTY</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold;">KİRALANAN MÜLK / PROPERTY</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1;">
         <strong>${v.propertyTitle}</strong> (${v.propertyLocation})
-        ${v.propertyAddress ? `<div style="margin-top: 4px; font-size: 11px; color: #64748b;"><strong>Mülk Adresi / Property Address:</strong> ${v.propertyAddress}</div>` : ''}
+        ${v.propertyAddress ? `<div style="margin-top: 3px; font-size: 11px; color: #475569;"><strong>Mülk Adresi:</strong> ${v.propertyAddress}</div>` : ''}
       </td>
     </tr>
     <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">AYLIK KİRA BEDELİ / MONTHLY RENT</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #1d4ed8;">${v.propertyPrice}</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold;">AYLIK KİRA BEDELİ / MONTHLY RENT</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #1d4ed8;">${v.propertyPrice}</td>
     </tr>
     <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">SÖZLEŞME TARİHİ / DATE</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.contractDate}</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold;">SÖZLEŞME TARİHİ / DATE</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1;">${v.contractDate}</td>
     </tr>
     <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİRA SÜRESİ / LEASE PERIOD</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.rentDuration || "1 Yıl / 1 Year"}</strong></td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold;">KİRA SÜRESİ / LEASE PERIOD</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1;"><strong>${v.rentDuration || "1 Yıl / 1 Year"}</strong></td>
     </tr>
     <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">ÖDEME GÜNÜ / PAYMENT DATE</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.paymentDay || "Her ayın en geç 5. günü / By the 5th day of each month"}</strong></td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold;">ÖDEME GÜNÜ / PAYMENT DATE</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1;"><strong>${v.paymentDay || "Her ayın en geç 5. günü / By the 5th day of each month"}</strong></td>
     </tr>
     <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">DEPOZİTO / SECURITY DEPOSIT</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #e11d48;">${formatDepositWithWords(v.depositAmount || "1 Aylık Kira Bedeli")}</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold;">DEPOZİTO / SECURITY DEPOSIT</td>
+      <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #be123c;">${formatDepositWithWords(v.depositAmount || "1 Aylık Kira Bedeli")}</td>
     </tr>
   </table>
 
-  ${v.isFurnishedRental ? `
-  <div style="margin: 20px 0; padding: 14px 18px; border: 2px solid #0284c7; border-radius: 8px; background-color: #f0f9ff;">
-    <div style="font-weight: 800; font-size: 13px; color: #0369a1; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between;">
-      <span>🔒 EŞYALI KİRALAMA & DEMİRBAŞ TESPİT / RESİM ONAYI</span>
-      ${v.fixturePhotosCount ? `<span style="font-size: 11px; background-color: #bae6fd; color: #0369a1; padding: 2px 8px; border-radius: 6px; font-weight: bold;">${v.fixturePhotosCount} Adet Demirbaş Fotoğrafı Kayıtlı</span>` : ''}
+  <h3 style="font-size: 13px; font-weight: 900; color: #0f172a; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin-top: 16px;">SÖZLEŞME ŞARTLARI & DEMİRBAŞ KORUMA POLİTİKASI (TR)</h3>
+  <ol style="font-size: 11.5px; color: #1e293b; padding-left: 18px; text-align: justify; margin-bottom: 20px;">
+    <li><strong>Kira Süresi:</strong> Kira sözleşmesi aksi belirtilmedikçe <strong>${v.rentDuration || "1 (Bir) yıl"}</strong> sürelidir. Süre sonunda taraflar fesih bildiriminde bulunmazsa sözleşme aynı şartlarla uzar.</li>
+    <li><strong>Ödeme Günü:</strong> Kira bedeli <strong>${v.paymentDay || "her ayın en geç 5. (Beşinci) günü"}</strong> mülk sahibinin hesabına eksiksiz ödenmelidir.</li>
+    <li><strong>Depozito ve Tahliye Eşya Durum Güvencesi (Çıkış Ekspertizi):</strong> Kiracı, mülke ve içerisindeki eşyalara gelebilecek hasarlara teminat olarak <strong>${formatDepositWithWords(v.depositAmount || "1 Aylık Kira Bedeli")}</strong> depozito ödemiştir. Tahliye (çıkış) esnasında mülkteki tüm eşya, mobilya, beyaz eşya ve sayaçlar; işbu sözleşme ekindeki <strong>zaman damgalı ("hukuki delil" mühürlü) giriş fotoğrafları ve eşya listesi</strong> ile birebir karşılaştırılır. Eşyaların teslim alındığı sağlamlıkta ve eksiksiz teslim edilmemesi halinde, onarım veya güncel ikame bedeli doğrudan depozitodan mahsup edilir; depozitoyu aşan zararlar kiracıdan ayrıca tahsil edilir.</li>
+    <li><strong>Kullanım Amacı:</strong> Taşınmaz sadece konut/işyeri amacıyla kullanılabilir, alt kiralama veya devir yapılamaz.</li>
+    ${v.isFurnishedRental || groupedFixtures.length > 0 ? `<li><strong>Eşya ve Demirbaş Kabul Beyanı:</strong> Kiracı; <em>"Mülk'ü kiralarken içerisinde bulunan Eşya / demirbaşları inceledim, gördüm. Eşyalara ait resimleri de inceledim, gördüm. Onaylıyorum, kabulümdür."</em> beyanını gayrikabili rücu kabul ve taahhüt etmiştir.</li>` : ''}
+  </ol>
+
+  ${(v.isFurnishedRental || groupedFixtures.length > 0) ? `
+  <div style="margin: 18px 0; border: 1.5px solid #0f172a; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
+    <div style="background-color: #0f172a; color: #ffffff; padding: 8px 12px; font-weight: 900; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between;">
+      <span>EK-1: TESLİM EDİLEN EŞYA LİSTESİ VE MÜHÜRLÜ DELİL FOTOĞRAFLARI</span>
+      <span style="background-color: #fbbf24; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 900;">${groupedFixtures.length} Kalem Eşya (${rawFixtures.length || v.fixturePhotosCount || 0} Fotoğraf)</span>
     </div>
-    <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 6px 0; line-height: 1.5; font-style: italic; background: #ffffff; padding: 10px 14px; border-left: 4px solid #0284c7; border-radius: 4px;">
-      "Mülk'ü kiralarken içerisinde bulunan Eşya / demirbaşları inceledim, gördüm. Eşyalara ait resimleri de inceledim, gördüm. Onaylıyorum. kabulümdür."
+    ${groupedFixtures.length > 0 ? `
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1; font-size: 10px; font-weight: 900; color: #0f172a; text-transform: uppercase;">
+          <th style="padding: 5px 8px; text-align: center; width: 32px;">No</th>
+          <th style="padding: 5px 8px; text-align: left;">Eşya / Demirbaş Adı</th>
+          <th style="padding: 5px 8px; text-align: left; width: 110px;">Nitelik / Durum</th>
+          <th style="padding: 5px 8px; text-align: left; width: 115px;">Mühür Zamanı</th>
+          <th style="padding: 5px 8px; text-align: left;">Hukuki Delil Fotoğrafları</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${fixtureTableRowsHtml}
+      </tbody>
+    </table>
+    ` : `
+    <div style="padding: 10px 12px; font-size: 11px; color: #334155;">
+      Bu mülk eşyalı olarak kiralanmış olup toplam <strong>${v.fixturePhotosCount || 0} adet</strong> zaman damgalı eşya fotoğrafı sistem arşivinde kayıtlıdır.
     </div>
-    <div style="font-size: 11px; color: #475569; margin-top: 4px;">
-      Kiracı; mülkte bulunan tüm mobilya, beyaz eşya ve demirbaşların zaman damgalı fotoğraflarını incelemiş, sağlam ve eksiksiz olduğunu teyit ederek sözleşme ekini onaylamıştır.
-    </div>
+    `}
   </div>
   ` : ''}
 
-  <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">SÖZLEŞME ŞARTLARI (TR)</h3>
-  <ol style="font-size: 12px; color: #334155; padding-left: 20px; text-align: justify; margin-bottom: 25px;">
-    <li><strong>Kira Süresi:</strong> Kira sözleşmesi aksi belirtilmedikçe <strong>${v.rentDuration || "1 (Bir) yıl"}</strong> sürelidir. Süre sonunda taraflar fesih bildiriminde bulunmazsa sözleşme aynı şartlarla birer yıl uzar.</li>
-    <li><strong>Ödeme Günü:</strong> Kira bedeli <strong>${v.paymentDay || "her ayın en geç 5. (Beşinci) günü"}</strong> mülk sahibinin banka hesabına ödenmelidir.</li>
-    <li><strong>Depozito:</strong> Kiracı, mülke gelebilecek zararlara karşılık <strong>${formatDepositWithWords(v.depositAmount || "1 Aylık Kira Bedeli")}</strong> tutarında depozitoyu başlangıçta ödemiştir.</li>
-    <li><strong>Kullanım Amacı:</strong> Taşınmaz sadece konut/işyeri amacıyla kullanılabilir, alt kiralama yapılamaz.</li>
-    <li><strong>Demirbaşlar:</strong> Kiracı, mülkü teslim aldığı andaki demirbaşları korumakla ve sözleşme sonunda eksiksiz teslim etmekle yükümlüdür.</li>
-    ${v.isFurnishedRental ? `<li><strong>Eşya ve Demirbaş Beyanı:</strong> Kiracı; <em>"Mülk'ü kiralarken içerisinde bulunan Eşya / demirbaşları inceledim, gördüm. Eşyalara ait resimleri de inceledim, gördüm. Onaylıyorum. kabulümdür."</em> beyanını gayrikabili rücu kabul ve taahhüt etmiştir.</li>` : ''}
-  </ol>
-
-  <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">LEASE TERMS (EN)</h3>
-  <ol style="font-size: 11px; color: #475569; padding-left: 20px; text-align: justify; margin-bottom: 30px;">
-    <li><strong>Lease Period:</strong> The standard lease period is <strong>${v.rentDuration || "1 (One) year"}</strong> unless specified otherwise. It auto-renews annually if not terminated.</li>
-    <li><strong>Payment Date:</strong> Rent must be paid to the landlord's bank account by <strong>${v.paymentDay || "the 5th day of each month"}</strong>.</li>
-    <li><strong>Security Deposit:</strong> The tenant has paid a security deposit of <strong>${formatDepositWithWords(v.depositAmount || "one month's rent")}</strong> for potential property damages.</li>
-    <li><strong>Usage Purpose:</strong> The property shall only be used as a residence/office and cannot be sub-leased.</li>
-    <li><strong>Fixtures:</strong> The tenant is responsible for protecting all fixtures and returning them in full at the end of the term.</li>
-    ${v.isFurnishedRental ? `<li><strong>Furnished Inventory Acknowledgment:</strong> The tenant expressly confirms: <em>"I have inspected and verified the fixtures/furniture in the property upon leasing. I have also inspected and verified the fixture photos. I approve and accept."</em></li>` : ''}
-  </ol>
-
-  <div style="margin-top: 40px; display: flex; justify-content: space-between; gap: 40px;">
-    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 150px; display: flex; flex-direction: column; justify-content: space-between;">
-      <strong>MÜLK SAHİBİ / LANDLORD</strong>
-      <div style="font-size: 12px; color: #475569;">İmza / Signature</div>
+  <div style="margin-top: 28px; display: flex; justify-content: space-between; gap: 30px; page-break-inside: avoid;">
+    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; background-color: #f8fafc; text-align: center; min-height: 130px; display: flex; flex-direction: column; justify-content: space-between;">
+      <strong>MÜLK SAHİBİ / YETKİLİ ARACI</strong>
+      <div style="font-size: 12px; font-weight: bold; color: #0f172a;">${v.storeName}</div>
+      <div style="font-size: 11px; color: #475569;">İmza / Kaşe</div>
     </div>
-    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 150px; display: flex; flex-direction: column; justify-content: space-between;">
-      <strong>KİRACI / TENANT</strong>
+    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; background-color: #f8fafc; text-align: center; min-height: 130px; display: flex; flex-direction: column; justify-content: space-between;">
+      <strong>KİRACI / TESLİM ALAN (TENANT)</strong>
       ${renderSignatureOrStamp(v.clientName, v.isSigned, v.signatureImage)}
-      <div style="font-size: 12px; color: #475569;">İmza / Signature</div>
+      <div style="font-size: 11px; color: #475569;">Sözleşme & Eşya Listesi Kabul İmzası</div>
     </div>
   </div>
 </div>

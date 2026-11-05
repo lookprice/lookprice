@@ -488,6 +488,10 @@ export interface RealEstateProperty {
     details?: any;
   }[];
   fixture_photos?: FixturePhotoItem[];
+  fixture_approval_status?: 'pending' | 'approved' | 'rejected';
+  fixture_approval_note?: string;
+  fixture_approval_date?: string;
+  fixture_approved_by?: string;
   created_at: string;
   updated_at: string;
 }
@@ -496,6 +500,7 @@ export interface FixturePhotoItem {
   id: string;
   url: string;
   name: string;
+  condition?: string;
   timestamp_str: string;
   captured_at: string;
   notes?: string;

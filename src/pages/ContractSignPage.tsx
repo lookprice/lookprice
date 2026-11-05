@@ -7,15 +7,16 @@ import {
   RotateCcw, 
   Send, 
   CheckCircle, 
-  FileText, 
   User, 
   Building, 
   Calendar,
   AlertTriangle,
-  Award,
   Lock,
   Smartphone,
-  CreditCard
+  CreditCard,
+  XCircle,
+  ZoomIn,
+  X
 } from "lucide-react";
 import { contractTemplates } from "../utils/contractTemplates";
 import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
@@ -48,8 +49,12 @@ export default function ContractSignPage() {
   const [signed, setSigned] = useState(false);
   const [isSigningActive, setIsSigningActive] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [decisionStatus, setDecisionStatus] = useState<"approved" | "rejected">("approved");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showRejectBox, setShowRejectBox] = useState(false);
+  const [fixtureAccepted, setFixtureAccepted] = useState(true);
+  const [inspectPhotoUrl, setInspectPhotoUrl] = useState<{ url: string; name: string; timestamp?: string } | null>(null);
   const [signatureImage, setSignatureImage] = useState("");
-
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
@@ -87,15 +92,12 @@ export default function ContractSignPage() {
     checkAndFetch();
   }, [id]);
 
-  // Canvas drawing handlers for signature
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     isDrawing.current = true;
     const pos = getEventPos(e, canvas);
     ctx.beginPath();
@@ -105,16 +107,13 @@ export default function ContractSignPage() {
   const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return;
     e.preventDefault();
-
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     const pos = getEventPos(e, canvas);
     ctx.lineTo(pos.x, pos.y);
-    ctx.strokeStyle = "#1e1b4b"; // Indigo-950
+    ctx.strokeStyle = "#0f172a";
     ctx.lineWidth = 3.5;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -144,19 +143,44 @@ export default function ContractSignPage() {
       if (e.touches.length === 0) return { x: 0, y: 0 };
       return {
         x: e.touches[0].clientX - rect.left,
-        y: e.touches[0].clientY - rect.top,
+        y: e.touches[0].clientY - rect.top
       };
     } else {
       return {
         x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+        y: e.clientY - rect.top
       };
     }
   };
 
+  const fixturePhotosList: any[] = React.useMemo(() => {
+    if (!itemData) return [];
+    const raw = itemData.fixture_photos || itemData.sector_data?.fixture_photos;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string") {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }, [itemData]);
+
+  const isFurnishedRental = Boolean(
+    !isVehicle &&
+      itemData &&
+      (itemData.listing_intent === "rent" || templateIdParam === "rental_agreement") &&
+      (itemData.furnished === true ||
+        itemData.furnished === "true" ||
+        itemData.furnished === "esyali" ||
+        itemData.furnished === "furnished" ||
+        fixturePhotosList.length > 0)
+  );
+
   const handleApprove = async () => {
     if (!clientName.trim()) {
-      alert("Lütfen isminizi giriniz.");
+      alert("Lütfen adınızı ve soyadınızı giriniz.");
       return;
     }
     if (!clientIdentity.trim()) {
@@ -165,6 +189,10 @@ export default function ContractSignPage() {
     }
     if (!clientPhone.trim()) {
       alert("Lütfen iletişim telefon numaranızı giriniz.");
+      return;
+    }
+    if (isFurnishedRental && !fixtureAccepted) {
+      alert("Lütfen eşya/demirbaş listesini ve fotoğraflarını incelediğinizi onaylayan kutucuğu işaretleyiniz.");
       return;
     }
     if (!isSigningActive) {
@@ -190,10 +218,12 @@ export default function ContractSignPage() {
           clientIdentity,
           clientPhone,
           commissionRate: isVehicle ? undefined : commissionRateParam,
-          templateId: isVehicle ? undefined : (templateIdParam || "showing_agreement"),
+          templateId: isVehicle ? undefined : (templateIdParam || (itemData?.listing_intent === "rent" ? "rental_agreement" : "showing_agreement")),
           contractType: isVehicle ? (contractTypeParam || "consignment") : undefined,
           displayName: storeName,
-          signatureImage: signatureImgData
+          signatureImage: signatureImgData,
+          decision: "approved",
+          fixtureApproved: isFurnishedRental
         })
       });
 
@@ -202,10 +232,53 @@ export default function ContractSignPage() {
         throw new Error(errData.error || "Sözleşme kaydedilemedi.");
       }
 
+      setDecisionStatus("approved");
       setSigned(true);
       setSuccess(true);
     } catch (err: any) {
       alert(err.message || "Sözleşme kaydedilirken hata oluştu. Lütfen tekrar deneyin.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!clientName.trim() || !clientIdentity.trim() || !clientPhone.trim()) {
+      alert("Lütfen düzeltme/ret talebi göndermeden önce Ad Soyad, Kimlik/Pasaport ve Telefon alanlarını doldurunuz.");
+      return;
+    }
+    if (!rejectionReason.trim()) {
+      alert("Lütfen eşya listesi veya sözleşme ile ilgili düzeltme/itiraz nedeninizi kısaca yazınız.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/public/real-estate/${id}/sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName,
+          clientIdentity,
+          clientPhone,
+          commissionRate: commissionRateParam,
+          templateId: templateIdParam || (itemData?.listing_intent === "rent" ? "rental_agreement" : "showing_agreement"),
+          displayName: storeName,
+          decision: "rejected",
+          rejectionReason: rejectionReason.trim(),
+          fixtureApproved: false
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "İşlem kaydedilemedi.");
+      }
+
+      setDecisionStatus("rejected");
+      setSuccess(true);
+    } catch (err: any) {
+      alert(err.message || "İşlem kaydedilirken hata oluştu.");
     } finally {
       setLoading(false);
     }
@@ -218,8 +291,9 @@ export default function ContractSignPage() {
   };
 
   const storeName = itemData?.store_name?.replace(/lookprice/gi, "Seçkin") || "Seçkin VIP Portföy";
+  const effectiveTemplateId =
+    templateIdParam || (itemData?.listing_intent === "rent" ? "rental_agreement" : "showing_agreement");
 
-  // Determine dynamic title based on vehicle vs real estate templates
   let dynamicContractTitle = "";
   if (isVehicle) {
     if (contractTypeParam === "consignment") {
@@ -230,14 +304,13 @@ export default function ContractSignPage() {
       dynamicContractTitle = "Araç Emanet & Satış Aracılık Protokolü";
     }
   } else {
-    const matchedTemplate = contractTemplates.find(t => t.id === (templateIdParam || "showing_agreement"));
-    dynamicContractTitle = matchedTemplate ? matchedTemplate.titleTr : "Emlak Yer Gösterme & Komisyon Sözleşmesi";
+    const matchedTemplate = contractTemplates.find((t) => t.id === effectiveTemplateId);
+    dynamicContractTitle = matchedTemplate ? matchedTemplate.titleTr : "Kira & Demirbaş Teslim Sözleşmesi";
   }
 
-  // Render the actual real estate contract template dynamically if applicable
   let renderedContractHtml = "";
   if (!isVehicle && itemData) {
-    const matchedTemplate = contractTemplates.find(t => t.id === (templateIdParam || "showing_agreement"));
+    const matchedTemplate = contractTemplates.find((t) => t.id === effectiveTemplateId);
     if (matchedTemplate) {
       const formattedPriceNum = itemData.price ? new Intl.NumberFormat("tr-TR").format(Math.round(itemData.price)) : "0";
       const symbol = itemData.currency === "GBP" ? "£" : itemData.currency === "USD" ? "$" : itemData.currency === "EUR" ? "€" : "₺";
@@ -248,26 +321,27 @@ export default function ContractSignPage() {
         clientPhone: clientPhone || "..................................................",
         storeName: storeName,
         storePhone: itemData.store_phone || "",
-        propertyTitle: itemData.type === 'land' 
-          ? `[İlan Kodu: LP-${itemData.id}] ${(itemData as any).mahalle || ''} Mah. Ada: ${(itemData as any).ada || '...'}, Parsel: ${(itemData as any).parsel || '...'}, Pafta: ${(itemData as any).pafta || '...'}`
-          : `[İlan Kodu: LP-${itemData.id}] ${itemData.title}`,
+        propertyTitle: itemData.type === "land"
+          ? `[Ref: ${itemData.reference_no || `LP-${itemData.id}`}] ${(itemData as any).mahalle || ""} Mah. Ada: ${(itemData as any).ada || "..."}, Parsel: ${(itemData as any).parsel || "..."}`
+          : `[Ref: ${itemData.reference_no || `LP-${itemData.id}`}] ${itemData.title}`,
         propertyLocation: itemData.location || "Kıbrıs",
         propertyPrice: `${formattedPriceNum} ${symbol}`,
         propertyBlockPlot: itemData.block_plot,
-        commissionRate: itemData.listing_intent === 'rent' ? commissionRateParam : (commissionRateParam.includes('%') ? commissionRateParam : `%${commissionRateParam}`),
+        commissionRate: itemData.listing_intent === "rent" ? commissionRateParam : (commissionRateParam.includes("%") ? commissionRateParam : `%${commissionRateParam}`),
         contractDate: contractDateParam,
-        propertyAddress: (itemData as any).type === 'land' 
-          ? `${(itemData as any).mahalle || ''} Mah. ${(itemData as any).ada || ''} Ada, ${(itemData as any).parsel || ''} Parsel, ${(itemData as any).pafta || ''} Pafta`
-          : itemData.address || "Belirtilmemiş adres",
+        propertyAddress: itemData.address || "Belirtilmemiş adres",
         splitRatio: splitRatioParam,
         contractDuration: contractDurationParam,
         evictionDate: evictionDateParam,
-        depositAmount: depositAmountParam,
-        rentDuration: rentDurationParam,
-        paymentDay: paymentDayParam,
+        depositAmount: depositAmountParam || (itemData.deposit ? `${itemData.deposit} ${symbol}` : "1 Aylık Kira Bedeli"),
+        rentDuration: rentDurationParam || "1 Yıl",
+        paymentDay: paymentDayParam || "Her ayın en geç 5. günü",
         isSigned: signed,
         signingName: clientName,
-        signatureImage: signatureImage
+        signatureImage: signatureImage,
+        isFurnishedRental,
+        fixturePhotosCount: fixturePhotosList.length,
+        fixturePhotos: fixturePhotosList
       };
       const { html } = matchedTemplate.getTemplate(values);
       renderedContractHtml = html;
@@ -277,33 +351,38 @@ export default function ContractSignPage() {
   const sendNotificationToAgent = () => {
     if (!itemData) return;
     const formattedPhone = formatPhoneForWhatsApp(itemData.store_phone || "");
-    const targetTitle = isVehicle ? `${itemData.brand} ${itemData.model}` : itemData.title;
+    const targetRef = itemData.reference_no || `LP-${id}`;
     const sName = itemData.store_name?.replace(/lookprice/gi, "Seçkin") || "Seçkin VIP Portföy";
     
-    const message = `SAYIN ${sName.toUpperCase()},\n\nTarafıma iletmiş olduğunuz dijital sözleşmeyi inceledim ve mobil cihazım üzerinden onaylayarak imzaladım.\n\n*Sözleşme Bilgileri:*\n• *İşlem:* ${dynamicContractTitle}\n• *İlgili Portföy:* ${targetTitle}\n• *İmzalayan:* ${clientName}\n• *T.C. Kimlik / Pasaport No:* ${clientIdentity || "Belirtilmedi"}\n• *İletişim Tel:* ${clientPhone || "Belirtilmedi"}\n• *Sözleşme ID:* LP-${id}\n• *Tarih:* ${formatDateTR(new Date())}\n\nİşbu bildirim ile onaylı sözleşme nüshasının tarafınızca arşivlenmek üzere sisteme kaydedildiğini beyan ederim. Bilgilerinize sunarım.`;
+    const message =
+      decisionStatus === "approved"
+        ? `SAYIN ${sName.toUpperCase()},\n\nTarafıma iletmiş olduğunuz *${dynamicContractTitle}*${
+            isFurnishedRental ? ` ve *Eşya/Demirbaş Teslim Listesi ile Fotoğraflarını (${fixturePhotosList.length} Adet)*` : ""
+          } inceledim ve mobil cihazım üzerinden *ONAYLAYARAK İMZALADIM*.\n\n*Bilgiler:*\n• *Portföy Ref:* ${targetRef}\n• *İmzalayan:* ${clientName}\n• *Kimlik/Pasaport:* ${clientIdentity}\n• *Tel:* ${clientPhone}\n• *Tarih:* ${formatDateTR(new Date())}\n\nOnaylı sözleşme ve eşya tutanağı sisteminize işlenmiştir.`
+        : `SAYIN ${sName.toUpperCase()},\n\n*Ref: ${targetRef}* portföyü için iletilen sözleşme / eşya listesi hakkında *DÜZELTME / RET TALEBİM* bulunmaktadır:\n\n• *Müşteri:* ${clientName} (${clientPhone})\n• *Düzeltme / İtiraz Notu:* ${rejectionReason}\n\nKontrol ederek revize etmenizi rica ederim.`;
     
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, "_blank");
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white">
-        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-sm font-bold text-slate-400">Güvenli Bağlantı Kuruluyor, Lütfen Bekleyin...</p>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-slate-950">
+        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-sm font-black text-slate-800">Güvenli Sözleşme & Eşya Tutanağı Yükleniyor...</p>
       </div>
     );
   }
 
   if (error || !itemData) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white">
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] max-w-md w-full text-center shadow-2xl">
-          <AlertTriangle className="w-16 h-16 text-rose-500 mx-auto mb-4 animate-bounce" />
-          <h2 className="text-xl font-black mb-2">Bağlantı Hatası</h2>
-          <p className="text-sm text-slate-400 leading-relaxed mb-6">{error || "Sözleşme verisi çekilemedi."}</p>
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 text-slate-950">
+        <div className="bg-white border-2 border-slate-300 p-6 rounded-2xl max-w-md w-full text-center shadow-xl">
+          <AlertTriangle className="w-12 h-12 text-rose-600 mx-auto mb-3" />
+          <h2 className="text-lg font-black mb-2">Bağlantı Hatası</h2>
+          <p className="text-xs text-slate-700 leading-relaxed mb-4">{error || "Sözleşme verisi çekilemedi."}</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl tracking-wider uppercase transition-all"
+            className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl uppercase transition-all"
           >
             Yeniden Dene
           </button>
@@ -313,123 +392,126 @@ export default function ContractSignPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-slate-100 text-slate-950 flex items-center justify-center p-2 sm:p-6 font-sans">
       <AnimatePresence mode="wait">
         {!success ? (
           <motion.div 
             key="sign-flow"
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="w-full max-w-4xl bg-slate-900 border border-slate-800/80 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col lg:flex-row h-auto min-h-[85vh] lg:h-[85vh]"
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="w-full max-w-6xl bg-white border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xl flex flex-col lg:flex-row"
           >
-            {/* Left Column: Contract Terms Viewer */}
-            <div className="lg:w-7/12 p-6 md:p-8 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900/40">
+            {/* Left Column: Contract & Fixture Inventory Viewer */}
+            <div className="lg:w-7/12 p-4 sm:p-6 flex flex-col justify-between border-b-2 lg:border-b-0 lg:border-r-2 border-slate-300 bg-slate-50">
               <div>
-                {/* Contract Badge & Title */}
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full flex items-center gap-1">
-                    <Lock className="w-3 h-3" /> SSL GÜVENLİ ONAY SİSTEMİ
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <span className="bg-slate-900 text-white text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded flex items-center gap-1">
+                    <Lock className="w-3 h-3 text-amber-400" /> Dijital Sözleşme & Eşya Onay Sistemi
                   </span>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase">Sözleşme No: LP-{id}</span>
+                  <span className="text-xs bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-mono font-black">
+                    Ref: {itemData.reference_no || `LP-${id}`}
+                  </span>
                 </div>
 
-                <h1 className="text-2xl font-black tracking-tight text-white mb-6">
+                <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-950 mb-3">
                   {dynamicContractTitle}
                 </h1>
 
-                {/* Main details list */}
-                <div className="grid grid-cols-2 gap-3 mb-6 bg-slate-950/55 p-4 rounded-2xl border border-slate-850">
+                {/* Summary Bar */}
+                <div className="grid grid-cols-2 gap-2.5 mb-4 bg-white p-3 rounded-xl border-2 border-slate-300">
                   <div className="flex items-start gap-2">
-                    {isVehicle ? <Smartphone className="w-4 h-4 text-slate-500 mt-0.5" /> : <Building className="w-4 h-4 text-slate-500 mt-0.5" />}
+                    {isVehicle ? <Smartphone className="w-4 h-4 text-slate-700 mt-0.5" /> : <Building className="w-4 h-4 text-slate-700 mt-0.5" />}
                     <div className="truncate">
-                      <span className="block text-[8px] font-bold text-slate-500 uppercase leading-none mb-1">Portföy Detayı</span>
-                      <span className="text-xs font-bold text-white block truncate">
+                      <span className="block text-[9px] font-black text-slate-600 uppercase leading-none mb-0.5">Portföy</span>
+                      <span className="text-xs font-black text-slate-950 block truncate">
                         {isVehicle ? `${itemData.brand} ${itemData.model}` : itemData.title}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <User className="w-4 h-4 text-slate-500 mt-0.5" />
+                    <User className="w-4 h-4 text-slate-700 mt-0.5" />
                     <div className="truncate">
-                      <span className="block text-[8px] font-bold text-slate-500 uppercase leading-none mb-1">Yetkili Acente / Ofis</span>
-                      <span className="text-xs font-bold text-white block truncate">{storeName}</span>
+                      <span className="block text-[9px] font-black text-slate-600 uppercase leading-none mb-0.5">Yetkili Ofis</span>
+                      <span className="text-xs font-black text-slate-950 block truncate">{storeName}</span>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 col-span-2 border-t border-slate-800/50 pt-3 mt-1">
-                    <Calendar className="w-4 h-4 text-slate-500 mt-0.5" />
+                  <div className="flex items-start gap-2 col-span-2 border-t border-slate-200 pt-2">
+                    <Calendar className="w-4 h-4 text-indigo-600 mt-0.5" />
                     <div>
-                      <span className="block text-[8px] font-bold text-slate-500 uppercase leading-none mb-1">Protokol Değeri & Koşullar</span>
-                      <span className="text-xs font-extrabold text-indigo-400 block">
+                      <span className="block text-[9px] font-black text-slate-600 uppercase leading-none mb-0.5">Bedel & Konum</span>
+                      <span className="text-xs font-black text-indigo-700 block">
                         {isVehicle 
-                          ? `Fiyat: ${formatCurrency(itemData.selling_price || itemData.price, itemData.currency || "TRY")} | Model Yılı: ${itemData.year || "Belirtilmedi"}`
-                          : `Fiyat: ${formatCurrency(itemData.price, itemData.currency || "GBP")} | Konum: ${itemData.location || "Girne"}`
+                          ? `Fiyat: ${formatCurrency(itemData.selling_price || itemData.price, itemData.currency || "TRY")}`
+                          : `Kira/Satış Bedeli: ${formatCurrency(itemData.price, itemData.currency || "GBP")} • ${itemData.location || "Girne"}`
                         }
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Legally binding scrolling terms */}
-                {renderedContractHtml ? (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 h-[220px] lg:h-[280px] overflow-y-auto text-slate-800 leading-relaxed font-sans pr-3 scrollbar-thin scrollbar-thumb-slate-200">
-                    <div dangerouslySetInnerHTML={{ __html: renderedContractHtml }} />
-                  </div>
-                ) : (
-                  <div className="bg-slate-950/80 border border-slate-850 rounded-2xl p-4 h-[220px] lg:h-[280px] overflow-y-auto text-[11px] text-slate-400 leading-relaxed font-sans space-y-4 pr-3 scrollbar-thin scrollbar-thumb-slate-800">
-                    <p className="font-bold text-white">1. SÖZLEŞMENİN TARAFLARI VE KONUSU</p>
-                    <p>
-                      Bu sözleşme, bir tarafta yukarıda belirtilen mülk veya aracın hak sahibi ("Hizmet Alan / Satıcı") ile diğer tarafta yetkili aracı kurum olan <strong>{storeName}</strong> ("Galeri / Ofis") arasında dijital ortamda onaylanmak üzere tanzim edilmiştir. İşbu belgenin konusu, mülkün/aracın satışı, pazarlanması, alıcı adayı bulunması ve taraflar arasındaki komisyon haklarının güvence altına alınmasıdır.
-                    </p>
-
-                    <p className="font-bold text-white">2. PAZARLAMA VE YETKİ KOŞULLARI</p>
-                    {isVehicle ? (
-                      <p>
-                        Hizmet Alan, mülkiyetindeki aracı satılması amacıyla Galeri'ye emanet statüsünde teslim etmeyi veya Galeri kanallarından ilan edilmesini kabul eder. Galeri, aracın internet portalları ve fiziki showroomlarda en iyi şekilde pazarlanmasından sorumludur. Hizmet alan, Galeri'nin bilgisi dışında aracı üçüncü şahıslara veya Galeri'nin yönlendirdiği müşterilere satamaz.
-                      </p>
-                    ) : (
-                      <p>
-                        Mülk sahibi, söz konusu gayrimenkulün pazarlanması hususunda Acente'ye tam yetki verdiğini beyan eder. Acente, her türlü reklam, afiş ve sosyal medya pazarlamasını üstlenir. Malik, Acente'yi devre dışı bırakarak doğrudan veya dolaylı olarak alıcı ile temas kurup satış gerçekleştiremez.
-                      </p>
-                    )}
-
-                    <p className="font-bold text-white">3. ARACILIK HİZMET BEDELİ (KOMİSYON)</p>
-                    <p>
-                      Mülk veya aracın tescil ve satışı tamamlandığında, alıcı ve satıcı aracı kuruma yasal komisyon bedeli ödemekle mükelleftir. Bu komisyon bedeli aksi yazılı olarak kararlaştırılmadıkça lüks emlak segmentinde toplam bedel üzerinden <strong>%5</strong>, otomotiv segmentinde ise Galeri liste fiyatı üzerinden <strong>%3</strong> artı KDV olarak hesaplanır. Satıcı, acenteyi aradan çıkartarak satış yaparsa dahi cezai şart olarak bu komisyonun iki katını ödemeyi kabul eder.
-                    </p>
-
-                    <p className="font-bold text-white">4. GİZLİLİK VE ANLAŞMAZLIKLARIN ÇÖZÜMÜ</p>
-                    <p>
-                      İşbu sözleşmenin detayları, her iki tarafın ticari sırrı olup üçüncü kişilerle paylaşılamaz. Sözleşmeden doğacak her türlü ihtilafta, Kuzey Kıbrıs Türk Cumhuriyeti (Girne/Lefkoşa) Mahkemeleri ve İcra Daireleri yetkilidir. Dijital olarak parmak veya ıslak imza simülasyonu ile onaylanan bu sözleşme yasal olarak delil niteliği taşımaktadır.
-                    </p>
+                {/* Furnished Rental Fixture Photo Strip (Interactive Zoom for Tenant) */}
+                {isFurnishedRental && fixturePhotosList.length > 0 && (
+                  <div className="mb-4 bg-white border-2 border-indigo-600 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-black text-slate-950 uppercase">
+                        Teslim Edilen Eşyalar ({fixturePhotosList.length} Fotoğraf)
+                      </span>
+                      <span className="text-[10px] font-bold text-indigo-700">
+                        Büyütmek için resme dokunun
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[190px] overflow-y-auto pr-1">
+                      {fixturePhotosList.map((fp: any, idx: number) => (
+                        <div
+                          key={fp.id || idx}
+                          onClick={() => setInspectPhotoUrl({ url: fp.url, name: fp.name, timestamp: fp.timestamp_str })}
+                          className="border border-slate-300 rounded-lg p-1.5 bg-slate-50 hover:border-indigo-600 cursor-pointer flex items-center gap-2"
+                        >
+                          <img
+                            src={fp.url}
+                            alt={fp.name}
+                            className="w-12 h-10 object-cover rounded border border-slate-300 shrink-0 bg-slate-950"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-black text-slate-950 truncate">{fp.name}</p>
+                            <p className="text-[9px] font-bold text-indigo-700 truncate">{fp.condition || "Sağlam"}</p>
+                            <p className="text-[8px] font-mono text-slate-600 truncate">{fp.timestamp_str}</p>
+                          </div>
+                          <ZoomIn className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
+
+                {/* Contract Full HTML Preview */}
+                {renderedContractHtml ? (
+                  <div className="bg-white border-2 border-slate-300 rounded-xl p-3 max-h-[340px] overflow-y-auto text-slate-950 leading-relaxed font-sans">
+                    <div dangerouslySetInnerHTML={{ __html: renderedContractHtml }} />
+                  </div>
+                ) : null}
               </div>
 
-              {/* Secure Stamp text */}
-              <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-[9px] text-slate-500 font-bold">
-                <span>LOOKPRICE SECURE PLATFORM v3.2</span>
-                <span className="flex items-center gap-1 text-slate-400">
-                  <CheckCircle className="w-3 h-3 text-emerald-500" /> %100 Yasal ve Delil Statüsündedir
+              <div className="mt-3 pt-2 border-t border-slate-300 flex items-center justify-between text-[10px] text-slate-700 font-bold">
+                <span>Güvenli Dijital Sözleşme & Eşya Teslim Protokolü</span>
+                <span className="flex items-center gap-1 text-emerald-700 font-black">
+                  <CheckCircle className="w-3.5 h-3.5" /> Hukuki Delil Statüsündedir
                 </span>
               </div>
             </div>
 
-            {/* Right Column: Signature Pad Form */}
-            <div className="lg:w-5/12 p-6 md:p-8 flex flex-col justify-between bg-slate-900/80">
-              <div className="space-y-4">
-                <div className="flex items-center gap-1.5 text-indigo-400 font-black text-xs uppercase tracking-wider">
-                  <PenTool className="w-4 h-4" /> DİJİTAL ONAY & İMZA PANELİ
+            {/* Right Column: Approval / Signature / Rejection Form */}
+            <div className="lg:w-5/12 p-4 sm:p-6 flex flex-col justify-between bg-white">
+              <div className="space-y-3.5">
+                <div className="flex items-center gap-1.5 text-slate-950 font-black text-xs uppercase tracking-wider border-b border-slate-200 pb-2">
+                  <PenTool className="w-4 h-4 text-indigo-600" /> MÜŞTERİ ONAY & İMZA PANELİ
                 </div>
 
-                <p className="text-slate-400 text-xs leading-relaxed">
-                  Lütfen aşağıdaki alanları doldurun ve altındaki imza alanına parmağınızla/mouse ile imzanızı atarak onaylayın.
-                </p>
-
                 {/* Input Fields */}
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div>
-                    <label className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1.5">SÖZLEŞMEYİ ONAYLAYAN ADI SOYADI</label>
+                    <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">ADINIZ SOYADINIZ *</label>
                     <div className="relative">
                       <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
@@ -437,58 +519,76 @@ export default function ContractSignPage() {
                         placeholder="Adınız Soyadınız" 
                         value={clientName}
                         onChange={(e) => setClientName(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold text-white placeholder-slate-600 focus:ring-0 outline-none transition-all"
+                        className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1.5">T.C. KİMLİK / PASAPORT NUMARASI</label>
-                    <div className="relative">
-                      <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                      <input 
-                        type="text" 
-                        placeholder="Kimlik veya Pasaport No" 
-                        value={clientIdentity}
-                        onChange={(e) => setClientIdentity(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold text-white placeholder-slate-600 focus:ring-0 outline-none transition-all"
-                      />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">KİMLİK / PASAPORT NO *</label>
+                      <div className="relative">
+                        <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                        <input 
+                          type="text" 
+                          placeholder="Kimlik / Pasaport No" 
+                          value={clientIdentity}
+                          onChange={(e) => setClientIdentity(e.target.value)}
+                          className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1.5">İLETİŞİM TELEFON NUMARASI</label>
-                    <div className="relative">
-                      <Smartphone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                      <input 
-                        type="tel" 
-                        placeholder="+90 533 ......" 
-                        value={clientPhone}
-                        onChange={(e) => setClientPhone(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold text-white placeholder-slate-600 focus:ring-0 outline-none transition-all"
-                      />
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">TELEFON NUMARANIZ *</label>
+                      <div className="relative">
+                        <Smartphone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                        <input 
+                          type="tel" 
+                          placeholder="+90 533 ..." 
+                          value={clientPhone}
+                          onChange={(e) => setClientPhone(e.target.value)}
+                          className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Mandatory Fixture Acceptance Checkbox for Furnished Rentals */}
+                {isFurnishedRental && (
+                  <label className="flex items-start gap-2.5 p-2.5 bg-amber-50 border-2 border-amber-300 rounded-xl cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={fixtureAccepted}
+                      onChange={(e) => setFixtureAccepted(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-indigo-600 shrink-0"
+                    />
+                    <span className="text-[11px] font-black text-slate-950 leading-snug">
+                      Sözleşmeyi, EK-1 Eşya Listesini ve zaman damgalı eşya fotoğraflarını inceledim, sağlam ve eksiksiz teslim aldığımı onaylıyorum.
+                    </span>
+                  </label>
+                )}
+
                 {/* Canvas Signature Box */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest leading-none">PARMAĞINIZLA BURAYA İMZALAYIN</label>
+                    <label className="block text-[10px] font-black text-slate-900 uppercase">PARMAĞINIZLA BURAYA İMZALAYIN</label>
                     <button 
                       onClick={clearCanvas}
-                      className="text-[9.5px] font-extrabold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 uppercase transition-all"
+                      type="button"
+                      className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1 uppercase cursor-pointer"
                     >
                       <RotateCcw className="w-3 h-3" /> Temizle
                     </button>
                   </div>
 
-                  <div className="border border-slate-800 rounded-2xl overflow-hidden bg-white relative">
+                  <div className="border-2 border-slate-300 rounded-xl overflow-hidden bg-slate-50 relative">
                     <canvas 
                       ref={canvasRef}
                       width={320}
-                      height={180}
-                      className="w-full h-[160px] cursor-crosshair block touch-none"
+                      height={150}
+                      className="w-full h-[140px] cursor-crosshair block touch-none bg-white"
                       onMouseDown={startDrawing}
                       onMouseMove={draw}
                       onMouseUp={stopDrawing}
@@ -497,26 +597,68 @@ export default function ContractSignPage() {
                       onTouchMove={draw}
                       onTouchEnd={stopDrawing}
                     />
-                    
                     {!isSigningActive && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-                        <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase flex items-center gap-1 animate-pulse">
-                          ✍️ BURAYA PARMAKLA ÇİZİN
+                        <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">
+                          PARMAĞINIZLA BURAYA İMZA ÇİZİN
                         </span>
                       </div>
                     )}
                   </div>
                 </div>
+
+                {/* Optional Rejection / Correction Box */}
+                {showRejectBox && (
+                  <div className="p-3 bg-rose-50 border-2 border-rose-300 rounded-xl space-y-2">
+                    <label className="block text-[10px] font-black text-rose-900 uppercase">
+                      Red / Düzeltme Talebi Açıklamanız *
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      placeholder="Örn: Salon kliması kumandası eksik veya koltukta mevcut leke not edilmeli..."
+                      className="w-full p-2 bg-white border border-rose-300 rounded-lg text-xs font-bold text-slate-950 focus:outline-none"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleReject}
+                        className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-lg uppercase cursor-pointer"
+                      >
+                        Düzeltme Talebini Gönder
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowRejectBox(false)}
+                        className="px-3 py-2 bg-white border border-slate-300 text-slate-800 font-bold text-xs rounded-lg cursor-pointer"
+                      >
+                        Vazgeç
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Submit Approval Trigger */}
-              <div className="mt-6">
+              {/* Submit Approval or Reject Triggers */}
+              <div className="mt-4 space-y-2">
                 <button 
+                  type="button"
                   onClick={handleApprove}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-2xl tracking-widest uppercase transition-all shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl tracking-wider uppercase transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer"
                 >
-                  <Check className="w-4 h-4" /> SÖZLEŞMEYİ ONAYLA VE İMZALA
+                  <Check className="w-4 h-4" /> ONAYLA VE İMZALA
                 </button>
+
+                {!isVehicle && !showRejectBox && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRejectBox(true)}
+                    className="w-full py-2.5 bg-white hover:bg-rose-50 text-rose-700 border-2 border-rose-300 font-black text-xs rounded-xl uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <XCircle className="w-4 h-4" /> Reddet / Eşya Listesinde Düzeltme İste
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>
@@ -525,59 +667,99 @@ export default function ContractSignPage() {
             key="success-card"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-[3rem] p-8 text-center shadow-2xl relative overflow-y-auto max-h-[90vh]"
+            className="w-full max-w-lg bg-white border-2 border-slate-300 rounded-3xl p-6 sm:p-8 text-center shadow-2xl relative overflow-y-auto max-h-[90vh] text-slate-950"
           >
-            {/* Glowing Success Background */}
-            <div className="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="w-20 h-20 bg-emerald-500/15 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Check className="w-10 h-10 text-emerald-400" />
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-2 ${
+                decisionStatus === "approved"
+                  ? "bg-emerald-50 border-emerald-500 text-emerald-600"
+                  : "bg-rose-50 border-rose-500 text-rose-600"
+              }`}
+            >
+              {decisionStatus === "approved" ? <Check className="w-8 h-8" /> : <XCircle className="w-8 h-8" />}
             </div>
 
-            <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black tracking-wider uppercase px-3 py-1.5 rounded-full mb-3 inline-block">
-              DIJITAL SÖZLEŞME ONAYLANDI
+            <span
+              className={`text-[10px] font-black tracking-wider uppercase px-3 py-1 rounded-full mb-2 inline-block ${
+                decisionStatus === "approved"
+                  ? "bg-emerald-100 text-emerald-900"
+                  : "bg-rose-100 text-rose-900"
+              }`}
+            >
+              {decisionStatus === "approved"
+                ? "SÖZLEŞME & EŞYA LİSTESİ ONAYLANDI"
+                : "DÜZELTME / RET TALEBİ KAYDEDİLDİ"}
             </span>
 
-            <h2 className="text-2xl font-black text-white tracking-tight mb-2">Tebrikler, İşlem Tamamlandı!</h2>
-            <p className="text-xs text-slate-400 leading-relaxed mb-6 max-w-sm mx-auto">
-              Sözleşmeniz dijital zaman damgası ve parmak izi tesciliyle birlikte onaylanmıştır. Belge, arşivimize şifreli olarak güvenle kaydedilmiştir.
+            <h2 className="text-xl font-black text-slate-950 tracking-tight mb-2">
+              {decisionStatus === "approved"
+                ? "Teşekkürler, Dijital Onayınız Kaydedildi!"
+                : "Düzeltme Talebiniz Sisteme İşlendi"}
+            </h2>
+            <p className="text-xs text-slate-700 leading-relaxed mb-5 max-w-sm mx-auto font-medium">
+              {decisionStatus === "approved"
+                ? "Sözleşmeniz ve eşya tespit tutanağınız dijital zaman damgası ile sisteme kaydedilmiştir."
+                : "Belirttiğiniz düzeltme/itiraz notu ilgili gayrimenkul danışmanının ekranına iletilmiştir."}
             </p>
 
-            {/* Time Stamp Card */}
-            <div className="bg-slate-950/70 border border-slate-850 p-4 rounded-2xl text-left space-y-2 mb-6 text-xs max-w-md mx-auto">
+            <div className="bg-slate-50 border-2 border-slate-300 p-3.5 rounded-xl text-left space-y-1.5 mb-5 text-xs max-w-md mx-auto">
               <div className="flex justify-between">
-                <span className="text-slate-500 font-bold">İmzalayan:</span>
-                <span className="text-white font-extrabold">{clientName}</span>
+                <span className="text-slate-600 font-bold">Müşteri:</span>
+                <span className="text-slate-950 font-black">{clientName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500 font-bold">Tarih / Saat:</span>
-                <span className="text-indigo-400 font-extrabold">{new Date().toLocaleString("tr-TR")}</span>
+                <span className="text-slate-600 font-bold">Tarih / Saat:</span>
+                <span className="text-indigo-700 font-black">{new Date().toLocaleString("tr-TR")}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500 font-bold">Zaman Damgası SHA-256:</span>
-                <span className="text-slate-400 font-mono text-[9px]">
-                  LP-ONAY-{Math.random().toString(36).substring(2, 10).toUpperCase()}
+                <span className="text-slate-600 font-bold">Durum:</span>
+                <span className="text-slate-950 font-black">
+                  {decisionStatus === "approved" ? "Onaylandı & İmzalandı" : `Red / Düzeltme: ${rejectionReason}`}
                 </span>
               </div>
             </div>
 
-            {/* Primary Action Buttons */}
-            <div className="space-y-2.5 max-w-md mx-auto">
+            <div className="space-y-2 max-w-md mx-auto">
               <button 
                 onClick={sendNotificationToAgent}
-                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl tracking-wider uppercase transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl tracking-wider uppercase transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Send className="w-4 h-4" /> Danışmana WhatsApp ile Bildir
               </button>
-              
-              <p className="text-[10px] text-slate-500 font-bold leading-normal">
-                WhatsApp ile bildir butonuna bastığınızda, saniyeler içinde sözleşmenizin onay bilgisi danışmanın ofis paneline iletilecektir.
-              </p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Lightbox for Tenant Inspecting Fixture Photos */}
+      {inspectPhotoUrl && (
+        <div
+          className="fixed inset-0 z-[200] bg-slate-950/90 flex flex-col items-center justify-center p-4"
+          onClick={() => setInspectPhotoUrl(null)}
+        >
+          <div className="w-full max-w-3xl flex items-center justify-between text-white mb-2">
+            <div>
+              <h4 className="text-sm font-black text-amber-400">{inspectPhotoUrl.name}</h4>
+              {inspectPhotoUrl.timestamp && (
+                <p className="text-xs font-mono text-slate-300">{inspectPhotoUrl.timestamp} • hukuki delil</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setInspectPhotoUrl(null)}
+              className="p-2 bg-slate-800 rounded-lg text-white cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <img
+            src={inspectPhotoUrl.url}
+            alt={inspectPhotoUrl.name}
+            className="max-w-full max-h-[80vh] object-contain rounded-xl border-2 border-slate-700"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
