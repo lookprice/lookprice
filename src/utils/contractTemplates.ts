@@ -829,26 +829,159 @@ export function numberToTurkishWords(num: number): string {
   return words.trim().replace(/\s+/g, " ");
 }
 
-export function formatDepositWithWords(depositStr: string): string {
-  if (!depositStr) return "5.000 GBP (Veya Karşılığı)";
-  const cleanStr = depositStr.replace(/\./g, "").replace(/,/g, "");
+export function resolvePropertyRegionLabel(prop: any): string {
+  if (!prop) return "KKTC";
+  const sec =
+    typeof prop.sector_data === "string"
+      ? (() => {
+          try {
+            return JSON.parse(prop.sector_data);
+          } catch {
+            return {};
+          }
+        })()
+      : prop.sector_data || {};
+
+  const rawRegion = (prop.kktc_region || sec.kktc_region || "").toString().trim();
+  const rawSubRegion = (prop.kktc_sub_region || sec.kktc_sub_region || "").toString().trim();
+  const rawLocation = (prop.location || sec.location || "").toString().trim();
+  const rawAddress = (prop.address || sec.address || "").toString().trim();
+  const rawTitle = (prop.title || "").toString().trim();
+
+  const norm = (s: string) =>
+    s
+      .toLocaleLowerCase("tr-TR")
+      .replace(/ı/g, "i")
+      .replace(/ş/g, "s")
+      .replace(/ğ/g, "g")
+      .replace(/ü/g, "u")
+      .replace(/ö/g, "o")
+      .replace(/ç/g, "c");
+
+  const combinedText = norm(`${rawTitle} ${rawAddress} ${rawSubRegion} ${rawLocation}`);
+
+  let inferredRegion = "";
+  if (
+    combinedText.includes("lefkosa") ||
+    combinedText.includes("kaymakli") ||
+    combinedText.includes("gonyeli") ||
+    combinedText.includes("ortakoy") ||
+    combinedText.includes("dereboyu") ||
+    combinedText.includes("yenikent") ||
+    combinedText.includes("hamitkoy") ||
+    combinedText.includes("kizilbas") ||
+    combinedText.includes("taskinkoy") ||
+    combinedText.includes("metehan") ||
+    combinedText.includes("alaykoy") ||
+    combinedText.includes("haspolat")
+  ) {
+    inferredRegion = "Lefkoşa";
+  } else if (
+    combinedText.includes("gazimagusa") ||
+    combinedText.includes("magusa") ||
+    combinedText.includes("sakarya") ||
+    combinedText.includes("yenibogazici") ||
+    combinedText.includes("tatlisu")
+  ) {
+    inferredRegion = "Gazimağusa";
+  } else if (
+    combinedText.includes("iskele") ||
+    combinedText.includes("long beach") ||
+    combinedText.includes("bafra") ||
+    combinedText.includes("bogaz")
+  ) {
+    inferredRegion = "İskele";
+  } else if (combinedText.includes("guzelyurt")) {
+    inferredRegion = "Güzelyurt";
+  } else if (
+    combinedText.includes("lefke") ||
+    combinedText.includes("gemikonagi") ||
+    combinedText.includes("yedidalga")
+  ) {
+    inferredRegion = "Lefke";
+  } else if (
+    combinedText.includes("girne") ||
+    combinedText.includes("alsancak") ||
+    combinedText.includes("lapta") ||
+    combinedText.includes("catalkoy") ||
+    combinedText.includes("ozankoy") ||
+    combinedText.includes("bellapais") ||
+    combinedText.includes("karaoglanoglu") ||
+    combinedText.includes("edremit") ||
+    combinedText.includes("zeytinlik") ||
+    combinedText.includes("karsiyaka") ||
+    combinedText.includes("esentepe") ||
+    combinedText.includes("bahceli")
+  ) {
+    inferredRegion = "Girne";
+  }
+
+  let finalRegion = rawRegion;
+  if (inferredRegion && (!finalRegion || (norm(finalRegion) === "girne" && inferredRegion !== "Girne"))) {
+    finalRegion = inferredRegion;
+  }
+
+  if (finalRegion && rawSubRegion) {
+    return `${finalRegion} / ${rawSubRegion}`;
+  }
+  if (finalRegion) {
+    return finalRegion;
+  }
+  if (rawLocation) {
+    return rawLocation;
+  }
+  return "KKTC";
+}
+
+export function formatDepositWithWords(depositStr: string, defaultCurrency?: string): string {
+  if (!depositStr) return "1 Aylık Kira Bedeli";
+  const trimmed = depositStr.trim();
+  if (trimmed.includes("(") && trimmed.includes(")")) {
+    return trimmed;
+  }
+  const upperStr = trimmed.toLocaleUpperCase("tr-TR");
+  if (
+    upperStr.includes("AYLIK") ||
+    upperStr.includes("KİRA") ||
+    upperStr.includes("KIRA") ||
+    upperStr.includes("MAAŞ") ||
+    upperStr.includes("BEDEL")
+  ) {
+    return trimmed;
+  }
+  const cleanStr = trimmed.replace(/\./g, "").replace(/,/g, "");
   const match = cleanStr.match(/\d+/);
   if (match) {
     const num = parseInt(match[0], 10);
     if (!isNaN(num) && num > 0) {
       const words = numberToTurkishWords(num);
-      let currency = "Türk Lirası";
-      const upperStr = depositStr.toUpperCase();
+      let currency = "Sterlin";
+      const fallbackCurr = (defaultCurrency || "").toUpperCase();
       if (upperStr.includes("GBP") || upperStr.includes("£") || upperStr.includes("STERLİN") || upperStr.includes("STERLIN")) {
         currency = "Sterlin";
       } else if (upperStr.includes("EUR") || upperStr.includes("€") || upperStr.includes("AVRO")) {
         currency = "Euro";
       } else if (upperStr.includes("USD") || upperStr.includes("$") || upperStr.includes("DOLAR")) {
         currency = "Dolar";
+      } else if (
+        upperStr.includes("TRY") ||
+        upperStr.includes("TL") ||
+        upperStr.includes("₺") ||
+        upperStr.includes("TÜRK LİRASI") ||
+        upperStr.includes("TURK LIRASI")
+      ) {
+        currency = "Türk Lirası";
+      } else if (fallbackCurr === "TRY" || fallbackCurr === "TL") {
+        currency = "Türk Lirası";
+      } else if (fallbackCurr === "EUR") {
+        currency = "Euro";
+      } else if (fallbackCurr === "USD") {
+        currency = "Dolar";
       }
-      return `${depositStr} (${words} ${currency})`;
+      return `${trimmed} (${words} ${currency})`;
     }
   }
-  return depositStr;
+  return trimmed;
 }
+
 

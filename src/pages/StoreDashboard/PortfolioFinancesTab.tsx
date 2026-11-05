@@ -122,7 +122,15 @@ export default function PortfolioFinancesTab({
 
   useEffect(() => {
     if (!storeId) return;
-    api.getStoreInfo(storeId)
+    const fetchStore = typeof (api as any).getStoreInfo === "function"
+      ? (api as any).getStoreInfo
+      : typeof (api as any).getStoreConfig === "function"
+      ? (api as any).getStoreConfig
+      : null;
+
+    if (!fetchStore) return;
+
+    fetchStore(storeId)
       .then((info: any) => {
         if (!info) return;
         const defCur = (info.default_currency || info.currency || (activeAutomotive ? "TRY" : "GBP")).toUpperCase();
@@ -138,7 +146,7 @@ export default function PortfolioFinancesTab({
         parsedRates["TRY"] = 1;
         setStoreCurrencyRates(parsedRates);
       })
-      .catch(err => console.error("Error fetching store currency info:", err));
+      .catch((err: any) => console.error("Error fetching store currency info:", err));
   }, [storeId, activeAutomotive]);
 
   const convertPortfolioCurrency = useCallback((amount: number, fromCurr: string, toCurr: string) => {

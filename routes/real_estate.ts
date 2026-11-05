@@ -417,22 +417,22 @@ router.get('/properties', authenticate, async (req: any, res) => {
         secData = {};
       }
       secData = {
-        type: row.type,
-        subtype: row.subtype,
-        room_count: row.room_count,
-        rooms: row.room_count,
-        square_meters: Number(row.square_meters) || 0,
-        sqm_gross: Number(row.sqm_gross) || 0,
-        listing_intent: row.listing_intent,
-        kktc_region: row.kktc_region,
-        kktc_sub_region: row.kktc_sub_region,
-        kktc_title_type: row.kktc_title_type,
-        trafo_bedeli: !!row.trafo_bedeli,
-        kdv_status: row.kdv_status,
-        cati_terasi: !!row.cati_terasi,
+        ...secData,
+        type: row.type || secData.type,
+        subtype: row.subtype || secData.subtype,
+        room_count: row.room_count || secData.room_count,
+        rooms: row.room_count || secData.rooms,
+        square_meters: Number(row.square_meters) || Number(secData.square_meters) || 0,
+        sqm_gross: Number(row.sqm_gross) || Number(secData.sqm_gross) || 0,
+        listing_intent: row.listing_intent || secData.listing_intent,
+        kktc_region: row.kktc_region || secData.kktc_region,
+        kktc_sub_region: row.kktc_sub_region || secData.kktc_sub_region,
+        kktc_title_type: row.kktc_title_type || secData.kktc_title_type,
+        trafo_bedeli: row.trafo_bedeli ?? secData.trafo_bedeli ?? false,
+        kdv_status: row.kdv_status || secData.kdv_status,
+        cati_terasi: row.cati_terasi ?? secData.cati_terasi ?? false,
         furnished: !!row.furnished,
-        is_trade_in_available: !!row.is_trade_in_available,
-        ...secData
+        is_trade_in_available: row.is_trade_in_available ?? secData.is_trade_in_available ?? false
       };
 
       let fixturePhotos = [];
@@ -461,8 +461,11 @@ router.get('/properties', authenticate, async (req: any, res) => {
       secData.fixture_photos = fixturePhotos;
 
       return {
-        ...row,
         ...secData,
+        ...row,
+        kktc_region: row.kktc_region || secData.kktc_region,
+        kktc_sub_region: row.kktc_sub_region || secData.kktc_sub_region,
+        deposit: Number(row.deposit) > 0 ? Number(row.deposit) : (Number(secData.deposit) || 0),
         furnished: isFurnishedBool,
         fixture_photos: fixturePhotos,
         sector_data: secData,

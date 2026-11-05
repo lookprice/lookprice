@@ -18,7 +18,7 @@ import {
   ZoomIn,
   X
 } from "lucide-react";
-import { contractTemplates } from "../utils/contractTemplates";
+import { contractTemplates, resolvePropertyRegionLabel } from "../utils/contractTemplates";
 import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
 
 export default function ContractSignPage() {
@@ -178,6 +178,15 @@ export default function ContractSignPage() {
         fixturePhotosList.length > 0)
   );
 
+  const symbol = itemData?.currency === "GBP" ? "£" : itemData?.currency === "USD" ? "$" : itemData?.currency === "EUR" ? "€" : "₺";
+  const resolvedRegionLabel = itemData ? resolvePropertyRegionLabel(itemData) : "KKTC";
+  const effectiveDepositAmount =
+    depositAmountParam && depositAmountParam !== "1 Aylık Kira Bedeli"
+      ? depositAmountParam
+      : itemData?.deposit && Number(itemData.deposit) > 0
+      ? `${itemData.deposit} ${symbol}`
+      : depositAmountParam || "1 Aylık Kira Bedeli";
+
   const handleApprove = async () => {
     if (!clientName.trim()) {
       alert("Lütfen adınızı ve soyadınızı giriniz.");
@@ -223,7 +232,17 @@ export default function ContractSignPage() {
           displayName: storeName,
           signatureImage: signatureImgData,
           decision: "approved",
-          fixtureApproved: isFurnishedRental
+          fixtureApproved: isFurnishedRental,
+          depositAmount: effectiveDepositAmount,
+          rentDuration: rentDurationParam || "1 Yıl",
+          paymentDay: paymentDayParam || "Her ayın en geç 5. günü",
+          splitRatio: splitRatioParam,
+          contractDuration: contractDurationParam,
+          evictionDate: evictionDateParam,
+          propertyLocation: resolvedRegionLabel,
+          isFurnishedRental,
+          fixturePhotosCount: fixturePhotosList.length,
+          fixturePhotos: fixturePhotosList
         })
       });
 
@@ -266,7 +285,14 @@ export default function ContractSignPage() {
           displayName: storeName,
           decision: "rejected",
           rejectionReason: rejectionReason.trim(),
-          fixtureApproved: false
+          fixtureApproved: false,
+          depositAmount: effectiveDepositAmount,
+          rentDuration: rentDurationParam || "1 Yıl",
+          paymentDay: paymentDayParam || "Her ayın en geç 5. günü",
+          propertyLocation: resolvedRegionLabel,
+          isFurnishedRental,
+          fixturePhotosCount: fixturePhotosList.length,
+          fixturePhotos: fixturePhotosList
         })
       });
 
@@ -313,7 +339,6 @@ export default function ContractSignPage() {
     const matchedTemplate = contractTemplates.find((t) => t.id === effectiveTemplateId);
     if (matchedTemplate) {
       const formattedPriceNum = itemData.price ? new Intl.NumberFormat("tr-TR").format(Math.round(itemData.price)) : "0";
-      const symbol = itemData.currency === "GBP" ? "£" : itemData.currency === "USD" ? "$" : itemData.currency === "EUR" ? "€" : "₺";
       
       const values = {
         clientName: clientName || "..................................................",
@@ -324,7 +349,7 @@ export default function ContractSignPage() {
         propertyTitle: itemData.type === "land"
           ? `[Ref: ${itemData.reference_no || `LP-${itemData.id}`}] ${(itemData as any).mahalle || ""} Mah. Ada: ${(itemData as any).ada || "..."}, Parsel: ${(itemData as any).parsel || "..."}`
           : `[Ref: ${itemData.reference_no || `LP-${itemData.id}`}] ${itemData.title}`,
-        propertyLocation: itemData.location || "Kıbrıs",
+        propertyLocation: resolvedRegionLabel,
         propertyPrice: `${formattedPriceNum} ${symbol}`,
         propertyBlockPlot: itemData.block_plot,
         commissionRate: itemData.listing_intent === "rent" ? commissionRateParam : (commissionRateParam.includes("%") ? commissionRateParam : `%${commissionRateParam}`),
@@ -333,7 +358,7 @@ export default function ContractSignPage() {
         splitRatio: splitRatioParam,
         contractDuration: contractDurationParam,
         evictionDate: evictionDateParam,
-        depositAmount: depositAmountParam || (itemData.deposit ? `${itemData.deposit} ${symbol}` : "1 Aylık Kira Bedeli"),
+        depositAmount: effectiveDepositAmount,
         rentDuration: rentDurationParam || "1 Yıl",
         paymentDay: paymentDayParam || "Her ayın en geç 5. günü",
         isSigned: signed,
@@ -443,7 +468,7 @@ export default function ContractSignPage() {
                       <span className="text-xs font-black text-indigo-700 block">
                         {isVehicle 
                           ? `Fiyat: ${formatCurrency(itemData.selling_price || itemData.price, itemData.currency || "TRY")}`
-                          : `Kira/Satış Bedeli: ${formatCurrency(itemData.price, itemData.currency || "GBP")} • ${itemData.location || "Girne"}`
+                          : `Kira/Satış Bedeli: ${formatCurrency(itemData.price, itemData.currency || "GBP")} • ${resolvedRegionLabel}`
                         }
                       </span>
                     </div>

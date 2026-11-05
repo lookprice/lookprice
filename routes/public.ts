@@ -2729,8 +2729,11 @@ router.get("/real-estate/:id", async (req, res) => {
     }
 
     res.json({
-      ...row,
       ...secData,
+      ...row,
+      kktc_region: row.kktc_region || secData.kktc_region || "",
+      kktc_sub_region: row.kktc_sub_region || secData.kktc_sub_region || "",
+      deposit: Number(row.deposit) > 0 ? Number(row.deposit) : (Number(secData.deposit) || 0),
       fixture_photos: fixturePhotos,
       sector_data: secData
     });
@@ -2753,7 +2756,16 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       signatureImage,
       decision = "approved",
       rejectionReason = "",
-      fixtureApproved = false
+      fixtureApproved = false,
+      depositAmount,
+      rentDuration,
+      paymentDay,
+      splitRatio,
+      contractDuration,
+      evictionDate,
+      propertyLocation,
+      isFurnishedRental,
+      fixturePhotos
     } = req.body;
 
     if (!clientName || !clientIdentity || !clientPhone) {
@@ -2779,6 +2791,41 @@ router.post("/real-estate/:id/sign", async (req, res) => {
     }
     if (!existingSecData || typeof existingSecData !== 'object') existingSecData = {};
 
+    let dbFixturePhotos: any[] = [];
+    if (property.fixture_photos) {
+      if (Array.isArray(property.fixture_photos)) dbFixturePhotos = property.fixture_photos;
+      else if (typeof property.fixture_photos === 'string') {
+        try { dbFixturePhotos = JSON.parse(property.fixture_photos); } catch (e) { dbFixturePhotos = []; }
+      }
+    }
+    if ((!dbFixturePhotos || dbFixturePhotos.length === 0) && Array.isArray(existingSecData.fixture_photos)) {
+      dbFixturePhotos = existingSecData.fixture_photos;
+    }
+    const resolvedFixturePhotos = Array.isArray(fixturePhotos) && fixturePhotos.length > 0 ? fixturePhotos : dbFixturePhotos;
+
+    const propSymbol = property.currency === 'GBP' ? '£' : property.currency === 'USD' ? '$' : property.currency === 'EUR' ? '€' : '₺';
+    const propDepositNum = Number(property.deposit) > 0 ? Number(property.deposit) : (Number(existingSecData.deposit) || 0);
+    const resolvedDepositAmount =
+      depositAmount && depositAmount !== "1 Aylık Kira Bedeli"
+        ? depositAmount
+        : propDepositNum > 0
+        ? `${propDepositNum} ${propSymbol}`
+        : depositAmount || "1 Aylık Kira Bedeli";
+
+    const resolvedIsFurnishedRental = Boolean(
+      isFurnishedRental ||
+        fixtureApproved ||
+        resolvedFixturePhotos.length > 0 ||
+        property.furnished === true ||
+        property.furnished === 'true' ||
+        property.furnished === 'esyali' ||
+        property.furnished === 'furnished' ||
+        existingSecData.furnished === true ||
+        existingSecData.furnished === 'true' ||
+        existingSecData.furnished === 'esyali' ||
+        existingSecData.furnished === 'furnished'
+    );
+
     const nowD = new Date();
     const trDateStr = `${String(nowD.getDate()).padStart(2, '0')}.${String(nowD.getMonth() + 1).padStart(2, '0')}.${nowD.getFullYear()} ${String(nowD.getHours()).padStart(2, '0')}:${String(nowD.getMinutes()).padStart(2, '0')}`;
     const isRejected = decision === "rejected";
@@ -2792,7 +2839,7 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       file_url: "is_virtual_contract",
       upload_date: trDateStr,
       details: {
-        templateId: templateId || "showing_agreement",
+        templateId: templateId || (property.listing_intent === "rent" ? "rental_agreement" : "showing_agreement"),
         clientName,
         clientIdentity,
         clientPhone,
@@ -2801,10 +2848,20 @@ router.post("/real-estate/:id/sign", async (req, res) => {
         signed: !isRejected,
         decision: isRejected ? "rejected" : "approved",
         rejectionReason: rejectionReason || "",
-        fixtureApproved: !isRejected && Boolean(fixtureApproved),
+        fixtureApproved: !isRejected && Boolean(fixtureApproved || resolvedIsFurnishedRental),
         signingName: clientName,
         ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
-        signatureImage: isRejected ? "" : signatureImage
+        signatureImage: isRejected ? "" : signatureImage,
+        depositAmount: resolvedDepositAmount,
+        rentDuration: rentDuration || "1 Yıl",
+        paymentDay: paymentDay || "Her ayın en geç 5. günü",
+        splitRatio: splitRatio || "",
+        contractDuration: contractDuration || "",
+        evictionDate: evictionDate || "",
+        propertyLocation: propertyLocation || property.kktc_region || existingSecData.kktc_region || property.location || "KKTC",
+        isFurnishedRental: resolvedIsFurnishedRental,
+        fixturePhotosCount: resolvedFixturePhotos.length,
+        fixturePhotos: resolvedFixturePhotos
       }
     };
 

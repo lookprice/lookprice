@@ -1,7 +1,7 @@
 import React from "react";
 import { X, FileText, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { contractTemplates } from "@/utils/contractTemplates";
+import { contractTemplates, resolvePropertyRegionLabel } from "@/utils/contractTemplates";
 import { ArrangeTourModal } from "@/components/ArrangeTourModal";
 
 const RealEstateModal = React.lazy(() => import("@/components/RealEstateModal").then(m => ({ default: m.RealEstateModal })));
@@ -263,15 +263,30 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                         type="button"
                         onClick={() => {
                           if (doc.file_url === "is_virtual_contract") {
-                            const tDef = contractTemplates.find((t: any) => t.id === (doc.details?.templateId || 'showing_agreement')) || contractTemplates[0];
-                            const formattedPriceNum = Number(viewDocsProperty.price).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                            const symbol = viewDocsProperty.currency === 'GBP' ? '£' : viewDocsProperty.currency === 'USD' ? '$' : viewDocsProperty.currency === 'EUR' ? '€' : '₺';
-                            
+                            const effectiveTemplateId =
+                              doc.details?.templateId ||
+                              (viewDocsProperty.listing_intent === "rent" ? "rental_agreement" : "showing_agreement");
+                            const tDef =
+                              contractTemplates.find((t: any) => t.id === effectiveTemplateId) || contractTemplates[0];
+                            const formattedPriceNum = Number(viewDocsProperty.price).toLocaleString("tr-TR", {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0
+                            });
+                            const symbol =
+                              viewDocsProperty.currency === "GBP"
+                                ? "£"
+                                : viewDocsProperty.currency === "USD"
+                                ? "$"
+                                : viewDocsProperty.currency === "EUR"
+                                ? "€"
+                                : "₺";
+
                             const clientNameVal = doc.details?.clientName || "[Alıcı / Mülk Sahibi Adı]";
                             const clientIdentityVal = doc.details?.clientIdentity || "[T.C. No]";
                             const clientPhoneVal = doc.details?.clientPhone || "[Telefon]";
                             const ipAddressVal = doc.details?.ipAddress || "127.0.0.1";
-                            const timestampVal = doc.upload_date || doc.details?.contractDate || new Date().toLocaleDateString("tr-TR");
+                            const timestampVal =
+                              doc.upload_date || doc.details?.contractDate || new Date().toLocaleDateString("tr-TR");
 
                             const combined = `${clientNameVal}-${clientIdentityVal}-${clientPhoneVal}-${viewDocsProperty.id}-security-seal`;
                             let hash = 0;
@@ -292,6 +307,50 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                             };
                             const securityCode = `SEC-LP-${hex}-${randomHex(1)}-${randomHex(2)}`;
 
+                            const propDepositNum =
+                              Number(viewDocsProperty.deposit) > 0
+                                ? Number(viewDocsProperty.deposit)
+                                : Number(viewDocsProperty.sector_data?.deposit) || 0;
+                            const resolvedDepositAmount =
+                              doc.details?.depositAmount && doc.details.depositAmount !== "1 Aylık Kira Bedeli"
+                                ? doc.details.depositAmount
+                                : propDepositNum > 0
+                                ? `${propDepositNum} ${symbol}`
+                                : doc.details?.depositAmount || "1 Aylık Kira Bedeli";
+
+                            const resolvedFixturePhotos: any[] = (() => {
+                              if (Array.isArray(doc.details?.fixturePhotos) && doc.details.fixturePhotos.length > 0) {
+                                return doc.details.fixturePhotos;
+                              }
+                              const raw =
+                                viewDocsProperty.fixture_photos || viewDocsProperty.sector_data?.fixture_photos;
+                              if (Array.isArray(raw)) return raw;
+                              if (typeof raw === "string") {
+                                try {
+                                  return JSON.parse(raw);
+                                } catch {
+                                  return [];
+                                }
+                              }
+                              return [];
+                            })();
+
+                            const resolvedIsFurnishedRental = Boolean(
+                              doc.details?.isFurnishedRental ||
+                                doc.details?.fixtureApproved ||
+                                resolvedFixturePhotos.length > 0 ||
+                                ((viewDocsProperty.listing_intent === "rent" || tDef.id === "rental_agreement") &&
+                                  (viewDocsProperty.furnished === true ||
+                                    viewDocsProperty.furnished === "true" ||
+                                    viewDocsProperty.furnished === "esyali" ||
+                                    viewDocsProperty.furnished === "furnished" ||
+                                    viewDocsProperty.sector_data?.furnished === true ||
+                                    viewDocsProperty.sector_data?.furnished === "esyali" ||
+                                    viewDocsProperty.sector_data?.furnished === "furnished"))
+                            );
+
+                            const resolvedRegion = resolvePropertyRegionLabel(viewDocsProperty);
+
                             const { html } = tDef.getTemplate({
                               storeName: branding?.store_name || branding?.name || "Premium Real Estate",
                               storePhone: branding?.phone || branding?.whatsapp_number || "+90 533 800 00 00",
@@ -299,8 +358,8 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                               clientName: clientNameVal,
                               clientIdentity: clientIdentityVal,
                               clientPhone: clientPhoneVal,
-                              propertyTitle: `[İlan Kodu: LP-${viewDocsProperty.id}] ${viewDocsProperty.title}`,
-                              propertyLocation: viewDocsProperty.location || "Kıbrıs",
+                              propertyTitle: `[Ref: ${viewDocsProperty.reference_no || `LP-${viewDocsProperty.id}`}] ${viewDocsProperty.title}`,
+                              propertyLocation: resolvedRegion,
                               propertyPrice: `${formattedPriceNum} ${symbol}`,
                               propertyBlockPlot: viewDocsProperty.block_plot,
                               commissionRate: doc.details?.commissionRate || "3",
@@ -311,53 +370,58 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                               splitRatio: doc.details?.splitRatio,
                               contractDuration: doc.details?.contractDuration,
                               evictionDate: doc.details?.evictionDate,
-                              depositAmount: doc.details?.depositAmount,
+                              depositAmount: resolvedDepositAmount,
                               rentDuration: doc.details?.rentDuration,
-                              paymentDay: doc.details?.paymentDay
+                              paymentDay: doc.details?.paymentDay,
+                              isFurnishedRental: resolvedIsFurnishedRental,
+                              fixturePhotosCount: resolvedFixturePhotos.length,
+                              fixturePhotos: resolvedFixturePhotos
                             });
 
                             const securityBoxHtml = `
-                              <div style="margin-top: 45px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; background-color: #f8fafc; font-family: sans-serif; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); page-break-inside: avoid;">
-                                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                              <div style="margin-top: 32px; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 18px; background-color: #f8fafc; font-family: sans-serif; page-break-inside: avoid;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                                   <div style="display: flex; align-items: center; gap: 8px;">
                                     <span style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background-color: #e0e7ff; color: #4338ca; border-radius: 6px; font-weight: bold; font-size: 13px;">✓</span>
                                     <div>
                                       <h4 style="margin: 0; font-size: 13px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em;">E-İMZA & GÜVENLİK DOĞRULAMA RAPORU</h4>
-                                      <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase;">DIGITAL SIGNATURE & INTEGRITY REPORT</span>
+                                      <span style="font-size: 10px; color: #475569; font-weight: bold; text-transform: uppercase;">DIGITAL SIGNATURE & INTEGRITY REPORT</span>
                                     </div>
                                   </div>
-                                  <span style="background-color: #dcfce7; border: 1px solid #bbf7d0; color: #15803d; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">DİJİTAL ONAYLANDI</span>
+                                  <span style="background-color: #dcfce7; border: 1px solid #86efac; color: #15803d; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">
+                                    ${resolvedIsFurnishedRental ? `DİJİTAL ONAYLANDI (SÖZLEŞME + EK-1 EŞYA LİSTESİ: ${resolvedFixturePhotos.length} FOTOĞRAF)` : "DİJİTAL ONAYLANDI"}
+                                  </span>
                                 </div>
                                 
-                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 11px; margin-bottom: 15px;">
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 11px; margin-bottom: 12px;">
                                   <div>
-                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">İmzalayan Müşteri (Signing Client)</span>
-                                    <strong style="color: #1e293b; font-size: 12px;">${clientNameVal}</strong>
+                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">İmzalayan Müşteri (Signing Client)</span>
+                                    <strong style="color: #0f172a; font-size: 12px;">${clientNameVal}</strong>
                                   </div>
                                   <div>
-                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">T.C. Kimlik / Pasaport No (ID / Passport)</span>
-                                    <strong style="color: #1e293b; font-size: 12px; font-family: monospace;">${clientIdentityVal}</strong>
+                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">T.C. Kimlik / Pasaport No (ID / Passport)</span>
+                                    <strong style="color: #0f172a; font-size: 12px; font-family: monospace;">${clientIdentityVal}</strong>
                                   </div>
                                   <div>
-                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">İletişim Telefonu (Client Phone)</span>
-                                    <strong style="color: #1e293b; font-size: 12px; font-family: monospace;">${clientPhoneVal}</strong>
+                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">İletişim Telefonu (Client Phone)</span>
+                                    <strong style="color: #0f172a; font-size: 12px; font-family: monospace;">${clientPhoneVal}</strong>
                                   </div>
                                   <div>
-                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">IP Adresi (IP Address)</span>
-                                    <strong style="color: #1e293b; font-size: 12px; font-family: monospace;">${ipAddressVal}</strong>
+                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">IP Adresi (IP Address)</span>
+                                    <strong style="color: #0f172a; font-size: 12px; font-family: monospace;">${ipAddressVal}</strong>
                                   </div>
                                   <div>
-                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Onay Zaman Damgası (Signing Timestamp)</span>
-                                    <strong style="color: #1e293b; font-size: 12px;">${timestampVal}</strong>
+                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Onay Zaman Damgası (Signing Timestamp)</span>
+                                    <strong style="color: #0f172a; font-size: 12px;">${timestampVal}</strong>
                                   </div>
                                   <div>
-                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Güvenlik & Bütünlük Kodu (Security Hash / SHA)</span>
+                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Güvenlik & Bütünlük Kodu (Security Hash / SHA)</span>
                                     <strong style="color: #16a34a; font-size: 11px; font-family: monospace; letter-spacing: 0.5px;">${securityCode}</strong>
                                   </div>
                                 </div>
                                 
-                                <div style="border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 10px; color: #64748b; text-align: justify; line-height: 1.5;">
-                                  <p style="margin: 0;"><strong>YASAL BEYAN VE GEÇERLİLİK:</strong> İşbu dijital sözleşme, taraflarca mobil/tablet cihazın dokunmatik ekranı üzerinde biyometrik parmak izi imza simülasyonu ile onaylanmıştır. 5070 Sayılı Elektronik İmza Kanunu, KKTC E-İmza Yasası ve Türk Borçlar Kanunu kapsamında hukuken geçerli ve tarafları bağlayıcı "Yazılı Delil Başlangıcı ve Sözleşmesi" niteliğindedir. Sözleşme içeriği ve imza bütünlüğü, yukarıda belirtilen benzersiz Güvenlik & Bütünlük Kodu (SHA) ile kriptografik olarak mühürlenmiştir.</p>
+                                <div style="border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 10px; color: #334155; text-align: justify; line-height: 1.5;">
+                                  <p style="margin: 0;"><strong>YASAL BEYAN VE GEÇERLİLİK:</strong> İşbu dijital sözleşme${resolvedIsFurnishedRental ? " ve EK-1 Eşya/Demirbaş Teslim Listesi ile mühürlü delil fotoğrafları" : ""}, taraflarca mobil/tablet cihazın dokunmatik ekranı üzerinde biyometrik parmak izi imza simülasyonu ile onaylanmıştır. 5070 Sayılı Elektronik İmza Kanunu, KKTC E-İmza Yasası ve Türk Borçlar Kanunu kapsamında hukuken geçerli ve tarafları bağlayıcı "Yazılı Delil Başlangıcı ve Sözleşmesi" niteliğindedir. Sözleşme içeriği ve imza bütünlüğü, yukarıda belirtilen benzersiz Güvenlik & Bütünlük Kodu (SHA) ile kriptografik olarak mühürlenmiştir.</p>
                                 </div>
                               </div>
                             `;
@@ -369,15 +433,16 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                             } else {
                               enrichedHtml = enrichedHtml + securityBoxHtml;
                             }
-                             
-                            const printWin = window.open('', '_blank');
+
+                            const printWin = window.open("", "_blank");
                             if (printWin) {
                               printWin.document.write(`
                                 <html>
                                   <head>
                                     <title>${doc.name}</title>
                                     <style>
-                                      body { font-family: sans-serif; background: white; margin: 40px; color: #1e293b; }
+                                      body { font-family: sans-serif; background: white; margin: 20px; color: #0f172a; }
+                                      @media print { body { margin: 10px; } }
                                     </style>
                                   </head>
                                   <body>
@@ -391,7 +456,7 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                               printWin.document.close();
                             }
                           } else {
-                            window.open(doc.file_url, '_blank');
+                            window.open(doc.file_url, "_blank");
                           }
                         }}
                         className="p-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 hover:text-white rounded-xl transition"

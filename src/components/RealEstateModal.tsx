@@ -4,7 +4,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Sliders,
-  Check
+  Check,
+  Tag,
+  Key
 } from "lucide-react";
 import { RealEstateProperty } from "../types";
 import { api } from "../services/api";
@@ -585,80 +587,46 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
       {/* Modal Main Frame - Daylight High-Contrast Corporate */}
       <div className="bg-white rounded-2xl w-full max-w-4xl relative z-10 flex flex-col max-h-[90vh] shadow-2xl border-2 border-slate-300 overflow-hidden text-slate-950">
-        {/* TOP HEADER BAR - Clean, Uncrowded Mobile Layout, Zero Icons */}
-        <div className="bg-slate-900 text-white px-3 py-2.5 flex items-center justify-between gap-2 border-b border-slate-800 shrink-0 select-none">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="text-[11px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-mono font-black shrink-0">
+        {/* TOP HEADER BAR - Horizontal Prominent Ref, No Title, Icon-Based Actions */}
+        <div className="bg-slate-900 text-white px-3 py-2 flex items-center justify-between gap-2 border-b border-slate-800 shrink-0 select-none">
+          {/* Horizontal Accent Ref Code - No Squeezing, No Redundant Title */}
+          <div className="flex items-center min-w-0">
+            <span className="px-2.5 py-1 bg-amber-400 text-slate-950 text-xs sm:text-sm font-black font-mono tracking-wider rounded-lg shadow-sm whitespace-nowrap">
               Ref: {formData.reference_no || "AUTO"}
             </span>
-            <h3 className="text-xs sm:text-sm font-black text-white truncate">
-              {property ? "Portföy Düzenle" : "Yeni Portföy"}
-            </h3>
           </div>
 
-          {/* Quick Header Switchers & Close */}
+          {/* Quick Header Switchers & Actions - Pure Icon Format */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Intent Switcher */}
+            {/* Intent Switcher: Sale (Tag) vs Rent (Key) Icons */}
             <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, listing_intent: "sale" })}
-                className={`px-2 py-1 rounded text-[10px] font-black transition-all cursor-pointer ${
+                title="Satılık Portföy"
+                className={`p-1.5 rounded-md text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
                   formData.listing_intent === "sale"
                     ? "bg-emerald-500 text-slate-950 shadow-xs"
-                    : "text-slate-300 hover:text-white"
+                    : "text-slate-400 hover:text-white"
                 }`}
               >
-                SATILIK
+                <Tag className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, listing_intent: "rent" })}
-                className={`px-2 py-1 rounded text-[10px] font-black transition-all cursor-pointer ${
+                title="Kiralık Portföy"
+                className={`p-1.5 rounded-md text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
                   formData.listing_intent === "rent"
                     ? "bg-amber-400 text-slate-950 shadow-xs"
-                    : "text-slate-300 hover:text-white"
+                    : "text-slate-400 hover:text-white"
                 }`}
               >
-                KİRALIK
+                <Key className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Region Switcher */}
-            <div className="hidden sm:flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-              <button
-                type="button"
-                onClick={() =>
-                  setFormData({
-                    ...formData,
-                    country: "KKTC",
-                    currency: formData.currency || "GBP"
-                  })
-                }
-                className={`px-2 py-1 rounded text-[10px] font-black transition-all cursor-pointer ${
-                  formData.country === "KKTC"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                KKTC
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setFormData({ ...formData, country: "TR", currency: "TRY" })
-                }
-                className={`px-2 py-1 rounded text-[10px] font-black transition-all cursor-pointer ${
-                  formData.country === "TR"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                TR
-              </button>
-            </div>
-
-            {/* View Mode Toggle: Tabs vs All */}
+            {/* View Mode Toggle: Tabs vs All - Icon Only */}
             <button
               type="button"
               onClick={() => setViewMode(viewMode === "tabs" ? "all" : "tabs")}
@@ -667,18 +635,16 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   ? "Tüm alanları tek listede göster"
                   : "Adım adım sekmeli görünüme geç"
               }
-              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 rounded-lg text-[10px] font-black flex items-center gap-1 transition-colors cursor-pointer"
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 rounded-lg text-xs font-black flex items-center justify-center transition-colors cursor-pointer"
             >
-              <Sliders className="w-3 h-3" />
-              <span className="hidden md:inline">
-                {viewMode === "tabs" ? "Tümü" : "Sekmeli"}
-              </span>
+              <Sliders className="w-3.5 h-3.5" />
             </button>
 
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors cursor-pointer"
+              title="Kapat"
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors cursor-pointer flex items-center justify-center"
             >
               <X className="w-4 h-4" />
             </button>

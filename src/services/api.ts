@@ -381,6 +381,7 @@ export const api = {
   updateLead: (id: number, data: any) => api.put(`/api/admin/leads/${id}`, data),
   getStores: () => api.get("/api/admin/stores"),
   getStoreConfig: (id: number) => api.get(`/api/admin/stores/${id}/config`),
+  getStoreInfo: (id: number) => api.get(`/api/admin/stores/${id}/config`),
   updateStoreConfig: (id: number, data: any) => api.put(`/api/admin/stores/${id}/config`, data),
   cloneStoreConfig: (id: number, presetKey: string) => api.post(`/api/admin/stores/${id}/clone-config`, { presetKey }),
   addStore: (data: any) => api.post("/api/admin/stores", data),

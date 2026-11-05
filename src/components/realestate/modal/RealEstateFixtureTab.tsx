@@ -323,9 +323,12 @@ export const RealEstateFixtureTab: React.FC<RealEstateFixtureTabProps> = ({
     if (!tenantPhone || !tenantPhone.trim()) return;
 
     const formattedPhone = formatPhoneForWhatsApp(tenantPhone.trim());
+    const sym = formData.currency === "GBP" ? "£" : formData.currency === "USD" ? "$" : formData.currency === "EUR" ? "€" : "₺";
+    const depVal = Number(formData.deposit) > 0 ? `${formData.deposit} ${sym}` : "";
+    const depositQuery = depVal ? `&depositAmount=${encodeURIComponent(depVal)}` : "";
     const signUrl = `${window.location.origin}/contract/sign/${formData.id}?client=${encodeURIComponent(
       tenantName.trim()
-    )}&phone=${encodeURIComponent(tenantPhone.trim())}&templateId=rental_agreement`;
+    )}&phone=${encodeURIComponent(tenantPhone.trim())}&templateId=rental_agreement${depositQuery}`;
 
     const summaryLines = groupedInventory
       .map((g, i) => `${i + 1}. ${g.name} (${g.condition}) - [${g.photos.length} Fotoğraf]`)
@@ -340,43 +343,42 @@ export const RealEstateFixtureTab: React.FC<RealEstateFixtureTabProps> = ({
 
   return (
     <div className="space-y-2.5">
-      {/* Compact Header - No large explanation blocks, only Eşyalar & Action Buttons */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-black uppercase tracking-tight">7. Eşyalar</span>
-          <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded">
+      {/* Compact Header - Horizontal Standout Ref Badge, No Title, Icon-Based Action Buttons */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white flex items-center justify-between gap-2 shrink-0 select-none">
+        <div className="flex items-center min-w-0">
+          <span className="px-2.5 py-1 bg-amber-400 text-slate-950 text-xs sm:text-sm font-black font-mono tracking-wider rounded-lg shadow-sm whitespace-nowrap">
             Ref: {propertyRef}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           {photos.length > 0 && (
             <>
               <button
                 type="button"
                 disabled={isGeneratingPdf}
                 onClick={handleDownloadPdfReport}
-                className="flex items-center gap-1 px-2.5 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-lg text-[10px] cursor-pointer"
+                title={isGeneratingPdf ? "PDF Hazırlanıyor..." : "Satır Satır PDF Tutanak İndir"}
+                className="p-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-lg transition-colors shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center"
               >
-                <Download className="w-3 h-3" />
-                <span>{isGeneratingPdf ? "PDF..." : "PDF İndir"}</span>
+                <Download className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={handlePrintReport}
-                className="hidden sm:flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg text-[10px] border border-slate-600 cursor-pointer"
+                title="Tutanak Yazdır"
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg border border-slate-700 transition-colors cursor-pointer flex items-center justify-center"
               >
-                <Printer className="w-3 h-3" />
-                <span>Yazdır</span>
+                <Printer className="w-4 h-4" />
               </button>
               {formData.id && (
                 <button
                   type="button"
                   onClick={handleSendWhatsAppToTenant}
-                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg text-[10px] cursor-pointer"
+                  title="Sözleşme ve Eşyaları WhatsApp ile Onaya Gönder"
+                  className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg transition-colors shadow-xs cursor-pointer flex items-center justify-center"
                 >
-                  <Share2 className="w-3 h-3" />
-                  <span>WA Onaya Gönder</span>
+                  <Share2 className="w-4 h-4" />
                 </button>
               )}
             </>

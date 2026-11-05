@@ -641,9 +641,12 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
     if (!tenantPhone || !tenantPhone.trim()) return;
 
     const formattedPhone = formatPhoneForWhatsApp(tenantPhone.trim());
+    const sym = property.currency === "GBP" ? "£" : property.currency === "USD" ? "$" : property.currency === "EUR" ? "€" : "₺";
+    const depVal = Number(property.deposit) > 0 ? `${property.deposit} ${sym}` : "";
+    const depositQuery = depVal ? `&depositAmount=${encodeURIComponent(depVal)}` : "";
     const signUrl = `${window.location.origin}/contract/sign/${property.id}?client=${encodeURIComponent(
       tenantName.trim()
-    )}&phone=${encodeURIComponent(tenantPhone.trim())}&templateId=rental_agreement`;
+    )}&phone=${encodeURIComponent(tenantPhone.trim())}&templateId=rental_agreement${depositQuery}`;
 
     const summaryLines = groupedInventory
       .map((g, i) => `${i + 1}. ${g.name} (${g.condition}) - [${g.photos.length} Fotoğraf]`)
@@ -666,29 +669,22 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
       {/* High-Contrast Corporate Daylight Modal Container */}
       <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-4xl h-[92vh] max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl relative text-slate-950">
         
-        {/* Header: Minimal "Eşyalar" + "Ref: ..." ONLY */}
-        <div className="bg-slate-900 text-white px-3.5 py-2.5 flex items-center justify-between shrink-0 border-b border-slate-800">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm sm:text-base font-black text-white tracking-tight">
-                  Eşyalar
-                </h2>
-                <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                  Ref: {propertyRef}
-                </span>
-                {approvalStatus === "approved" && (
-                  <span className="bg-emerald-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                    Kiracı Onaylı
-                  </span>
-                )}
-                {approvalStatus === "rejected" && (
-                  <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                    Düzeltme Talebi
-                  </span>
-                )}
-              </div>
-            </div>
+        {/* Header: Horizontal Standout Ref Badge, No Title, Icon-Based Action Buttons */}
+        <div className="bg-slate-900 text-white px-3 py-2 flex items-center justify-between shrink-0 border-b border-slate-800 select-none">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="px-2.5 py-1 bg-amber-400 text-slate-950 text-xs sm:text-sm font-black font-mono tracking-wider rounded-lg shadow-sm whitespace-nowrap">
+              Ref: {propertyRef}
+            </span>
+            {approvalStatus === "approved" && (
+              <span className="bg-emerald-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded uppercase whitespace-nowrap">
+                Kiracı Onaylı
+              </span>
+            )}
+            {approvalStatus === "rejected" && (
+              <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase whitespace-nowrap">
+                Düzeltme Talebi
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
@@ -698,38 +694,35 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                   type="button"
                   disabled={isGeneratingPdf}
                   onClick={handleDownloadPdfReport}
-                  className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-lg text-[11px] transition shadow-xs cursor-pointer disabled:opacity-50"
-                  title="Satır Satır Kompakt PDF Tutanak İndir"
+                  className="p-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-lg transition-colors shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                  title={isGeneratingPdf ? "PDF hazırlanıyor..." : "Satır Satır PDF Tutanak İndir"}
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{isGeneratingPdf ? "PDF..." : "PDF İndir"}</span>
+                  <Download className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={handlePrintInspectionReport}
-                  className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg text-[11px] border border-slate-600 transition cursor-pointer"
+                  className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg border border-slate-700 transition-colors cursor-pointer flex items-center justify-center"
                   title="Tutanak Yazdır"
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Yazdır</span>
+                  <Printer className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={handleSendWhatsAppToTenant}
-                  className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg text-[11px] transition shadow-xs cursor-pointer"
-                  title="Sözleşme, Eşya Listesi ve Resimleri Müşteriye WhatsApp ile Gönder"
+                  className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg transition-colors shadow-xs cursor-pointer flex items-center justify-center"
+                  title="Sözleşme, Eşya Listesi ve Resimleri WhatsApp ile Gönder"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">WhatsApp Onaya Gönder</span>
-                  <span className="sm:hidden">WA</span>
+                  <Share2 className="w-4 h-4" />
                 </button>
               </>
             )}
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
+              title="Kapat"
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors cursor-pointer flex items-center justify-center"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>

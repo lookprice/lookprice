@@ -19,7 +19,7 @@ import {
   Percent,
   RotateCcw
 } from "lucide-react";
-import { contractTemplates, ContractTemplate, ContractPlaceholderValues } from "../utils/contractTemplates";
+import { contractTemplates, ContractTemplate, ContractPlaceholderValues, resolvePropertyRegionLabel } from "../utils/contractTemplates";
 import { RealEstateProperty } from "../types";
 import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
 
@@ -117,11 +117,23 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   const [evictionDate, setEvictionDate] = useState<string>(
     new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
   );
-  const [depositAmount, setDepositAmount] = useState<string>(
-    property.listing_intent === 'rent' ? "1 Aylık Kira Bedeli" : "5.000 GBP"
-  );
+  const getInitialDeposit = (prop: RealEstateProperty) => {
+    const sym = prop.currency === 'GBP' ? '£' : prop.currency === 'USD' ? '$' : prop.currency === 'EUR' ? '€' : '₺';
+    const depNum = Number(prop.deposit) > 0 ? Number(prop.deposit) : (Number((prop as any).sector_data?.deposit) || 0);
+    if (depNum > 0) return `${depNum} ${sym}`;
+    return prop.listing_intent === 'rent' ? "1 Aylık Kira Bedeli" : "5.000 GBP";
+  };
+
+  const [depositAmount, setDepositAmount] = useState<string>(() => getInitialDeposit(property));
   const [rentDuration, setRentDuration] = useState<string>("1 Yıl");
   const [paymentDay, setPaymentDay] = useState<string>("Her ayın en geç 5. günü");
+
+  React.useEffect(() => {
+    if (property) {
+      setSelectedTemplateId(property.listing_intent === 'rent' ? "rental_agreement" : "showing_agreement");
+      setDepositAmount(getInitialDeposit(property));
+    }
+  }, [property]);
   const [signed, setSigned] = useState<boolean>(false);
   const [signingName, setSigningName] = useState<string>("");
   const [saving, setSaving] = useState<boolean>(false);
@@ -266,9 +278,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     clientIdentity: clientIdentity || "[T.C. No / Pasapor No]",
     clientPhone: clientPhone || "[Telefon Numarası]",
     propertyTitle: property.type === 'land' 
-      ? `[İlan Kodu: LP-${property.id}] ${property.mahalle || ''} Mah. Ada: ${property.ada || '...'}, Parsel: ${property.parsel || '...'}, Pafta: ${property.pafta || '...'}`
-      : `[İlan Kodu: LP-${property.id}] ${property.title}`,
-    propertyLocation: property.location || "Kıbrıs",
+      ? `[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.mahalle || ''} Mah. Ada: ${property.ada || '...'}, Parsel: ${property.parsel || '...'}, Pafta: ${property.pafta || '...'}`
+      : `[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}`,
+    propertyLocation: resolvePropertyRegionLabel(property),
     propertyPrice: propertyPriceFormatted,
     propertyBlockPlot: property.block_plot,
     // Add % sign only if it's not the rent phrase or already has a % sign
@@ -395,7 +407,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         evictionDate,
         depositAmount,
         rentDuration,
-        paymentDay
+        paymentDay,
+        propertyLocation: placeholderValues.propertyLocation,
+        isFurnishedRental: placeholderValues.isFurnishedRental,
+        fixturePhotosCount: placeholderValues.fixturePhotosCount,
+        fixturePhotos: placeholderValues.fixturePhotos
       }
     };
     try {

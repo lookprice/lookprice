@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
-import { FileText, Trash2, Camera, Upload, Plus } from "lucide-react";
+import { FileText, Trash2, Camera, Upload, Plus, Eye } from "lucide-react";
 import { RealEstateProperty } from "../../../types";
+import { contractTemplates, resolvePropertyRegionLabel } from "../../../utils/contractTemplates";
 
 interface RealEstateDocsPublishTabProps {
   formData: Partial<RealEstateProperty>;
@@ -30,6 +31,111 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
   handleRemoveDocument
 }) => {
   const docCameraInputRef = useRef<HTMLInputElement>(null);
+
+  const handleViewDocument = (doc: any) => {
+    if (doc.file_url === "is_virtual_contract") {
+      const effectiveTemplateId =
+        doc.details?.templateId || (formData.listing_intent === "rent" ? "rental_agreement" : "showing_agreement");
+      const tDef = contractTemplates.find((t) => t.id === effectiveTemplateId) || contractTemplates[0];
+      const formattedPriceNum = Number(formData.price || 0).toLocaleString("tr-TR", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+      const symbol =
+        formData.currency === "GBP"
+          ? "£"
+          : formData.currency === "USD"
+          ? "$"
+          : formData.currency === "EUR"
+          ? "€"
+          : "₺";
+
+      const propDepositNum =
+        Number(formData.deposit) > 0
+          ? Number(formData.deposit)
+          : Number((formData as any).sector_data?.deposit) || 0;
+      const resolvedDepositAmount =
+        doc.details?.depositAmount && doc.details.depositAmount !== "1 Aylık Kira Bedeli"
+          ? doc.details.depositAmount
+          : propDepositNum > 0
+          ? `${propDepositNum} ${symbol}`
+          : doc.details?.depositAmount || "1 Aylık Kira Bedeli";
+
+      const resolvedFixturePhotos: any[] = (() => {
+        if (Array.isArray(doc.details?.fixturePhotos) && doc.details.fixturePhotos.length > 0) {
+          return doc.details.fixturePhotos;
+        }
+        const raw = formData.fixture_photos || (formData as any).sector_data?.fixture_photos;
+        if (Array.isArray(raw)) return raw;
+        if (typeof raw === "string") {
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return [];
+          }
+        }
+        return [];
+      })();
+
+      const resolvedIsFurnishedRental = Boolean(
+        doc.details?.isFurnishedRental ||
+          doc.details?.fixtureApproved ||
+          resolvedFixturePhotos.length > 0 ||
+          ((formData.listing_intent === "rent" || tDef.id === "rental_agreement") &&
+            (formData.furnished === true ||
+              (formData.furnished as any) === "true" ||
+              (formData.furnished as any) === "esyali" ||
+              (formData.furnished as any) === "furnished"))
+      );
+
+      const { html } = tDef.getTemplate({
+        storeName: "Yetkili Emlak Ofisi",
+        clientName: doc.details?.clientName || "[Müşteri Adı]",
+        clientIdentity: doc.details?.clientIdentity || "[Kimlik / Pasaport No]",
+        clientPhone: doc.details?.clientPhone || "[Telefon]",
+        propertyTitle: `[Ref: ${formData.reference_no || `LP-${formData.id || ""}`}] ${formData.title || ""}`,
+        propertyLocation: resolvePropertyRegionLabel(formData),
+        propertyPrice: `${formattedPriceNum} ${symbol}`,
+        propertyBlockPlot: formData.block_plot,
+        commissionRate: doc.details?.commissionRate || "3",
+        contractDate: doc.upload_date || doc.details?.contractDate || "",
+        propertyAddress: formData.address,
+        isSigned: doc.details?.signed,
+        signatureImage: doc.details?.signatureImage,
+        splitRatio: doc.details?.splitRatio,
+        contractDuration: doc.details?.contractDuration,
+        evictionDate: doc.details?.evictionDate,
+        depositAmount: resolvedDepositAmount,
+        rentDuration: doc.details?.rentDuration,
+        paymentDay: doc.details?.paymentDay,
+        isFurnishedRental: resolvedIsFurnishedRental,
+        fixturePhotosCount: resolvedFixturePhotos.length,
+        fixturePhotos: resolvedFixturePhotos
+      });
+
+      const printWin = window.open("", "_blank");
+      if (printWin) {
+        printWin.document.write(`
+          <html>
+            <head>
+              <title>${doc.name}</title>
+              <style>
+                body { font-family: sans-serif; background: white; margin: 20px; color: #0f172a; }
+                @media print { body { margin: 10px; } }
+              </style>
+            </head>
+            <body>
+              ${html}
+              <script>window.onload = function() { window.print(); }</script>
+            </body>
+          </html>
+        `);
+        printWin.document.close();
+      }
+    } else if (doc.file_url) {
+      window.open(doc.file_url, "_blank");
+    }
+  };
 
   return (
     <div className="space-y-2.5">
@@ -67,22 +173,33 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {formData.documents.map((doc) => (
+                  {formData.documents.map((doc: any) => (
                     <div
                       key={doc.id}
                       className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
                     >
                       <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                      <span className="font-bold text-slate-800 truncate flex-1">
+                      <span className="font-bold text-slate-800 truncate flex-1" title={doc.name}>
                         {doc.name}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {doc.size}
-                      </span>
+                      {doc.size && (
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {doc.size}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleViewDocument(doc)}
+                        className="text-indigo-600 p-0.5 hover:bg-indigo-50 rounded cursor-pointer"
+                        title="Görüntüle / Yazdır"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleRemoveDocument(doc.id)}
                         className="text-rose-500 p-0.5 hover:bg-rose-50 rounded cursor-pointer"
+                        title="Sil"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
