@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { DashboardSidebar } from "./DashboardSidebar";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import StoreLogo from "../../components/StoreLogo";
+import { OutlookTasksNotesHub } from "../../components/OutlookTasksNotesHub";
 import { Bell, Loader2, Menu, WifiOff } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -115,6 +116,13 @@ export const DashboardLayout = ({ children, modals, sidebarProps, loading, lang 
                 <span>{lang === 'tr' ? 'Web Sitesi' : 'Website'}</span>
               </a>
             )}
+
+            {/* Global Outlook 2007 Tasks & Yellow Sticky Notes Hub + Top/Bottom Pull-Tab Handles */}
+            <OutlookTasksNotesHub
+              storeId={sidebarProps?.currentStoreId}
+              lang={lang}
+              onRefreshNotifications={sidebarProps?.onRefreshNotifications}
+            />
 
             {sidebarProps?.setActiveTab && (
               <button

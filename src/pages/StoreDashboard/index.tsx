@@ -850,11 +850,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     Number(notifications?.reconciliations_confirmed || 0) +
     Number(notifications?.quotations_action || 0) +
     Number(notifications?.quotations_rejected || 0) +
+    Number(notifications?.operator_tasks_urgent || 0) +
     (isPortfolio ? (Number(notifications?.fleet || 0) > 0 ? 1 : 0) + Number(webOwnerLeadsCount || 0) : 0);
   const hasCriticalNotifications = 
     Number(notifications?.sales_invoices || 0) > 0 || 
     Number(notifications?.web_sales || 0) > 0 ||
     Number(notifications?.reconciliations_disputed || 0) > 0 ||
+    Number(notifications?.operator_tasks_urgent || 0) > 0 ||
     Number(webOwnerLeadsCount || 0) > 0;
 
   const rawNavItems = isCorporateWebsite ? [
@@ -1123,7 +1125,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         translations: t,
         startTransition,
         totalUrgentNotifications,
-        hasCriticalNotifications
+        hasCriticalNotifications,
+        onRefreshNotifications: fetchData
       }}
     >
       <div className={activeTab === 'fast-pos' ? "h-full w-full" : "w-full"}>

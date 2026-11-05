@@ -270,6 +270,25 @@ router.get("/", async (req: any, res) => {
       quotRejectedCount = parseInt(quotRes.rows[0]?.rejected_count || "0");
     } catch (e) {}
 
+    let operatorTasksUrgent = 0;
+    try {
+      const userId = Number(req.user?.id || req.user?.userId || 1);
+      const tasksCountRes = await pool.query(
+        `SELECT COUNT(*) FROM operator_tasks
+         WHERE store_id = $1
+           AND (user_id = $2 OR assigned_to_user_id = $2 OR visibility IN ('branch', 'store'))
+           AND state_key != 'completed'
+           AND completion_percent < 100
+           AND (
+             (due_date IS NOT NULL AND due_date <= NOW() + INTERVAL '24 hours')
+             OR (reminder_at IS NOT NULL AND reminder_at <= NOW() AND reminder_notified = FALSE)
+             OR priority = 'high'
+           )`,
+        [storeId, userId]
+      );
+      operatorTasksUrgent = parseInt(tasksCountRes.rows[0]?.count || "0");
+    } catch (e) {}
+
     res.json({
       transfers,
       service,
@@ -290,7 +309,8 @@ router.get("/", async (req: any, res) => {
       reconciliations_total: reconDisputedCount + reconConfirmedCount,
       quotations_approved: quotApprovedCount,
       quotations_rejected: quotRejectedCount,
-      quotations_action: quotApprovedCount + quotRejectedCount
+      quotations_action: quotApprovedCount + quotRejectedCount,
+      operator_tasks_urgent: operatorTasksUrgent
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch notifications" });
@@ -1236,6 +1256,56 @@ router.get("/feed", async (req: any, res) => {
         }
       } catch (e) {}
     }
+
+    // 20. Kişisel & Kurumsal Görev (Task) Hatırlatıcıları & Teslim Tarihi Yaklaşanlar
+    try {
+      const userId = Number(req.user?.id || req.user?.userId || 1);
+      const opTasksRes = await pool.query(
+        `SELECT id, title, priority, state_key, completion_percent, due_date, reminder_at,
+                (due_date IS NOT NULL AND due_date < NOW()) as is_overdue,
+                (reminder_at IS NOT NULL AND reminder_at <= NOW() AND reminder_notified = FALSE) as is_alarm_active
+         FROM operator_tasks
+         WHERE store_id = $1
+           AND (user_id = $2 OR assigned_to_user_id = $2 OR visibility IN ('branch', 'store'))
+           AND state_key != 'completed'
+           AND completion_percent < 100
+           AND (
+             (due_date IS NOT NULL AND due_date <= NOW() + INTERVAL '48 hours')
+             OR (reminder_at IS NOT NULL AND reminder_at <= NOW() + INTERVAL '2 hours')
+             OR priority = 'high'
+           )
+         ORDER BY is_alarm_active DESC, is_overdue DESC, due_date ASC NULLS LAST
+         LIMIT 6`,
+        [storeId, userId]
+      );
+
+      if (opTasksRes.rows.length > 0) {
+        const hasOverdueOrAlarm = opTasksRes.rows.some((r: any) => r.is_overdue || r.is_alarm_active || r.priority === "high");
+        feed.unshift({
+          id: "operator-tasks-alerts",
+          category: "crm",
+          severity: hasOverdueOrAlarm ? "critical" : "warning",
+          title: "Görevler & Hatırlatıcı Alarmları (Outlook Ajanda)",
+          description: `${opTasksRes.rows.length} adet yüksek öncelikli, süresi dolmuş veya teslim tarihi yaklaşan kişisel/şube göreviniz dikkat bekliyor.`,
+          count: opTasksRes.rows.length,
+          timestamp: opTasksRes.rows[0].reminder_at || opTasksRes.rows[0].due_date || nowIso,
+          targetTab: "__open_tasks_notes__",
+          targetFilter: "tasks",
+          actionText: "Görev & Not Ajandasını Aç",
+          items: opTasksRes.rows.map((r: any) => {
+            const pLabel = r.priority === "high" ? "Yüksek Öncelik" : r.priority === "low" ? "Düşük" : "Normal";
+            const dStr = r.due_date
+              ? new Date(r.due_date).toLocaleString("tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+              : "Tarihsiz";
+            return {
+              id: `optask_${r.id}`,
+              label: `${r.title}`,
+              detail: `%${r.completion_percent || 0} • ${pLabel} • Son: ${dStr}${r.is_overdue ? " (GECİKTİ)" : ""}`
+            };
+          })
+        });
+      }
+    } catch (e) {}
 
     res.json(feed);
   } catch (error: any) {

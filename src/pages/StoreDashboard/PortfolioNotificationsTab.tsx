@@ -102,12 +102,20 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
   }, [fetchFeed, onRefreshNotifications]);
 
   const handleAction = (item: NotificationItem) => {
+    if (item.targetTab === "__open_tasks_notes__") {
+      window.dispatchEvent(
+        new CustomEvent("open-outlook-tasks-notes", {
+          detail: { section: item.targetFilter || "tasks" }
+        })
+      );
+      return;
+    }
     if (onNavigateTab) {
       onNavigateTab(item.targetTab, item.targetFilter);
     }
   };
 
-  // Audio/Visual alert for new orders
+  // Audio/Visual alert for new orders & urgent tasks
   useEffect(() => {
     const newOrderItems = feed.filter(f => f.category === "order" && f.count > 0);
     if (newOrderItems.length > 0) {
@@ -122,6 +130,13 @@ export const PortfolioNotificationsTab: React.FC<PortfolioNotificationsTabProps>
           icon: '/favicon.ico'
         });
       }
+    }
+
+    const urgentTaskAlerts = feed.find(f => f.id === "operator-tasks-alerts" && f.severity === "critical");
+    if (urgentTaskAlerts && localStorage.getItem("outlook_tasks_sound_muted") !== "true") {
+      import("../../utils/taskReminderSound").then(m => {
+        m.playOutlookTaskReminderSound(false);
+      }).catch(() => {});
     }
   }, [feed]);
 

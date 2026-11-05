@@ -19,6 +19,7 @@ import einvoiceRoutes, { runGlobalEInvoiceSync, initCargoSchema } from "./routes
 import realEstateRoutes, { initRealEstateSchema } from "./routes/real_estate";
 import { initProductSchema } from "./routes/store/products";
 import { initPurchaseInvoiceSchema } from "./routes/store/invoices";
+import { initTasksNotesSchema } from "./routes/store/tasksNotes";
 import aiJobsRoutes from "./routes/ai_jobs.js";
 import aiSocialRoutes from "./routes/ai_social.js";
 import googleDriveRoutes from "./routes/googleDrive.js";
@@ -1764,6 +1765,7 @@ function sanitizeFilename(originalName: string): string {
         try { await initCargoSchema(); } catch (e) { console.error("Error in initCargoSchema:", e); }
         try { await initRealEstateSchema(); } catch (e) { console.error("Error in initRealEstateSchema:", e); }
         try { await initFleetSchema(); } catch (e) { console.error("Error in initFleetSchema:", e); }
+        try { await initTasksNotesSchema(); } catch (e) { console.error("Error in initTasksNotesSchema:", e); }
         try { await ensureEnrakipsizTables(); } catch (e) { console.error("Error in ensureEnrakipsizTables:", e); }
         console.log("Self-healing module schemas completed.");
         startCronJobs();

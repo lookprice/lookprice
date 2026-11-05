@@ -770,6 +770,49 @@ export const api = {
   deleteAdminReference: (id: number) => api.delete(`/api/admin/references/${id}`),
   saveAdminPartner: (data: any) => api.post("/api/admin/partners", data),
   deleteAdminPartner: (id: number) => api.delete(`/api/admin/partners/${id}`),
+
+  // Outlook 2007 Tasks & Sticky Notes Engine (State-Machine & Relational)
+  getTasksNotesBootstrap: (storeId?: number, scope: string = "all", branchId?: number | null) => {
+    const params = new URLSearchParams();
+    if (storeId !== undefined && storeId !== null) params.set("storeId", String(storeId));
+    if (scope) params.set("scope", scope);
+    if (branchId) params.set("branchId", String(branchId));
+    const qs = params.toString();
+    return api.get(`/api/store/tasks-notes/bootstrap${qs ? `?${qs}` : ""}`);
+  },
+  getTaskWorkflowStates: (storeId?: number) =>
+    api.get(`/api/store/tasks-notes/states${storeId ? `?storeId=${storeId}` : ""}`),
+  createTaskWorkflowState: (data: any, storeId?: number) =>
+    api.post(`/api/store/tasks-notes/states${storeId ? `?storeId=${storeId}` : ""}`, { ...data, storeId }),
+  deleteTaskWorkflowState: (stateKey: string, storeId?: number) =>
+    api.delete(`/api/store/tasks-notes/states/${encodeURIComponent(stateKey)}${storeId ? `?storeId=${storeId}` : ""}`),
+  createOperatorTask: (data: any, storeId?: number) =>
+    api.post(`/api/store/tasks-notes/tasks${storeId ? `?storeId=${storeId}` : ""}`, { ...data, storeId }),
+  updateOperatorTask: (id: number, data: any, storeId?: number) =>
+    api.put(`/api/store/tasks-notes/tasks/${id}${storeId ? `?storeId=${storeId}` : ""}`, { ...data, storeId }),
+  transitionOperatorTaskState: (id: number, targetStateKey: string, storeId?: number) =>
+    api.post(`/api/store/tasks-notes/tasks/${id}/transition${storeId ? `?storeId=${storeId}` : ""}`, {
+      target_state_key: targetStateKey,
+      storeId
+    }),
+  snoozeOperatorTaskReminder: (id: number, options: { minutes?: number; dismiss?: boolean }, storeId?: number) =>
+    api.post(`/api/store/tasks-notes/tasks/${id}/snooze${storeId ? `?storeId=${storeId}` : ""}`, {
+      ...options,
+      storeId
+    }),
+  deleteOperatorTask: (id: number, storeId?: number) =>
+    api.delete(`/api/store/tasks-notes/tasks/${id}${storeId ? `?storeId=${storeId}` : ""}`),
+  createOperatorNote: (data: any, storeId?: number) =>
+    api.post(`/api/store/tasks-notes/notes${storeId ? `?storeId=${storeId}` : ""}`, { ...data, storeId }),
+  updateOperatorNote: (id: number, data: any, storeId?: number) =>
+    api.put(`/api/store/tasks-notes/notes/${id}${storeId ? `?storeId=${storeId}` : ""}`, { ...data, storeId }),
+  convertNoteToTask: (noteId: number, data?: { priority?: string; due_date?: string; reminder_at?: string; state_key?: string }, storeId?: number) =>
+    api.post(`/api/store/tasks-notes/notes/${noteId}/convert-to-task${storeId ? `?storeId=${storeId}` : ""}`, {
+      ...(data || {}),
+      storeId
+    }),
+  deleteOperatorNote: (id: number, storeId?: number) =>
+    api.delete(`/api/store/tasks-notes/notes/${id}${storeId ? `?storeId=${storeId}` : ""}`),
 };
 
 
