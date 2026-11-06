@@ -1,9 +1,11 @@
 import React, { useState, useDeferredValue } from "react";
-import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building, LayoutList, LayoutGrid, Home, Car, Key, Globe, Check, Briefcase, Clock, XCircle } from "lucide-react";
+import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building, LayoutList, LayoutGrid, Home, Car, Key, Globe, Check, Briefcase, Clock, XCircle, Sparkles } from "lucide-react";
 import { RealEstateContact } from "../../types";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatDateTimeTR } from "../../utils/formatUtils";
+import { LeadFunnelWizardModal } from "../../components/realestate/LeadFunnelWizardModal";
+import { toast } from "sonner";
 
 export type LeadStage = 'new' | 'contacted' | 'converted' | 'reviewed' | 'cancelled' | 'none';
 
@@ -56,9 +58,29 @@ interface RealEstateCrmTabProps {
   onDeleteContact: (id: string) => Promise<void>;
   isAutomotive?: boolean;
   initialFilter?: 'all' | 'new' | 'owner' | 'investor';
+  storeId?: number;
+  properties?: any[];
+  onNavigateToPipeline?: () => void;
 }
 
-const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact, isAutomotive = false, initialFilter = 'all' }: RealEstateCrmTabProps) => {
+const RE_PIPELINE_STAGES = [
+  'Yeni Talep / Aday',
+  'Görüşme / Analiz',
+  'Yer Gösterme / Sunum',
+  'Teklif / Sözleşme',
+  'Kazanıldı'
+];
+
+const RealEstateCrmTab = ({
+  contacts,
+  onSaveContact,
+  onDeleteContact,
+  isAutomotive = false,
+  initialFilter = 'all',
+  storeId,
+  properties = [],
+  onNavigateToPipeline
+}: RealEstateCrmTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const isTr = lang === 'tr';
@@ -75,6 +97,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact, isAutomoti
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Partial<RealEstateContact> | null>(null);
+  const [funnelTargetContact, setFunnelTargetContact] = useState<RealEstateContact | null>(null);
   const [formData, setFormData] = useState<Partial<RealEstateContact>>({
     name: "",
     phone: "",
@@ -84,6 +107,23 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact, isAutomoti
   });
   const [saveLoading, setSaveLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleSaveFunnelLeadFromContact = (dealPayload: any) => {
+    const storageKey = `restatelp_crm_deals_${storeId || 'default'}`;
+    try {
+      const existingRaw = localStorage.getItem(storageKey);
+      const existingList = existingRaw ? JSON.parse(existingRaw) : [];
+      const nextList = Array.isArray(existingList) ? [dealPayload, ...existingList] : [dealPayload];
+      localStorage.setItem(storageKey, JSON.stringify(nextList));
+    } catch (e) {
+      console.error(e);
+    }
+    setFunnelTargetContact(null);
+    toast.success(`${dealPayload.criteria?.customerName || 'Yatırımcı'} için 6 Adımlı Akıllı Talep Hunisi oluşturuldu!`);
+    if (onNavigateToPipeline) {
+      onNavigateToPipeline();
+    }
+  };
 
   const standardizeOwnerPhone = (phone: string) => {
     if (!phone) return phone;
@@ -258,6 +298,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact, isAutomoti
           <button
             type="button"
             onClick={() => setQuickFilter('new')}
+            title="Web sitenizdeki 'Mülkümü Sat/Kirala' veya 'İletişim' formundan gelen yeni başvurular"
             className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border transition-all flex items-center gap-1 cursor-pointer ${
               quickFilter === 'new'
                 ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-2xs'
@@ -267,7 +308,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact, isAutomoti
             }`}
           >
             <Globe size={11} />
-            <span>Yeni Başvurular ({newLeadsCount})</span>
+            <span>Web Başvuruları ({newLeadsCount})</span>
           </button>
           <button
             type="button"
@@ -355,6 +396,17 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact, isAutomoti
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
+                      {!isAutomotive && (contact.type !== 'owner' || stage === 'new') && (
+                        <button
+                          type="button"
+                          onClick={() => setFunnelTargetContact(contact)}
+                          className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs"
+                          title="Bu yatırımcı için 6 Adımlı Akıllı Talep Hunisi ve Portföy Eşleştirmesi başlat"
+                        >
+                          <Sparkles size={11} />
+                          <span>Talep Hunisi Aç</span>
+                        </button>
+                      )}
                       {contact.phone && (
                         <a
                           href={`tel:${contact.phone}`}
@@ -578,6 +630,17 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact, isAutomoti
 
                       <td className="py-2.5 px-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          {!isAutomotive && (contact.type !== 'owner' || stage === 'new') && (
+                            <button
+                              type="button"
+                              onClick={() => setFunnelTargetContact(contact)}
+                              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
+                              title="Bu yatırımcı için 6 Adımlı Akıllı Talep Hunisi ve Portföy Eşleştirmesi başlat"
+                            >
+                              <Sparkles size={12} />
+                              <span>Talep Hunisi Aç</span>
+                            </button>
+                          )}
                           <button 
                             onClick={() => openEditModal(contact)}
                             className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 text-indigo-700 hover:text-indigo-800 text-[11px] font-black rounded-lg border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
@@ -943,13 +1006,26 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact, isAutomoti
                   disabled={saveLoading}
                   className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {saveLoading && <span className="animate-spin mr-1">⌛</span>}
                   {editingContact ? (isTr ? "Kaydet & Tamamla" : "Save & Complete Review") : (isTr ? "Kaydet" : "Save")}
                 </button>
               </div>
             </form>
           </div>
         </div>
+      )}
+
+      {/* 6-Step Lead Funnel Wizard Modal launched directly from Investor CRM */}
+      {!isAutomotive && (
+        <LeadFunnelWizardModal
+          isOpen={!!funnelTargetContact}
+          onClose={() => setFunnelTargetContact(null)}
+          initialContact={funnelTargetContact}
+          agents={[]}
+          portfolioItems={properties}
+          stages={RE_PIPELINE_STAGES}
+          storeId={storeId}
+          onSaveDeal={handleSaveFunnelLeadFromContact}
+        />
       )}
     </div>
   );

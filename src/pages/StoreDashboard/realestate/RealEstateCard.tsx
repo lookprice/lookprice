@@ -19,7 +19,11 @@ import {
   Check,
   ShieldAlert,
   Handshake,
-  MoreHorizontal
+  MoreHorizontal,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Globe
 } from "lucide-react";
 import { toast } from "sonner";
 import { RealEstateViewMode } from "./types";
@@ -28,6 +32,7 @@ import { formatNumberVal, unescapeHtmlManual } from "./RealEstatePrintPoster";
 interface RealEstateCardProps {
   property: any;
   viewMode: RealEstateViewMode;
+  storeSlug?: string;
   onOpenContract: (p: any) => void;
   onOpenTapu: (p: any) => void;
   onOpenSocialShare: (p: any) => void;
@@ -55,6 +60,7 @@ const stripAntiqueEmojis = (text?: string): string => {
 export const RealEstateCard: React.FC<RealEstateCardProps> = ({
   property,
   viewMode,
+  storeSlug,
   onOpenContract,
   onOpenTapu,
   onOpenSocialShare,
@@ -69,7 +75,50 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
 }) => {
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const [menuOpenUpwards, setMenuOpenUpwards] = useState(false);
+  const [currentImageIdx, setCurrentImageIdx] = useState(0);
+  const touchStartXRef = useRef<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const images: string[] = Array.isArray(property.images) && property.images.length > 0
+    ? property.images.filter(Boolean)
+    : property.image_url
+    ? [property.image_url]
+    : [];
+
+  const totalImages = images.length;
+  const safeImageIdx = totalImages > 0 ? currentImageIdx % totalImages : 0;
+
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (totalImages <= 1) return;
+    setCurrentImageIdx((prev) => (prev - 1 + totalImages) % totalImages);
+  };
+
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (totalImages <= 1) return;
+    setCurrentImageIdx((prev) => (prev + 1) % totalImages);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (totalImages <= 1) return;
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (totalImages <= 1 || touchStartXRef.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+    touchStartXRef.current = null;
+    if (Math.abs(deltaX) > 35) {
+      e.stopPropagation();
+      if (deltaX < 0) {
+        setCurrentImageIdx((prev) => (prev + 1) % totalImages);
+      } else {
+        setCurrentImageIdx((prev) => (prev - 1 + totalImages) % totalImages);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!isActionsMenuOpen) return;
@@ -81,6 +130,16 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isActionsMenuOpen]);
+
+  // Direct link to this property on the store's public website
+  const resolvedSlug =
+    storeSlug ||
+    (typeof window !== "undefined"
+      ? window.location.pathname.match(/\/dashboard\/([^/?#]+)/)?.[1] || ""
+      : "");
+  const webProductUrl = resolvedSlug
+    ? `/s/${resolvedSlug}?product=re_${property.id}`
+    : `/?product=re_${property.id}`;
 
   const isFurnished = Boolean(
     property.furnished === true ||
@@ -143,7 +202,21 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
 
   const docCount = Array.isArray(property.documents) ? property.documents.length : 0;
   const fixturePhotoCount = Array.isArray(property.fixture_photos) ? property.fixture_photos.length : 0;
-  const externalPartner = property.sector_data?.commission_pool?.stakeholders?.find((s: any) => s.is_external);
+  const externalPartner = property.sector_data?.commission_pool?.stakeholders?.find(
+    (s: any) => s.is_external && s.payout_status !== "cancelled"
+  );
+
+  const handleToggleActionsMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (!isActionsMenuOpen && typeof window !== "undefined") {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // Only open upwards if near the bottom of the screen AND there is plenty of room above (below top header)
+      setMenuOpenUpwards(spaceBelow < 320 && spaceAbove > 360);
+    }
+    setIsActionsMenuOpen((prev) => !prev);
+  };
 
   /**
    * Shared Action Buttons: ONLY Kalem (Edit) + Collapsible Actions Menu (•••)
@@ -168,10 +241,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
       <div className="relative">
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsActionsMenuOpen(prev => !prev);
-          }}
+          onClick={handleToggleActionsMenu}
           className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-center relative shrink-0 ${
             isActionsMenuOpen
               ? "bg-slate-900 text-white border-slate-900"
@@ -186,7 +256,29 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
         </button>
 
         {isActionsMenuOpen && (
-          <div className="absolute right-0 bottom-full mb-1 sm:bottom-auto sm:top-full sm:mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 z-50 text-xs font-bold text-slate-800 animate-in fade-in zoom-in-95 duration-100">
+          <div
+            className={`absolute right-0 ${
+              menuOpenUpwards ? "bottom-full mb-1.5" : "top-full mt-1.5"
+            } w-56 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 z-50 text-xs font-bold text-slate-800 animate-in fade-in zoom-in-95 duration-100`}
+          >
+            {/* Direct Web Storefront Product Page Link */}
+            <a
+              href={webProductUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsActionsMenuOpen(false);
+              }}
+              className="w-full px-3 py-2 bg-indigo-50/70 hover:bg-indigo-100/80 text-indigo-950 flex items-center justify-between text-left cursor-pointer border-b border-indigo-100"
+            >
+              <span className="flex items-center gap-2 font-black">
+                <Globe className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <span>Web'de Gör (Vitrin)</span>
+              </span>
+              <ExternalLink className="w-3 h-3 text-indigo-600 shrink-0" />
+            </a>
+
             <button
               type="button"
               onClick={() => {
@@ -354,17 +446,25 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
     </div>
   );
 
-  // GRID MODE (Izgara Görünümü — Clean Card + Kalem + Açılır-Kapanır İşlemler Listesi)
+  // GRID MODE (Izgara Görünümü — Interactive Image Carousel + Web'de Gör + Kalem + Açılır-Kapanır İşlemler Listesi)
   if (viewMode === "grid") {
     return (
-      <div className="bg-white rounded-xl border border-slate-200/90 hover:border-slate-300 shadow-2xs flex flex-col justify-between transition-all relative">
+      <div
+        className={`bg-white rounded-xl border border-slate-200/90 hover:border-slate-300 shadow-2xs flex flex-col justify-between transition-all relative ${
+          isActionsMenuOpen ? "z-40" : "z-0"
+        }`}
+      >
         <div>
-          <div className="w-full h-36 bg-slate-100 relative overflow-hidden rounded-t-xl">
-            {property.images && property.images.length > 0 ? (
+          <div
+            className="w-full h-44 sm:h-48 bg-slate-100 relative overflow-hidden rounded-t-xl group select-none"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            {totalImages > 0 ? (
               <img
-                src={property.images[0]}
-                alt={cleanTitle}
-                className="w-full h-full object-cover"
+                src={images[safeImageIdx]}
+                alt={`${cleanTitle} - Görsel ${safeImageIdx + 1}`}
+                className="w-full h-full object-cover transition-all duration-200"
                 referrerPolicy="no-referrer"
               />
             ) : (
@@ -372,7 +472,9 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                 <Home className="w-8 h-8 stroke-[1.5]" />
               </div>
             )}
-            <div className="absolute top-2 left-2 flex items-center gap-1">
+
+            {/* Top Left: Status + Ref Badge */}
+            <div className="absolute top-2 left-2 flex items-center gap-1 z-10 pointer-events-none">
               <span className={`font-black text-[9px] px-2 py-0.5 rounded-md shadow-xs uppercase tracking-wider ${statusBadgeClass}`}>
                 {statusLabel}
               </span>
@@ -382,7 +484,67 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                 </span>
               )}
             </div>
-            <div className="absolute bottom-2 right-2 bg-slate-950/90 text-white px-2 py-0.5 rounded-md font-mono font-black text-xs">
+
+            {/* Top Right: Direct "Web'de Gör" Badge on Image */}
+            <a
+              href={webProductUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-950/85 hover:bg-indigo-600 text-white text-[9.5px] font-black shadow-sm transition-colors cursor-pointer"
+              title="Web sitesinde ürün sayfasını yeni sekmede aç"
+            >
+              <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+              <span>Web'de Gör</span>
+            </a>
+
+            {/* Prev / Next Image Carousel Buttons (when multiple photos exist) */}
+            {totalImages > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePrevImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-slate-950/75 hover:bg-slate-950 text-white flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-90"
+                  title="Önceki Fotoğraf"
+                >
+                  <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-slate-950/75 hover:bg-slate-950 text-white flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-90"
+                  title="Sonraki Fotoğraf"
+                >
+                  <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+                </button>
+
+                {/* Bottom Left Image Counter + Dots */}
+                <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1.5 bg-slate-950/80 text-white px-2 py-0.5 rounded-md text-[9.5px] font-mono font-black">
+                  <span>
+                    {safeImageIdx + 1}/{totalImages}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {images.slice(0, 6).map((_, dotIdx) => (
+                      <button
+                        key={dotIdx}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentImageIdx(dotIdx);
+                        }}
+                        className={`w-1.5 h-1.5 rounded-full transition-all cursor-pointer ${
+                          safeImageIdx === dotIdx ? "bg-white scale-125" : "bg-white/40 hover:bg-white/75"
+                        }`}
+                        aria-label={`Görsel ${dotIdx + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Bottom Right: Price Badge */}
+            <div className="absolute bottom-2 right-2 z-10 bg-slate-950/90 text-white px-2 py-0.5 rounded-md font-mono font-black text-xs">
               {currencySymbol}{formatNumberVal(property.price)}
             </div>
           </div>
@@ -420,7 +582,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
         </div>
 
         <div className="px-2.5 py-2 bg-slate-50 border-t border-slate-100 rounded-b-xl flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
             <span className="text-[10px] font-bold text-slate-600 truncate">
               {property.responsible_agent || property.branch_name || "Merkez Ofis"}
             </span>
@@ -450,19 +612,25 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
     );
   }
 
-  // LIST MODE (Kompakt Liste Görünümü — Maksimum Portföy Başlık Alanı + Sadece Kalem ve ••• İşlemler Menüsü)
+  // LIST MODE (Kompakt Liste Görünümü — Maksimum Portföy Başlık Alanı + Web'de Gör + Sadece Kalem ve ••• İşlemler Menüsü)
   return (
-    <div className="bg-white rounded-xl border border-slate-200/90 hover:border-slate-300 shadow-2xs transition-all relative">
+    <div
+      className={`bg-white rounded-xl border border-slate-200/90 hover:border-slate-300 shadow-2xs transition-all relative ${
+        isActionsMenuOpen ? "z-40" : "z-0"
+      }`}
+    >
       <div className="p-2 sm:p-2.5 flex items-start sm:items-center gap-2.5">
-        {/* Compact Thumbnail (Left) */}
+        {/* Compact Thumbnail with Mini Prev/Next Carousel Support */}
         <div
-          onClick={() => setIsDetailsExpanded(prev => !prev)}
-          className="w-16 h-16 sm:w-20 sm:h-16 rounded-lg bg-slate-100 relative overflow-hidden shrink-0 cursor-pointer border border-slate-200/80"
+          onClick={() => setIsDetailsExpanded((prev) => !prev)}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="w-16 h-16 sm:w-20 sm:h-16 rounded-lg bg-slate-100 relative overflow-hidden shrink-0 cursor-pointer border border-slate-200/80 group select-none"
           title="Detay künyesini açmak için tıklayın"
         >
-          {property.images && property.images.length > 0 ? (
+          {totalImages > 0 ? (
             <img
-              src={property.images[0]}
+              src={images[safeImageIdx]}
               alt={cleanTitle}
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
@@ -479,20 +647,45 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
           >
             {statusLabel}
           </span>
+
+          {/* Mini Prev/Next arrows & count when multiple images exist */}
+          {totalImages > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={handlePrevImage}
+                className="absolute left-0.5 bottom-0.5 w-4 h-4 rounded bg-slate-950/75 hover:bg-slate-950 text-white flex items-center justify-center cursor-pointer"
+                title="Önceki Fotoğraf"
+              >
+                <ChevronLeft className="w-2.5 h-2.5 stroke-[2.5]" />
+              </button>
+              <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 bg-slate-950/75 text-white text-[8px] font-mono font-black px-1 rounded leading-tight pointer-events-none">
+                {safeImageIdx + 1}/{totalImages}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextImage}
+                className="absolute right-0.5 bottom-0.5 w-4 h-4 rounded bg-slate-950/75 hover:bg-slate-950 text-white flex items-center justify-center cursor-pointer"
+                title="Sonraki Fotoğraf"
+              >
+                <ChevronRight className="w-2.5 h-2.5 stroke-[2.5]" />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Center Info Column — Full Horizontal Room for Portfolio Title & Metadata */}
         <div className="flex-1 min-w-0 space-y-1">
           {/* Top Line: Portfolio Title (Full Width, 1-2 lines, clearly readable on mobile & desktop) */}
           <h4
-            onClick={() => setIsDetailsExpanded(prev => !prev)}
+            onClick={() => setIsDetailsExpanded((prev) => !prev)}
             className="font-black text-xs sm:text-[13px] text-slate-950 hover:text-indigo-600 transition-colors line-clamp-2 sm:line-clamp-1 leading-snug cursor-pointer"
             title={cleanTitle}
           >
             {cleanTitle}
           </h4>
 
-          {/* Bottom Line: Price + REF + Location + Room/m² + Docs */}
+          {/* Bottom Line: Price + REF + Location + Room/m² + Web'de Gör + Docs */}
           <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-600 leading-tight">
             {/* Price highlighted first so it never squeezes the title */}
             <span className="font-mono font-black text-xs sm:text-[13px] text-indigo-700">
@@ -540,6 +733,19 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               </>
             ) : null}
 
+            {/* Direct "Web'de Gör" Quick Link Pill */}
+            <a
+              href={webProductUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded text-[9px] font-black cursor-pointer transition-colors"
+              title="Müşteriye göstermek için web sitesindeki ilan sayfasını yeni sekmede aç"
+            >
+              <ExternalLink className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+              <span>Web'de Gör</span>
+            </a>
+
             {externalPartner && (
               <button
                 type="button"
@@ -579,6 +785,31 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
       {/* Collapsible Detail & Description Accordion (Opens when operator clicks row title or thumbnail) */}
       {isDetailsExpanded && (
         <div className="px-2.5 pb-2.5 pt-2 border-t border-slate-100 bg-slate-50/70 rounded-b-xl space-y-2 text-[11px] animate-in fade-in duration-100">
+          {/* Interactive Thumbnail Strip inside expanded row when multiple images exist */}
+          {totalImages > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {images.map((imgUrl, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setCurrentImageIdx(idx)}
+                  className={`w-14 h-10 rounded-md overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                    safeImageIdx === idx
+                      ? "border-indigo-600 ring-1 ring-indigo-600/30"
+                      : "border-slate-200 opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <img
+                    src={imgUrl}
+                    alt={`${cleanTitle} - ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-2 flex-wrap text-[10px] font-bold text-slate-600">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1 text-slate-800">
@@ -652,6 +883,17 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                 <span className="text-slate-400">Yüklenmemiş</span>
               )}
             </div>
+
+            <a
+              href={webProductUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[10px] font-black text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 cursor-pointer"
+            >
+              <Globe className="w-3 h-3" />
+              <span>Web Sitesinde Ürünü Aç</span>
+              <ExternalLink className="w-2.5 h-2.5" />
+            </a>
           </div>
         </div>
       )}

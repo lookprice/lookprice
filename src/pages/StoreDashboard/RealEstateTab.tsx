@@ -128,6 +128,13 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
   const rentedCount = filteredProperties.filter(p => p.status === 'rented').length;
 
   const userRole = (user?.role || 'admin').toString();
+  const storeSlug =
+    branding?.parent_slug ||
+    branding?.slug ||
+    user?.store_slug ||
+    (typeof window !== "undefined"
+      ? window.location.pathname.match(/\/dashboard\/([^/?#]+)/)?.[1] || ""
+      : "");
 
   return (
     <div className="p-2 sm:p-3 space-y-2.5">
@@ -211,6 +218,7 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
               key={property.id}
               property={property}
               viewMode={viewMode}
+              storeSlug={storeSlug}
               onOpenContract={(p) => {
                 setContractProperty(p);
                 setIsContractModalOpen(true);

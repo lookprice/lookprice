@@ -54,6 +54,15 @@ import {
 } from '../utils/realEstateCommissionEngine';
 import { DealCommissionModal } from './DealCommissionModal';
 import { ExternalPartnerPortalModal } from './ExternalPartnerPortalModal';
+import { LeadFunnelWizardModal } from './realestate/LeadFunnelWizardModal';
+
+const RE_LEAD_STAGES = [
+  'Yeni Talep / Aday',
+  'Görüşme / Analiz',
+  'Yer Gösterme / Sunum',
+  'Teklif / Sözleşme',
+  'Kazanıldı'
+];
 
 interface RealEstateCRMProps {
   storeId: number;
@@ -121,6 +130,46 @@ export const RealEstateCRM = ({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyProperty, setHistoryProperty] = useState<any>(null);
   const [showPartnerPortalModal, setShowPartnerPortalModal] = useState(false);
+
+  // Lead Funnel Wizard Modal state inside Pipeline
+  const [showLeadWizardModal, setShowLeadWizardModal] = useState(false);
+  const [editingLeadDeal, setEditingLeadDeal] = useState<any>(null);
+  const [localDeals, setLocalDeals] = useState<any[]>(() => {
+    if (Array.isArray(deals) && deals.length > 0) return deals;
+    try {
+      const raw = localStorage.getItem(`restatelp_crm_deals_${storeId || 'default'}`);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (Array.isArray(deals) && deals.length > 0) {
+      setLocalDeals(deals);
+    } else {
+      try {
+        const raw = localStorage.getItem(`restatelp_crm_deals_${storeId || 'default'}`);
+        if (raw) setLocalDeals(JSON.parse(raw));
+      } catch {}
+    }
+  }, [deals, storeId]);
+
+  const handleSaveLeadFromPipeline = (dealPayload: any) => {
+    setLocalDeals(prev => {
+      const exists = prev.some(d => d.id === dealPayload.id);
+      const next = exists
+        ? prev.map(d => d.id === dealPayload.id ? dealPayload : d)
+        : [dealPayload, ...prev];
+      try {
+        localStorage.setItem(`restatelp_crm_deals_${storeId || 'default'}`, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    toast.success(editingLeadDeal ? 'Talep revizyonu kaydedildi ✓' : 'Yeni müşteri talebi eklendi ✓');
+    setShowLeadWizardModal(false);
+    setEditingLeadDeal(null);
+  };
 
   // Form Inputs
   const [analysisNote, setAnalysisNote] = useState("");
@@ -787,6 +836,21 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              setEditingLeadDeal(null);
+              setShowLeadWizardModal(true);
+            }}
+            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+            title="6 Adımlı KKTC Akıllı Huni Sihirbazı ile Yeni Müşteri Talebi Ekle"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>+ Yeni Talep</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               onOpenTourModal(null);
             }}
             className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
@@ -901,7 +965,7 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                       const latestTask = sortedTasks[0];
                       const sector = deal.property.sector_data || {};
                       const formattedPrice = formatFormattedPrice(deal.property.price, deal.property.currency);
-                      const matchedLeads = findMatchingLeadsForProperty(deal.property, deals);
+                      const matchedLeads = findMatchingLeadsForProperty(deal.property, localDeals);
                       const topMatch = matchedLeads[0];
 
                       return (
@@ -1381,7 +1445,7 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                             </div>
 
                                             {/* Quick Actions */}
-                                            <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/60">
+                                            <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/60 flex-wrap">
                                               <button
                                                 type="button"
                                                 onClick={(e) => {
@@ -1404,6 +1468,22 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                                 <MessageSquare className="w-2.5 h-2.5" />
                                                 <span>WhatsApp ile Sun</span>
                                               </button>
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  const foundLead = localDeals.find(d => d.id === match.dealId);
+                                                  if (foundLead) {
+                                                    setEditingLeadDeal(foundLead);
+                                                    setShowLeadWizardModal(true);
+                                                  }
+                                                }}
+                                                className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                                                title="Talebi ve kriterlerini 6 adımlı huni sihirbazında revize et"
+                                              >
+                                                <Edit2 className="w-2.5 h-2.5 text-indigo-600" />
+                                                <span>Talebi Revize Et</span>
+                                              </button>
                                             </div>
                                           </div>
                                         ))}
@@ -1413,7 +1493,7 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
 
                                   {/* #1. RE-ENGAGEMENT ENGINE (Fiyat İndirimi & Soğuk Talep Uyandırma) */}
                                   {(() => {
-                                    const reOpportunities = findReEngagementOpportunities(deal.property, deals);
+                                    const reOpportunities = findReEngagementOpportunities(deal.property, localDeals);
                                     if (reOpportunities.length === 0) return null;
                                     return (
                                       <div className="bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/90 shadow-2xs space-y-1.5 animate-in fade-in duration-150">
@@ -2139,6 +2219,28 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
             };
             await persistPropertyStageUpdate(prop, prop.status, updatedSectorData);
             if (onRefresh) onRefresh();
+          }}
+        />
+      )}
+
+      {/* 9. 6-STEP KKTC LEAD FUNNEL & REVISION WIZARD MODAL */}
+      {showLeadWizardModal && (
+        <LeadFunnelWizardModal
+          isOpen={showLeadWizardModal}
+          onClose={() => {
+            setShowLeadWizardModal(false);
+            setEditingLeadDeal(null);
+          }}
+          editingDeal={editingLeadDeal}
+          agents={[]}
+          portfolioItems={properties}
+          stages={RE_LEAD_STAGES}
+          storeId={storeId}
+          onSaveDeal={handleSaveLeadFromPipeline}
+          onSelectMatchedProperty={(prop, customerName) => {
+            setShowLeadWizardModal(false);
+            setEditingLeadDeal(null);
+            onOpenTourModal(prop, { customerName, name: customerName });
           }}
         />
       )}

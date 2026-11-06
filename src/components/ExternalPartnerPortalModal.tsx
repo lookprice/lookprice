@@ -8,7 +8,9 @@ import {
   History, 
   Receipt,
   Plus,
-  Send
+  Send,
+  FileSignature,
+  Ban
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -19,9 +21,9 @@ import {
   CommissionStakeholder, 
   recalculateCommissionPool, 
   maskClientNameForPartner, 
-  sanitizeLogForPartner,
   getPartnerWhatsAppContractInvite
 } from '../utils/realEstateCommissionEngine';
+import { PartnerContractViewerModal } from './PartnerContractViewerModal';
 
 interface ExternalPartnerPortalModalProps {
   isOpen: boolean;
@@ -45,6 +47,11 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
 
   const [selectedPartnerFilter, setSelectedPartnerFilter] = useState<string>('all');
   const [showAssignForm, setShowAssignForm] = useState(false);
+  const [activeContractItem, setActiveContractItem] = useState<{
+    property: any;
+    stakeholder: CommissionStakeholder;
+    pool: CommissionPool;
+  } | null>(null);
 
   // Quick Assign Form states
   const [assignPropertyId, setAssignPropertyId] = useState<string>(properties[0]?.id ? String(properties[0].id) : '');
@@ -90,15 +97,20 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
     );
   }, [allPartnerRecords, selectedPartnerFilter]);
 
-  // Summary Metrics
+  // Summary Metrics (Cancelled contracts do not add to pending or confirmed balance)
   const walletMetrics = useMemo(() => {
     let confirmedBalance = 0;
     let pendingBalance = 0;
     let unsignedCount = 0;
+    let cancelledCount = 0;
     let currency = 'GBP';
 
     for (const item of filteredRecords) {
       currency = item.stakeholder.currency || item.pool.currency || 'GBP';
+      if (item.stakeholder.payout_status === 'cancelled') {
+        cancelledCount++;
+        continue;
+      }
       const isClosed = item.stage === 'closed' || item.property.status === 'sold' || item.property.status === 'rented' || item.stakeholder.payout_status === 'paid';
       if (isClosed) {
         confirmedBalance += Number(item.stakeholder.calculated_amount) || 0;
@@ -110,7 +122,7 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
       }
     }
 
-    return { confirmedBalance, pendingBalance, unsignedCount, currency };
+    return { confirmedBalance, pendingBalance, unsignedCount, cancelledCount, currency };
   }, [filteredRecords]);
 
   // Assign a partner to a property in 1 click
@@ -229,7 +241,86 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
     if (onUpdatePropertyPool) {
       await onUpdatePropertyPool(item.property, updatedPool);
     }
-    toast.success('Paydaş sözleşmesi onaylandı.');
+
+    if (activeContractItem && activeContractItem.stakeholder.id === item.stakeholder.id) {
+      const refreshedStk = updatedPool.stakeholders.find(s => s.id === item.stakeholder.id);
+      if (refreshedStk) {
+        setActiveContractItem({
+          property: item.property,
+          stakeholder: refreshedStk,
+          pool: updatedPool
+        });
+      }
+    }
+
+    toast.success('Paydaş sözleşmesi OTP ile onaylandı ve mühürlendi.');
+  };
+
+  // Terminate / Cancel Signed or Pending Contract
+  const handleTerminateContract = async (
+    item: { property: any; stakeholder: CommissionStakeholder; pool: CommissionPool },
+    options: {
+      reason: string;
+      cancelType: 'mutual' | 'unilateral_office' | 'conditions_not_met';
+      removeStakeholderCompletely: boolean;
+      sendWhatsAppNotice: boolean;
+    }
+  ) => {
+    const nowIso = new Date().toISOString();
+    let updatedStks: CommissionStakeholder[];
+
+    if (options.removeStakeholderCompletely) {
+      updatedStks = item.pool.stakeholders.filter(s => s.id !== item.stakeholder.id);
+    } else {
+      updatedStks = item.pool.stakeholders.map(s =>
+        s.id === item.stakeholder.id
+          ? {
+              ...s,
+              original_percentage: s.original_percentage ?? s.percentage,
+              percentage: 0,
+              calculated_amount: 0,
+              payout_status: 'cancelled' as const,
+              is_locked: false,
+              cancelled_at: nowIso,
+              cancel_reason: options.reason,
+              cancel_type: options.cancelType
+            }
+          : s
+      );
+    }
+
+    const updatedPool = recalculateCommissionPool({
+      ...item.pool,
+      stakeholders: updatedStks,
+      revision_history: [
+        ...(item.pool.revision_history || []),
+        {
+          date: nowIso,
+          revised_by: storeName,
+          reason: `Paydaş Sözleşme Feshi (${item.stakeholder.name}): ${options.reason}`,
+          previous_state: item.stakeholder
+        }
+      ]
+    });
+
+    if (onUpdatePropertyPool) {
+      await onUpdatePropertyPool(item.property, updatedPool);
+    }
+
+    if (options.removeStakeholderCompletely) {
+      setActiveContractItem(null);
+      toast.success(`${item.stakeholder.name} sözleşmesi feshedildi ve paydaşlık portföyden kaldırıldı.`);
+    } else {
+      const refreshedStk = updatedPool.stakeholders.find(s => s.id === item.stakeholder.id);
+      if (refreshedStk) {
+        setActiveContractItem({
+          property: item.property,
+          stakeholder: refreshedStk,
+          pool: updatedPool
+        });
+      }
+      toast.success(`${item.stakeholder.name} sözleşmesi feshedildi ve hakedişi %0 olarak kapatıldı.`);
+    }
   };
 
   const handleSendWhatsApp = (item: { property: any; stakeholder: CommissionStakeholder; pool: CommissionPool }) => {
@@ -308,7 +399,7 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
 
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-1.5 items-end">
                 <div className="sm:col-span-4">
-                  <label className="block text-[9px] font-bold text-slate-600 mb-0.5">Portföy Seçin</label>
+                  <label className="block text-[9px] font-bold text-slate-600 mb-0.5">Portföy Seçin (Önce Portföyde Olmalı)</label>
                   <select
                     value={assignPropertyId}
                     onChange={(e) => setAssignPropertyId(e.target.value)}
@@ -345,14 +436,14 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[9px] font-bold text-slate-600 mb-0.5">Rolü</label>
+                  <label className="block text-[9px] font-bold text-slate-600 mb-0.5">Senaryo / Rolü</label>
                   <select
                     value={assignRole}
                     onChange={(e) => setAssignRole(e.target.value as any)}
                     className="w-full px-1.5 py-1 h-8 bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none"
                   >
-                    <option value="portfolio_source">Portföy Getiren</option>
-                    <option value="lead_source">Müşteri Getiren</option>
+                    <option value="portfolio_source">Mülk / Portföy Getiren</option>
+                    <option value="lead_source">Alıcı / Müşteri Getiren</option>
                   </select>
                 </div>
 
@@ -374,13 +465,13 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
                   onClick={handleQuickAssignPartner}
                   className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black cursor-pointer"
                 >
-                  {isAssigning ? 'Kaydediliyor...' : 'Atamayı Kaydet'}
+                  {isAssigning ? 'Kaydediliyor...' : 'Atamayı Kaydet & Sözleşme Tanzim Et'}
                 </button>
               </div>
             </div>
           )}
 
-          {/* 3 Short Summary Cards (Zero verbose paragraphs) */}
+          {/* 3 Short Summary Cards */}
           <div className="grid grid-cols-3 gap-2">
             <div className="p-2.5 bg-white rounded-xl border border-emerald-300">
               <span className="text-[9px] font-black uppercase text-emerald-800 block">
@@ -404,8 +495,15 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
               <span className="text-[9px] font-black uppercase text-amber-900 block">
                 Sözleşme Durumu
               </span>
-              <div className="text-sm sm:text-base font-black text-slate-950 font-mono mt-0.5">
-                {walletMetrics.unsignedCount > 0 ? `${walletMetrics.unsignedCount} Bekliyor` : 'Tamamı Onaylı'}
+              <div className="text-xs sm:text-sm font-black text-slate-950 font-mono mt-0.5">
+                {walletMetrics.unsignedCount > 0
+                  ? `${walletMetrics.unsignedCount} İmza Bekliyor`
+                  : 'Aktif Sözleşmeler Onaylı'}
+                {walletMetrics.cancelledCount > 0 && (
+                  <span className="block text-[10px] text-rose-600 font-bold">
+                    {walletMetrics.cancelledCount} Feshedildi
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -414,7 +512,7 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
           <div className="space-y-2">
             <h4 className="text-xs font-black text-slate-950 uppercase flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Paydaşa Ait Portföyler ({filteredRecords.length})</span>
+              <span>Paydaşa Ait Portföyler & Sözleşmeler ({filteredRecords.length})</span>
             </h4>
 
             {filteredRecords.length === 0 ? (
@@ -423,7 +521,7 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
                   Henüz paydaş atanmış portföy bulunmuyor.
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Yukarıdaki <strong>"+ Portföye Paydaş Ata"</strong> butonundan veya İlan Düzenleme ekranındaki <strong>"2. Mülk Sahibi & Konum"</strong> sekmesinden portföye paydaş atayabilirsiniz.
+                  Mülk portföye eklendikten sonra <strong>"+ Portföye Paydaş Ata"</strong> butonundan veya İlan Düzenleme ekranından paydaş atayarak sözleşme tanzim edebilirsiniz.
                 </p>
                 <button
                   type="button"
@@ -439,10 +537,18 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
                 {filteredRecords.map((item, idx) => {
                   const { property, stakeholder, pool, propertyTasks, stage } = item;
                   const isSigned = stakeholder.payout_status === 'agreement_signed' || stakeholder.payout_status === 'paid';
-                  const isPaidToLedger = stakeholder.payout_status === 'paid' || pool.accounting_posted || stage === 'closed';
+                  const isCancelled = stakeholder.payout_status === 'cancelled';
+                  const isPaidToLedger = !isCancelled && (stakeholder.payout_status === 'paid' || pool.accounting_posted || stage === 'closed');
 
                   return (
-                    <div key={idx} className="bg-white rounded-xl border border-slate-200 p-2.5 space-y-2">
+                    <div
+                      key={idx}
+                      className={`rounded-xl border p-2.5 space-y-2 transition-all ${
+                        isCancelled
+                          ? 'bg-rose-50/40 border-rose-200'
+                          : 'bg-white border-slate-200'
+                      }`}
+                    >
                       {/* Row 1: Property & Partner Summary */}
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="min-w-0 flex-1">
@@ -452,7 +558,7 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
                                 {property.reference_no}
                               </span>
                             )}
-                            <span className="font-black text-slate-950 text-xs truncate">
+                            <span className={`font-black text-xs truncate ${isCancelled ? 'line-through text-slate-500' : 'text-slate-950'}`}>
                               {property.title}
                             </span>
                           </div>
@@ -461,16 +567,56 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
                               Paydaş: {stakeholder.name}
                             </span>
                             <span>·</span>
-                            <span>{stakeholder.roleLabel} (%{stakeholder.percentage})</span>
-                            <span>·</span>
-                            <span className="font-mono font-black text-emerald-700">
-                              Hakediş: {stakeholder.calculated_amount.toLocaleString('tr-TR')} {stakeholder.currency}
+                            <span>
+                              {stakeholder.roleLabel} (%{stakeholder.original_percentage ?? stakeholder.percentage})
                             </span>
+                            <span>·</span>
+                            {isCancelled ? (
+                              <span className="font-mono font-black text-rose-600">
+                                Hakediş İptal (%0)
+                              </span>
+                            ) : (
+                              <span className="font-mono font-black text-emerald-700">
+                                Hakediş: {stakeholder.calculated_amount.toLocaleString('tr-TR')} {stakeholder.currency}
+                              </span>
+                            )}
+                            {isSigned && stakeholder.otp_code && (
+                              <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-900 rounded font-mono text-[9px] font-black">
+                                OTP: {stakeholder.otp_code}
+                              </span>
+                            )}
                           </div>
+                          {isCancelled && stakeholder.cancel_reason && (
+                            <div className="text-[10px] font-bold text-rose-700 mt-0.5">
+                              Fesih Gerekçesi: {stakeholder.cancel_reason}
+                            </div>
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-1 shrink-0">
-                          {isPaidToLedger ? (
+                        <div className="flex items-center gap-1 shrink-0 flex-wrap">
+                          {/* Primary Button: View Signed OTP Contract / Terminate */}
+                          <button
+                            type="button"
+                            onClick={() => setActiveContractItem(item)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer border transition-colors ${
+                              isCancelled
+                                ? 'bg-white hover:bg-rose-50 text-rose-800 border-rose-300'
+                                : isSigned
+                                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-indigo-200'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                            }`}
+                            title="İmzalı OTP sözleşmesini görüntüle, yazdır veya feshet"
+                          >
+                            <FileSignature className="w-3 h-3 shrink-0" />
+                            <span>{isSigned ? 'İmzalı Sözleşmeyi Gör / Fesih' : isCancelled ? 'Fesih Belgesini Gör' : 'Sözleşmeyi Gör / Fesih'}</span>
+                          </button>
+
+                          {isCancelled ? (
+                            <span className="px-2 py-1 bg-rose-600 text-white rounded-lg text-[10px] font-black flex items-center gap-1">
+                              <Ban className="w-3 h-3" />
+                              <span>Feshedildi</span>
+                            </span>
+                          ) : isPaidToLedger ? (
                             <span className="px-2 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black flex items-center gap-1">
                               <Receipt className="w-3 h-3" />
                               <span>Cariye İşlendi ✓</span>
@@ -478,7 +624,7 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
                           ) : isSigned ? (
                             <span className="px-2 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-black flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              <span>Sözleşme Onaylı</span>
+                              <span>OTP Onaylı</span>
                             </span>
                           ) : (
                             <>
@@ -536,6 +682,20 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
           </button>
         </div>
       </motion.div>
+
+      {/* Signed OTP Contract Viewer & Cancellation Modal */}
+      {activeContractItem && (
+        <PartnerContractViewerModal
+          isOpen={!!activeContractItem}
+          onClose={() => setActiveContractItem(null)}
+          property={activeContractItem.property}
+          stakeholder={activeContractItem.stakeholder}
+          pool={activeContractItem.pool}
+          storeName={storeName}
+          onApproveContract={() => handleQuickApprove(activeContractItem)}
+          onTerminateContract={(_stkId, options) => handleTerminateContract(activeContractItem, options)}
+        />
+      )}
     </div>
   );
 };

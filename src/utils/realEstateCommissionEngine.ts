@@ -15,7 +15,8 @@ export type PayoutStatus =
   | 'pending_agreement'   // Sözleşme taslağı oluşturuldu, dijital imza + OTP bekleniyor
   | 'agreement_signed'    // Paydaş dijital sözleşmeyi OTP & IP ile onayladı (Kilitli / Immutable)
   | 'ready_for_payout'    // İşlem kapandı, ödemeye hazır
-  | 'paid';               // ACID Transaction ile Cari Hesaba (Wallet) alacak yansıtıldı
+  | 'paid'                // ACID Transaction ile Cari Hesaba (Wallet) alacak yansıtıldı
+  | 'cancelled';          // Sözleşme feshedildi / şartlar oluşmadı / iptal edildi
 
 export interface CommissionStakeholder {
   id: string;
@@ -27,10 +28,11 @@ export interface CommissionStakeholder {
   roleLabel: string;
   is_external: boolean;
   percentage: number;            // e.g. 20 (for %20)
+  original_percentage?: number;  // Fesih öncesi anlaşılan oran (arşiv kaydı için)
   calculated_amount: number;     // e.g. 18,000 GBP
   currency: string;
   payout_status: PayoutStatus;
-  is_locked: boolean;            // Sözleşme onaylandıktan sonra silinemez / değiştirilemez
+  is_locked: boolean;            // Sözleşme onaylandıktan sonra doğrudan silinmeye karşı kilitli (fesih ile açılır)
   signed_at?: string;            // ISO timestamp
   signed_ip?: string;            // Imzalayan IP adresi
   otp_code?: string;             // 6 haneli SMS/WhatsApp OTP doğrulama kodu
@@ -40,6 +42,9 @@ export interface CommissionStakeholder {
   company_id?: number;           // Cari Hesap (companies) ID
   ledger_transaction_id?: number;// current_account_transactions ID
   posted_at?: string;            // Cariye işlenme zamanı
+  cancelled_at?: string;         // Sözleşme fesih tarihi
+  cancel_reason?: string;        // Fesih nedeni (örn: Alıcı/Mülk şartları oluşmadı)
+  cancel_type?: 'mutual' | 'unilateral_office' | 'conditions_not_met';
   iban?: string;
   company_name?: string;
   notes?: string;
@@ -185,7 +190,8 @@ export function createDefaultCommissionPool(
 }
 
 /**
- * Re-evaluates entire pool math and signing states
+ * Re-evaluates entire pool math and signing states.
+ * Cancelled ('cancelled') stakeholders do not take any commission share (amount = 0).
  */
 export function recalculateCommissionPool(pool: CommissionPool): CommissionPool {
   const mode = pool.calculation_mode || 'net';
@@ -199,6 +205,13 @@ export function recalculateCommissionPool(pool: CommissionPool): CommissionPool 
   let totalAllocatedAmount = 0;
 
   const updatedStakeholders = (pool.stakeholders || []).map(stk => {
+    if (stk.payout_status === 'cancelled') {
+      return {
+        ...stk,
+        calculated_amount: 0,
+        currency: pool.currency
+      };
+    }
     const amount = Math.round((basePool * (Number(stk.percentage) || 0)) / 100);
     totalAllocatedPercent += Number(stk.percentage) || 0;
     totalAllocatedAmount += amount;
@@ -229,7 +242,7 @@ export function recalculateCommissionPool(pool: CommissionPool): CommissionPool 
 /**
  * CRITICAL CHECKPOINT VALIDATION:
  * Validates whether an operator can move a deal/property to "5. Başarılı (Closed)".
- * If an external partner has not signed the digital agreement, BLOCKS CLOSING!
+ * If an active external partner has not signed the digital agreement, BLOCKS CLOSING!
  */
 export interface CheckpointValidation {
   canProceed: boolean;
@@ -256,6 +269,29 @@ export function validateCheckpointForClosing(pool?: CommissionPool | null): Chec
   }
 
   return { canProceed: true, unsignedPartners: [] };
+}
+
+/**
+ * Generates WhatsApp cancellation / termination notice text for the partner
+ */
+export function getPartnerWhatsAppCancellationNotice(
+  property: { id?: number | string; title: string; reference_no?: string },
+  stakeholder: CommissionStakeholder,
+  storeName: string,
+  reason: string
+): string {
+  const ref = property.reference_no || 'REF';
+  const rate = stakeholder.original_percentage ?? stakeholder.percentage;
+  return `Sayın *${stakeholder.name}*,
+
+*${storeName}* ile *${property.title}* [REF: ${ref}] portföyü kapsamında (${stakeholder.roleLabel} - %${rate} pay) tanzim edilen Dijital Gelir Paylaşım Sözleşmesi ve Paydaşlık kaydınız aşağıdaki gerekçe ile *FESHEDİLMİŞ / İPTAL EDİLMİŞTİR*:
+
+• Fesih Gerekçesi: *${reason}*
+• Fesih Tarihi: *${new Date().toLocaleString('tr-TR')}*
+
+İlgili işlem ve sözleşme hükümleri karşılıklı/tek taraflı olarak sona ermiş olup, bu işlem özelinde herhangi bir hak ve alacak kalmadığını bilgilerinize sunarız.
+
+_${storeName} Yönetim & Hukuk Servisi_`;
 }
 
 /**

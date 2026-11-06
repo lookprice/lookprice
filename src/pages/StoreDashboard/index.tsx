@@ -1823,6 +1823,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onDeleteContact={deleteContact}
                   isAutomotive={isAutomotive}
                   initialFilter={realEstateCrmInitialFilter}
+                  storeId={currentStoreId!}
+                  properties={properties}
+                  onNavigateToPipeline={() => {
+                    setTeamCrmInitialSubTab("pipeline");
+                    setTeamCrmInitialView("leads");
+                    setActiveTab("team_crm");
+                  }}
                 />
               )}
               {activeTab === "radar_alerts" && permittedTabIds.has("radar_alerts") && (

@@ -10,7 +10,9 @@ import { AutomotiveCalendar } from '../../components/AutomotiveCalendar';
 import { RealEstateModal } from '../../components/RealEstateModal';
 import { ArrangeTourModal } from '../../components/ArrangeTourModal';
 import { VehicleAppointmentModal } from '../../components/VehicleAppointmentModal';
+import { LeadFunnelWizardModal } from '../../components/realestate/LeadFunnelWizardModal';
 import { findMatchingPropertiesForLead, calculateSLAStatus } from '../../utils/realEstateMatchEngine';
+import { toast } from 'sonner';
 
 interface TeamCrmTabProps {
   storeId?: number;
@@ -394,23 +396,38 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
       setDeals(prev => prev.map(d => d.id === editingDeal.id ? { 
         ...editingDeal, 
         ...dealFormData,
+        updated_at: new Date().toISOString(),
         sector: isAutomotive ? 'automotive' : 'real_estate',
         store_id: storeId
       } : d));
-      toast.success(isTr ? 'Talep güncellendi' : 'Lead updated');
+      toast.success(isTr ? 'Talep revizyonu kaydedildi' : 'Lead updated');
     } else {
       const newDeal = {
         ...dealFormData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
         sector: isAutomotive ? 'automotive' : 'real_estate',
         store_id: storeId,
         id: 'd' + Date.now()
       };
-      setDeals(prev => [...prev, newDeal]);
+      setDeals(prev => [newDeal, ...prev]);
       toast.success(isTr ? 'Yeni talep eklendi' : 'New lead added');
     }
     setShowDealModal(false);
     setEditingDeal(null);
     setDealFormData({ title: '', description: '', agent_name: '', budget: '', stage: currentStages[0] });
+  };
+
+  const handleSaveWizardDeal = (dealPayload: any) => {
+    if (editingDeal) {
+      setDeals(prev => prev.map(d => d.id === editingDeal.id ? dealPayload : d));
+      toast.success(isTr ? 'Talep revizyonu başarıyla kaydedildi ✓' : 'Lead revision saved');
+    } else {
+      setDeals(prev => [dealPayload, ...prev]);
+      toast.success(isTr ? 'Yeni müşteri talebi eklendi ✓' : 'New lead added');
+    }
+    setShowDealModal(false);
+    setEditingDeal(null);
   };
 
   const openEdit = (agent: any) => {
@@ -1016,7 +1033,14 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                       {filteredDeals.map((deal) => (
                         <tr key={deal.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-2.5 px-3 font-extrabold text-slate-900">
-                            <div>{deal.title}</div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{deal.title}</span>
+                              {Array.isArray(deal.revision_history) && deal.revision_history.length > 0 && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200" title={deal.revision_history[0]?.summary}>
+                                  Rev.{deal.revision_history.length}
+                                </span>
+                              )}
+                            </div>
                             {isRealEstate && (() => {
                               const matchProps = findMatchingPropertiesForLead(deal, portfolioItems);
                               if (matchProps.length === 0) return null;
@@ -1036,6 +1060,25 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                           </td>
                           <td className="py-2.5 px-3 text-slate-600 max-w-xs">
                             <p className="truncate text-[11px]">{deal.description || '---'}</p>
+                            {deal.criteria && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {deal.criteria.kocanTypes?.length > 0 && (
+                                  <span className="px-1 py-0.2 bg-slate-100 text-slate-700 rounded text-[9px] font-bold">
+                                    {deal.criteria.kocanTypes.join('/')}
+                                  </span>
+                                )}
+                                {deal.criteria.urgency === 'immediate' && (
+                                  <span className="px-1 py-0.2 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[9px] font-black">
+                                    Acil (1-2 Hafta)
+                                  </span>
+                                )}
+                                {deal.criteria.sourceType === 'external_partner' && deal.criteria.externalPartnerName && (
+                                  <span className="px-1 py-0.2 bg-amber-50 text-amber-900 border border-amber-200 rounded text-[9px] font-black">
+                                    Paydaş: {deal.criteria.externalPartnerName} (%{deal.criteria.externalPartnerShare || 25})
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="py-2.5 px-3">
                             <span className="flex items-center gap-1 text-[11px] text-slate-700">
@@ -1427,7 +1470,28 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
         </div>
       )}
 
-      {showDealModal && (
+      {showDealModal && isRealEstate && !isAutomotive ? (
+        <LeadFunnelWizardModal
+          isOpen={showDealModal}
+          onClose={() => {
+            setShowDealModal(false);
+            setEditingDeal(null);
+          }}
+          editingDeal={editingDeal}
+          agents={agents}
+          portfolioItems={portfolioItems}
+          stages={currentStages}
+          storeId={storeId}
+          onSaveDeal={handleSaveWizardDeal}
+          onSelectMatchedProperty={(prop, customerName) => {
+            setShowDealModal(false);
+            setEditingDeal(null);
+            setActiveTourProperty(prop);
+            setActiveTourLead({ customerName, name: customerName });
+            setIsTourModalOpen(true);
+          }}
+        />
+      ) : showDealModal ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-slate-900/40 backdrop-blur-xs">
           <motion.div 
             initial={{ opacity:0, scale: 0.95 }}
@@ -1501,41 +1565,6 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                 </select>
               </div>
 
-              {/* #2. CANLI PORTFÖY TARAYICISI (Müşteri Ofisteyken Anında Eşleşmeler) */}
-              {isRealEstate && (dealFormData.title.trim().length > 2 || dealFormData.description.trim().length > 2) && (() => {
-                const liveMatches = findMatchingPropertiesForLead(dealFormData, portfolioItems, 50);
-                if (liveMatches.length === 0) return null;
-                return (
-                  <div className="p-2.5 bg-indigo-50/70 border border-indigo-200/80 rounded-xl space-y-1.5 animate-in fade-in duration-150">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-indigo-900 font-black text-[11px]">
-                        <Sparkles className="w-3 h-3 text-indigo-600" />
-                        <span>Canlı Portföy Eşleşmeleri ({liveMatches.length})</span>
-                      </div>
-                      <span className="text-[9px] bg-indigo-600 text-white font-bold px-1.5 py-0.2 rounded font-mono">
-                        %{liveMatches[0].score} En Yüksek Uyum
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 font-medium">
-                      Müşteriniz ofisteyken anında sunabileceğiniz uygun portföyler listelendi:
-                    </p>
-                    <div className="space-y-1 max-h-36 overflow-y-auto custom-scrollbar">
-                      {liveMatches.slice(0, 3).map((lm, lmIdx) => (
-                        <div key={lmIdx} className="p-1.5 bg-white rounded-lg border border-indigo-100 flex items-center justify-between gap-1.5 text-[10px]">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-extrabold text-slate-900 truncate">{lm.propertyTitle}</p>
-                            <p className="text-slate-500 truncate font-mono">REF: {lm.propertyRef || '---'} • {lm.propertyPrice?.toLocaleString('tr-TR')} {lm.propertyCurrency}</p>
-                          </div>
-                          <span className="font-black font-mono text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 shrink-0">
-                            %{lm.score}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-
               <div className="pt-3 border-t border-slate-100 flex gap-2">
                 <button onClick={() => { setShowDealModal(false); setEditingDeal(null); }} className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors cursor-pointer">İptal</button>
                 <button onClick={handleSaveDeal} className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-2xs active:scale-95 cursor-pointer">Kaydet</button>
@@ -1543,7 +1572,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
             </div>
           </motion.div>
         </div>
-      )}
+      ) : null}
 
       {isRealEstateModalOpen && (
         <RealEstateModal

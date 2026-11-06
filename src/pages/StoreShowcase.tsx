@@ -345,19 +345,25 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     const targetIdentifier = productParam || urlBarcode;
     if (targetIdentifier) {
       const cleanTarget = String(targetIdentifier).trim().toLowerCase();
+      const strippedTarget = cleanTarget.replace(/^(re_|v_)/, "");
       if (
         !selectedProduct ||
         (String(selectedProduct.id).toLowerCase() !== cleanTarget &&
+          String(selectedProduct.id).toLowerCase() !== `re_${strippedTarget}` &&
           String(selectedProduct.barcode || "").trim().toLowerCase() !== cleanTarget)
       ) {
         const found = products.find((p: any) => {
           const pId = String(p.id || "").trim().toLowerCase();
           const pBarcode = String(p.barcode || "").trim().toLowerCase();
           const pDbId = String(p.db_id || "").trim().toLowerCase();
+          const pRefNo = String(p.reference_no || p.sector_data?.reference_no || "").trim().toLowerCase();
           return (
             pId === cleanTarget ||
+            pId === `re_${strippedTarget}` ||
+            pId === strippedTarget ||
             (pBarcode && pBarcode === cleanTarget) ||
-            (pDbId && (`re_${pDbId}` === cleanTarget || `v_${pDbId}` === cleanTarget || pDbId === cleanTarget))
+            (pRefNo && pRefNo === cleanTarget) ||
+            (pDbId && (`re_${pDbId}` === cleanTarget || `v_${pDbId}` === cleanTarget || pDbId === cleanTarget || pDbId === strippedTarget))
           );
         });
         if (found) {

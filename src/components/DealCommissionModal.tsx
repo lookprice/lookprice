@@ -5,11 +5,12 @@ import {
   Plus, 
   Trash2, 
   ShieldCheck, 
-  Lock, 
   Send, 
   CheckCircle2, 
   Receipt,
-  Users
+  Users,
+  FileSignature,
+  Ban
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -20,6 +21,7 @@ import {
   recalculateCommissionPool,
   getPartnerWhatsAppContractInvite
 } from '../utils/realEstateCommissionEngine';
+import { PartnerContractViewerModal } from './PartnerContractViewerModal';
 
 interface DealCommissionModalProps {
   isOpen: boolean;
@@ -75,6 +77,7 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
 
   const [pool, setPool] = useState<CommissionPool>(recalculateCommissionPool(existingPool));
   const [isSaving, setIsSaving] = useState(false);
+  const [viewingStakeholderId, setViewingStakeholderId] = useState<string | null>(null);
 
   // New expense form
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -88,6 +91,8 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
   const [stkRole, setStkRole] = useState<'portfolio_source' | 'lead_source' | 'closing_agent' | 'custom_partner'>('portfolio_source');
   const [stkPercent, setStkPercent] = useState('20');
   const [stkIsExternal, setStkIsExternal] = useState(true);
+
+  const viewingStakeholder = pool.stakeholders.find(s => s.id === viewingStakeholderId) || null;
 
   const handleModeChange = (mode: 'net' | 'gross') => {
     setPool(recalculateCommissionPool({ ...pool, calculation_mode: mode }));
@@ -197,8 +202,70 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
           }
         : s
     );
-    setPool(recalculateCommissionPool({ ...pool, stakeholders: updatedStks }));
-    toast.success(`${targetStk.name} onayı tamamlandı.`);
+    const updatedPool = recalculateCommissionPool({ ...pool, stakeholders: updatedStks });
+    setPool(updatedPool);
+    await onSavePool(updatedPool);
+    toast.success(`${targetStk.name} OTP onayı tamamlandı.`);
+  };
+
+  const handleTerminateStakeholderContract = async (
+    stakeholderId: string,
+    options: {
+      reason: string;
+      cancelType: 'mutual' | 'unilateral_office' | 'conditions_not_met';
+      removeStakeholderCompletely: boolean;
+      sendWhatsAppNotice: boolean;
+    }
+  ) => {
+    const targetStk = pool.stakeholders.find(s => s.id === stakeholderId);
+    if (!targetStk) return;
+
+    const nowIso = new Date().toISOString();
+    let updatedStks: CommissionStakeholder[];
+
+    if (options.removeStakeholderCompletely) {
+      updatedStks = pool.stakeholders.filter(s => s.id !== stakeholderId);
+    } else {
+      updatedStks = pool.stakeholders.map(s =>
+        s.id === stakeholderId
+          ? {
+              ...s,
+              original_percentage: s.original_percentage ?? s.percentage,
+              percentage: 0,
+              calculated_amount: 0,
+              payout_status: 'cancelled' as const,
+              is_locked: false,
+              cancelled_at: nowIso,
+              cancel_reason: options.reason,
+              cancel_type: options.cancelType
+            }
+          : s
+      );
+    }
+
+    const updatedPool = recalculateCommissionPool({
+      ...pool,
+      stakeholders: updatedStks,
+      revision_history: [
+        ...(pool.revision_history || []),
+        {
+          date: nowIso,
+          revised_by: storeName,
+          reason: `Paydaş Sözleşme Feshi (${targetStk.name}): ${options.reason}`,
+          previous_state: targetStk
+        }
+      ]
+    });
+
+    setPool(updatedPool);
+    await onSavePool(updatedPool);
+
+    if (options.removeStakeholderCompletely) {
+      setViewingStakeholderId(null);
+      toast.success(`${targetStk.name} sözleşmesi feshedildi ve paydaşlık kaldırıldı.`);
+    } else {
+      toast.success(`${targetStk.name} sözleşmesi feshedildi ve hakedişi %0 yapıldı.`);
+    }
   };
 
   const handleSendWhatsAppInvite = (stk: CommissionStakeholder) => {
@@ -208,8 +275,10 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
   };
 
   const handleDeleteStakeholder = (stk: CommissionStakeholder) => {
-    if (stk.is_locked) {
-      toast.error('Onaylanmış paydaş silinemez.');
+    if (stk.is_locked && stk.payout_status !== 'cancelled') {
+      // Open the contract viewer / termination modal so they can formally cancel it
+      setViewingStakeholderId(stk.id);
+      toast.info('İmzalı sözleşmeyi iptal etmek için açılan pencereden Fesih işlemini onaylayınız.');
       return;
     }
     setPool(recalculateCommissionPool({ ...pool, stakeholders: pool.stakeholders.filter(s => s.id !== stk.id) }));
@@ -354,8 +423,8 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
                     onChange={(e) => setStkRole(e.target.value as any)}
                     className="px-2 py-1 bg-white border border-slate-300 rounded text-xs font-bold outline-none cursor-pointer"
                   >
-                    <option value="portfolio_source">Portföy Getiren</option>
-                    <option value="lead_source">Müşteri Getiren</option>
+                    <option value="portfolio_source">Mülk / Portföy Getiren</option>
+                    <option value="lead_source">Alıcı / Müşteri Getiren</option>
                     <option value="closing_agent">Satış Kapatan</option>
                   </select>
                 </div>
@@ -405,18 +474,31 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
               <div className="space-y-1.5">
                 {pool.stakeholders.map((stk) => {
                   const isSigned = stk.payout_status === 'agreement_signed' || stk.payout_status === 'paid';
-                  const isPosted = stk.payout_status === 'paid' || pool.accounting_posted;
+                  const isCancelled = stk.payout_status === 'cancelled';
+                  const isPosted = !isCancelled && (stk.payout_status === 'paid' || pool.accounting_posted);
                   return (
-                    <div key={stk.id} className="p-2 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between gap-2 flex-wrap">
+                    <div
+                      key={stk.id}
+                      className={`p-2 rounded-lg border flex items-center justify-between gap-2 flex-wrap ${
+                        isCancelled ? 'bg-rose-50/40 border-rose-200' : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-black text-slate-950">{stk.name}</span>
+                          <span className={`font-black ${isCancelled ? 'line-through text-slate-500' : 'text-slate-950'}`}>
+                            {stk.name}
+                          </span>
                           <span className="px-1.5 py-0.2 bg-slate-200 text-slate-800 rounded text-[9px] font-bold">
                             {stk.roleLabel}
                           </span>
                           {stk.is_external && (
                             <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded text-[9px] font-black">
                               Dış Paydaş
+                            </span>
+                          )}
+                          {isSigned && stk.otp_code && (
+                            <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-900 rounded font-mono text-[9px] font-black">
+                              OTP: {stk.otp_code}
                             </span>
                           )}
                           {isPosted && (
@@ -426,13 +508,41 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
                           )}
                         </div>
                         <div className="text-[10px] text-slate-600 font-bold mt-0.5">
-                          Pay: <strong>%{stk.percentage}</strong> · Tutar: <strong className="text-emerald-700 font-mono">{stk.calculated_amount.toLocaleString('tr-TR')} {stk.currency}</strong>
+                          {isCancelled ? (
+                            <span className="text-rose-700 font-black">
+                              Sözleşme Feshedildi (Önceki Pay: %{stk.original_percentage ?? stk.percentage}) — {stk.cancel_reason || 'İptal'}
+                            </span>
+                          ) : (
+                            <>
+                              Pay: <strong>%{stk.percentage}</strong> · Tutar:{' '}
+                              <strong className="text-emerald-700 font-mono">
+                                {stk.calculated_amount.toLocaleString('tr-TR')} {stk.currency}
+                              </strong>
+                            </>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0 flex-wrap">
                         {stk.is_external && (
-                          isSigned ? (
+                          <button
+                            type="button"
+                            onClick={() => setViewingStakeholderId(stk.id)}
+                            className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                            title="İmzalı OTP sözleşmesini gör, yazdır veya feshet"
+                          >
+                            <FileSignature className="w-3 h-3 shrink-0" />
+                            <span>{isSigned ? 'Sözleşmeyi Gör / Fesih' : isCancelled ? 'Fesih Belgesi' : 'Sözleşme / Fesih'}</span>
+                          </button>
+                        )}
+
+                        {stk.is_external && (
+                          isCancelled ? (
+                            <span className="px-2 py-0.5 bg-rose-600 text-white rounded text-[10px] font-black flex items-center gap-1">
+                              <Ban className="w-3 h-3" />
+                              <span>Feshedildi</span>
+                            </span>
+                          ) : isSigned ? (
                             <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-black flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               <span>Onaylı</span>
@@ -460,16 +570,14 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
                             </>
                           )
                         )}
-                        {!stk.is_locked && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteStakeholder(stk)}
-                            className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
-                            title="Sil"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteStakeholder(stk)}
+                          className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                          title={stk.is_locked ? 'Sözleşmeyi Feshet / İptal Et' : 'Sil'}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   );
@@ -572,6 +680,20 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
           </button>
         </div>
       </motion.div>
+
+      {/* Signed OTP Contract Viewer & Cancellation Modal */}
+      {viewingStakeholder && (
+        <PartnerContractViewerModal
+          isOpen={!!viewingStakeholder}
+          onClose={() => setViewingStakeholderId(null)}
+          property={property}
+          stakeholder={viewingStakeholder}
+          pool={pool}
+          storeName={storeName}
+          onApproveContract={(stkId) => handleImmediateSign(stkId)}
+          onTerminateContract={(stkId, options) => handleTerminateStakeholderContract(stkId, options)}
+        />
+      )}
     </div>
   );
 };
