@@ -894,10 +894,12 @@ router.get("/store/:slug", async (req, res) => {
       store.branches = branchesRes.rows;
     }
     store.blog_posts = blogRes.rows;
-    store.consultants = consultantsRes2.rows;
-
     // Normalize logo & favicon URLs so restricted Supabase Storage URLs always route through /api/storage/*
     const { normalizeStorageUrl } = await import("./utils/imageStorage");
+    store.consultants = consultantsRes2.rows.map((c: any) => ({
+      ...c,
+      image_url: c.image_url ? normalizeStorageUrl(c.image_url, store.id, c.name || "Danışman") : c.image_url
+    }));
     const displayStoreName = store.branding?.store_name || store.name || store.slug;
     if (store.logo_url || store.branding?.logo_url) {
       const normLogo = normalizeStorageUrl(store.logo_url || store.branding?.logo_url, store.id, displayStoreName);

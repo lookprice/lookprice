@@ -162,7 +162,12 @@ export const LeadFunnelWizardModal: React.FC<LeadFunnelWizardModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    api.getContacts(storeId)
+    const fetchFn = typeof api.getRealEstateContacts === 'function'
+      ? () => api.getRealEstateContacts(undefined, storeId)
+      : typeof (api as any).getContacts === 'function'
+      ? () => (api as any).getContacts(storeId)
+      : () => Promise.resolve([]);
+    fetchFn()
       .then((res: any) => {
         if (Array.isArray(res)) setCrmContacts(res);
       })

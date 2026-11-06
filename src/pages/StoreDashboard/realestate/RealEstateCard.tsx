@@ -23,7 +23,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
-  Globe
+  Globe,
+  X,
+  Maximize2
 } from "lucide-react";
 import { toast } from "sonner";
 import { RealEstateViewMode } from "./types";
@@ -77,6 +79,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
   const [menuOpenUpwards, setMenuOpenUpwards] = useState(false);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -131,15 +134,31 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isActionsMenuOpen]);
 
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsLightboxOpen(false);
+      } else if (e.key === "ArrowLeft" && totalImages > 1) {
+        setCurrentImageIdx((prev) => (prev - 1 + totalImages) % totalImages);
+      } else if (e.key === "ArrowRight" && totalImages > 1) {
+        setCurrentImageIdx((prev) => (prev + 1) % totalImages);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isLightboxOpen, totalImages]);
+
   // Direct link to this property on the store's public website
   const resolvedSlug =
     storeSlug ||
     (typeof window !== "undefined"
-      ? window.location.pathname.match(/\/dashboard\/([^/?#]+)/)?.[1] || ""
+      ? window.location.pathname.match(/\/(?:dashboard|store|s)\/([^/?#]+)/)?.[1] || ""
       : "");
+  const cleanPropId = String(property.id).replace(/^re_/, "");
   const webProductUrl = resolvedSlug
-    ? `/s/${resolvedSlug}?product=re_${property.id}`
-    : `/?product=re_${property.id}`;
+    ? `/s/${resolvedSlug}/p/re_${cleanPropId}?product=re_${cleanPropId}`
+    : `/p/re_${cleanPropId}?product=re_${cleanPropId}`;
 
   const isFurnished = Boolean(
     property.furnished === true ||
@@ -620,19 +639,24 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
       }`}
     >
       <div className="p-2 sm:p-2.5 flex items-start sm:items-center gap-2.5">
-        {/* Compact Thumbnail with Mini Prev/Next Carousel Support */}
+        {/* Compact Thumbnail — Opens Full-Screen Lightbox if images exist */}
         <div
-          onClick={() => setIsDetailsExpanded((prev) => !prev)}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (totalImages > 0) {
+              setIsLightboxOpen(true);
+            } else {
+              setIsDetailsExpanded((prev) => !prev);
+            }
+          }}
           className="w-16 h-16 sm:w-20 sm:h-16 rounded-lg bg-slate-100 relative overflow-hidden shrink-0 cursor-pointer border border-slate-200/80 group select-none"
-          title="Detay künyesini açmak için tıklayın"
+          title={totalImages > 0 ? "Tam ekran fotoğraf galerisini açmak için tıklayın" : "Detay künyesini açmak için tıklayın"}
         >
           {totalImages > 0 ? (
             <img
-              src={images[safeImageIdx]}
+              src={images[0]}
               alt={cleanTitle}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
               referrerPolicy="no-referrer"
             />
           ) : (
@@ -648,29 +672,12 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
             {statusLabel}
           </span>
 
-          {/* Mini Prev/Next arrows & count when multiple images exist */}
+          {/* Subtle Photo Count Badge (Full-Screen Lightbox Trigger Indicator) */}
           {totalImages > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={handlePrevImage}
-                className="absolute left-0.5 bottom-0.5 w-4 h-4 rounded bg-slate-950/75 hover:bg-slate-950 text-white flex items-center justify-center cursor-pointer"
-                title="Önceki Fotoğraf"
-              >
-                <ChevronLeft className="w-2.5 h-2.5 stroke-[2.5]" />
-              </button>
-              <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 bg-slate-950/75 text-white text-[8px] font-mono font-black px-1 rounded leading-tight pointer-events-none">
-                {safeImageIdx + 1}/{totalImages}
-              </span>
-              <button
-                type="button"
-                onClick={handleNextImage}
-                className="absolute right-0.5 bottom-0.5 w-4 h-4 rounded bg-slate-950/75 hover:bg-slate-950 text-white flex items-center justify-center cursor-pointer"
-                title="Sonraki Fotoğraf"
-              >
-                <ChevronRight className="w-2.5 h-2.5 stroke-[2.5]" />
-              </button>
-            </>
+            <span className="absolute bottom-1 right-1 bg-slate-950/75 text-white text-[8px] font-mono font-black px-1 py-0.2 rounded leading-tight inline-flex items-center gap-0.5">
+              <Maximize2 className="w-2 h-2" />
+              <span>{totalImages}</span>
+            </span>
           )}
         </div>
 
@@ -782,34 +789,9 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
         {renderActionControls()}
       </div>
 
-      {/* Collapsible Detail & Description Accordion (Opens when operator clicks row title or thumbnail) */}
+      {/* Collapsible Detail & Description Accordion (Opens when operator clicks row title) */}
       {isDetailsExpanded && (
         <div className="px-2.5 pb-2.5 pt-2 border-t border-slate-100 bg-slate-50/70 rounded-b-xl space-y-2 text-[11px] animate-in fade-in duration-100">
-          {/* Interactive Thumbnail Strip inside expanded row when multiple images exist */}
-          {totalImages > 1 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {images.map((imgUrl, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setCurrentImageIdx(idx)}
-                  className={`w-14 h-10 rounded-md overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
-                    safeImageIdx === idx
-                      ? "border-indigo-600 ring-1 ring-indigo-600/30"
-                      : "border-slate-200 opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  <img
-                    src={imgUrl}
-                    alt={`${cleanTitle} - ${idx + 1}`}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-
           <div className="flex items-center justify-between gap-2 flex-wrap text-[10px] font-bold text-slate-600">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1 text-slate-800">
@@ -894,6 +876,83 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               <span>Web Sitesinde Ürünü Aç</span>
               <ExternalLink className="w-2.5 h-2.5" />
             </a>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Image Lightbox Modal for Row View */}
+      {isLightboxOpen && totalImages > 0 && (
+        <div
+          className="fixed inset-0 z-[100060] bg-slate-950/95 backdrop-blur-xs flex flex-col items-center justify-center p-3 sm:p-6 select-none animate-in fade-in duration-150"
+          onClick={() => setIsLightboxOpen(false)}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Top Bar */}
+          <div
+            className="w-full max-w-5xl flex items-center justify-between gap-3 pb-3 text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                {property.reference_no && (
+                  <span className="font-mono font-black text-[10px] bg-white/15 text-white px-2 py-0.5 rounded">
+                    {property.reference_no}
+                  </span>
+                )}
+                <span className="font-mono font-black text-xs text-emerald-400">
+                  {currencySymbol}{formatNumberVal(property.price)}
+                </span>
+                <span className="text-xs font-mono text-slate-300">
+                  ({safeImageIdx + 1} / {totalImages})
+                </span>
+              </div>
+              <h3 className="font-black text-xs sm:text-sm text-white truncate mt-0.5">
+                {cleanTitle}
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsLightboxOpen(false)}
+              className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer shrink-0"
+              title="Kapat (ESC)"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Main Image Stage with Prev/Next Controls */}
+          <div
+            className="relative flex-1 w-full max-w-5xl flex items-center justify-center overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={images[safeImageIdx]}
+              alt={`${cleanTitle} - ${safeImageIdx + 1}`}
+              className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
+              referrerPolicy="no-referrer"
+            />
+
+            {totalImages > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePrevImage}
+                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-white/20 flex items-center justify-center shadow-xl cursor-pointer transition-transform active:scale-95"
+                  title="Önceki Fotoğraf"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextImage}
+                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-white/20 flex items-center justify-center shadow-xl cursor-pointer transition-transform active:scale-95"
+                  title="Sonraki Fotoğraf"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

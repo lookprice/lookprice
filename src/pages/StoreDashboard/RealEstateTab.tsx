@@ -138,7 +138,7 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
     branding?.slug ||
     user?.store_slug ||
     (typeof window !== "undefined"
-      ? window.location.pathname.match(/\/dashboard\/([^/?#]+)/)?.[1] || ""
+      ? window.location.pathname.match(/\/(?:dashboard|store|s)\/([^/?#]+)/)?.[1] || ""
       : "");
 
   return (

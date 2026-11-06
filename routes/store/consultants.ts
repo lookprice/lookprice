@@ -1,6 +1,6 @@
 import express from "express";
 import { pool } from "../../models/db";
-import { cleanDeepBase64 } from "../utils/imageStorage";
+import { cleanDeepBase64, normalizeStorageUrl } from "../utils/imageStorage";
 
 const router = express.Router();
 
@@ -32,7 +32,11 @@ router.get("/", async (req: any, res) => {
       "SELECT * FROM consultants WHERE store_id = $1 ORDER BY name ASC",
       [storeId]
     );
-    res.json(result.rows);
+    const normalized = result.rows.map((c: any) => ({
+      ...c,
+      image_url: c.image_url ? normalizeStorageUrl(c.image_url, c.store_id || storeId, c.name || "Danışman") : c.image_url
+    }));
+    res.json(normalized);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch consultants" });
   }

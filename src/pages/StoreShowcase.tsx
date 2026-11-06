@@ -318,9 +318,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           next.set("product", currentId);
           return next;
         }, { replace: isProductModalOpenRef.current });
-        isProductModalOpenRef.current = true;
       }
-    } else {
+      isProductModalOpenRef.current = true;
+    } else if (isProductModalOpenRef.current) {
+      // Only remove '?product=' when closing a previously opened product modal,
+      // NEVER on initial mount while products are still being fetched from the API!
       isProductModalOpenRef.current = false;
       if (searchParams.has("product")) {
         setSearchParams(prev => {
@@ -648,9 +650,25 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         const currentSector = storeRes.store_type === 'motor_vehicle' || storeRes.store_type === 'automotive' ? 'automotive' : 'real_estate';
         setRadarNews(Array.isArray(radarNewsRes) ? radarNewsRes.filter((n: any) => !n.sector || n.sector === currentSector || (currentSector === 'automotive' && n.sector === 'motor_vehicle')) : []);
 
-        if (urlBarcode) {
-          const cleanBarcode = urlBarcode.toString().trim().toLowerCase();
-          const product = productsRes.find((p: Product) => (p.barcode && p.barcode.toString().trim().toLowerCase() === cleanBarcode) || p.id.toString() === cleanBarcode);
+        const initialTarget = searchParams.get("product") || urlBarcode;
+        if (initialTarget) {
+          const cleanTarget = String(initialTarget).trim().toLowerCase();
+          const strippedTarget = cleanTarget.replace(/^(re_|v_)/, "");
+          const product = productsRes.find((p: any) => {
+            const pId = String(p.id || "").trim().toLowerCase();
+            const pBarcode = String(p.barcode || "").trim().toLowerCase();
+            const pDbId = String(p.db_id || "").trim().toLowerCase();
+            const pRefNo = String(p.reference_no || p.sector_data?.reference_no || "").trim().toLowerCase();
+            return (
+              pId === cleanTarget ||
+              pId === `re_${strippedTarget}` ||
+              pId === `v_${strippedTarget}` ||
+              pId === strippedTarget ||
+              (pDbId && pDbId === strippedTarget) ||
+              (pBarcode && pBarcode === cleanTarget) ||
+              (pRefNo && pRefNo === cleanTarget)
+            );
+          });
           if (product) setSelectedProduct(product);
         }
 

@@ -297,6 +297,7 @@ export const api = {
   getRadarNews: (storeId?: number) => api.get(`/api/real-estate/radar-news${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   deleteRadarNews: (storeId?: number) => api.delete(`/api/real-estate/radar-news${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),  getPublicRadarNews: (slug: string) => api.get(`/api/public/stores/${slug}/radar-news?t=${Date.now()}`),
   getPublicEnrakipsizRadarNews: () => api.get(`/api/public/enrakipsiz/radar-news?t=${Date.now()}`),
+  getContacts: (storeId?: number) => api.get(`/api/real-estate/contacts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ''}`),
   getRealEstateContacts: (type?: 'owner' | 'investor', storeId?: number) => api.get(`/api/real-estate/contacts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}${type ? `&type=${type}` : ''}` : (type ? `?type=${type}` : '')}`),
   addRealEstateContact: (data: any, storeId?: number) => api.post(`/api/real-estate/contacts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateRealEstateContact: (id: string, data: any, storeId?: number) => api.put(`/api/real-estate/contacts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),

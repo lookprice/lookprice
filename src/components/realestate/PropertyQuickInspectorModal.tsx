@@ -81,9 +81,15 @@ export const PropertyQuickInspectorModal: React.FC<PropertyQuickInspectorModalPr
   const heating = property.heating || sector.heating || "-";
   const isFurnished = Boolean(property.furnished || sector.furnished);
 
-  const webUrl = storeSlug
-    ? `/${storeSlug}?product=re_${property.id}`
-    : `/?product=re_${property.id}`;
+  const resolvedSlug =
+    storeSlug ||
+    (typeof window !== "undefined"
+      ? window.location.pathname.match(/\/(?:dashboard|store|s)\/([^/?#]+)/)?.[1] || ""
+      : "");
+  const cleanPropId = String(property.id).replace(/^re_/, "");
+  const webUrl = resolvedSlug
+    ? `/s/${resolvedSlug}/p/re_${cleanPropId}?product=re_${cleanPropId}`
+    : `/p/re_${cleanPropId}?product=re_${cleanPropId}`;
 
   const handleShareWhatsApp = () => {
     const fullWebUrl = typeof window !== "undefined" ? `${window.location.origin}${webUrl}` : webUrl;
