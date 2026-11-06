@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Users, Plus, Edit2, Trash2, Mail, Phone, MapPin, Building2, BarChart3, Star, Target, Shield, Calendar, Search, LayoutGrid, List, CheckCircle2, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from "../../contexts/LanguageContext";

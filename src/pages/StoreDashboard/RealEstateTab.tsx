@@ -197,7 +197,7 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
           <p className="text-xs text-slate-400 mt-1">Yeni ilan girerek portföy oluşturabilir ve pilot satışlara devam edebilirsiniz.</p>
         </div>
       ) : (
-        <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+        <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" : "space-y-1.5"}>
           {displayedProperties.map(property => (
             <RealEstateCard
               key={property.id}
