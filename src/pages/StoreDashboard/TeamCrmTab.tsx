@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit2, Trash2, Mail, Phone, MapPin, Building2, BarChart3, Star, Target, Shield, Calendar, Search, LayoutGrid, List, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Mail, Phone, MapPin, Building2, BarChart3, Star, Target, Shield, Calendar, Search, LayoutGrid, List, CheckCircle2, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
@@ -10,7 +10,7 @@ import { AutomotiveCalendar } from '../../components/AutomotiveCalendar';
 import { RealEstateModal } from '../../components/RealEstateModal';
 import { ArrangeTourModal } from '../../components/ArrangeTourModal';
 import { VehicleAppointmentModal } from '../../components/VehicleAppointmentModal';
-import { toast } from 'sonner';
+import { findMatchingPropertiesForLead, calculateSLAStatus } from '../../utils/realEstateMatchEngine';
 
 interface TeamCrmTabProps {
   storeId?: number;
@@ -239,8 +239,11 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
   const [mobileLeadStageFilter, setMobileLeadStageFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
+  const [activeTourLead, setActiveTourLead] = useState<any>(null);
+  const [selectedLeadMatches, setSelectedLeadMatches] = useState<any>(null);
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [isAutoAppointmentModalOpen, setIsAutoAppointmentModalOpen] = useState(false);
+  const [filterSlaOnly, setFilterSlaOnly] = useState(false);
 
   useEffect(() => {
     if (initialSubTab) setActiveSubTab(initialSubTab);
@@ -432,12 +435,19 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
 
   const filteredDeals = deals
     .filter(d => isAutomotive ? isAutomotiveMatching(d) : isRealEstateMatching(d))
+    .filter(d => !filterSlaOnly || calculateSLAStatus(d).isStagnant)
     .filter(d => 
       d.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.agent_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.budget?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+  const stagnantDealsCount = useMemo(() => {
+    return deals
+      .filter(d => isAutomotive ? isAutomotiveMatching(d) : isRealEstateMatching(d))
+      .filter(d => calculateSLAStatus(d).isStagnant).length;
+  }, [deals, isAutomotive]);
 
   return (
     <div className="space-y-3 font-sans text-slate-800">
@@ -855,6 +865,17 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                     <LayoutGrid className="w-3 h-3" />
                     <span>Kanban</span>
                   </button>
+                  {isRealEstate && (
+                    <button 
+                      onClick={() => setFilterSlaOnly(prev => !prev)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                        filterSlaOnly ? 'bg-rose-600 text-white shadow-2xs' : 'text-rose-700 hover:bg-rose-50'
+                      }`}
+                      title="7 günden fazla süredir hareketsiz kalan talepleri listeler"
+                    >
+                      <span>⚠️ SLA ({stagnantDealsCount})</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -907,6 +928,22 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <h4 className="font-extrabold text-slate-900 text-xs leading-snug">{deal.title}</h4>
+                          {isRealEstate && (() => {
+                            const matchProps = findMatchingPropertiesForLead(deal, portfolioItems);
+                            if (matchProps.length === 0) return null;
+                            const topProp = matchProps[0];
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedLeadMatches({ deal, matches: matchProps })}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-all cursor-pointer mt-1"
+                                title="Bu taleple eşleşen portföyleri gör"
+                              >
+                                <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                                <span>{matchProps.length} Portföy Uyumlu (%{topProp.score})</span>
+                              </button>
+                            );
+                          })()}
                           <p className="text-[11px] text-slate-600 line-clamp-2 mt-0.5">{deal.description || '---'}</p>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
@@ -979,7 +1016,23 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                       {filteredDeals.map((deal) => (
                         <tr key={deal.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-2.5 px-3 font-extrabold text-slate-900">
-                            {deal.title}
+                            <div>{deal.title}</div>
+                            {isRealEstate && (() => {
+                              const matchProps = findMatchingPropertiesForLead(deal, portfolioItems);
+                              if (matchProps.length === 0) return null;
+                              const topProp = matchProps[0];
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedLeadMatches({ deal, matches: matchProps })}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-all cursor-pointer mt-1"
+                                  title="Bu taleple eşleşen portföyleri gör"
+                                >
+                                  <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                                  <span>{matchProps.length} Portföy Uyumlu (%{topProp.score})</span>
+                                </button>
+                              );
+                            })()}
                           </td>
                           <td className="py-2.5 px-3 text-slate-600 max-w-xs">
                             <p className="truncate text-[11px]">{deal.description || '---'}</p>
@@ -1169,9 +1222,11 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                 storeId={storeId!}
                 properties={portfolioItems}
                 tasks={tasks}
+                deals={deals}
                 onOpenCalendar={() => setCrmView('calendar')}
-                onOpenTourModal={(p) => {
+                onOpenTourModal={(p, lead) => {
                   setActiveTourProperty(p);
+                  setActiveTourLead(lead || null);
                   setIsTourModalOpen(true);
                 }}
                 onRefresh={fetchData}
@@ -1446,6 +1501,41 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                 </select>
               </div>
 
+              {/* #2. CANLI PORTFÖY TARAYICISI (Müşteri Ofisteyken Anında Eşleşmeler) */}
+              {isRealEstate && (dealFormData.title.trim().length > 2 || dealFormData.description.trim().length > 2) && (() => {
+                const liveMatches = findMatchingPropertiesForLead(dealFormData, portfolioItems, 50);
+                if (liveMatches.length === 0) return null;
+                return (
+                  <div className="p-2.5 bg-indigo-50/70 border border-indigo-200/80 rounded-xl space-y-1.5 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-indigo-900 font-black text-[11px]">
+                        <Sparkles className="w-3 h-3 text-indigo-600" />
+                        <span>Canlı Portföy Eşleşmeleri ({liveMatches.length})</span>
+                      </div>
+                      <span className="text-[9px] bg-indigo-600 text-white font-bold px-1.5 py-0.2 rounded font-mono">
+                        %{liveMatches[0].score} En Yüksek Uyum
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      Müşteriniz ofisteyken anında sunabileceğiniz uygun portföyler listelendi:
+                    </p>
+                    <div className="space-y-1 max-h-36 overflow-y-auto custom-scrollbar">
+                      {liveMatches.slice(0, 3).map((lm, lmIdx) => (
+                        <div key={lmIdx} className="p-1.5 bg-white rounded-lg border border-indigo-100 flex items-center justify-between gap-1.5 text-[10px]">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-extrabold text-slate-900 truncate">{lm.propertyTitle}</p>
+                            <p className="text-slate-500 truncate font-mono">REF: {lm.propertyRef || '---'} • {lm.propertyPrice?.toLocaleString('tr-TR')} {lm.propertyCurrency}</p>
+                          </div>
+                          <span className="font-black font-mono text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 shrink-0">
+                            %{lm.score}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="pt-3 border-t border-slate-100 flex gap-2">
                 <button onClick={() => { setShowDealModal(false); setEditingDeal(null); }} className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors cursor-pointer">İptal</button>
                 <button onClick={handleSaveDeal} className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-2xs active:scale-95 cursor-pointer">Kaydet</button>
@@ -1481,13 +1571,16 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
           onClose={() => {
             setIsTourModalOpen(false);
             setActiveTourProperty(null);
+            setActiveTourLead(null);
           }}
           property={activeTourProperty}
           propertiesList={portfolioItems}
           storeId={storeId}
+          initialLead={activeTourLead}
           onSave={() => {
             setIsTourModalOpen(false);
             setActiveTourProperty(null);
+            setActiveTourLead(null);
             fetchData();
           }}
         />
@@ -1503,6 +1596,107 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
             fetchData();
           }}
         />
+      )}
+
+      {/* MATCHED PROPERTIES MODAL FOR CRM LEADS */}
+      {selectedLeadMatches && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white max-w-xl w-full rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[88vh]"
+          >
+            <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-xs sm:text-sm font-black truncate">Akıllı Portföy Eşleşmeleri</h3>
+                  <p className="text-[10px] text-slate-400 truncate">Talep: {selectedLeadMatches.deal.title}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedLeadMatches(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 overflow-y-auto space-y-2 flex-1 custom-scrollbar bg-slate-50/50">
+              {selectedLeadMatches.matches.map((m: any, idx: number) => {
+                const prop = portfolioItems.find((p: any) => p.id === m.propertyId);
+                return (
+                  <div key={idx} className="p-2.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
+                          {prop?.images?.[0] ? (
+                            <img src={prop.images[0]} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-400">
+                              <Building2 className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase font-mono ${
+                              m.tier === 'high' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                            }`}>
+                              %{m.score} UYUM • {m.tier === 'high' ? 'Yüksek Uyum' : 'Olası'}
+                            </span>
+                            <span className="font-mono text-[10px] text-slate-500 font-bold">REF: {m.propertyRef || '---'}</span>
+                          </div>
+                          <p className="text-xs font-black text-slate-900 truncate mt-0.5">{m.propertyTitle}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs font-black text-indigo-700 font-mono">
+                          {m.propertyPrice?.toLocaleString('tr-TR')} {m.propertyCurrency}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1">
+                      {m.reasons.map((r: string, rIdx: number) => (
+                        <span key={rIdx} className="text-[9px] bg-slate-50 px-1.5 py-0.2 rounded border border-slate-200 text-slate-600 font-semibold truncate">
+                          {r}
+                        </span>
+                      ))}
+                      {m.tolerancesApplied.map((t: string, tIdx: number) => (
+                        <span key={tIdx} className="text-[9px] bg-indigo-50 text-indigo-700 px-1.5 py-0.2 rounded border border-indigo-100 font-bold">
+                          ⚡ {t}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const customerName = m.customerName || selectedLeadMatches.deal.title;
+                          setSelectedLeadMatches(null);
+                          if (prop) {
+                            setActiveTourProperty(prop);
+                            setActiveTourLead({ customerName, name: customerName });
+                            setIsTourModalOpen(true);
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer shadow-2xs"
+                      >
+                        <Calendar className="w-3 h-3" />
+                        <span>Yer Gösterme Planla</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   );

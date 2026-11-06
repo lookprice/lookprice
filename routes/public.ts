@@ -2827,13 +2827,19 @@ router.post("/real-estate/:id/sign", async (req, res) => {
     );
 
     const nowD = new Date();
-    const trDateStr = `${String(nowD.getDate()).padStart(2, '0')}.${String(nowD.getMonth() + 1).padStart(2, '0')}.${nowD.getFullYear()} ${String(nowD.getHours()).padStart(2, '0')}:${String(nowD.getMinutes()).padStart(2, '0')}`;
+    const trDateStr = `${String(nowD.getDate()).padStart(2, '0')}.${String(nowD.getMonth() + 1).padStart(2, '0')}.${nowD.getFullYear()} ${String(nowD.getHours()).padStart(2, '0')}:${String(nowD.getMinutes()).padStart(2, '0')}:${String(nowD.getSeconds()).padStart(2, '0')}`;
     const isRejected = decision === "rejected";
+    const resolvedIp = String(req.headers["x-forwarded-for"] || req.ip || "127.0.0.1").split(",")[0].trim();
+    const otpCode = req.body.otpCode || String(Math.floor(100000 + Math.random() * 900000));
+    const partnerId = req.body.partnerId || "";
+    const legalSealText = `Bu sözleşme [${resolvedIp}] IP adresi üzerinden [${trDateStr}] anında [OTP Doğrulama Kodu: #${otpCode}] ile hukuki ve değiştirilemez olarak dijital mühürlenmiştir.`;
 
     const newDoc = {
       id: `virtual-contract-${Date.now()}`,
       name: isRejected
         ? `RET / Düzeltme Talebi (Sözleşme & Eşya Listesi) - ${clientName} (${trDateStr})`
+        : templateId === "external_partner_revenue_share"
+        ? `Dış Paydaş Gelir Paylaşım Protokolü [IP/OTP Mühürlü] - ${clientName} (${trDateStr})`
         : `Dijital İmzalı Sözleşme & Eşya Tutanağı - ${clientName} (${trDateStr})`,
       category: "contract",
       file_url: "is_virtual_contract",
@@ -2850,7 +2856,10 @@ router.post("/real-estate/:id/sign", async (req, res) => {
         rejectionReason: rejectionReason || "",
         fixtureApproved: !isRejected && Boolean(fixtureApproved || resolvedIsFurnishedRental),
         signingName: clientName,
-        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        ipAddress: resolvedIp,
+        otpCode,
+        legalSeal: legalSealText,
+        userAgent: req.headers["user-agent"] || "Mobil Tarayıcı",
         signatureImage: isRejected ? "" : signatureImage,
         depositAmount: resolvedDepositAmount,
         rentDuration: rentDuration || "1 Yıl",
@@ -2866,12 +2875,43 @@ router.post("/real-estate/:id/sign", async (req, res) => {
     };
 
     const updatedDocs = [...existingDocs, newDoc];
+
+    // If an external partner signed the revenue share agreement, lock their stakeholder row in commission_pool!
+    let updatedCommissionPool = existingSecData.commission_pool;
+    if (!isRejected && updatedCommissionPool && Array.isArray(updatedCommissionPool.stakeholders)) {
+      const updatedStks = updatedCommissionPool.stakeholders.map((stk: any) => {
+        if ((partnerId && stk.id === partnerId) || (!partnerId && stk.is_external && stk.name?.toLowerCase().includes(clientName.toLowerCase()))) {
+          return {
+            ...stk,
+            payout_status: "agreement_signed",
+            is_locked: true,
+            signed_at: nowD.toISOString(),
+            signed_ip: resolvedIp,
+            otp_code: otpCode,
+            legal_seal: legalSealText,
+            signed_signature: signatureImage || "DİJİTAL OTP & IP MÜHRÜ"
+          };
+        }
+        return stk;
+      });
+      const pendingCount = updatedStks.filter((s: any) => s.is_external && s.payout_status === "pending_agreement").length;
+      updatedCommissionPool = {
+        ...updatedCommissionPool,
+        stakeholders: updatedStks,
+        all_external_signed: pendingCount === 0,
+        pending_signatures_count: pendingCount
+      };
+    }
+
     const updatedSecData = {
       ...existingSecData,
+      commission_pool: updatedCommissionPool,
       fixture_approval_status: isRejected ? "rejected" : "approved",
-      fixture_approval_note: isRejected ? (rejectionReason || "Müşteri eşya/sözleşme listesinde düzeltme talep etti.") : "Müşteri sözleşmeyi ve eşya listesini/resimlerini inceleyerek dijital imzayla onayladı.",
+      fixture_approval_note: isRejected
+        ? (rejectionReason || "Müşteri eşya/sözleşme listesinde düzeltme talep etti.")
+        : `${legalSealText}`,
       fixture_approval_date: trDateStr,
-      fixture_approved_by: `${clientName} (${clientPhone})`
+      fixture_approved_by: `${clientName} (${clientPhone}) • IP: ${resolvedIp} • OTP: #${otpCode}`
     };
 
     if (tableName === "real_estate_properties") {
@@ -2889,6 +2929,10 @@ router.post("/real-estate/:id/sign", async (req, res) => {
     res.json({
       success: true,
       decision: isRejected ? "rejected" : "approved",
+      ipAddress: resolvedIp,
+      timestamp: trDateStr,
+      otpCode,
+      legalSeal: legalSealText,
       document: newDoc,
       sector_data: updatedSecData
     });

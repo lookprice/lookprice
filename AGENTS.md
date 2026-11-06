@@ -502,3 +502,28 @@ This file outlines strict engineering, performance, and naming directives that m
   - **Eşya Seçimi & Seçili Eşyaya Ait Çoklu Fotoğraf Görünümü**: `Eşya Seçimi` açılır listesindeki yazı boyutu kompakt (`text-[11px]`) tutulur; seçilen eşyanın varsayılan ismi doğrudan düzenlenebilir, yeni eşya eklenebilir veya silinebilir (ikinci bir serbest metin kutusu bulunmaz). Bir eşya seçildiğinde alt bölümde doğrudan o eşyaya ait fotoğraflar (birden fazla fotoğraf destekli) gösterilir; fotoğrafı henüz çekilmemiş bir eşya seçildiğinde alt alan boş görünerek operatörün eksik eşyayı anında fark etmesi sağlanır.
   - **Satır Bazlı Kompakt PDF Tutanak ve Kira Sözleşmesi Entegrasyonu**: Demirbaş tespit tutanağı ve kira sözleşmesi eki, sayfalarca A4 israfına yol açan dev bloklar yerine **satır satır kompakt tablo/liste** (Sıra No, Eşya Adı & Nitelik/Durum, Zaman Damgası ve yan yana kompakt küçük resimler) şeklinde oluşturulur ve doğrudan PDF olarak indirilebilir.
   - **WhatsApp Müşteri Onay / Red ve Çıkış Depozito Güvence Politikası**: Kira sözleşmesi, ekli eşya listesi ve mühürlü eşya fotoğrafları tek tıkla WhatsApp üzerinden kiralayacak müşteriye gönderilir. Müşteri mobil bağlantıda tüm eşyaları ve fotoğraflarını inceleyip **Onaylıyorum (İmzala)** veya **Reddediyorum / Düzeltme Talebi** aksiyonu verebilir; sonuç anında portföy kaydına işlenir. Ayrıca tahliye anında giriş fotoğrafları ile çıkış durumu karşılaştırılarak depozito iadesinin bu dijital tutanağa göre yapılacağını hükme bağlayan **Tahliye & Depozito Eşya Durum Güvencesi** maddesi sözleşmede yer alır.
+
+---
+
+## 34. Bütçe Dostu Mimari (Cloud-Efficiency), Fütüristik Minimalist Operatör Standardı ve Dış Paydaş Komisyon & Dijital Sözleşme Anayasası
+
+- **1. Bütçe Dostu Mimari ve Sıfır Dış Bağımlılık (Cloud-Efficiency Protocol)**:
+  - Geliştirilen tüm modüller; gereksiz, pahalı harici SaaS servislerine (ücretli bildirim botları, üçüncü parti hakediş motorları, harici imza API'leri) ihtiyaç duymadan; yerel PostgreSQL, hafif Express API uçları ve istemci tabanlı yüksek performanslı yardımcılarla (utility engines) çalışmalıdır.
+  - Veri tabanı sorguları ve arka plan görevleri Supabase, Render, Google Cloud Run ve Cloud SQL Developer Edition ölçeklenebilirliğinde minimum CPU/RAM tüketecek şekilde optimize edilmelidir.
+
+- **2. Fütüristik Minimalist Operatör ve Gün Işığı Saha Standardı (Daylight High-Contrast Futuristic Broker UI)**:
+  - Tasarımlar; antik çağ emojilerinden, gereksiz dekoratif gölgelerden ve devasa padding israfından arındırılmış, fütüristik ve minimalist LookPrice standartlarında olmalıdır.
+  - Mobil ve tablet ile sahada açık havada / güneş ışığı altında işlem yapan danışmanların ekranı net okuyabilmesi için **kristal netliğinde yüksek kontrast** (`bg-white` ve `bg-slate-50` zeminler, `border-slate-300` keskin hatlar, `text-slate-950` derin siyah tipografi, `bg-slate-900` ve `bg-indigo-600` üzerinde `text-white` net aksiyon butonları) zorunludur.
+
+- **3. Çoklu Paydaş (Multi-Stakeholder) Komisyon Havuzu ve Masraf Ayrımı (Net vs Brüt)**:
+  - Gayrimenkul işlemlerinde portföy kaynağı, müşteri kaynağı, kapanış danışmanı ve şirket payı dinamik hakediş matrisi (`CommissionPool`) ile takip edilir.
+  - Komisyon hesaplamasında işlem masrafları (drone çekimi, reklam, noter vb.) sözleşme esasına göre "Masraflar Düşüldükten Sonra Net Hakediş" veya "Brüt Hizmet Bedeli" üzerinden dinamik hesaplanır.
+
+- **4. Dijital Sözleşme Onay Checkpoint'i ve Değişmezlik (Immutability & Override Protection)**:
+  - Bir işlemde dış paydaş (freelance / iş ortağı) tanımlı ise, ilgili dış paydaş dijital "Gelir Paylaşım Protokolü"nü onaylamadan (`agreement_signed`) işlem ASLA "5. Başarılı / Kapanış" statüsüne geçirilemez; sistem işlemi bloke eder ve operatörü uyarır.
+  - Onaylanan paydaş sözleşmesi ve komisyon oranı tek taraflı silinemez (`is_locked = true`). Zorunlu değişiklikler yalnızca Şube Yöneticisi / Admin yetkisiyle revize edilebilir ve sistem revizyon geçmişini denetim kütüğünde (`revision_history` audit trail) saklayarak dış paydaşa yeni onay üretir.
+
+- **5. Randevu Hatırlatıcıları ve Gölge Bildirimler (Shadow Notifications)**:
+  - Planlanan yer gösterme turları için hem danışmana hem de müşteriye tek tıkla saat, konum ve mülk referansını içeren WhatsApp hatırlatması üretilir.
+  - Bir mülkün kaynağı dış paydaş ise; o mülke yer gösterme randevusu girildiğinde veya yeni bir müşteri eşleştiğinde dış paydaşa otomatik gölge bilgilendirme bildirimi iletilir.
+

@@ -23,6 +23,11 @@ export interface ContractPlaceholderValues {
   signatureImage?: string;
   isFurnishedRental?: boolean;
   fixturePhotosCount?: number;
+  partnerName?: string;
+  partnerRole?: string;
+  commissionPercentage?: string;
+  estimatedPayout?: string;
+  calculationType?: string;
   fixturePhotos?: {
     id?: string;
     name: string;
@@ -777,6 +782,93 @@ ${v.isFurnishedRental ? `\n> **EŞYA VE DEMİRBAŞ ONAYI:** "Mülk'ü kiralarken
 **Kiracı:** ${v.clientName}
 **Mülk:** ${v.propertyTitle}
 **Taahhüt Tarihi:** ${v.contractDate}
+`;
+      return { html, markdown };
+    }
+  },
+  {
+    id: "external_partner_revenue_share",
+    titleTr: "Dış Paydaş Gelir Paylaşım Protokolü (Revenue Share)",
+    titleEn: "External Partner Revenue Share Agreement",
+    descriptionTr: "Dış iş ortağı, portföy/müşteri yönlendiren paydaş için dijital hakediş ve komisyon güvence protokolü.",
+    descriptionEn: "Digital commission protection and revenue share agreement for external freelance/partner stakeholders.",
+    getTemplate: (v) => {
+      const partner = v.partnerName || v.clientName || "Dış İş Ortağı / Paydaş";
+      const partnerRole = v.partnerRole || "Portföy & Müşteri Paydaşı";
+      const commRate = v.commissionPercentage || "%20";
+      const payout = v.estimatedPayout || "Hesaplanan Komisyon Payı";
+      const calcType = v.calculationType || "Ortak Masraflar Düşüldükten Sonra Net Hakediş";
+
+      const html = `
+<div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #0f172a; line-height: 1.6; background-color: #ffffff;">
+  <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #0f172a; padding-bottom: 20px;">
+    <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.15em; color: #4338ca; text-transform: uppercase; margin-bottom: 5px;">LOOKPRICE EMLAK EKOSİSTEMİ • AKILLI HAKEDİŞ SÖZLEŞMESİ</div>
+    <h1 style="font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">DIŞ PAYDAŞ GELİR PAYLAŞIM PROTOKOLÜ</h1>
+    <h2 style="font-size: 13px; font-weight: bold; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase;">EXTERNAL PARTNER REVENUE SHARE & COMMISSION AGREEMENT</h2>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; font-size: 13px; background-color: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+    <div>
+      <strong style="color: #4338ca;">1. YETKİLİ OFİS / FİRMA:</strong><br/>
+      Firma Adı: <strong>${v.storeName}</strong><br/>
+      İletişim Tel: ${v.storePhone || 'Ofis Kaydı'}<br/>
+      E-posta: ${v.storeEmail || 'lookprice.me@gmail.com'}
+    </div>
+    <div>
+      <strong style="color: #4338ca;">2. DIŞ PAYDAŞ / ÇÖZÜM ORTAĞI:</strong><br/>
+      Adı Soyadı / Firma: <strong>${partner}</strong><br/>
+      Rol / Görev: <strong>${partnerRole}</strong><br/>
+      Telefon: ${v.clientPhone || 'Belirtilmiş Paydaş İletişimi'}
+    </div>
+  </div>
+
+  <div style="background-color: #f1f5f9; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; margin-bottom: 25px; font-size: 13px;">
+    <strong style="color: #0f172a; text-transform: uppercase;">İşleme Konu Portföy ve Hizmet Bedeli Matrisi:</strong><br/>
+    Taşınmaz Bilgisi: <strong>${v.propertyTitle}</strong> [${v.propertyLocation || 'KKTC'}]<br/>
+    Portföy Referans No: <strong>${v.propertyBlockPlot || 'REF'}</strong><br/>
+    Mülk Liste / Satış Bedeli: <strong>${v.propertyPrice}</strong><br/>
+    Paydaş Hakediş Oranı: <span style="font-size: 15px; font-weight: 900; color: #047857; background: #ecfdf5; padding: 2px 8px; border-radius: 6px; border: 1px solid #a7f3d0;">${commRate}</span><br/>
+    Hesaplama Modeli: <strong>${calcType}</strong><br/>
+    Tahmini / Kesin Hakediş Tutarı: <strong>${payout}</strong>
+  </div>
+
+  <div style="margin-bottom: 25px; text-align: justify; font-size: 13px; line-height: 1.8;">
+    <strong>MADDE 1 - SÖZLEŞMENİN KONUSU VE KAPSAMI:</strong><br/>
+    İşbu protokol, yukarıda bilgileri yer alan taşınmazın satış veya kiralama aracılık faaliyetleri neticesinde elde edilecek toplam aracılık komisyonundan (hizmet bedelinden), Dış Paydaş <strong>${partner}</strong> adına tahakkuk edecek gelir paylaşımı hakediş oranını ve ödeme şartlarını taraflar arasında hukuki ve dijital olarak güvence altına alır.
+  </div>
+
+  <div style="margin-bottom: 25px; text-align: justify; font-size: 13px; line-height: 1.8;">
+    <strong>MADDE 2 - HAKEDİŞİN KESİNLEŞMESİ VE ÖDEME ZAMANI:</strong><br/>
+    Taşınmazın alıcı/kiracı ile resmi sözleşme imzalanması ve hizmet bedelinin ofis hesaplarına intikal etmesini müteakip en geç <strong>3 (üç) iş günü</strong> içerisinde, paydaşın payına düşen <strong>${commRate} (${payout})</strong> tutarındaki meblağ, paydaşın beyan edeceği banka/IBAN hesabına kesintisiz olarak ödenecektir.
+  </div>
+
+  <div style="margin-bottom: 25px; text-align: justify; font-size: 13px; line-height: 1.8; background-color: #fffbeb; padding: 12px; border-left: 4px solid #f59e0b; border-radius: 4px;">
+    <strong>MADDE 3 - DEĞİŞMEZLİK VE OVERRIDE KORUMASI (IMMUTABILITY):</strong><br/>
+    İşbu protokol taraflarca dijital olarak onaylandığı andan itibaren LookPrice Emlak Çekirdeği üzerinde Kilitli (Locked) statüye geçer. Ofis yöneticisi, çalışan veya herhangi bir üçüncü şahıs tarafından tek taraflı olarak paydaş silinemez, hakediş oranı düşürülemez veya yok sayılamaz. Zorunlu revizyonlar ancak tarafların karşılıklı yeni dijital onayı ve sistem denetim kaydı (audit trail) ile geçerlilik kazanır.
+  </div>
+
+  <div style="margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+    <div style="text-align: center; border: 1px solid #cbd5e1; padding: 15px; border-radius: 12px; background-color: #f8fafc; min-height: 140px; display: flex; flex-direction: column; justify-content: space-between;">
+      <span style="font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase;">YETKİLİ EMLAK OFİSİ</span>
+      <div style="font-size: 12px; font-weight: 900; color: #0f172a;">${v.storeName}</div>
+      <div style="font-size: 9px; color: #64748b;">Kurumsal Onay • Tarih: ${v.contractDate}</div>
+    </div>
+
+    <div style="text-align: center; border: 1px solid #cbd5e1; padding: 15px; border-radius: 12px; background-color: #f8fafc; min-height: 140px; display: flex; flex-direction: column; justify-content: space-between;">
+      <span style="font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase;">DIŞ PAYDAŞ (HAK SAHİBİ)</span>
+      ${renderSignatureOrStamp(partner, v.isSigned, v.signatureImage)}
+      <div style="font-size: 9px; color: #64748b;">Mobil / Tokenized Dijital İmza • ${v.contractDate}</div>
+    </div>
+  </div>
+</div>
+`;
+      const markdown = `
+# DIŞ PAYDAŞ GELİR PAYLAŞIM PROTOKOLÜ
+**Yetkili Ofis:** ${v.storeName}
+**Dış Paydaş:** ${partner} (${partnerRole})
+**Mülk:** ${v.propertyTitle}
+**Komisyon Payı:** ${commRate} (${payout})
+**Tarih:** ${v.contractDate}
 `;
       return { html, markdown };
     }

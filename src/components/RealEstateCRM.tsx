@@ -19,20 +19,49 @@ import {
   Archive,
   Layers,
   LayoutList,
-  Columns3
+  Columns3,
+  Sparkles,
+  Share2,
+  BellRing,
+  AlertTriangle,
+  Lock,
+  ShieldCheck,
+  ShieldAlert,
+  Users,
+  Receipt,
+  History,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../services/api';
 import { format, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { 
+  findMatchingLeadsForProperty, 
+  findReEngagementOpportunities, 
+  calculateSLAStatus, 
+  MatchResult, 
+  ReEngagementOpportunity 
+} from '../utils/realEstateMatchEngine';
+import { 
+  CommissionPool, 
+  CommissionStakeholder, 
+  validateCheckpointForClosing, 
+  getPartnerWhatsAppContractInvite, 
+  getShadowNotificationWhatsAppMessage,
+  recalculateCommissionPool
+} from '../utils/realEstateCommissionEngine';
+import { DealCommissionModal } from './DealCommissionModal';
+import { ExternalPartnerPortalModal } from './ExternalPartnerPortalModal';
 
 interface RealEstateCRMProps {
   storeId: number;
   properties: any[];
   tasks: any[];
+  deals?: any[];
   onOpenCalendar: () => void;
-  onOpenTourModal: (property: any) => void;
+  onOpenTourModal: (property: any, initialLead?: any) => void;
   onRefresh?: () => void;
   searchQuery?: string;
   hideHeader?: boolean;
@@ -50,6 +79,7 @@ export const RealEstateCRM = ({
   storeId, 
   properties, 
   tasks, 
+  deals = [],
   onOpenCalendar, 
   onOpenTourModal, 
   onRefresh,
@@ -80,6 +110,18 @@ export const RealEstateCRM = ({
   const [showClosingModal, setShowClosingModal] = useState(false);
   const [showNegativeModal, setShowNegativeModal] = useState(false);
 
+  // Commission & Stakeholder & Checkpoint states
+  const [showCommissionModal, setShowCommissionModal] = useState(false);
+  const [commissionProperty, setCommissionProperty] = useState<any>(null);
+
+  const [showCheckpointModal, setShowCheckpointModal] = useState(false);
+  const [blockedValidation, setBlockedValidation] = useState<any>(null);
+  const [blockedProperty, setBlockedProperty] = useState<any>(null);
+
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyProperty, setHistoryProperty] = useState<any>(null);
+  const [showPartnerPortalModal, setShowPartnerPortalModal] = useState(false);
+
   // Form Inputs
   const [analysisNote, setAnalysisNote] = useState("");
   const [analysisOutcome, setAnalysisOutcome] = useState<'analysis' | 'negotiation' | 'negative'>('analysis');
@@ -106,8 +148,58 @@ export const RealEstateCRM = ({
     setCollapsedStages(prev => ({ ...prev, [stageId]: !prev[stageId] }));
   };
 
-  // Helper to persist property stage & status to real_estate_properties (with optimistic state update)
+  // WhatsApp Appointment Reminders & Shadow Notifications
+  const handleSendAgentReminder = (task: any, prop: any) => {
+    const brokerName = prop.responsible_agent || 'Danışman';
+    const ref = prop.reference_no || 'REF';
+    const loc = prop.location || prop.kktc_region || 'KKTC';
+    const dateStr = task.due_date ? format(parseISO(task.due_date), 'd MMMM yyyy HH:mm', { locale: tr }) : 'Bugün';
+    const msg = `🔔 *Hatırlatma: Randevu Saati Yaklaştı*\n\nSayın *${brokerName}*,\n*${prop.title}* [REF: ${ref}] portföyünüz için *${dateStr}* tarihinde yer gösterme randevunuz bulunmaktadır.\n📍 *Konum:* ${loc}\n📝 *Not:* ${task.description || 'Keşif Turu'}\n\nLütfen randevu saatinden 15 dakika önce adreste hazır olunuz.\n_LookPrice Operasyon & Randevu Merkezi_`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    toast.success('Danışman randevu hatırlatması WhatsApp için hazırlandı!');
+  };
+
+  const handleSendClientReminder = (task: any, prop: any) => {
+    const ref = prop.reference_no || 'REF';
+    const loc = prop.location || prop.kktc_region || 'KKTC';
+    const dateStr = task.due_date ? format(parseISO(task.due_date), 'd MMMM yyyy HH:mm', { locale: tr }) : 'Bugün';
+    const brokerName = prop.responsible_agent || 'Danışmanımız';
+    const msg = `Merhaba,\n\nBugün *${dateStr}* tarihinde planlanan *${prop.title}* [REF: ${ref}] taşınmaz keşif turu randevunuzu hatırlatırız.\n\n📍 *Buluşma Noktası:* ${loc}\n👤 *Sorumlu Danışman:* ${brokerName}\n\nHerhangi bir gecikme durumunda lütfen bize bu hattan bilgi veriniz. Görüşmek üzere!\n_LookPrice Emlak_`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    toast.success('Müşteri keşif turu hatırlatması WhatsApp için hazırlandı!');
+  };
+
+  const handleSendShadowNotification = (prop: any, task: any) => {
+    const pool: CommissionPool | undefined = prop.sector_data?.commission_pool;
+    const extPartner = pool?.stakeholders?.find((s: any) => s.is_external);
+    const partnerName = extPartner?.name || 'Değerli İş Ortağımız';
+    const ref = prop.reference_no || 'REF';
+    const dateStr = task?.due_date ? format(parseISO(task.due_date), 'd MMMM yyyy HH:mm', { locale: tr }) : 'Bugün';
+    const msg = `Sn. *${partnerName}*,\n\nOfisimize kazandırdığınız *${prop.title}* [REF: ${ref}] portföyünüz için *${dateStr}* tarihinde yer gösterme (keşif turu) randevusu planlanmıştır.\n\nSüreç ofisimizce yakından takip edilmekte olup gelişmeler tarafınıza aktarılacaktır.\n_LookPrice Portföy & Hakediş Güvence Merkezi_`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    toast.success('Dış paydaşa gölge randevu bildirimi WhatsApp için hazırlandı!');
+  };
+
+  // Helper to persist property stage & status to real_estate_properties (with optimistic state update & audit logging)
   const persistPropertyStageUpdate = async (property: any, newStatus: string, updatedSectorData: any) => {
+    // Audit History Trail
+    const currentHist = Array.isArray(property.sector_data?.pipeline_history) ? property.sector_data.pipeline_history : [];
+    const prevStage = property.sector_data?.pipeline_stage || property.status || 'planned';
+    const nextStage = updatedSectorData.pipeline_stage || newStatus;
+    const actionNote = updatedSectorData.last_analysis_note || updatedSectorData.negative_reason || updatedSectorData.negotiation_notes || updatedSectorData.closing_notes || 'Aşama Değişikliği';
+    
+    const newLogEntry = {
+      timestamp: new Date().toISOString(),
+      from_stage: prevStage,
+      to_stage: nextStage,
+      status: newStatus,
+      actor: property.responsible_agent || 'Danışman / Sistem',
+      note: actionNote,
+      offer_amount: updatedSectorData.offer_amount,
+      final_price: updatedSectorData.final_price
+    };
+    updatedSectorData.pipeline_history = [newLogEntry, ...currentHist];
+
     // 1. Optimistic local state update so UI moves the item immediately
     setLocalPropertyOverrides(prev => ({
       ...prev,
@@ -116,6 +208,17 @@ export const RealEstateCRM = ({
         sector_data: updatedSectorData
       }
     }));
+
+    // Async sync to property_tasks for office transparency (biri izne çıktığında süreci devralabilmesi için)
+    try {
+      api.createTask({
+        property_id: property.id,
+        task_type: 'stage_change',
+        description: `[SÜREÇ TARİHÇESİ]: ${prevStage} ➔ ${nextStage} (${actionNote?.slice(0, 70)})`,
+        due_date: new Date().toISOString(),
+        store_id: storeId
+      }, storeId).catch(() => {});
+    } catch(e) {}
 
     // 2. Persist to backend real_estate_properties table
     const payload = {
@@ -323,8 +426,19 @@ export const RealEstateCRM = ({
     }
   };
 
-  // Action: Move to Closing / Başarılı (5. Aşama)
+  // Action: Move to Closing / Başarılı (5. Aşama) - with Critical Checkpoint Intercept
   const handleOpenClosing = (property: any) => {
+    // CRITICAL CHECKPOINT VALIDATION:
+    // If an external stakeholder has not signed the revenue share agreement, BLOCK CLOSING!
+    const pool: CommissionPool | undefined = property.sector_data?.commission_pool;
+    const checkpoint = validateCheckpointForClosing(pool);
+    if (!checkpoint.canProceed) {
+      setBlockedProperty(property);
+      setBlockedValidation(checkpoint);
+      setShowCheckpointModal(true);
+      return;
+    }
+
     setActiveProperty(property);
     setFinalPrice(property.sector_data?.offer_amount || String(property.price || ''));
     setClientInfo(property.sector_data?.closed_client || "");
@@ -449,6 +563,48 @@ export const RealEstateCRM = ({
     } catch (err) {
       toast.error("Yeniden canlandırılamadı.");
     }
+  };
+
+  // Vendor (Mülk Sahibi) Report via WhatsApp
+  const handleSendVendorReport = (property: any, matchedLeads: MatchResult[], propTasks: any[]) => {
+    const ref = property.reference_no || 'REF';
+    const completedTours = propTasks.filter((t: any) => t.task_type === 'tour').length;
+    const msg = `🏡 *PORTFÖY HAFTALIK PERFORMANS RAPORU*
+
+📌 *Mülk:* ${property.title} [REF: ${ref}]
+💰 *Fiyat:* ${property.price} ${property.currency}
+📍 *Bölge:* ${property.location || 'KKTC'}
+
+📊 *GÜNCEL CRM DURUMU:*
+🎯 *Eşleşen Talep:* Sistemimizde bu mülkle kriterleri uyuşan *${matchedLeads.length} aktif alıcı/kiracı adayı* tespit edildi.
+👀 *Gerçekleşen Yer Gösterme:* Bugüne kadar *${completedTours} randevu/gezi* organize edildi.
+⚖️ *Piyasa Takibi:* Danışman ekibimiz portföyünüzün satış/kiralama sürecini anlık koordine etmektedir.
+
+Detaylı bilgi için danışmanınızla dilediğiniz an iletişime geçebilirsiniz.
+_LookPrice Portföy & CRM Yönetim Merkezi_`;
+
+    const encoded = encodeURIComponent(msg);
+    window.open(`https://wa.me/?text=${encoded}`, '_blank');
+    toast.success('Mülk Sahibi Raporu WhatsApp için hazırlandı!');
+  };
+
+  // Client Presentation via WhatsApp
+  const handleSendClientPresentation = (property: any, match: MatchResult) => {
+    const ref = property.reference_no || 'REF';
+    const msg = `Sayın *${match.customerName || 'Müşterimiz'}*,
+
+Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyümüz sisteme eklendi:
+
+🏠 *${property.title}* [REF: ${ref}]
+📍 *Konum:* ${property.location || 'KKTC'}
+💰 *Bedel:* ${property.price} ${property.currency}
+🛏️ *Oda / Donanım:* ${property.room_count || ''} ${property.furnished ? '• Eşyalı' : ''}
+
+👉 Portföyü yerinde görmek veya detaylı keşif turu planlamak için lütfen yanıtlayınız.`;
+
+    const encoded = encodeURIComponent(msg);
+    window.open(`https://wa.me/?text=${encoded}`, '_blank');
+    toast.success('Müşteri Portföy Sunumu WhatsApp için hazırlandı!');
   };
 
   const filteredDeals = useMemo(() => {
@@ -617,6 +773,20 @@ export const RealEstateCRM = ({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              setShowPartnerPortalModal(true);
+            }}
+            className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+            title="Dış Paydaş Cüzdanı, İzole Portföy Havuzu ve Anonimleştirilmiş Süreç Logları"
+          >
+            <Handshake className="w-3.5 h-3.5 text-amber-400" />
+            <span>Dış Paydaş Cüzdanı</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               onOpenTourModal(null);
             }}
             className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
@@ -731,6 +901,8 @@ export const RealEstateCRM = ({
                       const latestTask = sortedTasks[0];
                       const sector = deal.property.sector_data || {};
                       const formattedPrice = formatFormattedPrice(deal.property.price, deal.property.currency);
+                      const matchedLeads = findMatchingLeadsForProperty(deal.property, deals);
+                      const topMatch = matchedLeads[0];
 
                       return (
                         <div
@@ -809,6 +981,13 @@ export const RealEstateCRM = ({
                                       {sector.negative_reason}
                                     </span>
                                   ) : null}
+
+                                  {matchedLeads.length > 0 && topMatch && (
+                                    <span className="px-1.5 py-0.2 rounded font-black bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-0.5" title={`Kriterleri uyan ${matchedLeads.length} müşteri talebi bulundu (En yüksek %${topMatch.score})`}>
+                                      <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                                      <span>{matchedLeads.length} Talep (%{topMatch.score})</span>
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -881,6 +1060,13 @@ export const RealEstateCRM = ({
                                   }`}>
                                     <Clock className="w-2.5 h-2.5" />
                                     {latestTask.due_date ? format(parseISO(latestTask.due_date), 'd MMM HH:mm', { locale: tr }) : 'Gezi'}
+                                  </span>
+                                )}
+
+                                {matchedLeads.length > 0 && topMatch && (
+                                  <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0" title={`Kriterleri uyan ${matchedLeads.length} müşteri talebi bulundu (En yüksek %${topMatch.score})`}>
+                                    <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                                    <span>{matchedLeads.length} Talep Uyumlu (%{topMatch.score})</span>
                                   </span>
                                 )}
 
@@ -1052,6 +1238,35 @@ export const RealEstateCRM = ({
                                               {latestTask.completion_note}
                                             </p>
                                           )}
+                                          <div className="pt-1.5 mt-1 border-t border-slate-100 flex items-center gap-1 flex-wrap">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSendAgentReminder(latestTask, deal.property)}
+                                              className="px-2 py-0.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                                              title="Danışmana randevu saatini WhatsApp ile hatırlat"
+                                            >
+                                              <Send className="w-2.5 h-2.5 text-indigo-300" />
+                                              <span>Danışmana Hatırlat</span>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSendClientReminder(latestTask, deal.property)}
+                                              className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                                              title="Müşteriye randevu detayını WhatsApp ile hatırlat"
+                                            >
+                                              <Send className="w-2.5 h-2.5 text-white" />
+                                              <span>Müşteriye Hatırlat</span>
+                                            </button>
+                                            {deal.property.sector_data?.commission_pool?.stakeholders?.some((s: any) => s.is_external) && (
+                                              <span
+                                                className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-black flex items-center gap-1 select-none"
+                                                title="Arka plan tetikleyicisi (background job) tarafından dış paydaşa otomatik gölge bildirim iletildi"
+                                              >
+                                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                                <span>Dış paydaşa bilgi iletildi ✓</span>
+                                              </span>
+                                            )}
+                                          </div>
                                         </>
                                       ) : (
                                         <p className="text-[11px] text-slate-400 font-semibold">Kayıtlı gezi detayı bulunmuyor.</p>
@@ -1093,6 +1308,300 @@ export const RealEstateCRM = ({
                                       )}
                                     </div>
                                   </div>
+
+                                  {/* SMART CRM TALEP EŞLEŞMELERİ & MÜLK SAHİBİ RAPORLAMA BÖLÜMÜ */}
+                                  <div className="bg-white p-2.5 rounded-xl border border-indigo-100/90 shadow-2xs space-y-2">
+                                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5 flex-wrap">
+                                      <div className="flex items-center gap-1.5">
+                                        <div className="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center font-black shadow-2xs">
+                                          <Sparkles className="w-3 h-3" />
+                                        </div>
+                                        <div>
+                                          <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
+                                            <span>Akıllı CRM Talep Eşleşmeleri</span>
+                                            <span className="px-1.5 py-0.2 rounded text-[9px] bg-indigo-50 text-indigo-700 font-mono font-bold border border-indigo-200">
+                                              {matchedLeads.length} Eşleşen Talep
+                                            </span>
+                                          </h4>
+                                          <span className="text-[9px] text-slate-500 font-bold">
+                                            Ağırlıklı Puanlama Motoru (Lokasyon %30, Bütçe Fuzzy %25, İşlem %20, Tip/Oda %15, Yaş/Kat %10)
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Vendor (Mülk Sahibi) Feedback Report Trigger */}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleSendVendorReport(deal.property, matchedLeads, deal.tasks);
+                                        }}
+                                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95"
+                                        title="Mülk sahibine bu portföyün güncel CRM durum raporunu WhatsApp üzerinden iletir"
+                                      >
+                                        <Share2 className="w-3 h-3 text-emerald-600" />
+                                        <span>Mülk Sahibine Haftalık Rapor Gönder (WhatsApp)</span>
+                                      </button>
+                                    </div>
+
+                                    {/* Matched Leads List */}
+                                    {matchedLeads.length === 0 ? (
+                                      <p className="text-[10px] text-slate-400 font-medium py-1">
+                                        Bu mülk kriterlerine (%55 üzeri) henüz uyan açık müşteri talebi bulunmuyor. Yeni bir talep eklendiğinde sistem otomatik eşleştirecektir.
+                                      </p>
+                                    ) : (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {matchedLeads.slice(0, 4).map((match, mIdx) => (
+                                          <div key={mIdx} className="p-2 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1.5">
+                                            <div className="flex items-start justify-between gap-1.5">
+                                              <div className="min-w-0 flex-1">
+                                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-black uppercase font-mono ${
+                                                  match.tier === 'high' 
+                                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                                }`}>
+                                                  %{match.score} EŞLEŞME • {match.tier === 'high' ? '🔥 Yüksek Eşleşme' : '⚡ Olası Fırsat'}
+                                                </span>
+                                                <p className="text-[11px] font-extrabold text-slate-900 truncate mt-0.5">{match.dealTitle}</p>
+                                              </div>
+                                            </div>
+
+                                            {/* Criteria tags */}
+                                            <div className="flex flex-wrap gap-1">
+                                              {match.reasons.slice(0, 2).map((r, rIdx) => (
+                                                <span key={rIdx} className="text-[9px] bg-white px-1.5 py-0.2 rounded border border-slate-200 text-slate-600 font-semibold truncate max-w-full">
+                                                  {r}
+                                                </span>
+                                              ))}
+                                              {match.tolerancesApplied.map((t, tIdx) => (
+                                                <span key={tIdx} className="text-[9px] bg-indigo-50 text-indigo-700 px-1.5 py-0.2 rounded border border-indigo-100 font-bold">
+                                                  ⚡ {t}
+                                                </span>
+                                              ))}
+                                            </div>
+
+                                            {/* Quick Actions */}
+                                            <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/60">
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  onOpenTourModal(deal.property, { customerName: match.customerName, name: match.customerName });
+                                                }}
+                                                className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-black flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+                                              >
+                                                <Calendar className="w-2.5 h-2.5" />
+                                                <span>Yer Gösterme Planla</span>
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleSendClientPresentation(deal.property, match);
+                                                }}
+                                                className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-black flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+                                              >
+                                                <MessageSquare className="w-2.5 h-2.5" />
+                                                <span>WhatsApp ile Sun</span>
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* #1. RE-ENGAGEMENT ENGINE (Fiyat İndirimi & Soğuk Talep Uyandırma) */}
+                                  {(() => {
+                                    const reOpportunities = findReEngagementOpportunities(deal.property, deals);
+                                    if (reOpportunities.length === 0) return null;
+                                    return (
+                                      <div className="bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/90 shadow-2xs space-y-1.5 animate-in fade-in duration-150">
+                                        <div className="flex items-center justify-between gap-2 border-b border-amber-200/60 pb-1 flex-wrap">
+                                          <div className="flex items-center gap-1.5 text-amber-950 font-black text-[11px]">
+                                            <BellRing className="w-3.5 h-3.5 text-amber-600 animate-bounce" />
+                                            <span>Fiyat İndirimi Fırsat Alarmı ({reOpportunities.length} Soğuk Talep Uyandırılabilir)</span>
+                                          </div>
+                                          <span className="text-[9px] bg-amber-600 text-white font-bold px-1.5 py-0.2 rounded font-mono">
+                                            Re-Engagement Motoru
+                                          </span>
+                                        </div>
+                                        <p className="text-[10px] text-amber-800 font-medium">
+                                          Fiyat güncellemesi sonrasında daha önce bütçesi yetmeyen veya olumsuz sonuçlanan bu talepler artık portföy ile tam uyumlu hale geldi:
+                                        </p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                          {reOpportunities.map((opp, oIdx) => (
+                                            <div key={oIdx} className="p-2 bg-white rounded-lg border border-amber-200 shadow-2xs space-y-1 text-[10px]">
+                                              <div className="flex items-center justify-between gap-1">
+                                                <span className="font-extrabold text-slate-900 truncate">{opp.customerName}</span>
+                                                <span className="px-1 py-0.2 bg-emerald-50 text-emerald-800 font-black rounded border border-emerald-200 font-mono">
+                                                  %{opp.newMatchScore} Uyum (+%{opp.discountPercent} İndirim)
+                                                </span>
+                                              </div>
+                                              <p className="text-slate-500 truncate">{opp.deal.title}</p>
+                                              <div className="pt-1 border-t border-slate-100 flex items-center justify-end gap-1">
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    window.open(`https://wa.me/?text=${encodeURIComponent(opp.whatsappMessage)}`, '_blank');
+                                                    toast.success('İndirim fırsat mesajı WhatsApp için hazırlandı!');
+                                                  }}
+                                                  className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                                                >
+                                                  <MessageSquare className="w-2.5 h-2.5" />
+                                                  <span>İndirim Bildir (WhatsApp)</span>
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+
+                                  {/* COMMISSION & EXTERNAL STAKEHOLDER POOL (Smart Contract Checkpoint) */}
+                                  {(() => {
+                                    const pool: CommissionPool | undefined = deal.property.sector_data?.commission_pool;
+                                    const extCount = pool?.stakeholders?.filter((s: any) => s.is_external).length || 0;
+                                    const unsignedExt = pool?.stakeholders?.filter((s: any) => s.is_external && s.payout_status === 'pending_agreement').length || 0;
+
+                                    return (
+                                      <div className="bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-2xs space-y-2">
+                                        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5 flex-wrap">
+                                          <div className="flex items-center gap-1.5">
+                                            <div className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center font-black shadow-2xs">
+                                              <DollarSign className="w-3 h-3" />
+                                            </div>
+                                            <div>
+                                              <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
+                                                <span>Komisyon & Dış Paydaş Havuzu</span>
+                                                {extCount > 0 && (
+                                                  <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border ${
+                                                    unsignedExt > 0 ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                                  }`}>
+                                                    {unsignedExt > 0 ? `⚠️ ${unsignedExt} Paydaş Onayı Bekleniyor` : '✔ Tüm Paydaşlar Onaylı'}
+                                                  </span>
+                                                )}
+                                                {pool?.accounting_posted && (
+                                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                                    🏦 Cari Hesaba Alacak Yazıldı ✓
+                                                  </span>
+                                                )}
+                                              </h4>
+                                            </div>
+                                          </div>
+
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowPartnerPortalModal(true);
+                                              }}
+                                              className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all"
+                                              title="Dış Paydaş Cüzdanı ve İzole Portföy Paneli"
+                                            >
+                                              <Handshake className="w-3 h-3 text-amber-700" />
+                                              <span>Paydaş Cüzdanı</span>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setCommissionProperty(deal.property);
+                                                setShowCommissionModal(true);
+                                              }}
+                                              className="px-2.5 py-1 bg-slate-900 hover:bg-indigo-600 text-white rounded text-[10px] font-black flex items-center gap-1 cursor-pointer shadow-2xs transition-all active:scale-95"
+                                            >
+                                              <Users className="w-3 h-3 text-emerald-300" />
+                                              <span>Hakediş & Masraf Yönet</span>
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {pool ? (
+                                          <div className="space-y-1.5 text-[11px]">
+                                            <div className="flex items-center justify-between text-slate-600 font-bold bg-slate-50 p-1.5 rounded-lg border border-slate-200/70 flex-wrap gap-1">
+                                              <span>Toplam Hizmet Bedeli: <strong className="text-slate-900 font-mono">{pool.gross_commission?.toLocaleString('tr-TR')} {pool.currency}</strong></span>
+                                              <span>Ortak Masraflar: <strong className="text-rose-600 font-mono">-{pool.total_expenses?.toLocaleString('tr-TR')} {pool.currency}</strong></span>
+                                              <span>Net Dağıtılabilir: <strong className="text-emerald-700 font-mono">{pool.net_distributable_commission?.toLocaleString('tr-TR')} {pool.currency}</strong> ({pool.calculation_mode === 'net' ? 'Net' : 'Brüt'})</span>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                              {pool.stakeholders?.map((stk: any) => (
+                                                <div key={stk.id} className="p-1.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between gap-1 text-[10px]">
+                                                  <div className="min-w-0">
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="font-extrabold text-slate-900 truncate">{stk.name}</span>
+                                                      {stk.is_external && <span className="text-[8px] bg-amber-100 text-amber-800 px-1 py-0.2 rounded font-black">Dış Paydaş</span>}
+                                                      {stk.is_locked && <Lock className="w-2.5 h-2.5 text-slate-400" />}
+                                                    </div>
+                                                    <p className="text-slate-500 font-mono">%{stk.percentage} • {stk.calculated_amount?.toLocaleString('tr-TR')} {stk.currency}</p>
+                                                  </div>
+                                                  <div>
+                                                    {stk.payout_status === 'agreement_signed' ? (
+                                                      <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                                        ✔ Onaylı
+                                                      </span>
+                                                    ) : (
+                                                      <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setCommissionProperty(deal.property);
+                                                          setShowCommissionModal(true);
+                                                        }}
+                                                        className="text-[9px] font-black text-amber-700 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200 cursor-pointer"
+                                                      >
+                                                        ⏳ Onay Bekliyor
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <p className="text-[10px] text-slate-400 font-medium">
+                                            Bu işlem için henüz özel hakediş havuzu tanımlanmadı. Standart ofis modeli uygulanır.
+                                          </p>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
+
+                                  {/* PIPELINE AUDIT HISTORY TRAIL */}
+                                  {deal.property.sector_data?.pipeline_history && deal.property.sector_data.pipeline_history.length > 0 && (
+                                    <div className="bg-slate-50/90 p-2.5 rounded-xl border border-slate-200 shadow-2xs space-y-1.5 text-xs">
+                                      <div className="flex items-center justify-between border-b border-slate-200 pb-1">
+                                        <div className="flex items-center gap-1.5 text-slate-800 font-black text-[11px]">
+                                          <History className="w-3.5 h-3.5 text-slate-500" />
+                                          <span>Süreç Tarihçesi & İşlem Denetim Kütüğü (Audit Trail)</span>
+                                        </div>
+                                        <span className="text-[9px] text-slate-500 font-mono font-bold">
+                                          {deal.property.sector_data.pipeline_history.length} Hareket Kayıtlı
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                                        {deal.property.sector_data.pipeline_history.slice(0, 5).map((log: any, lIdx: number) => (
+                                          <div key={lIdx} className="p-1.5 bg-white rounded-lg border border-slate-200 flex items-start justify-between gap-1.5 text-[10px]">
+                                            <div className="min-w-0 flex-1">
+                                              <p className="font-extrabold text-slate-900 truncate">
+                                                {log.from_stage} ➔ {log.to_stage}
+                                              </p>
+                                              {log.note && <p className="text-slate-600 truncate italic">"{log.note}"</p>}
+                                              {log.offer_amount && <p className="text-amber-800 font-bold font-mono">Teklif: {log.offer_amount} GBP</p>}
+                                              {log.final_price && <p className="text-emerald-800 font-bold font-mono">Kapanış: {log.final_price} GBP</p>}
+                                            </div>
+                                            <span className="text-slate-400 font-mono text-[9px] shrink-0">
+                                              {log.timestamp ? format(parseISO(log.timestamp), 'd MMM HH:mm', { locale: tr }) : 'Tarih'}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </motion.div>
                             )}
@@ -1480,6 +1989,159 @@ export const RealEstateCRM = ({
           </div>
         )}
       </AnimatePresence>
+
+      {/* 6. CRITICAL CHECKPOINT WARNING MODAL (Dış Paydaş Dijital Onay Bekleniyor) */}
+      <AnimatePresence>
+        {showCheckpointModal && blockedValidation && blockedProperty && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-3 bg-slate-900/75 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-md rounded-2xl shadow-2xl border-2 border-rose-500 overflow-hidden"
+            >
+              <div className="bg-rose-600 text-white p-4 flex items-start gap-3">
+                <div className="p-2 bg-white/20 rounded-xl shrink-0">
+                  <ShieldAlert className="w-6 h-6 text-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-black uppercase tracking-tight">İşlem Bloke Edildi (Checkpoint)</h3>
+                  <p className="text-xs text-rose-100 mt-0.5 font-bold">Paydaş Sözleşme Onayı Bekleniyor</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCheckpointModal(false)}
+                  className="text-white/80 hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-3 text-xs">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-950 font-medium">
+                  Bu işlemde tanımlı dış paydaş(lar) henüz dijital <strong>"Gelir Paylaşım Protokolü"</strong>nü imzalamamıştır.
+                  <p className="text-[11px] text-rose-700 mt-1 font-bold">
+                    Sistem ve hukuk kuralları gereği, paydaş hakedişi dijital olarak güvenceye alınmadan işlem "5. Başarılı / Kapanış" statüsüne taşınamaz.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-black uppercase text-slate-500">Onay Bekleyen Dış Paydaşlar:</span>
+                  {blockedValidation.unsignedPartners.map((u: any) => (
+                    <div key={u.id} className="p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-[11px] gap-2">
+                      <div className="min-w-0 flex-1">
+                        <strong className="text-slate-900 block truncate">{u.name}</strong>
+                        <span className="text-slate-500 font-mono text-[10px]">{u.roleLabel} • %{u.percentage} Hakediş</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const pool = blockedProperty.sector_data?.commission_pool;
+                            const msg = getPartnerWhatsAppContractInvite(blockedProperty, u, pool, 'LookPrice Emlak');
+                            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+                            toast.success('WhatsApp onay bağlantısı hazırlandı!');
+                          }}
+                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Send className="w-2.5 h-2.5" />
+                          <span>WhatsApp</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const pool = blockedProperty.sector_data?.commission_pool;
+                            if (pool) {
+                              const updated = pool.stakeholders.map((s: any) => s.id === u.id ? {
+                                ...s,
+                                payout_status: 'agreement_signed',
+                                is_locked: true,
+                                signed_at: new Date().toISOString()
+                              } : s);
+                              const updatedPool = recalculateCommissionPool({ ...pool, stakeholders: updated });
+                              await persistPropertyStageUpdate(blockedProperty, blockedProperty.status, {
+                                ...blockedProperty.sector_data,
+                                commission_pool: updatedPool
+                              });
+                              toast.success(`${u.name} için ofis dijital onayı tamamlandı!`);
+                              setShowCheckpointModal(false);
+                            }
+                          }}
+                          className="px-2 py-1 bg-slate-900 hover:bg-indigo-600 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <ShieldCheck className="w-2.5 h-2.5" />
+                          <span>Ofiste Onayla</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCheckpointModal(false);
+                      setCommissionProperty(blockedProperty);
+                      setShowCommissionModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold cursor-pointer"
+                  >
+                    Havuzu Düzenle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCheckpointModal(false)}
+                    className="px-4 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-black cursor-pointer"
+                  >
+                    Anladım, Kapat
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 7. DEAL COMMISSION & EXPENSES MODAL */}
+      {showCommissionModal && commissionProperty && (
+        <DealCommissionModal
+          isOpen={showCommissionModal}
+          onClose={() => {
+            setShowCommissionModal(false);
+            setCommissionProperty(null);
+          }}
+          property={commissionProperty}
+          storeName="LookPrice Emlak"
+          onSavePool={async (updatedPool) => {
+            const updatedSectorData = {
+              ...(commissionProperty.sector_data || {}),
+              commission_pool: updatedPool
+            };
+            await persistPropertyStageUpdate(commissionProperty, commissionProperty.status, updatedSectorData);
+            if (onRefresh) onRefresh();
+          }}
+        />
+      )}
+
+      {/* 8. EXTERNAL PARTNER WALLET & ISOLATED PORTAL MODAL */}
+      {showPartnerPortalModal && (
+        <ExternalPartnerPortalModal
+          isOpen={showPartnerPortalModal}
+          onClose={() => setShowPartnerPortalModal(false)}
+          properties={properties}
+          tasks={tasks}
+          storeName="LookPrice Emlak"
+          onUpdatePropertyPool={async (prop, updatedPool) => {
+            const updatedSectorData = {
+              ...(prop.sector_data || {}),
+              commission_pool: updatedPool
+            };
+            await persistPropertyStageUpdate(prop, prop.status, updatedSectorData);
+            if (onRefresh) onRefresh();
+          }}
+        />
+      )}
     </div>
   );
 };

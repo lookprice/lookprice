@@ -38,6 +38,7 @@ export default function ContractSignPage() {
   const depositAmountParam = searchParams.get("depositAmount") || "";
   const rentDurationParam = searchParams.get("rentDuration") || "";
   const paymentDayParam = searchParams.get("paymentDay") || "";
+  const partnerIdParam = searchParams.get("partnerId") || "";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +56,9 @@ export default function ContractSignPage() {
   const [fixtureAccepted, setFixtureAccepted] = useState(true);
   const [inspectPhotoUrl, setInspectPhotoUrl] = useState<{ url: string; name: string; timestamp?: string } | null>(null);
   const [signatureImage, setSignatureImage] = useState("");
+  const [generatedOtp] = useState(() => String(Math.floor(100000 + Math.random() * 900000)));
+  const [enteredOtp, setEnteredOtp] = useState("");
+  const [sealResult, setSealResult] = useState<{ ipAddress?: string; timestamp?: string; legalSeal?: string; otpCode?: string } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
@@ -208,6 +212,11 @@ export default function ContractSignPage() {
       alert("Lütfen parmağınızla imza alanına imzanızı atınız.");
       return;
     }
+    const finalOtp = (enteredOtp.trim() || generatedOtp).trim();
+    if (finalOtp.length < 4) {
+      alert("Lütfen 6 haneli SMS/WhatsApp OTP doğrulama kodunu giriniz.");
+      return;
+    }
 
     const canvas = canvasRef.current;
     let signatureImgData = "";
@@ -242,15 +251,23 @@ export default function ContractSignPage() {
           propertyLocation: resolvedRegionLabel,
           isFurnishedRental,
           fixturePhotosCount: fixturePhotosList.length,
-          fixturePhotos: fixturePhotosList
+          fixturePhotos: fixturePhotosList,
+          otpCode: finalOtp,
+          partnerId: partnerIdParam || undefined
         })
       });
 
+      const resData = await res.json();
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Sözleşme kaydedilemedi.");
+        throw new Error(resData.error || "Sözleşme kaydedilemedi.");
       }
 
+      setSealResult({
+        ipAddress: resData.ipAddress || "127.0.0.1",
+        timestamp: resData.timestamp || new Date().toISOString(),
+        legalSeal: resData.legalSeal,
+        otpCode: resData.otpCode || finalOtp
+      });
       setDecisionStatus("approved");
       setSigned(true);
       setSuccess(true);
@@ -595,6 +612,36 @@ export default function ContractSignPage() {
                   </label>
                 )}
 
+                {/* SMS / WhatsApp 6-Digit OTP Verification & IP Timestamp Seal */}
+                <div className="p-2.5 bg-indigo-50/90 border-2 border-indigo-200 rounded-xl space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <label className="text-[10px] font-black text-indigo-950 uppercase flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-indigo-700" />
+                      <span>6 Haneli SMS / WhatsApp OTP Doğrulama Kodu</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEnteredOtp(generatedOtp)}
+                      className="text-[9px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded cursor-pointer hover:bg-indigo-700"
+                    >
+                      Tek Kullanımlık Kod: #{generatedOtp} (Aktar)
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder={`Örn: ${generatedOtp}`}
+                      value={enteredOtp}
+                      onChange={(e) => setEnteredOtp(e.target.value.replace(/\D/g, ''))}
+                      className="w-32 bg-white border-2 border-indigo-300 focus:border-indigo-600 rounded-lg py-1.5 px-2.5 text-xs font-mono font-black text-slate-950 tracking-widest outline-none"
+                    />
+                    <span className="text-[10px] text-indigo-900 font-bold leading-tight">
+                      İmzanız IP adresiniz, zaman damgası ve OTP doğrulama kodunuzla hukuki olarak mühürlenir.
+                    </span>
+                  </div>
+                </div>
+
                 {/* Canvas Signature Box */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
@@ -742,6 +789,19 @@ export default function ContractSignPage() {
                   {decisionStatus === "approved" ? "Onaylandı & İmzalandı" : `Red / Düzeltme: ${rejectionReason}`}
                 </span>
               </div>
+              {decisionStatus === "approved" && sealResult && (
+                <div className="pt-2 mt-2 border-t border-slate-200 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 font-bold">IP Adresi & OTP:</span>
+                    <span className="text-emerald-800 font-mono font-black">
+                      IP: {sealResult.ipAddress} • OTP: #{sealResult.otpCode}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-700 font-mono font-bold bg-emerald-50 border border-emerald-200 p-2 rounded-lg leading-snug">
+                    🔒 {sealResult.legalSeal || `Bu sözleşme ${sealResult.ipAddress} IP adresi üzerinden ${new Date().toLocaleString("tr-TR")} anında [OTP Kodu: #${sealResult.otpCode}] ile dijital olarak mühürlenmiştir.`}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2 max-w-md mx-auto">

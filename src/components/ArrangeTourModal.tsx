@@ -9,19 +9,44 @@ interface ArrangeTourModalProps {
   property: RealEstateProperty | null;
   propertiesList?: RealEstateProperty[];
   storeId?: number;
+  initialLead?: any;
   onClose: () => void;
   onSave: () => void;
 }
 
-export const ArrangeTourModal = ({ property, propertiesList = [], storeId, onClose, onSave }: ArrangeTourModalProps) => {
+export const ArrangeTourModal = ({ property, propertiesList = [], storeId, initialLead, onClose, onSave }: ArrangeTourModalProps) => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | string>(() => property?.id || (propertiesList[0]?.id || ''));
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('14:00');
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState(() => initialLead?.customerName || initialLead?.name || '');
+  const [customerPhone, setCustomerPhone] = useState(() => initialLead?.phone || '');
+  const [consultants, setConsultants] = useState<any[]>([]);
+  const [selectedConsultantId, setSelectedConsultantId] = useState<string | number>('');
   const [agentName, setAgentName] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.getConsultants(storeId)
+      .then(res => {
+        if (isMounted && Array.isArray(res)) {
+          setConsultants(res);
+          // If property has assigned responsible_consultant_id, pre-select it
+          if (property?.responsible_consultant_id) {
+            setSelectedConsultantId(property.responsible_consultant_id);
+            const found = res.find((c: any) => c.id === property.responsible_consultant_id);
+            if (found) setAgentName(found.name);
+          } else if (res.length > 0 && !selectedConsultantId) {
+            setSelectedConsultantId(res[0].id);
+            setAgentName(res[0].name);
+          }
+        }
+      })
+      .catch(err => console.error('Failed to load consultants:', err));
+
+    return () => { isMounted = false; };
+  }, [storeId, property]);
 
   useEffect(() => {
     if (property) {
@@ -44,14 +69,21 @@ export const ArrangeTourModal = ({ property, propertiesList = [], storeId, onClo
     }
     setLoading(true);
     try {
-      const descStr = `Gezi Düzenlendi: ${customerName.trim()} (Tel: ${customerPhone.trim() || '---'}) ${agentName.trim() ? '• Danışman: ' + agentName.trim() : ''} ${notes.trim() ? '• Not: ' + notes.trim() : ''}`;
-      await api.createTask({
+      const selectedBroker = consultants.find(c => String(c.id) === String(selectedConsultantId));
+      const effectiveAgentName = selectedBroker?.name || agentName.trim();
+      const descStr = `Gezi Düzenlendi: ${customerName.trim()} (Tel: ${customerPhone.trim() || '---'}) ${effectiveAgentName ? '• Danışman: ' + effectiveAgentName : ''} ${notes.trim() ? '• Not: ' + notes.trim() : ''}`;
+
+      await (api as any).createTask({
         property_id: Number(selectedPropertyId),
         task_type: 'tour',
         description: descStr,
         due_date: new Date(`${date}T${time}`).toISOString(),
+        assigned_broker_id: selectedConsultantId ? Number(selectedConsultantId) : undefined,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
       }, storeId);
-      toast.success('Gezi randevusu başarıyla kaydedildi ve Pipeline kartına bağlandı!');
+
+      toast.success('Gezi randevusu başarıyla kaydedildi, danışmanın ajandasına ve Pipeline kartına bağlandı!');
       if (onSave) onSave();
       onClose();
     } catch (e) {
@@ -179,16 +211,47 @@ export const ArrangeTourModal = ({ property, propertiesList = [], storeId, onClo
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
-              Sorumlu Danışman / Rehber
-            </label>
-            <input 
-              type="text" 
-              placeholder="Örn: Mehmet B. (Gayrimenkul Danışmanı)" 
-              value={agentName} 
-              onChange={e => setAgentName(e.target.value)} 
-              className="w-full px-2.5 py-1.5 h-8.5 bg-white border border-slate-200 rounded-lg font-bold text-xs text-slate-800 outline-none focus:border-indigo-500"
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                Sorumlu Danışman / Rehber *
+              </label>
+              <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200">
+                Ajanda & Görevler Canlı Senkron
+              </span>
+            </div>
+            {consultants.length > 0 ? (
+              <select 
+                value={selectedConsultantId} 
+                onChange={e => {
+                  const val = e.target.value;
+                  setSelectedConsultantId(val);
+                  const found = consultants.find(c => String(c.id) === String(val));
+                  if (found) setAgentName(found.name);
+                }}
+                className="w-full px-2.5 py-1.5 h-9 bg-white border border-slate-200 rounded-lg font-bold text-xs text-slate-800 outline-none focus:border-indigo-500 cursor-pointer shadow-2xs"
+              >
+                <option value="">-- Danışman Seçiniz --</option>
+                {consultants.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} • {c.role || 'Danışman'} {c.phone ? `(${c.phone})` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input 
+                type="text" 
+                placeholder="Örn: Mehmet B. (Gayrimenkul Danışmanı)" 
+                value={agentName} 
+                onChange={e => setAgentName(e.target.value)} 
+                className="w-full px-2.5 py-1.5 h-8.5 bg-white border border-slate-200 rounded-lg font-bold text-xs text-slate-800 outline-none focus:border-indigo-500"
+              />
+            )}
+            {selectedConsultantId ? (
+              <p className="text-[10px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
+                <Check className="w-3 h-3 stroke-[3]" />
+                <span>Seçilen danışmanın ajandasına ve Outlook görev listesine otomatik olarak düşecektir.</span>
+              </p>
+            ) : null}
           </div>
 
           <div>

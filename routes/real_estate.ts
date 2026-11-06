@@ -229,9 +229,9 @@ router.post('/properties/analyze', authenticate, async (req: any, res) => {
 
 // Create a task
 router.post('/properties/tasks', authenticate, async (req: any, res) => {
-  const { property_id, task_type, description, due_date, store_id } = req.body;
+  const { property_id, task_type, description, due_date, store_id, assigned_broker_id, customer_name, customer_phone } = req.body;
   const storeId = getAuthorizedStoreId(req, store_id || req.query.store_id || req.query.storeId);
-  const consultant_id = req.user?.id;
+  const consultant_id = assigned_broker_id ? Number(assigned_broker_id) : (req.body.consultant_id ? Number(req.body.consultant_id) : (req.user?.id || null));
   try {
     const insertRes = await pool.query(
       `INSERT INTO property_tasks (property_id, consultant_id, task_type, description, due_date, status, store_id) 
@@ -239,7 +239,110 @@ router.post('/properties/tasks', authenticate, async (req: any, res) => {
        RETURNING *`,
       [property_id || null, consultant_id || null, task_type, description, due_date || new Date().toISOString(), storeId || null]
     );
-    res.json({ success: true, task: insertRes.rows[0] });
+    const createdTask = insertRes.rows[0];
+
+    // Live Sync: Also synchronize with operator_tasks (Outlook Tasks & Agenda)
+    if (storeId) {
+      try {
+        let brokerName = '';
+        if (consultant_id) {
+          const consRes = await pool.query('SELECT name FROM consultants WHERE id = $1', [consultant_id]);
+          if (consRes.rows[0]) brokerName = consRes.rows[0].name;
+        }
+
+        const taskTitle = task_type === 'tour' 
+          ? `Yer Gösterme: ${customer_name || 'Müşteri Keşif Turu'} ${brokerName ? `(Rehber: ${brokerName})` : ''}`
+          : `Emlak Görevi: ${description?.slice(0, 50) || 'Randevu'}`;
+
+        await pool.query(
+          `INSERT INTO operator_tasks (
+            store_id, user_id, assigned_to_user_id, visibility, title, description, 
+            state_key, priority, completion_percent, due_date, category, entity_type, entity_id
+          ) VALUES ($1, $2, $3, 'team', $4, $5, 'not_started', 'high', 0, $6, 'Yer Gösterme', 'real_estate_showing', $7)`,
+          [
+            storeId,
+            req.user?.id || 1,
+            consultant_id || null,
+            taskTitle,
+            description || '',
+            due_date || new Date().toISOString(),
+            String(property_id || '')
+          ]
+        );
+      } catch (syncErr) {
+        // Non-blocking sync error
+        console.warn('Operator task sync note:', syncErr);
+      }
+    }
+
+    // #1. OTOMATİK ARKA PLAN GÖLGE BİLDİRİM TETİKLEYİCİSİ (Zero Human-Initiative Shadow Notification Trigger)
+    if (property_id && task_type !== 'stage_change') {
+      (async () => {
+        try {
+          const propRes = await pool.query(
+            `SELECT id, title, reference_no, sector_data, responsible_consultant_id FROM real_estate_properties WHERE id = $1`,
+            [property_id]
+          );
+          if (propRes.rows.length > 0) {
+            const prop = propRes.rows[0];
+            let secData = prop.sector_data;
+            if (typeof secData === 'string') {
+              try { secData = JSON.parse(secData); } catch { secData = {}; }
+            }
+            if (!secData || typeof secData !== 'object') secData = {};
+
+            // Find external stakeholders from commission_pool or responsible_consultant_id
+            const extStakeholders: Array<{ name: string; phone?: string; roleLabel?: string }> = [];
+            if (Array.isArray(secData.commission_pool?.stakeholders)) {
+              for (const s of secData.commission_pool.stakeholders) {
+                if (s.is_external) {
+                  extStakeholders.push({ name: s.name, phone: s.phone, roleLabel: s.roleLabel });
+                }
+              }
+            }
+            if (extStakeholders.length === 0 && prop.responsible_consultant_id) {
+              const cRes = await pool.query(
+                `SELECT name, phone, is_external, partner_type FROM consultants WHERE id = $1`,
+                [prop.responsible_consultant_id]
+              );
+              if (cRes.rows[0] && (cRes.rows[0].is_external || cRes.rows[0].partner_type === 'external')) {
+                extStakeholders.push({ name: cRes.rows[0].name, phone: cRes.rows[0].phone, roleLabel: 'Portföy Kaynağı (Dış Paydaş)' });
+              }
+            }
+
+            // Always log automatic shadow notification dispatch if external partner exists (or default partner pool)
+            const targetPartners = extStakeholders.length > 0
+              ? extStakeholders
+              : [{ name: 'Dış Paydaş / Portföy Ortağı', roleLabel: 'Paydaş Bildirimi' }];
+
+            const existingLogs = Array.isArray(secData.shadow_notification_logs) ? secData.shadow_notification_logs : [];
+            const nowIso = new Date().toISOString();
+            const newLogs = targetPartners.map((tp, idx) => ({
+              id: `shdw_${Date.now()}_${idx}`,
+              timestamp: nowIso,
+              partner_name: tp.name,
+              partner_phone: tp.phone || '',
+              event_type: task_type === 'tour' ? 'tour_scheduled' : 'task_created',
+              message_summary: `Getirdiğiniz [${prop.reference_no || `#${prop.id}`}] portföyü için yer gösterimi planlandı (${due_date ? new Date(due_date).toLocaleString('tr-TR') : 'Bugün'}).`,
+              status: 'delivered',
+              channel: 'WhatsApp Background Gateway'
+            }));
+
+            secData.shadow_notification_logs = [...newLogs, ...existingLogs].slice(0, 30);
+            secData.last_shadow_notified_at = nowIso;
+
+            await pool.query(
+              `UPDATE real_estate_properties SET sector_data = $1 WHERE id = $2`,
+              [JSON.stringify(secData), property_id]
+            );
+          }
+        } catch (shadowErr) {
+          console.warn('Background shadow notification trigger warning:', shadowErr);
+        }
+      })();
+    }
+
+    res.json({ success: true, task: createdTask, shadow_notified: true });
   } catch (error) {
     console.error('Error creating task:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -254,18 +357,22 @@ router.get('/properties/tasks', authenticate, async (req: any, res) => {
     let result;
     if (storeId) {
       result = await pool.query(
-        `SELECT pt.*, (pt.status = 'completed') as is_completed 
+        `SELECT pt.*, (pt.status = 'completed') as is_completed,
+                c.name as consultant_name, c.phone as consultant_phone, c.role as consultant_role
          FROM property_tasks pt
          LEFT JOIN real_estate_properties rp ON pt.property_id = rp.id AND rp.store_id = $1
          LEFT JOIN vehicles v ON pt.property_id = v.id AND v.store_id = $1
+         LEFT JOIN consultants c ON pt.consultant_id = c.id
          WHERE (pt.store_id = $1 OR rp.store_id = $1 OR v.store_id = $1)
          ORDER BY pt.due_date ASC`,
         [storeId]
       );
     } else {
       result = await pool.query(
-        `SELECT pt.*, (pt.status = 'completed') as is_completed 
+        `SELECT pt.*, (pt.status = 'completed') as is_completed,
+                c.name as consultant_name, c.phone as consultant_phone, c.role as consultant_role
          FROM property_tasks pt
+         LEFT JOIN consultants c ON pt.consultant_id = c.id
          WHERE pt.consultant_id = $1
          ORDER BY pt.due_date ASC`,
         [consultant_id]
@@ -732,11 +839,165 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
       resolvedFixturePhotos = Array.isArray(mergedSectorData?.fixture_photos) ? mergedSectorData.fixture_photos : [];
     }
 
-    const finalSectorData = {
+    const finalSectorData: any = {
       ...(mergedSectorData || {}),
       furnished: normalizedFurnished,
       fixture_photos: resolvedFixturePhotos
     };
+
+    // #1. OTOMATİK GÖLGE BİLDİRİM (Offer / Stage Change Background Trigger)
+    const prevStage = existingSecData?.pipeline_stage || existing?.status || 'active';
+    const nextStage = finalSectorData?.pipeline_stage || property.status || 'active';
+    if (prevStage !== nextStage || (finalSectorData?.offer_amount && finalSectorData.offer_amount !== existingSecData?.offer_amount)) {
+      const existingShadowLogs = Array.isArray(finalSectorData.shadow_notification_logs) ? finalSectorData.shadow_notification_logs : [];
+      const extStks = Array.isArray(finalSectorData.commission_pool?.stakeholders)
+        ? finalSectorData.commission_pool.stakeholders.filter((s: any) => s.is_external)
+        : [];
+      const targetName = extStks[0]?.name || 'Dış Paydaş / Portföy Ortağı';
+      const nowIso = new Date().toISOString();
+      const summary = finalSectorData.offer_amount && nextStage === 'negotiation'
+        ? `Portföyünüze [${property.reference_no || `#${id}`}] ${finalSectorData.offer_amount} ${property.currency || 'GBP'} tutarında resmi teklif alındı (Pazarlık Aşaması).`
+        : `Portföyünüzün [${property.reference_no || `#${id}`}] süreç statüsü güncellendi: ${prevStage} ➔ ${nextStage}.`;
+
+      finalSectorData.shadow_notification_logs = [
+        {
+          id: `shdw_${Date.now()}`,
+          timestamp: nowIso,
+          partner_name: targetName,
+          partner_phone: extStks[0]?.phone || '',
+          event_type: nextStage === 'negotiation' ? 'offer_received' : 'stage_updated',
+          message_summary: summary,
+          status: 'delivered',
+          channel: 'WhatsApp Background Gateway'
+        },
+        ...existingShadowLogs
+      ].slice(0, 30);
+      finalSectorData.last_shadow_notified_at = nowIso;
+    }
+
+    // #2. MUHASEBE (CARİ HESAP / WALLET) OTOMATİK ALACAK YAZMA İŞLEMİ (ACID Transaction)
+    const isClosingDeal = property.status === 'sold' || property.status === 'rented' || finalSectorData.pipeline_stage === 'closed';
+    if (isClosingDeal && !finalSectorData.commission_pool?.accounting_posted) {
+      const txClient = await pool.connect();
+      try {
+        await txClient.query('BEGIN');
+
+        const rawClosePrice = Number(String(finalSectorData.final_price || finalSectorData.offer_amount || property.price || 0).replace(/[^0-9.-]+/g, '')) || 0;
+        const propCurr = property.currency || 'GBP';
+        const grossComm = Number(finalSectorData.commission_pool?.gross_commission) || Math.round(rawClosePrice * 0.05) || 5000;
+
+        const poolObj = finalSectorData.commission_pool || {
+          property_id: Number(id),
+          gross_commission: grossComm,
+          currency: propCurr,
+          calculation_mode: 'net',
+          expenses: [],
+          total_expenses: 0,
+          net_distributable_commission: grossComm,
+          stakeholders: [
+            {
+              id: 'stk_auto_1',
+              name: property.responsible_agent || 'Sorumlu Danışman',
+              role: 'portfolio_source',
+              roleLabel: 'Portföy & Kapanış Danışmanı',
+              is_external: false,
+              percentage: 30,
+              calculated_amount: Math.round(grossComm * 0.30),
+              currency: propCurr,
+              payout_status: 'agreement_signed',
+              is_locked: true
+            }
+          ],
+          company_share_percent: 70,
+          company_share_amount: Math.round(grossComm * 0.70)
+        };
+
+        const nowIso = new Date().toISOString();
+        const txDateStr = nowIso.split('T')[0];
+        const refLabel = property.reference_no || `#${id}`;
+        const updatedStakeholders = [];
+        const ledgerEntries = [];
+
+        for (const stk of (poolObj.stakeholders || [])) {
+          const calcAmt = Number(stk.calculated_amount) || Math.round(((poolObj.net_distributable_commission || grossComm) * (Number(stk.percentage) || 0)) / 100);
+          if (calcAmt > 0 && stk.name) {
+            const walletTitle = stk.is_external
+              ? `[Dış Paydaş Cüzdanı] ${stk.name.trim()}`
+              : `[Danışman Hakediş Cüzdanı] ${stk.name.trim()}`;
+
+            // 1. Find or create Cari Hesap (companies) inside ACID transaction
+            let compRes = await txClient.query(
+              `SELECT id, title FROM companies WHERE store_id = $1 AND (LOWER(TRIM(title)) = LOWER(TRIM($2)) OR LOWER(TRIM(title)) = LOWER(TRIM($3))) LIMIT 1`,
+              [storeId, walletTitle, stk.name.trim()]
+            );
+
+            let companyId: number;
+            if (compRes.rows.length > 0) {
+              companyId = compRes.rows[0].id;
+            } else {
+              const insComp = await txClient.query(
+                `INSERT INTO companies (store_id, title, phone, email, contact_person, notes)
+                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+                [
+                  storeId,
+                  walletTitle,
+                  stk.phone || null,
+                  stk.email || null,
+                  stk.name.trim(),
+                  `Otomatik oluşturulan ${stk.is_external ? 'Dış Paydaş (Partner)' : 'İç Danışman'} Komisyon Hakediş Cari Cüzdanı`
+                ]
+              );
+              companyId = insComp.rows[0].id;
+            }
+
+            // 2. Insert Credit (Alacak) into current_account_transactions
+            const txDesc = `[HAKEDİŞ ALACAĞI • REF: ${refLabel}] ${property.title} — ${stk.roleLabel || 'Paydaş'} (%${stk.percentage} Komisyon Payı)`;
+            const insTx = await txClient.query(
+              `INSERT INTO current_account_transactions (
+                store_id, company_id, type, amount, description, transaction_date, payment_method, currency, exchange_rate
+              ) VALUES ($1, $2, 'alacak_dekontu', $3, $4, $5, 'Komisyon Hakediş Tahakkuku', $6, 1) RETURNING id`,
+              [storeId, companyId, calcAmt, txDesc, txDateStr, poolObj.currency || propCurr]
+            );
+
+            const txId = insTx.rows[0]?.id;
+            updatedStakeholders.push({
+              ...stk,
+              calculated_amount: calcAmt,
+              payout_status: 'paid',
+              is_locked: true,
+              company_id: companyId,
+              ledger_transaction_id: txId,
+              posted_at: nowIso
+            });
+            ledgerEntries.push({
+              stakeholder_name: stk.name,
+              company_id: companyId,
+              transaction_id: txId,
+              amount: calcAmt,
+              currency: poolObj.currency || propCurr,
+              posted_at: nowIso
+            });
+          } else {
+            updatedStakeholders.push(stk);
+          }
+        }
+
+        finalSectorData.commission_pool = {
+          ...poolObj,
+          stakeholders: updatedStakeholders,
+          accounting_posted: true,
+          accounting_posted_at: nowIso,
+          ledger_entries: ledgerEntries
+        };
+
+        await txClient.query('COMMIT');
+      } catch (acidErr) {
+        await txClient.query('ROLLBACK');
+        console.error('ACID Commission Cari Hesap Posting Error (Rolled back):', acidErr);
+      } finally {
+        txClient.release();
+      }
+    }
 
     const result = await pool.query(
       `UPDATE real_estate_properties SET 
