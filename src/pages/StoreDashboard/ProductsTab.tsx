@@ -435,8 +435,10 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         matchesCategory = p.category === selectedCategory;
       }
 
+      const hasActiveSearch = Boolean(search && search.trim().length > 0);
+
       let matchesStock = true;
-      if (!includeZeroStock) {
+      if (!includeZeroStock && !hasActiveSearch) {
         let vars: any[] = [];
         if (p.variants) {
           if (typeof p.variants === 'string') {

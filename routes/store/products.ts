@@ -1407,13 +1407,14 @@ router.put("/:id", async (req: any, res) => {
   } = req.body;
 
   try {
-    const existingProductRes = await pool.query("SELECT labels, barcode, product_code, is_sellable, is_bestseller, allergens, calories, prep_time_min, portion_size, marketplace_data, sector_data, stock_quantity, price, cost_price, currency, image_url, images FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const existingProductRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (existingProductRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
-    const oldStock = parseFloat(existingProductRes.rows[0]?.stock_quantity || '0');
-    let existingLabels = existingProductRes.rows[0]?.labels || [];
-    let existingIsSellable = existingProductRes.rows[0]?.is_sellable;
+    const existing = existingProductRes.rows[0];
+    const oldStock = parseFloat(existing.stock_quantity || '0');
+    let existingLabels = existing.labels || [];
+    let existingIsSellable = existing.is_sellable;
     if (existingIsSellable === undefined || existingIsSellable === null) existingIsSellable = true;
-    let existingIsBestseller = existingProductRes.rows[0]?.is_bestseller || false;
+    let existingIsBestseller = existing.is_bestseller || false;
 
     if (!Array.isArray(existingLabels)) existingLabels = [];
     
@@ -1543,26 +1544,26 @@ router.put("/:id", async (req: any, res) => {
       delete finalSectorData.rating;
     }
 
-    const finalBarcode = barcode ? String(barcode).trim() : (existingProductRes.rows[0]?.barcode || 'GEN-' + Date.now().toString());
+    const rawBarcode = barcode ? String(barcode).trim() : (existing.barcode || 'GEN-' + Date.now().toString());
 
     const rawHbSku = cleanMpString(req.body.hepsiburada_sku);
-    const existingHbSku = cleanMpString(finalMarketplaceData?.hepsiburada?.hepsiburadaSku || finalMarketplaceData?.hepsiburada?.hbSku || existingProductRes.rows[0]?.hepsiburada_sku);
+    const existingHbSku = cleanMpString(finalMarketplaceData?.hepsiburada?.hepsiburadaSku || finalMarketplaceData?.hepsiburada?.hbSku || existing.hepsiburada_sku);
     const finalHbSku = req.body.hepsiburada_sku !== undefined ? rawHbSku : existingHbSku;
 
     const rawHbUrl = cleanMpString(req.body.hepsiburada_url);
-    const existingHbUrl = cleanMpString(finalMarketplaceData?.hepsiburada?.productUrl || existingProductRes.rows[0]?.hepsiburada_url);
+    const existingHbUrl = cleanMpString(finalMarketplaceData?.hepsiburada?.productUrl || existing.hepsiburada_url);
     const finalHbUrl = req.body.hepsiburada_url !== undefined ? rawHbUrl : existingHbUrl;
 
     const rawAmzAsin = cleanMpString(req.body.amazon_asin);
-    const existingAmzAsin = cleanMpString(finalMarketplaceData?.amazon?.asin || existingProductRes.rows[0]?.amazon_asin);
+    const existingAmzAsin = cleanMpString(finalMarketplaceData?.amazon?.asin || existing.amazon_asin);
     const finalAmzAsin = req.body.amazon_asin !== undefined ? rawAmzAsin : existingAmzAsin;
 
     const rawAmzSku = cleanMpString(req.body.amazon_sku);
-    const existingAmzSku = cleanMpString(finalMarketplaceData?.amazon?.sku || existingProductRes.rows[0]?.amazon_sku);
+    const existingAmzSku = cleanMpString(finalMarketplaceData?.amazon?.sku || existing.amazon_sku);
     const finalAmzSku = req.body.amazon_sku !== undefined ? rawAmzSku : existingAmzSku;
 
     const rawAmzUrl = cleanMpString(req.body.amazon_url);
-    const existingAmzUrl = cleanMpString(finalMarketplaceData?.amazon?.productUrl || existingProductRes.rows[0]?.amazon_url);
+    const existingAmzUrl = cleanMpString(finalMarketplaceData?.amazon?.productUrl || existing.amazon_url);
     const finalAmzUrl = req.body.amazon_url !== undefined ? rawAmzUrl : existingAmzUrl;
 
     const cleanValidAmzAsin = (finalAmzAsin && finalAmzAsin.length >= 9 && !finalAmzAsin.startsWith('http')) 
@@ -1570,7 +1571,6 @@ router.put("/:id", async (req: any, res) => {
       : null;
     const hasValidAmzAsin = Boolean(cleanValidAmzAsin);
 
-    const existing = existingProductRes.rows[0] || {};
     const isExplicitStockUpdate = req.body.is_explicit_stock_update === true || req.body.is_explicit_stock_update === 'true';
     const hasStockFieldInBody = stock_quantity !== undefined && stock_quantity !== null && String(stock_quantity).trim() !== '';
     const parsedBodyStock = hasStockFieldInBody ? (parseFloat(String(stock_quantity).replace(',', '.')) || 0) : oldStock;
@@ -1645,18 +1645,24 @@ router.put("/:id", async (req: any, res) => {
       }
     }
 
-    const finalName = name !== undefined ? name : (existing.name || '');
+    // Defensive Fallback Guards: Never overwrite existing product name or category with empty string on partial updates
+    const finalName = (name !== undefined && name !== null && String(name).trim() !== '')
+      ? String(name).trim()
+      : (existing.name || '');
+    const finalBarcode = (barcode !== undefined && barcode !== null && String(barcode).trim() !== '')
+      ? String(barcode).trim()
+      : (existing.barcode || '');
     const finalCostPrice = cost_price !== undefined ? (parseFloat(String(cost_price).replace(',', '.')) || 0) : (parseFloat(existing.cost_price) || 0);
     const finalCostCurrency = cost_currency !== undefined ? cost_currency : (existing.cost_currency || 'TRY');
-    const finalDescription = description !== undefined ? description : (existing.description || '');
+    const finalDescription = (description !== undefined && description !== null && String(description).trim() !== '') ? description : (existing.description || '');
     const finalMinStockLevel = min_stock_level !== undefined ? (parseFloat(min_stock_level) || 5) : (parseFloat(existing.min_stock_level) || 5);
-    const finalUnit = unit !== undefined ? unit : (existing.unit || 'Adet');
-    const finalCategory = category !== undefined ? category : (existing.category || '');
-    const finalSubCategory = sub_category !== undefined ? sub_category : (existing.sub_category || '');
-    const finalCategory2 = category_2 !== undefined ? category_2 : (existing.category_2 || '');
-    const finalSubCategory2 = sub_category_2 !== undefined ? sub_category_2 : (existing.sub_category_2 || '');
-    const finalBrand = brand !== undefined ? brand : (existing.brand || '');
-    const finalAuthor = author !== undefined ? author : (existing.author || '');
+    const finalUnit = (unit !== undefined && unit !== null && String(unit).trim() !== '') ? unit : (existing.unit || 'Adet');
+    const finalCategory = (category !== undefined && category !== null && String(category).trim() !== '') ? category : (existing.category || '');
+    const finalSubCategory = (sub_category !== undefined && sub_category !== null) ? sub_category : (existing.sub_category || '');
+    const finalCategory2 = (category_2 !== undefined && category_2 !== null) ? category_2 : (existing.category_2 || '');
+    const finalSubCategory2 = (sub_category_2 !== undefined && sub_category_2 !== null) ? sub_category_2 : (existing.sub_category_2 || '');
+    const finalBrand = (brand !== undefined && brand !== null && String(brand).trim() !== '') ? brand : (existing.brand || '');
+    const finalAuthor = (author !== undefined && author !== null && String(author).trim() !== '') ? author : (existing.author || '');
     const finalPrice2 = price_2 !== undefined ? (parseFloat(String(price_2).replace(',', '.')) || 0) : (parseFloat(existing.price_2) || 0);
     const finalPrice2Currency = price_2_currency !== undefined ? price_2_currency : (existing.price_2_currency || 'TRY');
     const finalTaxRate = tax_rate !== undefined ? (parseFloat(tax_rate) || 0) : (parseFloat(existing.tax_rate) || 0);

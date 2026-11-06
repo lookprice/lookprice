@@ -206,17 +206,17 @@ export const useCompanyExport = (
           const baseAmt = defaultCurr === 'TRY' ? tryAmt : convertCurrency(rawAmt, txCurr, defaultCurr, effRate);
           enrichedTransactions.push({
             ...tx,
-            statementCurr: 'TRY',
-            statementAmt: tryAmt,
+            statementCurr: txCurr,
+            statementAmt: rawAmt,
             statementRate: effRate,
-            fxCurr: txCurr,
-            fxAmt: rawAmt,
+            fxCurr: 'TRY',
+            fxAmt: tryAmt,
             fxRate: effRate,
             baseAmt,
             targetBalCurr: txCurr,
             targetBalAmt: rawAmt,
             isCross: true,
-            crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+            crossNote: `${tryAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
           });
           return;
         }
@@ -227,17 +227,17 @@ export const useCompanyExport = (
           const baseAmt = defaultCurr === 'TRY' ? rawAmt : convertCurrency(rawAmt, 'TRY', defaultCurr);
           enrichedTransactions.push({
             ...tx,
-            statementCurr: 'TRY',
-            statementAmt: rawAmt,
+            statementCurr: txCrossCurr,
+            statementAmt: fxAmt || 0,
             statementRate: effRate > 0 ? effRate : 1,
-            fxCurr: txCrossCurr,
-            fxAmt: fxAmt,
+            fxCurr: 'TRY',
+            fxAmt: rawAmt,
             fxRate: effRate,
             baseAmt,
             targetBalCurr: txCrossCurr,
             targetBalAmt: fxAmt || 0,
             isCross: true,
-            crossNote: fxAmt ? `${Number(fxAmt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCrossCurr} Mahsubu` : undefined
+            crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
           });
           return;
         }
@@ -280,71 +280,62 @@ export const useCompanyExport = (
         return;
       }
 
-      if (selectedCurrency === defaultCurr) {
-        if (txCurr === defaultCurr) {
-          const hasTargetCross = Boolean(txCrossCurr && txCrossCurr !== defaultCurr);
-          const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (hasTargetCross && crossRate > 0 ? Number((rawAmt / crossRate).toFixed(2)) : null);
-          enrichedTransactions.push({
-            ...tx,
-            statementCurr: defaultCurr,
-            statementAmt: rawAmt,
-            statementRate: 1,
-            fxCurr: hasTargetCross ? txCrossCurr : '',
-            fxAmt: hasTargetCross ? fxAmt : null,
-            fxRate: hasTargetCross && crossRate > 0 ? crossRate : 1,
-            baseAmt: rawAmt,
-            targetBalCurr: defaultCurr,
-            targetBalAmt: rawAmt,
-            isCross: hasTargetCross
-          });
-        }
+      // Single Currency PDF Export (selectedCurrency !== 'ALL')
+      const activeTabCurr = selectedCurrency.toUpperCase();
+      const targetLedgerCurr = (txCurr !== 'TRY')
+        ? txCurr
+        : (txCrossCurr && txCrossCurr !== 'TRY' ? txCrossCurr : 'TRY');
+
+      // Transactions belonging to a different currency ledger MUST NOT appear in this statement!
+      if (targetLedgerCurr !== activeTabCurr) {
         return;
       }
 
-      if (selectedCurrency !== defaultCurr && selectedCurrency !== 'ALL') {
-        if (txCurr === selectedCurrency) {
-          const hasTryCross = Boolean(txCrossCurr && txCrossCurr !== selectedCurrency) || descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:');
-          const convertedToDefault = convertCurrency(rawAmt, selectedCurrency, defaultCurr, tx.exchange_rate);
-          const displayRate = selectedCurrency === 'TRY' ? getTryRate(defaultCurr) : getTryRate(selectedCurrency, tx.exchange_rate);
-          const counterAmt = rawCrossAmt > 0 ? rawCrossAmt : convertedToDefault;
-          const counterCurr = txCrossCurr || defaultCurr;
-          enrichedTransactions.push({
-            ...tx,
-            statementCurr: selectedCurrency,
-            statementAmt: rawAmt,
-            statementRate: crossRate > 1 ? crossRate : displayRate,
-            fxCurr: counterCurr,
-            fxAmt: counterAmt,
-            fxRate: crossRate > 1 ? crossRate : displayRate,
-            baseAmt: convertedToDefault,
-            targetBalCurr: selectedCurrency,
-            targetBalAmt: rawAmt,
-            isCross: hasTryCross,
-            crossNote: hasTryCross ? `${counterAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${counterCurr} ile Mahsup Edildi (Kur: ${(crossRate > 1 ? crossRate : displayRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
-          });
-          return;
-        }
+      if (txCurr === activeTabCurr) {
+        const hasCross = Boolean(txCrossCurr && txCrossCurr !== activeTabCurr) ||
+          (activeTabCurr !== 'TRY' && (descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:')));
+        const convertedToDefault = convertCurrency(rawAmt, activeTabCurr, defaultCurr, tx.exchange_rate);
+        const displayRate = activeTabCurr === 'TRY' ? 1 : getTryRate(activeTabCurr, tx.exchange_rate);
+        const effRate = crossRate > 1 ? crossRate : displayRate;
+        const counterCurr = (txCrossCurr && txCrossCurr !== activeTabCurr) ? txCrossCurr : (activeTabCurr === 'TRY' ? defaultCurr : 'TRY');
+        const convCounter = convertCurrency(rawAmt, activeTabCurr, counterCurr, effRate);
+        const counterAmt = rawCrossAmt > 0 ? rawCrossAmt : convCounter;
+        enrichedTransactions.push({
+          ...tx,
+          statementCurr: activeTabCurr,
+          statementAmt: rawAmt,
+          statementRate: effRate,
+          fxCurr: hasCross ? counterCurr : (activeTabCurr !== defaultCurr ? defaultCurr : ''),
+          fxAmt: hasCross ? counterAmt : (activeTabCurr !== defaultCurr ? convertedToDefault : null),
+          fxRate: effRate,
+          baseAmt: convertedToDefault,
+          targetBalCurr: activeTabCurr,
+          targetBalAmt: rawAmt,
+          isCross: hasCross,
+          crossNote: hasCross ? `${Number(counterAmt).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${counterCurr === 'TRY' ? '₺' : counterCurr} ile Mahsup Edildi (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
+        });
+        return;
+      }
 
-        if (txCrossCurr === selectedCurrency) {
-          const effRate = crossRate > 1 ? crossRate : (txCurr === 'TRY' ? getTryRate(selectedCurrency) : getTryRate(txCurr, tx.exchange_rate));
-          const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : convertCurrency(rawAmt, txCurr, selectedCurrency, effRate);
-          const baseAmt = convertCurrency(fxAmt, selectedCurrency, defaultCurr);
-          enrichedTransactions.push({
-            ...tx,
-            statementCurr: selectedCurrency,
-            statementAmt: fxAmt,
-            statementRate: effRate,
-            fxCurr: txCurr,
-            fxAmt: rawAmt,
-            fxRate: effRate,
-            baseAmt,
-            targetBalCurr: selectedCurrency,
-            targetBalAmt: fxAmt,
-            isCross: true,
-            crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${txCurr} Karşılığı`
-          });
-          return;
-        }
+      if (txCurr === 'TRY' && txCrossCurr === activeTabCurr) {
+        const effRate = crossRate > 1 ? crossRate : getTryRate(activeTabCurr, tx.exchange_rate);
+        const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (effRate > 0 ? Number((rawAmt / effRate).toFixed(2)) : 0);
+        const baseAmt = convertCurrency(fxAmt, activeTabCurr, defaultCurr, effRate);
+        enrichedTransactions.push({
+          ...tx,
+          statementCurr: activeTabCurr,
+          statementAmt: fxAmt,
+          statementRate: effRate,
+          fxCurr: 'TRY',
+          fxAmt: rawAmt,
+          fxRate: effRate,
+          baseAmt,
+          targetBalCurr: activeTabCurr,
+          targetBalAmt: fxAmt,
+          isCross: true,
+          crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+        });
+        return;
       }
     });
 
@@ -756,18 +747,18 @@ export const useCompanyExport = (
           const baseAmt = defaultCurr === 'TRY' ? tryAmt : convertCurrency(rawAmt, txCurr, defaultCurr, effRate);
           enrichedExcelTxs.push({
             ...tx,
-            statementCurr: 'TRY',
-            statementAmt: tryAmt,
+            statementCurr: txCurr,
+            statementAmt: rawAmt,
             statementRate: effRate,
-            fxCurr: txCurr,
-            fxAmt: rawAmt,
+            fxCurr: 'TRY',
+            fxAmt: tryAmt,
             fxRate: effRate,
             baseAmt,
             targetBalCurr: txCurr,
             targetBalAmt: rawAmt,
             isCross: true,
             isKurFarki: false,
-            crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+            crossNote: `${tryAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
           });
           return;
         }
@@ -778,18 +769,18 @@ export const useCompanyExport = (
           const baseAmt = defaultCurr === 'TRY' ? rawAmt : convertCurrency(rawAmt, 'TRY', defaultCurr);
           enrichedExcelTxs.push({
             ...tx,
-            statementCurr: 'TRY',
-            statementAmt: rawAmt,
+            statementCurr: txCrossCurr,
+            statementAmt: fxAmt || 0,
             statementRate: effRate,
-            fxCurr: txCrossCurr,
-            fxAmt: fxAmt,
+            fxCurr: 'TRY',
+            fxAmt: rawAmt,
             fxRate: effRate,
             baseAmt,
             targetBalCurr: txCrossCurr,
             targetBalAmt: fxAmt || 0,
             isCross: true,
             isKurFarki: false,
-            crossNote: fxAmt ? `${Number(fxAmt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${txCrossCurr} Mahsubu (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
+            crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
           });
           return;
         }
@@ -833,76 +824,62 @@ export const useCompanyExport = (
         return;
       }
 
-      if (selectedCurrency === defaultCurr) {
-        if (txCurr === defaultCurr) {
-          const hasTargetCross = Boolean(txCrossCurr && txCrossCurr !== defaultCurr);
-          const effRate = hasTargetCross ? (crossRate > 1 ? crossRate : rate) : 1;
-          const fxAmt = hasTargetCross
-            ? (rawCrossAmt > 0 ? rawCrossAmt : (effRate > 0 ? Number((rawAmt / effRate).toFixed(2)) : 0))
-            : 0;
-          enrichedExcelTxs.push({
-            ...tx,
-            statementCurr: defaultCurr,
-            statementAmt: rawAmt,
-            statementRate: hasTargetCross ? effRate : 1,
-            fxCurr: hasTargetCross ? txCrossCurr : '',
-            fxAmt: hasTargetCross ? fxAmt : 0,
-            fxRate: hasTargetCross ? effRate : 1,
-            baseAmt: rawAmt,
-            targetBalCurr: hasTargetCross ? txCrossCurr : defaultCurr,
-            targetBalAmt: hasTargetCross ? (fxAmt || 0) : 0,
-            isCross: hasTargetCross,
-            isKurFarki
-          });
-        }
+      // Single Currency Excel Export (selectedCurrency !== 'ALL')
+      const activeTabCurr = selectedCurrency.toUpperCase();
+      const targetLedgerCurr = (txCurr !== 'TRY')
+        ? txCurr
+        : (txCrossCurr && txCrossCurr !== 'TRY' ? txCrossCurr : 'TRY');
+
+      // Transactions belonging to a different currency ledger MUST NOT appear in this statement!
+      if (targetLedgerCurr !== activeTabCurr) {
         return;
       }
 
-      if (selectedCurrency !== defaultCurr && selectedCurrency !== 'ALL') {
-        if (txCurr === selectedCurrency) {
-          const hasTryCross = Boolean(txCrossCurr && txCrossCurr !== selectedCurrency) || descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:');
-          const effRate = crossRate > 1 ? crossRate : (selectedCurrency === 'TRY' ? getTryRate(defaultCurr) : getTryRate(selectedCurrency, tx.exchange_rate));
-          const convertedToDefault = convertCurrency(rawAmt, selectedCurrency, defaultCurr, tx.exchange_rate);
-          const counterAmt = rawCrossAmt > 0 ? rawCrossAmt : convertedToDefault;
-          enrichedExcelTxs.push({
-            ...tx,
-            statementCurr: selectedCurrency,
-            statementAmt: rawAmt,
-            statementRate: effRate,
-            fxCurr: selectedCurrency,
-            fxAmt: rawAmt,
-            fxRate: effRate,
-            baseAmt: convertedToDefault,
-            targetBalCurr: selectedCurrency,
-            targetBalAmt: rawAmt,
-            isCross: hasTryCross,
-            isKurFarki: false,
-            crossNote: hasTryCross ? `${counterAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${txCrossCurr || defaultCurr} ile Mahsup Edildi (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
-          });
-          return;
-        }
+      if (txCurr === activeTabCurr) {
+        const hasTryCross = Boolean(txCrossCurr && txCrossCurr !== activeTabCurr) || descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:');
+        const effRate = crossRate > 1 ? crossRate : (activeTabCurr === 'TRY' ? 1 : getTryRate(activeTabCurr, tx.exchange_rate));
+        const convertedToDefault = convertCurrency(rawAmt, activeTabCurr, defaultCurr, tx.exchange_rate);
+        const counterCurr = (txCrossCurr && txCrossCurr !== activeTabCurr) ? txCrossCurr : (activeTabCurr === 'TRY' ? defaultCurr : 'TRY');
+        const convCounter = convertCurrency(rawAmt, activeTabCurr, counterCurr, effRate);
+        const counterAmt = rawCrossAmt > 0 ? rawCrossAmt : convCounter;
+        enrichedExcelTxs.push({
+          ...tx,
+          statementCurr: activeTabCurr,
+          statementAmt: rawAmt,
+          statementRate: effRate,
+          fxCurr: hasTryCross ? counterCurr : (activeTabCurr !== defaultCurr ? defaultCurr : ''),
+          fxAmt: hasTryCross ? counterAmt : (activeTabCurr !== defaultCurr ? convertedToDefault : 0),
+          fxRate: effRate,
+          baseAmt: convertedToDefault,
+          targetBalCurr: activeTabCurr,
+          targetBalAmt: rawAmt,
+          isCross: hasTryCross,
+          isKurFarki: false,
+          crossNote: hasTryCross ? `${Number(counterAmt).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${counterCurr === 'TRY' ? '₺' : counterCurr} ile Mahsup Edildi (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
+        });
+        return;
+      }
 
-        if (txCrossCurr === selectedCurrency) {
-          const effRate = crossRate > 1 ? crossRate : (txCurr === 'TRY' ? getTryRate(selectedCurrency) : getTryRate(txCurr, tx.exchange_rate));
-          const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : convertCurrency(rawAmt, txCurr, selectedCurrency, effRate);
-          const baseAmt = convertCurrency(fxAmt, selectedCurrency, defaultCurr);
-          enrichedExcelTxs.push({
-            ...tx,
-            statementCurr: selectedCurrency,
-            statementAmt: fxAmt,
-            statementRate: effRate,
-            fxCurr: selectedCurrency,
-            fxAmt: fxAmt,
-            fxRate: effRate,
-            baseAmt,
-            targetBalCurr: selectedCurrency,
-            targetBalAmt: fxAmt,
-            isCross: true,
-            isKurFarki: false,
-            crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${txCurr} Karşılığı`
-          });
-          return;
-        }
+      if (txCurr === 'TRY' && txCrossCurr === activeTabCurr) {
+        const effRate = crossRate > 1 ? crossRate : getTryRate(activeTabCurr, tx.exchange_rate);
+        const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (effRate > 0 ? Number((rawAmt / effRate).toFixed(2)) : 0);
+        const baseAmt = convertCurrency(fxAmt, activeTabCurr, defaultCurr, effRate);
+        enrichedExcelTxs.push({
+          ...tx,
+          statementCurr: activeTabCurr,
+          statementAmt: fxAmt,
+          statementRate: effRate,
+          fxCurr: 'TRY',
+          fxAmt: rawAmt,
+          fxRate: effRate,
+          baseAmt,
+          targetBalCurr: activeTabCurr,
+          targetBalAmt: fxAmt,
+          isCross: true,
+          isKurFarki: false,
+          crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+        });
+        return;
       }
     });
 

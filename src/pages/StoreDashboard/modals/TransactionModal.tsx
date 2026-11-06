@@ -867,17 +867,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       const baseConv = convertCurrency(rawAmt, txCurr, defaultCurr, effTryRate);
                       enrichedTransactions.push({
                         ...tx,
-                        statementCurr: 'TRY',
-                        statementAmt: tryAmt,
+                        statementCurr: txCurr,
+                        statementAmt: rawAmt,
                         statementRate: effTryRate,
-                        fxCurr: txCurr,
-                        fxAmt: rawAmt,
+                        fxCurr: 'TRY',
+                        fxAmt: tryAmt,
                         fxRate: effTryRate,
                         baseAmt: baseConv.amount,
                         targetBalCurr: txCurr,
                         targetBalAmt: rawAmt,
                         isCross: true,
-                        crossNote: `${rawAmt.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCurr} Mahsubu (Kur: ${effTryRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+                        crossNote: `${tryAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${effTryRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
                       });
                       return;
                     }
@@ -888,17 +888,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       const baseConv = fxAmt ? convertCurrency(fxAmt, txCrossCurr, defaultCurr, effTryRate) : convertCurrency(rawAmt, 'TRY', defaultCurr, effTryRate);
                       enrichedTransactions.push({
                         ...tx,
-                        statementCurr: 'TRY',
-                        statementAmt: rawAmt,
+                        statementCurr: txCrossCurr,
+                        statementAmt: fxAmt || 0,
                         statementRate: effTryRate > 0 ? effTryRate : 1,
-                        fxCurr: txCrossCurr,
-                        fxAmt: fxAmt,
+                        fxCurr: 'TRY',
+                        fxAmt: rawAmt,
                         fxRate: effTryRate,
                         baseAmt: baseConv.amount,
                         targetBalCurr: txCrossCurr,
                         targetBalAmt: fxAmt || 0,
                         isCross: true,
-                        crossNote: fxAmt ? `${Number(fxAmt).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${txCrossCurr} Mahsubu (Kur: ${effTryRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : undefined
+                        crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${effTryRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
                       });
                       return;
                     }
@@ -943,7 +943,20 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   // Single Currency Tab Selected (selectedCurrency !== 'ALL')
                   const activeTabCurr = selectedCurrency.toUpperCase();
 
-                  // 1. Transaction currency matches selected tab currency
+                  // Determine the definitive ledger currency of this transaction:
+                  // - If recorded in a foreign currency (e.g. USD, EUR, GBP), it belongs to that currency ledger.
+                  // - If recorded in TRY, but cross-offsetting a foreign currency, it belongs to that foreign currency ledger.
+                  // - Otherwise, it belongs to TRY.
+                  const targetLedgerCurr = (txCurr !== 'TRY')
+                    ? txCurr
+                    : (txCrossCurr && txCrossCurr !== 'TRY' ? txCrossCurr : 'TRY');
+
+                  // If transaction belongs to another currency ledger, NEVER include it in this statement!
+                  if (targetLedgerCurr !== activeTabCurr) {
+                    return;
+                  }
+
+                  // 1. Transaction currency matches active tab currency (e.g. USD in USD tab, or TRY invoice in TRY tab)
                   if (txCurr === activeTabCurr) {
                     const hasCrossOffset = Boolean(txCrossCurr && txCrossCurr !== activeTabCurr) ||
                       (activeTabCurr !== 'TRY' && (descLower.includes('tl tahsilat') || descLower.includes('tl ödeme') || descLower.includes('tl:')));
@@ -991,25 +1004,24 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     return;
                   }
 
-                  // 2. Cross currency matches selected tab currency (e.g. recorded in TRY targeting USD/GBP)
-                  if (txCrossCurr === activeTabCurr) {
-                    const convTarget = convertCurrency(rawAmt, txCurr, activeTabCurr, rawCrossRate > 1.05 ? rawCrossRate : tx.exchange_rate);
-                    const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : convTarget.amount;
-                    const effRate = rawCrossRate > 1.05 ? rawCrossRate : convTarget.rate;
+                  // 2. Transaction recorded in TRY targeting activeTabCurr (e.g. legacy entry in TRY offsetting USD)
+                  if (txCurr === 'TRY' && txCrossCurr === activeTabCurr) {
+                    const effRate = rawCrossRate > 1.05 ? rawCrossRate : (rawCrossAmt > 0 ? Number((rawAmt / rawCrossAmt).toFixed(4)) : getTryRate(activeTabCurr, tx.exchange_rate));
+                    const fxAmt = rawCrossAmt > 0 ? rawCrossAmt : (effRate > 0 ? Number((rawAmt / effRate).toFixed(2)) : 0);
                     const baseConv = convertCurrency(fxAmt, activeTabCurr, defaultCurr, effRate);
                     enrichedTransactions.push({
                       ...tx,
                       statementCurr: activeTabCurr,
                       statementAmt: fxAmt,
                       statementRate: effRate,
-                      fxCurr: txCurr,
+                      fxCurr: 'TRY',
                       fxAmt: rawAmt,
                       fxRate: effRate,
                       baseAmt: baseConv.amount,
                       targetBalCurr: activeTabCurr,
                       targetBalAmt: fxAmt,
                       isCross: true,
-                      crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${txCurr} Karşılığı (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
+                      crossNote: `${rawAmt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ ile Mahsup Edildi (Kur: ${effRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})`
                     });
                     return;
                   }

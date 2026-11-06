@@ -5,7 +5,6 @@ import {
   Upload, 
   Trash2, 
   ZoomIn, 
-  Printer, 
   Clock, 
   Plus, 
   Check, 
@@ -661,33 +660,33 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-[130] flex items-center justify-center p-2 sm:p-4 bg-slate-900/70 backdrop-blur-xs overflow-hidden animate-in fade-in duration-200"
+      className="fixed inset-0 z-[130] flex items-center justify-center p-1 sm:p-4 bg-slate-900/70 backdrop-blur-xs overflow-hidden animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* High-Contrast Corporate Daylight Modal Container */}
-      <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-4xl h-[92vh] max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl relative text-slate-950">
+      {/* High-Contrast Corporate Daylight Modal Container (Extended vertically for mobile) */}
+      <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-4xl h-[98vh] sm:h-[92vh] max-h-[98dvh] sm:max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl relative text-slate-950">
         
-        {/* Header: Horizontal Standout Ref Badge, No Title, Icon-Based Action Buttons */}
-        <div className="bg-slate-900 text-white px-3 py-2 flex items-center justify-between shrink-0 border-b border-slate-800 select-none">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="px-2.5 py-1 bg-amber-400 text-slate-950 text-xs sm:text-sm font-black font-mono tracking-wider rounded-lg shadow-sm whitespace-nowrap">
+        {/* Header: Compact Ref Badge, No Overlap, Icon-Based Action Buttons (Printer Removed) */}
+        <div className="bg-slate-900 text-white px-2.5 sm:px-3.5 py-1.5 sm:py-2 flex items-center justify-between shrink-0 border-b border-slate-800 select-none">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="px-2 py-0.5 bg-amber-400 text-slate-950 text-[10px] sm:text-xs font-black font-mono tracking-tight rounded-md shadow-2xs whitespace-nowrap">
               Ref: {propertyRef}
             </span>
             {approvalStatus === "approved" && (
-              <span className="bg-emerald-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded uppercase whitespace-nowrap">
+              <span className="hidden sm:inline-block bg-emerald-500 text-slate-950 text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded uppercase whitespace-nowrap">
                 Kiracı Onaylı
               </span>
             )}
             {approvalStatus === "rejected" && (
-              <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase whitespace-nowrap">
+              <span className="hidden sm:inline-block bg-rose-500 text-white text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded uppercase whitespace-nowrap">
                 Düzeltme Talebi
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
             {photos.length > 0 && (
               <>
                 <button
@@ -697,15 +696,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                   className="p-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-lg transition-colors shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center"
                   title={isGeneratingPdf ? "PDF hazırlanıyor..." : "Satır Satır PDF Tutanak İndir"}
                 >
-                  <Download className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePrintInspectionReport}
-                  className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg border border-slate-700 transition-colors cursor-pointer flex items-center justify-center"
-                  title="Tutanak Yazdır"
-                >
-                  <Printer className="w-4 h-4" />
+                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
                 <button
                   type="button"
@@ -713,7 +704,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                   className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg transition-colors shadow-xs cursor-pointer flex items-center justify-center"
                   title="Sözleşme, Eşya Listesi ve Resimleri WhatsApp ile Gönder"
                 >
-                  <Share2 className="w-4 h-4" />
+                  <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
               </>
             )}
@@ -722,7 +713,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
               title="Kapat"
               className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors cursor-pointer flex items-center justify-center"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
