@@ -521,6 +521,56 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
       fixture_photos: Array.isArray(formData.fixture_photos) ? formData.fixture_photos : []
     };
 
+    if ((formData as any).external_partner !== undefined) {
+      const extPartner = (formData as any).external_partner;
+      const existingPool = sectorData.commission_pool || {};
+      const propPrice = Number(formData.price) || 0;
+      const curr = formData.currency || "GBP";
+      const gross = existingPool.gross_commission || (formData.listing_intent === "rent" ? propPrice : Math.round(propPrice * 0.05));
+      const totalExp = existingPool.total_expenses || 0;
+      const netDist = Math.max(0, gross - totalExp);
+      const nonExternalStks = (existingPool.stakeholders || []).filter((s: any) => !s.is_external);
+
+      if (extPartner && extPartner.name && extPartner.name.trim()) {
+        const pct = Number(extPartner.percentage) || 20;
+        const calcAmt = Math.round((netDist * pct) / 100);
+        const newExtStk = {
+          id: extPartner.id || `stk_ext_${Date.now()}`,
+          name: extPartner.name.trim(),
+          phone: extPartner.phone || "",
+          role: extPartner.role || "portfolio_source",
+          roleLabel: extPartner.role === "lead_source" ? "Müşteri Getiren" : "Portföy Getiren",
+          is_external: true,
+          percentage: pct,
+          calculated_amount: calcAmt,
+          currency: curr,
+          payout_status: extPartner.payout_status || "pending_agreement",
+          is_locked: !!extPartner.is_locked
+        };
+        const allStks = [...nonExternalStks, newExtStk];
+        const totalPct = allStks.reduce((acc: number, s: any) => acc + (Number(s.percentage) || 0), 0);
+        sectorData.commission_pool = {
+          ...existingPool,
+          gross_commission: gross,
+          currency: curr,
+          calculation_mode: existingPool.calculation_mode || "net",
+          expenses: existingPool.expenses || [],
+          total_expenses: totalExp,
+          net_distributable_commission: netDist,
+          stakeholders: allStks,
+          company_share_percent: Math.max(0, 100 - totalPct),
+          company_share_amount: Math.max(0, netDist - allStks.reduce((a: number, s: any) => a + (Number(s.calculated_amount) || 0), 0)),
+          all_external_signed: newExtStk.payout_status !== "pending_agreement",
+          pending_signatures_count: newExtStk.payout_status === "pending_agreement" ? 1 : 0
+        };
+      } else if (existingPool.stakeholders) {
+        sectorData.commission_pool = {
+          ...existingPool,
+          stakeholders: nonExternalStks
+        };
+      }
+    }
+
     const dataToSave = {
       ...formData,
       furnished: Boolean(

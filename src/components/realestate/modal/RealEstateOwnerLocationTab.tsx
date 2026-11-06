@@ -1,5 +1,5 @@
 import React from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, Handshake } from "lucide-react";
 import { AutocompleteSelect } from "../../AutocompleteSelect";
 import { RealEstateProperty } from "../../../types";
 import { api } from "../../../services/api";
@@ -25,15 +25,38 @@ export const RealEstateOwnerLocationTab: React.FC<RealEstateOwnerLocationTabProp
   storeId,
   standardizeOwnerPhone
 }) => {
+  const existingPool = (formData as any).sector_data?.commission_pool;
+  const externalPartner = existingPool?.stakeholders?.find((s: any) => s.is_external) || (formData as any).external_partner || {};
+
+  const partnerName = externalPartner.name || "";
+  const partnerPhone = externalPartner.phone || "";
+  const partnerRole = externalPartner.role || "portfolio_source";
+  const partnerPercent = externalPartner.percentage ?? 20;
+
+  const updateExternalPartner = (updates: { name?: string; phone?: string; role?: string; percentage?: number }) => {
+    const nextPartner = {
+      id: externalPartner.id || `stk_ext_${Date.now()}`,
+      name: updates.name !== undefined ? updates.name : partnerName,
+      phone: updates.phone !== undefined ? updates.phone : partnerPhone,
+      role: updates.role !== undefined ? updates.role : partnerRole,
+      roleLabel: (updates.role || partnerRole) === "lead_source" ? "Müşteri Getiren" : "Portföy Getiren",
+      is_external: true,
+      percentage: updates.percentage !== undefined ? updates.percentage : Number(partnerPercent) || 20,
+      payout_status: externalPartner.payout_status || "pending_agreement"
+    };
+
+    setFormData((prev: any) => ({
+      ...prev,
+      external_partner: nextPartner
+    }));
+  };
+
   return (
     <div className="bg-white border border-slate-200/90 rounded-xl p-2.5 sm:p-3 space-y-2.5 shadow-2xs">
       <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
         <span className="text-[11px] font-black uppercase text-amber-950 flex items-center gap-1.5 tracking-wide">
           <MapPin className="w-3.5 h-3.5 text-amber-600" />
-          2. Mülk Sahibi, Konum Adresi & Şube Ataması
-        </span>
-        <span className="text-[10px] text-slate-400 font-bold uppercase">
-          CRM & Portföy Güvenliği
+          2. Mülk Sahibi, Konum & Paydaş Ataması
         </span>
       </div>
 
@@ -230,6 +253,81 @@ export const RealEstateOwnerLocationTab: React.FC<RealEstateOwnerLocationTabProp
             <option value="branch_private">Şube İçi Özel</option>
             <option value="private">Danışmana Özel</option>
           </select>
+        </div>
+      </div>
+
+      {/* Direct External Partner (Dış Paydaş) Assignment Box */}
+      <div className="p-2 bg-indigo-50/50 rounded-lg border border-indigo-200/80 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black uppercase text-indigo-950 flex items-center gap-1">
+            <Handshake className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Dış Paydaş / Referans Ortağı (Opsiyonel)</span>
+          </span>
+          {partnerName && (
+            <button
+              type="button"
+              onClick={() => updateExternalPartner({ name: "", phone: "" })}
+              className="text-[9px] font-black text-rose-600 hover:underline cursor-pointer"
+            >
+              Paydaşı Kaldır
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-1.5 items-end">
+          <div className="sm:col-span-4">
+            <label className="block text-[9px] font-bold text-slate-600 mb-0.5">
+              Paydaş Adı Soyadı
+            </label>
+            <input
+              type="text"
+              placeholder="Örn: Ahmet Çetin"
+              className="w-full px-2 py-1 h-7.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 outline-none focus:border-indigo-600"
+              value={partnerName}
+              onChange={(e) => updateExternalPartner({ name: e.target.value })}
+            />
+          </div>
+
+          <div className="sm:col-span-4">
+            <label className="block text-[9px] font-bold text-slate-600 mb-0.5">
+              Paydaş Telefonu
+            </label>
+            <input
+              type="tel"
+              placeholder="+90 533 ..."
+              className="w-full px-2 py-1 h-7.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 outline-none focus:border-indigo-600"
+              value={partnerPhone}
+              onChange={(e) => updateExternalPartner({ phone: e.target.value })}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-[9px] font-bold text-slate-600 mb-0.5">
+              Rolü
+            </label>
+            <select
+              className="w-full px-1.5 py-1 h-7.5 bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+              value={partnerRole}
+              onChange={(e) => updateExternalPartner({ role: e.target.value })}
+            >
+              <option value="portfolio_source">Portföy Getiren</option>
+              <option value="lead_source">Müşteri Getiren</option>
+            </select>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-[9px] font-bold text-slate-600 mb-0.5">
+              Payı (%)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              className="w-full px-2 py-1 h-7.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-black text-indigo-700 outline-none focus:border-indigo-600"
+              value={partnerPercent}
+              onChange={(e) => updateExternalPartner({ percentage: Number(e.target.value) || 0 })}
+            />
+          </div>
         </div>
       </div>
     </div>

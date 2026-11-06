@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronUp,
   SlidersHorizontal,
+  Handshake,
   X
 } from "lucide-react";
 import { toast } from "sonner";
@@ -52,6 +53,7 @@ interface RealEstateHeaderToolbarProps {
   optionedCount: number;
   soldCount: number;
   rentedCount: number;
+  onOpenPartnerPortal?: () => void;
 }
 
 export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = ({
@@ -79,7 +81,8 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
   rentCount,
   optionedCount,
   soldCount,
-  rentedCount
+  rentedCount,
+  onOpenPartnerPortal
 }) => {
   // Default collapsed for both Dashboard Stats/Ref Counter and Search/Filter panel
   const [isRefAndStatsOpen, setIsRefAndStatsOpen] = useState(false);
@@ -323,6 +326,18 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                 </button>
               )}
 
+              {onOpenPartnerPortal && (
+                <button
+                  type="button"
+                  onClick={onOpenPartnerPortal}
+                  className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
+                  title="Paydaş Portföyleri & Bakiye Takibi"
+                >
+                  <Handshake className="w-3 h-3 text-amber-700" />
+                  <span className="hidden sm:inline">Paydaşlar</span>
+                </button>
+              )}
+
               <button
                 onClick={() => setViewMode('calendar')}
                 className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
@@ -477,6 +492,7 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                     onChange={(e) => setFilterScope(e.target.value)}
                   >
                     <option value="all">Ağ ve Havuz (Tümü)</option>
+                    <option value="has_partner">Paydaşlı Portföyler</option>
                     <option value="shared_pool">Ortak Havuz</option>
                     <option value="branch_private">Sadece Kendi Şubem</option>
                     <option value="private">Şahsi İlanlarım</option>

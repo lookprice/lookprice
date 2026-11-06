@@ -18,9 +18,8 @@ import {
   Compass,
   Check,
   ShieldAlert,
-  MoreHorizontal,
-  ChevronDown,
-  ChevronUp
+  Handshake,
+  MoreHorizontal
 } from "lucide-react";
 import { toast } from "sonner";
 import { RealEstateViewMode } from "./types";
@@ -39,6 +38,7 @@ interface RealEstateCardProps {
   onDelete: (id: any) => void;
   onViewDocs: (p: any) => void;
   onOpenFixtureVault?: (p: any) => void;
+  onOpenCommission?: (p: any) => void;
 }
 
 /**
@@ -64,7 +64,8 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
   onEdit,
   onDelete,
   onViewDocs,
-  onOpenFixtureVault
+  onOpenFixtureVault,
+  onOpenCommission
 }) => {
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
@@ -142,13 +143,223 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
 
   const docCount = Array.isArray(property.documents) ? property.documents.length : 0;
   const fixturePhotoCount = Array.isArray(property.fixture_photos) ? property.fixture_photos.length : 0;
+  const externalPartner = property.sector_data?.commission_pool?.stakeholders?.find((s: any) => s.is_external);
 
-  // Compact Grid Mode (When user switches to 3-column grid)
+  /**
+   * Shared Action Buttons: ONLY Kalem (Edit) + Collapsible Actions Menu (•••)
+   * Used identically in both List and Grid views.
+   */
+  const renderActionControls = () => (
+    <div className="flex items-center gap-1 shrink-0" ref={menuRef}>
+      {/* ONLY Kalem (Edit) Icon */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdit(property);
+        }}
+        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200 rounded-lg transition-all cursor-pointer shrink-0"
+        title="Portföyü Düzenle"
+      >
+        <Edit2 className="w-3.5 h-3.5" />
+      </button>
+
+      {/* Collapsible Operations Menu (Açılır-Kapanır İşlemler Listesi) */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsActionsMenuOpen(prev => !prev);
+          }}
+          className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-center relative shrink-0 ${
+            isActionsMenuOpen
+              ? "bg-slate-900 text-white border-slate-900"
+              : "bg-white hover:bg-slate-100 text-slate-800 border-slate-200"
+          }`}
+          title="İşlemler Menüsü"
+        >
+          <MoreHorizontal className="w-3.5 h-3.5" />
+          {(fixturePhotoCount > 0 || docCount > 0) && !isActionsMenuOpen && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-indigo-600 border border-white" />
+          )}
+        </button>
+
+        {isActionsMenuOpen && (
+          <div className="absolute right-0 bottom-full mb-1 sm:bottom-auto sm:top-full sm:mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 z-50 text-xs font-bold text-slate-800 animate-in fade-in zoom-in-95 duration-100">
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionsMenuOpen(false);
+                onOpenContract(property);
+              }}
+              className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
+            >
+              <FileSignature className="w-3.5 h-3.5 text-slate-900 shrink-0" />
+              <span>Sözleşme Oluştur</span>
+            </button>
+
+            {onOpenCommission && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsActionsMenuOpen(false);
+                  onOpenCommission(property);
+                }}
+                className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-left cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  <Handshake className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>Paydaş & Hakediş</span>
+                </span>
+                {externalPartner && (
+                  <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded text-[9px] font-black">
+                    %{externalPartner.percentage}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {property.listing_intent === "rent" && isFurnished && onOpenFixtureVault && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsActionsMenuOpen(false);
+                  onOpenFixtureVault(property);
+                }}
+                className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-left cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  <ShieldAlert className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <span>Eşyalar (Demirbaş)</span>
+                </span>
+                {fixturePhotoCount > 0 && (
+                  <span className="px-1.5 py-0.2 bg-sky-100 text-sky-800 rounded text-[10px] font-black">
+                    {fixturePhotoCount}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {property.listing_intent !== "rent" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsActionsMenuOpen(false);
+                  onOpenTapu(property);
+                }}
+                className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
+              >
+                <Award className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>Tapu Süreç Takibi</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionsMenuOpen(false);
+                onOpenTour(property);
+              }}
+              className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
+            >
+              <Calendar className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span>Yer Gösterme / Tur Planla</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionsMenuOpen(false);
+                onGoToPipeline();
+              }}
+              className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
+            >
+              <Layout className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span>CRM Pipeline'a Git</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionsMenuOpen(false);
+                onOpenSocialShare(property);
+              }}
+              className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
+            >
+              <Share2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span>Sosyal Medya Paylaşım</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionsMenuOpen(false);
+                onPrint(property);
+              }}
+              className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+              <span>A4 Vitrin Afişi Yazdır</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionsMenuOpen(false);
+                if (docCount > 0) {
+                  onViewDocs(property);
+                } else {
+                  toast.info("Bu gayrimenkule ait henüz yüklenmiş resmî evrak bulunmuyor.");
+                }
+              }}
+              className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-left cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <FolderLock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span>Resmî Evraklar</span>
+              </span>
+              <span className="text-[10px] font-mono text-slate-500">{docCount}</span>
+            </button>
+
+            <a
+              href={`/mulk-takip/${property.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setIsActionsMenuOpen(false)}
+              className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer text-emerald-700"
+            >
+              <Eye className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>Mülk Sahibi Canlı Takip</span>
+            </a>
+
+            <div className="my-1 border-t border-slate-100" />
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionsMenuOpen(false);
+                if (window.confirm("Bu gayrimenkulü silmek istediğinize emin misiniz?")) {
+                  onDelete(property.id);
+                }
+              }}
+              className="w-full px-3 py-1.5 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+              <span>Portföyü Sil</span>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // GRID MODE (Izgara Görünümü — Clean Card + Kalem + Açılır-Kapanır İşlemler Listesi)
   if (viewMode === "grid") {
     return (
-      <div className="bg-white rounded-xl border border-slate-200/90 hover:border-slate-300 shadow-2xs overflow-hidden flex flex-col justify-between transition-all">
+      <div className="bg-white rounded-xl border border-slate-200/90 hover:border-slate-300 shadow-2xs flex flex-col justify-between transition-all relative">
         <div>
-          <div className="w-full h-36 bg-slate-100 relative overflow-hidden">
+          <div className="w-full h-36 bg-slate-100 relative overflow-hidden rounded-t-xl">
             {property.images && property.images.length > 0 ? (
               <img
                 src={property.images[0]}
@@ -179,7 +390,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
           <div className="p-2.5 space-y-1.5">
             <h4
               onClick={() => onEdit(property)}
-              className="font-black text-xs text-slate-950 hover:text-indigo-600 transition-colors line-clamp-1 cursor-pointer"
+              className="font-black text-xs text-slate-950 hover:text-indigo-600 transition-colors line-clamp-2 leading-snug cursor-pointer"
               title={cleanTitle}
             >
               {cleanTitle}
@@ -208,41 +419,46 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
           </div>
         </div>
 
-        <div className="px-2.5 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-1">
-          <span className="text-[10px] font-bold text-slate-500 truncate">
-            {property.responsible_agent || property.branch_name || "Merkez Ofis"}
-          </span>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => onOpenContract(property)}
-              className="p-1.5 bg-slate-900 text-white hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
-              title="Sözleşme Oluştur"
-            >
-              <FileSignature className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => onEdit(property)}
-              className="p-1.5 bg-white text-slate-800 hover:bg-slate-100 border border-slate-200 rounded-lg transition-all cursor-pointer"
-              title="Düzenle"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-            </button>
+        <div className="px-2.5 py-2 bg-slate-50 border-t border-slate-100 rounded-b-xl flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[10px] font-bold text-slate-600 truncate">
+              {property.responsible_agent || property.branch_name || "Merkez Ofis"}
+            </span>
+            {externalPartner && (
+              <button
+                type="button"
+                onClick={() => onOpenCommission && onOpenCommission(property)}
+                className="px-1.5 py-0.2 bg-amber-50 text-amber-900 border border-amber-200 rounded text-[9px] font-black shrink-0 cursor-pointer"
+                title="Paydaş & Hakediş Detayı"
+              >
+                Paydaş: {externalPartner.name} (%{externalPartner.percentage})
+              </button>
+            )}
+            {docCount > 0 && (
+              <button
+                type="button"
+                onClick={() => onViewDocs(property)}
+                className="px-1.5 py-0.2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[9px] font-black shrink-0 cursor-pointer"
+              >
+                Evrak ({docCount})
+              </button>
+            )}
           </div>
+          {renderActionControls()}
         </div>
       </div>
     );
   }
 
-  // DEFAULT: ULTRA-COMPACT HIGH-DENSITY ROW MODE (LookPrice %80 Zoom Minimalist Broker Standard)
+  // LIST MODE (Kompakt Liste Görünümü — Maksimum Portföy Başlık Alanı + Sadece Kalem ve ••• İşlemler Menüsü)
   return (
-    <div className="bg-white rounded-xl border border-slate-200/90 hover:border-slate-300 shadow-2xs transition-all">
-      {/* Main Compact Row */}
-      <div className="p-2 sm:p-2.5 flex items-center gap-2.5 sm:gap-3">
+    <div className="bg-white rounded-xl border border-slate-200/90 hover:border-slate-300 shadow-2xs transition-all relative">
+      <div className="p-2 sm:p-2.5 flex items-start sm:items-center gap-2.5">
         {/* Compact Thumbnail (Left) */}
         <div
           onClick={() => setIsDetailsExpanded(prev => !prev)}
           className="w-16 h-16 sm:w-20 sm:h-16 rounded-lg bg-slate-100 relative overflow-hidden shrink-0 cursor-pointer border border-slate-200/80"
-          title="Detayları ve açıklamayı görmek için tıklayın"
+          title="Detay künyesini açmak için tıklayın"
         >
           {property.images && property.images.length > 0 ? (
             <img
@@ -265,19 +481,35 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
           </span>
         </div>
 
-        {/* Center Info Column (2 Clean High-Density Lines, Zero Description Clutter) */}
+        {/* Center Info Column — Full Horizontal Room for Portfolio Title & Metadata */}
         <div className="flex-1 min-w-0 space-y-1">
-          {/* Line 1: REF + Region + Key Specs + Scope + Docs */}
-          <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-600 leading-none">
+          {/* Top Line: Portfolio Title (Full Width, 1-2 lines, clearly readable on mobile & desktop) */}
+          <h4
+            onClick={() => setIsDetailsExpanded(prev => !prev)}
+            className="font-black text-xs sm:text-[13px] text-slate-950 hover:text-indigo-600 transition-colors line-clamp-2 sm:line-clamp-1 leading-snug cursor-pointer"
+            title={cleanTitle}
+          >
+            {cleanTitle}
+          </h4>
+
+          {/* Bottom Line: Price + REF + Location + Room/m² + Docs */}
+          <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-600 leading-tight">
+            {/* Price highlighted first so it never squeezes the title */}
+            <span className="font-mono font-black text-xs sm:text-[13px] text-indigo-700">
+              {currencySymbol}{formatNumberVal(property.price)}
+            </span>
+
+            <span className="text-slate-300">·</span>
+
             {property.reference_no && (
-              <span className="font-mono font-black text-[9.5px] text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+              <span className="font-mono font-black text-[9.5px] text-slate-800 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
                 {property.reference_no}
               </span>
             )}
 
-            <span className="text-slate-800 font-extrabold flex items-center gap-0.5 truncate max-w-[140px] sm:max-w-[220px]">
+            <span className="text-slate-800 font-extrabold inline-flex items-center gap-0.5">
               <MapPin className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
-              <span className="truncate">{locationText}</span>
+              <span>{locationText}</span>
             </span>
 
             {property.room_count && (
@@ -308,17 +540,19 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               </>
             ) : null}
 
-            <span className="text-slate-300 hidden md:inline">·</span>
-            <span className="hidden md:inline text-emerald-700 font-extrabold">{scopeLabel}</span>
-
-            {property.responsible_agent && (
-              <>
-                <span className="text-slate-300 hidden lg:inline">·</span>
-                <span className="hidden lg:inline-flex items-center gap-0.5 text-slate-700 font-bold">
-                  <User className="w-2.5 h-2.5 text-slate-400" />
-                  <span>{property.responsible_agent}</span>
-                </span>
-              </>
+            {externalPartner && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onOpenCommission) onOpenCommission(property);
+                }}
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded text-[9px] font-black cursor-pointer"
+                title="Paydaş & Hakediş Detayı"
+              >
+                <Handshake className="w-2.5 h-2.5 text-amber-700" />
+                <span>Paydaş: {externalPartner.name} (%{externalPartner.percentage})</span>
+              </button>
             )}
 
             {docCount > 0 && (
@@ -328,7 +562,7 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
                   e.stopPropagation();
                   onViewDocs(property);
                 }}
-                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-[9px] font-black cursor-pointer"
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-[9px] font-black cursor-pointer"
                 title="Yüklü resmî evrakları görüntüle"
               >
                 <FolderLock className="w-2.5 h-2.5 text-emerald-600" />
@@ -336,258 +570,15 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               </button>
             )}
           </div>
-
-          {/* Line 2: Clean Corporate Title (Emoji-Free) */}
-          <div className="flex items-center gap-1.5 min-w-0">
-            <h4
-              onClick={() => setIsDetailsExpanded(prev => !prev)}
-              className="font-extrabold text-xs sm:text-[13px] text-slate-950 hover:text-indigo-600 transition-colors truncate cursor-pointer"
-              title={cleanTitle}
-            >
-              {cleanTitle}
-            </h4>
-          </div>
         </div>
 
-        {/* Right Column: Price + Compact Action Triggers */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Price */}
-          <div className="text-right pr-1">
-            <span className="block text-xs sm:text-sm font-black text-indigo-700 font-mono whitespace-nowrap leading-tight">
-              {currencySymbol}{formatNumberVal(property.price)}
-            </span>
-            <span className="block text-[9px] font-bold text-slate-400 uppercase hidden sm:block leading-none">
-              {property.branch_name || "Merkez"}
-            </span>
-          </div>
-
-          {/* Primary Action 1: Contract */}
-          <button
-            type="button"
-            onClick={() => onOpenContract(property)}
-            className="p-1.5 bg-slate-900 text-white hover:bg-slate-800 rounded-lg transition-all cursor-pointer shrink-0"
-            title="Sözleşme / Resmi Hizmet Oluştur"
-          >
-            <FileSignature className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Primary Action 2: Eşyalar (if furnished rent) or Tapu (if sale) */}
-          {property.listing_intent === "rent" && isFurnished && onOpenFixtureVault ? (
-            <button
-              type="button"
-              onClick={() => onOpenFixtureVault(property)}
-              className="p-1.5 bg-sky-600 text-white hover:bg-sky-700 rounded-lg transition-all relative cursor-pointer shrink-0"
-              title="Eşyalar (Demirbaş Tutanak & Fotoğraflar)"
-            >
-              <ShieldAlert className="w-3.5 h-3.5" />
-              {fixturePhotoCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center border border-white">
-                  {fixturePhotoCount}
-                </span>
-              )}
-            </button>
-          ) : property.listing_intent !== "rent" ? (
-            <button
-              type="button"
-              onClick={() => onOpenTapu(property)}
-              className="hidden sm:flex p-1.5 bg-amber-500 text-white hover:bg-amber-600 rounded-lg transition-all cursor-pointer shrink-0"
-              title="Tapu Süreç & Randevu Takipçisi"
-            >
-              <Award className="w-3.5 h-3.5" />
-            </button>
-          ) : null}
-
-          {/* Primary Action 3: Fast Edit */}
-          <button
-            type="button"
-            onClick={() => onEdit(property)}
-            className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-lg transition-all cursor-pointer shrink-0"
-            title="Portföyü Düzenle"
-          >
-            <Edit2 className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Expandable Details Toggle (Description & Full Specs) */}
-          <button
-            type="button"
-            onClick={() => setIsDetailsExpanded(prev => !prev)}
-            className={`p-1.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
-              isDetailsExpanded
-                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                : "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200"
-            }`}
-            title={isDetailsExpanded ? "Detay Künyesini Gizle" : "Açıklama ve Detay Künyesini Aç"}
-          >
-            {isDetailsExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* Compact Dropdown Menu for Secondary Operations (Replaces 9 cluttered buttons) */}
-          <div className="relative" ref={menuRef}>
-            <button
-              type="button"
-              onClick={() => setIsActionsMenuOpen(prev => !prev)}
-              className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-0.5 shrink-0 ${
-                isActionsMenuOpen
-                  ? "bg-slate-900 text-white border-slate-900"
-                  : "bg-white hover:bg-slate-100 text-slate-700 border-slate-200"
-              }`}
-              title="Tüm Portföy İşlemleri"
-            >
-              <MoreHorizontal className="w-3.5 h-3.5" />
-            </button>
-
-            {isActionsMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-40 text-xs font-bold text-slate-800 animate-in fade-in zoom-in-95 duration-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    onOpenTour(property);
-                  }}
-                  className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
-                >
-                  <Calendar className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                  <span>Yer Gösterme / Tur Planla</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    onGoToPipeline();
-                  }}
-                  className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
-                >
-                  <Layout className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                  <span>CRM Pipeline'a Git</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    onOpenContract(property);
-                  }}
-                  className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
-                >
-                  <FileSignature className="w-3.5 h-3.5 text-slate-900 shrink-0" />
-                  <span>Sözleşme Oluştur</span>
-                </button>
-
-                {property.listing_intent === "rent" && isFurnished && onOpenFixtureVault && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsActionsMenuOpen(false);
-                      onOpenFixtureVault(property);
-                    }}
-                    className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-left cursor-pointer"
-                  >
-                    <span className="flex items-center gap-2">
-                      <ShieldAlert className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                      <span>Eşyalar (Demirbaş)</span>
-                    </span>
-                    {fixturePhotoCount > 0 && (
-                      <span className="px-1.5 py-0.2 bg-sky-100 text-sky-800 rounded text-[10px] font-black">
-                        {fixturePhotoCount}
-                      </span>
-                    )}
-                  </button>
-                )}
-
-                {property.listing_intent !== "rent" && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsActionsMenuOpen(false);
-                      onOpenTapu(property);
-                    }}
-                    className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
-                  >
-                    <Award className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>Tapu Süreç Takibi</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    onOpenSocialShare(property);
-                  }}
-                  className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
-                >
-                  <Share2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                  <span>Sosyal Medya Paylaşım</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    onPrint(property);
-                  }}
-                  className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                  <span>A4 Vitrin Afişi Yazdır</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    if (docCount > 0) {
-                      onViewDocs(property);
-                    } else {
-                      toast.info("Bu gayrimenkule ait henüz yüklenmiş resmî evrak bulunmuyor.");
-                    }
-                  }}
-                  className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-left cursor-pointer"
-                >
-                  <span className="flex items-center gap-2">
-                    <FolderLock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <span>Resmî Evraklar</span>
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-500">{docCount}</span>
-                </button>
-
-                <a
-                  href={`/mulk-takip/${property.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setIsActionsMenuOpen(false)}
-                  className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer text-emerald-700"
-                >
-                  <Eye className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Mülk Sahibi Canlı Takip</span>
-                </a>
-
-                <div className="my-1 border-t border-slate-100" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    if (window.confirm("Bu gayrimenkulü silmek istediğinize emin misiniz?")) {
-                      onDelete(property.id);
-                    }
-                  }}
-                  className="w-full px-3 py-1.5 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>Portföyü Sil</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Right Action Cluster: ONLY Kalem (Edit) + ••• (Açılır-Kapanır İşlemler Listesi) */}
+        {renderActionControls()}
       </div>
 
-      {/* Collapsible Detail & Description Accordion (Only open when operator clicks row title or Chevron) */}
+      {/* Collapsible Detail & Description Accordion (Opens when operator clicks row title or thumbnail) */}
       {isDetailsExpanded && (
         <div className="px-2.5 pb-2.5 pt-2 border-t border-slate-100 bg-slate-50/70 rounded-b-xl space-y-2 text-[11px] animate-in fade-in duration-100">
-          {/* Full Specs & Address Line */}
           <div className="flex items-center justify-between gap-2 flex-wrap text-[10px] font-bold text-slate-600">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1 text-slate-800">
@@ -626,20 +617,19 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
             </div>
 
             {property.responsible_agent && (
-              <span className="text-indigo-700 font-black uppercase">
-                Danışman: {property.responsible_agent}
+              <span className="text-indigo-700 font-black uppercase inline-flex items-center gap-1">
+                <User className="w-2.5 h-2.5" />
+                <span>Danışman: {property.responsible_agent}</span>
               </span>
             )}
           </div>
 
-          {/* Clean Description */}
           {cleanDescription && (
             <p className="text-slate-600 text-[11px] leading-relaxed line-clamp-3 bg-white p-2 rounded-lg border border-slate-200/80">
               {cleanDescription}
             </p>
           )}
 
-          {/* Quick Inline Action Bar inside Expanded View */}
           <div className="flex items-center justify-between gap-2 flex-wrap pt-0.5">
             <div
               onClick={() => {
@@ -661,42 +651,6 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
               ) : (
                 <span className="text-slate-400">Yüklenmemiş</span>
               )}
-            </div>
-
-            <div className="flex items-center gap-1 flex-wrap">
-              <button
-                type="button"
-                onClick={() => onOpenTour(property)}
-                className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer"
-              >
-                <Calendar className="w-3 h-3 text-indigo-600" />
-                <span>Gezi Planla</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onOpenSocialShare(property)}
-                className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer"
-              >
-                <Share2 className="w-3 h-3 text-indigo-600" />
-                <span>Paylaş</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onPrint(property)}
-                className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer"
-              >
-                <Printer className="w-3 h-3 text-slate-600" />
-                <span>Afiş Yazdır</span>
-              </button>
-              <a
-                href={`/mulk-takip/${property.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer"
-              >
-                <Eye className="w-3 h-3 text-emerald-600" />
-                <span>Mülk Takip</span>
-              </a>
             </div>
           </div>
         </div>

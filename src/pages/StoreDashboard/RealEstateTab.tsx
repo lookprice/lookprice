@@ -12,6 +12,8 @@ import { RealEstateHeaderToolbar } from "./realestate/RealEstateHeaderToolbar";
 import { RealEstateCard } from "./realestate/RealEstateCard";
 import { RealEstateModalsContainer } from "./realestate/RealEstateModalsContainer";
 import { handlePrintProperty } from "./realestate/RealEstatePrintPoster";
+import { DealCommissionModal } from "@/components/DealCommissionModal";
+import { ExternalPartnerPortalModal } from "@/components/ExternalPartnerPortalModal";
 
 export const RealEstateTab: React.FC<RealEstateTabProps> = ({
   properties,
@@ -73,6 +75,9 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
   const [isFixtureVaultModalOpen, setIsFixtureVaultModalOpen] = useState(false);
   const [fixtureVaultProperty, setFixtureVaultProperty] = useState<any>(null);
   const [viewDocsProperty, setViewDocsProperty] = useState<any>(null);
+  const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
+  const [commissionProperty, setCommissionProperty] = useState<any>(null);
+  const [isPartnerPortalOpen, setIsPartnerPortalOpen] = useState(false);
 
   const [statusTabFilter, setStatusTabFilter] = useState<RealEstateStatusFilter>('all');
 
@@ -90,7 +95,9 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
       const matchesBranch = filterBranch === 'all' || p.branch_name === filterBranch;
       
       let matchesScope = true;
-      if (filterScope === 'shared_pool') matchesScope = p.sharing_scope === 'shared_pool' || !p.sharing_scope;
+      if (filterScope === 'has_partner') {
+        matchesScope = !!p.sector_data?.commission_pool?.stakeholders?.some((s: any) => s.is_external);
+      } else if (filterScope === 'shared_pool') matchesScope = p.sharing_scope === 'shared_pool' || !p.sharing_scope;
       else if (filterScope === 'branch_private') matchesScope = p.sharing_scope === 'branch_private';
       else if (filterScope === 'private') matchesScope = p.sharing_scope === 'private';
       else if (filterScope === 'locked') matchesScope = !!p.reserved_by_branch;
@@ -163,6 +170,7 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
         optionedCount={optionedCount}
         soldCount={soldCount}
         rentedCount={rentedCount}
+        onOpenPartnerPortal={() => setIsPartnerPortalOpen(true)}
       />
       
       {viewMode === 'calendar' ? (
@@ -231,6 +239,10 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
                 setFixtureVaultProperty(p);
                 setIsFixtureVaultModalOpen(true);
               }}
+              onOpenCommission={(p) => {
+                setCommissionProperty(p);
+                setIsCommissionModalOpen(true);
+              }}
             />
           ))}
         </div>
@@ -272,6 +284,50 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
         onSave={onSave}
         fetchTasks={fetchTasks}
       />
+
+      {isCommissionModalOpen && commissionProperty && (
+        <DealCommissionModal
+          isOpen={isCommissionModalOpen}
+          onClose={() => {
+            setIsCommissionModalOpen(false);
+            setCommissionProperty(null);
+          }}
+          property={commissionProperty}
+          storeName={branding?.store_name || branding?.name || "Seçkin Emlak"}
+          onSavePool={async (updatedPool) => {
+            if (onSave) {
+              await onSave({
+                ...commissionProperty,
+                sector_data: {
+                  ...(commissionProperty.sector_data || {}),
+                  commission_pool: updatedPool
+                }
+              });
+            }
+          }}
+        />
+      )}
+
+      {isPartnerPortalOpen && (
+        <ExternalPartnerPortalModal
+          isOpen={isPartnerPortalOpen}
+          onClose={() => setIsPartnerPortalOpen(false)}
+          properties={safeProperties}
+          tasks={tasks}
+          storeName={branding?.store_name || branding?.name || "Seçkin Emlak"}
+          onUpdatePropertyPool={async (prop, updatedPool) => {
+            if (onSave) {
+              await onSave({
+                ...prop,
+                sector_data: {
+                  ...(prop.sector_data || {}),
+                  commission_pool: updatedPool
+                }
+              });
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

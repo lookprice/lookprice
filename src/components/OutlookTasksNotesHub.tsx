@@ -707,9 +707,9 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
         </div>
       )}
 
-      {/* 2. TOP-CENTER HIDDEN PULL-TAB MENU (Mobile & Desktop Quick Access Handle) */}
+      {/* 2. TOP-RIGHT HIDDEN PULL-TAB MENU (Aligned near Notification Bell, away from Store Name) */}
       {mounted && typeof document !== "undefined" && createPortal(
-        <div className="fixed top-0 left-1/2 -translate-x-1/2 z-[99990] flex flex-col items-center pointer-events-none">
+        <div className="fixed top-0 right-14 sm:right-36 z-[99990] flex flex-col items-end pointer-events-none">
           {topPullExpanded && (
           <div className="pointer-events-auto mt-1 bg-slate-900 text-white border border-slate-700 rounded-xl shadow-2xl px-2.5 py-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
             <button
