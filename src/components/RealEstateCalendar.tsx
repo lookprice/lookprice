@@ -12,7 +12,13 @@ import {
   X,
   Menu,
   Archive,
-  Sparkles
+  Sparkles,
+  Eye,
+  Building2,
+  TrendingUp,
+  Handshake,
+  Layers,
+  ExternalLink
 } from 'lucide-react';
 import { api } from '../services/api';
 import { 
@@ -36,26 +42,79 @@ import {
 import { tr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { PropertyQuickInspectorModal } from './realestate/PropertyQuickInspectorModal';
 
 interface RealEstateCalendarProps {
   storeId: number;
   properties: any[];
+  storeSlug?: string;
   onClose?: () => void;
   hideHeader?: boolean;
+  onEditProperty?: (property: any) => void;
+  onScheduleTour?: (property: any) => void;
+  onRefreshProperties?: () => void;
 }
 
-export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = false }: RealEstateCalendarProps) => {
+type TourPipelineOutcome = 'analysis' | 'negotiation' | 'negative' | 'closed' | 'planned';
+
+const QUICK_OUTCOME_CHIPS: Record<TourPipelineOutcome, string[]> = {
+  analysis: [
+    'Mülkü beğendi, ailesiyle değerlendirip dönüş yapacak',
+    'Alternatif portföylerle karşılaştırıyor, 2 gün içinde aranacak',
+    'Koçan ve ödeme planı detayları paylaşıldı, geri dönüş bekleniyor'
+  ],
+  negotiation: [
+    'Mülkü beğendi, mal sahibine iletilmek üzere fiyat teklifi verdi',
+    'Ödeme planı ve kapora şartları üzerinde pazarlık başladı',
+    'Peşin ödeme indirimi talep edildi, mal sahibiyle görüşülüyor'
+  ],
+  negative: [
+    'Bölge veya konum beklentisine uymadı',
+    'Fiyat bütçenin üzerinde kaldı, anlaşma sağlanamadı',
+    'Oda sayısı / m² kullanım alanı yetersiz bulundu'
+  ],
+  closed: [
+    'Satış / Kiralama mutabakatı sağlandı, sözleşme imzalandı',
+    'Kapora alındı ve işlem başarıyla kapatıldı'
+  ],
+  planned: [
+    'İlk gösterim yapıldı, karar vericilerle 2. kez tekrar gezilecek',
+    'Teknik kontrol / mimar incelemesi için ek ziyaret yapılacak'
+  ]
+};
+
+export const RealEstateCalendar = ({
+  storeId,
+  properties,
+  storeSlug,
+  onClose,
+  hideHeader = false,
+  onEditProperty,
+  onScheduleTour,
+  onRefreshProperties
+}: RealEstateCalendarProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
   const [searchQuery, setSearchQuery] = useState("");
-  // Default view mode is 'week' (Haftalık) as requested
   const [viewMode, setViewMode] = useState<"month" | "week" | "list">("week");
-  // List view aging filter: default 'recent' hides completed/old appointments older than 2 days
   const [listFilter, setListFilter] = useState<"recent" | "pending" | "archived" | "all">("recent");
-  // Track expanded items in sidebar and list view (collapsible hamburger/accordion rows)
   const [expandedTaskIds, setExpandedTaskIds] = useState<Record<number, boolean>>({});
+
+  // Quick Portfolio Inspector Modal State (without leaving Calendar screen)
+  const [inspectedProperty, setInspectedProperty] = useState<any | null>(null);
+
+  // Post-Tour Outcome & Pipeline Stage Transition Modal State
+  const [completingTask, setCompletingTask] = useState<any | null>(null);
+  const [completingProperty, setCompletingProperty] = useState<any | null>(null);
+  const [selectedOutcome, setSelectedOutcome] = useState<TourPipelineOutcome>('analysis');
+  const [outcomeNote, setOutcomeNote] = useState('');
+  const [offerAmount, setOfferAmount] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [finalPrice, setFinalPrice] = useState('');
+  const [closedClient, setClosedClient] = useState('');
+  const [isSubmittingOutcome, setIsSubmittingOutcome] = useState(false);
 
   const toggleTaskExpand = (taskId: number) => {
     setExpandedTaskIds(prev => ({ ...prev, [taskId]: !prev[taskId] }));
@@ -78,7 +137,188 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
 
   useEffect(() => {
     fetchTasks();
+    const handleTourEvent = () => {
+      fetchTasks();
+    };
+    window.addEventListener('real-estate-tour-scheduled', handleTourEvent);
+    window.addEventListener('real-estate-tour-completed', handleTourEvent);
+    return () => {
+      window.removeEventListener('real-estate-tour-scheduled', handleTourEvent);
+      window.removeEventListener('real-estate-tour-completed', handleTourEvent);
+    };
   }, [storeId]);
+
+  // Helper to resolve property either from properties array or fallback task joined fields
+  const resolvePropertyForTask = (task: any) => {
+    const found = properties.find(p => Number(p.id) === Number(task.property_id));
+    if (found) return found;
+    if (task.property_id || task.property_reference_no || task.property_title) {
+      return {
+        id: task.property_id,
+        reference_no: task.property_reference_no || `#${task.property_id}`,
+        title: task.property_title || task.description || 'Portföy Kaydı',
+        kktc_region: task.property_region || '',
+        location: task.property_location || task.property_region || 'KKTC',
+        price: task.property_price || '',
+        currency: task.property_currency || 'GBP',
+        images: []
+      };
+    }
+    return null;
+  };
+
+  const handleInspectProperty = (task: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const prop = resolvePropertyForTask(task);
+    if (!prop) {
+      toast.info("Bu randevuya bağlı portföy detayı bulunamadı.");
+      return;
+    }
+    setInspectedProperty(prop);
+  };
+
+  const handleOpenCompleteModal = (task: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const prop = resolvePropertyForTask(task);
+    setCompletingTask(task);
+    setCompletingProperty(prop);
+    setSelectedOutcome('analysis');
+    setOutcomeNote('');
+    setOfferAmount(prop?.sector_data?.offer_amount || (prop?.price ? String(prop.price) : ''));
+    setDepositAmount(prop?.sector_data?.deposit_amount || '');
+    setFinalPrice(prop?.sector_data?.offer_amount || (prop?.price ? String(prop.price) : ''));
+    setClosedClient('');
+  };
+
+  const handleSubmitTourOutcome = async () => {
+    if (!completingTask) return;
+    if (!outcomeNote.trim()) {
+      toast.error("Lütfen gezi sonucu / müşteri görüşme notunu giriniz veya hazır şablonlardan seçiniz.");
+      return;
+    }
+    if (selectedOutcome === 'negotiation' && !offerAmount.trim()) {
+      toast.error("Pazarlık aşaması için lütfen teklif edilen tutarı giriniz.");
+      return;
+    }
+    if (selectedOutcome === 'closed' && (!finalPrice.trim() || !closedClient.trim())) {
+      toast.error("Başarılı kapanış için nihai fiyatı ve müşteri adını giriniz.");
+      return;
+    }
+
+    setIsSubmittingOutcome(true);
+    try {
+      const stagePrefixMap: Record<TourPipelineOutcome, string> = {
+        analysis: '[2. ANALİZ]',
+        negotiation: '[3. PAZARLIK]',
+        negative: '[4. OLUMSUZ]',
+        closed: '[5. BAŞARILI]',
+        planned: '[1. GEZİ TAMAMLANDI - EK GÖSTERİM]'
+      };
+
+      const formattedCompletionNote = `${stagePrefixMap[selectedOutcome]}: ${outcomeNote.trim()}${
+        selectedOutcome === 'negotiation' && offerAmount ? ` (Teklif: ${offerAmount})` : ''
+      }`;
+
+      // 1. Mark task as completed in property_tasks (and syncs with operator_tasks in backend)
+      await api.completeTask(completingTask.id, storeId, {
+        completion_note: formattedCompletionNote,
+        completed_at: new Date().toISOString()
+      });
+
+      // 2. Update property pipeline_stage and status so Pipeline reflects the new stage immediately
+      const realProp = properties.find(p => Number(p.id) === Number(completingTask.property_id));
+      if (realProp) {
+        const currentSector = typeof realProp.sector_data === 'object' && realProp.sector_data ? realProp.sector_data : {};
+        const prevStage = currentSector.pipeline_stage || 'planned';
+        const isRent = realProp.listing_intent === 'rent' || currentSector.listing_intent === 'rent';
+
+        let nextStatus = realProp.status || 'active';
+        if (selectedOutcome === 'negotiation') {
+          nextStatus = 'optioned';
+        } else if (selectedOutcome === 'negative') {
+          nextStatus = 'negative';
+        } else if (selectedOutcome === 'closed') {
+          nextStatus = isRent ? 'rented' : 'sold';
+        } else {
+          if (nextStatus === 'optioned' || nextStatus === 'negative') nextStatus = 'active';
+        }
+
+        const currentHist = Array.isArray(currentSector.pipeline_history) ? currentSector.pipeline_history : [];
+        const newHistEntry = {
+          id: `log_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          from_stage: prevStage,
+          to_stage: selectedOutcome,
+          status: nextStatus,
+          note: formattedCompletionNote
+        };
+
+        const updatedSectorData: Record<string, any> = {
+          ...currentSector,
+          pipeline_stage: selectedOutcome,
+          last_analysis_note: outcomeNote.trim(),
+          analyzed_at: new Date().toISOString(),
+          pipeline_history: [newHistEntry, ...currentHist].slice(0, 40)
+        };
+
+        if (selectedOutcome === 'negotiation') {
+          updatedSectorData.offer_amount = offerAmount.trim();
+          updatedSectorData.deposit_amount = depositAmount.trim();
+          updatedSectorData.negotiation_notes = outcomeNote.trim();
+          updatedSectorData.negotiation_at = new Date().toISOString();
+        } else if (selectedOutcome === 'negative') {
+          updatedSectorData.negative_reason = outcomeNote.trim();
+          updatedSectorData.negative_at = new Date().toISOString();
+        } else if (selectedOutcome === 'closed') {
+          updatedSectorData.final_price = finalPrice.trim();
+          updatedSectorData.closed_client = closedClient.trim();
+          updatedSectorData.closing_notes = outcomeNote.trim();
+          updatedSectorData.closed_at = new Date().toISOString();
+        }
+
+        try {
+          await api.updateProperty(realProp.id, {
+            ...realProp,
+            status: nextStatus,
+            sector_data: updatedSectorData,
+            store_id: storeId,
+            _skip_instagram_post: true
+          });
+        } catch (updateErr) {
+          console.warn("Property stage update fallback:", updateErr);
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('real-estate-tour-completed', {
+          detail: {
+            taskId: completingTask.id,
+            propertyId: completingTask.property_id,
+            stage: selectedOutcome
+          }
+        }));
+      }
+
+      const stageLabels: Record<TourPipelineOutcome, string> = {
+        analysis: '2. Analiz (Değerlendirme)',
+        negotiation: '3. Pazarlık (Opsiyonlu)',
+        negative: '4. Olumsuz (Arşiv)',
+        closed: '5. Başarılı (Kapandı)',
+        planned: '1. Geziler (Devam)'
+      };
+
+      toast.success(`Gezi tamamlandı ve portföy Pipeline'da "${stageLabels[selectedOutcome]}" statüsüne aktarıldı!`);
+      setCompletingTask(null);
+      setCompletingProperty(null);
+      fetchTasks();
+      if (onRefreshProperties) onRefreshProperties();
+    } catch (err) {
+      console.error("Error completing tour with outcome:", err);
+      toast.error("Gezi sonucu kaydedilirken hata oluştu.");
+    } finally {
+      setIsSubmittingOutcome(false);
+    }
+  };
 
   // Date intervals based on view mode
   const monthStart = startOfMonth(currentDate);
@@ -109,24 +349,24 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
     return tasks
       .filter(task => {
         if (!searchLower) return true;
-        const property = properties.find(p => Number(p.id) === Number(task.property_id));
+        const property = resolvePropertyForTask(task);
         return (
           task.description?.toLowerCase().includes(searchLower) ||
           property?.title?.toLowerCase().includes(searchLower) ||
           property?.reference_no?.toLowerCase().includes(searchLower) ||
-          property?.location?.toLowerCase().includes(searchLower)
+          property?.location?.toLowerCase().includes(searchLower) ||
+          property?.kktc_region?.toLowerCase().includes(searchLower)
         );
       })
       .sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
   }, [tasks, properties, searchQuery]);
 
-  // Smart 2-day aging cutoff: appointments older than 2 days that are completed or past are automatically archived
+  // Smart 2-day aging cutoff
   const twoDaysAgoCutoff = useMemo(() => subDays(startOfDay(new Date()), 2), []);
 
   const isTaskAgedArchive = (task: any) => {
     if (!task.due_date) return false;
     const taskDate = parseISO(task.due_date);
-    // If older than 2 days AND completed (or past date older than 2 days), move to archive
     return taskDate < twoDaysAgoCutoff;
   };
 
@@ -134,7 +374,6 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
     return filteredTasks.filter(task => {
       const aged = isTaskAgedArchive(task);
       if (listFilter === "recent") {
-        // Keep active/pending upcoming tasks AND any task within the last 2 days
         return !aged || !task.is_completed;
       }
       if (listFilter === "pending") {
@@ -158,17 +397,6 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
   };
 
   const selectedDayTasks = selectedDay ? getDayTasks(selectedDay) : [];
-
-  const handleCompleteTask = async (taskId: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    try {
-      await api.completeTask(taskId, storeId);
-      toast.success("Randevu tamamlandı olarak işaretlendi.");
-      fetchTasks();
-    } catch (err) {
-      toast.error("İşlem başarısız.");
-    }
-  };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col">
@@ -215,7 +443,7 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Randevu veya portföy ara..."
+                placeholder="Randevu, REF veya bölge ara..."
                 className="w-full sm:w-44 pl-7 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold focus:border-indigo-500 outline-none transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -264,7 +492,7 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Randevu veya portföy ara..."
+              placeholder="Randevu, REF veya bölge ara..."
               className="w-full pl-7 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-800 outline-none focus:border-indigo-500 shadow-2xs"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -288,7 +516,6 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
                     ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
                     : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
                 }`}
-                title="Bekleyen randevuları ve son 2 günün kayıtlarını gösterir; eski tamamlananları otomatik gizler"
               >
                 <Sparkles className="w-3 h-3" />
                 <span>Güncel & Son 2 Gün</span>
@@ -318,7 +545,6 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
                     ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs font-black"
                     : "bg-slate-100/80 hover:bg-slate-200/70 text-slate-600 border-slate-200"
                 }`}
-                title="2 günden eski tamamlanmış randevu arşivi"
               >
                 <Archive className="w-3 h-3" />
                 <span>Geçmiş Arşiv ({archivedCount})</span>
@@ -338,7 +564,7 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
             </div>
 
             <span className="text-[10px] text-slate-400 font-semibold hidden md:inline">
-              2 günü geçen tamamlanmış randevular otomatik olarak arşive aktarılır
+              Portföy detayını ekrandan çıkmadan görmek için "Portföy Künyesi" butonuna tıklayın
             </span>
           </div>
 
@@ -350,9 +576,12 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
           ) : (
             <div className="bg-white rounded-xl border border-slate-200/90 divide-y divide-slate-100 overflow-hidden shadow-2xs max-h-[540px] overflow-y-auto custom-scrollbar">
               {listDisplayedTasks.map((task) => {
-                const property = properties.find(p => Number(p.id) === Number(task.property_id));
+                const property = resolvePropertyForTask(task);
                 const taskDate = task.due_date ? parseISO(task.due_date) : new Date();
                 const isExpanded = !!expandedTaskIds[task.id];
+                const regionText = property?.kktc_region && property?.location && property.kktc_region !== property.location
+                  ? `${property.kktc_region} / ${property.location}`
+                  : (property?.kktc_region || property?.location || 'KKTC');
 
                 return (
                   <div key={task.id} className={`transition-colors ${isExpanded ? 'bg-indigo-50/25' : 'hover:bg-slate-50/90'}`}>
@@ -375,46 +604,54 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
                         </span>
 
                         {property?.reference_no && (
-                          <span className="text-[9px] font-mono font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200/80 shrink-0 hidden sm:inline">
+                          <button
+                            type="button"
+                            onClick={(e) => handleInspectProperty(task, e)}
+                            className="text-[9px] font-mono font-black bg-amber-100 hover:bg-amber-200 text-slate-950 px-1.5 py-0.5 rounded border border-amber-300 shrink-0 cursor-pointer transition-colors"
+                            title="Ekrandan çıkmadan portföy künyesini aç"
+                          >
                             {property.reference_no}
-                          </span>
+                          </button>
                         )}
+
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
+                          <MapPin className="w-2.5 h-2.5 text-rose-500 shrink-0" />
+                          <span className="truncate max-w-[110px]">{regionText}</span>
+                        </span>
 
                         <span className="text-xs font-bold text-slate-900 truncate">
                           {property?.title || task.description}
                         </span>
-
-                        {property?.title && task.description && (
-                          <span className="hidden lg:inline text-[11px] text-slate-500 font-medium truncate max-w-[260px]">
-                            • {task.description}
-                          </span>
-                        )}
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-slate-500 font-semibold max-w-[130px] truncate">
-                          <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
-                          <span className="truncate">{property?.location || property?.kktc_region || 'KKTC'}</span>
-                        </span>
+                      <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {property && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleInspectProperty(task, e)}
+                            className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-black flex items-center gap-1 transition cursor-pointer"
+                            title="Aynı ekrandan çıkmadan portföy bilgilerini ve fotoğraflarını gör"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span className="hidden sm:inline">Portföy Künyesi</span>
+                          </button>
+                        )}
 
                         {task.is_completed ? (
                           <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            <span>Tamamlandı</span>
+                            <span>Sonuçlandı</span>
                           </span>
                         ) : (
-                          <div className="flex items-center gap-1">
-                            <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                              Bekliyor
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => handleCompleteTask(task.id, e)}
-                              className="px-2 py-0.5 bg-slate-900 hover:bg-indigo-600 text-white rounded text-[10px] font-black transition cursor-pointer"
-                            >
-                              Tamamla
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenCompleteModal(task, e)}
+                            className="px-2.5 py-0.5 bg-slate-900 hover:bg-indigo-600 text-white rounded text-[10px] font-black transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                            title="Geziyi sonuçlandır ve Pipeline'da hangi statüde devam edeceğini seç"
+                          >
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            <span>Sonuçlandır & Pipeline</span>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -429,19 +666,29 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
                           className="overflow-hidden border-t border-slate-200/60 bg-slate-50/80"
                         >
                           <div className="px-3.5 py-2.5 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
-                            <div>
-                              <span className="text-[9px] font-black uppercase text-slate-400 block">Portföy Bilgisi</span>
+                            <div className="space-y-1">
+                              <span className="text-[9px] font-black uppercase text-slate-400 block">Portföy Künyesi</span>
                               <p className="font-bold text-slate-900">{property?.title || 'Genel Randevu'}</p>
-                              <p className="text-[10px] text-slate-500">
-                                Ref: {property?.reference_no || '-'} • Konum: {property?.location || property?.kktc_region || 'Belirtilmedi'}
+                              <p className="text-[10px] text-slate-600 font-semibold">
+                                REF: <strong className="font-mono text-slate-900">{property?.reference_no || '-'}</strong> • Bölge: <strong>{regionText}</strong>
                               </p>
+                              {property && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleInspectProperty(task, e)}
+                                  className="mt-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black inline-flex items-center gap-1 cursor-pointer shadow-2xs"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  <span>Portföy Detayını Aç (Ekrandan Çıkmadan)</span>
+                                </button>
+                              )}
                             </div>
                             <div className="sm:col-span-2">
                               <span className="text-[9px] font-black uppercase text-slate-400 block">Müşteri & Gezi Detayı</span>
                               <p className="font-semibold text-slate-800">{task.description}</p>
                               {task.completion_note && (
-                                <p className="mt-1 text-[10px] text-slate-600 italic bg-white px-2 py-1 rounded border border-slate-200">
-                                  Not: {task.completion_note}
+                                <p className="mt-1 text-[10px] text-slate-700 font-medium bg-white px-2.5 py-1.5 rounded-lg border border-slate-200">
+                                  <strong>Gezi Sonucu:</strong> {task.completion_note}
                                 </p>
                               )}
                             </div>
@@ -497,15 +744,21 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
                     
                     <div className="space-y-1 mt-1 overflow-hidden">
                       {dayTasks.slice(0, viewMode === 'week' ? 4 : 2).map((task, tidx) => {
-                        const property = properties.find(p => Number(p.id) === Number(task.property_id));
+                        const property = resolvePropertyForTask(task);
                         return (
                           <div
                             key={tidx}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDay(day);
+                              setExpandedTaskIds(prev => ({ ...prev, [task.id]: true }));
+                            }}
                             className={`text-[9px] font-semibold px-1.5 py-0.5 rounded truncate border ${
                               task.is_completed
                                 ? 'bg-slate-50 text-slate-600 border-slate-200'
-                                : 'bg-indigo-50/90 text-indigo-900 border-indigo-100'
+                                : 'bg-indigo-50/90 text-indigo-900 border-indigo-100 hover:bg-indigo-100'
                             }`}
+                            title={`${property?.reference_no ? `[${property.reference_no}] ` : ''}${property?.title || task.description}`}
                           >
                             <span className="font-mono font-bold text-indigo-600 mr-1">{format(parseISO(task.due_date), 'HH:mm')}</span>
                             <span>{property?.reference_no ? `${property.reference_no} ` : ''}{property?.title || task.description}</span>
@@ -525,14 +778,14 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
           </div>
 
           {/* Right Day Detail Sidebar: Compact Collapsible Hamburger-Style List */}
-          <div className="w-full lg:w-80 bg-slate-50/60 p-2.5 sm:p-3 shrink-0 flex flex-col gap-2">
+          <div className="w-full lg:w-88 bg-slate-50/60 p-2.5 sm:p-3 shrink-0 flex flex-col gap-2">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
               <div>
                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                   {selectedDay ? format(selectedDay, 'd MMMM yyyy', { locale: tr }) : 'Gün Seçiniz'}
                 </h3>
                 <p className="text-[10px] text-slate-500 font-semibold">
-                  {selectedDayTasks.length} Planlanmış Gezi — Detay için satıra tıklayın
+                  {selectedDayTasks.length} Planlanmış Gezi — Künye & Sonuç için tıklayın
                 </p>
               </div>
               {selectedDay && (
@@ -542,7 +795,7 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
               )}
             </div>
 
-            <div className="space-y-1.5 max-h-[380px] overflow-y-auto custom-scrollbar pr-0.5">
+            <div className="space-y-1.5 max-h-[420px] overflow-y-auto custom-scrollbar pr-0.5">
               {selectedDayTasks.length === 0 ? (
                 <div className="py-8 text-center bg-white rounded-xl border border-dashed border-slate-200">
                   <CalendarIcon className="w-6 h-6 text-slate-300 mx-auto mb-1" />
@@ -550,8 +803,11 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
                 </div>
               ) : (
                 selectedDayTasks.map((task) => {
-                  const property = properties.find(p => Number(p.id) === Number(task.property_id));
+                  const property = resolvePropertyForTask(task);
                   const isExpanded = !!expandedTaskIds[task.id];
+                  const regionLabel = property?.kktc_region && property?.location && property.kktc_region !== property.location
+                    ? `${property.kktc_region} / ${property.location}`
+                    : (property?.kktc_region || property?.location || 'KKTC');
 
                   return (
                     <div
@@ -561,20 +817,39 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
                       {/* Compact Single-Line Hamburger Row */}
                       <div
                         onClick={() => toggleTaskExpand(task.id)}
-                        className="px-2.5 py-2 flex items-center justify-between gap-2 cursor-pointer hover:bg-slate-50 transition-colors select-none"
+                        className="px-2.5 py-2 flex items-center justify-between gap-1.5 cursor-pointer hover:bg-slate-50 transition-colors select-none"
                       >
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
                           <Menu className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span className="text-[10px] font-mono font-black bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 shrink-0">
                             {format(parseISO(task.due_date), 'HH:mm')}
                           </span>
+                          {property?.reference_no && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleInspectProperty(task, e)}
+                              className="text-[9px] font-mono font-black bg-amber-100 hover:bg-amber-200 text-slate-950 px-1.5 py-0.5 rounded border border-amber-300 shrink-0 cursor-pointer"
+                              title="Portföy Künyesini Gör"
+                            >
+                              {property.reference_no}
+                            </button>
+                          )}
                           <span className="text-[11px] font-semibold text-slate-800 truncate">
-                            {property?.reference_no ? `[${property.reference_no}] ` : ''}
                             {property?.title || task.description}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-1 shrink-0">
+                          {property && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleInspectProperty(task, e)}
+                              className="p-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-md border border-indigo-200 cursor-pointer"
+                              title="Ekrandan çıkmadan Portföy Künyesini aç"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </button>
+                          )}
                           {task.is_completed ? (
                             <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
                               <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
@@ -602,30 +877,55 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden border-t border-slate-100 bg-slate-50/70"
                           >
-                            <div className="p-2.5 space-y-1.5 text-[11px]">
-                              <p className="font-bold text-slate-900 leading-snug">
-                                {property?.title || 'Randevu & Gezi'}
-                              </p>
+                            <div className="p-2.5 space-y-2 text-[11px]">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="font-bold text-slate-900 leading-snug">
+                                  {property?.title || 'Randevu & Gezi'}
+                                </p>
+                              </div>
+
                               <div className="space-y-1 text-[10px] text-slate-600 font-medium">
+                                {property?.reference_no && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Building2 className="w-3 h-3 text-indigo-600 shrink-0" />
+                                    <span>REF: <strong className="font-mono text-slate-900">{property.reference_no}</strong> • Bölge: <strong>{regionLabel}</strong></span>
+                                  </div>
+                                )}
                                 <div className="flex items-start gap-1.5">
                                   <User className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
                                   <span className="break-words">{task.description}</span>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                  <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
-                                  <span className="truncate">{property?.location || property?.kktc_region || 'Konum Belirtilmedi'}</span>
-                                </div>
+                                {task.completion_note && (
+                                  <div className="p-1.5 bg-white rounded border border-slate-200 text-slate-700 italic">
+                                    {task.completion_note}
+                                  </div>
+                                )}
                               </div>
 
-                              {!task.is_completed && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleCompleteTask(task.id, e)}
-                                  className="w-full mt-1 bg-slate-900 hover:bg-indigo-600 text-white text-[10px] font-black uppercase py-1.5 rounded-lg transition-all cursor-pointer"
-                                >
-                                  Tamamlandı Olarak İşaretle
-                                </button>
-                              )}
+                              {/* Action Buttons: 1. Inspect Property in-place, 2. Complete & Choose Pipeline Stage */}
+                              <div className="grid grid-cols-1 gap-1.5 pt-1">
+                                {property && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleInspectProperty(task, e)}
+                                    className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[10px] font-black uppercase py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                                    <span>Portföy Bilgilerini Gör (Ekrandan Çıkmadan)</span>
+                                  </button>
+                                )}
+
+                                {!task.is_completed && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleOpenCompleteModal(task, e)}
+                                    className="w-full bg-slate-900 hover:bg-indigo-600 text-white text-[10px] font-black uppercase py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span>Geziyi Sonuçlandır & Pipeline Statüsü Seç</span>
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </motion.div>
                         )}
@@ -634,6 +934,286 @@ export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = 
                   );
                 })
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1. IN-SCREEN PORTFOLIO QUICK INSPECTOR MODAL */}
+      {inspectedProperty && (
+        <PropertyQuickInspectorModal
+          property={inspectedProperty}
+          storeSlug={storeSlug}
+          onClose={() => setInspectedProperty(null)}
+          onEditProperty={onEditProperty}
+          onScheduleTour={onScheduleTour}
+        />
+      )}
+
+      {/* 2. POST-TOUR OUTCOME & PIPELINE STAGE TRANSITION MODAL */}
+      {completingTask && (
+        <div
+          className="fixed inset-0 z-[100040] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+          onClick={() => !isSubmittingOutcome && setCompletingTask(null)}
+        >
+          <div
+            className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl text-slate-900 animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Dark Header (Rule 11 High Contrast) */}
+            <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between gap-2 border-b border-slate-800">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                  <Layers className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-mono font-black uppercase tracking-widest text-emerald-400 block">
+                    GEZİ SONUCU & PIPELINE ENTEGRASYONU
+                  </span>
+                  <h3 className="text-sm font-black text-white truncate">
+                    Bu Ziyaret Pipeline'da Hangi Statüde Devam Edecek?
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCompletingTask(null)}
+                className="p-1.5 bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3.5 max-h-[82vh] overflow-y-auto">
+              {/* Property Summary Strip */}
+              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {completingProperty?.reference_no && (
+                      <span className="px-1.5 py-0.5 bg-amber-400 text-slate-950 font-mono text-[10px] font-black rounded">
+                        REF: {completingProperty.reference_no}
+                      </span>
+                    )}
+                    <span className="text-xs font-black text-slate-900 truncate">
+                      {completingProperty?.title || 'Portföy Gezisi'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 font-semibold mt-0.5 truncate">
+                    {completingTask.description}
+                  </p>
+                </div>
+                {completingProperty && (
+                  <button
+                    type="button"
+                    onClick={() => setInspectedProperty(completingProperty)}
+                    className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-black flex items-center gap-1 shrink-0 cursor-pointer"
+                  >
+                    <Eye className="w-3 h-3" />
+                    <span>Künye</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Pipeline Stage Selector Cards */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  1. Gezi Sonrası Yeni Pipeline Statüsünü Seçin
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOutcome('analysis')}
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-start gap-2 ${
+                      selectedOutcome === 'analysis'
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200'
+                    }`}
+                  >
+                    <Search className={`w-4 h-4 mt-0.5 shrink-0 ${selectedOutcome === 'analysis' ? 'text-amber-300' : 'text-indigo-600'}`} />
+                    <div>
+                      <div className="text-xs font-black">2. Analiz (Değerlendirme)</div>
+                      <div className={`text-[10px] font-semibold ${selectedOutcome === 'analysis' ? 'text-indigo-100' : 'text-slate-500'}`}>
+                        Müşteri mülkü gezdi, düşünüyor / takip edilecek
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOutcome('negotiation')}
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-start gap-2 ${
+                      selectedOutcome === 'negotiation'
+                        ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200'
+                    }`}
+                  >
+                    <TrendingUp className={`w-4 h-4 mt-0.5 shrink-0 ${selectedOutcome === 'negotiation' ? 'text-slate-950' : 'text-amber-600'}`} />
+                    <div>
+                      <div className="text-xs font-black">3. Pazarlık (Teklif / Opsiyon)</div>
+                      <div className={`text-[10px] font-semibold ${selectedOutcome === 'negotiation' ? 'text-slate-900' : 'text-slate-500'}`}>
+                        Mülk beğenildi, fiyat teklifi / pazarlık başladı
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOutcome('negative')}
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-start gap-2 ${
+                      selectedOutcome === 'negative'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200'
+                    }`}
+                  >
+                    <X className={`w-4 h-4 mt-0.5 shrink-0 ${selectedOutcome === 'negative' ? 'text-white' : 'text-rose-600'}`} />
+                    <div>
+                      <div className="text-xs font-black">4. Olumsuz (Arşiv)</div>
+                      <div className={`text-[10px] font-semibold ${selectedOutcome === 'negative' ? 'text-rose-100' : 'text-slate-500'}`}>
+                        Müşteri beğenmedi veya kriter/bütçe uymadı
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOutcome('closed')}
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-start gap-2 ${
+                      selectedOutcome === 'closed'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200'
+                    }`}
+                  >
+                    <Handshake className={`w-4 h-4 mt-0.5 shrink-0 ${selectedOutcome === 'closed' ? 'text-white' : 'text-emerald-600'}`} />
+                    <div>
+                      <div className="text-xs font-black">5. Başarılı (Satıldı / Kiralandı)</div>
+                      <div className={`text-[10px] font-semibold ${selectedOutcome === 'closed' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                        Kesin anlaşma sağlandı, işlem tamamlandı
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOutcome('planned')}
+                    className={`sm:col-span-2 p-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between gap-2 ${
+                      selectedOutcome === 'planned'
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="w-3.5 h-3.5 text-indigo-400" />
+                      <span className="text-xs font-black">1. Geziler Statüsünde Kalsın (2. Gösterim / Ek Ziyaret Yapılacak)</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Conditional Financial Inputs for Negotiation or Closed */}
+              {selectedOutcome === 'negotiation' && (
+                <div className="grid grid-cols-2 gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-amber-900 mb-1">
+                      Müşteri Teklif Tutarı *
+                    </label>
+                    <input
+                      type="text"
+                      value={offerAmount}
+                      onChange={(e) => setOfferAmount(e.target.value)}
+                      placeholder="Örn: 125.000 GBP"
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-bold text-slate-900 outline-none focus:border-amber-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-amber-900 mb-1">
+                      Kapora / Ön Ödeme (Opsiyonel)
+                    </label>
+                    <input
+                      type="text"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      placeholder="Örn: 5.000 GBP"
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-bold text-slate-900 outline-none focus:border-amber-600"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {selectedOutcome === 'closed' && (
+                <div className="grid grid-cols-2 gap-2.5 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-emerald-900 mb-1">
+                      Nihai Kapanış Fiyatı *
+                    </label>
+                    <input
+                      type="text"
+                      value={finalPrice}
+                      onChange={(e) => setFinalPrice(e.target.value)}
+                      placeholder="Örn: 130.000"
+                      className="w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-slate-900 outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-emerald-900 mb-1">
+                      Alıcı / Kiracı Müşteri Adı *
+                    </label>
+                    <input
+                      type="text"
+                      value={closedClient}
+                      onChange={(e) => setClosedClient(e.target.value)}
+                      placeholder="Ad Soyad"
+                      className="w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-slate-900 outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Feedback Chips + Note Input */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  2. Gezi Sonuç & Müşteri Değerlendirme Notu *
+                </label>
+                <div className="flex flex-wrap gap-1">
+                  {QUICK_OUTCOME_CHIPS[selectedOutcome].map((chip, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setOutcomeNote(chip)}
+                      className="px-2 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold transition cursor-pointer text-left"
+                    >
+                      + {chip}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  rows={3}
+                  value={outcomeNote}
+                  onChange={(e) => setOutcomeNote(e.target.value)}
+                  placeholder="Ziyaret nasıl geçti? Müşterinin geri bildirimi, fiyat/konum yorumu veya sonraki adım..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-indigo-600 focus:bg-white"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-4 py-3 bg-slate-100 border-t border-slate-200 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={isSubmittingOutcome}
+                onClick={() => setCompletingTask(null)}
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-black cursor-pointer"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingOutcome}
+                onClick={handleSubmitTourOutcome}
+                className="px-4 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-sm transition"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>{isSubmittingOutcome ? 'Kaydediliyor...' : 'Kaydet & Pipeline Statüsünü Güncelle'}</span>
+              </button>
             </div>
           </div>
         </div>

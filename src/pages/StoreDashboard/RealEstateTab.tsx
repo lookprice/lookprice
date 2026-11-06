@@ -38,13 +38,11 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
 
   const fetchTasks = async () => {
     const sid = storeId || user?.store_id;
-    if (sid) {
-      try {
-        const res = await api.getTasks(sid);
-        if (Array.isArray(res)) setTasks(res);
-      } catch (err) {
-        console.error("Error fetching tasks:", err);
-      }
+    try {
+      const res = await api.getTasks(sid);
+      if (Array.isArray(res)) setTasks(res);
+    } catch (err) {
+      console.error("Error fetching tasks:", err);
     }
   };
 
@@ -54,6 +52,13 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
     }).catch(err => console.error("Error fetching drive connected status in RealEstateTab", err));
 
     fetchTasks();
+    const handleTourEvent = () => fetchTasks();
+    window.addEventListener('real-estate-tour-scheduled', handleTourEvent);
+    window.addEventListener('real-estate-tour-completed', handleTourEvent);
+    return () => {
+      window.removeEventListener('real-estate-tour-scheduled', handleTourEvent);
+      window.removeEventListener('real-estate-tour-completed', handleTourEvent);
+    };
   }, [storeId, user?.store_id]);
 
   const [viewMode, setViewMode] = useState<RealEstateViewMode>('list');
@@ -184,19 +189,34 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
         <RealEstateCalendar 
           storeId={storeId || user?.store_id} 
           properties={safeProperties} 
+          storeSlug={storeSlug}
           onClose={() => setViewMode('list')}
           hideHeader={true}
+          onEditProperty={(p) => {
+            setSelectedProperty(p);
+            setIsModalOpen(true);
+          }}
+          onScheduleTour={(p) => {
+            setActiveTourProperty(p);
+            setIsTourModalOpen(true);
+          }}
+          onRefreshProperties={fetchTasks}
         />
       ) : viewMode === 'pipeline' ? (
         <RealEstateCRM
           storeId={storeId || user?.store_id || 0}
           properties={safeProperties}
           tasks={tasks}
+          storeSlug={storeSlug}
           hideHeader={true}
           onOpenCalendar={() => setViewMode('calendar')}
           onOpenTourModal={(p) => {
             setActiveTourProperty(p);
             setIsTourModalOpen(true);
+          }}
+          onEditProperty={(p) => {
+            setSelectedProperty(p);
+            setIsModalOpen(true);
           }}
           onRefresh={fetchTasks}
         />

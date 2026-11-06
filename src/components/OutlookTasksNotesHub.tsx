@@ -32,11 +32,14 @@ import {
   Building2,
   Calendar,
   SlidersHorizontal,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  MapPin
 } from "lucide-react";
 import { api } from "../services/api";
 import { playOutlookTaskReminderSound } from "../utils/taskReminderSound";
 import { toast } from "sonner";
+import { PropertyQuickInspectorModal } from "./realestate/PropertyQuickInspectorModal";
 
 export interface WorkflowStateItem {
   id?: number;
@@ -91,6 +94,15 @@ export interface OperatorTaskItem {
   reminder_notified?: boolean;
   category: string;
   source_note_id?: number | null;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  property_id?: number | null;
+  property_reference_no?: string | null;
+  property_title?: string | null;
+  property_region?: string | null;
+  property_location?: string | null;
+  property_price?: any;
+  property_currency?: string | null;
   owner_email?: string;
   assignee_email?: string;
   attached_notes?: OperatorNoteItem[];
@@ -269,12 +281,90 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
     [storeId, scope, selectedBranchId]
   );
 
+  // In-screen Portfolio Quick Inspector Modal inside Ajanda
+  const [inspectedProperty, setInspectedProperty] = useState<any | null>(null);
+  const [cachedProperties, setCachedProperties] = useState<any[]>([]);
+
+  const extractTaskPropertyMeta = useCallback((task: OperatorTaskItem) => {
+    const combinedText = `${task.title || ""} ${task.description || ""}`;
+    const refMatch = combinedText.match(/\[REF:\s*([^\]]+)\]/i) || combinedText.match(/^\[([^•\]]+)/);
+    const regionMatch = combinedText.match(/\[Bölge:\s*([^\]]+)\]/i) || combinedText.match(/•\s*([^\]]+)\]/);
+
+    const refNo = task.property_reference_no || (refMatch ? refMatch[1].trim() : null);
+    const region =
+      (task.property_region && task.property_location && task.property_region !== task.property_location
+        ? `${task.property_region} / ${task.property_location}`
+        : task.property_region || task.property_location) ||
+      (regionMatch ? regionMatch[1].trim() : null);
+    const propId =
+      task.property_id ||
+      (task.entity_type === "real_estate_showing" && task.entity_id ? Number(task.entity_id) : null);
+
+    return {
+      refNo,
+      region,
+      propId,
+      hasProperty: Boolean(propId || refNo || task.entity_type === "real_estate_showing")
+    };
+  }, []);
+
+  const handleInspectTaskProperty = useCallback(
+    async (task: OperatorTaskItem, e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      const meta = extractTaskPropertyMeta(task);
+      try {
+        let propsList = cachedProperties;
+        if (propsList.length === 0) {
+          const fetched = await api.getProperties(storeId);
+          if (Array.isArray(fetched)) {
+            propsList = fetched;
+            setCachedProperties(fetched);
+          }
+        }
+        const matched = propsList.find(
+          (p: any) =>
+            (meta.propId && Number(p.id) === Number(meta.propId)) ||
+            (meta.refNo && String(p.reference_no || "").toLowerCase() === String(meta.refNo).toLowerCase())
+        );
+        if (matched) {
+          setInspectedProperty(matched);
+          return;
+        }
+        if (meta.hasProperty) {
+          setInspectedProperty({
+            id: meta.propId || task.id,
+            reference_no: meta.refNo || `#${meta.propId || task.id}`,
+            title: task.property_title || task.title,
+            kktc_region: task.property_region || meta.region || "KKTC",
+            location: task.property_location || meta.region || "KKTC",
+            price: task.property_price || "",
+            currency: task.property_currency || "GBP",
+            description: task.description,
+            images: []
+          });
+        } else {
+          toast.info("Bu göreve bağlı portföy kaydı bulunamadı.");
+        }
+      } catch (err) {
+        console.warn("Error inspecting property from Ajanda:", err);
+      }
+    },
+    [cachedProperties, extractTaskPropertyMeta, storeId]
+  );
+
   useEffect(() => {
     fetchBootstrap(false);
     const interval = setInterval(() => {
       fetchBootstrap(true);
     }, 25000);
-    return () => clearInterval(interval);
+    const handleTourSync = () => fetchBootstrap(true);
+    window.addEventListener("real-estate-tour-scheduled", handleTourSync);
+    window.addEventListener("real-estate-tour-completed", handleTourSync);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("real-estate-tour-scheduled", handleTourSync);
+      window.removeEventListener("real-estate-tour-completed", handleTourSync);
+    };
   }, [fetchBootstrap]);
 
   // Listen to custom event from Notification Center or Keyboard Shortcuts
@@ -1244,19 +1334,51 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                                 >
                                   {task.title}
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  {attachedCount > 0 && (
-                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-[#fef08a] text-slate-950 border border-amber-400 rounded text-[9px] font-black">
-                                      <StickyNote className="w-2.5 h-2.5" />
-                                      <span>{attachedCount} Not</span>
-                                    </span>
-                                  )}
-                                  {task.visibility !== "personal" && (
-                                    <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1 rounded">
-                                      {task.visibility === "branch" ? "Şube" : "Mağaza"}
-                                    </span>
-                                  )}
-                                </div>
+                                {(() => {
+                                  const meta = extractTaskPropertyMeta(task);
+                                  return (
+                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                      {meta.refNo && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => handleInspectTaskProperty(task, e)}
+                                          className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded text-[9px] font-mono font-black cursor-pointer"
+                                          title="Ekrandan çıkmadan Portföy Künyesini aç"
+                                        >
+                                          <span>REF: {meta.refNo}</span>
+                                        </button>
+                                      )}
+                                      {meta.region && (
+                                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-indigo-50 text-indigo-800 border border-indigo-200 rounded text-[9px] font-bold">
+                                          <MapPin className="w-2.5 h-2.5 text-rose-500" />
+                                          <span>{meta.region}</span>
+                                        </span>
+                                      )}
+                                      {meta.hasProperty && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => handleInspectTaskProperty(task, e)}
+                                          className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-slate-900 hover:bg-indigo-600 text-white rounded text-[9px] font-black cursor-pointer transition-colors"
+                                          title="Ekrandan çıkmadan Portföy Bilgilerini gör"
+                                        >
+                                          <Eye className="w-2.5 h-2.5 text-amber-300" />
+                                          <span>Portföy Künyesi</span>
+                                        </button>
+                                      )}
+                                      {attachedCount > 0 && (
+                                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-[#fef08a] text-slate-950 border border-amber-400 rounded text-[9px] font-black">
+                                          <StickyNote className="w-2.5 h-2.5" />
+                                          <span>{attachedCount} Not</span>
+                                        </span>
+                                      )}
+                                      {task.visibility !== "personal" && (
+                                        <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1 rounded">
+                                          {task.visibility === "branch" ? "Şube" : "Mağaza"}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
 
@@ -1371,13 +1493,42 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                     {selectedTask ? (
                       <>
                         <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-200">
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                               {isTr ? "GÖREV DETAYI & İLİŞKİLİ NOTLAR" : "TASK INSPECTOR & LINKED NOTES"}
                             </span>
                             <h3 className="text-sm font-black text-slate-950 leading-snug mt-0.5">
                               {selectedTask.title}
                             </h3>
+                            {(() => {
+                              const meta = extractTaskPropertyMeta(selectedTask);
+                              if (!meta.hasProperty) return null;
+                              return (
+                                <div className="mt-2 p-2 bg-indigo-50/90 border border-indigo-200 rounded-xl space-y-1.5">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {meta.refNo && (
+                                      <span className="px-1.5 py-0.5 bg-amber-400 text-slate-950 rounded font-mono text-[10px] font-black">
+                                        REF: {meta.refNo}
+                                      </span>
+                                    )}
+                                    {meta.region && (
+                                      <span className="px-1.5 py-0.5 bg-white text-slate-800 border border-indigo-200 rounded text-[10px] font-bold flex items-center gap-1">
+                                        <MapPin className="w-3 h-3 text-rose-500" />
+                                        {meta.region}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleInspectTaskProperty(selectedTask, e)}
+                                    className="w-full py-1.5 px-2.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-amber-300" />
+                                    <span>Portföy Bilgilerine Ulaş (Ekrandan Çıkmadan)</span>
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </div>
                           <button
                             type="button"
@@ -2179,6 +2330,14 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                   </form>
                 </div>
               </div>
+            )}
+
+            {/* In-Screen Portfolio Quick Inspector Modal inside Ajanda */}
+            {inspectedProperty && (
+              <PropertyQuickInspectorModal
+                property={inspectedProperty}
+                onClose={() => setInspectedProperty(null)}
+              />
             )}
           </div>
         </div>,

@@ -289,6 +289,13 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
 
   useEffect(() => {
     fetchData();
+    const handleTourEvent = () => fetchData();
+    window.addEventListener('real-estate-tour-scheduled', handleTourEvent);
+    window.addEventListener('real-estate-tour-completed', handleTourEvent);
+    return () => {
+      window.removeEventListener('real-estate-tour-scheduled', handleTourEvent);
+      window.removeEventListener('real-estate-tour-completed', handleTourEvent);
+    };
   }, [storeId, isAutomotive]);
 
   const fetchData = async () => {
@@ -844,11 +851,16 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
               </button>
               <button 
                 onClick={() => setCrmView('portfolio')}
-                className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1 ${
                   crmView === 'portfolio' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                {isAutomotive ? 'Araç Satış Pipeline' : (isTr ? 'Portföy Süreçleri' : 'Portfolio Pipeline')}
+                <span>{isAutomotive ? 'Araç Satış Pipeline' : (isTr ? 'Portföy Süreçleri (Geziler)' : 'Portfolio Pipeline')}</span>
+                {tasks.filter((t: any) => !t.is_completed && (t.task_type === 'tour' || !t.task_type)).length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded bg-indigo-600 text-white text-[9px] font-mono font-black">
+                    {tasks.filter((t: any) => !t.is_completed && (t.task_type === 'tour' || !t.task_type)).length}
+                  </span>
+                )}
               </button>
               <button 
                 onClick={() => setCrmView('calendar')}
@@ -1272,6 +1284,10 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                   setActiveTourLead(lead || null);
                   setIsTourModalOpen(true);
                 }}
+                onEditProperty={(p) => {
+                  setEditingProperty(p);
+                  setIsRealEstateModalOpen(true);
+                }}
                 onRefresh={fetchData}
                 searchQuery={searchQuery}
                 hideHeader={true}
@@ -1291,6 +1307,15 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                 properties={portfolioItems}
                 onClose={() => setCrmView('portfolio')}
                 hideHeader={true}
+                onEditProperty={(p) => {
+                  setEditingProperty(p);
+                  setIsRealEstateModalOpen(true);
+                }}
+                onScheduleTour={(p) => {
+                  setActiveTourProperty(p);
+                  setIsTourModalOpen(true);
+                }}
+                onRefreshProperties={fetchData}
               />
             )
           )}

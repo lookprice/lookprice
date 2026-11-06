@@ -30,7 +30,8 @@ import {
   Users,
   Receipt,
   History,
-  Send
+  Send,
+  Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../services/api';
@@ -55,6 +56,7 @@ import {
 import { DealCommissionModal } from './DealCommissionModal';
 import { ExternalPartnerPortalModal } from './ExternalPartnerPortalModal';
 import { LeadFunnelWizardModal } from './realestate/LeadFunnelWizardModal';
+import { PropertyQuickInspectorModal } from './realestate/PropertyQuickInspectorModal';
 
 const RE_LEAD_STAGES = [
   'Yeni Talep / Aday',
@@ -69,8 +71,10 @@ interface RealEstateCRMProps {
   properties: any[];
   tasks: any[];
   deals?: any[];
+  storeSlug?: string;
   onOpenCalendar: () => void;
   onOpenTourModal: (property: any, initialLead?: any) => void;
+  onEditProperty?: (property: any) => void;
   onRefresh?: () => void;
   searchQuery?: string;
   hideHeader?: boolean;
@@ -89,8 +93,10 @@ export const RealEstateCRM = ({
   properties, 
   tasks, 
   deals = [],
+  storeSlug,
   onOpenCalendar, 
   onOpenTourModal, 
+  onEditProperty,
   onRefresh,
   searchQuery: externalSearchQuery,
   hideHeader = false
@@ -106,9 +112,73 @@ export const RealEstateCRM = ({
   const [collapsedStages, setCollapsedStages] = useState<Record<string, boolean>>({});
   // Optimistic local overrides so stage changes reflect immediately without waiting for parent refetch
   const [localPropertyOverrides, setLocalPropertyOverrides] = useState<Record<number, { status?: string; sector_data?: any }>>({});
+  const [internalTasks, setInternalTasks] = useState<any[]>(Array.isArray(tasks) ? tasks : []);
+  const [inspectedProperty, setInspectedProperty] = useState<any | null>(null);
 
   const [activeProperty, setActiveProperty] = useState<any>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
+
+  useEffect(() => {
+    if (Array.isArray(tasks) && tasks.length > 0) {
+      setInternalTasks(tasks);
+    }
+  }, [tasks]);
+
+  useEffect(() => {
+    const syncTasks = async () => {
+      try {
+        const res = await api.getTasks(storeId || undefined);
+        if (Array.isArray(res)) setInternalTasks(res);
+      } catch {}
+    };
+    syncTasks();
+
+    const handleTourScheduled = (e: any) => {
+      const propId = e?.detail?.propertyId;
+      const newTask = e?.detail?.task;
+      if (propId) {
+        setLocalPropertyOverrides(prev => ({
+          ...prev,
+          [propId]: {
+            status: 'active',
+            sector_data: {
+              ...(prev[propId]?.sector_data || {}),
+              pipeline_stage: 'planned'
+            }
+          }
+        }));
+      }
+      if (newTask) {
+        setInternalTasks(prev => [newTask, ...prev.filter(t => t.id !== newTask.id)]);
+      }
+      syncTasks();
+    };
+
+    const handleTourCompleted = (e: any) => {
+      const propId = e?.detail?.propertyId;
+      const targetStage = e?.detail?.stage;
+      if (propId && targetStage) {
+        setLocalPropertyOverrides(prev => ({
+          ...prev,
+          [propId]: {
+            status: targetStage === 'negotiation' ? 'optioned' : targetStage === 'negative' ? 'negative' : 'active',
+            sector_data: {
+              ...(prev[propId]?.sector_data || {}),
+              pipeline_stage: targetStage
+            }
+          }
+        }));
+      }
+      syncTasks();
+    };
+
+    window.addEventListener('real-estate-tour-scheduled', handleTourScheduled);
+    window.addEventListener('real-estate-tour-completed', handleTourCompleted);
+    return () => {
+      window.removeEventListener('real-estate-tour-scheduled', handleTourScheduled);
+      window.removeEventListener('real-estate-tour-completed', handleTourCompleted);
+    };
+  }, [storeId]);
 
   const activeSearch = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
 
@@ -290,6 +360,13 @@ export const RealEstateCRM = ({
   };
 
   // Build Pipeline deals with local optimistic overrides merged
+  const effectiveTasks = useMemo(() => {
+    const mergedMap = new Map<number, any>();
+    (Array.isArray(tasks) ? tasks : []).forEach(t => { if (t?.id) mergedMap.set(Number(t.id), t); });
+    (Array.isArray(internalTasks) ? internalTasks : []).forEach(t => { if (t?.id) mergedMap.set(Number(t.id), t); });
+    return Array.from(mergedMap.values());
+  }, [tasks, internalTasks]);
+
   const dealCards = useMemo(() => {
     return properties.map(rawProp => {
       const localOverride = localPropertyOverrides[rawProp.id];
@@ -303,31 +380,30 @@ export const RealEstateCRM = ({
         sector_data: mergedSectorData
       };
 
-      const propertyTasks = tasks.filter(t => Number(t.property_id) === Number(p.id) && t.task_type === 'tour');
+      const propertyTasks = effectiveTasks.filter(t => Number(t.property_id) === Number(p.id) && (t.task_type === 'tour' || !t.task_type));
+      const hasPendingTour = propertyTasks.some(t => !t.is_completed);
       
-      // Priority 1: Explicit pipeline_stage or status set by operator
+      // Priority 1: Explicit pipeline_stage or active tour status
       const overrideStage = p.sector_data?.pipeline_stage || p.pipeline_stage;
 
       let stage: string | null = null;
 
       if (overrideStage === 'closed' || p.status === 'sold' || p.status === 'rented') {
         stage = 'closed';
-      } else if (overrideStage === 'negative' || p.status === 'negative') {
-        stage = 'negative';
       } else if (overrideStage === 'negotiation' || p.status === 'optioned') {
         stage = 'negotiation';
+      } else if (hasPendingTour || overrideStage === 'planned') {
+        // Any property with an uncompleted scheduled tour or explicit 'planned' stage appears in 1. Geziler
+        stage = 'planned';
       } else if (overrideStage === 'analysis') {
         stage = 'analysis';
-      } else if (overrideStage === 'planned') {
-        stage = 'planned';
+      } else if (overrideStage === 'negative' || p.status === 'negative') {
+        stage = 'negative';
       } else if (propertyTasks.length > 0) {
-        const hasPending = propertyTasks.some(t => !t.is_completed);
         const hasCompleted = propertyTasks.some(t => t.is_completed);
         const hasNegativeTask = propertyTasks.some(t => t.completion_note?.toLowerCase().includes('olumsuz'));
 
-        if (hasPending) {
-          stage = 'planned';
-        } else if (hasNegativeTask) {
+        if (hasNegativeTask) {
           stage = 'negative';
         } else if (hasCompleted) {
           stage = 'analysis';
@@ -343,7 +419,7 @@ export const RealEstateCRM = ({
         stage
       };
     }).filter(Boolean) as any[];
-  }, [properties, tasks, localPropertyOverrides]);
+  }, [properties, effectiveTasks, localPropertyOverrides]);
 
   const formatFormattedPrice = (price: any, currency: string) => {
     if (!price && price !== 0) return '';
@@ -1259,17 +1335,29 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                       )}
                                     </div>
 
-                                    {/* Ek Gezi Planla Button (Only for planned and analysis) */}
-                                    {(stage.id === 'planned' || stage.id === 'analysis') && (
+                                    {/* Right Action Buttons: Portföy Künyesi + Ek Gezi Planla */}
+                                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                                       <button
                                         type="button"
-                                        onClick={() => onOpenTourModal(deal.property)}
-                                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-black flex items-center gap-1 cursor-pointer shrink-0"
+                                        onClick={() => setInspectedProperty(deal.property)}
+                                        className="px-2.5 py-1 bg-slate-900 hover:bg-indigo-600 text-white rounded-md text-[10px] font-black flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
+                                        title="Ekrandan çıkmadan Portföy Künyesini ve fotoğraflarını gör"
                                       >
-                                        <Plus className="w-3 h-3" />
-                                        <span>Ek Gezi Planla</span>
+                                        <Eye className="w-3 h-3 text-amber-300" />
+                                        <span>Portföy Künyesi</span>
                                       </button>
-                                    )}
+
+                                      {(stage.id === 'planned' || stage.id === 'analysis') && (
+                                        <button
+                                          type="button"
+                                          onClick={() => onOpenTourModal(deal.property)}
+                                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-black flex items-center gap-1 cursor-pointer shrink-0"
+                                        >
+                                          <Plus className="w-3 h-3" />
+                                          <span>Ek Gezi Planla</span>
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
 
                                   {/* Stage-Specific Details (Analysis / Negotiation / Negative / Closed) */}
@@ -2242,6 +2330,17 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
             setEditingLeadDeal(null);
             onOpenTourModal(prop, { customerName, name: customerName });
           }}
+        />
+      )}
+
+      {/* 10. IN-SCREEN PORTFOLIO QUICK INSPECTOR MODAL */}
+      {inspectedProperty && (
+        <PropertyQuickInspectorModal
+          property={inspectedProperty}
+          storeSlug={storeSlug}
+          onClose={() => setInspectedProperty(null)}
+          onEditProperty={onEditProperty}
+          onScheduleTour={(p) => onOpenTourModal(p)}
         />
       )}
     </div>

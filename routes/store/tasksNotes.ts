@@ -191,14 +191,14 @@ router.get("/bootstrap", async (req: any, res) => {
 
     const states = await ensureStoreWorkflowStates(storeId);
 
-    // Fetch visible tasks for this user (Personal tasks owned/assigned to user + shared branch/store tasks)
-    let taskFilterSql = `(t.user_id = $2 OR t.assigned_to_user_id = $2 OR t.visibility IN ('branch', 'store'))`;
+    // Fetch visible tasks for this user (Personal tasks owned/assigned to user + shared branch/store/team tasks)
+    let taskFilterSql = `(t.user_id = $2 OR t.assigned_to_user_id = $2 OR t.visibility IN ('branch', 'store', 'team'))`;
     const taskParams: any[] = [storeId, userId];
 
     if (scope === "personal") {
-      taskFilterSql = `(t.user_id = $2 OR t.assigned_to_user_id = $2)`;
+      taskFilterSql = `(t.user_id = $2 OR t.assigned_to_user_id = $2 OR t.entity_type = 'real_estate_showing')`;
     } else if (scope === "shared") {
-      taskFilterSql = `t.visibility IN ('branch', 'store')`;
+      taskFilterSql = `t.visibility IN ('branch', 'store', 'team')`;
     }
 
     if (branchId && !isNaN(branchId)) {
@@ -209,10 +209,18 @@ router.get("/bootstrap", async (req: any, res) => {
     const tasksRes = await pool.query(
       `SELECT t.*,
               u.email as owner_email,
-              au.email as assignee_email
+              au.email as assignee_email,
+              rp.id as property_id,
+              rp.reference_no as property_reference_no,
+              rp.title as property_title,
+              rp.kktc_region as property_region,
+              rp.location as property_location,
+              rp.price as property_price,
+              rp.currency as property_currency
        FROM operator_tasks t
        LEFT JOIN users u ON t.user_id = u.id
        LEFT JOIN users au ON t.assigned_to_user_id = au.id
+       LEFT JOIN real_estate_properties rp ON t.entity_type = 'real_estate_showing' AND t.entity_id = rp.id::text
        WHERE t.store_id = $1 AND ${taskFilterSql}
        ORDER BY 
          CASE WHEN t.state_key = 'completed' THEN 1 ELSE 0 END ASC,

@@ -233,16 +233,42 @@ router.post('/properties/tasks', authenticate, async (req: any, res) => {
   const storeId = getAuthorizedStoreId(req, store_id || req.query.store_id || req.query.storeId);
   const consultant_id = assigned_broker_id ? Number(assigned_broker_id) : (req.body.consultant_id ? Number(req.body.consultant_id) : (req.user?.id || null));
   try {
+    // 1. Pre-fetch property metadata so both property_tasks and operator_tasks (Ajanda) carry REF No, Region, Title, and Price
+    let prop: any = null;
+    if (property_id) {
+      const propRes = await pool.query(
+        `SELECT id, title, reference_no, location, kktc_region, price, currency, status, sector_data, responsible_consultant_id, store_id
+         FROM real_estate_properties WHERE id = $1`,
+        [property_id]
+      );
+      if (propRes.rows.length > 0) {
+        prop = propRes.rows[0];
+      }
+    }
+
+    const effectiveStoreId = storeId || prop?.store_id || null;
+    const refNo = prop?.reference_no || (property_id ? `#${property_id}` : 'REF');
+    const regionLabel = prop?.kktc_region && prop?.location && prop.kktc_region !== prop.location
+      ? `${prop.kktc_region} / ${prop.location}`
+      : (prop?.kktc_region || prop?.location || 'KKTC');
+    const propTitle = prop?.title || '';
+
+    // Enrich description with [REF] and [Bölge] if not already present
+    let enrichedDescription = description || '';
+    if (prop && task_type === 'tour' && !enrichedDescription.includes('[REF:')) {
+      enrichedDescription = `[REF: ${refNo}] [Bölge: ${regionLabel}] ${enrichedDescription}`.trim();
+    }
+
     const insertRes = await pool.query(
-      `INSERT INTO property_tasks (property_id, consultant_id, task_type, description, due_date, status, store_id) 
-       VALUES ($1, $2, $3, $4, $5, 'pending', $6) 
+      `INSERT INTO property_tasks (property_id, consultant_id, task_type, description, due_date, status, is_completed, store_id) 
+       VALUES ($1, $2, $3, $4, $5, 'pending', false, $6) 
        RETURNING *`,
-      [property_id || null, consultant_id || null, task_type, description, due_date || new Date().toISOString(), storeId || null]
+      [property_id || null, consultant_id || null, task_type, enrichedDescription, due_date || new Date().toISOString(), effectiveStoreId]
     );
     const createdTask = insertRes.rows[0];
 
-    // Live Sync: Also synchronize with operator_tasks (Outlook Tasks & Agenda)
-    if (storeId) {
+    // 2. Live Sync: Synchronize with operator_tasks (Outlook Tasks & Agenda) with full REF No, Region, and Portfolio info
+    if (effectiveStoreId) {
       try {
         let brokerName = '';
         if (consultant_id) {
@@ -250,99 +276,134 @@ router.post('/properties/tasks', authenticate, async (req: any, res) => {
           if (consRes.rows[0]) brokerName = consRes.rows[0].name;
         }
 
-        const taskTitle = task_type === 'tour' 
-          ? `Yer Gösterme: ${customer_name || 'Müşteri Keşif Turu'} ${brokerName ? `(Rehber: ${brokerName})` : ''}`
-          : `Emlak Görevi: ${description?.slice(0, 50) || 'Randevu'}`;
+        const taskTitle = task_type === 'tour'
+          ? `[${refNo} • ${regionLabel}] Yer Gösterme: ${customer_name || 'Müşteri Keşif Turu'}${propTitle ? ` — ${propTitle.slice(0, 45)}` : ''}`
+          : `[${refNo} • ${regionLabel}] Emlak Görevi: ${enrichedDescription?.slice(0, 55) || 'Randevu'}`;
+
+        const formattedPrice = prop?.price ? `${prop.price} ${prop.currency || 'GBP'}` : '';
+        const agendaDescLines = [
+          propTitle ? `Portföy: ${propTitle}` : '',
+          `REF No: ${refNo} | Bölge: ${regionLabel}${formattedPrice ? ` | Fiyat: ${formattedPrice}` : ''}`,
+          customer_name ? `Müşteri: ${customer_name}${customer_phone ? ` (Tel: ${customer_phone})` : ''}` : '',
+          brokerName ? `Sorumlu Danışman: ${brokerName}` : '',
+          description ? `Not / Detay: ${description}` : ''
+        ].filter(Boolean).join('\n');
 
         await pool.query(
           `INSERT INTO operator_tasks (
             store_id, user_id, assigned_to_user_id, visibility, title, description, 
             state_key, priority, completion_percent, due_date, category, entity_type, entity_id
-          ) VALUES ($1, $2, $3, 'team', $4, $5, 'not_started', 'high', 0, $6, 'Yer Gösterme', 'real_estate_showing', $7)`,
+          ) VALUES ($1, $2, $3, 'store', $4, $5, 'not_started', 'high', 0, $6, 'Yer Gösterme', 'real_estate_showing', $7)`,
           [
-            storeId,
+            effectiveStoreId,
             req.user?.id || 1,
             consultant_id || null,
             taskTitle,
-            description || '',
+            agendaDescLines || enrichedDescription,
             due_date || new Date().toISOString(),
             String(property_id || '')
           ]
         );
       } catch (syncErr) {
-        // Non-blocking sync error
         console.warn('Operator task sync note:', syncErr);
       }
     }
 
-    // #1. OTOMATİK ARKA PLAN GÖLGE BİLDİRİM TETİKLEYİCİSİ (Zero Human-Initiative Shadow Notification Trigger)
-    if (property_id && task_type !== 'stage_change') {
-      (async () => {
-        try {
-          const propRes = await pool.query(
-            `SELECT id, title, reference_no, sector_data, responsible_consultant_id FROM real_estate_properties WHERE id = $1`,
-            [property_id]
-          );
-          if (propRes.rows.length > 0) {
-            const prop = propRes.rows[0];
-            let secData = prop.sector_data;
-            if (typeof secData === 'string') {
-              try { secData = JSON.parse(secData); } catch { secData = {}; }
-            }
-            if (!secData || typeof secData !== 'object') secData = {};
-
-            // Find external stakeholders from commission_pool or responsible_consultant_id
-            const extStakeholders: Array<{ name: string; phone?: string; roleLabel?: string }> = [];
-            if (Array.isArray(secData.commission_pool?.stakeholders)) {
-              for (const s of secData.commission_pool.stakeholders) {
-                if (s.is_external) {
-                  extStakeholders.push({ name: s.name, phone: s.phone, roleLabel: s.roleLabel });
-                }
-              }
-            }
-            if (extStakeholders.length === 0 && prop.responsible_consultant_id) {
-              const cRes = await pool.query(
-                `SELECT name, phone, is_external, partner_type FROM consultants WHERE id = $1`,
-                [prop.responsible_consultant_id]
-              );
-              if (cRes.rows[0] && (cRes.rows[0].is_external || cRes.rows[0].partner_type === 'external')) {
-                extStakeholders.push({ name: cRes.rows[0].name, phone: cRes.rows[0].phone, roleLabel: 'Portföy Kaynağı (Dış Paydaş)' });
-              }
-            }
-
-            // Always log automatic shadow notification dispatch if external partner exists (or default partner pool)
-            const targetPartners = extStakeholders.length > 0
-              ? extStakeholders
-              : [{ name: 'Dış Paydaş / Portföy Ortağı', roleLabel: 'Paydaş Bildirimi' }];
-
-            const existingLogs = Array.isArray(secData.shadow_notification_logs) ? secData.shadow_notification_logs : [];
-            const nowIso = new Date().toISOString();
-            const newLogs = targetPartners.map((tp, idx) => ({
-              id: `shdw_${Date.now()}_${idx}`,
-              timestamp: nowIso,
-              partner_name: tp.name,
-              partner_phone: tp.phone || '',
-              event_type: task_type === 'tour' ? 'tour_scheduled' : 'task_created',
-              message_summary: `Getirdiğiniz [${prop.reference_no || `#${prop.id}`}] portföyü için yer gösterimi planlandı (${due_date ? new Date(due_date).toLocaleString('tr-TR') : 'Bugün'}).`,
-              status: 'delivered',
-              channel: 'WhatsApp Background Gateway'
-            }));
-
-            secData.shadow_notification_logs = [...newLogs, ...existingLogs].slice(0, 30);
-            secData.last_shadow_notified_at = nowIso;
-
-            await pool.query(
-              `UPDATE real_estate_properties SET sector_data = $1 WHERE id = $2`,
-              [JSON.stringify(secData), property_id]
-            );
-          }
-        } catch (shadowErr) {
-          console.warn('Background shadow notification trigger warning:', shadowErr);
+    // 3. Synchronously move property to 'planned' (1. Geziler) in Pipeline & log shadow notification
+    if (prop && task_type !== 'stage_change') {
+      try {
+        let secData = prop.sector_data;
+        if (typeof secData === 'string') {
+          try { secData = JSON.parse(secData); } catch { secData = {}; }
         }
-      })();
+        if (!secData || typeof secData !== 'object') secData = {};
+
+        const nowIso = new Date().toISOString();
+
+        // Automatically place property into 'planned' (1. Geziler) stage when a tour is scheduled
+        let nextStatus = prop.status || 'active';
+        if (task_type === 'tour' && nextStatus !== 'sold' && nextStatus !== 'rented') {
+          if (secData.pipeline_stage !== 'negotiation') {
+            secData.pipeline_stage = 'planned';
+          }
+          if (nextStatus === 'negative') {
+            nextStatus = 'active';
+          }
+          const currentHist = Array.isArray(secData.pipeline_history) ? secData.pipeline_history : [];
+          secData.pipeline_history = [
+            {
+              id: `log_${Date.now()}`,
+              timestamp: nowIso,
+              from_stage: secData.pipeline_stage || 'planned',
+              to_stage: 'planned',
+              status: nextStatus,
+              note: `Planlanan Gezi: ${customer_name || 'Müşteri'} (${due_date ? new Date(due_date).toLocaleString('tr-TR') : ''})`
+            },
+            ...currentHist
+          ].slice(0, 40);
+        }
+
+        // Shadow notification logs for external stakeholders
+        const extStakeholders: Array<{ name: string; phone?: string; roleLabel?: string }> = [];
+        if (Array.isArray(secData.commission_pool?.stakeholders)) {
+          for (const s of secData.commission_pool.stakeholders) {
+            if (s.is_external) {
+              extStakeholders.push({ name: s.name, phone: s.phone, roleLabel: s.roleLabel });
+            }
+          }
+        }
+        if (extStakeholders.length === 0 && prop.responsible_consultant_id) {
+          const cRes = await pool.query(
+            `SELECT name, phone, is_external, partner_type FROM consultants WHERE id = $1`,
+            [prop.responsible_consultant_id]
+          );
+          if (cRes.rows[0] && (cRes.rows[0].is_external || cRes.rows[0].partner_type === 'external')) {
+            extStakeholders.push({ name: cRes.rows[0].name, phone: cRes.rows[0].phone, roleLabel: 'Portföy Kaynağı (Dış Paydaş)' });
+          }
+        }
+
+        const targetPartners = extStakeholders.length > 0
+          ? extStakeholders
+          : [{ name: 'Dış Paydaş / Portföy Ortağı', roleLabel: 'Paydaş Bildirimi' }];
+
+        const existingLogs = Array.isArray(secData.shadow_notification_logs) ? secData.shadow_notification_logs : [];
+        const newLogs = targetPartners.map((tp, idx) => ({
+          id: `shdw_${Date.now()}_${idx}`,
+          timestamp: nowIso,
+          partner_name: tp.name,
+          partner_phone: tp.phone || '',
+          event_type: task_type === 'tour' ? 'tour_scheduled' : 'task_created',
+          message_summary: `Getirdiğiniz [${refNo}] (${regionLabel}) portföyü için yer gösterimi planlandı (${due_date ? new Date(due_date).toLocaleString('tr-TR') : 'Bugün'}).`,
+          status: 'delivered',
+          channel: 'WhatsApp Background Gateway'
+        }));
+
+        secData.shadow_notification_logs = [...newLogs, ...existingLogs].slice(0, 30);
+        secData.last_shadow_notified_at = nowIso;
+
+        await pool.query(
+          `UPDATE real_estate_properties SET status = $1, sector_data = $2 WHERE id = $3`,
+          [nextStatus, JSON.stringify(secData), property_id]
+        );
+      } catch (shadowErr) {
+        console.warn('Property pipeline & shadow notification update warning:', shadowErr);
+      }
     }
 
-    res.json({ success: true, task: createdTask, shadow_notified: true });
+    res.json({
+      success: true,
+      task: {
+        ...createdTask,
+        is_completed: false,
+        property_reference_no: prop?.reference_no || null,
+        property_title: prop?.title || null,
+        property_region: prop?.kktc_region || prop?.location || null,
+        property_location: prop?.location || null,
+        property_price: prop?.price || null,
+        property_currency: prop?.currency || null
+      },
+      shadow_notified: true
+    });
   } catch (error) {
     console.error('Error creating task:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -357,10 +418,16 @@ router.get('/properties/tasks', authenticate, async (req: any, res) => {
     let result;
     if (storeId) {
       result = await pool.query(
-        `SELECT pt.*, (pt.status = 'completed') as is_completed,
+        `SELECT pt.*, (pt.status = 'completed' OR COALESCE(pt.is_completed, false) = true) as is_completed,
+                rp.reference_no as property_reference_no,
+                rp.title as property_title,
+                rp.kktc_region as property_region,
+                rp.location as property_location,
+                rp.price as property_price,
+                rp.currency as property_currency,
                 c.name as consultant_name, c.phone as consultant_phone, c.role as consultant_role
          FROM property_tasks pt
-         LEFT JOIN real_estate_properties rp ON pt.property_id = rp.id AND rp.store_id = $1
+         LEFT JOIN real_estate_properties rp ON pt.property_id = rp.id
          LEFT JOIN vehicles v ON pt.property_id = v.id AND v.store_id = $1
          LEFT JOIN consultants c ON pt.consultant_id = c.id
          WHERE (pt.store_id = $1 OR rp.store_id = $1 OR v.store_id = $1)
@@ -369,11 +436,18 @@ router.get('/properties/tasks', authenticate, async (req: any, res) => {
       );
     } else {
       result = await pool.query(
-        `SELECT pt.*, (pt.status = 'completed') as is_completed,
+        `SELECT pt.*, (pt.status = 'completed' OR COALESCE(pt.is_completed, false) = true) as is_completed,
+                rp.reference_no as property_reference_no,
+                rp.title as property_title,
+                rp.kktc_region as property_region,
+                rp.location as property_location,
+                rp.price as property_price,
+                rp.currency as property_currency,
                 c.name as consultant_name, c.phone as consultant_phone, c.role as consultant_role
          FROM property_tasks pt
+         LEFT JOIN real_estate_properties rp ON pt.property_id = rp.id
          LEFT JOIN consultants c ON pt.consultant_id = c.id
-         WHERE pt.consultant_id = $1
+         WHERE pt.consultant_id = $1 OR pt.store_id IS NOT NULL
          ORDER BY pt.due_date ASC`,
         [consultant_id]
       );
@@ -391,15 +465,41 @@ router.patch('/properties/tasks/:id', authenticate, async (req: any, res) => {
   const { completion_note, is_completed, status } = req.body;
   const newStatus = status || (is_completed !== false ? 'completed' : 'pending');
   try {
-    await pool.query(
+    const updateRes = await pool.query(
       `UPDATE property_tasks 
        SET status = $1, 
            completion_note = COALESCE($2, completion_note),
            is_completed = ($1 = 'completed')
-       WHERE id = $3`,
+       WHERE id = $3
+       RETURNING *`,
       [newStatus, completion_note || null, id]
     );
-    res.json({ success: true });
+    const updatedTask = updateRes.rows[0];
+
+    // Also sync completion state to operator_tasks (Ajanda)
+    if (updatedTask && updatedTask.property_id && newStatus === 'completed') {
+      try {
+        await pool.query(
+          `UPDATE operator_tasks
+           SET state_key = 'completed',
+               completion_percent = 100,
+               completed_at = CURRENT_TIMESTAMP,
+               description = CASE
+                 WHEN $1::text IS NOT NULL AND $1::text <> '' THEN description || E'\n[Gezi Sonucu]: ' || $1::text
+                 ELSE description
+               END,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE entity_type = 'real_estate_showing'
+             AND entity_id = $2
+             AND state_key <> 'completed'`,
+          [completion_note || '', String(updatedTask.property_id)]
+        );
+      } catch (syncErr) {
+        console.warn('Operator task completion sync warning:', syncErr);
+      }
+    }
+
+    res.json({ success: true, task: updatedTask });
   } catch (error) {
     console.error('Error updating task:', error);
     res.status(500).json({ error: 'Internal server error' });

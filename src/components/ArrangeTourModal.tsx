@@ -71,9 +71,13 @@ export const ArrangeTourModal = ({ property, propertiesList = [], storeId, initi
     try {
       const selectedBroker = consultants.find(c => String(c.id) === String(selectedConsultantId));
       const effectiveAgentName = selectedBroker?.name || agentName.trim();
-      const descStr = `Gezi Düzenlendi: ${customerName.trim()} (Tel: ${customerPhone.trim() || '---'}) ${effectiveAgentName ? '• Danışman: ' + effectiveAgentName : ''} ${notes.trim() ? '• Not: ' + notes.trim() : ''}`;
+      const refNo = activeProp?.reference_no || (selectedPropertyId ? `#${selectedPropertyId}` : 'REF');
+      const regionLabel = activeProp?.kktc_region && activeProp?.location && activeProp.kktc_region !== activeProp.location
+        ? `${activeProp.kktc_region} / ${activeProp.location}`
+        : (activeProp?.kktc_region || activeProp?.location || 'KKTC');
+      const descStr = `[REF: ${refNo}] [Bölge: ${regionLabel}] Gezi Düzenlendi: ${customerName.trim()} (Tel: ${customerPhone.trim() || '---'}) ${effectiveAgentName ? '• Danışman: ' + effectiveAgentName : ''} ${notes.trim() ? '• Not: ' + notes.trim() : ''}`;
 
-      await (api as any).createTask({
+      const createdRes = await (api as any).createTask({
         property_id: Number(selectedPropertyId),
         task_type: 'tour',
         description: descStr,
@@ -81,9 +85,19 @@ export const ArrangeTourModal = ({ property, propertiesList = [], storeId, initi
         assigned_broker_id: selectedConsultantId ? Number(selectedConsultantId) : undefined,
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim(),
+        store_id: storeId
       }, storeId);
 
-      toast.success('Gezi randevusu başarıyla kaydedildi, danışmanın ajandasına ve Pipeline kartına bağlandı!');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('real-estate-tour-scheduled', {
+          detail: {
+            propertyId: Number(selectedPropertyId),
+            task: createdRes?.task || null
+          }
+        }));
+      }
+
+      toast.success('Gezi randevusu kaydedildi; Takvim, Ajanda ve Pipeline (1. Geziler) listesine bağlandı!');
       if (onSave) onSave();
       onClose();
     } catch (e) {
