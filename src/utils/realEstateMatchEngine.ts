@@ -619,12 +619,15 @@ export function calculateMatchScore(
   // ----------------------------------------------------
   let totalScore = locationScore + intentScore + budgetScore + typeAndRoomScore + featuresScore;
 
-  // Fatal mismatch guards (Intent mismatch or Main Category mismatch e.g. Land vs Residence)
+  // Strict Fatal mismatch guards: Intent mismatch or Location mismatch or Main Category mismatch
   if (criteria.intent && criteria.intent !== 'any' && criteria.intent !== 'investment' && criteria.intent !== propIntent) {
-    totalScore = Math.min(30, Math.round(totalScore * 0.35));
+    totalScore = 0; // Kiralık mülk ile satılık talep KESİNLİKLE eşleşemez!
+  }
+  if (criteria.locations && criteria.locations.length > 0 && locationScore === 0) {
+    totalScore = 0; // Girne mülkü ile Lefkoşa talebi KESİNLİKLE eşleşemez!
   }
   if (mainTypeFatalMismatch) {
-    totalScore = Math.min(35, Math.round(totalScore * 0.4));
+    totalScore = 0; // Arsa ile konut KESİNLİKLE eşleşemez!
   }
 
   totalScore = Math.max(0, Math.min(100, Math.round(totalScore)));

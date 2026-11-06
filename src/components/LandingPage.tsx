@@ -1227,8 +1227,11 @@ export const LandingPage = () => {
                   ))}
                 </ul>
                 <button 
-                  disabled
-                  className="w-full py-5 bg-slate-100 text-slate-400 rounded-2xl font-black text-base cursor-not-allowed"
+                  onClick={() => {
+                    setSelectedPlan("basic");
+                    setShowRegisterModal(true);
+                  }}
+                  className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-base hover:bg-slate-800 transition-all active:scale-95 cursor-pointer"
                 >
                   {t.pricing.basic.cta}
                 </button>
@@ -1256,8 +1259,11 @@ export const LandingPage = () => {
                   ))}
                 </ul>
                 <button 
-                  disabled
-                  className="w-full py-5 bg-indigo-50 text-indigo-400 rounded-2xl font-black text-base cursor-not-allowed border border-indigo-100 relative z-10"
+                  onClick={() => {
+                    setSelectedPlan("pro");
+                    setShowRegisterModal(true);
+                  }}
+                  className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-base hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-600/20 relative z-10 cursor-pointer"
                 >
                   {t.pricing.pro.cta}
                 </button>
@@ -1281,10 +1287,53 @@ export const LandingPage = () => {
                 </ul>
                 <button 
                   onClick={() => setShowDemoModal(true)}
-                  className="w-full py-5 bg-white text-slate-900 rounded-2xl font-black text-base hover:bg-slate-100 transition-all active:scale-95"
+                  className="w-full py-5 bg-white text-slate-900 rounded-2xl font-black text-base hover:bg-slate-100 transition-all active:scale-95 cursor-pointer"
                 >
                   {t.pricing.enterprise.cta}
                 </button>
+              </div>
+            </div>
+
+            {/* Amazon Selling Partner API (SP-API) & Multi-Channel E-Commerce Compliance Banner */}
+            <div className="mt-16 bg-slate-900 text-white rounded-[2.5rem] p-8 sm:p-12 border border-slate-800 shadow-2xl">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+                <div className="space-y-3 max-w-3xl">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-black uppercase tracking-wider">
+                    <span>Amazon.com.tr SP-API & Multi-Channel Cloud ERP</span>
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    {lang === 'tr'
+                      ? 'Amazon.com.tr, Trendyol, Hepsiburada, N11 ve Pazarama Entegrasyonu'
+                      : 'Unified Amazon.com.tr SP-API Inventory, Order, MFN Shipping & GİB e-Invoice Suite'}
+                  </h3>
+                  <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+                    {lang === 'tr'
+                      ? 'LookPrice SaaS ERP; OAuth 2.0 ve SP-API altyapısıyla Amazon.com.tr mağazanızdaki ürün listeleme, gerçek zamanlı stok ve fiyat eşitleme, sipariş aktarımı, MFN kargo barkodu üretimi ve Gelir İdaresi Başkanlığı (GİB) e-Fatura / e-Arşiv süreçlerini AES-256 ve TLS 1.3 güvenlik standartlarında tek merkezden yönetir.'
+                      : 'LookPrice empowers Amazon.com.tr Selling Partners via OAuth 2.0 & SP-API: automate ASIN/SKU product listings, real-time multi-warehouse stock synchronization, order management, Direct-to-Consumer (MFN) shipping label generation, and statutory Turkish Revenue Administration (GİB) e-Fatura/e-Arşiv tax invoicing in full compliance with Amazon’s Data Protection Policy (DPP).'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3 shrink-0">
+                  <a
+                    href="/privacy"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/privacy");
+                    }}
+                    className="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    {lang === 'tr' ? 'Gizlilik & Amazon DPP Politikası' : 'Privacy & Amazon DPP Policy'}
+                  </a>
+                  <a
+                    href="/terms"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/terms");
+                    }}
+                    className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white border border-white/15 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    {lang === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service'}
+                  </a>
+                </div>
               </div>
             </div>
         </div>
@@ -1317,9 +1366,32 @@ export const LandingPage = () => {
             <div>
               <h4 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-8">{t.footer.menu}</h4>
               <ul className="space-y-4">
-                <li><button onClick={() => navigate("/login")} className="text-sm text-slate-400 font-bold hover:text-white transition-colors">{t.nav.login}</button></li>
-                <li><button onClick={() => setShowDemoModal(true)} className="text-sm text-slate-400 font-bold hover:text-white transition-colors">{t.nav.demo}</button></li>
-                <li><button className="text-sm text-slate-400 font-bold hover:text-white transition-colors">{t.footer.privacy}</button></li>
+                <li><button onClick={() => navigate("/login")} className="text-sm text-slate-400 font-bold hover:text-white transition-colors cursor-pointer">{t.nav.login}</button></li>
+                <li><button onClick={() => setShowDemoModal(true)} className="text-sm text-slate-400 font-bold hover:text-white transition-colors cursor-pointer">{t.nav.demo}</button></li>
+                <li>
+                  <a
+                    href="/privacy"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/privacy");
+                    }}
+                    className="text-sm text-slate-400 font-bold hover:text-white transition-colors cursor-pointer"
+                  >
+                    {t.footer.privacy} (Amazon DPP)
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/terms"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/terms");
+                    }}
+                    className="text-sm text-slate-400 font-bold hover:text-white transition-colors cursor-pointer"
+                  >
+                    {lang === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service'}
+                  </a>
+                </li>
               </ul>
             </div>
 

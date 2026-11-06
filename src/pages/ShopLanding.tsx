@@ -108,7 +108,7 @@ export default function ShopLanding() {
           "One-click official e-invoice creation, SMS/Email delivery to customers, and integrator synchronization."
         ),
         youtubeId: null,
-        duration: txt("Yakında", "Coming Soon", "Coming Soon"),
+        duration: txt("Canlı Modül", "Active Module", "Active Module"),
         isLive: false,
         coverImg: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80"
       },
@@ -122,7 +122,7 @@ export default function ShopLanding() {
           "Critical stock level alerts, variant product tracking, bulk stock updates, and warehouse movement logs."
         ),
         youtubeId: null,
-        duration: txt("Yakında", "Coming Soon", "Coming Soon"),
+        duration: txt("Canlı Modül", "Active Module", "Active Module"),
         isLive: false,
         coverImg: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80"
       },
@@ -136,7 +136,7 @@ export default function ShopLanding() {
           "Customer & supplier account cards creation, credit debt limits, due date tracking, and statement sharing."
         ),
         youtubeId: null,
-        duration: txt("Yakında", "Coming Soon", "Coming Soon"),
+        duration: txt("Canlı Modül", "Active Module", "Active Module"),
         isLive: false,
         coverImg: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80"
       }
@@ -558,13 +558,9 @@ export default function ShopLanding() {
                       <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
                         <Tv className="h-8 w-8 text-indigo-500 animate-pulse" />
                       </div>
-                      <h3 className="text-xl font-black">{txt('Hazırlanıyor', 'Coming Soon', 'Σύντομα')}</h3>
-                      <p className="text-white/60 text-xs font-semibold leading-relaxed">
-                        {txt(
-                          `"${videoTabs[activeVideoTab].title}" özelliğinin detaylı ekran videosu şu an hazırlanma aşamasındadır. Çok yakında YouTube kanalımıza yüklenecektir!`,
-                          `Detailed screen video for "${videoTabs[activeVideoTab].title}" is being prepared. It will be uploaded to our YouTube channel very soon!`,
-                          `Detailed screen video for "${videoTabs[activeVideoTab].title}" is being prepared. It will be uploaded to our YouTube channel very soon!`
-                        )}
+                      <h3 className="text-xl font-black">{videoTabs[activeVideoTab].title}</h3>
+                      <p className="text-white/75 text-xs font-semibold leading-relaxed">
+                        {videoTabs[activeVideoTab].description}
                       </p>
                     </div>
                   </div>

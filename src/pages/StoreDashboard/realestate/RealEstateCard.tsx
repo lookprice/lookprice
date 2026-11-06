@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Home,
   MapPin,
@@ -880,82 +881,86 @@ export const RealEstateCard: React.FC<RealEstateCardProps> = ({
         </div>
       )}
 
-      {/* Full-Screen Image Lightbox Modal for Row View */}
-      {isLightboxOpen && totalImages > 0 && (
-        <div
-          className="fixed inset-0 z-[100060] bg-slate-950/95 backdrop-blur-xs flex flex-col items-center justify-center p-3 sm:p-6 select-none animate-in fade-in duration-150"
-          onClick={() => setIsLightboxOpen(false)}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          {/* Top Bar */}
+      {/* Full-Screen Image Lightbox Modal for Row View (Portaled to document.body to escape card stacking context) */}
+      {isLightboxOpen &&
+        totalImages > 0 &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
-            className="w-full max-w-5xl flex items-center justify-between gap-3 pb-3 text-white"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[999999] bg-slate-950/95 backdrop-blur-xs flex flex-col items-center justify-center p-3 sm:p-6 select-none animate-in fade-in duration-150"
+            onClick={() => setIsLightboxOpen(false)}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                {property.reference_no && (
-                  <span className="font-mono font-black text-[10px] bg-white/15 text-white px-2 py-0.5 rounded">
-                    {property.reference_no}
-                  </span>
-                )}
-                <span className="font-mono font-black text-xs text-emerald-400">
-                  {currencySymbol}{formatNumberVal(property.price)}
-                </span>
-                <span className="text-xs font-mono text-slate-300">
-                  ({safeImageIdx + 1} / {totalImages})
-                </span>
-              </div>
-              <h3 className="font-black text-xs sm:text-sm text-white truncate mt-0.5">
-                {cleanTitle}
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsLightboxOpen(false)}
-              className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer shrink-0"
-              title="Kapat (ESC)"
+            {/* Top Bar */}
+            <div
+              className="w-full max-w-5xl flex items-center justify-between gap-3 pb-3 text-white"
+              onClick={(e) => e.stopPropagation()}
             >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  {property.reference_no && (
+                    <span className="font-mono font-black text-[10px] bg-white/15 text-white px-2 py-0.5 rounded">
+                      {property.reference_no}
+                    </span>
+                  )}
+                  <span className="font-mono font-black text-xs text-emerald-400">
+                    {currencySymbol}{formatNumberVal(property.price)}
+                  </span>
+                  <span className="text-xs font-mono text-slate-300">
+                    ({safeImageIdx + 1} / {totalImages})
+                  </span>
+                </div>
+                <h3 className="font-black text-xs sm:text-sm text-white truncate mt-0.5">
+                  {cleanTitle}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLightboxOpen(false)}
+                className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer shrink-0"
+                title="Kapat (ESC)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-          {/* Main Image Stage with Prev/Next Controls */}
-          <div
-            className="relative flex-1 w-full max-w-5xl flex items-center justify-center overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={images[safeImageIdx]}
-              alt={`${cleanTitle} - ${safeImageIdx + 1}`}
-              className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
-              referrerPolicy="no-referrer"
-            />
+            {/* Main Image Stage with Prev/Next Controls */}
+            <div
+              className="relative flex-1 w-full max-w-5xl flex items-center justify-center overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={images[safeImageIdx]}
+                alt={`${cleanTitle} - ${safeImageIdx + 1}`}
+                className="max-w-full max-h-[82vh] object-contain rounded-xl shadow-2xl"
+                referrerPolicy="no-referrer"
+              />
 
-            {totalImages > 1 && (
-              <>
-                <button
-                  type="button"
-                  onClick={handlePrevImage}
-                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-white/20 flex items-center justify-center shadow-xl cursor-pointer transition-transform active:scale-95"
-                  title="Önceki Fotoğraf"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleNextImage}
-                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-white/20 flex items-center justify-center shadow-xl cursor-pointer transition-transform active:scale-95"
-                  title="Sonraki Fotoğraf"
-                >
-                  <ChevronRight className="w-6 h-6" />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+              {totalImages > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handlePrevImage}
+                    className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-white/20 flex items-center justify-center shadow-xl cursor-pointer transition-transform active:scale-95"
+                    title="Önceki Fotoğraf"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNextImage}
+                    className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-white/20 flex items-center justify-center shadow-xl cursor-pointer transition-transform active:scale-95"
+                    title="Sonraki Fotoğraf"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

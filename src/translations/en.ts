@@ -173,15 +173,15 @@ export const en = {
         name: "Basic Plan",
         price: "19 USD",
         period: "/MO",
-        features: ["100 Products", "Quotation Management"],
-        cta: "Coming Soon"
+        features: ["100 Products", "Order & Quotation Management", "Real-Time Stock Sync"],
+        cta: "Start Now"
       },
       pro: {
         name: "Pro Plan",
         price: "29 USD",
         period: "/MO",
-        features: ["500 Products", "Quotation Management"],
-        cta: "Coming Soon"
+        features: ["500 Products", "Amazon SP-API & Multi-Channel Sync", "Automated GİB e-Invoice & MFN Labels"],
+        cta: "Start Now"
       },
       enterprise: {
         name: "Enterprise Plan",

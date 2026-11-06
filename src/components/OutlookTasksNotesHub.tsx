@@ -1337,19 +1337,9 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                                 {(() => {
                                   const meta = extractTaskPropertyMeta(task);
                                   return (
-                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                      {meta.refNo && (
-                                        <button
-                                          type="button"
-                                          onClick={(e) => handleInspectTaskProperty(task, e)}
-                                          className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded text-[9px] font-mono font-black cursor-pointer"
-                                          title="Ekrandan çıkmadan Portföy Künyesini aç"
-                                        >
-                                          <span>REF: {meta.refNo}</span>
-                                        </button>
-                                      )}
+                                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                                       {meta.region && (
-                                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-indigo-50 text-indigo-800 border border-indigo-200 rounded text-[9px] font-bold">
+                                        <span className="inline-flex items-center gap-0.5 px-1 py-0.2 bg-indigo-50 text-indigo-800 border border-indigo-200 rounded text-[9px] font-bold">
                                           <MapPin className="w-2.5 h-2.5 text-rose-500" />
                                           <span>{meta.region}</span>
                                         </span>
@@ -1358,22 +1348,21 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                                         <button
                                           type="button"
                                           onClick={(e) => handleInspectTaskProperty(task, e)}
-                                          className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-slate-900 hover:bg-indigo-600 text-white rounded text-[9px] font-black cursor-pointer transition-colors"
+                                          className="inline-flex items-center justify-center p-1 bg-slate-900 hover:bg-indigo-600 text-white rounded cursor-pointer transition-colors"
                                           title="Ekrandan çıkmadan Portföy Bilgilerini gör"
                                         >
-                                          <Eye className="w-2.5 h-2.5 text-amber-300" />
-                                          <span>Portföy Künyesi</span>
+                                          <Eye className="w-3 h-3 text-amber-300" />
                                         </button>
                                       )}
                                       {attachedCount > 0 && (
-                                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-[#fef08a] text-slate-950 border border-amber-400 rounded text-[9px] font-black">
+                                        <span className="inline-flex items-center gap-0.5 px-1 py-0.2 bg-[#fef08a] text-slate-950 border border-amber-400 rounded text-[9px] font-black">
                                           <StickyNote className="w-2.5 h-2.5" />
                                           <span>{attachedCount} Not</span>
                                         </span>
                                       )}
                                       {task.visibility !== "personal" && (
                                         <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1 rounded">
-                                          {task.visibility === "branch" ? "Şube" : "Mağaza"}
+                                          {task.visibility === "branch" ? "Şube" : "Merkez"}
                                         </span>
                                       )}
                                     </div>
@@ -1382,12 +1371,12 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                               </div>
                             </div>
 
-                            {/* Col 2: Dynamic State-Machine Dropdown */}
-                            <div className="col-span-3 sm:col-span-2" onClick={(e) => e.stopPropagation()}>
+                            {/* Col 2: Dynamic State-Machine Dropdown (Narrow & Compact) */}
+                            <div className="col-span-3 sm:col-span-2 max-w-[100px] sm:max-w-[120px]" onClick={(e) => e.stopPropagation()}>
                               <select
                                 value={task.state_key}
                                 onChange={(e) => handleUpdateTask(task.id, { state_key: e.target.value })}
-                                className={`w-full px-1.5 py-1 rounded-md border text-[10px] font-black outline-none cursor-pointer ${colorTheme.bg} ${colorTheme.text} ${colorTheme.border}`}
+                                className={`w-full px-1 py-0.5 rounded border text-[9px] font-black outline-none cursor-pointer truncate ${colorTheme.bg} ${colorTheme.text} ${colorTheme.border}`}
                               >
                                 {states.map((s) => {
                                   const allowed =
@@ -1405,15 +1394,15 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                               </select>
                             </div>
 
-                            {/* Col 3: Completion % Bar & Quick Step */}
-                            <div className="col-span-2 sm:col-span-2" onClick={(e) => e.stopPropagation()}>
+                            {/* Col 3: Completion % Bar & Quick Step (4 Chars fit: %100) */}
+                            <div className="col-span-2 sm:col-span-2 max-w-[65px] shrink-0" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center gap-1">
                                 <select
                                   value={task.completion_percent}
                                   onChange={(e) =>
                                     handleUpdateTask(task.id, { completion_percent: Number(e.target.value) })
                                   }
-                                  className="w-16 px-1 py-0.5 bg-slate-50 border border-slate-300 rounded text-[10px] font-mono font-black text-slate-900 outline-none cursor-pointer"
+                                  className="w-11 sm:w-12 px-0.5 py-0.5 bg-slate-50 border border-slate-300 rounded text-[9px] font-mono font-black text-slate-900 text-center outline-none cursor-pointer shrink-0"
                                 >
                                   {[0, 10, 25, 50, 75, 90, 100].map((pct) => (
                                     <option key={pct} value={pct}>

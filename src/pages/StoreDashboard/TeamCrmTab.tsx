@@ -214,7 +214,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [editingBranch, setEditingBranch] = useState<any>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'agents' | 'branches' | 'pipeline'>(initialSubTab || 'agents');
+  const [activeSubTab, setActiveSubTab] = useState<'agents' | 'branches' | 'pipeline'>(initialSubTab || 'pipeline');
   const [isSaving, setIsSaving] = useState(false);
   
   const [formData, setFormData] = useState({

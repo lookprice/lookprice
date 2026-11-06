@@ -903,15 +903,16 @@ export const RealEstateCalendar = ({
                               </div>
 
                               {/* Action Buttons: 1. Inspect Property in-place, 2. Complete & Choose Pipeline Stage */}
-                              <div className="grid grid-cols-1 gap-1.5 pt-1">
+                              <div className="flex items-center gap-1.5 pt-1">
                                 {property && (
                                   <button
                                     type="button"
                                     onClick={(e) => handleInspectProperty(task, e)}
-                                    className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[10px] font-black uppercase py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                    className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[10px] font-black py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                                    title="Ekrandan çıkmadan Portföy Bilgilerini gör"
                                   >
-                                    <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                                    <span>Portföy Bilgilerini Gör (Ekrandan Çıkmadan)</span>
+                                    <Eye className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                    <span className="truncate">Portföy Bilgileri</span>
                                   </button>
                                 )}
 
@@ -919,10 +920,11 @@ export const RealEstateCalendar = ({
                                   <button
                                     type="button"
                                     onClick={(e) => handleOpenCompleteModal(task, e)}
-                                    className="w-full bg-slate-900 hover:bg-indigo-600 text-white text-[10px] font-black uppercase py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                                    className="flex-1 bg-slate-900 hover:bg-indigo-600 text-white text-[10px] font-black py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 shadow-xs"
+                                    title="Geziyi sonuçlandır ve Pipeline statüsünü seç"
                                   >
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                    <span>Geziyi Sonuçlandır & Pipeline Statüsü Seç</span>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                    <span className="truncate">Sonuçlandır</span>
                                   </button>
                                 )}
                               </div>

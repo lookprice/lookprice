@@ -593,56 +593,52 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1 shrink-0 flex-wrap">
-                          {/* Primary Button: View Signed OTP Contract / Terminate */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* Primary Button: View Signed OTP Contract / Terminate (Icon Only) */}
                           <button
                             type="button"
                             onClick={() => setActiveContractItem(item)}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer border transition-colors ${
+                            className={`p-2 rounded-lg text-[10px] font-black flex items-center justify-center cursor-pointer border transition-colors ${
                               isCancelled
                                 ? 'bg-white hover:bg-rose-50 text-rose-800 border-rose-300'
                                 : isSigned
                                 ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-indigo-200'
                                 : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
                             }`}
-                            title="İmzalı OTP sözleşmesini görüntüle, yazdır veya feshet"
+                            title={isSigned ? 'İmzalı Sözleşmeyi Gör / Fesih' : isCancelled ? 'Fesih Belgesini Gör' : 'Sözleşmeyi Gör / Fesih'}
                           >
-                            <FileSignature className="w-3 h-3 shrink-0" />
-                            <span>{isSigned ? 'İmzalı Sözleşmeyi Gör / Fesih' : isCancelled ? 'Fesih Belgesini Gör' : 'Sözleşmeyi Gör / Fesih'}</span>
+                            <FileSignature className="w-4 h-4 shrink-0" />
                           </button>
 
                           {isCancelled ? (
-                            <span className="px-2 py-1 bg-rose-600 text-white rounded-lg text-[10px] font-black flex items-center gap-1">
-                              <Ban className="w-3 h-3" />
-                              <span>Feshedildi</span>
+                            <span className="p-2 bg-rose-600 text-white rounded-lg text-[10px] font-black flex items-center justify-center" title="Feshedildi">
+                              <Ban className="w-4 h-4 shrink-0" />
                             </span>
                           ) : isPaidToLedger ? (
-                            <span className="px-2 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black flex items-center gap-1">
-                              <Receipt className="w-3 h-3" />
-                              <span>Cariye İşlendi ✓</span>
+                            <span className="p-2 bg-emerald-600 text-white rounded-lg text-[10px] font-black flex items-center justify-center" title="Cariye İşlendi">
+                              <Receipt className="w-4 h-4 shrink-0" />
                             </span>
                           ) : isSigned ? (
-                            <span className="px-2 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-black flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              <span>OTP Onaylı</span>
+                            <span className="p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-black flex items-center justify-center" title="OTP Onaylı">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                             </span>
                           ) : (
                             <>
                               <button
                                 type="button"
                                 onClick={() => handleSendWhatsApp(item)}
-                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                                className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black flex items-center justify-center cursor-pointer"
+                                title="WhatsApp ile Gönder"
                               >
-                                <Send className="w-2.5 h-2.5" />
-                                <span>WhatsApp</span>
+                                <Send className="w-3.5 h-3.5 shrink-0" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleQuickApprove(item)}
-                                className="px-2 py-1 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                                className="p-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-black flex items-center justify-center cursor-pointer"
+                                title="Hızlı Onayla"
                               >
-                                <ShieldCheck className="w-2.5 h-2.5" />
-                                <span>Onayla</span>
+                                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
                               </button>
                             </>
                           )}

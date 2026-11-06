@@ -31,7 +31,8 @@ import {
   Receipt,
   History,
   Send,
-  Eye
+  Eye,
+  Filter
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../services/api';
@@ -104,6 +105,8 @@ export const RealEstateCRM = ({
   const [internalSearchQuery, setInternalSearchQuery] = useState("");
   // Default filter: 'active' shows only 1. Geziler, 2. Analiz, 3. Pazarlık (hides archived 4. Olumsuz & 5. Başarılı)
   const [stageFilter, setStageFilter] = useState<string>('active');
+  // Collapsible stage filter accordion drawer (default closed / false)
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState<boolean>(false);
   // Default layout: 'horizontal' (full-page collapsible stage rows) or 'columns' (compact 3-column active kanban)
   const [layoutMode, setLayoutMode] = useState<'horizontal' | 'columns'>('horizontal');
   // Track which individual deal cards are expanded ("kısa künye" accordion)
@@ -774,11 +777,13 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
     <div className="flex flex-col gap-2">
       {/* Compact Top Control & Stage Filter Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 bg-white border border-slate-200/90 px-2.5 py-2 rounded-xl shadow-2xs">
-        {/* Stage Filter Selector (Active Workflow vs Archived Completed Stages) */}
+        {/* Stage Filter Selector (Active Workflow vs Accordion Collapsible Stage Filters) */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
-            onClick={() => setStageFilter('active')}
+            onClick={() => {
+              setStageFilter('active');
+            }}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
               stageFilter === 'active'
                 ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
@@ -793,67 +798,87 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
             </span>
           </button>
 
-          {/* Active Stage Pills (1, 2, 3) */}
-          {STAGES.filter(s => !s.isArchive).map(stage => {
-            const count = filteredDeals.filter(d => d.stage === stage.id).length;
-            const isSelected = stageFilter === stage.id;
-            const Icon = stage.icon;
-            return (
-              <button
-                key={stage.id}
-                type="button"
-                onClick={() => setStageFilter(isSelected ? 'active' : stage.id)}
-                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer border ${
-                  isSelected
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-black'
-                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                }`}
-              >
-                <Icon className={`w-3 h-3 ${isSelected ? 'text-white' : 'text-slate-500'}`} />
-                <span>{stage.title}</span>
-                <span className={`px-1 py-0.2 rounded text-[10px] font-mono font-black ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                  {count}
+          {/* Toggle Accordion Drawer Button for Stage Filters */}
+          <button
+            type="button"
+            onClick={() => setIsFilterDrawerOpen(prev => !prev)}
+            className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+              isFilterDrawerOpen
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-300 font-black'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+            title="Süreç aşama filtrelerini aç / kapat"
+          >
+            <Filter className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Süreç Filtreleri</span>
+            {isFilterDrawerOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+
+          {/* Collapsible Stage Pills Container (Visible when isFilterDrawerOpen is true) */}
+          {isFilterDrawerOpen && (
+            <div className="flex items-center gap-1.5 flex-wrap pl-1 border-l-2 border-indigo-200 animate-in fade-in slide-in-from-left-2 duration-150">
+              {STAGES.filter(s => !s.isArchive).map(stage => {
+                const count = filteredDeals.filter(d => d.stage === stage.id).length;
+                const isSelected = stageFilter === stage.id;
+                const Icon = stage.icon;
+                return (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    onClick={() => setStageFilter(isSelected ? 'active' : stage.id)}
+                    className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-black'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    <Icon className={`w-3 h-3 ${isSelected ? 'text-white' : 'text-slate-500'}`} />
+                    <span>{stage.title}</span>
+                    <span className={`px-1 py-0.2 rounded text-[10px] font-mono font-black ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+
+              <div className="h-4 w-px bg-slate-200 mx-0.5 hidden sm:block" />
+
+              {/* Archived / Completed Stage Pills (4. Olumsuz & 5. Başarılı) */}
+              <div className="flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-lg border border-slate-200/70">
+                <span className="text-[9px] font-black uppercase text-slate-400 px-1.5 hidden xl:inline-flex items-center gap-1">
+                  <Archive className="w-2.5 h-2.5" />
+                  Tamamlanan:
                 </span>
-              </button>
-            );
-          })}
-
-          <div className="h-4 w-px bg-slate-200 mx-0.5 hidden sm:block" />
-
-          {/* Archived / Completed Stage Pills (4. Olumsuz & 5. Başarılı - Hidden by default unless clicked) */}
-          <div className="flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-lg border border-slate-200/70">
-            <span className="text-[9px] font-black uppercase text-slate-400 px-1.5 hidden xl:inline-flex items-center gap-1">
-              <Archive className="w-2.5 h-2.5" />
-              Tamamlanan:
-            </span>
-            {STAGES.filter(s => s.isArchive).map(stage => {
-              const count = filteredDeals.filter(d => d.stage === stage.id).length;
-              const isSelected = stageFilter === stage.id;
-              const Icon = stage.icon;
-              const activeClass = stage.id === 'closed'
-                ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                : 'bg-rose-600 text-white border-rose-600 shadow-2xs';
-              return (
-                <button
-                  key={stage.id}
-                  type="button"
-                  onClick={() => setStageFilter(isSelected ? 'active' : stage.id)}
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer border ${
-                    isSelected
-                      ? activeClass
-                      : 'bg-white/90 hover:bg-white text-slate-600 border-slate-200/80'
-                  }`}
-                  title={`${stage.title} listesini görüntülemek için tıklayın (Varsayılan olarak gizlidir)`}
-                >
-                  <Icon className="w-3 h-3" />
-                  <span>{stage.title}</span>
-                  <span className={`px-1 rounded text-[9px] font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                {STAGES.filter(s => s.isArchive).map(stage => {
+                  const count = filteredDeals.filter(d => d.stage === stage.id).length;
+                  const isSelected = stageFilter === stage.id;
+                  const Icon = stage.icon;
+                  const activeClass = stage.id === 'closed'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                    : 'bg-rose-600 text-white border-rose-600 shadow-2xs';
+                  return (
+                    <button
+                      key={stage.id}
+                      type="button"
+                      onClick={() => setStageFilter(isSelected ? 'active' : stage.id)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer border ${
+                        isSelected
+                          ? activeClass
+                          : 'bg-white/90 hover:bg-white text-slate-600 border-slate-200/80'
+                      }`}
+                      title={`${stage.title} listesini görüntülemek için tıklayın`}
+                    >
+                      <Icon className="w-3 h-3" />
+                      <span>{stage.title}</span>
+                      <span className={`px-1 rounded text-[9px] font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Controls: Layout Mode, Expand/Collapse All, New Tour */}

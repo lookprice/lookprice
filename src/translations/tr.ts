@@ -173,15 +173,15 @@ export const tr = {
       name: "Başlangıç Planı",
       price: "900₺",
       period: "/AY",
-      features: ["100 Ürün Kullanımı", "Teklif Yönetimi", "19 USD / 17 EUR"],
-      cta: "Yakında"
+      features: ["100 Ürün Kullanımı", "Teklif & Sipariş Yönetimi", "19 USD / 17 EUR"],
+      cta: "Hemen Başla"
     },
     pro: {
       name: "Pro Plan",
       price: "1400₺",
       period: "/AY",
-      features: ["500 Ürün Kullanımı", "Teklif Yönetimi", "29 USD / 27 EUR"],
-      cta: "Yakında"
+      features: ["500 Ürün Kullanımı", "Pazaryeri & Amazon SP-API Entegrasyonu", "GİB e-Fatura & e-Arşiv Otomasyonu"],
+      cta: "Hemen Başla"
     },
     enterprise: {
       name: "Kurumsal Plan",
