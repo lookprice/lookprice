@@ -143,6 +143,43 @@ export function convertCurrency(amount: number, fromCurr: string = 'GBP', toCurr
   return Math.round(inGbp / targetRate);
 }
 
+export function normalizeTr(text: string): string {
+  return (text || '')
+    .replace(/İ/g, 'i')
+    .replace(/I/g, 'i')
+    .replace(/ı/g, 'i')
+    .toLowerCase()
+    .replace(/i\u0307/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c');
+}
+
+export function detectKktcDistricts(normText: string): string[] {
+  const districts: string[] = [];
+  if (/girne|karaoglanoglu|alsancak|catalkoy|bellapais|ozankoy|lapta|edremit|dogankoy|karakum|esentepe|bahceli|zeytinlik|karmi|karsiyaka|dikmen|taskent/.test(normText)) {
+    districts.push('girne');
+  }
+  if (/lefkosa|gonyeli|kucuk kaymakli|kaymakli|ortakoy|hamitkoy|yenikent|dereboyu|metehan|yenisehir|kizilbas|alaykoy|haspolat/.test(normText)) {
+    districts.push('lefkosa');
+  }
+  if (/iskele|long beach|bogaz|otuken|bafra|yenibogazici|yeni bogazici|tatlisu/.test(normText)) {
+    districts.push('iskele');
+  }
+  if (/magusa|gazimagusa|tuzla/.test(normText)) {
+    districts.push('magusa');
+  }
+  if (/guzelyurt/.test(normText)) {
+    districts.push('guzelyurt');
+  }
+  if (/lefke|gaziveren|gemikonagi/.test(normText)) {
+    districts.push('lefke');
+  }
+  return districts;
+}
+
 /**
  * Intelligent parser that merges structured 6-Step Funnel Criteria (`deal.criteria`)
  * with fallback NLP extraction from unstructured text (`title`, `description`, `budget`).
@@ -155,6 +192,7 @@ export function parseLeadCriteria(deal: {
 }): ParsedLeadCriteria {
   const c = deal.criteria;
   const fullText = `${deal.title || ''} ${deal.description || ''} ${deal.budget || ''}`.toLowerCase();
+  const normText = normalizeTr(`${deal.title || ''} ${deal.description || ''} ${deal.budget || ''}`);
 
   // If structured 6-Step Wizard criteria exist, prioritize them directly
   if (c && (c.intent || c.mainType || (c.cities && c.cities.length > 0) || c.maxBudget)) {
@@ -177,8 +215,15 @@ export function parseLeadCriteria(deal: {
     if (c.maxTotalFloors === '2-3') maxTotalFloors = 3;
     else if (c.maxTotalFloors === '4-6') maxTotalFloors = 6;
 
+    let resolvedIntent: ParsedLeadCriteria['intent'] = c.intent || 'any';
+    if (resolvedIntent === 'any' && c.maxBudget && c.maxBudget > 0) {
+      const bGbp = convertCurrency(c.maxBudget, c.currency || 'GBP', 'GBP');
+      if (bGbp >= 15000) resolvedIntent = 'sale';
+      else if (bGbp <= 7500) resolvedIntent = 'rent';
+    }
+
     return {
-      intent: c.intent || 'any',
+      intent: resolvedIntent,
       mainType: c.mainType || 'any',
       locations,
       propertyTypes,
@@ -206,39 +251,39 @@ export function parseLeadCriteria(deal: {
 
   // Fallback NLP Parser for legacy or quick text leads
   let intent: ParsedLeadCriteria['intent'] = 'any';
-  const isRent = /kiralık|kiralik|kira|rent|aylık|aylik/i.test(fullText);
-  const isSale = /satılık|satilik|satın|satin|sale|yatırım|yatirim|almak|alım|alim/i.test(fullText);
+  const isRent = /kiralik|kira\b|rent|aylik/i.test(normText) && !/kira getiri/i.test(normText);
+  const isSale = /satilik|satin|sale|yatirim|almak|alim|kredi|ekspertiz|tapu|kocan|kapora|pesin/i.test(normText);
   if (isRent && !isSale) intent = 'rent';
   else if (isSale && !isRent) intent = 'sale';
 
   const locations: string[] = [];
   for (const loc of COMMON_LOCATIONS) {
-    if (fullText.includes(loc)) {
+    if (normText.includes(normalizeTr(loc))) {
       locations.push(loc);
     }
   }
 
   let mainType: ParsedLeadCriteria['mainType'] = 'any';
   const propertyTypes: string[] = [];
-  if (/dükkan|dukkan|mağaza|magaza|işyeri|isyeri|ticari|ofis|depo/i.test(fullText)) {
+  if (/dukkan|magaza|isyeri|ticari|ofis|depo/i.test(normText)) {
     mainType = 'commercial';
     propertyTypes.push('commercial', 'dükkan', 'ofis');
   }
-  if (/arsa|tarla|parsel|arazi|imarlı/i.test(fullText)) {
+  if (/arsa|tarla|parsel|arazi|imarli/i.test(normText)) {
     mainType = 'land';
     propertyTypes.push('land', 'arsa');
   }
-  if (/villa|müstakil|mustakil|malikane|daire|apartman|rezidans|flat|konut|penthouse|stüdyo|studyo/i.test(fullText)) {
+  if (/villa|mustakil|malikane|daire|apartman|rezidans|flat|konut|penthouse|studyo/i.test(normText)) {
     mainType = 'residence';
-    if (/villa|müstakil|mustakil/i.test(fullText)) propertyTypes.push('villa', 'residence');
-    if (/daire|apartman|rezidans|flat|konut/i.test(fullText)) propertyTypes.push('daire', 'residence');
-    if (/penthouse/i.test(fullText)) propertyTypes.push('penthouse');
+    if (/villa|mustakil/i.test(normText)) propertyTypes.push('villa', 'residence');
+    if (/daire|apartman|rezidans|flat|konut/i.test(normText)) propertyTypes.push('daire', 'residence');
+    if (/penthouse/i.test(normText)) propertyTypes.push('penthouse');
   }
 
   const roomCounts: string[] = [];
-  const roomRegex = /(\d\s*\+\s*\d|stüdyo|studyo|1\s*oda)/gi;
+  const roomRegex = /(\d\s*\+\s*\d|studyo|1\s*oda)/gi;
   let match;
-  while ((match = roomRegex.exec(fullText)) !== null) {
+  while ((match = roomRegex.exec(normText)) !== null) {
     const normalized = match[0].replace(/\s+/g, '').replace('studyo', 'stüdyo');
     if (!roomCounts.includes(normalized)) roomCounts.push(normalized);
   }
@@ -246,50 +291,56 @@ export function parseLeadCriteria(deal: {
   let maxBudget: number | undefined;
   let currency: string | undefined;
 
-  if (/gbp|£|sterlin/i.test(fullText)) currency = 'GBP';
-  else if (/eur|€|euro/i.test(fullText)) currency = 'EUR';
-  else if (/usd|\$|dolar/i.test(fullText)) currency = 'USD';
-  else if (/tl|₺|try/i.test(fullText)) currency = 'TRY';
+  if (/gbp|£|sterlin/i.test(normText)) currency = 'GBP';
+  else if (/eur|€|euro/i.test(normText)) currency = 'EUR';
+  else if (/usd|\$|dolar/i.test(normText)) currency = 'USD';
+  else if (/tl|₺|try/i.test(normText)) currency = 'TRY';
 
   const budgetMatch = (deal.budget || '').replace(/[,.]/g, '').match(/\d+/g);
   if (budgetMatch && budgetMatch.length > 0) {
-    // Take the largest number as maxBudget if range is given in text like "£100,000 - £150,000"
     const nums = budgetMatch.map(n => parseInt(n, 10)).filter(n => !isNaN(n));
     if (nums.length > 0) maxBudget = Math.max(...nums);
   } else {
-    const binMatch = fullText.match(/(\d+)\s*bin/);
+    const binMatch = normText.match(/(\d+)\s*bin/);
     if (binMatch) {
       maxBudget = parseInt(binMatch[1], 10) * 1000;
     } else {
-      const kadarMatch = fullText.match(/(\d+)\s*(?:birim|gbp|£|tl|€|\$)?\s*(?:kadar|bütçe|butce)/);
+      const kadarMatch = normText.match(/(\d+)\s*(?:birim|gbp|£|tl|€|\$)?\s*(?:kadar|butce)/);
       if (kadarMatch) {
         maxBudget = parseInt(kadarMatch[1], 10);
       }
     }
   }
 
+  // Infer intent from budget if still 'any'
+  if (intent === 'any' && maxBudget && maxBudget > 0) {
+    const bGbp = convertCurrency(maxBudget, currency || 'GBP', 'GBP');
+    if (bGbp >= 15000) intent = 'sale';
+    else if (bGbp <= 7500) intent = 'rent';
+  }
+
   let furnished: ParsedLeadCriteria['furnished'] = 'any';
-  if (/eşyalı|esyali|mobilyalı|mobilyali/i.test(fullText) && !/eşyasız|esyasiz/i.test(fullText)) {
+  if (/esyali|mobilyali/i.test(normText) && !/esyasiz/i.test(normText)) {
     furnished = 'full';
-  } else if (/eşyasız|esyasiz|boş/i.test(fullText)) {
+  } else if (/esyasiz|bos/i.test(normText)) {
     furnished = 'unfurnished';
   }
 
   let maxBuildingAge: number | undefined;
-  const ageMatch = fullText.match(/(?:0\s*ile|0\s*-)?\s*(\d+)\s*(?:yıl|yil|yaş|yas)/i);
+  const ageMatch = normText.match(/(?:0\s*ile|0\s*-)?\s*(\d+)\s*(?:yil|yas)/i);
   if (ageMatch) {
     maxBuildingAge = parseInt(ageMatch[1], 10);
-  } else if (/sıfır bina|sifir bina|yeni bina|projeden/i.test(fullText)) {
+  } else if (/sifir bina|yeni bina|projeden/i.test(normText)) {
     maxBuildingAge = 1;
   }
 
   let preferredFloor: ParsedLeadCriteria['preferredFloor'] = 'any';
-  if (/ara kat|arakat/i.test(fullText)) preferredFloor = 'middle';
-  else if (/bahçe katı|bahce kati|bahçeli|zemin/i.test(fullText)) preferredFloor = 'ground_garden';
-  else if (/en üst|en ust|çatı|cati|penthouse/i.test(fullText)) preferredFloor = 'top_penthouse';
+  if (/ara kat|arakat/i.test(normText)) preferredFloor = 'middle';
+  else if (/bahce kati|bahceli|zemin/i.test(normText)) preferredFloor = 'ground_garden';
+  else if (/en ust|cati|penthouse/i.test(normText)) preferredFloor = 'top_penthouse';
 
   let maxTotalFloors: number | undefined;
-  const totalFloorMatch = fullText.match(/maksimum\s*(\d+)\s*kat|en çok\s*(\d+)\s*kat|max\s*(\d+)\s*kat/i);
+  const totalFloorMatch = normText.match(/maksimum\s*(\d+)\s*kat|en cok\s*(\d+)\s*kat|max\s*(\d+)\s*kat/i);
   if (totalFloorMatch) {
     maxTotalFloors = parseInt(totalFloorMatch[1] || totalFloorMatch[2] || totalFloorMatch[3], 10);
   }
@@ -324,17 +375,35 @@ export function calculateMatchScore(
   const tolerancesApplied: string[] = [];
 
   const sec = typeof property.sector_data === 'object' && property.sector_data ? property.sector_data : {};
-  const propText = `${property.title || ''} ${property.description || ''} ${property.location || ''} ${property.kktc_region || ''} ${property.kktc_sub_region || ''} ${property.address || ''} ${property.subtype || ''} ${property.type || ''}`.toLowerCase();
-  const propIntent = (property.listing_intent || sec.listing_intent || (property.status === 'rent' || /kiralık|kiralik/i.test(propText) ? 'rent' : 'sale'));
-  const propMainType: 'residence' | 'commercial' | 'land' =
-    property.type === 'land' || /arsa|tarla|parsel|arazi/i.test(`${property.type || ''} ${property.subtype || ''}`)
-      ? 'land'
-      : property.type === 'commercial' || /ticari|dükkan|ofis|mağaza|depo/i.test(`${property.type || ''} ${property.subtype || ''}`)
-      ? 'commercial'
-      : 'residence';
+  const rawPropString = `${property.title || ''} ${property.description || ''} ${property.location || ''} ${property.kktc_region || ''} ${property.kktc_sub_region || ''} ${property.address || ''} ${property.subtype || ''} ${property.type || ''}`;
+  const propText = rawPropString.toLowerCase();
+  const normPropText = normalizeTr(rawPropString);
 
   const propPriceRaw = Number(property.price) || 0;
   const propCurrency = (property.currency || 'GBP').toUpperCase();
+  const propPriceInGbp = convertCurrency(propPriceRaw, propCurrency, 'GBP');
+
+  const rawListingIntent = normalizeTr(String(property.listing_intent || sec.listing_intent || ''));
+  const hasRentKeywordInTitle = /kiralik|kira\b/.test(normalizeTr(property.title || ''));
+  const hasSaleKeywordInTitle = /satilik/.test(normalizeTr(property.title || ''));
+
+  let propIntent: 'rent' | 'sale' = 'sale';
+  if (rawListingIntent === 'rent' || rawListingIntent === 'kiralik' || property.status === 'rent' || property.status === 'rented') {
+    propIntent = 'rent';
+  } else if (hasRentKeywordInTitle && !hasSaleKeywordInTitle) {
+    propIntent = 'rent';
+  } else if (propPriceInGbp > 0 && propPriceInGbp <= 7500 && !hasSaleKeywordInTitle) {
+    propIntent = 'rent';
+  }
+
+  const normTypeText = normalizeTr(`${property.type || ''} ${property.subtype || ''} ${property.title || ''}`);
+  const propMainType: 'residence' | 'commercial' | 'land' =
+    property.type === 'land' || (!/daire|villa|mustakil|penthouse|studyo|konut/.test(normTypeText) && /arsa|tarla|parsel|arazi/.test(normTypeText))
+      ? 'land'
+      : property.type === 'commercial' || /ticari|dukkan|ofis|magaza|depo/.test(normTypeText)
+      ? 'commercial'
+      : 'residence';
+
   const leadCurrency = (criteria.currency || propCurrency).toUpperCase();
   const propPriceInLeadCurr = convertCurrency(propPriceRaw, propCurrency, leadCurrency);
 
@@ -342,56 +411,36 @@ export function calculateMatchScore(
   // 1. LOCATION SCORING (Weight: 30 points)
   // ----------------------------------------------------
   let locationScore = 0;
+  const propDistricts = detectKktcDistricts(normPropText);
+  const leadDistricts = detectKktcDistricts(criteria.locations.map(l => normalizeTr(l)).join(' '));
+
   if (criteria.locations.length === 0) {
     locationScore = 24;
     reasons.push('Lokasyon: Tüm KKTC / Fark Etmez (+24)');
   } else {
     let matchedLoc = '';
     for (const loc of criteria.locations) {
-      if (propText.includes(loc.toLowerCase())) {
+      if (normPropText.includes(normalizeTr(loc))) {
         matchedLoc = loc;
         break;
       }
     }
 
-    if (matchedLoc) {
+    // Strict District (İlçe) check: if lead specifies a KKTC district (e.g. Girne) and property is in a different district (e.g. Lefkoşa), locationScore MUST be 0!
+    const hasSameDistrict =
+      leadDistricts.length === 0 ||
+      propDistricts.length === 0 ||
+      leadDistricts.some(d => propDistricts.includes(d));
+
+    if (!hasSameDistrict) {
+      locationScore = 0;
+    } else if (matchedLoc) {
       locationScore = 30;
       reasons.push(`Lokasyon tam eşleşti: "${matchedLoc.toUpperCase()}" (+30)`);
     } else if (criteria.locationTolerance !== 'strict') {
-      // Check Haversine Geo Distance (±10km) or same District match
-      let minGeoKm = 999;
-      const propCoordsKey = Object.keys(DISTRICT_COORDINATES).find(k => propText.includes(k));
-      if (propCoordsKey) {
-        const pCoord = DISTRICT_COORDINATES[propCoordsKey];
-        for (const loc of criteria.locations) {
-          const lKey = Object.keys(DISTRICT_COORDINATES).find(k => loc.toLowerCase().includes(k));
-          if (lKey) {
-            const dKm = calculateGeoDistanceKm(pCoord.lat, pCoord.lng, DISTRICT_COORDINATES[lKey].lat, DISTRICT_COORDINATES[lKey].lng);
-            if (dKm < minGeoKm) minGeoKm = dKm;
-          }
-        }
-      }
-
-      if (minGeoKm <= 12) {
-        locationScore = 24;
-        tolerancesApplied.push(`Yakın Çevre (±${minGeoKm} km)`);
-        reasons.push(`Yakın çevre lokasyon toleransı (±${minGeoKm} km mesafede) (+24)`);
-      } else {
-        const isGirneArea = /girne|karaoğlanoğlu|alsancak|çatalköy|bellapais|ozanköy|lapta|edremit|doğanköy|karakum|esentepe|bahçeli|zeytinlik/i.test(propText);
-        const wantedGirne = criteria.locations.some(l => /girne|karaoğlanoğlu|alsancak|çatalköy|bellapais|ozanköy|lapta|edremit|doğanköy|karakum|esentepe/i.test(l));
-        const isLefkosaArea = /lefkoşa|lefkosa|gönyeli|küçük kaymaklı|ortaköy|hamitköy|yenikent|dereboyu|metehan/i.test(propText);
-        const wantedLefkosa = criteria.locations.some(l => /lefkoşa|lefkosa|gönyeli|küçük kaymaklı|ortaköy|hamitköy|yenikent|dereboyu/i.test(l));
-        const isIskeleMagusa = /iskele|long beach|boğaz|ötüken|bafra|mağusa|gazimağusa|yeniboğaziçi|tuzla/i.test(propText);
-        const wantedIskeleMagusa = criteria.locations.some(l => /iskele|long beach|boğaz|ötüken|bafra|mağusa|gazimağusa|yeniboğaziçi/i.test(l));
-
-        if ((isGirneArea && wantedGirne) || (isLefkosaArea && wantedLefkosa) || (isIskeleMagusa && wantedIskeleMagusa)) {
-          locationScore = 22;
-          tolerancesApplied.push('Aynı İlçe / Çevre Semt');
-          reasons.push('İlçe / çevre semt lokasyon uyumu (+22)');
-        } else {
-          locationScore = 0;
-        }
-      }
+      locationScore = 22;
+      tolerancesApplied.push('Aynı İlçe / Çevre Semt');
+      reasons.push('İlçe / çevre semt lokasyon uyumu (+22)');
     }
   }
 
@@ -399,41 +448,46 @@ export function calculateMatchScore(
   // 2. INTENT / TRANSACTION TYPE SCORING (Weight: 20 points)
   // ----------------------------------------------------
   let intentScore = 0;
+  let intentFatalMismatch = false;
   if (!criteria.intent || criteria.intent === 'any') {
     intentScore = 20;
-    reasons.push('İşlem türü esnek (Satılık/Kiralık) (+20)');
+    reasons.push('İşlem türü esnek (+20)');
   } else if (criteria.intent === 'investment') {
     if (propIntent === 'sale') {
       intentScore = 20;
-      reasons.push('Yatırımlık (Al-Sat / Kira Getirili) satılık portföy uyumu (+20)');
+      reasons.push('Yatırımlık satılık portföy uyumu (+20)');
     } else {
-      intentScore = 5;
+      intentScore = 0;
+      intentFatalMismatch = true;
     }
   } else if (criteria.intent === propIntent) {
     intentScore = 20;
     reasons.push(propIntent === 'rent' ? 'Kiralık işlem türü tam eşleşti (+20)' : 'Satılık işlem türü tam eşleşti (+20)');
   } else {
     intentScore = 0;
+    intentFatalMismatch = true;
   }
 
   // ----------------------------------------------------
   // 3. BUDGET & FUZZY LOGIC TOLERANCE SCORING (Weight: 25 points)
   // ----------------------------------------------------
   let budgetScore = 0;
+  let budgetFatalMismatch = false;
   if (!criteria.maxBudget || criteria.maxBudget <= 0) {
     budgetScore = 22;
     reasons.push('Bütçe: Esnek / Fark Etmez (+22)');
   } else {
     const maxB = criteria.maxBudget;
-    const minB = criteria.minBudget || 0;
+    // If minBudget is not explicitly specified, a property less than 45% of maxBudget is in a completely different segment
+    const minB = criteria.minBudget && criteria.minBudget > 0 ? criteria.minBudget : maxB * 0.45;
     const allowedTol = criteria.budgetTolerancePercent ?? 10;
 
     if (propPriceInLeadCurr >= minB * 0.85 && propPriceInLeadCurr <= maxB) {
       budgetScore = 25;
       reasons.push(`Fiyat bütçe aralığında: ${propPriceRaw.toLocaleString('tr-TR')} ${propCurrency} (+25)`);
     } else if (propPriceInLeadCurr < minB * 0.85) {
-      budgetScore = 18;
-      reasons.push(`Fiyat minimum bütçenin altında (Fırsat adayı) (+18)`);
+      budgetScore = 0;
+      budgetFatalMismatch = true;
     } else if (propPriceInLeadCurr <= maxB * 1.05 && allowedTol >= 5) {
       budgetScore = 23;
       tolerancesApplied.push('%5 bütçe esnemesi');
@@ -451,6 +505,7 @@ export function calculateMatchScore(
       tolerancesApplied.push('Pazarlık payı sınırı');
     } else {
       budgetScore = 0;
+      budgetFatalMismatch = true;
     }
   }
 
@@ -480,9 +535,9 @@ export function calculateMatchScore(
   // Subtype match (max 3 points)
   if (criteria.propertyTypes.length > 0) {
     const matchedSub = criteria.propertyTypes.some(t =>
-      propText.includes(t) ||
-      (property.subtype || '').toLowerCase().includes(t) ||
-      (property.type || '').toLowerCase().includes(t)
+      normPropText.includes(normalizeTr(t)) ||
+      normalizeTr(property.subtype || '').includes(normalizeTr(t)) ||
+      normalizeTr(property.type || '').includes(normalizeTr(t))
     );
     if (matchedSub) {
       typeAndRoomScore += 3;
@@ -495,16 +550,16 @@ export function calculateMatchScore(
 
   // Type-specific metric check (Rooms for Residence, Usage for Commercial, Zoning for Land) (max 6 points)
   if (propMainType === 'residence') {
-    const propRooms = (property.room_count || '').replace(/\s+/g, '').toLowerCase();
+    const propRooms = normalizeTr(property.room_count || '').replace(/\s+/g, '');
     if (!criteria.roomCounts || criteria.roomCounts.length === 0) {
       typeAndRoomScore += 4;
     } else {
       const exactRoom = criteria.roomCounts.some(r => {
-        const cleanR = r.replace(/\s+/g, '').toLowerCase();
-        if (cleanR.includes('studio') || cleanR.includes('1+0')) {
-          return propRooms.includes('1+0') || propRooms.includes('stüdyo') || propRooms.includes('studyo') || propText.includes('stüdyo');
+        const cleanR = normalizeTr(r).replace(/\s+/g, '');
+        if (cleanR.includes('studio') || cleanR.includes('studyo') || cleanR.includes('1+0')) {
+          return propRooms.includes('1+0') || propRooms.includes('studyo') || normPropText.includes('studyo');
         }
-        return propRooms.includes(cleanR) || propText.includes(cleanR);
+        return propRooms.includes(cleanR) || normPropText.includes(cleanR);
       });
       if (exactRoom) {
         typeAndRoomScore += 4;
@@ -523,10 +578,10 @@ export function calculateMatchScore(
       typeAndRoomScore += 2;
     }
   } else if (propMainType === 'land') {
-    const imar = (property.imar_durumu || sec.imar_durumu || '').toLowerCase();
+    const imar = normalizeTr(property.imar_durumu || sec.imar_durumu || '');
     if (!criteria.landZoning || criteria.landZoning.length === 0) {
       typeAndRoomScore += 4;
-    } else if (criteria.landZoning.some(z => imar.includes(z.toLowerCase()) || propText.includes(z.toLowerCase()))) {
+    } else if (criteria.landZoning.some(z => imar.includes(normalizeTr(z)) || normPropText.includes(normalizeTr(z)))) {
       typeAndRoomScore += 4;
       reasons.push('Arsa imar durumu uyumlu (+4)');
     } else {
@@ -555,10 +610,10 @@ export function calculateMatchScore(
   let featuresScore = 0;
 
   // Koçan / Title Deed check (4 points)
-  const propKocan = (property.kktc_title_type || sec.kktc_title_type || '').toLowerCase();
+  const propKocan = normalizeTr(property.kktc_title_type || sec.kktc_title_type || '');
   if (!criteria.kocanTypes || criteria.kocanTypes.length === 0) {
     featuresScore += 4;
-  } else if (criteria.kocanTypes.some(k => propKocan.includes(k.toLowerCase()) || propText.includes(k.toLowerCase()))) {
+  } else if (criteria.kocanTypes.some(k => propKocan.includes(normalizeTr(k)) || normPropText.includes(normalizeTr(k)))) {
     featuresScore += 4;
     reasons.push(`Koçan tipi uygun: ${property.kktc_title_type || criteria.kocanTypes[0]} (+4)`);
   } else {
@@ -574,7 +629,7 @@ export function calculateMatchScore(
         property.furnished === true ||
         property.furnished === 'true' ||
         property.furnished === 'esyali' ||
-        /eşyalı|esyali/i.test(propText)
+        (/esyali/.test(normPropText) && !/esyasiz/.test(normPropText))
       );
       if ((criteria.furnished === 'full' || criteria.furnished === 'partial') && isPropFurnished) {
         featuresScore += 3;
@@ -619,15 +674,18 @@ export function calculateMatchScore(
   // ----------------------------------------------------
   let totalScore = locationScore + intentScore + budgetScore + typeAndRoomScore + featuresScore;
 
-  // Strict Fatal mismatch guards: Intent mismatch or Location mismatch or Main Category mismatch
-  if (criteria.intent && criteria.intent !== 'any' && criteria.intent !== 'investment' && criteria.intent !== propIntent) {
+  // Strict Fatal mismatch guards: Intent mismatch, Location mismatch, Main Category mismatch, or Budget mismatch
+  if (intentFatalMismatch || (criteria.intent && criteria.intent !== 'any' && criteria.intent !== 'investment' && criteria.intent !== propIntent)) {
     totalScore = 0; // Kiralık mülk ile satılık talep KESİNLİKLE eşleşemez!
   }
   if (criteria.locations && criteria.locations.length > 0 && locationScore === 0) {
     totalScore = 0; // Girne mülkü ile Lefkoşa talebi KESİNLİKLE eşleşemez!
   }
   if (mainTypeFatalMismatch) {
-    totalScore = 0; // Arsa ile konut KESİNLİKLE eşleşemez!
+    totalScore = 0; // Arsa ile konut veya ticari KESİNLİKLE eşleşemez!
+  }
+  if (budgetFatalMismatch) {
+    totalScore = 0; // Bütçe ile tamamen alakasız mülk eşleşemez!
   }
 
   totalScore = Math.max(0, Math.min(100, Math.round(totalScore)));

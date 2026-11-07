@@ -1198,11 +1198,11 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                       value={quickTaskVisibility}
                       onChange={(e) => setQuickTaskVisibility(e.target.value as any)}
                       className="w-18 sm:w-22 px-1.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-[10px] sm:text-xs font-bold text-slate-900 outline-none"
-                      title={isTr ? "Görünürlük (Kişisel / Şube / Mağaza)" : "Visibility"}
+                      title={isTr ? "Görünürlük (Kişisel / Şube / Merkez)" : "Visibility"}
                     >
                       <option value="personal">{isTr ? "Kişisel" : "Personal"}</option>
                       <option value="branch">{isTr ? "Şube" : "Branch"}</option>
-                      <option value="store">{isTr ? "Mağaza" : "Store"}</option>
+                      <option value="store">{isTr ? "Merkez" : "HQ"}</option>
                     </select>
 
                     <button
@@ -1255,9 +1255,9 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                     {/* Table Header - Shortened Column Names */}
                     <div className="sticky top-0 z-10 bg-slate-100 border-b border-slate-300 px-2 sm:px-3 py-1 grid grid-cols-12 gap-1 sm:gap-2 text-[10px] font-black uppercase tracking-wider text-slate-700">
                       <div className="col-span-5 sm:col-span-5">{isTr ? "GÖREV" : "TASK"}</div>
-                      <div className="col-span-3 sm:col-span-2">{isTr ? "DURUM" : "STATE"}</div>
+                      <div className="col-span-2 sm:col-span-2">{isTr ? "DURUM" : "STATE"}</div>
                       <div className="col-span-2 sm:col-span-2">{isTr ? "%" : "%"}</div>
-                      <div className="col-span-2 sm:col-span-3 text-right">{isTr ? "TARİH" : "DATE"}</div>
+                      <div className="col-span-3 sm:col-span-3 text-right">{isTr ? "TARİH" : "DATE"}</div>
                     </div>
 
                     {filteredTasks.length === 0 ? (
@@ -1372,7 +1372,7 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                             </div>
 
                             {/* Col 2: Dynamic State-Machine Dropdown (Narrow & Compact) */}
-                            <div className="col-span-3 sm:col-span-2 max-w-[100px] sm:max-w-[120px]" onClick={(e) => e.stopPropagation()}>
+                            <div className="col-span-2 sm:col-span-2 max-w-[78px] sm:max-w-[115px]" onClick={(e) => e.stopPropagation()}>
                               <select
                                 value={task.state_key}
                                 onChange={(e) => handleUpdateTask(task.id, { state_key: e.target.value })}
@@ -1395,14 +1395,14 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                             </div>
 
                             {/* Col 3: Completion % Bar & Quick Step (4 Chars fit: %100) */}
-                            <div className="col-span-2 sm:col-span-2 max-w-[65px] shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <div className="col-span-2 sm:col-span-2 max-w-[48px] sm:max-w-[65px] shrink-0" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center gap-1">
                                 <select
                                   value={task.completion_percent}
                                   onChange={(e) =>
                                     handleUpdateTask(task.id, { completion_percent: Number(e.target.value) })
                                   }
-                                  className="w-11 sm:w-12 px-0.5 py-0.5 bg-slate-50 border border-slate-300 rounded text-[9px] font-mono font-black text-slate-900 text-center outline-none cursor-pointer shrink-0"
+                                  className="w-11 px-0.5 py-0.5 bg-slate-50 border border-slate-300 rounded text-[9px] font-mono font-black text-slate-900 text-center outline-none cursor-pointer shrink-0"
                                 >
                                   {[0, 10, 25, 50, 75, 90, 100].map((pct) => (
                                     <option key={pct} value={pct}>
@@ -1426,7 +1426,7 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                             </div>
 
                             {/* Col 4: Due Date & Reminder Indicator */}
-                            <div className="col-span-2 sm:col-span-3 flex items-center justify-end gap-1 text-right">
+                            <div className="col-span-3 sm:col-span-3 flex items-center justify-end gap-1 text-right">
                               {task.due_date ? (
                                 <span
                                   className={`px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-bold whitespace-nowrap ${
@@ -1493,27 +1493,20 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                               const meta = extractTaskPropertyMeta(selectedTask);
                               if (!meta.hasProperty) return null;
                               return (
-                                <div className="mt-2 p-2 bg-indigo-50/90 border border-indigo-200 rounded-xl space-y-1.5">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    {meta.refNo && (
-                                      <span className="px-1.5 py-0.5 bg-amber-400 text-slate-950 rounded font-mono text-[10px] font-black">
-                                        REF: {meta.refNo}
-                                      </span>
-                                    )}
-                                    {meta.region && (
-                                      <span className="px-1.5 py-0.5 bg-white text-slate-800 border border-indigo-200 rounded text-[10px] font-bold flex items-center gap-1">
-                                        <MapPin className="w-3 h-3 text-rose-500" />
-                                        {meta.region}
-                                      </span>
-                                    )}
-                                  </div>
+                                <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                                  {meta.region && (
+                                    <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-800 border border-indigo-200 rounded text-[10px] font-bold flex items-center gap-1">
+                                      <MapPin className="w-3 h-3 text-rose-500" />
+                                      {meta.region}
+                                    </span>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={(e) => handleInspectTaskProperty(selectedTask, e)}
-                                    className="w-full py-1.5 px-2.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                                    className="p-1.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
+                                    title="Portföy Bilgilerini gör"
                                   >
                                     <Eye className="w-3.5 h-3.5 text-amber-300" />
-                                    <span>Portföy Bilgilerine Ulaş (Ekrandan Çıkmadan)</span>
                                   </button>
                                 </div>
                               );

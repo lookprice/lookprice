@@ -496,11 +496,6 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
                               Dış Paydaş
                             </span>
                           )}
-                          {isSigned && stk.otp_code && (
-                            <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-900 rounded font-mono text-[9px] font-black">
-                              OTP: {stk.otp_code}
-                            </span>
-                          )}
                           {isPosted && (
                             <span className="px-1.5 py-0.2 bg-indigo-600 text-white rounded text-[9px] font-black">
                               Cariye İşlendi ✓
@@ -528,44 +523,39 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
                           <button
                             type="button"
                             onClick={() => setViewingStakeholderId(stk.id)}
-                            className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded text-[10px] font-black flex items-center gap-1 cursor-pointer"
-                            title="İmzalı OTP sözleşmesini gör, yazdır veya feshet"
+                            className="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg text-[10px] font-black flex items-center justify-center cursor-pointer"
+                            title={isSigned ? 'İmzalı Sözleşmeyi Gör / Fesih' : isCancelled ? 'Fesih Belgesi' : 'Sözleşmeyi Gör / Fesih'}
                           >
-                            <FileSignature className="w-3 h-3 shrink-0" />
-                            <span>{isSigned ? 'Sözleşmeyi Gör / Fesih' : isCancelled ? 'Fesih Belgesi' : 'Sözleşme / Fesih'}</span>
+                            <FileSignature className="w-4 h-4 shrink-0" />
                           </button>
                         )}
 
                         {stk.is_external && (
                           isCancelled ? (
-                            <span className="px-2 py-0.5 bg-rose-600 text-white rounded text-[10px] font-black flex items-center gap-1">
-                              <Ban className="w-3 h-3" />
-                              <span>Feshedildi</span>
+                            <span className="p-2 bg-rose-600 text-white rounded-lg text-[10px] font-black flex items-center justify-center" title="Feshedildi">
+                              <Ban className="w-4 h-4 shrink-0" />
                             </span>
                           ) : isSigned ? (
-                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-black flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              <span>Onaylı</span>
+                            <span className="p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-black flex items-center justify-center" title="OTP Onaylı">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                             </span>
                           ) : (
                             <>
                               <button
                                 type="button"
                                 onClick={() => handleSendWhatsAppInvite(stk)}
-                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                                className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black flex items-center justify-center cursor-pointer"
                                 title="WhatsApp ile Sözleşme Gönder"
                               >
-                                <Send className="w-2.5 h-2.5" />
-                                <span>WhatsApp</span>
+                                <Send className="w-3.5 h-3.5 shrink-0" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleImmediateSign(stk.id)}
-                                className="px-2 py-1 bg-slate-900 hover:bg-indigo-600 text-white rounded text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                                className="p-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-black flex items-center justify-center cursor-pointer"
                                 title="Hemen Onayla"
                               >
-                                <ShieldCheck className="w-2.5 h-2.5" />
-                                <span>Onayla</span>
+                                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
                               </button>
                             </>
                           )
@@ -573,7 +563,7 @@ export const DealCommissionModal: React.FC<DealCommissionModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleDeleteStakeholder(stk)}
-                          className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer"
                           title={stk.is_locked ? 'Sözleşmeyi Feshet / İptal Et' : 'Sil'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />

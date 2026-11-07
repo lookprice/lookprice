@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ChevronRight, 
   ChevronDown,
+  ChevronUp,
   Clock, 
   MapPin, 
   Plus, 
@@ -923,20 +924,6 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              setShowPartnerPortalModal(true);
-            }}
-            className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
-            title="Dış Paydaş Cüzdanı, İzole Portföy Havuzu ve Anonimleştirilmiş Süreç Logları"
-          >
-            <Handshake className="w-3.5 h-3.5 text-amber-400" />
-            <span>Dış Paydaş Cüzdanı</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
               setEditingLeadDeal(null);
               setShowLeadWizardModal(true);
             }}
@@ -1346,7 +1333,7 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                         </>
                                       )}
 
-                                      {/* 4. Olumsuz veya 5. Başarılı -> Arşivden Canlandır (2. Analiz) */}
+                                      {/* 4. Olumsuz veya 5. Başarılı -> Arşivden Canlandır */}
                                       {(stage.id === 'negative' || stage.id === 'closed') && (
                                         <button
                                           type="button"
@@ -1355,21 +1342,21 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                           title="Arşivden çıkar ve 2. Analiz aşamasına geri al"
                                         >
                                           <RotateCcw className="w-3 h-3" />
-                                          <span>Canlandır (2. Analiz)</span>
+                                          <span>Canlandır</span>
                                         </button>
                                       )}
                                     </div>
 
-                                    {/* Right Action Buttons: Portföy Künyesi + Ek Gezi Planla */}
+                                    {/* Right Action Buttons: Portföy Bilgileri + Ek Gezi Planla */}
                                     <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                                       <button
                                         type="button"
                                         onClick={() => setInspectedProperty(deal.property)}
                                         className="px-2.5 py-1 bg-slate-900 hover:bg-indigo-600 text-white rounded-md text-[10px] font-black flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
-                                        title="Ekrandan çıkmadan Portföy Künyesini ve fotoğraflarını gör"
+                                        title="Portföy Bilgilerini ve fotoğraflarını gör"
                                       >
                                         <Eye className="w-3 h-3 text-amber-300" />
-                                        <span>Portföy Künyesi</span>
+                                        <span>Portföy Bilgileri</span>
                                       </button>
 
                                       {(stage.id === 'planned' || stage.id === 'analysis') && (
@@ -1434,15 +1421,6 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                               <Send className="w-2.5 h-2.5 text-white" />
                                               <span>Müşteriye Hatırlat</span>
                                             </button>
-                                            {deal.property.sector_data?.commission_pool?.stakeholders?.some((s: any) => s.is_external) && (
-                                              <span
-                                                className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-black flex items-center gap-1 select-none"
-                                                title="Arka plan tetikleyicisi (background job) tarafından dış paydaşa otomatik gölge bildirim iletildi"
-                                              >
-                                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
-                                                <span>Dış paydaşa bilgi iletildi ✓</span>
-                                              </span>
-                                            )}
                                           </div>
                                         </>
                                       ) : (
@@ -1495,14 +1473,11 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                         </div>
                                         <div>
                                           <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
-                                            <span>Akıllı CRM Talep Eşleşmeleri</span>
+                                            <span>Eşleşen Talepler</span>
                                             <span className="px-1.5 py-0.2 rounded text-[9px] bg-indigo-50 text-indigo-700 font-mono font-bold border border-indigo-200">
-                                              {matchedLeads.length} Eşleşen Talep
+                                              {matchedLeads.length}
                                             </span>
                                           </h4>
-                                          <span className="text-[9px] text-slate-500 font-bold">
-                                            Ağırlıklı Puanlama Motoru (Lokasyon %30, Bütçe Fuzzy %25, İşlem %20, Tip/Oda %15, Yaş/Kat %10)
-                                          </span>
                                         </div>
                                       </div>
 
@@ -1517,7 +1492,7 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                         title="Mülk sahibine bu portföyün güncel CRM durum raporunu WhatsApp üzerinden iletir"
                                       >
                                         <Share2 className="w-3 h-3 text-emerald-600" />
-                                        <span>Mülk Sahibine Haftalık Rapor Gönder (WhatsApp)</span>
+                                        <span>Mülk Sahibine Rapor</span>
                                       </button>
                                     </div>
 
@@ -1653,124 +1628,13 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                     );
                                   })()}
 
-                                  {/* COMMISSION & EXTERNAL STAKEHOLDER POOL (Smart Contract Checkpoint) */}
-                                  {(() => {
-                                    const pool: CommissionPool | undefined = deal.property.sector_data?.commission_pool;
-                                    const extCount = pool?.stakeholders?.filter((s: any) => s.is_external).length || 0;
-                                    const unsignedExt = pool?.stakeholders?.filter((s: any) => s.is_external && s.payout_status === 'pending_agreement').length || 0;
-
-                                    return (
-                                      <div className="bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-2xs space-y-2">
-                                        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5 flex-wrap">
-                                          <div className="flex items-center gap-1.5">
-                                            <div className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center font-black shadow-2xs">
-                                              <DollarSign className="w-3 h-3" />
-                                            </div>
-                                            <div>
-                                              <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
-                                                <span>Komisyon & Dış Paydaş Havuzu</span>
-                                                {extCount > 0 && (
-                                                  <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border ${
-                                                    unsignedExt > 0 ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                                  }`}>
-                                                    {unsignedExt > 0 ? `⚠️ ${unsignedExt} Paydaş Onayı Bekleniyor` : '✔ Tüm Paydaşlar Onaylı'}
-                                                  </span>
-                                                )}
-                                                {pool?.accounting_posted && (
-                                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
-                                                    🏦 Cari Hesaba Alacak Yazıldı ✓
-                                                  </span>
-                                                )}
-                                              </h4>
-                                            </div>
-                                          </div>
-
-                                          <div className="flex items-center gap-1">
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setShowPartnerPortalModal(true);
-                                              }}
-                                              className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all"
-                                              title="Dış Paydaş Cüzdanı ve İzole Portföy Paneli"
-                                            >
-                                              <Handshake className="w-3 h-3 text-amber-700" />
-                                              <span>Paydaş Cüzdanı</span>
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setCommissionProperty(deal.property);
-                                                setShowCommissionModal(true);
-                                              }}
-                                              className="px-2.5 py-1 bg-slate-900 hover:bg-indigo-600 text-white rounded text-[10px] font-black flex items-center gap-1 cursor-pointer shadow-2xs transition-all active:scale-95"
-                                            >
-                                              <Users className="w-3 h-3 text-emerald-300" />
-                                              <span>Hakediş & Masraf Yönet</span>
-                                            </button>
-                                          </div>
-                                        </div>
-
-                                        {pool ? (
-                                          <div className="space-y-1.5 text-[11px]">
-                                            <div className="flex items-center justify-between text-slate-600 font-bold bg-slate-50 p-1.5 rounded-lg border border-slate-200/70 flex-wrap gap-1">
-                                              <span>Toplam Hizmet Bedeli: <strong className="text-slate-900 font-mono">{pool.gross_commission?.toLocaleString('tr-TR')} {pool.currency}</strong></span>
-                                              <span>Ortak Masraflar: <strong className="text-rose-600 font-mono">-{pool.total_expenses?.toLocaleString('tr-TR')} {pool.currency}</strong></span>
-                                              <span>Net Dağıtılabilir: <strong className="text-emerald-700 font-mono">{pool.net_distributable_commission?.toLocaleString('tr-TR')} {pool.currency}</strong> ({pool.calculation_mode === 'net' ? 'Net' : 'Brüt'})</span>
-                                            </div>
-
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                              {pool.stakeholders?.map((stk: any) => (
-                                                <div key={stk.id} className="p-1.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between gap-1 text-[10px]">
-                                                  <div className="min-w-0">
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="font-extrabold text-slate-900 truncate">{stk.name}</span>
-                                                      {stk.is_external && <span className="text-[8px] bg-amber-100 text-amber-800 px-1 py-0.2 rounded font-black">Dış Paydaş</span>}
-                                                      {stk.is_locked && <Lock className="w-2.5 h-2.5 text-slate-400" />}
-                                                    </div>
-                                                    <p className="text-slate-500 font-mono">%{stk.percentage} • {stk.calculated_amount?.toLocaleString('tr-TR')} {stk.currency}</p>
-                                                  </div>
-                                                  <div>
-                                                    {stk.payout_status === 'agreement_signed' ? (
-                                                      <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                                                        ✔ Onaylı
-                                                      </span>
-                                                    ) : (
-                                                      <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          setCommissionProperty(deal.property);
-                                                          setShowCommissionModal(true);
-                                                        }}
-                                                        className="text-[9px] font-black text-amber-700 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200 cursor-pointer"
-                                                      >
-                                                        ⏳ Onay Bekliyor
-                                                      </button>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <p className="text-[10px] text-slate-400 font-medium">
-                                            Bu işlem için henüz özel hakediş havuzu tanımlanmadı. Standart ofis modeli uygulanır.
-                                          </p>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
-
                                   {/* PIPELINE AUDIT HISTORY TRAIL */}
                                   {deal.property.sector_data?.pipeline_history && deal.property.sector_data.pipeline_history.length > 0 && (
                                     <div className="bg-slate-50/90 p-2.5 rounded-xl border border-slate-200 shadow-2xs space-y-1.5 text-xs">
                                       <div className="flex items-center justify-between border-b border-slate-200 pb-1">
                                         <div className="flex items-center gap-1.5 text-slate-800 font-black text-[11px]">
                                           <History className="w-3.5 h-3.5 text-slate-500" />
-                                          <span>Süreç Tarihçesi & İşlem Denetim Kütüğü (Audit Trail)</span>
+                                          <span>Süreç Tarihçesi</span>
                                         </div>
                                         <span className="text-[9px] text-slate-500 font-mono font-bold">
                                           {deal.property.sector_data.pipeline_history.length} Hareket Kayıtlı

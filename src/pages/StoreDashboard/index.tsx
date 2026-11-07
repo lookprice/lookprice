@@ -136,7 +136,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [companiesInitialReconFilter, setCompaniesInitialReconFilter] = useState<'all' | 'confirmed' | 'disputed' | 'pending'>('all');
   const [salesInvoicesInitialFilter, setSalesInvoicesInitialFilter] = useState<string>('all');
   const [purchaseInvoicesInitialFilter, setPurchaseInvoicesInitialFilter] = useState<string>('all');
-  const [teamCrmInitialSubTab, setTeamCrmInitialSubTab] = useState<'agents' | 'branches' | 'pipeline' | undefined>(undefined);
+  const [teamCrmInitialSubTab, setTeamCrmInitialSubTab] = useState<'agents' | 'branches' | 'pipeline' | undefined>('pipeline');
   const [teamCrmInitialView, setTeamCrmInitialView] = useState<'leads' | 'portfolio' | 'calendar' | undefined>(undefined);
   const [realEstateCrmInitialFilter, setRealEstateCrmInitialFilter] = useState<'all' | 'new' | 'owner' | 'investor'>('all');
 
@@ -1098,7 +1098,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       sidebarProps={{
         navItems,
         activeTab,
-        setActiveTab,
+        setActiveTab: (tab: string) => {
+          if (tab === 'team-crm') {
+            setTeamCrmInitialSubTab('pipeline');
+          }
+          setActiveTab(tab);
+        },
         branding,
         publicUrl,
         scanUrl,

@@ -580,11 +580,6 @@ export const ExternalPartnerPortalModal: React.FC<ExternalPartnerPortalModalProp
                                 Hakediş: {stakeholder.calculated_amount.toLocaleString('tr-TR')} {stakeholder.currency}
                               </span>
                             )}
-                            {isSigned && stakeholder.otp_code && (
-                              <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-900 rounded font-mono text-[9px] font-black">
-                                OTP: {stakeholder.otp_code}
-                              </span>
-                            )}
                           </div>
                           {isCancelled && stakeholder.cancel_reason && (
                             <div className="text-[10px] font-bold text-rose-700 mt-0.5">
