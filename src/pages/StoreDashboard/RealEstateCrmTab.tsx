@@ -1,11 +1,107 @@
-import React, { useState, useDeferredValue } from "react";
-import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building, LayoutList, LayoutGrid, Home, Car, Key, Globe, Check, Briefcase, Clock, XCircle, Sparkles } from "lucide-react";
+import React, { useState, useDeferredValue, useMemo } from "react";
+import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building, LayoutList, LayoutGrid, Home, Car, Key, Globe, Check, Briefcase, Clock, XCircle, Sparkles, Filter, MapPin, Tag } from "lucide-react";
 import { RealEstateContact } from "../../types";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatDateTimeTR } from "../../utils/formatUtils";
 import { LeadFunnelWizardModal } from "../../components/realestate/LeadFunnelWizardModal";
 import { toast } from "sonner";
+
+const normalizeTr = (str: string): string =>
+  (str || "")
+    .replace(/İ/g, "i")
+    .replace(/I/g, "ı")
+    .replace(/Ş/g, "ş")
+    .replace(/Ğ/g, "ğ")
+    .replace(/Ü/g, "ü")
+    .replace(/Ö/g, "ö")
+    .replace(/Ç/g, "ç")
+    .toLowerCase();
+
+export type ContactIntentType = 'satilik' | 'kiralik' | 'kat_karsiligi';
+export type ContactPropertyType = 'daire' | 'villa' | 'arsa' | 'ticari' | 'proje';
+
+export interface ContactSubMeta {
+  intents: ContactIntentType[];
+  propertyTypes: ContactPropertyType[];
+  regions: string[];
+  linkedPropertiesCount: number;
+}
+
+export const INTENT_LABELS: Record<ContactIntentType, string> = {
+  satilik: 'Satılık',
+  kiralik: 'Kiralık',
+  kat_karsiligi: 'Kat Karşılığı',
+};
+
+export const PROPERTY_TYPE_LABELS: Record<ContactPropertyType, string> = {
+  daire: 'Daire / Konut',
+  villa: 'Villa / Müstakil',
+  arsa: 'Arsa / Arazi',
+  ticari: 'Ticari / İşyeri',
+  proje: 'Bina / Proje',
+};
+
+export const KKTC_REGIONS = ['Girne', 'Lefkoşa', 'İskele', 'Gazimağusa', 'Güzelyurt', 'Lefke'];
+
+export const extractContactSubMeta = (contact: RealEstateContact, properties: any[] = []): ContactSubMeta => {
+  const intents = new Set<ContactIntentType>();
+  const propertyTypes = new Set<ContactPropertyType>();
+  const regions = new Set<string>();
+
+  const normPhone = (contact.phone || "").replace(/\D/g, "").slice(-10);
+  const normName = normalizeTr(contact.name || "").trim();
+
+  // 1. Cross-reference with store properties (owner_contact_id, owner_phone, owner_name)
+  const linkedProps = (properties || []).filter((p) => {
+    if (!p) return false;
+    if (contact.id && String(p.owner_contact_id) === String(contact.id)) return true;
+    const pPhone = String(p.owner_phone || p.contact_phone || "").replace(/\D/g, "").slice(-10);
+    if (normPhone.length >= 7 && pPhone && pPhone === normPhone) return true;
+    const pOwnerName = normalizeTr(p.owner_name || "").trim();
+    if (normName.length >= 4 && pOwnerName && pOwnerName === normName) return true;
+    return false;
+  });
+
+  const analyzeText = (raw: string) => {
+    const t = normalizeTr(raw);
+    if (!t) return;
+
+    // Intents
+    if (/\b(satılık|satilik|satis|satış|for sale|yatırımlık|yatirimlik)\b/i.test(t)) intents.add('satilik');
+    if (/\b(kiralık|kiralik|kira|for rent|rent)\b/i.test(t)) intents.add('kiralik');
+    if (/\b(kat karşılığı|kat karsiligi|ortak proje)\b/i.test(t)) intents.add('kat_karsiligi');
+
+    // Property Types
+    if (/\b(villa|müstakil|mustakil|ikiz villa|bungalow|köşk|yalı)\b/i.test(t)) propertyTypes.add('villa');
+    if (/\b(daire|rezidans|residence|penthouse|stüdyo|studyo|loft|apartman|1\+0|1\+1|2\+1|3\+1|4\+1)\b/i.test(t)) propertyTypes.add('daire');
+    if (/\b(arsa|tarla|arazi|parsel|zeytinlik|imarlı|imarli)\b/i.test(t)) propertyTypes.add('arsa');
+    if (/\b(ticari|dükkan|dukkan|mağaza|magaza|ofis|büro|depo|fabrika|atölye|otel|restoran)\b/i.test(t)) propertyTypes.add('ticari');
+    if (/\b(bina|komple|proje|site|apart)\b/i.test(t)) propertyTypes.add('proje');
+
+    // Regions
+    if (/\b(girne|kyrenia|alsancak|lapta|çatalköy|catalkoy|ozanköy|ozankoy|bellapais|esentepe|karşıyaka|karsiyaka|karaoğlanoğlu|zeytinlik|doğanköy)\b/i.test(t)) regions.add('Girne');
+    if (/\b(lefkoşa|lefkosa|nicosia|gönyeli|gonyeli|küçük kaymaklı|kucuk kaymakli|орtaköy|ortakoy|yenikent|hamitköy|dereboyu|kermiya|taşkınköy)\b/i.test(t)) regions.add('Lefkoşa');
+    if (/\b(iskele|trikomo|long beach|boğaz|bogaz|bafra|yeni boğaziçi|ötüken)\b/i.test(t)) regions.add('İskele');
+    if (/\b(gazimağusa|gazimagusa|mağusa|magusa|famagusta|tuzla|salamis|sakarya|maraş|maras|mutluyaka)\b/i.test(t)) regions.add('Gazimağusa');
+    if (/\b(güzelyurt|guzelyurt|morphou|kalkanlı|kalkanli|zümrütköy)\b/i.test(t)) regions.add('Güzelyurt');
+    if (/\b(lefke|gemikonağı|gemikonagi|yedidalga|gaziveren)\b/i.test(t)) regions.add('Lefke');
+  };
+
+  analyzeText(`${contact.notes || ""} ${contact.address || ""}`);
+
+  for (const p of linkedProps) {
+    const pText = `${p.title || ""} ${p.listing_type || ""} ${p.property_type || ""} ${p.category || ""} ${p.sub_category || ""} ${p.kktc_region || ""} ${p.location || ""}`;
+    analyzeText(pText);
+  }
+
+  return {
+    intents: Array.from(intents),
+    propertyTypes: Array.from(propertyTypes),
+    regions: Array.from(regions),
+    linkedPropertiesCount: linkedProps.length,
+  };
+};
 
 export type LeadStage = 'new' | 'contacted' | 'converted' | 'reviewed' | 'cancelled' | 'none';
 
@@ -89,10 +185,37 @@ const RealEstateCrmTab = ({
   const deferredSearch = useDeferredValue(search);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [quickFilter, setQuickFilter] = useState<'all' | 'new' | 'owner' | 'investor'>(initialFilter);
+  const [intentFilter, setIntentFilter] = useState<'all' | ContactIntentType>('all');
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState<'all' | ContactPropertyType>('all');
+  const [regionFilter, setRegionFilter] = useState<string>('all');
 
   React.useEffect(() => {
     if (initialFilter) setQuickFilter(initialFilter);
   }, [initialFilter]);
+
+  const contactMetaMap = useMemo(() => {
+    const map = new Map<string, ContactSubMeta>();
+    for (const c of contacts) {
+      const key = String(c.id || `${c.name}_${c.phone}`);
+      map.set(key, extractContactSubMeta(c, properties));
+    }
+    return map;
+  }, [contacts, properties]);
+
+  const getContactMeta = (c: RealEstateContact): ContactSubMeta => {
+    const key = String(c.id || `${c.name}_${c.phone}`);
+    return contactMetaMap.get(key) || { intents: [], propertyTypes: [], regions: [], linkedPropertiesCount: 0 };
+  };
+
+  const toggleTagInNotes = (tagLabel: string) => {
+    const current = formData.notes || "";
+    const tagToken = `[${tagLabel}]`;
+    if (current.includes(tagToken)) {
+      setFormData({ ...formData, notes: current.replace(tagToken, "").replace(/\s{2,}/g, " ").trim() });
+    } else {
+      setFormData({ ...formData, notes: `${tagToken} ${current}`.trim() });
+    }
+  };
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -150,17 +273,25 @@ const RealEstateCrmTab = ({
   const investorsCount = contacts.filter(c => c.type !== 'owner').length;
 
   const filteredContacts = contacts.filter(c => {
-    const s = deferredSearch.toLowerCase();
-    const matchesSearch = (
-      (c.name || "").toLowerCase().includes(s) || 
+    const s = normalizeTr(deferredSearch);
+    const meta = getContactMeta(c);
+    const matchesSearch = !s || (
+      normalizeTr(c.name || "").includes(s) || 
       (c.phone || "").includes(s) || 
-      (c.email || "").toLowerCase().includes(s) ||
-      (c.notes || "").toLowerCase().includes(s)
+      normalizeTr(c.email || "").includes(s) ||
+      normalizeTr(c.notes || "").includes(s) ||
+      meta.regions.some(r => normalizeTr(r).includes(s))
     );
     if (!matchesSearch) return false;
-    if (quickFilter === 'new') return getLeadStage(c.notes) === 'new';
-    if (quickFilter === 'owner') return c.type === 'owner';
-    if (quickFilter === 'investor') return c.type !== 'owner';
+    if (quickFilter === 'new' && getLeadStage(c.notes) !== 'new') return false;
+    if (quickFilter === 'owner' && c.type !== 'owner') return false;
+    if (quickFilter === 'investor' && c.type === 'owner') return false;
+
+    if (!isAutomotive) {
+      if (intentFilter !== 'all' && !meta.intents.includes(intentFilter)) return false;
+      if (propertyTypeFilter !== 'all' && !meta.propertyTypes.includes(propertyTypeFilter)) return false;
+      if (regionFilter !== 'all' && !meta.regions.includes(regionFilter)) return false;
+    }
     return true;
   });
 
@@ -335,6 +466,90 @@ const RealEstateCrmTab = ({
             <span>{isAutomotive ? `Alıcı / Filo (${investorsCount})` : `Yatırımcılar (${investorsCount})`}</span>
           </button>
         </div>
+
+        {/* Sub-Category Filters (Satılık/Kiralık, Mülk Tipi, Bölge) */}
+        {!isAutomotive && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100">
+            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-500 mr-1">
+              <Filter size={11} className="text-indigo-600" />
+              <span>Alt Kırılım:</span>
+            </span>
+
+            {/* Intent Pills: Tümü / Satılık / Kiralık / Kat Karşılığı */}
+            <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              {([
+                { id: 'all', label: 'Tüm İşlemler' },
+                { id: 'satilik', label: 'Satılık' },
+                { id: 'kiralik', label: 'Kiralık' },
+                { id: 'kat_karsiligi', label: 'Kat Karşılığı' }
+              ] as const).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setIntentFilter(item.id)}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all cursor-pointer ${
+                    intentFilter === item.id
+                      ? 'bg-slate-900 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Property Type Sub-Filter */}
+            <select
+              value={propertyTypeFilter}
+              onChange={(e) => setPropertyTypeFilter(e.target.value as any)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-black border outline-none cursor-pointer transition-all ${
+                propertyTypeFilter !== 'all'
+                  ? 'bg-indigo-600 text-white border-indigo-700'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <option value="all" className="bg-white text-slate-900">Tüm Mülk Tipleri</option>
+              <option value="daire" className="bg-white text-slate-900">Daire / Konut</option>
+              <option value="villa" className="bg-white text-slate-900">Villa / Müstakil</option>
+              <option value="arsa" className="bg-white text-slate-900">Arsa / Arazi</option>
+              <option value="ticari" className="bg-white text-slate-900">Ticari / İşyeri</option>
+              <option value="proje" className="bg-white text-slate-900">Bina / Proje</option>
+            </select>
+
+            {/* Region Sub-Filter */}
+            <select
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-black border outline-none cursor-pointer transition-all ${
+                regionFilter !== 'all'
+                  ? 'bg-rose-600 text-white border-rose-700'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <option value="all" className="bg-white text-slate-900">Tüm Bölgeler</option>
+              {KKTC_REGIONS.map((reg) => (
+                <option key={reg} value={reg} className="bg-white text-slate-900">
+                  {reg}
+                </option>
+              ))}
+            </select>
+
+            {(intentFilter !== 'all' || propertyTypeFilter !== 'all' || regionFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIntentFilter('all');
+                  setPropertyTypeFilter('all');
+                  setRegionFilter('all');
+                }}
+                className="px-2 py-0.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-black flex items-center gap-1 cursor-pointer"
+              >
+                <X size={10} />
+                <span>Sıfırla ({filteredContacts.length})</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
       
       {filteredContacts.length === 0 ? (
@@ -391,6 +606,44 @@ const RealEstateCrmTab = ({
                               <span>Portföye Alındı</span>
                             </span>
                           )}
+                          {!isAutomotive && (() => {
+                            const meta = getContactMeta(contact);
+                            return (
+                              <>
+                                {meta.intents.map((it) => (
+                                  <span
+                                    key={it}
+                                    className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${
+                                      it === 'satilik'
+                                        ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                        : it === 'kiralik'
+                                        ? 'bg-sky-50 text-sky-800 border-sky-300'
+                                        : 'bg-purple-50 text-purple-800 border-purple-300'
+                                    }`}
+                                  >
+                                    {INTENT_LABELS[it]}
+                                  </span>
+                                ))}
+                                {meta.propertyTypes.map((pt) => (
+                                  <span
+                                    key={pt}
+                                    className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-300"
+                                  >
+                                    {PROPERTY_TYPE_LABELS[pt]}
+                                  </span>
+                                ))}
+                                {meta.regions.map((rg) => (
+                                  <span
+                                    key={rg}
+                                    className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200"
+                                  >
+                                    <MapPin size={8} />
+                                    <span>{rg}</span>
+                                  </span>
+                                ))}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -516,15 +769,56 @@ const RealEstateCrmTab = ({
                       </td>
 
                       <td className="py-2.5 px-3 whitespace-nowrap">
-                        <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-md border ${
-                          contact.type === 'owner' 
-                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200/80' 
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
-                        }`}>
-                          {contact.type === 'owner' 
-                            ? (isTr ? (isAutomotive ? 'Araç Sahibi / Konsinye' : 'Mülk Sahibi') : 'Owner') 
-                            : (isTr ? (isAutomotive ? 'Alıcı / Filo Müşterisi' : 'Yatırımcı') : 'Buyer / Investor')}
-                        </span>
+                        <div className="flex flex-col items-start gap-1">
+                          <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-md border ${
+                            contact.type === 'owner' 
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200/80' 
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                          }`}>
+                            {contact.type === 'owner' 
+                              ? (isTr ? (isAutomotive ? 'Araç Sahibi / Konsinye' : 'Mülk Sahibi') : 'Owner') 
+                              : (isTr ? (isAutomotive ? 'Alıcı / Filo Müşterisi' : 'Yatırımcı') : 'Buyer / Investor')}
+                          </span>
+                          {!isAutomotive && (() => {
+                            const meta = getContactMeta(contact);
+                            if (meta.intents.length === 0 && meta.propertyTypes.length === 0 && meta.regions.length === 0) return null;
+                            return (
+                              <div className="flex flex-wrap items-center gap-1">
+                                {meta.intents.map((it) => (
+                                  <span
+                                    key={it}
+                                    className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${
+                                      it === 'satilik'
+                                        ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                        : it === 'kiralik'
+                                        ? 'bg-sky-50 text-sky-800 border-sky-300'
+                                        : 'bg-purple-50 text-purple-800 border-purple-300'
+                                    }`}
+                                  >
+                                    {INTENT_LABELS[it]}
+                                  </span>
+                                ))}
+                                {meta.propertyTypes.map((pt) => (
+                                  <span
+                                    key={pt}
+                                    className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-300"
+                                  >
+                                    {PROPERTY_TYPE_LABELS[pt]}
+                                  </span>
+                                ))}
+                                {meta.regions.map((rg) => (
+                                  <span
+                                    key={rg}
+                                    className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200"
+                                  >
+                                    <MapPin size={8} />
+                                    <span>{rg}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </div>
                       </td>
 
                       <td className="py-2.5 px-3 whitespace-nowrap">
@@ -977,6 +1271,34 @@ const RealEstateCrmTab = ({
                     </div>
                   </div>
                 </div>
+
+                {!isAutomotive && (
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-2">
+                    <div className="text-[10px] font-black uppercase text-slate-600 tracking-wider flex items-center gap-1">
+                      <Tag size={11} className="text-indigo-600" />
+                      <span>Hızlı Alt Kırılım Etiketleri (Satılık/Kiralık, Mülk Tipi & Bölge)</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {['Satılık', 'Kiralık', 'Kat Karşılığı', 'Daire', 'Villa', 'Arsa', 'Ticari', 'Bina/Proje', 'Girne', 'Lefkoşa', 'İskele', 'Gazimağusa'].map((tag) => {
+                        const isTagged = normalizeTr(formData.notes || "").includes(normalizeTr(tag));
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => toggleTagInNotes(tag)}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black border transition-all cursor-pointer ${
+                              isTagged
+                                ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {isTagged ? `✓ ${tag}` : `+ ${tag}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-0.5">

@@ -1833,7 +1833,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onNavigateToPipeline={() => {
                     setTeamCrmInitialSubTab("pipeline");
                     setTeamCrmInitialView("leads");
-                    setActiveTab("team_crm");
+                    setActiveTab("team-crm");
                   }}
                 />
               )}

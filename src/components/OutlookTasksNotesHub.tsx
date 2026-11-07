@@ -1252,12 +1252,11 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                 <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
                   {/* Task Table / List */}
                   <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-200 bg-white">
-                    {/* Table Header - Shortened Column Names */}
-                    <div className="sticky top-0 z-10 bg-slate-100 border-b border-slate-300 px-2 sm:px-3 py-1 grid grid-cols-12 gap-1 sm:gap-2 text-[10px] font-black uppercase tracking-wider text-slate-700">
-                      <div className="col-span-5 sm:col-span-5">{isTr ? "GÖREV" : "TASK"}</div>
-                      <div className="col-span-2 sm:col-span-2">{isTr ? "DURUM" : "STATE"}</div>
-                      <div className="col-span-2 sm:col-span-2">{isTr ? "%" : "%"}</div>
-                      <div className="col-span-3 sm:col-span-3 text-right">{isTr ? "TARİH" : "DATE"}</div>
+                    {/* Table Header - 3 Compact Columns (No % Column, Tight Spacing) */}
+                    <div className="sticky top-0 z-10 bg-slate-100 border-b border-slate-300 px-1.5 sm:px-3 py-1 grid grid-cols-[minmax(0,1fr)_68px_52px] sm:grid-cols-[minmax(0,1fr)_115px_105px] gap-1 sm:gap-2 text-[10px] font-black uppercase tracking-wider text-slate-700 items-center">
+                      <div>{isTr ? "GÖREV" : "TASK"}</div>
+                      <div>{isTr ? "DURUM" : "STATE"}</div>
+                      <div className="text-right">{isTr ? "TARİH" : "DATE"}</div>
                     </div>
 
                     {filteredTasks.length === 0 ? (
@@ -1281,7 +1280,7 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                           <div
                             key={task.id}
                             onClick={() => setSelectedTaskId(task.id)}
-                            className={`px-3 py-2 grid grid-cols-12 gap-2 items-center transition-colors cursor-pointer ${
+                            className={`px-1.5 sm:px-3 py-1.5 sm:py-2 grid grid-cols-[minmax(0,1fr)_68px_52px] sm:grid-cols-[minmax(0,1fr)_115px_105px] gap-1 sm:gap-2 items-center transition-colors cursor-pointer ${
                               isSelected
                                 ? "bg-amber-50/90 border-l-4 border-l-amber-500"
                                 : isOverdue
@@ -1290,45 +1289,45 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                             }`}
                           >
                             {/* Col 1: Complete Checkbox + Priority + Title + Attached Note Pill */}
-                            <div className="col-span-5 sm:col-span-5 flex items-center gap-2 min-w-0">
+                            <div className="flex items-start sm:items-center gap-1 sm:gap-2 min-w-0">
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleToggleComplete(task);
                                 }}
-                                className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 cursor-pointer ${
+                                className={`mt-0.5 sm:mt-0 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border flex items-center justify-center shrink-0 cursor-pointer ${
                                   isDone
                                     ? "bg-emerald-600 border-emerald-600 text-white"
                                     : "bg-white border-slate-400 hover:border-slate-900"
                                 }`}
                                 title={isDone ? "Tamamlandı" : "Tamamlandı İşaretle"}
                               >
-                                {isDone && <Check className="w-3 h-3" />}
+                                {isDone && <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                               </button>
 
                               {/* Priority Icon */}
                               {task.priority === "high" ? (
                                 <span
-                                  className="px-1 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 rounded text-[9px] font-black flex items-center shrink-0"
+                                  className="mt-0.5 sm:mt-0 px-0.5 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 rounded text-[9px] font-black flex items-center shrink-0"
                                   title="Yüksek Öncelik"
                                 >
                                   <ArrowUp className="w-2.5 h-2.5" />
                                 </span>
                               ) : task.priority === "low" ? (
                                 <span
-                                  className="px-1 py-0.5 bg-sky-100 text-sky-800 border border-sky-300 rounded text-[9px] font-bold flex items-center shrink-0"
+                                  className="mt-0.5 sm:mt-0 px-0.5 py-0.5 bg-sky-100 text-sky-800 border border-sky-300 rounded text-[9px] font-bold flex items-center shrink-0"
                                   title="Düşük Öncelik"
                                 >
                                   <ArrowDown className="w-2.5 h-2.5" />
                                 </span>
                               ) : (
-                                <Minus className="w-3 h-3 text-slate-400 shrink-0" />
+                                <Minus className="mt-0.5 sm:mt-0 w-2.5 h-2.5 text-slate-400 shrink-0" />
                               )}
 
                               <div className="min-w-0 flex-1">
                                 <div
-                                  className={`text-xs font-bold truncate ${
+                                  className={`text-[11px] sm:text-xs font-bold leading-snug line-clamp-2 break-words ${
                                     isDone ? "line-through text-slate-400" : "text-slate-950"
                                   }`}
                                 >
@@ -1348,7 +1347,7 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                                         <button
                                           type="button"
                                           onClick={(e) => handleInspectTaskProperty(task, e)}
-                                          className="inline-flex items-center justify-center p-1 bg-slate-900 hover:bg-indigo-600 text-white rounded cursor-pointer transition-colors"
+                                          className="inline-flex items-center justify-center p-0.5 sm:p-1 bg-slate-900 hover:bg-indigo-600 text-white rounded cursor-pointer transition-colors"
                                           title="Ekrandan çıkmadan Portföy Bilgilerini gör"
                                         >
                                           <Eye className="w-3 h-3 text-amber-300" />
@@ -1371,8 +1370,8 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                               </div>
                             </div>
 
-                            {/* Col 2: Dynamic State-Machine Dropdown (Narrow & Compact) */}
-                            <div className="col-span-2 sm:col-span-2 max-w-[78px] sm:max-w-[115px]" onClick={(e) => e.stopPropagation()}>
+                            {/* Col 2: Dynamic State-Machine Dropdown (Compact) */}
+                            <div className="w-full" onClick={(e) => e.stopPropagation()}>
                               <select
                                 value={task.state_key}
                                 onChange={(e) => handleUpdateTask(task.id, { state_key: e.target.value })}
@@ -1394,63 +1393,35 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                               </select>
                             </div>
 
-                            {/* Col 3: Completion % Bar & Quick Step (4 Chars fit: %100) */}
-                            <div className="col-span-2 sm:col-span-2 max-w-[48px] sm:max-w-[65px] shrink-0" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center gap-1">
-                                <select
-                                  value={task.completion_percent}
-                                  onChange={(e) =>
-                                    handleUpdateTask(task.id, { completion_percent: Number(e.target.value) })
-                                  }
-                                  className="w-11 px-0.5 py-0.5 bg-slate-50 border border-slate-300 rounded text-[9px] font-mono font-black text-slate-900 text-center outline-none cursor-pointer shrink-0"
-                                >
-                                  {[0, 10, 25, 50, 75, 90, 100].map((pct) => (
-                                    <option key={pct} value={pct}>
-                                      %{pct}
-                                    </option>
-                                  ))}
-                                </select>
-                                <div className="hidden sm:block flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full transition-all ${
-                                      task.completion_percent >= 100
-                                        ? "bg-emerald-600"
-                                        : task.completion_percent >= 50
-                                        ? "bg-blue-600"
-                                        : "bg-amber-500"
-                                    }`}
-                                    style={{ width: `${task.completion_percent}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Col 4: Due Date & Reminder Indicator */}
-                            <div className="col-span-3 sm:col-span-3 flex items-center justify-end gap-1 text-right">
+                            {/* Col 3: Due Date (DD.MM format, e.g. 10.11) & Delete */}
+                            <div className="flex items-center justify-end gap-0.5 text-right">
                               {task.due_date ? (
-                                <span
-                                  className={`px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-bold whitespace-nowrap ${
-                                    isOverdue
-                                      ? "bg-rose-600 text-white font-black"
-                                      : isDone
-                                      ? "bg-slate-100 text-slate-500"
-                                      : "bg-slate-100 text-slate-900 border border-slate-300"
-                                  }`}
-                                >
-                                  {new Date(task.due_date).toLocaleDateString("tr-TR", {
-                                    day: "2-digit",
-                                    month: "short"
-                                  })}
-                                  <span className="hidden sm:inline">
-                                    {" "}
-                                    {new Date(task.due_date).toLocaleTimeString("tr-TR", {
-                                      hour: "2-digit",
-                                      minute: "2-digit"
-                                    })}
-                                  </span>
-                                </span>
+                                (() => {
+                                  const d = new Date(task.due_date);
+                                  const ddmm = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+                                  return (
+                                    <span
+                                      className={`px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-bold whitespace-nowrap ${
+                                        isOverdue
+                                          ? "bg-rose-600 text-white font-black"
+                                          : isDone
+                                          ? "bg-slate-100 text-slate-500"
+                                          : "bg-slate-100 text-slate-900 border border-slate-300"
+                                      }`}
+                                    >
+                                      {ddmm}
+                                      <span className="hidden sm:inline">
+                                        {" "}
+                                        {d.toLocaleTimeString("tr-TR", {
+                                          hour: "2-digit",
+                                          minute: "2-digit"
+                                        })}
+                                      </span>
+                                    </span>
+                                  );
+                                })()
                               ) : (
-                                <span className="text-[9px] sm:text-[10px] text-slate-400">{isTr ? "Tarihsiz" : "No Date"}</span>
+                                <span className="text-[9px] text-slate-400">-</span>
                               )}
 
                               <button
@@ -1459,10 +1430,10 @@ export const OutlookTasksNotesHub: React.FC<OutlookTasksNotesHubProps> = ({
                                   e.stopPropagation();
                                   handleDeleteTask(task.id);
                                 }}
-                                className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer shrink-0"
+                                className="p-0.5 text-slate-400 hover:text-rose-600 rounded cursor-pointer shrink-0"
                                 title={isTr ? "Görevi Sil" : "Delete Task"}
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                               </button>
                             </div>
                           </div>
