@@ -794,18 +794,46 @@ export default function ShopLanding() {
 
       {/* Footer */}
       <footer className="bg-slate-900 text-white py-12 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 border-b border-white/10 pb-8 mb-8">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-white rounded-xl p-1 flex items-center justify-center shadow-md shrink-0">
-              <img
-                src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
-                alt="LookPrice.net"
-                className="w-full h-full object-contain"
-              />
+        <div className="max-w-7xl mx-auto space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b border-white/10 pb-8">
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
+              <div className="text-xs font-black text-indigo-400 uppercase tracking-wider">TURKIYE (İSTANBUL)</div>
+              <p className="text-xs sm:text-sm font-semibold text-white/90">Dizdariye Mah. Belediye Cad. No:10/2 Büyükçekmece - İSTANBUL</p>
+              <p className="text-xs font-bold text-white/70">
+                TEL: <a href="tel:+902128812442" className="text-indigo-300 hover:underline">+90 212 881 24 42</a> • Mail: <a href="mailto:sales@lookprice.net" className="text-indigo-300 hover:underline">sales@lookprice.net</a>
+              </p>
             </div>
-            <span className="font-black text-lg">ShopLP <span className="text-xs font-bold text-white/50">by LookPrice.net</span></span>
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
+              <div className="text-xs font-black text-emerald-400 uppercase tracking-wider">K.K.T.C. (GİRNE / KYRENIA)</div>
+              <p className="text-xs sm:text-sm font-semibold text-white/90">30 Ağustos Sok. Kyrenia Court 10 / 11 GİRNE (KYRENIA)</p>
+              <p className="text-xs font-bold text-white/70">
+                TEL: <a href="tel:+905488902309" className="text-emerald-300 hover:underline">+90 548 890 23 09</a> • Mail: <a href="mailto:info@lookprice.net" className="text-emerald-300 hover:underline">info@lookprice.net</a>
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-white/50 font-medium">{txt('© 2026 LookPrice. Tüm Hakları Saklıdır.', '© 2026 LookPrice. All Rights Reserved.', '© 2026 LookPrice. Με επιφύλαξη παντός δικαιώματος.')}</p>
+
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-white rounded-xl p-1 flex items-center justify-center shadow-md shrink-0">
+                <img
+                  src="/assets/aistudio/1784196421165-Photoroom__3__8e18c7da.png"
+                  alt="LookPrice.net"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <span className="font-black text-lg">ShopLP <span className="text-xs font-bold text-white/50">by LookPrice.net</span></span>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-white/60">
+              <a href="/privacy" onClick={(e) => { e.preventDefault(); navigate('/privacy'); }} className="hover:text-white transition-colors">
+                {txt('Gizlilik & Amazon DPP Politikası', 'Privacy & Amazon DPP Policy', 'Πολιτική Απορρήτου')}
+              </a>
+              <span>•</span>
+              <a href="/terms" onClick={(e) => { e.preventDefault(); navigate('/terms'); }} className="hover:text-white transition-colors">
+                {txt('Kullanım Koşulları', 'Terms of Service', 'Όροι Χρήσης')}
+              </a>
+            </div>
+            <p className="text-sm text-white/50 font-medium">{txt('© 2026 LookPrice. Tüm Hakları Saklıdır.', '© 2026 LookPrice. All Rights Reserved.', '© 2026 LookPrice. Με επιφύλαξη παντός δικαιώματος.')}</p>
+          </div>
         </div>
       </footer>
     </div>

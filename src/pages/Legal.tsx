@@ -37,15 +37,15 @@ const LegalPage: React.FC<{ type: 'privacy' | 'terms' | 'deletion' }> = ({ type 
         },
         {
           heading: '6. Data Retention, Automated Disposal & Deletion Policy (< 30 Days)',
-          text: 'In strict accordance with Amazon’s Data Protection Policy (DPP), LookPrice retains Personally Identifiable Information (PII) retrieved through SP-API (buyer name, shipping/billing address, phone number, and tax identification) for NO LONGER THAN 30 DAYS after order shipment or tax invoice issuance.\n• Automated 30-Day Purge: An automated daily background job cryptographically scrubs, overwrites, and permanently deletes all Buyer PII fields from active PostgreSQL tables and caches once the 30-day fulfillment window elapses (or immediately after statutory invoice transmission).\n• Immediate Revocation & Deletion: If a Selling Partner disconnects their Amazon account, revokes OAuth authorization in Seller Central, or submits a deletion request to serdar@gapbilisim.net, all associated LWA tokens, RDT sessions, and stored Amazon Information are permanently purged within 24 hours.'
+          text: 'In strict accordance with Amazon’s Data Protection Policy (DPP), LookPrice retains Personally Identifiable Information (PII) retrieved through SP-API (buyer name, shipping/billing address, phone number, and tax identification) for NO LONGER THAN 30 DAYS after order shipment or tax invoice issuance.\n• Automated 30-Day Purge: An automated daily background job cryptographically scrubs, overwrites, and permanently deletes all Buyer PII fields from active PostgreSQL tables and caches once the 30-day fulfillment window elapses (or immediately after statutory invoice transmission).\n• Immediate Revocation & Deletion: If a Selling Partner disconnects their Amazon account, revokes OAuth authorization in Seller Central, or submits a deletion request to info@lookprice.net or sales@lookprice.net, all associated LWA tokens, RDT sessions, and stored Amazon Information are permanently purged within 24 hours.'
         },
         {
           heading: '7. Access Control, Logging, Monitoring & Incident Response',
           text: '• Least-Privilege Access & MFA: Access to production systems is restricted strictly on a need-to-know basis using Role-Based Access Control (RBAC), unique individual employee identities (zero shared accounts), 12+ character complex passwords rotated every 90–365 days, and mandatory Multi-Factor Authentication (MFA).\n• Security Logging & Monitoring: Tamper-evident audit logs (Google Cloud Audit Logs & SIEM) record all authentication events, database queries, and RDT token invocations with a minimum 12-month retention period and real-time anomaly alerting.\n• 24-Hour Incident Notification: In the event of any suspected or confirmed security incident, unauthorized access, or data breach involving Amazon Information, our Incident Management Point of Contact (IMPOC) will notify Amazon immediately at security@amazon.com within 24 hours of detection.'
         },
         {
-          heading: '8. Security & Privacy Point of Contact (IMPOC)',
-          text: 'Organization Name: LookPrice (https://lookprice.net)\nPrimary Security & Incident Management Point of Contact (IMPOC): Serdar Erdekli\nEmail: serdar@gapbilisim.net / lookprice.me@gmail.com\nPhone: +90 548 890 23 09\nCountry: Turkey (TR)'
+          heading: '8. Security, Corporate Offices & Privacy Point of Contact (IMPOC)',
+          text: 'Organization Name: LookPrice (https://lookprice.net)\nPrimary Security & Incident Management Point of Contact (IMPOC): Serdar Erdekli\nCorporate Emails: sales@lookprice.net | info@lookprice.net\n\nTURKIYE Office (Headquarters):\nAddress: Dizdariye Mah. Belediye Cad. No:10/2 Büyükçekmece - ISTANBUL / TURKIYE\nPhone: +90 212 881 24 42 | Email: sales@lookprice.net\n\nK.K.T.C. Office (Cyprus Regional Branch):\nAddress: 30 Ağustos Sok. Kyrenia Court 10 / 11 GİRNE (KYRENIA) / K.K.T.C.\nPhone: +90 548 890 23 09 | Email: info@lookprice.net'
         }
       ],
       sectionsTr: [
@@ -74,8 +74,8 @@ const LegalPage: React.FC<{ type: 'privacy' | 'terms' | 'deletion' }> = ({ type 
           text: 'Amazon Veri Koruma Politikası (DPP) uyarınca, SP-API üzerinden alınan tüm Kişisel Veriler (PII), siparişin kargolanmasından veya faturanın kesilmesinden itibaren EN FAZLA 30 GÜN saklanır. 30 günü dolduran veya satıcı tarafından bağlantısı kesilen tüm kişisel veriler otomatik arka plan görevleriyle veritabanlarımızdan kalıcı ve geri döndürülemez biçimde silinir/anonimleştirilir.'
         },
         {
-          heading: '7. Güvenlik İzleme, Loglama ve İhlal Bildirimi (24 Saat)',
-          text: 'Tüm sistem erişimleri çok faktörlü kimlik doğrulama (MFA) ve bireysel RBAC yetkileriyle sınırlandırılmıştır. Güvenlik logları SIEM üzerinde en az 12 ay saklanır. Amazon verilerini ilgilendiren olası bir güvenlik ihlali durumunda tespit anından itibaren en geç 24 saat içinde security@amazon.com adresine resmi bildirim yapılır.\n\nİletişim (IMPOC): Serdar Erdekli — serdar@gapbilisim.net — +90 548 890 23 09'
+          heading: '7. Güvenlik İzleme, Loglama, İhlal Bildirimi (24 Saat) ve Kurumsal İletişim',
+          text: 'Tüm sistem erişimleri çok faktörlü kimlik doğrulama (MFA) ve bireysel RBAC yetkileriyle sınırlandırılmıştır. Güvenlik logları SIEM üzerinde en az 12 ay saklanır. Amazon verilerini ilgilendiren olası bir güvenlik ihlali durumunda tespit anından itibaren en geç 24 saat içinde security@amazon.com adresine resmi bildirim yapılır.\n\nKurumsal İletişim & Veri Koruma Sorumlusu (IMPOC): Serdar Erdekli\n• TÜRKİYE Merkez: Dizdariye Mah. Belediye Cad. No:10/2 Büyükçekmece - İSTANBUL | Tel: +90 212 881 24 42 | E-posta: sales@lookprice.net\n• K.K.T.C. Ofis: 30 Ağustos Sok. Kyrenia Court 10 / 11 GİRNE (KYRENIA) | Tel: +90 548 890 23 09 | E-posta: info@lookprice.net'
         }
       ]
     },
@@ -131,7 +131,7 @@ const LegalPage: React.FC<{ type: 'privacy' | 'terms' | 'deletion' }> = ({ type 
         },
         {
           heading: 'Step 2: Revocation via Amazon Seller Central or Direct Request',
-          text: 'You may also revoke LookPrice authorization directly inside Amazon Seller Central -> Partner Network -> Manage Your Apps, or email our Data Protection Officer at serdar@gapbilisim.net for immediate full-account erasure within 24 hours.'
+          text: 'You may also revoke LookPrice authorization directly inside Amazon Seller Central -> Partner Network -> Manage Your Apps, or email our Data Protection Officer at info@lookprice.net or sales@lookprice.net for immediate full-account erasure within 24 hours.'
         }
       ],
       sectionsTr: [
@@ -145,7 +145,7 @@ const LegalPage: React.FC<{ type: 'privacy' | 'terms' | 'deletion' }> = ({ type 
         },
         {
           heading: 'Adım 2: Amazon Seller Central veya Doğrudan Silme Talebi',
-          text: 'Yetkilendirmeyi Amazon Seller Central -> Uygulamalarımı Yönet ekranından kaldırabilir veya serdar@gapbilisim.net adresine e-posta göndererek 24 saat içinde tüm verilerinizin kalıcı olarak silinmesini talep edebilirsiniz.'
+          text: 'Yetkilendirmeyi Amazon Seller Central -> Uygulamalarımı Yönet ekranından kaldırabilir veya info@lookprice.net / sales@lookprice.net adreslerine e-posta göndererek 24 saat içinde tüm verilerinizin kalıcı olarak silinmesini talep edebilirsiniz.'
         }
       ]
     }
@@ -292,23 +292,45 @@ const LegalPage: React.FC<{ type: 'privacy' | 'terms' | 'deletion' }> = ({ type 
               </div>
             ))}
 
-            <div className="pt-6 border-t border-slate-200 bg-slate-50 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-sm font-black text-slate-900">
-                  {docLang === 'en'
-                    ? 'Data Protection Officer & Incident Management Point of Contact (IMPOC)'
-                    : 'Veri Koruma Görevlisi ve Güvenlik İhlali İrtibat Noktası (IMPOC)'}
-                </h3>
-                <p className="text-slate-600 text-xs mt-1">
-                  Serdar Erdekli • Email: <a href="mailto:serdar@gapbilisim.net" className="text-indigo-600 font-bold underline">serdar@gapbilisim.net</a> / <a href="mailto:lookprice.me@gmail.com" className="text-indigo-600 font-bold underline">lookprice.me@gmail.com</a> • Tel: +90 548 890 23 09
-                </p>
+            <div className="pt-6 border-t border-slate-200 bg-slate-50 rounded-2xl p-5 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">
+                    {docLang === 'en'
+                      ? 'Data Protection Officer & Incident Management Point of Contact (IMPOC)'
+                      : 'Veri Koruma Görevlisi ve Güvenlik İhlali İrtibat Noktası (IMPOC)'}
+                  </h3>
+                  <p className="text-slate-600 text-xs mt-1">
+                    Serdar Erdekli • Email: <a href="mailto:sales@lookprice.net" className="text-indigo-600 font-bold underline">sales@lookprice.net</a> / <a href="mailto:info@lookprice.net" className="text-indigo-600 font-bold underline">info@lookprice.net</a>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href="mailto:sales@lookprice.net"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-colors"
+                  >
+                    sales@lookprice.net
+                  </a>
+                  <a
+                    href="mailto:info@lookprice.net"
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black transition-colors"
+                  >
+                    info@lookprice.net
+                  </a>
+                </div>
               </div>
-              <a
-                href="mailto:serdar@gapbilisim.net"
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-colors shrink-0"
-              >
-                {docLang === 'en' ? 'Contact Security Team' : 'Güvenlik Ekibiyle İletişime Geç'}
-              </a>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-200/80 text-xs text-slate-700">
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200">
+                  <div className="font-black text-slate-900 uppercase tracking-wider text-[11px] mb-1">TURKIYE (Headquarters)</div>
+                  <p className="font-semibold">Dizdariye Mah. Belediye Cad. No:10/2 Büyükçekmece - ISTANBUL</p>
+                  <p className="mt-1 font-bold text-indigo-600">Tel: <a href="tel:+902128812442" className="hover:underline">+90 212 881 24 42</a> • Mail: <a href="mailto:sales@lookprice.net" className="hover:underline">sales@lookprice.net</a></p>
+                </div>
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200">
+                  <div className="font-black text-slate-900 uppercase tracking-wider text-[11px] mb-1">K.K.T.C. (Cyprus Office)</div>
+                  <p className="font-semibold">30 Ağustos Sok. Kyrenia Court 10 / 11 GİRNE (KYRENIA)</p>
+                  <p className="mt-1 font-bold text-indigo-600">Tel: <a href="tel:+905488902309" className="hover:underline">+90 548 890 23 09</a> • Mail: <a href="mailto:info@lookprice.net" className="hover:underline">info@lookprice.net</a></p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

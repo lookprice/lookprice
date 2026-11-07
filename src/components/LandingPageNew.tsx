@@ -33,7 +33,10 @@ import {
   MessageCircle,
   BookOpen,
   Hotel,
-  Store
+  Store,
+  MapPin,
+  Phone,
+  Mail
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -591,6 +594,12 @@ export const LandingPage = () => {
               className="text-xs font-black uppercase tracking-wider text-white/70 hover:text-amber-400 transition-colors"
             >
               {txt('İş Ortaklıklarımız', 'Partnerships', 'Συνεργασίες')}
+            </a>
+            <a
+              href="#iletisim"
+              className="text-xs font-black uppercase tracking-wider text-white/70 hover:text-emerald-400 transition-colors"
+            >
+              {txt('İletişim', 'Contact', 'Επικοινωνία')}
             </a>
           </nav>
 
@@ -1495,6 +1504,154 @@ export const LandingPage = () => {
         )}
       </AnimatePresence>
 
+      {/* Corporate Contact & Offices Section (TURKIYE & K.K.T.C.) */}
+      <section id="iletisim" className="py-20 border-t border-white/5 bg-[#050508] relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 md:px-12">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-indigo-500/10 text-indigo-400 rounded-full text-xs font-black tracking-wider uppercase border border-indigo-500/20">
+              <MapPin className="h-3.5 w-3.5 text-indigo-400" />
+              {txt('KURUMSAL İLETİŞİM & OFİSLERİMİZ', 'CORPORATE CONTACT & OFFICES', 'ΕΤΑΙΡΙΚΗ ΕΠΙΚΟΙΝΩΝΙΑ & ΓΡΑΦΕΙΑ')}
+            </span>
+            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mt-3">
+              {txt('Türkiye ve K.K.T.C. Bölge Müdürlüklerimiz', 'Turkey & Cyprus Regional Offices', 'Γραφεία Τουρκίας & Κύπρου')}
+            </h2>
+            <p className="text-white/50 text-xs sm:text-sm font-semibold mt-2">
+              {txt(
+                'Satış, e-Ticaret / Amazon SP-API entegrasyonları ve teknik destek talepleriniz için kurumsal iletişim kanallarımız.',
+                'Official corporate contact channels for sales, Amazon SP-API integrations, and technical support.',
+                'Επίσημα κανάλια επικοινωνίας για πωλήσεις, ενσωματώσεις Amazon SP-API και τεχνική υποστήριξη.'
+              )}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            {/* TURKIYE Office Card */}
+            <div className="p-6 md:p-8 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-indigo-500/40 transition-all flex flex-col justify-between gap-5 shadow-xl">
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-[11px] font-black uppercase tracking-wider">
+                  <span>🇹🇷 TURKIYE</span>
+                  <span>•</span>
+                  <span>{txt('İSTANBUL MERKEZ OFİS', 'ISTANBUL HEADQUARTERS', 'ΚΕΝΤΡΙΚΑ ΓΡΑΦΕΙΑ ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΗΣ')}</span>
+                </div>
+                <h3 className="text-xl font-black text-white">LookPrice Türkiye</h3>
+                <div className="flex items-start gap-3 text-sm text-white/80 font-semibold pt-1">
+                  <MapPin className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                  <span>Dizdariye Mah. Belediye Cad. No:10/2 Büyükçekmece - İSTANBUL</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-white/10">
+                <a
+                  href="tel:+902128812442"
+                  className="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-indigo-600/20 border border-white/10 hover:border-indigo-500/40 transition-all group"
+                >
+                  <Phone className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase text-white/40">TEL</div>
+                    <div className="text-xs font-black text-white group-hover:text-indigo-300 truncate">+90 212 881 24 42</div>
+                  </div>
+                </a>
+                <a
+                  href="mailto:sales@lookprice.net"
+                  className="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-indigo-600/20 border border-white/10 hover:border-indigo-500/40 transition-all group"
+                >
+                  <Mail className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase text-white/40">E-MAIL</div>
+                    <div className="text-xs font-black text-white group-hover:text-indigo-300 truncate">sales@lookprice.net</div>
+                  </div>
+                </a>
+              </div>
+            </div>
+
+            {/* K.K.T.C. Office Card */}
+            <div className="p-6 md:p-8 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-emerald-500/40 transition-all flex flex-col justify-between gap-5 shadow-xl">
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-black uppercase tracking-wider">
+                  <span>K.K.T.C.</span>
+                  <span>•</span>
+                  <span>{txt('GİRNE BÖLGE OFİSİ', 'KYRENIA REGIONAL OFFICE', 'ΓΡΑΦΕΙΟ ΚΕΡΥΝΕΙΑΣ')}</span>
+                </div>
+                <h3 className="text-xl font-black text-white">LookPrice K.K.T.C. (Cyprus)</h3>
+                <div className="flex items-start gap-3 text-sm text-white/80 font-semibold pt-1">
+                  <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>30 Ağustos Sok. Kyrenia Court 10 / 11 GİRNE (KYRENIA)</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-white/10">
+                <a
+                  href="tel:+905488902309"
+                  className="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-emerald-600/20 border border-white/10 hover:border-emerald-500/40 transition-all group"
+                >
+                  <Phone className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase text-white/40">TEL</div>
+                    <div className="text-xs font-black text-white group-hover:text-emerald-300 truncate">+90 548 890 23 09</div>
+                  </div>
+                </a>
+                <a
+                  href="mailto:info@lookprice.net"
+                  className="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-emerald-600/20 border border-white/10 hover:border-emerald-500/40 transition-all group"
+                >
+                  <Mail className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase text-white/40">E-MAIL</div>
+                    <div className="text-xs font-black text-white group-hover:text-emerald-300 truncate">info@lookprice.net</div>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Amazon SP-API & Data Protection Policy Compliance Banner */}
+          <div className="p-5 md:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-white/10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 shrink-0">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-white">
+                  {txt(
+                    'Amazon SP-API Veri Koruma Politikası (DPP) & KVKK / GDPR Uyumluluğu',
+                    'Amazon SP-API Data Protection Policy (DPP) & KVKK / GDPR Compliance',
+                    'Πολιτική Προστασίας Δεδομένων Amazon SP-API (DPP) & GDPR'
+                  )}
+                </h4>
+                <p className="text-xs text-white/60 font-medium mt-0.5">
+                  {txt(
+                    'LookPrice SaaS ERP; OAuth 2.0, AES-256 ve TLS 1.3 şifreleme standartlarında çalışır. Kurumsal iletişim: sales@lookprice.net & info@lookprice.net',
+                    'LookPrice operates under OAuth 2.0, AES-256 at rest, and TLS 1.3 in transit security controls. Official contact: sales@lookprice.net & info@lookprice.net',
+                    'Το LookPrice λειτουργεί με πρότυπα ασφαλείας OAuth 2.0, AES-256 και TLS 1.3. Επικοινωνία: sales@lookprice.net & info@lookprice.net'
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <a
+                href="/privacy"
+                onClick={(e) => { e.preventDefault(); navigate('/privacy'); }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition-all cursor-pointer"
+              >
+                {txt('Gizlilik & Amazon DPP Politikası', 'Privacy & Amazon DPP Policy', 'Πολιτική Απορρήτου')}
+              </a>
+              <a
+                href="/terms"
+                onClick={(e) => { e.preventDefault(); navigate('/terms'); }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white border border-white/15 rounded-xl text-xs font-black transition-all cursor-pointer"
+              >
+                {txt('Kullanım Koşulları', 'Terms of Service', 'Όροι Χρήσης')}
+              </a>
+              <a
+                href="/data-deletion"
+                onClick={(e) => { e.preventDefault(); navigate('/data-deletion'); }}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                {txt('Veri Silme Politikası', 'Data Deletion', 'Διαγραφή Δεδομένων')}
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="px-6 md:px-12 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 bg-[#050505]">
         <div className="flex flex-col items-center md:items-start space-y-2.5">
@@ -1515,6 +1672,21 @@ export const LandingPage = () => {
             {txt('BULUT TABANLI SEKTÖREL YÖNETİM SUITE', 'CLOUD-BASED SECTORAL SUITE', 'ΣΟΥΙΤΑ ΔΙΑΧΕΙΡΙΣΗΣ ΤΟΜΕΩΝ CLOUD')}
           </p>
         </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-white/60">
+          <a href="mailto:sales@lookprice.net" className="hover:text-white transition-colors">sales@lookprice.net</a>
+          <span className="text-white/20">•</span>
+          <a href="mailto:info@lookprice.net" className="hover:text-white transition-colors">info@lookprice.net</a>
+          <span className="text-white/20">•</span>
+          <a href="/privacy" onClick={(e) => { e.preventDefault(); navigate('/privacy'); }} className="hover:text-indigo-400 transition-colors">
+            {txt('Gizlilik Politikası (DPP)', 'Privacy Policy (DPP)', 'Πολιτική Απορρήτου')}
+          </a>
+          <span className="text-white/20">•</span>
+          <a href="/terms" onClick={(e) => { e.preventDefault(); navigate('/terms'); }} className="hover:text-indigo-400 transition-colors">
+            {txt('Kullanım Koşulları', 'Terms', 'Όροι')}
+          </a>
+        </div>
+
         <p className="text-xs text-white/40 font-semibold">
           {txt('© 2026 LookPrice. Tüm Hakları Saklıdır.', '© 2026 LookPrice. All Rights Reserved.', '© 2026 LookPrice. Με επιφύλαξη παντός δικαιώματος.')}
         </p>

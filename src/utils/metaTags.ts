@@ -1085,6 +1085,38 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
             "name": "LookPrice",
             "url": "https://lookprice.net",
             "logo": "https://lookprice.net/favicon-512x512.png",
+            "email": "sales@lookprice.net",
+            "telephone": "+90-212-881-24-42",
+            "address": [
+              {
+                "@type": "PostalAddress",
+                "streetAddress": "Dizdariye Mah. Belediye Cad. No:10/2 Büyükçekmece",
+                "addressLocality": "İstanbul",
+                "addressCountry": "TR"
+              },
+              {
+                "@type": "PostalAddress",
+                "streetAddress": "30 Ağustos Sok. Kyrenia Court 10 / 11",
+                "addressLocality": "Girne (Kyrenia)",
+                "addressCountry": "CY"
+              }
+            ],
+            "contactPoint": [
+              {
+                "@type": "ContactPoint",
+                "telephone": "+90-212-881-24-42",
+                "email": "sales@lookprice.net",
+                "contactType": "sales",
+                "areaServed": "TR"
+              },
+              {
+                "@type": "ContactPoint",
+                "telephone": "+90-548-890-23-09",
+                "email": "info@lookprice.net",
+                "contactType": "customer support",
+                "areaServed": ["TR", "CY"]
+              }
+            ],
             "sameAs": ["https://enrakipsiz.com"]
           },
           {
@@ -1636,6 +1668,12 @@ export async function generateSeoBodySnapshot(url: string, req: any): Promise<st
           <li><a href="https://enrakipsiz.com">EnRakipsiz - Doğrulanmış Emlak ve Otomotiv Portföy Pazaryeri</a></li>
         </ul>
       </nav>
+      <section aria-label="Kurumsal İletişim ve Ofislerimiz">
+        <h2>LookPrice Kurumsal İletişim &amp; Ofisler</h2>
+        <p>TÜRKİYE: Dizdariye Mah. Belediye Cad. No:10/2 Büyükçekmece - İSTANBUL | TEL: +90 212 881 24 42 | E-posta: sales@lookprice.net</p>
+        <p>K.K.T.C.: 30 Ağustos Sok. Kyrenia Court 10 / 11 GİRNE (KYRENIA) | TEL: +90 548 890 23 09 | E-posta: info@lookprice.net</p>
+        <p><a href="${escapeHtml(baseUrl)}/privacy">Privacy Policy &amp; Amazon SP-API Data Protection Policy (DPP)</a> | <a href="${escapeHtml(baseUrl)}/terms">Terms of Service</a></p>
+      </section>
       <section aria-label="Seçkin Mağazalar Dizini">
         <h2>LookPrice Altyapısını Kullanan Seçkin Mağazalar</h2>
         <ul>${storeDirectoryHtml}</ul>
@@ -1755,7 +1793,11 @@ export async function generateDynamicLlmsTxt(req: any, storeSlugParam?: string):
     md += `- [restateLP - Gayrimenkul & Emlak Portföy Yönetim Sistemi](${baseUrl}/restate-landing)\n`;
     md += `- [autoLP - Oto Galeri & Motorlu Araç Portföy Sistemi](${baseUrl}/auto-landing)\n`;
     md += `- [horecaLP & hotelLP - Restoran POS, QR Menü ve Otel Konaklama](${baseUrl}/horeca-landing)\n`;
-    md += `- [EnRakipsiz - Emlak & Otomotiv Pazaryeri Portalı](https://enrakipsiz.com)\n\n`;
+    md += `- [EnRakipsiz - Emlak & Otomotiv Pazaryeri Portalı](https://enrakipsiz.com)\n`;
+    md += `- [Gizlilik ve Amazon SP-API Veri Koruma Politikası (DPP)](${baseUrl}/privacy)\n\n`;
+    md += `## Kurumsal İletişim & Ofislerimiz\n`;
+    md += `- TÜRKİYE: Dizdariye Mah. Belediye Cad. No:10/2 Büyükçekmece - İSTANBUL | TEL: +90 212 881 24 42 | Mail: sales@lookprice.net\n`;
+    md += `- K.K.T.C.: 30 Ağustos Sok. Kyrenia Court 10 / 11 GİRNE (KYRENIA) | TEL: +90 548 890 23 09 | Mail: info@lookprice.net\n\n`;
 
     const storesRes = await pool.query(`
       SELECT id, name, slug, custom_domain FROM stores 

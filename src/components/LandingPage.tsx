@@ -1396,17 +1396,25 @@ export const LandingPage = () => {
             </div>
 
             <div>
-              <h4 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-8">{t.footer.contact}</h4>
-              <ul className="space-y-4">
-                <li className="flex items-center group">
-                  <Phone className="h-4 w-4 mr-4 text-indigo-500 group-hover:scale-110 transition-transform" />
-                  <a href="tel:+905488902309" className="text-sm text-slate-400 font-bold hover:text-white transition-colors">+90 548 890 23 09</a>
-                </li>
-                <li className="flex items-center group">
-                  <Mail className="h-4 w-4 mr-4 text-indigo-500 group-hover:scale-110 transition-transform" />
-                  <a href="mailto:lookprice.me@gmail.com" className="text-sm text-slate-400 font-bold hover:text-white transition-colors">lookprice.me@gmail.com</a>
-                </li>
-              </ul>
+              <h4 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-6">{t.footer.contact}</h4>
+              <div className="space-y-4 text-xs text-slate-400">
+                <div className="space-y-1">
+                  <div className="font-black text-white uppercase tracking-wider">TURKIYE</div>
+                  <p className="font-medium leading-snug">Dizdariye Mah. Belediye Cad. No:10/2 Büyükçekmece - İSTANBUL</p>
+                  <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                    <a href="tel:+902128812442" className="font-bold text-indigo-400 hover:text-white transition-colors">+90 212 881 24 42</a>
+                    <a href="mailto:sales@lookprice.net" className="font-bold text-indigo-400 hover:text-white transition-colors">sales@lookprice.net</a>
+                  </div>
+                </div>
+                <div className="space-y-1 pt-2 border-t border-white/5">
+                  <div className="font-black text-white uppercase tracking-wider">K.K.T.C.</div>
+                  <p className="font-medium leading-snug">30 Ağustos Sok. Kyrenia Court 10 / 11 GİRNE (KYRENIA)</p>
+                  <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                    <a href="tel:+905488902309" className="font-bold text-emerald-400 hover:text-white transition-colors">+90 548 890 23 09</a>
+                    <a href="mailto:info@lookprice.net" className="font-bold text-emerald-400 hover:text-white transition-colors">info@lookprice.net</a>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-col items-start lg:items-end">
