@@ -27,21 +27,35 @@ interface FixtureVaultModalProps {
   onUpdateFixtures?: (updatedPhotos: FixturePhotoItem[]) => Promise<void> | void;
 }
 
+export const FIXTURE_ROOM_CATEGORIES = [
+  "Salon",
+  "Mutfak",
+  "Yatak Odası",
+  "Banyo",
+  "Balkon / Genel"
+] as const;
+
+export type FixtureRoomCategory = (typeof FIXTURE_ROOM_CATEGORIES)[number];
+
 export const PRESET_FIXTURE_NAMES = [
   "Salon - Klima",
   "Salon - Koltuk Takımı",
   "Salon - Akıllı TV & Ünite",
+  "Salon - Yemek Masası & Sandalye",
+  "Salon - Halı & Perdeler",
   "Mutfak - Buzdolabı",
   "Mutfak - Bulaşık Makinesi",
   "Mutfak - Ankastre Fırın & Ocak",
   "Mutfak - Davlumbaz",
+  "Mutfak - Mikrodalga / Küçük Ev Aleti",
   "Yatak Odası - Çift Kişilik Baza & Başlık",
   "Yatak Odası - Gardırop",
   "Yatak Odası - Klima",
+  "Yatak Odası - Komodin & Şifonyer",
   "Banyo - Çamaşır Makinesi",
   "Banyo - Termosifon / Şofben",
   "Balkon / Teras - Masa & Sandalye Seti",
-  "Genel - Elektrik & Su Sayacı Başlangıç Endeksi",
+  "Genel - Elektrik & Su Sayacı",
   "Genel - Giriş Çelik Kapı & Anahtarlar"
 ];
 
@@ -54,7 +68,33 @@ export const FIXTURE_CONDITIONS = [
 
 // Normalize base fixture name (strip trailing "(#1)" etc. for grouping)
 export function getBaseFixtureName(name: string): string {
-  return (name || "").replace(/\s*\(#\d+\)\s*$/, "").trim();
+  const base = (name || "").replace(/\s*\(#\d+\)\s*$/, "").trim();
+  if (base === "Genel - Elektrik & Su Sayacı Başlangıç Endeksi") {
+    return "Genel - Elektrik & Su Sayacı";
+  }
+  return base;
+}
+
+export function getFixtureRoomCategory(fullName: string): FixtureRoomCategory {
+  const normalized = getBaseFixtureName(fullName).toLowerCase();
+  if (normalized.startsWith("salon")) return "Salon";
+  if (normalized.startsWith("mutfak")) return "Mutfak";
+  if (normalized.startsWith("yatak odası") || normalized.startsWith("yatak odasi") || normalized.startsWith("çocuk odası")) {
+    return "Yatak Odası";
+  }
+  if (normalized.startsWith("banyo") || normalized.startsWith("wc") || normalized.startsWith("tuvalet")) {
+    return "Banyo";
+  }
+  return "Balkon / Genel";
+}
+
+export function getShortFixtureLabel(fullName: string): string {
+  const base = getBaseFixtureName(fullName);
+  const dashIndex = base.indexOf(" - ");
+  if (dashIndex !== -1) {
+    return base.slice(dashIndex + 3).trim();
+  }
+  return base;
 }
 
 // Canvas-based Timestamp Burn-in Engine
@@ -324,10 +364,13 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
     return Array.from(new Set([...PRESET_FIXTURE_NAMES, ...existingNames]));
   });
   const [selectedName, setSelectedName] = useState<string>(PRESET_FIXTURE_NAMES[0]);
+  const [activeRoom, setActiveRoom] = useState<FixtureRoomCategory>("Salon");
   const [selectedCondition, setSelectedCondition] = useState<string>(FIXTURE_CONDITIONS[0]);
   const [filterMode, setFilterMode] = useState<"selected" | "all">("selected");
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [editingNameValue, setEditingNameValue] = useState<string>("");
+  const [isAddingNew, setIsAddingNew] = useState<boolean>(false);
+  const [newItemNameValue, setNewItemNameValue] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
@@ -346,6 +389,8 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
 
   const propertyRef = property.reference_no || `LP-${property.id}`;
   const currentItemName = selectedName;
+
+  const roomItems = presetList.filter((name) => getFixtureRoomCategory(name) === activeRoom);
 
   // Photos belonging to the currently selected fixture item
   const selectedItemPhotos = photos.filter(
@@ -374,6 +419,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
     if (!updatedPresets.includes(trimmed)) updatedPresets.push(trimmed);
     setPresetList(updatedPresets);
     setSelectedName(trimmed);
+    setActiveRoom(getFixtureRoomCategory(trimmed));
     setIsEditingName(false);
 
     // Also update any existing photos of this item
@@ -398,16 +444,28 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
   };
 
   const handleAddNewItem = () => {
-    const newName = window.prompt("Yeni Eşya / Demirbaş Adı Girin:", "Salon - Dresuar & Ayna");
-    if (newName && newName.trim()) {
-      const trimmed = newName.trim();
-      if (!presetList.includes(trimmed)) {
-        setPresetList([...presetList, trimmed]);
-      }
-      setSelectedName(trimmed);
-      setFilterMode("selected");
-      toast.success(`"${trimmed}" eklendi ve seçildi.`);
+    setIsEditingName(false);
+    const defaultPrefix = activeRoom === "Balkon / Genel" ? "Genel - " : `${activeRoom} - `;
+    setNewItemNameValue(defaultPrefix);
+    setIsAddingNew(true);
+  };
+
+  const handleConfirmAddNewItem = () => {
+    const raw = newItemNameValue.trim();
+    if (!raw) {
+      setIsAddingNew(false);
+      return;
     }
+    const defaultPrefix = activeRoom === "Balkon / Genel" ? "Genel" : activeRoom;
+    const formatted = raw.includes(" - ") ? raw : `${defaultPrefix} - ${raw}`;
+    if (!presetList.includes(formatted)) {
+      setPresetList([...presetList, formatted]);
+    }
+    setSelectedName(formatted);
+    setActiveRoom(getFixtureRoomCategory(formatted));
+    setFilterMode("selected");
+    setIsAddingNew(false);
+    toast.success(`"${formatted}" eklendi ve seçildi.`);
   };
 
   const handleDeleteSelectedItemName = () => {
@@ -417,7 +475,10 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
     }
     const remaining = presetList.filter((name) => name !== selectedName);
     setPresetList(remaining);
-    setSelectedName(remaining[0]);
+    const sameRoomRemaining = remaining.filter((n) => getFixtureRoomCategory(n) === activeRoom);
+    const nextSelected = sameRoomRemaining[0] || remaining[0];
+    setSelectedName(nextSelected);
+    setActiveRoom(getFixtureRoomCategory(nextSelected));
     toast.success(`"${selectedName}" listeden kaldırıldı.`);
   };
 
@@ -735,16 +796,17 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
           </div>
         )}
 
-        {/* High-Contrast Daylight Control Bar */}
-        <div className="p-3 sm:px-4 bg-slate-100 border-b-2 border-slate-300 shrink-0 space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <label className="text-xs font-black text-slate-950 uppercase tracking-tight">
-              Eşya Seçimi
+        {/* High-Contrast Daylight Control Bar (Categorized by Room) */}
+        <div className="p-2.5 sm:px-4 bg-slate-100 border-b-2 border-slate-300 shrink-0 space-y-2 w-full min-w-0 max-w-full overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
+            <label className="text-[11px] font-black text-slate-950 uppercase tracking-tight">
+              1. Bölüm & Eşya Seçimi
             </label>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => {
+                  setIsAddingNew(false);
                   setEditingNameValue(selectedName);
                   setIsEditingName(!isEditingName);
                 }}
@@ -758,7 +820,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                 type="button"
                 onClick={handleAddNewItem}
                 className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[10px] font-black flex items-center gap-0.5 cursor-pointer shadow-2xs"
-                title="Yeni eşya tanımla"
+                title="Seçili bölüme yeni eşya ekle"
               >
                 <Plus className="w-3 h-3" />
                 <span>Ekle</span>
@@ -775,39 +837,175 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
             </div>
           </div>
 
+          {/* Step 1: Room Category Tabs */}
+          <div className="grid grid-cols-5 gap-1 w-full min-w-0">
+            {FIXTURE_ROOM_CATEGORIES.map((room) => {
+              const isRoomActive = activeRoom === room;
+              const roomPhotoCount = photos.filter(
+                (p) => getFixtureRoomCategory(p.name) === room
+              ).length;
+              const shortRoomTitle =
+                room === "Yatak Odası"
+                  ? "Y. Odası"
+                  : room === "Balkon / Genel"
+                  ? "Genel"
+                  : room;
+              return (
+                <button
+                  key={room}
+                  type="button"
+                  onClick={() => {
+                    setActiveRoom(room);
+                    const firstInRoom = presetList.find(
+                      (n) => getFixtureRoomCategory(n) === room
+                    );
+                    if (firstInRoom) {
+                      setSelectedName(firstInRoom);
+                    }
+                    setFilterMode("selected");
+                  }}
+                  className={`px-1.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-black border transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 min-w-0 cursor-pointer ${
+                    isRoomActive
+                      ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                      : "bg-white text-slate-800 border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="truncate max-w-full">{shortRoomTitle}</span>
+                  <span
+                    className={`px-1 py-0.2 rounded text-[9px] font-black leading-tight shrink-0 ${
+                      isRoomActive
+                        ? roomPhotoCount > 0
+                          ? "bg-emerald-500 text-white"
+                          : "bg-slate-700 text-slate-200"
+                        : roomPhotoCount > 0
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200 text-slate-600"
+                    }`}
+                  >
+                    {roomPhotoCount}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* Inline Rename Bar when "Adı Değiştir" is clicked */}
           {isEditingName && (
-            <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-lg border-2 border-indigo-600">
+            <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-lg border-2 border-indigo-600 w-full min-w-0">
               <input
                 type="text"
                 value={editingNameValue}
                 onChange={(e) => setEditingNameValue(e.target.value)}
-                className="flex-1 px-2.5 py-1 text-xs font-black text-slate-950 bg-slate-50 border border-slate-300 rounded focus:outline-none"
+                className="flex-1 min-w-0 px-2 py-1 text-xs font-black text-slate-950 bg-slate-50 border border-slate-300 rounded focus:outline-none"
                 placeholder="Eşya adını düzenleyin..."
                 autoFocus
               />
               <button
                 type="button"
                 onClick={handleRenameSelected}
-                className="px-3 py-1 bg-indigo-600 text-white text-xs font-black rounded cursor-pointer"
+                className="px-2.5 py-1 bg-indigo-600 text-white text-xs font-black rounded cursor-pointer shrink-0"
               >
                 Kaydet
               </button>
               <button
                 type="button"
                 onClick={() => setIsEditingName(false)}
-                className="px-2.5 py-1 bg-slate-200 text-slate-800 text-xs font-bold rounded cursor-pointer"
+                className="px-2 py-1 bg-slate-200 text-slate-800 text-xs font-bold rounded cursor-pointer shrink-0"
               >
                 İptal
               </button>
             </div>
           )}
 
-          {/* Main Selection & Upload Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-            {/* Selector with minimized option font size */}
-            <div className="sm:col-span-5 flex items-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-white border-2 border-slate-300 overflow-hidden shrink-0 flex items-center justify-center relative shadow-2xs">
+          {/* Inline Add New Item Bar when "+ Ekle" is clicked */}
+          {isAddingNew && (
+            <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-lg border-2 border-indigo-600 w-full min-w-0">
+              <input
+                type="text"
+                value={newItemNameValue}
+                onChange={(e) => setNewItemNameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleConfirmAddNewItem();
+                  }
+                }}
+                className="flex-1 min-w-0 px-2 py-1 text-xs font-black text-slate-950 bg-slate-50 border border-slate-300 rounded focus:outline-none"
+                placeholder={`${activeRoom} - Yeni Eşya Adı...`}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={handleConfirmAddNewItem}
+                className="px-2.5 py-1 bg-indigo-600 text-white text-xs font-black rounded cursor-pointer shrink-0"
+              >
+                Ekle
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAddingNew(false)}
+                className="px-2 py-1 bg-slate-200 text-slate-800 text-xs font-bold rounded cursor-pointer shrink-0"
+              >
+                İptal
+              </button>
+            </div>
+          )}
+
+          {/* Step 2: Items inside Selected Room as Compact Non-Overflowing Pills */}
+          <div className="bg-white border border-slate-300 rounded-lg p-2 space-y-1.5 w-full min-w-0 max-w-full overflow-hidden">
+            <div className="flex items-center justify-between gap-2 text-[10px] font-bold text-slate-500">
+              <span className="uppercase tracking-wider font-black text-slate-700 truncate">
+                {activeRoom} Eşyaları ({roomItems.length})
+              </span>
+              <span className="text-indigo-700 font-black truncate">
+                Seçili: {getShortFixtureLabel(selectedName)}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-0.5">
+              {roomItems.map((name) => {
+                const count = photos.filter(
+                  (p) => getBaseFixtureName(p.name).toLowerCase() === name.toLowerCase()
+                ).length;
+                const isSelected = selectedName === name;
+                const shortLabel = getShortFixtureLabel(name);
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => {
+                      setSelectedName(name);
+                      setFilterMode("selected");
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition flex items-center gap-1.5 max-w-full min-w-0 cursor-pointer ${
+                      isSelected
+                        ? "bg-indigo-600 text-white border-indigo-700 shadow-xs"
+                        : count > 0
+                        ? "bg-emerald-50 text-emerald-950 border-emerald-300 hover:bg-emerald-100"
+                        : "bg-slate-50 text-slate-800 border-slate-300 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="truncate">{shortLabel}</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[9px] font-black shrink-0 ${
+                        isSelected
+                          ? "bg-white text-indigo-700"
+                          : count > 0
+                          ? "bg-emerald-600 text-white"
+                          : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Step 3: Condition & Camera / Gallery Upload Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center w-full min-w-0">
+            <div className="sm:col-span-5 flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-white border-2 border-slate-300 overflow-hidden shrink-0 flex items-center justify-center relative shadow-2xs">
                 {selectedItemPhotos.length > 0 ? (
                   <img
                     src={selectedItemPhotos[0].url}
@@ -829,32 +1027,9 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
               </div>
 
               <select
-                value={selectedName}
-                onChange={(e) => {
-                  setSelectedName(e.target.value);
-                  setFilterMode("selected");
-                }}
-                className="flex-1 bg-white border-2 border-slate-300 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-950 font-black focus:outline-none focus:border-indigo-600 cursor-pointer shadow-2xs"
-              >
-                {presetList.map((name) => {
-                  const count = photos.filter(
-                    (p) => getBaseFixtureName(p.name).toLowerCase() === name.toLowerCase()
-                  ).length;
-                  return (
-                    <option key={name} value={name} className="text-[11px] font-bold text-slate-950">
-                      {name} {count > 0 ? `(${count} Foto)` : "(Foto Yok)"}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            {/* Condition / Qualification Selector */}
-            <div className="sm:col-span-3">
-              <select
                 value={selectedCondition}
                 onChange={(e) => setSelectedCondition(e.target.value)}
-                className="w-full bg-white border-2 border-slate-300 rounded-lg px-2 py-1.5 text-[11px] text-slate-950 font-bold focus:outline-none focus:border-indigo-600 cursor-pointer shadow-2xs"
+                className="flex-1 min-w-0 bg-white border-2 border-slate-300 rounded-lg px-2 py-1.5 text-[11px] text-slate-950 font-bold focus:outline-none focus:border-indigo-600 cursor-pointer shadow-2xs truncate"
                 title="Eşya Niteliği / Durumu"
               >
                 {FIXTURE_CONDITIONS.map((cond) => (
@@ -866,7 +1041,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
             </div>
 
             {/* Action Buttons: Canlı Foto Çek & Yükle */}
-            <div className="sm:col-span-4 grid grid-cols-2 gap-1.5">
+            <div className="sm:col-span-7 grid grid-cols-2 gap-1.5 min-w-0">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -880,7 +1055,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                 type="button"
                 disabled={isProcessing}
                 onClick={() => setIsLiveCameraOpen(true)}
-                className="flex items-center justify-center gap-1 px-2.5 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-black text-xs rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
+                className="flex items-center justify-center gap-1 px-2.5 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-black text-xs rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer min-w-0"
               >
                 <Camera className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">Canlı Foto Çek</span>
@@ -890,7 +1065,7 @@ export const FixtureVaultModal: React.FC<FixtureVaultModalProps> = ({
                 type="button"
                 disabled={isProcessing}
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-1 px-2.5 py-2 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-black text-xs rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
+                className="flex items-center justify-center gap-1 px-2.5 py-2 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-black text-xs rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer min-w-0"
               >
                 <Upload className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">Galeriden Yükle</span>
