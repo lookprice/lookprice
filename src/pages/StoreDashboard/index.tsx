@@ -98,6 +98,7 @@ const FleetTab = React.lazy(() => import("./FleetTab"));
 const MetaIntegrationTab = React.lazy(() => import("./MetaIntegrationTab"));
 const GoogleMerchantTab = React.lazy(() => import("./GoogleMerchantTab"));
 const RealEstateTab = React.lazy(() => import("./RealEstateTab"));
+const RealEstateValuationTab = React.lazy(() => import("./RealEstateValuationTab"));
 const RadarAlertsTab = React.lazy(() => import("./RadarAlertsTab").then(m => ({ default: m.RadarAlertsTab })));
 const PortfolioFinancesTab = React.lazy(() => import("./PortfolioFinancesTab"));
 const SEOTab = React.lazy(() => import("./SEOTab"));
@@ -873,7 +874,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'item', id: "settings", label: txt('Domain & Site Ayarları', 'Domain & Site Settings', 'Ρυθμίσεις Domain & Ιστοσελίδας'), icon: SettingsIcon }
   ] : isPortfolio ? [
     { type: 'category', key: "real_estate", title: txt('Portföy & İlan', 'Portfolios & Listings', 'Χαρτοφυλάκιο & Αγγελίες'), items: [
-      ...(isRealEstate ? [{ id: "real_estate", label: txt('Gayrimenkul Portföyü', 'Real Estate Portfolio', 'Χαρτοφυλάκιο Ακινήτων'), icon: Home }] : []),
+      ...(isRealEstate ? [
+        { id: "real_estate", label: txt('Gayrimenkul Portföyü', 'Real Estate Portfolio', 'Χαρτοφυλάκιο Ακινήτων'), icon: Home },
+        { id: "real_estate_valuation", label: txt('Değerleme Raporu', 'Valuation Reports', 'Εκθέσεις Εκτίμησης'), icon: FileCheck }
+      ] : []),
       ...(isAutomotive ? [{ id: "fleet", label: txt('Oto Galeri / Araçlar', 'Automotive / Vehicles', 'Αντιπροσωπεία / Οχήματα'), icon: Car, badge: notifications.fleet }] : []),
     ]},
     { type: 'category', key: "finance_operations", title: txt('Finans & Operasyon', 'Finance & Operations', 'Οικονομικά & Λειτουργίες'), items: [
@@ -1472,6 +1476,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   storeId={currentStoreId!}
                 />
               )}
+              {activeTab === "real_estate_valuation" && permittedTabIds.has("real_estate_valuation") && (
+                <RealEstateValuationTab
+                  storeId={currentStoreId!}
+                  branding={branding}
+                  properties={properties}
+                />
+              )}
               {activeTab === "fleet" && permittedTabIds.has("fleet") && (
                 <FleetTab storeId={currentStoreId!} isViewer={isViewer} branding={branding} />
               )}
@@ -1815,6 +1826,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <TeamCrmTab 
                   storeId={currentStoreId!} 
                   storeName={branding?.store_name || branding?.name || ""}
+                  branding={branding}
                   isAutomotive={isAutomotive} 
                   isRealEstate={isRealEstate}
                   initialSubTab={teamCrmInitialSubTab}

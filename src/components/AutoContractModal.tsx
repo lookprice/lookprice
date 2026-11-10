@@ -19,7 +19,7 @@ import {
   PenTool
 } from "lucide-react";
 import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
-import { renderSignatureOrStamp } from "../utils/contractTemplates";
+import { renderSignatureOrStamp, renderCustomClausesHtml } from "../utils/contractTemplates";
 
 
 interface AutoContractModalProps {
@@ -46,6 +46,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   const [commissionAmount, setCommissionAmount] = useState("2.5");
   const [depositAmount, setDepositAmount] = useState("");
   const [contractDate, setContractDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customClauses, setCustomClauses] = useState("");
   const [signedName, setSignedName] = useState("");
   const [isSigned, setIsSigned] = useState(false);
   const [previewMode, setPreviewMode] = useState<'editor' | 'code'>('editor');
@@ -56,6 +57,12 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef<boolean>(false);
   const [activeMobileTab, setActiveMobileTab] = useState<'params' | 'preview'>('params');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setCustomClauses("");
+    }
+  }, [isOpen, vehicle?.id]);
 
   // Intercept Browser Back Button (popstate) & ESC key for smooth modal exit
   React.useEffect(() => {
@@ -110,6 +117,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
         commissionAmount,
         depositAmount,
         contractDate,
+        customClauses,
         signed: isSigned,
         signingName: signedName,
         signatureImage,
@@ -311,6 +319,8 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
     <li><strong>Süre:</strong> Bu emanet pazarlama sözleşmesi imza tarihinden itibaren 30 (Otuz) gün süreyle geçerlidir.</li>
   </ol>
 
+  ${renderCustomClausesHtml(customClauses)}
+
   <div style="margin-top: 45px; display: flex; justify-content: space-between; gap: 40px;">
     <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
       <div>
@@ -385,6 +395,8 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
     Alıcı, yukarıda bahsi geçen aracı satın alma niyetiyle rezervasyon kaporası ödemiştir. Söz konusu araç 7 (Yedi) iş günü süresince Galeri tarafından satış dondurma statüsünde kilitli tutularak üçüncü kişilere pazarlanmayacaktır. 7 iş günü sonunda alıcının bakiye tutarı ödemeyerek vazgeçmesi halinde kapora iade edilmez, Galeri lehine gelir kaydedilir. Galeri satış prosedürü güvenle korunmuştur.
   </p>
 
+  ${renderCustomClausesHtml(customClauses)}
+
   <div style="margin-top: 45px; display: flex; justify-content: space-between; gap: 40px;">
     <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
       <div>
@@ -454,7 +466,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
     }
     const formattedPhone = formatPhoneForWhatsApp(clientPhone);
     const contractTitle = contractType === 'consignment' ? 'Araç Emanet Sözleşmesi' : 'Araç Rezervasyon Protokolü';
-    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*${vehicle.brand} ${vehicle.model}* marka aracınız için düzenlenen resmi *${contractTitle}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 ${window.location.origin}/contract/sign/vehicle-${vehicle.id}?client=${encodeURIComponent(clientName || '')}&phone=${encodeURIComponent(clientPhone)}&identity=${encodeURIComponent(clientIdentity)}&contractType=${contractType}\n\nSözleşme Tarihi: ${contractDate}\n\nSaygılarımızla,\n*${displayName}*\nİrtibat: ${displayPhone}`;
+    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*${vehicle.brand} ${vehicle.model}* marka aracınız için düzenlenen resmi *${contractTitle}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 ${window.location.origin}/contract/sign/vehicle-${vehicle.id}?client=${encodeURIComponent(clientName || '')}&phone=${encodeURIComponent(clientPhone)}&identity=${encodeURIComponent(clientIdentity)}&contractType=${contractType}&customClauses=${encodeURIComponent(customClauses || '')}\n\nSözleşme Tarihi: ${contractDate}\n\nSaygılarımızla,\n*${displayName}*\nİrtibat: ${displayPhone}`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -632,6 +644,28 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
                       onChange={(e) => setContractDate(e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div className="space-y-1 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-300 ml-1">Özel Şartlar / Serbest Madde</label>
+                    {customClauses.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomClauses("")}
+                        className="text-[9px] font-bold text-rose-400 hover:text-rose-300 cursor-pointer"
+                      >
+                        Temizle
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    rows={2}
+                    className="w-full bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-blue-500 resize-y"
+                    placeholder="Sadece bu sözleşmeye eklenecek özel maddeler (her satıra bir madde)..."
+                    value={customClauses}
+                    onChange={(e) => setCustomClauses(e.target.value)}
+                  />
                 </div>
               </div>
             </div>

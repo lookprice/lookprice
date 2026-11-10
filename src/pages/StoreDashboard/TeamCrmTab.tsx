@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Plus, Edit2, Trash2, Mail, Phone, MapPin, Building2, BarChart3, Star, Target, Shield, Calendar, Search, LayoutGrid, List, CheckCircle2, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Mail, Phone, MapPin, Building2, BarChart3, Star, Target, Shield, Calendar, Search, LayoutGrid, List, CheckCircle2, ChevronDown, ChevronUp, Sparkles, FileSignature } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
@@ -11,12 +11,14 @@ import { RealEstateModal } from '../../components/RealEstateModal';
 import { ArrangeTourModal } from '../../components/ArrangeTourModal';
 import { VehicleAppointmentModal } from '../../components/VehicleAppointmentModal';
 import { LeadFunnelWizardModal } from '../../components/realestate/LeadFunnelWizardModal';
+import { ConsultantPartnershipModal, SavedConsultantContract } from '../../components/ConsultantPartnershipModal';
 import { findMatchingPropertiesForLead, calculateSLAStatus } from '../../utils/realEstateMatchEngine';
 import { toast } from 'sonner';
 
 interface TeamCrmTabProps {
   storeId?: number;
   storeName?: string;
+  branding?: any;
   isAutomotive?: boolean;
   isRealEstate?: boolean;
   initialSubTab?: 'agents' | 'branches' | 'pipeline';
@@ -204,7 +206,7 @@ const loadIsolatedDeals = (isAuto: boolean, sid?: number, key?: string) => {
   return defaults;
 };
 
-export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEstate = true, initialSubTab, initialCrmView }: TeamCrmTabProps) => {
+export const TeamCrmTab = ({ storeId, storeName, branding, isAutomotive = false, isRealEstate = true, initialSubTab, initialCrmView }: TeamCrmTabProps) => {
   const { lang } = useLanguage();
   const isTr = lang === 'tr';
   const [agents, setAgents] = useState<any[]>([]);
@@ -216,6 +218,33 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
   const [editingBranch, setEditingBranch] = useState<any>(null);
   const [activeSubTab, setActiveSubTab] = useState<'agents' | 'branches' | 'pipeline'>(initialSubTab || 'pipeline');
   const [isSaving, setIsSaving] = useState(false);
+  const [activeContractAgent, setActiveContractAgent] = useState<any | null>(null);
+
+  const consultantContractsStorageKey = `re_consultant_contracts_${storeId || 'default'}`;
+  const [consultantContracts, setConsultantContracts] = useState<Record<string, SavedConsultantContract>>(() => {
+    try {
+      const raw = localStorage.getItem(`re_consultant_contracts_${storeId || 'default'}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const handleSaveConsultantContract = (contractData: SavedConsultantContract) => {
+    setConsultantContracts((prev) => {
+      const updated = {
+        ...prev,
+        [String(contractData.agentId)]: contractData
+      };
+      try {
+        localStorage.setItem(consultantContractsStorageKey, JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+    toast.success(`${contractData.agentName} için Danışman İş Ortaklığı Sözleşmesi kaydedildi.`);
+  };
   
   const [formData, setFormData] = useState({
     name: '',
@@ -673,6 +702,33 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                         {/* Aksiyon Butonları (High Contrast Visible Icons) */}
                         <td className="py-2.5 px-3 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {isRealEstate && !isAutomotive && (() => {
+                              const saved = consultantContracts[String(agent.id)];
+                              const branchName = branches.find(b => b.id === agent.branch_id)?.name || 'Merkez Ofis';
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveContractAgent({ ...agent, branch: branchName })}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer border flex items-center gap-1 ${
+                                    saved?.signed
+                                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
+                                      : saved
+                                      ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'
+                                      : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                                  }`}
+                                  title="Emlak Danışman İş Ortaklığı Sözleşmesi"
+                                >
+                                  <FileSignature className="w-3.5 h-3.5 shrink-0" />
+                                  <span>
+                                    {saved?.signed
+                                      ? `Sözleşmeli (%${saved.officeSplitRate}/%${saved.consultantSplitRate})`
+                                      : saved
+                                      ? `Taslak (%${saved.officeSplitRate}/%${saved.consultantSplitRate})`
+                                      : 'Sözleşme'}
+                                  </span>
+                                </button>
+                              );
+                            })()}
                             <button
                               onClick={() => openEdit(agent)}
                               className="p-1.5 bg-slate-100 hover:bg-indigo-50 text-indigo-600 hover:text-indigo-700 rounded-lg transition-colors cursor-pointer border border-slate-200/60"
@@ -1409,6 +1465,34 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                 />
               </div>
 
+              {isRealEstate && !isAutomotive && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!formData.name.trim()) {
+                        toast.error("Sözleşme hazırlamak için önce Danışman Adı Soyadı giriniz.");
+                        return;
+                      }
+                      const targetId = editingAgent?.id || `draft-${Date.now()}`;
+                      const branchName = branches.find(b => String(b.id) === String(formData.branch_id))?.name || 'Merkez Ofis';
+                      setActiveContractAgent({
+                        id: targetId,
+                        name: formData.name,
+                        email: formData.email,
+                        phone: formData.phone,
+                        role: formData.role,
+                        branch: branchName
+                      });
+                    }}
+                    className="w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <FileSignature className="w-4 h-4 text-indigo-600" />
+                    <span>İş Ortaklığı Sözleşmesi</span>
+                  </button>
+                </div>
+              )}
+
               <div className="pt-3 border-t border-slate-100 flex gap-2">
                 <button 
                   disabled={isSaving} 
@@ -1751,6 +1835,18 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
             </div>
           </motion.div>
         </div>
+      )}
+
+      {activeContractAgent && (
+        <ConsultantPartnershipModal
+          isOpen={Boolean(activeContractAgent)}
+          onClose={() => setActiveContractAgent(null)}
+          agent={activeContractAgent}
+          storeName={storeName}
+          branding={branding}
+          savedContract={consultantContracts[String(activeContractAgent.id)] || null}
+          onSaveContract={handleSaveConsultantContract}
+        />
       )}
     </div>
   );

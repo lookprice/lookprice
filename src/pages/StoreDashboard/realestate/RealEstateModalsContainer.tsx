@@ -81,6 +81,8 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
   onSave,
   fetchTasks
 }) => {
+  const [editingContractDoc, setEditingContractDoc] = React.useState<any>(null);
+
   return (
     <>
       {/* Real Estate Modal component */}
@@ -124,18 +126,24 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
             onClose={() => {
               setIsContractModalOpen(false);
               setContractProperty(null);
+              setEditingContractDoc(null);
             }}
             property={contractProperty}
             branding={branding}
+            initialContractDoc={editingContractDoc}
             onSaveContract={async (contractDoc) => {
               if (!onSave || !contractProperty) return;
               const existingDocs = contractProperty.documents || [];
-              const updatedDocs = [...existingDocs.filter((d: any) => d.id !== contractDoc.id), contractDoc];
+              const existingIdx = existingDocs.findIndex((d: any) => d && d.id === contractDoc.id);
+              const updatedDocs =
+                existingIdx >= 0
+                  ? existingDocs.map((d: any, idx: number) => (idx === existingIdx ? contractDoc : d))
+                  : [...existingDocs, contractDoc];
               await onSave({
                 ...contractProperty,
                 documents: updatedDocs
               });
-              setContractProperty(prev => prev ? { ...prev, documents: updatedDocs } : null);
+              setContractProperty((prev: any) => (prev ? { ...prev, documents: updatedDocs } : null));
             }}
           />
         </React.Suspense>
@@ -251,23 +259,49 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                       <span className="block text-xs font-bold text-white truncate" title={doc.name}>
                         {doc.name}
                       </span>
-                      <div className="flex gap-2 items-center text-[10px] text-slate-400 mt-0.5 font-bold">
+                      <div className="flex flex-wrap gap-2 items-center text-[10px] text-slate-400 mt-0.5 font-bold">
                         <span className="px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded border border-slate-700">
                           {doc.category === 'title_deed' ? 'Tapu Örneği' :
                            doc.category === 'dask' ? 'DASK Poliçesi' :
                            doc.category === 'contract' ? 'Sözleşme' : 'Yetki Belgesi'}
                         </span>
+                        {doc.details?.contractStage === "finalized" && (
+                          <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/40 font-black">
+                            ✔ Final (Alıcı + Satıcı İmzalı)
+                          </span>
+                        )}
+                        {doc.details?.contractStage === "buyer_signed" && !doc.details?.sellerSigned && (
+                          <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded border border-amber-500/40 font-black">
+                            1/2 Alıcı İmzalı • Satıcı Bekleniyor
+                          </span>
+                        )}
                         <span>{doc.upload_date}</span>
                       </div>
                     </div>
-                    <div className="flex gap-1.5 items-center">
+                    <div className="flex gap-1.5 items-center shrink-0">
+                      {doc.file_url === "is_virtual_contract" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const targetProp = viewDocsProperty;
+                            setViewDocsProperty(null);
+                            setEditingContractDoc(doc);
+                            setContractProperty(targetProp);
+                            setIsContractModalOpen(true);
+                          }}
+                          className="px-2.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-[10px] font-black transition cursor-pointer"
+                          title="Sözleşmeyi Aç / Satıcı İmzası Al / Taraflara İlet"
+                        >
+                          {doc.details?.sellerSigned ? "İlet / Düzenle" : "2. İmza / İlet"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
                           if (doc.file_url === "is_virtual_contract") {
                             const effectiveTemplateId =
                               doc.details?.templateId ||
-                              (viewDocsProperty.listing_intent === "rent" ? "rental_agreement" : "showing_agreement");
+                              (viewDocsProperty.listing_intent === "rent" ? "rental_agreement" : "sales_brokerage");
                             const tDef =
                               contractTemplates.find((t: any) => t.id === effectiveTemplateId) || contractTemplates[0];
                             const formattedPriceNum = Number(viewDocsProperty.price).toLocaleString("tr-TR", {
@@ -359,22 +393,84 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                               storeEmail: branding?.email || "realestate@lookprice.me",
                               clientName: clientNameVal,
                               clientIdentity: clientIdentityVal,
+                              buyerIdType: doc.details?.buyerIdType || "KKTC KİMLİK",
                               clientPhone: clientPhoneVal,
+                              ownerName: doc.details?.ownerName || viewDocsProperty.owner_info?.fullName,
+                              ownerPhone: doc.details?.ownerPhone || viewDocsProperty.owner_info?.phone,
+                              sellerIdentity: doc.details?.sellerIdentity,
+                              sellerIdType: doc.details?.sellerIdType || "KKTC Kimlik Kartı",
                               propertyTitle: `[Ref: ${viewDocsProperty.reference_no || `LP-${viewDocsProperty.id}`}] ${viewDocsProperty.title}`,
                               propertyLocation: resolvedRegion,
                               propertyPrice: `${formattedPriceNum} ${symbol}`,
                               propertyBlockPlot: viewDocsProperty.block_plot,
-                              commissionRate: doc.details?.commissionRate || "3",
+                              commissionRate: doc.details?.commissionRate || "5",
                               contractDate: doc.upload_date,
-                              propertyAddress: viewDocsProperty.address,
+                              propertyAddress: doc.details?.rentalAddress || viewDocsProperty.address,
                               isSigned: doc.details?.signed,
+                              signingName: doc.details?.signingName || clientNameVal,
                               signatureImage: doc.details?.signatureImage,
+                              sellerSigned: doc.details?.sellerSigned,
+                              sellerSigningName: doc.details?.sellerSigningName || doc.details?.ownerName,
+                              sellerSignatureImage: doc.details?.sellerSignatureImage,
                               splitRatio: doc.details?.splitRatio,
                               contractDuration: doc.details?.contractDuration,
                               evictionDate: doc.details?.evictionDate,
                               depositAmount: resolvedDepositAmount,
                               rentDuration: doc.details?.rentDuration,
                               paymentDay: doc.details?.paymentDay,
+                              // Rental contract fields
+                              rentalPropertyDef: doc.details?.rentalPropertyDef,
+                              rentalUsagePurpose: doc.details?.rentalUsagePurpose,
+                              rentalDistrict: doc.details?.rentalDistrict,
+                              rentalTownVillage: doc.details?.rentalTownVillage,
+                              kocanNo: doc.details?.kocanNo,
+                              paftaNo: doc.details?.paftaNo,
+                              adaNo: doc.details?.adaNo,
+                              parselNo: doc.details?.parselNo,
+                              rentPriceRaw: doc.details?.rentPriceRaw || formattedPriceNum,
+                              rentCurrency: doc.details?.rentCurrency || (viewDocsProperty.currency === "TRY" ? "TL" : viewDocsProperty.currency || "TL"),
+                              rentPaymentMethod: doc.details?.rentPaymentMethod,
+                              rentStartDate: doc.details?.rentStartDate,
+                              rentEndDate: doc.details?.rentEndDate,
+                              // Sales contract fields
+                              salePropertyDetails: doc.details?.salePropertyDetails,
+                              salePriceRaw: doc.details?.salePriceRaw || formattedPriceNum,
+                              saleCurrency: doc.details?.saleCurrency || viewDocsProperty.currency || "GBP",
+                              depositDate: doc.details?.depositDate,
+                              remainingAmountRaw: doc.details?.remainingAmountRaw,
+                              deedTransferDate: doc.details?.deedTransferDate,
+                              paymentDeadlineMonths: doc.details?.paymentDeadlineMonths,
+                              gracePeriodDays: doc.details?.gracePeriodDays,
+                              taxClauseText: doc.details?.taxClauseText,
+                              witness1Name: doc.details?.witness1Name,
+                              witness1Identity: doc.details?.witness1Identity,
+                              witness2Name: doc.details?.witness2Name,
+                              witness2Identity: doc.details?.witness2Identity,
+                              // Offer letter & Consultant fields
+                              offerPropertyNature: doc.details?.offerPropertyNature,
+                              offerPropertyDetails: doc.details?.offerPropertyDetails,
+                              viewingDate: doc.details?.viewingDate,
+                              agentAndCompany: doc.details?.agentAndCompany,
+                              offerPrice: doc.details?.offerPrice,
+                              offerValidityPeriod: doc.details?.offerValidityPeriod,
+                              offerFreeNotes: doc.details?.offerFreeNotes,
+                              customClauses: doc.details?.customClauses,
+                              authorizedPersonName: doc.details?.authorizedPersonName,
+                              authorizedPersonIdentity: doc.details?.authorizedPersonIdentity,
+                              brokerAddress: doc.details?.brokerAddress || branding?.address,
+                              clientAddress: doc.details?.clientAddress,
+                              showingItem1Details: doc.details?.showingItem1Details,
+                              showingItem1Price: doc.details?.showingItem1Price,
+                              showingItem2Details: doc.details?.showingItem2Details,
+                              showingItem2Price: doc.details?.showingItem2Price,
+                              authorizedPersonIdType: doc.details?.authorizedPersonIdType,
+                              consultantIdType: doc.details?.consultantIdType,
+                              officeSplitRate: doc.details?.officeSplitRate,
+                              consultantSplitRate: doc.details?.consultantSplitRate,
+                              externalOfficeSplitRate: doc.details?.externalOfficeSplitRate,
+                              externalInternalOfficeRate: doc.details?.externalInternalOfficeRate,
+                              externalInternalConsultantRate: doc.details?.externalInternalConsultantRate,
+                              noticePeriodDays: doc.details?.noticePeriodDays,
                               isFurnishedRental: resolvedIsFurnishedRental,
                               fixturePhotosCount: resolvedFixturePhotos.length,
                               fixturePhotos: resolvedFixturePhotos
@@ -391,30 +487,22 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                                     </div>
                                   </div>
                                   <span style="background-color: #dcfce7; border: 1px solid #86efac; color: #15803d; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">
-                                    ${resolvedIsFurnishedRental ? `DİJİTAL ONAYLANDI (SÖZLEŞME + EK-1 EŞYA LİSTESİ: ${resolvedFixturePhotos.length} FOTOĞRAF)` : "DİJİTAL ONAYLANDI"}
+                                    ${doc.details?.sellerSigned ? "FİNAL ONAYLI (ALICI + SATICI İMZALI)" : resolvedIsFurnishedRental ? `DİJİTAL ONAYLANDI (SÖZLEŞME + EK-1 EŞYA LİSTESİ: ${resolvedFixturePhotos.length} FOTOĞRAF)` : "DİJİTAL ONAYLANDI"}
                                   </span>
                                 </div>
                                 
                                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 11px; margin-bottom: 12px;">
                                   <div>
-                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">İmzalayan Müşteri (Signing Client)</span>
-                                    <strong style="color: #0f172a; font-size: 12px;">${clientNameVal}</strong>
+                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Alıcı (1. İmza)</span>
+                                    <strong style="color: #0f172a; font-size: 12px;">${clientNameVal} (${clientIdentityVal})</strong>
                                   </div>
                                   <div>
-                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">T.C. Kimlik / Pasaport No (ID / Passport)</span>
-                                    <strong style="color: #0f172a; font-size: 12px; font-family: monospace;">${clientIdentityVal}</strong>
-                                  </div>
-                                  <div>
-                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">İletişim Telefonu (Client Phone)</span>
-                                    <strong style="color: #0f172a; font-size: 12px; font-family: monospace;">${clientPhoneVal}</strong>
+                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Satıcı (2. Final İmza)</span>
+                                    <strong style="color: #0f172a; font-size: 12px;">${doc.details?.ownerName || "-"} (${doc.details?.sellerSigned ? "✔ İmzalandı" : "Bekleniyor"})</strong>
                                   </div>
                                   <div>
                                     <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">IP Adresi (IP Address)</span>
                                     <strong style="color: #0f172a; font-size: 12px; font-family: monospace;">${ipAddressVal}</strong>
-                                  </div>
-                                  <div>
-                                    <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Onay Zaman Damgası (Signing Timestamp)</span>
-                                    <strong style="color: #0f172a; font-size: 12px;">${timestampVal}</strong>
                                   </div>
                                   <div>
                                     <span style="color: #475569; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Güvenlik & Bütünlük Kodu (Security Hash / SHA)</span>
@@ -423,7 +511,7 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                                 </div>
                                 
                                 <div style="border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 10px; color: #334155; text-align: justify; line-height: 1.5;">
-                                  <p style="margin: 0;"><strong>YASAL BEYAN VE GEÇERLİLİK:</strong> İşbu dijital sözleşme${resolvedIsFurnishedRental ? " ve EK-1 Eşya/Demirbaş Teslim Listesi ile mühürlü delil fotoğrafları" : ""}, taraflarca mobil/tablet cihazın dokunmatik ekranı üzerinde biyometrik parmak izi imza simülasyonu ile onaylanmıştır. 5070 Sayılı Elektronik İmza Kanunu, KKTC E-İmza Yasası ve Türk Borçlar Kanunu kapsamında hukuken geçerli ve tarafları bağlayıcı "Yazılı Delil Başlangıcı ve Sözleşmesi" niteliğindedir. Sözleşme içeriği ve imza bütünlüğü, yukarıda belirtilen benzersiz Güvenlik & Bütünlük Kodu (SHA) ile kriptografik olarak mühürlenmiştir.</p>
+                                  <p style="margin: 0;"><strong>YASAL BEYAN VE GEÇERLİLİK:</strong> İşbu dijital sözleşme${resolvedIsFurnishedRental ? " ve EK-1 Eşya/Demirbaş Teslim Listesi ile mühürlü delil fotoğrafları" : ""}, taraflarca mobil/tablet cihazın dokunmatik ekranı üzerinde biyometrik parmak izi imza simülasyonu ile onaylanmıştır. 5070 Sayılı Elektronik İmza Kanunu, KKTC E-İmza Yasası ve Türk Borçlar Kanunu kapsamında hukuken geçerli ve tarafları bağlayıcı "Yazılı Delil Başlangıcı ve Sözleşmesi" niteliğindedir.</p>
                                 </div>
                               </div>
                             `;
@@ -436,9 +524,15 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                               enrichedHtml = enrichedHtml + securityBoxHtml;
                             }
 
-                            const printWin = window.open("", "_blank");
-                            if (printWin) {
-                              printWin.document.write(`
+                            const iframe = document.createElement("iframe");
+                            iframe.style.position = "absolute";
+                            iframe.style.width = "0px";
+                            iframe.style.height = "0px";
+                            iframe.style.border = "none";
+                            document.body.appendChild(iframe);
+                            const printDoc = iframe.contentWindow?.document;
+                            if (printDoc) {
+                              printDoc.write(`
                                 <html>
                                   <head>
                                     <title>${doc.name}</title>
@@ -447,21 +541,21 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                                       @media print { body { margin: 10px; } }
                                     </style>
                                   </head>
-                                  <body>
-                                    ${enrichedHtml}
-                                    <script>
-                                      window.onload = function() { window.print(); }
-                                    </script>
-                                  </body>
+                                  <body>${enrichedHtml}</body>
                                 </html>
                               `);
-                              printWin.document.close();
+                              printDoc.close();
+                              setTimeout(() => {
+                                iframe.contentWindow?.focus();
+                                iframe.contentWindow?.print();
+                                setTimeout(() => document.body.removeChild(iframe), 1000);
+                              }, 400);
                             }
                           } else {
                             window.open(doc.file_url, "_blank");
                           }
                         }}
-                        className="p-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 hover:text-white rounded-xl transition"
+                        className="p-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 hover:text-white rounded-xl transition cursor-pointer"
                         title="Evrak Görüntüle / Yazdır"
                       >
                         <Eye className="w-4 h-4" />
@@ -476,7 +570,7 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                           setViewDocsProperty(updatedProp);
                           toast.success("Sözleşme başarıyla silindi!");
                         }}
-                        className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-white rounded-xl transition"
+                        className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-white rounded-xl transition cursor-pointer"
                         title="Sözleşmeyi Sil"
                       >
                         <Trash2 className="w-4 h-4" />

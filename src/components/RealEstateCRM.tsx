@@ -33,7 +33,8 @@ import {
   History,
   Send,
   Eye,
-  Filter
+  Filter,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../services/api';
@@ -59,6 +60,7 @@ import { DealCommissionModal } from './DealCommissionModal';
 import { ExternalPartnerPortalModal } from './ExternalPartnerPortalModal';
 import { LeadFunnelWizardModal } from './realestate/LeadFunnelWizardModal';
 import { PropertyQuickInspectorModal } from './realestate/PropertyQuickInspectorModal';
+import { LegalContractModal } from './LegalContractModal';
 
 const RE_LEAD_STAGES = [
   'Yeni Talep / Aday',
@@ -118,6 +120,12 @@ export const RealEstateCRM = ({
   const [localPropertyOverrides, setLocalPropertyOverrides] = useState<Record<number, { status?: string; sector_data?: any }>>({});
   const [internalTasks, setInternalTasks] = useState<any[]>(Array.isArray(tasks) ? tasks : []);
   const [inspectedProperty, setInspectedProperty] = useState<any | null>(null);
+  const [offerLetterTarget, setOfferLetterTarget] = useState<{
+    property: any;
+    initialOfferPrice?: string;
+    initialClientName?: string;
+    initialViewingDate?: string;
+  } | null>(null);
 
   const [activeProperty, setActiveProperty] = useState<any>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -1347,7 +1355,7 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                       )}
                                     </div>
 
-                                    {/* Right Action Buttons: Portföy Bilgileri + Ek Gezi Planla */}
+                                    {/* Right Action Buttons: Portföy Bilgileri + Teklif Mektubu + Ek Gezi Planla */}
                                     <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                                       <button
                                         type="button"
@@ -1358,6 +1366,24 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                                         <Eye className="w-3 h-3 text-amber-300" />
                                         <span>Portföy Bilgileri</span>
                                       </button>
+
+                                      {deal.property.listing_intent !== 'rent' && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setOfferLetterTarget({
+                                              property: deal.property,
+                                              initialOfferPrice: sector.offer_amount || String(deal.property.price || ''),
+                                              initialViewingDate: latestTask?.due_date ? String(latestTask.due_date).split('T')[0] : undefined
+                                            })
+                                          }
+                                          className="px-2.5 py-1 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-md text-[10px] font-black flex items-center gap-1 cursor-pointer shrink-0 transition-colors shadow-2xs"
+                                          title="Potansiyel alıcının mülk sahibine sunacağı resmi Fiyat Teklif Mektubu'nu hazırla ve imzalat"
+                                        >
+                                          <FileText className="w-3 h-3 text-slate-950" />
+                                          <span>Teklif Mektubu</span>
+                                        </button>
+                                      )}
 
                                       {(stage.id === 'planned' || stage.id === 'analysis') && (
                                         <button
@@ -1865,20 +1891,24 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Gelen Teklif Tutarı *</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Teklif Tutarı *</label>
                     <input 
                       type="text" 
-                      placeholder="Örn: 240.000"
+                      inputMode="numeric"
+                      placeholder="Örn: 98.000"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 mt-0.5 outline-none focus:border-amber-500 font-bold"
                       value={offerAmount}
-                      onChange={(e) => setOfferAmount(e.target.value)}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/[^\d]/g, "");
+                        setOfferAmount(digits ? Number(digits).toLocaleString("tr-TR") : "");
+                      }}
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Alınan Kapora (Opsiyon)</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Kapora Tutarı</label>
                     <input 
                       type="text" 
-                      placeholder="Örn: £5,000 / $5,000"
+                      placeholder="Örn: £5,000"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 mt-0.5 outline-none focus:border-amber-500 font-bold"
                       value={depositAmount}
                       onChange={(e) => setDepositAmount(e.target.value)}
@@ -1887,21 +1917,37 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase">Pazarlık Notları & Şartlar</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase">Pazarlık Notu</label>
                   <textarea 
-                    placeholder="Müşteri %10 peşinat ve 1 ay içinde tapu devri istiyor..."
+                    placeholder="Ödeme ve devir şartları..."
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 mt-0.5 outline-none focus:border-amber-500 font-bold min-h-[60px]"
                     value={negotiationNotes}
                     onChange={(e) => setNegotiationNotes(e.target.value)}
                   />
                 </div>
 
+                {activeProperty && activeProperty.listing_intent !== 'rent' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOfferLetterTarget({
+                        property: activeProperty,
+                        initialOfferPrice: offerAmount || String(activeProperty.price || '')
+                      });
+                    }}
+                    className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-amber-400 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Teklif Mektubu</span>
+                  </button>
+                )}
+
                 <button 
                   disabled={isSubmitting}
                   onClick={submitNegotiation}
                   className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Kaydediliyor...' : '3. Pazarlık Aşamasına Al (Opsiyonla)'}
+                  {isSubmitting ? 'Kaydediliyor...' : '3. Pazarlık Aşamasına Al'}
                 </button>
               </div>
             </motion.div>
@@ -1931,15 +1977,15 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                   <Handshake className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">Başarılı Kapanış (Satıldı / Kiralandı)</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">5. Başarılı (Arşiv) Listesine Kaydet</p>
+                  <h3 className="text-base font-black text-slate-900">Başarılı Kapanış</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">5. Başarılı Listesine Kaydet</p>
                 </div>
               </div>
 
               <div className="space-y-3 text-xs font-bold">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Nihai Satış/Kira Fiyatı *</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Nihai Fiyat *</label>
                     <input 
                       type="text" 
                       placeholder="Örn: 245.000"
@@ -1949,10 +1995,10 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Alıcı / Kiracı Bilgisi *</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Alıcı / Kiracı *</label>
                     <input 
                       type="text" 
-                      placeholder="Ahmet Y. (Müşteri)"
+                      placeholder="Ahmet Y."
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 mt-0.5 outline-none focus:border-emerald-500 font-bold"
                       value={clientInfo}
                       onChange={(e) => setClientInfo(e.target.value)}
@@ -2230,6 +2276,29 @@ Aradığınız kriterlere *%${match.score} oranında uyumlu* yeni bir portföyü
           onClose={() => setInspectedProperty(null)}
           onEditProperty={onEditProperty}
           onScheduleTour={(p) => onOpenTourModal(p)}
+        />
+      )}
+
+      {/* 11. OFFICIAL PROPERTY PURCHASE OFFER LETTER & CONTRACT MODAL */}
+      {offerLetterTarget && (
+        <LegalContractModal
+          isOpen={!!offerLetterTarget}
+          onClose={() => setOfferLetterTarget(null)}
+          property={offerLetterTarget.property}
+          initialTemplateId="offer_letter"
+          initialOfferPrice={offerLetterTarget.initialOfferPrice}
+          initialClientName={offerLetterTarget.initialClientName}
+          initialViewingDate={offerLetterTarget.initialViewingDate}
+          onSaveContract={async (newDoc) => {
+            const prop = offerLetterTarget.property;
+            const currentDocs = Array.isArray(prop.documents) ? prop.documents : [];
+            const updatedDocs = [...currentDocs, newDoc];
+            await persistPropertyStageUpdate(prop, prop.status, {
+              ...(prop.sector_data || {}),
+              documents: updatedDocs
+            });
+            if (onRefresh) onRefresh();
+          }}
         />
       )}
     </div>

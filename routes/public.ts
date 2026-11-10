@@ -2750,9 +2750,19 @@ router.post("/real-estate/:id/sign", async (req, res) => {
   try {
     const { id } = req.params;
     const {
+      docId,
+      signerRole = "buyer",
       clientName,
       clientIdentity,
       clientPhone,
+      buyerIdType,
+      ownerName,
+      ownerPhone,
+      sellerIdentity,
+      sellerIdType,
+      sellerSigned: reqSellerSigned,
+      sellerSigningName,
+      sellerSignatureImage,
       commissionRate,
       templateId,
       signatureImage,
@@ -2767,11 +2777,61 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       evictionDate,
       propertyLocation,
       isFurnishedRental,
-      fixturePhotos
+      fixturePhotos,
+      // Rental contract extra fields
+      rentalPropertyDef,
+      rentalUsagePurpose,
+      rentalAddress,
+      rentalDistrict,
+      rentalTownVillage,
+      rentPriceRaw,
+      rentCurrency,
+      rentPaymentMethod,
+      rentStartDate,
+      rentEndDate,
+      // Sales contract & offer letter extra fields
+      salePropertyDetails,
+      kocanNo,
+      paftaNo,
+      adaNo,
+      parselNo,
+      apartmentUnitInfo,
+      salePriceRaw,
+      saleCurrency,
+      depositDate,
+      remainingAmountRaw,
+      deedTransferDate,
+      paymentDeadlineMonths,
+      gracePeriodDays,
+      taxClauseText,
+      witness1Name,
+      witness1Identity,
+      witness2Name,
+      witness2Identity,
+      customClauses,
+      viewingDate,
+      offerPropertyDetails,
+      offerPropertyNature,
+      offerPrice,
+      offerValidityPeriod,
+      offerFreeNotes,
+      agentAndCompany,
+      authorizedPersonIdentity,
+      brokerAddress,
+      clientAddress,
+      showingItem1Details,
+      showingItem1Price,
+      showingItem2Details,
+      showingItem2Price
     } = req.body;
 
-    if (!clientName || !clientIdentity || !clientPhone) {
-      return res.status(400).json({ error: "Lütfen ad soyad, kimlik/pasaport ve telefon alanlarını doldurunuz." });
+    const isSellerRole = signerRole === "seller";
+
+    if (!isSellerRole && (!clientName || !clientIdentity || !clientPhone)) {
+      return res.status(400).json({ error: "Lütfen alıcı/kiracı ad soyad, kimlik/pasaport ve telefon alanlarını doldurunuz." });
+    }
+    if (isSellerRole && !(ownerName || sellerSigningName || clientName)) {
+      return res.status(400).json({ error: "Lütfen satıcı / mülk sahibi ad soyad ve kimlik bilgilerini doldurunuz." });
     }
 
     let propRes = await pool.query("SELECT * FROM real_estate_properties WHERE id = $1", [id]);
@@ -2786,27 +2846,48 @@ router.post("/real-estate/:id/sign", async (req, res) => {
     }
 
     const property = propRes.rows[0];
-    const existingDocs = property.documents ? (typeof property.documents === 'string' ? JSON.parse(property.documents) : property.documents) : [];
+    const existingDocs: any[] = property.documents
+      ? typeof property.documents === "string"
+        ? JSON.parse(property.documents)
+        : property.documents
+      : [];
     let existingSecData = property.sector_data;
-    if (typeof existingSecData === 'string') {
-      try { existingSecData = JSON.parse(existingSecData); } catch (e) { existingSecData = {}; }
+    if (typeof existingSecData === "string") {
+      try {
+        existingSecData = JSON.parse(existingSecData);
+      } catch (e) {
+        existingSecData = {};
+      }
     }
-    if (!existingSecData || typeof existingSecData !== 'object') existingSecData = {};
+    if (!existingSecData || typeof existingSecData !== "object") existingSecData = {};
 
     let dbFixturePhotos: any[] = [];
     if (property.fixture_photos) {
       if (Array.isArray(property.fixture_photos)) dbFixturePhotos = property.fixture_photos;
-      else if (typeof property.fixture_photos === 'string') {
-        try { dbFixturePhotos = JSON.parse(property.fixture_photos); } catch (e) { dbFixturePhotos = []; }
+      else if (typeof property.fixture_photos === "string") {
+        try {
+          dbFixturePhotos = JSON.parse(property.fixture_photos);
+        } catch (e) {
+          dbFixturePhotos = [];
+        }
       }
     }
     if ((!dbFixturePhotos || dbFixturePhotos.length === 0) && Array.isArray(existingSecData.fixture_photos)) {
       dbFixturePhotos = existingSecData.fixture_photos;
     }
-    const resolvedFixturePhotos = Array.isArray(fixturePhotos) && fixturePhotos.length > 0 ? fixturePhotos : dbFixturePhotos;
+    const resolvedFixturePhotos =
+      Array.isArray(fixturePhotos) && fixturePhotos.length > 0 ? fixturePhotos : dbFixturePhotos;
 
-    const propSymbol = property.currency === 'GBP' ? '£' : property.currency === 'USD' ? '$' : property.currency === 'EUR' ? '€' : '₺';
-    const propDepositNum = Number(property.deposit) > 0 ? Number(property.deposit) : (Number(existingSecData.deposit) || 0);
+    const propSymbol =
+      property.currency === "GBP"
+        ? "£"
+        : property.currency === "USD"
+        ? "$"
+        : property.currency === "EUR"
+        ? "€"
+        : "₺";
+    const propDepositNum =
+      Number(property.deposit) > 0 ? Number(property.deposit) : Number(existingSecData.deposit) || 0;
     const resolvedDepositAmount =
       depositAmount && depositAmount !== "1 Aylık Kira Bedeli"
         ? depositAmount
@@ -2819,70 +2900,260 @@ router.post("/real-estate/:id/sign", async (req, res) => {
         fixtureApproved ||
         resolvedFixturePhotos.length > 0 ||
         property.furnished === true ||
-        property.furnished === 'true' ||
-        property.furnished === 'esyali' ||
-        property.furnished === 'furnished' ||
+        property.furnished === "true" ||
+        property.furnished === "esyali" ||
+        property.furnished === "furnished" ||
         existingSecData.furnished === true ||
-        existingSecData.furnished === 'true' ||
-        existingSecData.furnished === 'esyali' ||
-        existingSecData.furnished === 'furnished'
+        existingSecData.furnished === "true" ||
+        existingSecData.furnished === "esyali" ||
+        existingSecData.furnished === "furnished"
     );
 
     const nowD = new Date();
-    const trDateStr = `${String(nowD.getDate()).padStart(2, '0')}.${String(nowD.getMonth() + 1).padStart(2, '0')}.${nowD.getFullYear()} ${String(nowD.getHours()).padStart(2, '0')}:${String(nowD.getMinutes()).padStart(2, '0')}:${String(nowD.getSeconds()).padStart(2, '0')}`;
+    const trDateStr = `${String(nowD.getDate()).padStart(2, "0")}.${String(nowD.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}.${nowD.getFullYear()} ${String(nowD.getHours()).padStart(2, "0")}:${String(nowD.getMinutes()).padStart(
+      2,
+      "0"
+    )}:${String(nowD.getSeconds()).padStart(2, "0")}`;
     const isRejected = decision === "rejected";
-    const resolvedIp = String(req.headers["x-forwarded-for"] || req.ip || "127.0.0.1").split(",")[0].trim();
+    const resolvedIp = String(req.headers["x-forwarded-for"] || req.ip || "127.0.0.1")
+      .split(",")[0]
+      .trim();
     const otpCode = req.body.otpCode || String(Math.floor(100000 + Math.random() * 900000));
     const partnerId = req.body.partnerId || "";
     const legalSealText = `Bu sözleşme [${resolvedIp}] IP adresi üzerinden [${trDateStr}] anında [OTP Doğrulama Kodu: #${otpCode}] ile hukuki ve değiştirilemez olarak dijital mühürlenmiştir.`;
 
-    const newDoc = {
-      id: `virtual-contract-${Date.now()}`,
-      name: isRejected
-        ? `RET / Düzeltme Talebi (Sözleşme & Eşya Listesi) - ${clientName} (${trDateStr})`
-        : templateId === "external_partner_revenue_share"
-        ? `Dış Paydaş Gelir Paylaşım Protokolü [IP/OTP Mühürlü] - ${clientName} (${trDateStr})`
-        : `Dijital İmzalı Sözleşme & Eşya Tutanağı - ${clientName} (${trDateStr})`,
+    const resolvedTemplateId =
+      templateId || (property.listing_intent === "rent" ? "rental_agreement" : "sales_brokerage");
+
+    const templateTitleMap: Record<string, string> = {
+      sales_brokerage: "Satış Sözleşmesi",
+      rental_agreement: "Kira Sözleşmesi",
+      offer_letter: "Fiyat Teklif Mektubu",
+      showing_agreement: "Yer Gösterme Sözleşmesi",
+      exclusivity_agreement: "Tek Yetki Satış Sözleşmesi",
+      rental_authorization: "Kiralama Yetki Belgesi",
+      eviction_undertaking: "Tahliye Taahhütnamesi",
+      external_partner_revenue_share: "Dış Paydaş Gelir Paylaşım Protokolü",
+      consultant_partnership: "Danışman İş Ortaklığı Sözleşmesi"
+    };
+    const contractTitleLabel = templateTitleMap[resolvedTemplateId] || "Sözleşme";
+
+    // Locate target document if docId provided or if seller is signing an existing buyer-signed contract
+    let targetDocIndex = -1;
+    if (docId) {
+      targetDocIndex = existingDocs.findIndex((d: any) => d && d.id === docId);
+    }
+    if (targetDocIndex === -1 && isSellerRole) {
+      for (let i = existingDocs.length - 1; i >= 0; i--) {
+        const d = existingDocs[i];
+        if (
+          d &&
+          d.category === "contract" &&
+          d.details?.templateId === resolvedTemplateId &&
+          d.details?.signed
+        ) {
+          targetDocIndex = i;
+          break;
+        }
+      }
+    }
+
+    const existingDocObj = targetDocIndex >= 0 ? existingDocs[targetDocIndex] : null;
+    const prevDetails = existingDocObj?.details || {};
+
+    // Enforce Buyer-first signing priority when Seller signs
+    const hasBuyerSignature = Boolean(prevDetails.signed || (!isSellerRole && !isRejected && signatureImage));
+    if (isSellerRole && !hasBuyerSignature && !signatureImage) {
+      return res.status(400).json({
+        error:
+          "İmza önceliği ALICI'ya aittir. Satıcı tarafından imzalanabilmesi için önce Alıcı'nın sözleşmeyi imzalamış olması gerekmektedir."
+      });
+    }
+
+    const resolvedBuyerSigned = isSellerRole ? Boolean(prevDetails.signed || true) : !isRejected;
+    const resolvedBuyerSigImg = isSellerRole
+      ? prevDetails.signatureImage || signatureImage || ""
+      : isRejected
+      ? ""
+      : signatureImage || prevDetails.signatureImage || "";
+
+    const resolvedSellerSigned = isSellerRole
+      ? !isRejected
+      : Boolean(reqSellerSigned || prevDetails.sellerSigned);
+    const resolvedSellerSigImg = isSellerRole
+      ? isRejected
+        ? ""
+        : sellerSignatureImage || signatureImage || prevDetails.sellerSignatureImage || ""
+      : sellerSignatureImage || prevDetails.sellerSignatureImage || "";
+
+    const resolvedSellerName =
+      sellerSigningName ||
+      ownerName ||
+      prevDetails.sellerSigningName ||
+      prevDetails.ownerName ||
+      existingSecData.owner_name ||
+      property.owner_name ||
+      "Mülk Sahibi";
+
+    const resolvedStage = isRejected
+      ? "rejected"
+      : resolvedBuyerSigned && resolvedSellerSigned
+      ? "finalized"
+      : resolvedBuyerSigned
+      ? "buyer_signed"
+      : "draft";
+
+    const finalDocId = existingDocObj?.id || docId || `virtual-contract-${Date.now()}`;
+    const buyerDisplayName = clientName || prevDetails.clientName || "Alıcı";
+
+    const docDisplayName = isRejected
+      ? `RET / Düzeltme Talebi (${contractTitleLabel}) - ${ isSellerRole ? resolvedSellerName : buyerDisplayName } (${trDateStr})`
+      : resolvedStage === "finalized"
+      ? `FİNAL İMZALI ${contractTitleLabel} (Alıcı: ${buyerDisplayName} + Satıcı: ${resolvedSellerName}) - ${trDateStr}`
+      : resolvedTemplateId === "external_partner_revenue_share"
+      ? `Dış Paydaş Gelir Paylaşım Protokolü [IP/OTP Mühürlü] - ${buyerDisplayName} (${trDateStr})`
+      : `1. İmza (Alıcı Onaylı) ${contractTitleLabel} - ${buyerDisplayName} [Satıcı İmzası Bekleniyor] (${trDateStr})`;
+
+    const mergedDetails = {
+      ...prevDetails,
+      templateId: resolvedTemplateId,
+      clientName: buyerDisplayName,
+      clientIdentity: clientIdentity || prevDetails.clientIdentity || "",
+      clientPhone: clientPhone || prevDetails.clientPhone || "",
+      buyerIdType: buyerIdType || prevDetails.buyerIdType || "KKTC KİMLİK",
+      ownerName:
+        ownerName ||
+        prevDetails.ownerName ||
+        existingSecData.owner_name ||
+        property.owner_name ||
+        resolvedSellerName,
+      ownerPhone:
+        ownerPhone ||
+        prevDetails.ownerPhone ||
+        existingSecData.owner_phone ||
+        property.owner_phone ||
+        "",
+      sellerIdentity: sellerIdentity || prevDetails.sellerIdentity || "",
+      sellerIdType: sellerIdType || prevDetails.sellerIdType || "KKTC Kimlik Kartı",
+      commissionRate: commissionRate || prevDetails.commissionRate || "5",
+      contractDate: prevDetails.contractDate || trDateStr,
+      signed: resolvedBuyerSigned,
+      buyerSigned: resolvedBuyerSigned,
+      signingName: prevDetails.signingName || buyerDisplayName,
+      signatureImage: resolvedBuyerSigImg,
+      sellerSigned: resolvedSellerSigned,
+      sellerSigningName: resolvedSellerName,
+      sellerSignatureImage: resolvedSellerSigImg,
+      sellerSignedAt: resolvedSellerSigned ? trDateStr : prevDetails.sellerSignedAt || "",
+      sellerIpAddress: isSellerRole ? resolvedIp : prevDetails.sellerIpAddress || "",
+      sellerOtpCode: isSellerRole ? otpCode : prevDetails.sellerOtpCode || "",
+      sellerLegalSeal: isSellerRole ? legalSealText : prevDetails.sellerLegalSeal || "",
+      contractStage: resolvedStage,
+      decision: isRejected ? "rejected" : "approved",
+      rejectionReason: rejectionReason || "",
+      fixtureApproved: !isRejected && Boolean(fixtureApproved || resolvedIsFurnishedRental),
+      ipAddress: isSellerRole ? prevDetails.ipAddress || resolvedIp : resolvedIp,
+      otpCode: isSellerRole ? prevDetails.otpCode || otpCode : otpCode,
+      legalSeal:
+        resolvedStage === "finalized"
+          ? `${prevDetails.legalSeal ? prevDetails.legalSeal + " | " : ""}SATICI FİNAL ONAYI: ${legalSealText}`
+          : legalSealText,
+      userAgent: req.headers["user-agent"] || "Mobil Tarayıcı",
+      depositAmount: resolvedDepositAmount,
+      rentDuration: rentDuration || prevDetails.rentDuration || "1 Yıl",
+      paymentDay: paymentDay || prevDetails.paymentDay || "Her ayın en geç 5. günü",
+      splitRatio: splitRatio || prevDetails.splitRatio || "",
+      contractDuration: contractDuration || prevDetails.contractDuration || "",
+      evictionDate: evictionDate || prevDetails.evictionDate || "",
+      propertyLocation:
+        propertyLocation ||
+        prevDetails.propertyLocation ||
+        property.kktc_region ||
+        existingSecData.kktc_region ||
+        property.location ||
+        "KKTC",
+      isFurnishedRental: resolvedIsFurnishedRental,
+      fixturePhotosCount: resolvedFixturePhotos.length,
+      fixturePhotos: resolvedFixturePhotos,
+      // Rental contract fields
+      rentalPropertyDef: rentalPropertyDef ?? prevDetails.rentalPropertyDef ?? "",
+      rentalUsagePurpose: rentalUsagePurpose ?? prevDetails.rentalUsagePurpose ?? "Aile Yaşam Alanı",
+      rentalAddress: rentalAddress ?? prevDetails.rentalAddress ?? (property.address || ""),
+      rentalDistrict: rentalDistrict ?? prevDetails.rentalDistrict ?? "",
+      rentalTownVillage: rentalTownVillage ?? prevDetails.rentalTownVillage ?? "",
+      rentPriceRaw: rentPriceRaw ?? prevDetails.rentPriceRaw ?? (property.price || ""),
+      rentCurrency: rentCurrency ?? prevDetails.rentCurrency ?? (property.currency === "TRY" ? "TL" : property.currency || "TL"),
+      rentPaymentMethod: rentPaymentMethod ?? prevDetails.rentPaymentMethod ?? "Aylık Ödemeli",
+      rentStartDate: rentStartDate ?? prevDetails.rentStartDate ?? "",
+      rentEndDate: rentEndDate ?? prevDetails.rentEndDate ?? "",
+      // Sales contract & offer letter fields
+      salePropertyDetails: salePropertyDetails ?? prevDetails.salePropertyDetails ?? "",
+      kocanNo: kocanNo ?? prevDetails.kocanNo ?? "",
+      paftaNo: paftaNo ?? prevDetails.paftaNo ?? "",
+      adaNo: adaNo ?? prevDetails.adaNo ?? "",
+      parselNo: parselNo ?? prevDetails.parselNo ?? "",
+      apartmentUnitInfo: apartmentUnitInfo ?? prevDetails.apartmentUnitInfo ?? "",
+      salePriceRaw: salePriceRaw ?? prevDetails.salePriceRaw ?? "",
+      saleCurrency: saleCurrency ?? prevDetails.saleCurrency ?? (property.currency || "GBP"),
+      depositDate: depositDate ?? prevDetails.depositDate ?? "",
+      remainingAmountRaw: remainingAmountRaw ?? prevDetails.remainingAmountRaw ?? "",
+      deedTransferDate: deedTransferDate ?? prevDetails.deedTransferDate ?? "",
+      paymentDeadlineMonths: paymentDeadlineMonths ?? prevDetails.paymentDeadlineMonths ?? "4 (dört) ay",
+      gracePeriodDays: gracePeriodDays ?? prevDetails.gracePeriodDays ?? "14",
+      taxClauseText:
+        taxClauseText ??
+        prevDetails.taxClauseText ??
+        "Satıcı Belediye Emlak Vergisi (varsa KDV yi) ve Stopaj Ödeyecek, Alıcı ise Tapu Devir Harcı’nı ödeyecektir.",
+      witness1Name: witness1Name ?? prevDetails.witness1Name ?? "",
+      witness1Identity: witness1Identity ?? prevDetails.witness1Identity ?? "",
+      witness2Name: witness2Name ?? prevDetails.witness2Name ?? "",
+      witness2Identity: witness2Identity ?? prevDetails.witness2Identity ?? "",
+      customClauses: customClauses ?? prevDetails.customClauses ?? "",
+      viewingDate: viewingDate ?? prevDetails.viewingDate ?? "",
+      offerPropertyDetails: offerPropertyDetails ?? prevDetails.offerPropertyDetails ?? "",
+      offerPropertyNature: offerPropertyNature ?? prevDetails.offerPropertyNature ?? "",
+      offerPrice: offerPrice ?? prevDetails.offerPrice ?? "",
+      offerValidityPeriod: offerValidityPeriod ?? prevDetails.offerValidityPeriod ?? "",
+      offerFreeNotes: offerFreeNotes ?? prevDetails.offerFreeNotes ?? "",
+      agentAndCompany: agentAndCompany ?? prevDetails.agentAndCompany ?? "",
+      authorizedPersonIdentity: authorizedPersonIdentity ?? prevDetails.authorizedPersonIdentity ?? "",
+      brokerAddress: brokerAddress ?? prevDetails.brokerAddress ?? "",
+      clientAddress: clientAddress ?? prevDetails.clientAddress ?? "",
+      showingItem1Details: showingItem1Details ?? prevDetails.showingItem1Details ?? "",
+      showingItem1Price: showingItem1Price ?? prevDetails.showingItem1Price ?? "",
+      showingItem2Details: showingItem2Details ?? prevDetails.showingItem2Details ?? "",
+      showingItem2Price: showingItem2Price ?? prevDetails.showingItem2Price ?? ""
+    };
+
+    const savedDoc = {
+      id: finalDocId,
+      name: docDisplayName,
       category: "contract",
       file_url: "is_virtual_contract",
       upload_date: trDateStr,
-      details: {
-        templateId: templateId || (property.listing_intent === "rent" ? "rental_agreement" : "showing_agreement"),
-        clientName,
-        clientIdentity,
-        clientPhone,
-        commissionRate: commissionRate || "3",
-        contractDate: trDateStr,
-        signed: !isRejected,
-        decision: isRejected ? "rejected" : "approved",
-        rejectionReason: rejectionReason || "",
-        fixtureApproved: !isRejected && Boolean(fixtureApproved || resolvedIsFurnishedRental),
-        signingName: clientName,
-        ipAddress: resolvedIp,
-        otpCode,
-        legalSeal: legalSealText,
-        userAgent: req.headers["user-agent"] || "Mobil Tarayıcı",
-        signatureImage: isRejected ? "" : signatureImage,
-        depositAmount: resolvedDepositAmount,
-        rentDuration: rentDuration || "1 Yıl",
-        paymentDay: paymentDay || "Her ayın en geç 5. günü",
-        splitRatio: splitRatio || "",
-        contractDuration: contractDuration || "",
-        evictionDate: evictionDate || "",
-        propertyLocation: propertyLocation || property.kktc_region || existingSecData.kktc_region || property.location || "KKTC",
-        isFurnishedRental: resolvedIsFurnishedRental,
-        fixturePhotosCount: resolvedFixturePhotos.length,
-        fixturePhotos: resolvedFixturePhotos
-      }
+      details: mergedDetails
     };
 
-    const updatedDocs = [...existingDocs, newDoc];
+    let updatedDocs: any[];
+    if (targetDocIndex >= 0) {
+      updatedDocs = existingDocs.map((d: any, idx: number) => (idx === targetDocIndex ? savedDoc : d));
+    } else {
+      updatedDocs = [...existingDocs, savedDoc];
+    }
 
     // If an external partner signed the revenue share agreement, lock their stakeholder row in commission_pool!
     let updatedCommissionPool = existingSecData.commission_pool;
     if (!isRejected && updatedCommissionPool && Array.isArray(updatedCommissionPool.stakeholders)) {
       const updatedStks = updatedCommissionPool.stakeholders.map((stk: any) => {
-        if ((partnerId && stk.id === partnerId) || (!partnerId && stk.is_external && stk.name?.toLowerCase().includes(clientName.toLowerCase()))) {
+        if (
+          (partnerId && stk.id === partnerId) ||
+          (!partnerId &&
+            stk.is_external &&
+            stk.name?.toLowerCase().includes((clientName || "").toLowerCase()))
+        ) {
           return {
             ...stk,
             payout_status: "agreement_signed",
@@ -2896,7 +3167,9 @@ router.post("/real-estate/:id/sign", async (req, res) => {
         }
         return stk;
       });
-      const pendingCount = updatedStks.filter((s: any) => s.is_external && s.payout_status === "pending_agreement").length;
+      const pendingCount = updatedStks.filter(
+        (s: any) => s.is_external && s.payout_status === "pending_agreement"
+      ).length;
       updatedCommissionPool = {
         ...updatedCommissionPool,
         stakeholders: updatedStks,
@@ -2910,10 +3183,12 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       commission_pool: updatedCommissionPool,
       fixture_approval_status: isRejected ? "rejected" : "approved",
       fixture_approval_note: isRejected
-        ? (rejectionReason || "Müşteri eşya/sözleşme listesinde düzeltme talep etti.")
+        ? rejectionReason || "Müşteri eşya/sözleşme listesinde düzeltme talep etti."
         : `${legalSealText}`,
       fixture_approval_date: trDateStr,
-      fixture_approved_by: `${clientName} (${clientPhone}) • IP: ${resolvedIp} • OTP: #${otpCode}`
+      fixture_approved_by: `${isSellerRole ? resolvedSellerName : buyerDisplayName} (${
+        isSellerRole ? ownerPhone || "" : clientPhone || ""
+      }) • IP: ${resolvedIp} • OTP: #${otpCode}`
     };
 
     if (tableName === "real_estate_properties") {
@@ -2922,20 +3197,22 @@ router.post("/real-estate/:id/sign", async (req, res) => {
         [JSON.stringify(updatedDocs), JSON.stringify(updatedSecData), id]
       );
     } else {
-      await pool.query(
-        `UPDATE ${tableName} SET documents = $1 WHERE id = $2`,
-        [JSON.stringify(updatedDocs), id]
-      );
+      await pool.query(`UPDATE ${tableName} SET documents = $1 WHERE id = $2`, [
+        JSON.stringify(updatedDocs),
+        id
+      ]);
     }
 
     res.json({
       success: true,
       decision: isRejected ? "rejected" : "approved",
+      contractStage: resolvedStage,
+      docId: finalDocId,
       ipAddress: resolvedIp,
       timestamp: trDateStr,
       otpCode,
-      legalSeal: legalSealText,
-      document: newDoc,
+      legalSeal: mergedDetails.legalSeal,
+      document: savedDoc,
       sector_data: updatedSecData
     });
   } catch (error: any) {

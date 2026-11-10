@@ -16,21 +16,40 @@ import {
   CreditCard,
   XCircle,
   ZoomIn,
+  Printer,
+  Share2,
   X
 } from "lucide-react";
-import { contractTemplates, resolvePropertyRegionLabel } from "../utils/contractTemplates";
+import {
+  contractTemplates,
+  resolvePropertyRegionLabel,
+  computeRemainingSaleAmount,
+  buildDefaultSalePropertyDetails,
+  buildDefaultRentalPropertyMeta,
+  buildDefaultShowingPropertyDetails
+} from "../utils/contractTemplates";
 import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
 
 export default function ContractSignPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   
+  const docIdParam = searchParams.get("docId") || "";
+  const roleParam = (searchParams.get("role") || "buyer") as "buyer" | "seller";
+  const viewParam = searchParams.get("view") || "sign";
+
   const clientNameParam = searchParams.get("client") || "";
   const clientPhoneParam = searchParams.get("phone") || "";
   const clientIdentityParam = searchParams.get("identity") || "";
+  const buyerIdTypeParam = searchParams.get("buyerIdType") || "KKTC KİMLİK";
+  const ownerNameParam = searchParams.get("ownerName") || "";
+  const ownerPhoneParam = searchParams.get("ownerPhone") || "";
+  const sellerIdentityParam = searchParams.get("sellerIdentity") || "";
+  const sellerIdTypeParam = searchParams.get("sellerIdType") || "KKTC Kimlik Kartı";
+
   const templateIdParam = searchParams.get("templateId") || "";
   const contractTypeParam = searchParams.get("contractType") || "";
-  const commissionRateParam = searchParams.get("commissionRate") || "3";
+  const commissionRateParam = searchParams.get("commissionRate") || "5";
   const contractDateParam = formatDateTR(searchParams.get("contractDate") || new Date());
   const splitRatioParam = searchParams.get("splitRatio") || "";
   const contractDurationParam = searchParams.get("contractDuration") || "";
@@ -40,14 +59,89 @@ export default function ContractSignPage() {
   const paymentDayParam = searchParams.get("paymentDay") || "";
   const partnerIdParam = searchParams.get("partnerId") || "";
 
+  // Rental Contract (KİRA SÖZLEŞMESİ) params
+  const rentalPropertyDefParam = searchParams.get("rentalPropertyDef") || "";
+  const rentalUsagePurposeParam = searchParams.get("rentalUsagePurpose") || "";
+  const rentalAddressParam = searchParams.get("rentalAddress") || "";
+  const rentalDistrictParam = searchParams.get("rentalDistrict") || "";
+  const rentalTownVillageParam = searchParams.get("rentalTownVillage") || "";
+  const kocanNoParam = searchParams.get("kocanNo") || "";
+  const paftaNoParam = searchParams.get("paftaNo") || "";
+  const adaNoParam = searchParams.get("adaNo") || "";
+  const parselNoParam = searchParams.get("parselNo") || "";
+  const rentPriceRawParam = searchParams.get("rentPriceRaw") || "";
+  const rentCurrencyParam = searchParams.get("rentCurrency") || "";
+  const rentPaymentMethodParam = searchParams.get("rentPaymentMethod") || "";
+  const rentStartDateParam = searchParams.get("rentStartDate") || "";
+  const rentEndDateParam = searchParams.get("rentEndDate") || "";
+
+  // Sales Contract (SATIŞ SÖZLEŞMESİ) params
+  const salePropertyDetailsParam = searchParams.get("salePropertyDetails") || "";
+  const salePriceRawParam = searchParams.get("salePriceRaw") || "";
+  const saleCurrencyParam = searchParams.get("saleCurrency") || "";
+  const depositDateParam = searchParams.get("depositDate") || "";
+  const deedTransferDateParam = searchParams.get("deedTransferDate") || "";
+  const paymentDeadlineMonthsParam = searchParams.get("paymentDeadlineMonths") || "";
+  const gracePeriodDaysParam = searchParams.get("gracePeriodDays") || "";
+  const taxClauseTextParam = searchParams.get("taxClauseText") || "";
+  const witness1NameParam = searchParams.get("witness1Name") || "";
+  const witness1IdentityParam = searchParams.get("witness1Identity") || "";
+  const witness2NameParam = searchParams.get("witness2Name") || "";
+  const witness2IdentityParam = searchParams.get("witness2Identity") || "";
+
+  // Offer Letter & Consultant params
+  const offerPriceParam = searchParams.get("offerPrice") || "";
+  const viewingDateParam = searchParams.get("viewingDate") || "";
+  const offerValidityPeriodParam = searchParams.get("offerValidityPeriod") || "";
+  const offerFreeNotesParam = searchParams.get("offerFreeNotes") || "";
+  const offerPropertyNatureParam = searchParams.get("offerPropertyNature") || "";
+  const offerPropertyDetailsParam = searchParams.get("offerPropertyDetails") || "";
+  const agentAndCompanyParam = searchParams.get("agentAndCompany") || "";
+  const customClausesParam = searchParams.get("customClauses") || "";
+  const authorizedPersonNameParam = searchParams.get("authorizedPersonName") || "";
+  const authorizedPersonIdentityParam = searchParams.get("authorizedPersonIdentity") || "";
+  const authorizedPersonIdTypeParam = searchParams.get("authorizedPersonIdType") || "";
+  const consultantIdTypeParam = searchParams.get("consultantIdType") || "";
+  const officeSplitRateParam = searchParams.get("officeSplitRate") || "";
+  const consultantSplitRateParam = searchParams.get("consultantSplitRate") || "";
+  const externalOfficeSplitRateParam = searchParams.get("externalOfficeSplitRate") || "";
+  const externalInternalOfficeRateParam = searchParams.get("externalInternalOfficeRate") || "";
+  const externalInternalConsultantRateParam = searchParams.get("externalInternalConsultantRate") || "";
+  const noticePeriodDaysParam = searchParams.get("noticePeriodDays") || "";
+  const storeNameParam = searchParams.get("storeName") || "";
+  const storePhoneParam = searchParams.get("storePhone") || "";
+  const brokerAddressParam = searchParams.get("brokerAddress") || "";
+  const clientAddressParam = searchParams.get("clientAddress") || "";
+  const showingItem1DetailsParam = searchParams.get("showingItem1Details") || "";
+  const showingItem1PriceParam = searchParams.get("showingItem1Price") || "";
+  const showingItem2DetailsParam = searchParams.get("showingItem2Details") || "";
+  const showingItem2PriceParam = searchParams.get("showingItem2Price") || "";
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [itemData, setItemData] = useState<any>(null);
   const [isVehicle, setIsVehicle] = useState(false);
+  const [activeDocId, setActiveDocId] = useState<string>(docIdParam);
+
+  // Buyer states
   const [clientName, setClientName] = useState(clientNameParam);
   const [clientPhone, setClientPhone] = useState(clientPhoneParam);
   const [clientIdentity, setClientIdentity] = useState(clientIdentityParam);
+  const [buyerIdType, setBuyerIdType] = useState(buyerIdTypeParam);
   const [signed, setSigned] = useState(false);
+  const [signatureImage, setSignatureImage] = useState("");
+
+  // Seller states
+  const [ownerName, setOwnerName] = useState(ownerNameParam);
+  const [ownerPhone, setOwnerPhone] = useState(ownerPhoneParam);
+  const [sellerIdentity, setSellerIdentity] = useState(sellerIdentityParam);
+  const [sellerIdType, setSellerIdType] = useState(sellerIdTypeParam);
+  const [sellerSigned, setSellerSigned] = useState(false);
+  const [sellerSignatureImage, setSellerSignatureImage] = useState("");
+
+  //Stored doc details fallback
+  const [savedDocDetails, setSavedDocDetails] = useState<any>(null);
+
   const [isSigningActive, setIsSigningActive] = useState(false);
   const [success, setSuccess] = useState(false);
   const [decisionStatus, setDecisionStatus] = useState<"approved" | "rejected">("approved");
@@ -55,13 +149,15 @@ export default function ContractSignPage() {
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [fixtureAccepted, setFixtureAccepted] = useState(true);
   const [inspectPhotoUrl, setInspectPhotoUrl] = useState<{ url: string; name: string; timestamp?: string } | null>(null);
-  const [signatureImage, setSignatureImage] = useState("");
   const [generatedOtp] = useState(() => String(Math.floor(100000 + Math.random() * 900000)));
   const [enteredOtp, setEnteredOtp] = useState("");
   const [sealResult, setSealResult] = useState<{ ipAddress?: string; timestamp?: string; legalSeal?: string; otpCode?: string } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
+
+  const isSellerMode = roleParam === "seller";
+  const isFinalViewMode = viewParam === "final";
 
   useEffect(() => {
     if (!id) {
@@ -72,7 +168,19 @@ export default function ContractSignPage() {
 
     const checkAndFetch = async () => {
       try {
-        if (id.startsWith("vehicle-")) {
+        if (id.startsWith("consultant-") || templateIdParam === "consultant_partnership") {
+          setIsVehicle(false);
+          setItemData({
+            id,
+            title: "Danışman İş Ortaklığı Sözleşmesi",
+            reference_no: id.toUpperCase(),
+            store_name: storeNameParam || "Rodel Investment",
+            store_phone: storePhoneParam || "",
+            price: 0,
+            currency: "GBP",
+            listing_intent: "sale"
+          });
+        } else if (id.startsWith("vehicle-")) {
           setIsVehicle(true);
           const realVehicleId = id.replace("vehicle-", "");
           const res = await fetch(`/api/public/vehicles/${realVehicleId}`);
@@ -85,6 +193,58 @@ export default function ContractSignPage() {
           if (!res.ok) throw new Error("Gayrimenkul bulunamadı.");
           const data = await res.json();
           setItemData(data);
+
+          // Check existing documents in property to hydrate Buyer signature / finalized state
+          const rawDocs = data.documents
+            ? typeof data.documents === "string"
+              ? JSON.parse(data.documents)
+              : data.documents
+            : [];
+          if (Array.isArray(rawDocs) && rawDocs.length > 0) {
+            let matchedDoc: any = null;
+            if (docIdParam) {
+              matchedDoc = rawDocs.find((d: any) => d && d.id === docIdParam);
+            }
+            if (!matchedDoc && (isSellerMode || isFinalViewMode)) {
+              const targetTpl = templateIdParam || (data.listing_intent === "rent" ? "rental_agreement" : "sales_brokerage");
+              for (let i = rawDocs.length - 1; i >= 0; i--) {
+                const d = rawDocs[i];
+                if (d && d.category === "contract" && (!targetTpl || d.details?.templateId === targetTpl)) {
+                  matchedDoc = d;
+                  break;
+                }
+              }
+            }
+            if (matchedDoc && matchedDoc.details) {
+              const det = matchedDoc.details;
+              setActiveDocId(matchedDoc.id);
+              setSavedDocDetails(det);
+              if (det.clientName && !clientNameParam) setClientName(det.clientName);
+              if (det.clientIdentity && !clientIdentityParam) setClientIdentity(det.clientIdentity);
+              if (det.clientPhone && !clientPhoneParam) setClientPhone(det.clientPhone);
+              if (det.buyerIdType) setBuyerIdType(det.buyerIdType);
+              if (det.ownerName && !ownerNameParam) setOwnerName(det.ownerName);
+              if (det.ownerPhone && !ownerPhoneParam) setOwnerPhone(det.ownerPhone);
+              if (det.sellerIdentity && !sellerIdentityParam) setSellerIdentity(det.sellerIdentity);
+              if (det.sellerIdType) setSellerIdType(det.sellerIdType);
+              if (det.signed) {
+                setSigned(true);
+                setSignatureImage(det.signatureImage || "");
+              }
+              if (det.sellerSigned) {
+                setSellerSigned(true);
+                setSellerSignatureImage(det.sellerSignatureImage || "");
+              }
+              if (det.legalSeal) {
+                setSealResult({
+                  ipAddress: det.sellerIpAddress || det.ipAddress || "Kayıtlı IP",
+                  timestamp: det.sellerSignedAt || det.contractDate,
+                  legalSeal: det.legalSeal,
+                  otpCode: det.sellerOtpCode || det.otpCode || "ONAYLI"
+                });
+              }
+            }
+          }
         }
       } catch (err: any) {
         setError(err.message || "Veri yüklenirken hata oluştu.");
@@ -94,7 +254,7 @@ export default function ContractSignPage() {
     };
 
     checkAndFetch();
-  }, [id]);
+  }, [id, templateIdParam, storeNameParam, storePhoneParam, docIdParam, isSellerMode, isFinalViewMode]);
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
@@ -117,7 +277,7 @@ export default function ContractSignPage() {
     if (!ctx) return;
     const pos = getEventPos(e, canvas);
     ctx.lineTo(pos.x, pos.y);
-    ctx.strokeStyle = "#0f172a";
+    ctx.strokeStyle = isSellerMode ? "#064e3b" : "#0f172a";
     ctx.lineWidth = 3.5;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -171,10 +331,17 @@ export default function ContractSignPage() {
     return [];
   }, [itemData]);
 
+  const effectiveTemplateId =
+    templateIdParam ||
+    savedDocDetails?.templateId ||
+    (itemData?.listing_intent === "rent" ? "rental_agreement" : "sales_brokerage");
+
+  const isBilateralContract = ["sales_brokerage", "rental_agreement", "offer_letter"].includes(effectiveTemplateId);
+
   const isFurnishedRental = Boolean(
     !isVehicle &&
       itemData &&
-      (itemData.listing_intent === "rent" || templateIdParam === "rental_agreement") &&
+      (itemData.listing_intent === "rent" || effectiveTemplateId === "rental_agreement") &&
       (itemData.furnished === true ||
         itemData.furnished === "true" ||
         itemData.furnished === "esyali" ||
@@ -185,29 +352,63 @@ export default function ContractSignPage() {
   const symbol = itemData?.currency === "GBP" ? "£" : itemData?.currency === "USD" ? "$" : itemData?.currency === "EUR" ? "€" : "₺";
   const resolvedRegionLabel = itemData ? resolvePropertyRegionLabel(itemData) : "KKTC";
   const effectiveDepositAmount =
-    depositAmountParam && depositAmountParam !== "1 Aylık Kira Bedeli"
-      ? depositAmountParam
-      : itemData?.deposit && Number(itemData.deposit) > 0
-      ? `${itemData.deposit} ${symbol}`
-      : depositAmountParam || "1 Aylık Kira Bedeli";
+    depositAmountParam ||
+    savedDocDetails?.depositAmount ||
+    (itemData?.deposit && Number(itemData.deposit) > 0
+      ? `${itemData.deposit}`
+      : itemData?.listing_intent === "rent"
+      ? "1 Aylık Kira Bedeli"
+      : "35.000");
+
+  const resolvedOwnerName =
+    ownerName ||
+    savedDocDetails?.ownerName ||
+    itemData?.owner_info?.fullName ||
+    itemData?.sector_data?.owner_info?.fullName ||
+    "Mülk Sahibi";
+
+  const resolvedOwnerPhone =
+    ownerPhone ||
+    savedDocDetails?.ownerPhone ||
+    itemData?.owner_info?.phone ||
+    itemData?.sector_data?.owner_phone ||
+    "";
 
   const handleApprove = async () => {
-    if (!clientName.trim()) {
-      alert("Lütfen adınızı ve soyadınızı giriniz.");
-      return;
+    const isOfferLetter = effectiveTemplateId === "offer_letter";
+
+    if (isSellerMode) {
+      if (isBilateralContract && !signed) {
+        alert("İmza önceliği ALICI'ya aittir! Satıcı imzası öncesinde sözleşmenin Alıcı tarafından imzalanmış olması gerekmektedir.");
+        return;
+      }
+      if (!resolvedOwnerName.trim()) {
+        alert("Lütfen Satıcı / Mülk Sahibi Ad Soyad bilgisini giriniz.");
+        return;
+      }
+      if (effectiveTemplateId === "sales_brokerage" && !sellerIdentity.trim()) {
+        alert("Lütfen Satıcı Kimlik / Pasaport numarasını giriniz.");
+        return;
+      }
+    } else {
+      if (!clientName.trim()) {
+        alert("Lütfen adınızı ve soyadınızı giriniz.");
+        return;
+      }
+      if (!isOfferLetter && !clientIdentity.trim()) {
+        alert("Lütfen Kimlik veya Pasaport numaranızı giriniz.");
+        return;
+      }
+      if (!clientPhone.trim()) {
+        alert("Lütfen iletişim telefon numaranızı giriniz.");
+        return;
+      }
+      if (isFurnishedRental && !fixtureAccepted) {
+        alert("Lütfen eşya/demirbaş listesini ve fotoğraflarını incelediğinizi onaylayan kutucuğu işaretleyiniz.");
+        return;
+      }
     }
-    if (!clientIdentity.trim()) {
-      alert("Lütfen T.C. Kimlik veya Pasaport numaranızı giriniz.");
-      return;
-    }
-    if (!clientPhone.trim()) {
-      alert("Lütfen iletişim telefon numaranızı giriniz.");
-      return;
-    }
-    if (isFurnishedRental && !fixtureAccepted) {
-      alert("Lütfen eşya/demirbaş listesini ve fotoğraflarını incelediğinizi onaylayan kutucuğu işaretleyiniz.");
-      return;
-    }
+
     if (!isSigningActive) {
       alert("Lütfen parmağınızla imza alanına imzanızı atınız.");
       return;
@@ -222,32 +423,109 @@ export default function ContractSignPage() {
     let signatureImgData = "";
     if (canvas) {
       signatureImgData = canvas.toDataURL("image/png");
-      setSignatureImage(signatureImgData);
+      if (isSellerMode) {
+        setSellerSignatureImage(signatureImgData);
+      } else {
+        setSignatureImage(signatureImgData);
+      }
     }
 
     try {
       setLoading(true);
+      if (id?.startsWith("consultant-") || effectiveTemplateId === "consultant_partnership") {
+        const nowStr = formatDateTR(new Date());
+        setSealResult({
+          ipAddress: "Mobil Cihaz Onaylı",
+          timestamp: nowStr,
+          legalSeal: `DANIŞMAN İŞ ORTAKLIĞI ONAYI (${clientName} • OTP: #${finalOtp} • ${nowStr})`,
+          otpCode: finalOtp
+        });
+        setDecisionStatus("approved");
+        setSigned(true);
+        setSuccess(true);
+        return;
+      }
       const url = isVehicle ? `/api/public/vehicles/${id}/sign` : `/api/public/real-estate/${id}/sign`;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          docId: activeDocId || docIdParam || undefined,
+          signerRole: isSellerMode ? "seller" : "buyer",
           clientName,
           clientIdentity,
+          buyerIdType,
           clientPhone,
-          commissionRate: isVehicle ? undefined : commissionRateParam,
-          templateId: isVehicle ? undefined : (templateIdParam || (itemData?.listing_intent === "rent" ? "rental_agreement" : "showing_agreement")),
+          ownerName: resolvedOwnerName,
+          ownerPhone: resolvedOwnerPhone,
+          sellerIdentity,
+          sellerIdType,
+          sellerSigned: isSellerMode ? true : sellerSigned,
+          sellerSigningName: isSellerMode ? resolvedOwnerName : undefined,
+          sellerSignatureImage: isSellerMode ? signatureImgData : sellerSignatureImage,
+          commissionRate: isVehicle ? undefined : (commissionRateParam || savedDocDetails?.commissionRate || "5"),
+          templateId: isVehicle ? undefined : effectiveTemplateId,
           contractType: isVehicle ? (contractTypeParam || "consignment") : undefined,
           displayName: storeName,
-          signatureImage: signatureImgData,
+          signatureImage: isSellerMode ? signatureImage : signatureImgData,
           decision: "approved",
           fixtureApproved: isFurnishedRental,
           depositAmount: effectiveDepositAmount,
-          rentDuration: rentDurationParam || "1 Yıl",
-          paymentDay: paymentDayParam || "Her ayın en geç 5. günü",
-          splitRatio: splitRatioParam,
-          contractDuration: contractDurationParam,
-          evictionDate: evictionDateParam,
+          rentDuration: rentDurationParam || savedDocDetails?.rentDuration || "1 (Bir) Yıl",
+          paymentDay: paymentDayParam || savedDocDetails?.paymentDay || "Her Ayın En Geç 5 (Beş)’inde Ödenecektir.",
+          splitRatio: splitRatioParam || savedDocDetails?.splitRatio,
+          contractDuration: contractDurationParam || savedDocDetails?.contractDuration,
+          evictionDate: evictionDateParam || savedDocDetails?.evictionDate,
+          // Rental contract fields
+          rentalPropertyDef: rentalPropertyDefParam || savedDocDetails?.rentalPropertyDef,
+          rentalUsagePurpose: rentalUsagePurposeParam || savedDocDetails?.rentalUsagePurpose,
+          rentalAddress: rentalAddressParam || savedDocDetails?.rentalAddress || itemData?.address,
+          rentalDistrict: rentalDistrictParam || savedDocDetails?.rentalDistrict,
+          rentalTownVillage: rentalTownVillageParam || savedDocDetails?.rentalTownVillage,
+          kocanNo: kocanNoParam || savedDocDetails?.kocanNo,
+          paftaNo: paftaNoParam || savedDocDetails?.paftaNo,
+          adaNo: adaNoParam || savedDocDetails?.adaNo,
+          parselNo: parselNoParam || savedDocDetails?.parselNo,
+          rentPriceRaw: rentPriceRawParam || savedDocDetails?.rentPriceRaw || itemData?.price,
+          rentCurrency: rentCurrencyParam || savedDocDetails?.rentCurrency || (itemData?.currency === "TRY" ? "TL" : itemData?.currency || "TL"),
+          rentPaymentMethod: rentPaymentMethodParam || savedDocDetails?.rentPaymentMethod || "Aylık Ödemeli",
+          rentStartDate: rentStartDateParam || savedDocDetails?.rentStartDate || contractDateParam,
+          rentEndDate: rentEndDateParam || savedDocDetails?.rentEndDate,
+          // Sales contract fields
+          salePropertyDetails:
+            salePropertyDetailsParam ||
+            savedDocDetails?.salePropertyDetails ||
+            buildDefaultSalePropertyDetails(itemData),
+          salePriceRaw: salePriceRawParam || savedDocDetails?.salePriceRaw || itemData?.price,
+          saleCurrency: saleCurrencyParam || savedDocDetails?.saleCurrency || itemData?.currency || "GBP",
+          depositDate: depositDateParam || savedDocDetails?.depositDate || contractDateParam,
+          deedTransferDate: deedTransferDateParam || savedDocDetails?.deedTransferDate,
+          paymentDeadlineMonths: paymentDeadlineMonthsParam || savedDocDetails?.paymentDeadlineMonths || "4 (dört) ay",
+          gracePeriodDays: gracePeriodDaysParam || savedDocDetails?.gracePeriodDays || "14",
+          taxClauseText: taxClauseTextParam || savedDocDetails?.taxClauseText,
+          witness1Name: witness1NameParam || savedDocDetails?.witness1Name,
+          witness1Identity: witness1IdentityParam || savedDocDetails?.witness1Identity,
+          witness2Name: witness2NameParam || savedDocDetails?.witness2Name,
+          witness2Identity: witness2IdentityParam || savedDocDetails?.witness2Identity,
+          // Offer letter & custom clauses
+          offerPrice: offerPriceParam || savedDocDetails?.offerPrice,
+          viewingDate: viewingDateParam || savedDocDetails?.viewingDate,
+          offerValidityPeriod: offerValidityPeriodParam || savedDocDetails?.offerValidityPeriod,
+          offerFreeNotes: offerFreeNotesParam || savedDocDetails?.offerFreeNotes,
+          offerPropertyNature: offerPropertyNatureParam || savedDocDetails?.offerPropertyNature,
+          offerPropertyDetails: offerPropertyDetailsParam || savedDocDetails?.offerPropertyDetails,
+          agentAndCompany: agentAndCompanyParam || savedDocDetails?.agentAndCompany || storeName,
+          authorizedPersonIdentity: authorizedPersonIdentityParam || savedDocDetails?.authorizedPersonIdentity,
+          brokerAddress: brokerAddressParam || savedDocDetails?.brokerAddress || itemData?.store_address,
+          clientAddress: clientAddressParam || savedDocDetails?.clientAddress,
+          showingItem1Details:
+            showingItem1DetailsParam ||
+            savedDocDetails?.showingItem1Details ||
+            buildDefaultShowingPropertyDetails(itemData),
+          showingItem1Price: showingItem1PriceParam || savedDocDetails?.showingItem1Price,
+          showingItem2Details: showingItem2DetailsParam || savedDocDetails?.showingItem2Details,
+          showingItem2Price: showingItem2PriceParam || savedDocDetails?.showingItem2Price,
+          customClauses: customClausesParam || savedDocDetails?.customClauses,
           propertyLocation: resolvedRegionLabel,
           isFurnishedRental,
           fixturePhotosCount: fixturePhotosList.length,
@@ -262,6 +540,9 @@ export default function ContractSignPage() {
         throw new Error(resData.error || "Sözleşme kaydedilemedi.");
       }
 
+      if (resData.docId) {
+        setActiveDocId(resData.docId);
+      }
       setSealResult({
         ipAddress: resData.ipAddress || "127.0.0.1",
         timestamp: resData.timestamp || new Date().toISOString(),
@@ -269,7 +550,11 @@ export default function ContractSignPage() {
         otpCode: resData.otpCode || finalOtp
       });
       setDecisionStatus("approved");
-      setSigned(true);
+      if (isSellerMode) {
+        setSellerSigned(true);
+      } else {
+        setSigned(true);
+      }
       setSuccess(true);
     } catch (err: any) {
       alert(err.message || "Sözleşme kaydedilirken hata oluştu. Lütfen tekrar deneyin.");
@@ -279,12 +564,8 @@ export default function ContractSignPage() {
   };
 
   const handleReject = async () => {
-    if (!clientName.trim() || !clientIdentity.trim() || !clientPhone.trim()) {
-      alert("Lütfen düzeltme/ret talebi göndermeden önce Ad Soyad, Kimlik/Pasaport ve Telefon alanlarını doldurunuz.");
-      return;
-    }
     if (!rejectionReason.trim()) {
-      alert("Lütfen eşya listesi veya sözleşme ile ilgili düzeltme/itiraz nedeninizi kısaca yazınız.");
+      alert("Lütfen sözleşme veya eşya listesi ile ilgili düzeltme/itiraz nedeninizi kısaca yazınız.");
       return;
     }
 
@@ -294,11 +575,16 @@ export default function ContractSignPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clientName,
-          clientIdentity,
-          clientPhone,
+          docId: activeDocId || docIdParam || undefined,
+          signerRole: isSellerMode ? "seller" : "buyer",
+          clientName: clientName || "Müşteri",
+          clientIdentity: clientIdentity || "-",
+          clientPhone: clientPhone || "-",
+          ownerName: resolvedOwnerName,
+          ownerPhone: resolvedOwnerPhone,
+          sellerIdentity,
           commissionRate: commissionRateParam,
-          templateId: templateIdParam || (itemData?.listing_intent === "rent" ? "rental_agreement" : "showing_agreement"),
+          templateId: effectiveTemplateId,
           displayName: storeName,
           decision: "rejected",
           rejectionReason: rejectionReason.trim(),
@@ -329,13 +615,11 @@ export default function ContractSignPage() {
 
   const formatCurrency = (val: any, currency: string) => {
     if (val === undefined || val === null || val === "") return "0";
-    const symbol = currency === "GBP" ? "£" : currency === "USD" ? "$" : currency === "EUR" ? "€" : "₺";
-    return `${symbol}${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(Math.round(val))}`;
+    const sym = currency === "GBP" ? "£" : currency === "USD" ? "$" : currency === "EUR" ? "€" : "₺";
+    return `${sym}${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(Math.round(val))}`;
   };
 
   const storeName = itemData?.store_name?.replace(/lookprice/gi, "Seçkin") || "Seçkin VIP Portföy";
-  const effectiveTemplateId =
-    templateIdParam || (itemData?.listing_intent === "rent" ? "rental_agreement" : "showing_agreement");
 
   let dynamicContractTitle = "";
   if (isVehicle) {
@@ -348,7 +632,7 @@ export default function ContractSignPage() {
     }
   } else {
     const matchedTemplate = contractTemplates.find((t) => t.id === effectiveTemplateId);
-    dynamicContractTitle = matchedTemplate ? matchedTemplate.titleTr : "Kira & Demirbaş Teslim Sözleşmesi";
+    dynamicContractTitle = matchedTemplate ? matchedTemplate.titleTr : "Satış Sözleşmesi";
   }
 
   let renderedContractHtml = "";
@@ -356,11 +640,19 @@ export default function ContractSignPage() {
     const matchedTemplate = contractTemplates.find((t) => t.id === effectiveTemplateId);
     if (matchedTemplate) {
       const formattedPriceNum = itemData.price ? new Intl.NumberFormat("tr-TR").format(Math.round(itemData.price)) : "0";
-      
+      const resolvedSalePriceRaw = salePriceRawParam || savedDocDetails?.salePriceRaw || formattedPriceNum;
+      const resolvedSaleCurr = saleCurrencyParam || savedDocDetails?.saleCurrency || itemData.currency || "GBP";
+      const rMeta = buildDefaultRentalPropertyMeta(itemData);
+
       const values = {
-        clientName: clientName || "..................................................",
-        clientIdentity: clientIdentity || "..................................................",
-        clientPhone: clientPhone || "..................................................",
+        clientName: clientName || savedDocDetails?.clientName || "..................................................",
+        clientIdentity: clientIdentity || savedDocDetails?.clientIdentity || "..................................................",
+        buyerIdType: buyerIdType || savedDocDetails?.buyerIdType || (effectiveTemplateId === "rental_agreement" ? "TC kimlik" : "KKTC KİMLİK"),
+        clientPhone: clientPhone || savedDocDetails?.clientPhone || "..................................................",
+        ownerName: resolvedOwnerName,
+        ownerPhone: resolvedOwnerPhone,
+        sellerIdentity: sellerIdentity || savedDocDetails?.sellerIdentity || "..................................................",
+        sellerIdType: sellerIdType || savedDocDetails?.sellerIdType || (effectiveTemplateId === "rental_agreement" ? "KKTC kimlik" : "KKTC Kimlik Kartı"),
         storeName: storeName,
         storePhone: itemData.store_phone || "",
         propertyTitle: itemData.type === "land"
@@ -369,18 +661,94 @@ export default function ContractSignPage() {
         propertyLocation: resolvedRegionLabel,
         propertyPrice: `${formattedPriceNum} ${symbol}`,
         propertyBlockPlot: itemData.block_plot,
-        commissionRate: itemData.listing_intent === "rent" ? commissionRateParam : (commissionRateParam.includes("%") ? commissionRateParam : `%${commissionRateParam}`),
-        contractDate: contractDateParam,
-        propertyAddress: itemData.address || "Belirtilmemiş adres",
-        splitRatio: splitRatioParam,
-        contractDuration: contractDurationParam,
-        evictionDate: evictionDateParam,
+        commissionRate: itemData.listing_intent === "rent"
+          ? (commissionRateParam || savedDocDetails?.commissionRate || "1 Aylık Kira")
+          : ((commissionRateParam || savedDocDetails?.commissionRate || "5").includes("%")
+              ? (commissionRateParam || savedDocDetails?.commissionRate || "%5")
+              : `%${commissionRateParam || savedDocDetails?.commissionRate || "5"}`),
+        contractDate: savedDocDetails?.contractDate || contractDateParam,
+        propertyAddress: rentalAddressParam || savedDocDetails?.rentalAddress || itemData.address || rMeta.rentalAddress || "Belirtilmemiş adres",
+        splitRatio: splitRatioParam || savedDocDetails?.splitRatio || "",
+        contractDuration: contractDurationParam || savedDocDetails?.contractDuration || "",
+        evictionDate: evictionDateParam || savedDocDetails?.evictionDate || "",
         depositAmount: effectiveDepositAmount,
-        rentDuration: rentDurationParam || "1 Yıl",
-        paymentDay: paymentDayParam || "Her ayın en geç 5. günü",
+        rentDuration: rentDurationParam || savedDocDetails?.rentDuration || "1 (Bir) Yıl",
+        paymentDay: paymentDayParam || savedDocDetails?.paymentDay || "Her Ayın En Geç 5 (Beş)’inde Ödenecektir.",
+        // Rental contract variables
+        rentalPropertyDef: rentalPropertyDefParam || savedDocDetails?.rentalPropertyDef || rMeta.rentalPropertyDef,
+        rentalUsagePurpose: rentalUsagePurposeParam || savedDocDetails?.rentalUsagePurpose || rMeta.rentalUsagePurpose,
+        rentalDistrict: rentalDistrictParam || savedDocDetails?.rentalDistrict || rMeta.rentalDistrict,
+        rentalTownVillage: rentalTownVillageParam || savedDocDetails?.rentalTownVillage || rMeta.rentalTownVillage,
+        kocanNo: kocanNoParam || savedDocDetails?.kocanNo || rMeta.kocanNo,
+        paftaNo: paftaNoParam || savedDocDetails?.paftaNo || rMeta.paftaNo,
+        adaNo: adaNoParam || savedDocDetails?.adaNo || rMeta.adaNo,
+        parselNo: parselNoParam || savedDocDetails?.parselNo || rMeta.parselNo,
+        rentPriceRaw: rentPriceRawParam || savedDocDetails?.rentPriceRaw || formattedPriceNum,
+        rentCurrency: rentCurrencyParam || savedDocDetails?.rentCurrency || (itemData.currency === "TRY" ? "TL" : itemData.currency || "TL"),
+        rentPaymentMethod: rentPaymentMethodParam || savedDocDetails?.rentPaymentMethod || "Aylık Ödemeli",
+        rentStartDate: rentStartDateParam || savedDocDetails?.rentStartDate || savedDocDetails?.contractDate || contractDateParam,
+        rentEndDate: rentEndDateParam || savedDocDetails?.rentEndDate || "",
+        // Sales contract variables
+        salePropertyDetails:
+          salePropertyDetailsParam ||
+          savedDocDetails?.salePropertyDetails ||
+          buildDefaultSalePropertyDetails(itemData),
+        salePriceRaw: resolvedSalePriceRaw,
+        saleCurrency: resolvedSaleCurr,
+        depositDate: depositDateParam || savedDocDetails?.depositDate || contractDateParam,
+        remainingAmountRaw: computeRemainingSaleAmount(resolvedSalePriceRaw, effectiveDepositAmount),
+        deedTransferDate: deedTransferDateParam || savedDocDetails?.deedTransferDate || "",
+        paymentDeadlineMonths: paymentDeadlineMonthsParam || savedDocDetails?.paymentDeadlineMonths || "4 (dört) ay",
+        gracePeriodDays: gracePeriodDaysParam || savedDocDetails?.gracePeriodDays || "14",
+        taxClauseText:
+          taxClauseTextParam ||
+          savedDocDetails?.taxClauseText ||
+          "Satıcı Belediye Emlak Vergisi (varsa KDV yi) ve Stopaj Ödeyecek, Alıcı ise Tapu Devir Harcı’nı ödeyecektir.",
+        witness1Name: witness1NameParam || savedDocDetails?.witness1Name || "Emrah CEYHAN",
+        witness1Identity: witness1IdentityParam || savedDocDetails?.witness1Identity || "1170237140",
+        witness2Name: witness2NameParam || savedDocDetails?.witness2Name || "",
+        witness2Identity: witness2IdentityParam || savedDocDetails?.witness2Identity || "",
+        // Offer letter & Consultant variables
+        offerPrice: offerPriceParam || savedDocDetails?.offerPrice || `${formattedPriceNum} ${symbol}`,
+        viewingDate: viewingDateParam || savedDocDetails?.viewingDate || contractDateParam,
+        offerValidityPeriod: offerValidityPeriodParam || savedDocDetails?.offerValidityPeriod || "7 (yedi) gün",
+        offerFreeNotes: offerFreeNotesParam || savedDocDetails?.offerFreeNotes || "",
+        offerPropertyNature: offerPropertyNatureParam || savedDocDetails?.offerPropertyNature || "",
+        offerPropertyDetails: offerPropertyDetailsParam || savedDocDetails?.offerPropertyDetails || "",
+        agentAndCompany: agentAndCompanyParam || savedDocDetails?.agentAndCompany || storeName,
+        customClauses: customClausesParam || savedDocDetails?.customClauses || "",
+        authorizedPersonName: authorizedPersonNameParam,
+        authorizedPersonIdentity:
+          authorizedPersonIdentityParam || savedDocDetails?.authorizedPersonIdentity || "1170237140",
+        brokerAddress:
+          brokerAddressParam ||
+          savedDocDetails?.brokerAddress ||
+          itemData.store_address ||
+          "Atatürk Caddesi No: 81/A Küçük Kaymaklı / Lefkoşa",
+        clientAddress: clientAddressParam || savedDocDetails?.clientAddress || "",
+        showingItem1Details:
+          showingItem1DetailsParam ||
+          savedDocDetails?.showingItem1Details ||
+          buildDefaultShowingPropertyDetails(itemData),
+        showingItem1Price:
+          showingItem1PriceParam || savedDocDetails?.showingItem1Price || `${formattedPriceNum} ${symbol}`,
+        showingItem2Details: showingItem2DetailsParam || savedDocDetails?.showingItem2Details || "",
+        showingItem2Price: showingItem2PriceParam || savedDocDetails?.showingItem2Price || "",
+        authorizedPersonIdType: authorizedPersonIdTypeParam,
+        consultantIdType: consultantIdTypeParam,
+        officeSplitRate: officeSplitRateParam,
+        consultantSplitRate: consultantSplitRateParam,
+        externalOfficeSplitRate: externalOfficeSplitRateParam,
+        externalInternalOfficeRate: externalInternalOfficeRateParam,
+        externalInternalConsultantRate: externalInternalConsultantRateParam,
+        noticePeriodDays: noticePeriodDaysParam,
+        // Dual Signatures
         isSigned: signed,
-        signingName: clientName,
+        signingName: clientName || savedDocDetails?.clientName,
         signatureImage: signatureImage,
+        sellerSigned: sellerSigned,
+        sellerSigningName: resolvedOwnerName,
+        sellerSignatureImage: sellerSignatureImage,
         isFurnishedRental,
         fixturePhotosCount: fixturePhotosList.length,
         fixturePhotos: fixturePhotosList
@@ -390,18 +758,89 @@ export default function ContractSignPage() {
     }
   }
 
+  const handlePrintContract = () => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.write(`
+        <html>
+          <head>
+            <title>${dynamicContractTitle}</title>
+            <style>
+              body { font-family: sans-serif; background: white; margin: 32px; color: #0f172a; }
+              @media print { body { margin: 0; padding: 16px; } }
+            </style>
+          </head>
+          <body>${renderedContractHtml}</body>
+        </html>
+      `);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+      }, 400);
+    }
+  };
+
+  const buildRoleLink = (targetRole: "seller" | "final") => {
+    const url = new URL(window.location.href);
+    if (activeDocId) url.searchParams.set("docId", activeDocId);
+    if (targetRole === "final") {
+      url.searchParams.set("view", "final");
+      url.searchParams.set("role", "buyer");
+    } else {
+      url.searchParams.set("role", "seller");
+      url.searchParams.set("view", "sign");
+    }
+    return url.toString();
+  };
+
+  const handleForwardToSellerWhatsApp = () => {
+    const sellerSignLink = buildRoleLink("seller");
+    const targetPhone = formatPhoneForWhatsApp(resolvedOwnerPhone || itemData?.store_phone || "");
+    const msg = `*2. İMZA (SATICI FİNAL ONAYI) - ${dynamicContractTitle.toUpperCase()}*\n\nSayın *${resolvedOwnerName}*,\n\n*Ref: ${itemData?.reference_no || `LP-${id}`}* taşınmazına ait *${dynamicContractTitle}*, Alıcı (*${clientName}*) tarafından dijital olarak imzalanmıştır (✔ 1. İmza Tamamlandı).\n\nSözleşmeyi incelemek ve **Satıcı olarak aynı sözleşme üzerinde imzalayıp FİNALLEMEK** için aşağıdaki bağlantıya tıklayınız:\n\n${sellerSignLink}`;
+    if (targetPhone) {
+      window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, "_blank");
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+    }
+  };
+
+  const handleShareFinalContractWhatsApp = (recipient: "buyer" | "seller") => {
+    const finalLink = buildRoleLink("final");
+    const rawPhone = recipient === "buyer" ? clientPhone : resolvedOwnerPhone;
+    const formattedPhone = rawPhone ? formatPhoneForWhatsApp(rawPhone) : "";
+    const recName = recipient === "buyer" ? (clientName || "Alıcı") : resolvedOwnerName;
+    const msg = `*FİNAL İMZALI ${dynamicContractTitle.toUpperCase()} (ALICI + SATICI ONAYLI)*\n\nSayın *${recName}*,\n\n*Ref: ${itemData?.reference_no || `LP-${id}`}* taşınmazına ait *${dynamicContractTitle}*, hem Alıcı (*${clientName}*) hem de Satıcı (*${resolvedOwnerName}*) tarafından dijital imzalarla tamamlanarak sistemde mühürlenmiştir.\n\nHer iki tarafın imzasını taşıyan **Sözleşmenin Son Halini** görüntülemek ve PDF olarak indirmek için:\n\n${finalLink}\n\nHayırlı olsun.\n*${storeName}*`;
+    if (formattedPhone) {
+      window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`, "_blank");
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+    }
+  };
+
   const sendNotificationToAgent = () => {
     if (!itemData) return;
     const formattedPhone = formatPhoneForWhatsApp(itemData.store_phone || "");
     const targetRef = itemData.reference_no || `LP-${id}`;
     const sName = itemData.store_name?.replace(/lookprice/gi, "Seçkin") || "Seçkin VIP Portföy";
-    
+    const signerLabel = isSellerMode ? `Satıcı (${resolvedOwnerName})` : `Alıcı (${clientName})`;
+    const finalLink = buildRoleLink(signed && sellerSigned ? "final" : "seller");
+
     const message =
       decisionStatus === "approved"
-        ? `SAYIN ${sName.toUpperCase()},\n\nTarafıma iletmiş olduğunuz *${dynamicContractTitle}*${
-            isFurnishedRental ? ` ve *Eşya/Demirbaş Teslim Listesi ile Fotoğraflarını (${fixturePhotosList.length} Adet)*` : ""
-          } inceledim ve mobil cihazım üzerinden *ONAYLAYARAK İMZALADIM*.\n\n*Bilgiler:*\n• *Portföy Ref:* ${targetRef}\n• *İmzalayan:* ${clientName}\n• *Kimlik/Pasaport:* ${clientIdentity}\n• *Tel:* ${clientPhone}\n• *Tarih:* ${formatDateTR(new Date())}\n\nOnaylı sözleşme ve eşya tutanağı sisteminize işlenmiştir.`
-        : `SAYIN ${sName.toUpperCase()},\n\n*Ref: ${targetRef}* portföyü için iletilen sözleşme / eşya listesi hakkında *DÜZELTME / RET TALEBİM* bulunmaktadır:\n\n• *Müşteri:* ${clientName} (${clientPhone})\n• *Düzeltme / İtiraz Notu:* ${rejectionReason}\n\nKontrol ederek revize etmenizi rica ederim.`;
+        ? `SAYIN ${sName.toUpperCase()},\n\n*${dynamicContractTitle}* belgesini *${signerLabel}* olarak inceledim ve mobil cihazım üzerinden *ONAYLAYARAK İMZALADIM*.\n\n• *Portföy Ref:* ${targetRef}\n• *İmza Durumu:* ${
+            signed && sellerSigned
+              ? "✔ FİNAL TAMAMLANDI (Alıcı + Satıcı İmzalı)"
+              : "1/2 Alıcı İmzası Tamamlandı (Satıcı İmzası Bekleniyor)"
+          }\n• *Tarih:* ${formatDateTR(new Date())}\n\nSözleşme Bağlantısı:\n${finalLink}`
+        : `SAYIN ${sName.toUpperCase()},\n\n*Ref: ${targetRef}* portföyü için iletilen sözleşme hakkında *DÜZELTME / RET TALEBİM* bulunmaktadır:\n\n• *Taraf:* ${signerLabel}\n• *Not:* ${rejectionReason}`;
     
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, "_blank");
   };
@@ -410,7 +849,7 @@ export default function ContractSignPage() {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-slate-950">
         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-sm font-black text-slate-800">Güvenli Sözleşme & Eşya Tutanağı Yükleniyor...</p>
+        <p className="text-sm font-black text-slate-800">Güvenli Sözleşme & Dijital İmza Sistemi Yükleniyor...</p>
       </div>
     );
   }
@@ -433,10 +872,63 @@ export default function ContractSignPage() {
     );
   }
 
+  const isAlreadyFinalized = isFinalViewMode || (isBilateralContract && signed && sellerSigned && !success);
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950 flex items-center justify-center p-2 sm:p-6 font-sans">
       <AnimatePresence mode="wait">
-        {!success ? (
+        {isAlreadyFinalized ? (
+          <motion.div
+            key="final-view"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-4xl bg-white border-2 border-emerald-600 rounded-2xl overflow-hidden shadow-2xl p-4 sm:p-6 space-y-4"
+          >
+            <div className="bg-slate-900 text-white p-4 rounded-xl flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-slate-950 px-2.5 py-0.5 rounded">
+                  ✔ FİNAL İMZALI SÖZLEŞME (ALICI + SATICI ONAYLI)
+                </span>
+                <h1 className="text-base sm:text-lg font-black text-white mt-1">
+                  {dynamicContractTitle} • Ref: {itemData.reference_no || `LP-${id}`}
+                </h1>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrintContract}
+                  className="px-3 py-2 bg-white text-slate-950 hover:bg-slate-100 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" /> Yazdır / PDF İndir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleShareFinalContractWhatsApp("buyer")}
+                  className="px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4" /> Alıcıya İlet (WA)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleShareFinalContractWhatsApp("seller")}
+                  className="px-3 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" /> Satıcıya İlet (WA)
+                </button>
+              </div>
+            </div>
+
+            {sealResult?.legalSeal && (
+              <div className="p-3 bg-emerald-50 border-2 border-emerald-400 rounded-xl text-xs font-mono font-bold text-emerald-950">
+                🔒 {sealResult.legalSeal}
+              </div>
+            )}
+
+            <div className="bg-white border-2 border-slate-300 rounded-xl p-4 overflow-y-auto max-h-[72vh]">
+              <div dangerouslySetInnerHTML={{ __html: renderedContractHtml }} />
+            </div>
+          </motion.div>
+        ) : !success ? (
           <motion.div 
             key="sign-flow"
             initial={{ opacity: 0, y: 10 }}
@@ -449,7 +941,10 @@ export default function ContractSignPage() {
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <span className="bg-slate-900 text-white text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded flex items-center gap-1">
-                    <Lock className="w-3 h-3 text-amber-400" /> Dijital Sözleşme & Eşya Onay Sistemi
+                    <Lock className="w-3 h-3 text-amber-400" />
+                    {isSellerMode
+                      ? "2. ADIM: SATICI FİNAL ONAY & DİJİTAL İMZA"
+                      : "1. ADIM (ÖNCELİKLİ): ALICI DİJİTAL İMZA"}
                   </span>
                   <span className="text-xs bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-mono font-black">
                     Ref: {itemData.reference_no || `LP-${id}`}
@@ -459,6 +954,46 @@ export default function ContractSignPage() {
                 <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-950 mb-3">
                   {dynamicContractTitle}
                 </h1>
+
+                {/* Signing Priority Status Bar for Bilateral Contracts */}
+                {isBilateralContract && (
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className={`p-2.5 rounded-xl border-2 flex items-center justify-between ${
+                      signed ? "bg-emerald-50 border-emerald-500 text-emerald-950" : "bg-indigo-50 border-indigo-500 text-indigo-950"
+                    }`}>
+                      <div>
+                        <span className="block text-[9px] font-black uppercase">1. İmza (Öncelikli: Alıcı)</span>
+                        <span className="text-xs font-black truncate block">{clientName || "Alıcı"}</span>
+                      </div>
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
+                        signed ? "bg-emerald-600 text-white" : "bg-indigo-600 text-white"
+                      }`}>
+                        {signed ? "✔ İMZALANDI" : "BEKLİYOR"}
+                      </span>
+                    </div>
+                    <div className={`p-2.5 rounded-xl border-2 flex items-center justify-between ${
+                      sellerSigned
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-950"
+                        : signed
+                        ? "bg-amber-50 border-amber-500 text-amber-950"
+                        : "bg-slate-100 border-slate-300 text-slate-600"
+                    }`}>
+                      <div>
+                        <span className="block text-[9px] font-black uppercase">2. İmza (Final: Satıcı)</span>
+                        <span className="text-xs font-black truncate block">{resolvedOwnerName}</span>
+                      </div>
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
+                        sellerSigned
+                          ? "bg-emerald-600 text-white"
+                          : signed
+                          ? "bg-amber-400 text-slate-950"
+                          : "bg-slate-300 text-slate-700"
+                      }`}>
+                        {sellerSigned ? "✔ FİNALLENDİ" : signed ? "SIRA SATICIDA" : "ÖNCE ALICI"}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Summary Bar */}
                 <div className="grid grid-cols-2 gap-2.5 mb-4 bg-white p-3 rounded-xl border-2 border-slate-300">
@@ -476,18 +1011,6 @@ export default function ContractSignPage() {
                     <div className="truncate">
                       <span className="block text-[9px] font-black text-slate-600 uppercase leading-none mb-0.5">Yetkili Ofis</span>
                       <span className="text-xs font-black text-slate-950 block truncate">{storeName}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 col-span-2 border-t border-slate-200 pt-2">
-                    <Calendar className="w-4 h-4 text-indigo-600 mt-0.5" />
-                    <div>
-                      <span className="block text-[9px] font-black text-slate-600 uppercase leading-none mb-0.5">Bedel & Konum</span>
-                      <span className="text-xs font-black text-indigo-700 block">
-                        {isVehicle 
-                          ? `Fiyat: ${formatCurrency(itemData.selling_price || itemData.price, itemData.currency || "TRY")}`
-                          : `Kira/Satış Bedeli: ${formatCurrency(itemData.price, itemData.currency || "GBP")} • ${resolvedRegionLabel}`
-                        }
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -529,14 +1052,14 @@ export default function ContractSignPage() {
 
                 {/* Contract Full HTML Preview */}
                 {renderedContractHtml ? (
-                  <div className="bg-white border-2 border-slate-300 rounded-xl p-3 max-h-[340px] overflow-y-auto text-slate-950 leading-relaxed font-sans">
+                  <div className="bg-white border-2 border-slate-300 rounded-xl p-3 max-h-[380px] overflow-y-auto text-slate-950 leading-relaxed font-sans">
                     <div dangerouslySetInnerHTML={{ __html: renderedContractHtml }} />
                   </div>
                 ) : null}
               </div>
 
               <div className="mt-3 pt-2 border-t border-slate-300 flex items-center justify-between text-[10px] text-slate-700 font-bold">
-                <span>Güvenli Dijital Sözleşme & Eşya Teslim Protokolü</span>
+                <span>Güvenli Çift Taraflı Dijital Sözleşme Protokolü</span>
                 <span className="flex items-center gap-1 text-emerald-700 font-black">
                   <CheckCircle className="w-3.5 h-3.5" /> Hukuki Delil Statüsündedir
                 </span>
@@ -546,59 +1069,132 @@ export default function ContractSignPage() {
             {/* Right Column: Approval / Signature / Rejection Form */}
             <div className="lg:w-5/12 p-4 sm:p-6 flex flex-col justify-between bg-white">
               <div className="space-y-3.5">
-                <div className="flex items-center gap-1.5 text-slate-950 font-black text-xs uppercase tracking-wider border-b border-slate-200 pb-2">
-                  <PenTool className="w-4 h-4 text-indigo-600" /> MÜŞTERİ ONAY & İMZA PANELİ
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <div className="flex items-center gap-1.5 text-slate-950 font-black text-xs uppercase tracking-wider">
+                    <PenTool className="w-4 h-4 text-indigo-600" />
+                    <span>
+                      {isSellerMode
+                        ? "2. ADIM: SATICI FİNAL İMZA PANELİ"
+                        : "1. ADIM (ÖNCELİKLİ): ALICI İMZA PANELİ"}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Input Fields */}
-                <div className="space-y-2.5">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">ADINIZ SOYADINIZ *</label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                      <input 
-                        type="text" 
-                        placeholder="Adınız Soyadınız" 
-                        value={clientName}
-                        onChange={(e) => setClientName(e.target.value)}
-                        className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
-                      />
+                {/* Buyer-first priority guard when Seller opens before Buyer signs */}
+                {isSellerMode && isBilateralContract && !signed && (
+                  <div className="p-3 bg-amber-50 border-2 border-amber-400 rounded-xl text-xs font-bold text-amber-950 space-y-1">
+                    <div className="font-black uppercase text-amber-900">⚠️ İmza Önceliği Alıcı'dadır</div>
+                    <p>
+                      Bu sözleşme tipinde önce Alıcı'nın imzalaması, ardından Alıcı imzalı sözleşmenin Satıcı tarafından imzalanarak finallenmesi gerekmektedir.
+                    </p>
+                  </div>
+                )}
+
+                {/* Input Fields based on Role */}
+                {isSellerMode ? (
+                  <div className="space-y-2.5">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">
+                        SATICI / MÜLK SAHİBİ ADI SOYADI *
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                        <input
+                          type="text"
+                          placeholder="Satıcı Adı Soyadı"
+                          value={ownerName || resolvedOwnerName}
+                          onChange={(e) => setOwnerName(e.target.value)}
+                          className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">
+                          SATICI KİMLİK / PASAPORT NO *
+                        </label>
+                        <div className="relative">
+                          <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                          <input
+                            type="text"
+                            placeholder="Örn: 2010390619"
+                            value={sellerIdentity}
+                            onChange={(e) => setSellerIdentity(e.target.value)}
+                            className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">
+                          SATICI TELEFON NUMARASI
+                        </label>
+                        <div className="relative">
+                          <Smartphone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                          <input
+                            type="tel"
+                            placeholder="+90 533 ..."
+                            value={ownerPhone || resolvedOwnerPhone}
+                            onChange={(e) => setOwnerPhone(e.target.value)}
+                            className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                ) : (
+                  <div className="space-y-2.5">
                     <div>
-                      <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">KİMLİK / PASAPORT NO *</label>
+                      <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">
+                        ALICI / MÜŞTERİ ADI SOYADI *
+                      </label>
                       <div className="relative">
-                        <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                        <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                         <input 
                           type="text" 
-                          placeholder="Kimlik / Pasaport No" 
-                          value={clientIdentity}
-                          onChange={(e) => setClientIdentity(e.target.value)}
+                          placeholder="Adınız Soyadınız" 
+                          value={clientName}
+                          onChange={(e) => setClientName(e.target.value)}
                           className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
                         />
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">TELEFON NUMARANIZ *</label>
-                      <div className="relative">
-                        <Smartphone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                        <input 
-                          type="tel" 
-                          placeholder="+90 533 ..." 
-                          value={clientPhone}
-                          onChange={(e) => setClientPhone(e.target.value)}
-                          className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
-                        />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">KİMLİK / PASAPORT NO *</label>
+                        <div className="relative">
+                          <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                          <input 
+                            type="text" 
+                            placeholder="Kimlik / Pasaport No" 
+                            value={clientIdentity}
+                            onChange={(e) => setClientIdentity(e.target.value)}
+                            className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">TELEFON NUMARANIZ *</label>
+                        <div className="relative">
+                          <Smartphone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                          <input 
+                            type="tel" 
+                            placeholder="+90 533 ..." 
+                            value={clientPhone}
+                            onChange={(e) => setClientPhone(e.target.value)}
+                            className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Mandatory Fixture Acceptance Checkbox for Furnished Rentals */}
-                {isFurnishedRental && (
+                {isFurnishedRental && !isSellerMode && (
                   <label className="flex items-start gap-2.5 p-2.5 bg-amber-50 border-2 border-amber-300 rounded-xl cursor-pointer">
                     <input
                       type="checkbox"
@@ -645,7 +1241,11 @@ export default function ContractSignPage() {
                 {/* Canvas Signature Box */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="block text-[10px] font-black text-slate-900 uppercase">PARMAĞINIZLA BURAYA İMZALAYIN</label>
+                    <label className="block text-[10px] font-black text-slate-900 uppercase">
+                      {isSellerMode
+                        ? "SATICI OLARAK BURAYA İMZALAYIN (FİNAL ONAY)"
+                        : "ALICI OLARAK BURAYA İMZALAYIN (1. ÖNCELİK)"}
+                    </label>
                     <button 
                       onClick={clearCanvas}
                       type="button"
@@ -689,7 +1289,7 @@ export default function ContractSignPage() {
                       rows={2}
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Örn: Salon kliması kumandası eksik veya koltukta mevcut leke not edilmeli..."
+                      placeholder="Sözleşme maddeleri veya bilgilerle ilgili düzeltme talebinizi yazınız..."
                       className="w-full p-2 bg-white border border-rose-300 rounded-lg text-xs font-bold text-slate-950 focus:outline-none"
                     />
                     <div className="flex items-center gap-2">
@@ -717,9 +1317,13 @@ export default function ContractSignPage() {
                 <button 
                   type="button"
                   onClick={handleApprove}
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl tracking-wider uppercase transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer"
+                  disabled={isSellerMode && isBilateralContract && !signed}
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs rounded-xl tracking-wider uppercase transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer"
                 >
-                  <Check className="w-4 h-4" /> ONAYLA VE İMZALA
+                  <Check className="w-4 h-4" />
+                  {isSellerMode
+                    ? "SATICI OLARAK İMZALA VE SÖZLEŞMEYİ FİNALLE"
+                    : "ALICI OLARAK ONAYLA VE İMZALA"}
                 </button>
 
                 {!isVehicle && !showRejectBox && (
@@ -728,7 +1332,7 @@ export default function ContractSignPage() {
                     onClick={() => setShowRejectBox(true)}
                     className="w-full py-2.5 bg-white hover:bg-rose-50 text-rose-700 border-2 border-rose-300 font-black text-xs rounded-xl uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <XCircle className="w-4 h-4" /> Reddet / Eşya Listesinde Düzeltme İste
+                    <XCircle className="w-4 h-4" /> Reddet / Düzeltme İste
                   </button>
                 )}
               </div>
@@ -758,36 +1362,46 @@ export default function ContractSignPage() {
                   : "bg-rose-100 text-rose-900"
               }`}
             >
-              {decisionStatus === "approved"
-                ? "SÖZLEŞME & EŞYA LİSTESİ ONAYLANDI"
-                : "DÜZELTME / RET TALEBİ KAYDEDİLDİ"}
+              {decisionStatus !== "approved"
+                ? "DÜZELTME / RET TALEBİ KAYDEDİLDİ"
+                : signed && sellerSigned
+                ? "✔ SÖZLEŞME FİNALLENDİ (ALICI + SATICI İMZALI)"
+                : "✔ 1. ADIM: ALICI İMZASI TAMAMLANDI"}
             </span>
 
             <h2 className="text-xl font-black text-slate-950 tracking-tight mb-2">
-              {decisionStatus === "approved"
-                ? "Teşekkürler, Dijital Onayınız Kaydedildi!"
-                : "Düzeltme Talebiniz Sisteme İşlendi"}
+              {decisionStatus !== "approved"
+                ? "Düzeltme Talebiniz Sisteme İşlendi"
+                : signed && sellerSigned
+                ? "Sözleşme Karşılıklı İmzalanarak Finallendi!"
+                : "Alıcı Dijital İmzası Kaydedildi!"}
             </h2>
             <p className="text-xs text-slate-700 leading-relaxed mb-5 max-w-sm mx-auto font-medium">
-              {decisionStatus === "approved"
-                ? "Sözleşmeniz ve eşya tespit tutanağınız dijital zaman damgası ile sisteme kaydedilmiştir."
-                : "Belirttiğiniz düzeltme/itiraz notu ilgili gayrimenkul danışmanının ekranına iletilmiştir."}
+              {decisionStatus !== "approved"
+                ? "Belirttiğiniz düzeltme/itiraz notu ilgili gayrimenkul danışmanının ekranına iletilmiştir."
+                : signed && sellerSigned
+                ? "Hem Alıcı hem Satıcı imzasını içeren sözleşmenin son hali sistemde mühürlenerek saklanmıştır. Aşağıdaki butonlarla son halini Alıcı ve Satıcıya iletebilirsiniz."
+                : "1. Öncelikli Alıcı imzası tamamlandı. Sözleşmenin finallenmesi için şimdi Satıcı imzasına iletebilirsiniz."}
             </p>
 
             <div className="bg-slate-50 border-2 border-slate-300 p-3.5 rounded-xl text-left space-y-1.5 mb-5 text-xs max-w-md mx-auto">
               <div className="flex justify-between">
-                <span className="text-slate-600 font-bold">Müşteri:</span>
-                <span className="text-slate-950 font-black">{clientName}</span>
+                <span className="text-slate-600 font-bold">Alıcı (1. İmza):</span>
+                <span className="text-slate-950 font-black">
+                  {clientName} {signed ? "✔" : ""}
+                </span>
               </div>
+              {isBilateralContract && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600 font-bold">Satıcı (2. Final İmza):</span>
+                  <span className="text-slate-950 font-black">
+                    {resolvedOwnerName} {sellerSigned ? "✔" : "(Bekleniyor)"}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-slate-600 font-bold">Tarih / Saat:</span>
                 <span className="text-indigo-700 font-black">{new Date().toLocaleString("tr-TR")}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600 font-bold">Durum:</span>
-                <span className="text-slate-950 font-black">
-                  {decisionStatus === "approved" ? "Onaylandı & İmzalandı" : `Red / Düzeltme: ${rejectionReason}`}
-                </span>
               </div>
               {decisionStatus === "approved" && sealResult && (
                 <div className="pt-2 mt-2 border-t border-slate-200 space-y-1">
@@ -798,16 +1412,57 @@ export default function ContractSignPage() {
                     </span>
                   </div>
                   <p className="text-[10px] text-slate-700 font-mono font-bold bg-emerald-50 border border-emerald-200 p-2 rounded-lg leading-snug">
-                    🔒 {sealResult.legalSeal || `Bu sözleşme ${sealResult.ipAddress} IP adresi üzerinden ${new Date().toLocaleString("tr-TR")} anında [OTP Kodu: #${sealResult.otpCode}] ile dijital olarak mühürlenmiştir.`}
+                    🔒 {sealResult.legalSeal}
                   </p>
                 </div>
               )}
             </div>
 
             <div className="space-y-2 max-w-md mx-auto">
+              {decisionStatus === "approved" && isBilateralContract && signed && !sellerSigned && (
+                <button
+                  type="button"
+                  onClick={handleForwardToSellerWhatsApp}
+                  className="w-full py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl tracking-wider uppercase transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" /> 2. İmza İçin Satıcıya İlet (WhatsApp)
+                </button>
+              )}
+
+              {decisionStatus === "approved" && (!isBilateralContract || (signed && sellerSigned)) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleShareFinalContractWhatsApp("buyer")}
+                    className="py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl uppercase flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" /> Son Halini Alıcıya İlet
+                  </button>
+                  {isBilateralContract && (
+                    <button
+                      type="button"
+                      onClick={() => handleShareFinalContractWhatsApp("seller")}
+                      className="py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl uppercase flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Send className="w-4 h-4" /> Son Halini Satıcıya İlet
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {decisionStatus === "approved" && (
+                <button
+                  type="button"
+                  onClick={handlePrintContract}
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl uppercase flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" /> Sözleşmeyi Yazdır / PDF İndir
+                </button>
+              )}
+
               <button 
                 onClick={sendNotificationToAgent}
-                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl tracking-wider uppercase transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl tracking-wider uppercase transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Send className="w-4 h-4" /> Danışmana WhatsApp ile Bildir
               </button>

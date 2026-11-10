@@ -89,7 +89,7 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
       );
 
       const { html } = tDef.getTemplate({
-        storeName: "Yetkili Emlak Ofisi",
+        storeName: doc.details?.storeName || "Yetkili Emlak Ofisi",
         clientName: doc.details?.clientName || "[Müşteri Adı]",
         clientIdentity: doc.details?.clientIdentity || "[Kimlik / Pasaport No]",
         clientPhone: doc.details?.clientPhone || "[Telefon]",
@@ -99,23 +99,82 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
         propertyBlockPlot: formData.block_plot,
         commissionRate: doc.details?.commissionRate || "3",
         contractDate: doc.upload_date || doc.details?.contractDate || "",
-        propertyAddress: formData.address,
+        propertyAddress: doc.details?.rentalAddress || formData.address,
         isSigned: doc.details?.signed,
         signatureImage: doc.details?.signatureImage,
+        sellerSigned: doc.details?.sellerSigned,
+        sellerSigningName: doc.details?.sellerSigningName,
+        sellerSignatureImage: doc.details?.sellerSignatureImage,
+        contractStage: doc.details?.contractStage,
         splitRatio: doc.details?.splitRatio,
         contractDuration: doc.details?.contractDuration,
         evictionDate: doc.details?.evictionDate,
         depositAmount: resolvedDepositAmount,
         rentDuration: doc.details?.rentDuration,
         paymentDay: doc.details?.paymentDay,
+        ownerName: doc.details?.ownerName,
+        ownerPhone: doc.details?.ownerPhone,
+        sellerIdentity: doc.details?.sellerIdentity,
+        sellerIdType: doc.details?.sellerIdType,
+        buyerIdType: doc.details?.buyerIdType,
+        rentalPropertyDef: doc.details?.rentalPropertyDef,
+        rentalUsagePurpose: doc.details?.rentalUsagePurpose,
+        rentalDistrict: doc.details?.rentalDistrict,
+        rentalTownVillage: doc.details?.rentalTownVillage,
+        kocanNo: doc.details?.kocanNo,
+        paftaNo: doc.details?.paftaNo,
+        adaNo: doc.details?.adaNo,
+        parselNo: doc.details?.parselNo,
+        rentPriceRaw: doc.details?.rentPriceRaw || formattedPriceNum,
+        rentCurrency: doc.details?.rentCurrency || (formData.currency === "TRY" ? "TL" : formData.currency || "TL"),
+        rentPaymentMethod: doc.details?.rentPaymentMethod,
+        rentStartDate: doc.details?.rentStartDate,
+        rentEndDate: doc.details?.rentEndDate,
+        salePropertyDetails: doc.details?.salePropertyDetails,
+        salePriceRaw: doc.details?.salePriceRaw,
+        saleCurrency: doc.details?.saleCurrency || formData.currency || "GBP",
+        depositDate: doc.details?.depositDate,
+        remainingAmountRaw: doc.details?.remainingAmountRaw,
+        deedTransferDate: doc.details?.deedTransferDate,
+        paymentDeadlineMonths: doc.details?.paymentDeadlineMonths,
+        gracePeriodDays: doc.details?.gracePeriodDays,
+        taxClauseText: doc.details?.taxClauseText,
+        witness1Name: doc.details?.witness1Name,
+        witness1Identity: doc.details?.witness1Identity,
+        witness2Name: doc.details?.witness2Name,
+        witness2Identity: doc.details?.witness2Identity,
+        offerPropertyNature: doc.details?.offerPropertyNature,
+        offerPropertyDetails: doc.details?.offerPropertyDetails,
+        viewingDate: doc.details?.viewingDate,
+        agentAndCompany: doc.details?.agentAndCompany,
+        authorizedPersonIdentity: doc.details?.authorizedPersonIdentity,
+        brokerAddress: doc.details?.brokerAddress,
+        clientAddress: doc.details?.clientAddress,
+        showingItem1Details: doc.details?.showingItem1Details,
+        showingItem1Price: doc.details?.showingItem1Price,
+        showingItem2Details: doc.details?.showingItem2Details,
+        showingItem2Price: doc.details?.showingItem2Price,
+        offerPrice: doc.details?.offerPrice,
+        offerValidityPeriod: doc.details?.offerValidityPeriod,
+        offerFreeNotes: doc.details?.offerFreeNotes,
+        customClauses: doc.details?.customClauses,
         isFurnishedRental: resolvedIsFurnishedRental,
         fixturePhotosCount: resolvedFixturePhotos.length,
         fixturePhotos: resolvedFixturePhotos
       });
 
-      const printWin = window.open("", "_blank");
-      if (printWin) {
-        printWin.document.write(`
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+      const docWin = iframe.contentWindow?.document;
+      if (docWin) {
+        docWin.open();
+        docWin.write(`
           <html>
             <head>
               <title>${doc.name}</title>
@@ -124,16 +183,16 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
                 @media print { body { margin: 10px; } }
               </style>
             </head>
-            <body>
-              ${html}
-              <script>window.onload = function() { window.print(); }</script>
-            </body>
+            <body>${html}</body>
           </html>
         `);
-        printWin.document.close();
+        docWin.close();
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 1500);
+        }, 300);
       }
-    } else if (doc.file_url) {
-      window.open(doc.file_url, "_blank");
     }
   };
 
