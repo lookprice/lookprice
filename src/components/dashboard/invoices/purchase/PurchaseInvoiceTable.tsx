@@ -308,12 +308,15 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium flex items-center gap-1 cursor-pointer"
                                title={isTr ? "Fatura HTML görselini görüntüle" : "View invoice HTML"}
                              >
-                               {invoice.invoice_number}
+                               {invoice.invoice_number || invoice.document_number || `#${invoice.id}`}
                              </button>
                            ) : (
-                             <span>{invoice.invoice_number}</span>
+                             <span>{invoice.invoice_number || invoice.document_number || `#${invoice.id}`}</span>
                            )}
                         </div>
+                        {invoice.document_number && invoice.invoice_number && invoice.document_number !== invoice.invoice_number && (
+                          <div className="text-[9px] text-indigo-600 font-medium tracking-wide mt-0.5">{invoice.document_number}</div>
+                        )}
                         {invoice.e_document_type && (
                            <div className="flex items-center gap-1.5 mt-0.5">
                              <div className="text-[9px] text-indigo-600 font-medium uppercase">{invoice.e_document_type}</div>

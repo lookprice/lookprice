@@ -24,6 +24,18 @@ export async function initPurchaseInvoiceSchema() {
     await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS company_title VARCHAR(255);`);
     await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS gi_exemption_reason_text TEXT;`);
     await pool.query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS company_id INT;`);
+    await pool.query(`
+      UPDATE sales_invoices
+      SET invoice_number = document_number
+      WHERE (invoice_number IS NULL OR TRIM(invoice_number) = '')
+        AND document_number IS NOT NULL AND TRIM(document_number) != '';
+    `);
+    await pool.query(`
+      UPDATE purchase_invoices
+      SET invoice_number = document_number
+      WHERE (invoice_number IS NULL OR TRIM(invoice_number) = '')
+        AND document_number IS NOT NULL AND TRIM(document_number) != '';
+    `);
   } catch (e) {
     console.error("Failed to alter purchase_invoice_items / sales_invoices table columns:", e);
   }
@@ -612,6 +624,7 @@ router.get("/sales", async (req: any, res) => {
 
     let query = `
        SELECT si.*, 
+             COALESCE(NULLIF(TRIM(si.invoice_number), ''), NULLIF(TRIM(si.document_number), '')) as invoice_number,
              COALESCE(si.company_id, comp_match.id) as company_id,
              COALESCE(
                NULLIF(c.title, 'Bireysel Web Müşterisi'),
@@ -640,6 +653,8 @@ router.get("/sales", async (req: any, res) => {
              s.status as sale_status,
              s.cancellation_reason as sale_cancellation_reason,
              COALESCE(NULLIF(si.tax_number, ''), c.tax_number, comp_match.tax_number, cust.tc_id, cust.tax_number, '11111111111') as resolved_tax_number,
+             COALESCE(NULLIF(si.tax_office, ''), c.tax_office, cust.tax_office) as tax_office,
+             COALESCE(NULLIF(si.address, ''), c.address, cust.address) as address,
              cust.address as customer_address,
              cust.city as customer_city,
              cust.phone as customer_phone,
@@ -652,6 +667,8 @@ router.get("/sales", async (req: any, res) => {
                  'product_id', sii.product_id,
                  'product_name', sii.product_name,
                  'barcode', sii.barcode,
+                 'product_code', sii.product_code,
+                 'variant_name', sii.variant_name,
                  'quantity', sii.quantity,
                  'unit_price', sii.unit_price,
                  'tax_rate', sii.tax_rate,
@@ -698,26 +715,68 @@ router.get("/sales", async (req: any, res) => {
       params.push(status);
       query += ` AND si.status = $${params.length}`;
     }
-    if (search) {
-      const searchTerms = search.split(/\s+/).filter(Boolean);
-      searchTerms.forEach(term => {
+    if (search && String(search).trim() !== '') {
+      const searchTerms = String(search).split(/\s+/).filter(Boolean);
+      searchTerms.forEach(rawTerm => {
+        const term = rawTerm.replace(/^#+/, '') || rawTerm;
         const pLen = params.length + 1;
         query += ` AND (
+          si.id::text LIKE $${pLen} OR
           ${getTurkishSearchSnippet('si.invoice_number', pLen)} OR 
           ${getTurkishSearchSnippet('si.document_number', pLen)} OR
+          ${getTurkishSearchSnippet('si.return_invoice_number', pLen)} OR
           ${getTurkishSearchSnippet('si.ettn', pLen)} OR
           ${getTurkishSearchSnippet('si.notes', pLen)} OR
           ${getTurkishSearchSnippet('si.waybill_number', pLen)} OR
+          ${getTurkishSearchSnippet('si.customer_name', pLen)} OR
+          ${getTurkishSearchSnippet('si.company_title', pLen)} OR
           ${getTurkishSearchSnippet('si.tax_number', pLen)} OR
+          ${getTurkishSearchSnippet('si.tax_office', pLen)} OR
+          ${getTurkishSearchSnippet('si.address', pLen)} OR
+          ${getTurkishSearchSnippet('si.customer_email', pLen)} OR
+          ${getTurkishSearchSnippet('si.payment_method', pLen)} OR
+          ${getTurkishSearchSnippet('si.status', pLen)} OR
+          ${getTurkishSearchSnippet('si.integration_status', pLen)} OR
+          ${getTurkishSearchSnippet('si.e_document_type', pLen)} OR
+          ${getTurkishSearchSnippet('si.invoice_profile', pLen)} OR
+          ${getTurkishSearchSnippet('si.invoice_type', pLen)} OR
+          ${getTurkishSearchSnippet('si.gi_invoice_type', pLen)} OR
+          ${getTurkishSearchSnippet('si.currency', pLen)} OR
+          si.total_amount::text LIKE $${pLen} OR
+          si.tax_amount::text LIKE $${pLen} OR
+          si.grand_total::text LIKE $${pLen} OR
+          TO_CHAR(si.invoice_date, 'DD.MM.YYYY') LIKE $${pLen} OR
+          TO_CHAR(si.invoice_date, 'DD/MM/YYYY') LIKE $${pLen} OR
+          TO_CHAR(si.invoice_date, 'DD/MM/YY') LIKE $${pLen} OR
+          si.invoice_date::text LIKE $${pLen} OR
           ${getTurkishSearchSnippet('c.title', pLen)} OR
+          ${getTurkishSearchSnippet('c.tax_number', pLen)} OR
+          ${getTurkishSearchSnippet('c.tax_office', pLen)} OR
+          ${getTurkishSearchSnippet('c.address', pLen)} OR
+          ${getTurkishSearchSnippet('c.phone', pLen)} OR
+          ${getTurkishSearchSnippet('c.email', pLen)} OR
+          ${getTurkishSearchSnippet('comp_match.title', pLen)} OR
+          ${getTurkishSearchSnippet('comp_match.tax_number', pLen)} OR
           ${getTurkishSearchSnippet('cust.full_name', pLen)} OR
+          ${getTurkishSearchSnippet("CONCAT_WS(' ', cust.name, cust.surname)", pLen)} OR
+          ${getTurkishSearchSnippet('cust.tax_number', pLen)} OR
+          ${getTurkishSearchSnippet('cust.tc_id', pLen)} OR
+          ${getTurkishSearchSnippet('cust.tax_office', pLen)} OR
+          ${getTurkishSearchSnippet('cust.address', pLen)} OR
+          ${getTurkishSearchSnippet('cust.city', pLen)} OR
+          ${getTurkishSearchSnippet('cust.phone', pLen)} OR
+          ${getTurkishSearchSnippet('cust.email', pLen)} OR
           ${getTurkishSearchSnippet('s.customer_name', pLen)} OR
           EXISTS (
             SELECT 1 FROM sales_invoice_items sub_sii 
             WHERE sub_sii.sales_invoice_id = si.id 
             AND (
               ${getTurkishSearchSnippet('sub_sii.product_name', pLen)} OR
-              ${getTurkishSearchSnippet('sub_sii.barcode', pLen)}
+              ${getTurkishSearchSnippet('sub_sii.barcode', pLen)} OR
+              ${getTurkishSearchSnippet('sub_sii.product_code', pLen)} OR
+              ${getTurkishSearchSnippet('sub_sii.variant_name', pLen)} OR
+              sub_sii.unit_price::text LIKE $${pLen} OR
+              sub_sii.total_price::text LIKE $${pLen}
             )
           )
         )`;
@@ -1713,7 +1772,9 @@ router.get("/purchase", async (req: any, res) => {
     const { search, startDate, endDate } = req.query;
 
     let query = `
-      SELECT pi.*, c.title as company_name,
+      SELECT pi.*, 
+             COALESCE(NULLIF(TRIM(pi.invoice_number), ''), NULLIF(TRIM(pi.document_number), '')) as invoice_number,
+             c.title as company_name,
              (
                SELECT COALESCE(json_agg(json_build_object(
                  'id', pii.id,
@@ -1763,11 +1824,13 @@ router.get("/purchase", async (req: any, res) => {
      `;
      const params: any[] = [storeId];
  
-     if (search) {
-       const searchTerms = search.split(/\s+/).filter(Boolean);
-       searchTerms.forEach(term => {
+     if (search && String(search).trim() !== '') {
+       const searchTerms = String(search).split(/\s+/).filter(Boolean);
+       searchTerms.forEach(rawTerm => {
+         const term = rawTerm.replace(/^#+/, '') || rawTerm;
          const pLen = params.length + 1;
          query += ` AND (
+           pi.id::text LIKE $${pLen} OR
            ${getTurkishSearchSnippet('pi.invoice_number', pLen)} OR 
            ${getTurkishSearchSnippet('pi.document_number', pLen)} OR
            ${getTurkishSearchSnippet('pi.supplier_name', pLen)} OR
@@ -1775,14 +1838,39 @@ router.get("/purchase", async (req: any, res) => {
            ${getTurkishSearchSnippet('pi.notes', pLen)} OR
            ${getTurkishSearchSnippet('pi.waybill_number', pLen)} OR
            ${getTurkishSearchSnippet('pi.tax_number', pLen)} OR
+           ${getTurkishSearchSnippet('pi.tax_office', pLen)} OR
+           ${getTurkishSearchSnippet('pi.address', pLen)} OR
+           ${getTurkishSearchSnippet('pi.payment_method', pLen)} OR
+           ${getTurkishSearchSnippet('pi.payment_status', pLen)} OR
+           ${getTurkishSearchSnippet('pi.status', pLen)} OR
+           ${getTurkishSearchSnippet('pi.integration_status', pLen)} OR
+           ${getTurkishSearchSnippet('pi.e_document_type', pLen)} OR
+           ${getTurkishSearchSnippet('pi.expense_category', pLen)} OR
+           ${getTurkishSearchSnippet('pi.expense_center', pLen)} OR
+           ${getTurkishSearchSnippet('pi.currency', pLen)} OR
+           pi.total_amount::text LIKE $${pLen} OR
+           pi.tax_amount::text LIKE $${pLen} OR
+           pi.grand_total::text LIKE $${pLen} OR
+           TO_CHAR(pi.invoice_date, 'DD.MM.YYYY') LIKE $${pLen} OR
+           TO_CHAR(pi.invoice_date, 'DD/MM/YYYY') LIKE $${pLen} OR
+           TO_CHAR(pi.invoice_date, 'DD/MM/YY') LIKE $${pLen} OR
+           pi.invoice_date::text LIKE $${pLen} OR
            ${getTurkishSearchSnippet('c.title', pLen)} OR
+           ${getTurkishSearchSnippet('c.tax_number', pLen)} OR
+           ${getTurkishSearchSnippet('c.tax_office', pLen)} OR
+           ${getTurkishSearchSnippet('c.address', pLen)} OR
+           ${getTurkishSearchSnippet('c.phone', pLen)} OR
+           ${getTurkishSearchSnippet('c.email', pLen)} OR
            EXISTS (
              SELECT 1 FROM purchase_invoice_items sub_pii 
              WHERE sub_pii.purchase_invoice_id = pi.id 
              AND (
                ${getTurkishSearchSnippet('sub_pii.product_name', pLen)} OR
                ${getTurkishSearchSnippet('sub_pii.barcode', pLen)} OR
-               ${getTurkishSearchSnippet('sub_pii.variant_name', pLen)}
+               ${getTurkishSearchSnippet('sub_pii.product_code', pLen)} OR
+               ${getTurkishSearchSnippet('sub_pii.variant_name', pLen)} OR
+               sub_pii.unit_price::text LIKE $${pLen} OR
+               sub_pii.total_price::text LIKE $${pLen}
              )
            )
          )`;

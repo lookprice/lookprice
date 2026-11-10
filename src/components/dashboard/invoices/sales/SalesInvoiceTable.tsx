@@ -278,9 +278,9 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             type="button"
                             onClick={() => toggleRow(inv)}
                             className="font-mono text-xs font-normal text-indigo-700 hover:text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 px-1.5 py-0.5 rounded-md border border-indigo-200/70 truncate max-w-[145px] transition-colors cursor-pointer"
-                            title={`#${inv.invoice_number}`}
+                            title={`#${inv.invoice_number || inv.document_number || inv.id}`}
                           >
-                            #{inv.invoice_number}
+                            #{inv.invoice_number || inv.document_number || inv.id}
                           </button>
                           {(inv.gi_invoice_type === 'IADE' || inv.invoice_type === 'IADE') && (
                             <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-medium bg-rose-100 text-rose-700 border border-rose-200">
@@ -294,7 +294,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             </span>
                           )}
                         </div>
-                        {inv.document_number && (
+                        {inv.document_number && inv.invoice_number && inv.document_number !== inv.invoice_number && (
                            <div className="text-[9px] text-indigo-600 font-medium tracking-wide mt-0.5">{inv.document_number}</div>
                         )}
                         {(() => {
@@ -575,7 +575,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                     </span>
                                   </h4>
                                   <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                                    {isTr ? `Fatura No: #${inv.invoice_number}` : `Invoice: #${inv.invoice_number}`}
+                                    {isTr ? `Fatura No: #${inv.invoice_number || inv.document_number || inv.id}` : `Invoice: #${inv.invoice_number || inv.document_number || inv.id}`}
                                     {inv.customer_name || inv.company_title ? ` • ${inv.customer_name || inv.company_title}` : ''}
                                   </p>
                                 </div>
@@ -773,7 +773,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
         >
           <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
             <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
-              {activeInvoiceForMenu.invoice_number || (isTr ? 'Fatura İşlemleri' : 'Invoice Actions')}
+              {activeInvoiceForMenu.invoice_number || activeInvoiceForMenu.document_number || (isTr ? 'Fatura İşlemleri' : 'Invoice Actions')}
             </span>
             {activeInvoiceForMenu.currency && (
               <span className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">

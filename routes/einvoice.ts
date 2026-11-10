@@ -713,7 +713,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         
         // Save correct document_number, ettn, e_document_type, and set invoice_profile to EARSIVFATURA if E-Arşiv
         await client.query(
-           "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
+           "UPDATE sales_invoices SET document_number = $1, invoice_number = COALESCE(NULLIF(TRIM(invoice_number), ''), $1), ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
            [documentNumber, ettn, docType, invoice.invoice_profile, invoiceId]
         );
         await client.query("COMMIT");
@@ -1577,7 +1577,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           ettn = crypto.randomUUID();
           
           await client.query(
-             "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
+             "UPDATE sales_invoices SET document_number = $1, invoice_number = COALESCE(NULLIF(TRIM(invoice_number), ''), $1), ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
              [documentNumber, ettn, docType, 'TEMELFATURA', invoiceId]
           );
           await client.query("COMMIT");
@@ -1641,7 +1641,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           ettn = crypto.randomUUID();
 
           await client.query(
-             "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
+             "UPDATE sales_invoices SET document_number = $1, invoice_number = COALESCE(NULLIF(TRIM(invoice_number), ''), $1), ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
              [documentNumber, ettn, docType, 'EARSIVFATURA', invoiceId]
           );
           await client.query("COMMIT");
@@ -1673,7 +1673,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     // Format DB Update
     if (result.isSuccess) {
        await pool.query(
-         "UPDATE sales_invoices SET integration_status = $1, integration_message = $2, ettn = $3, e_document_type = $4, document_number = $5 WHERE id = $6", 
+         "UPDATE sales_invoices SET integration_status = $1, integration_message = $2, ettn = $3, e_document_type = $4, document_number = $5, invoice_number = COALESCE(NULLIF(TRIM(invoice_number), ''), $5) WHERE id = $6", 
          ['QUEUED', result.message, result.ettn, docType, documentNumber, invoiceId]
        );
     }
@@ -3364,16 +3364,39 @@ router.get("/independent-waybills", authenticate, async (req: any, res) => {
       paramIndex++;
     }
 
-    if (search) {
-      const searchTerm = `%${search}%`;
-      query += ` AND (
-        ew.waybill_number ILIKE $${paramIndex} OR
-        c.title ILIKE $${paramIndex} OR
-        cust.name ILIKE $${paramIndex} OR
-        cust.surname ILIKE $${paramIndex}
-      )`;
-      params.push(searchTerm);
-      paramIndex++;
+    if (search && String(search).trim() !== '') {
+      const searchTerms = String(search).trim().split(/\s+/).filter(Boolean);
+      for (const rawTerm of searchTerms) {
+        const cleanTerm = rawTerm.replace(/^#+/, '') || rawTerm;
+        const searchTerm = `%${cleanTerm}%`;
+        query += ` AND (
+          ew.waybill_number ILIKE $${paramIndex} OR
+          ew.ettn ILIKE $${paramIndex} OR
+          ew.notes ILIKE $${paramIndex} OR
+          ew.plate_number ILIKE $${paramIndex} OR
+          ew.driver_name ILIKE $${paramIndex} OR
+          ew.driver_surname ILIKE $${paramIndex} OR
+          ew.driver_vkn ILIKE $${paramIndex} OR
+          ew.cargo_no ILIKE $${paramIndex} OR
+          ew.cargo_carrier ILIKE $${paramIndex} OR
+          ew.order_number ILIKE $${paramIndex} OR
+          ew.matbu_number ILIKE $${paramIndex} OR
+          ew.delivery_address ILIKE $${paramIndex} OR
+          ew.status ILIKE $${paramIndex} OR
+          TO_CHAR(ew.waybill_date, 'DD.MM.YYYY') ILIKE $${paramIndex} OR
+          TO_CHAR(ew.waybill_date, 'DD/MM/YYYY') ILIKE $${paramIndex} OR
+          ew.waybill_date::text ILIKE $${paramIndex} OR
+          c.title ILIKE $${paramIndex} OR
+          c.tax_number ILIKE $${paramIndex} OR
+          cust.name ILIKE $${paramIndex} OR
+          cust.surname ILIKE $${paramIndex} OR
+          cust.full_name ILIKE $${paramIndex} OR
+          si.invoice_number ILIKE $${paramIndex} OR
+          si.document_number ILIKE $${paramIndex}
+        )`;
+        params.push(searchTerm);
+        paramIndex++;
+      }
     }
 
     query += " ORDER BY ew.waybill_date DESC, ew.id DESC";

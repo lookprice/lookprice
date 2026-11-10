@@ -23,7 +23,7 @@ import {
   Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { normalizeSearch } from "../lib/searchUtils";
+import { normalizeSearch, matchesInvoiceSearch } from "../lib/searchUtils";
 import { formatDateTR, formatFileDateTR } from "../utils/formatUtils";
 // import * as XLSX from 'xlsx';
 // import jsPDF from 'jspdf';
@@ -168,21 +168,18 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         if (statusFilter === 'expense' && inv.is_expense !== true) return false;
       }
 
-      // Real-time client-side search guard: ensures active search is never lost even if backend returns full list
+      // Real-time client-side comprehensive search across all invoice fields & line items
       const query = (search || activeSearch || "").trim();
-      if (query) {
-        const term = normalizeSearch(query);
-        const invNum = normalizeSearch(inv.invoice_number || '');
-        const compName = normalizeSearch(inv.company_name || inv.company_title || inv.supplier_name || '');
-        const notes = normalizeSearch(inv.notes || '');
-        const waybill = normalizeSearch(inv.waybill_number || '');
-        const isMatch = invNum.includes(term) || compName.includes(term) || notes.includes(term) || waybill.includes(term);
-        if (!isMatch) return false;
+      if (query && !matchesInvoiceSearch(inv, query)) {
+        return false;
       }
 
       return true;
     });
   }, [invoices, selectedStatuses, statusFilter, search, activeSearch]);
+
+  const totalFilteredPages = Math.max(1, Math.ceil(filteredInvoices.length / itemsPerPage));
+  const safePage = Math.min(page, totalFilteredPages);
 
   const pendingCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.status === 'pending').length : 0, [invoices]);
   const backdatedCarryoverCount = useMemo(() => Array.isArray(invoices) ? invoices.filter((i: any) => i.is_out_of_sequence || i.is_prev_month_carryover).length : 0, [invoices]);
@@ -321,14 +318,14 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
 
   useEffect(() => {
     setPage(1);
-  }, [activeSearch, startDate, endDate]);
+  }, [search, activeSearch, startDate, endDate]);
 
   useEffect(() => {
     fetchInvoicesData(activeSearch, startDate, endDate);
   }, [storeId, activeSearch, startDate, endDate]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setActiveSearch(search), 600);
+    const timer = setTimeout(() => setActiveSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -1089,9 +1086,12 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
                     type="text"
-                    placeholder={isTr ? "Fatura No veya Cari ara..." : "Search invoice no or company..."}
+                    placeholder={isTr ? "Fatura no, cari, VKN, ürün, tutar, ETTN ara..." : "Search invoice no, company, tax ID, item, amount..."}
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
                     className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs sm:text-sm"
                   />
                   {search && (
@@ -1169,7 +1169,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       </AnimatePresence>
 
       <PurchaseInvoiceTable 
-        invoices={filteredInvoices.slice((page - 1) * itemsPerPage, page * itemsPerPage)}
+        invoices={filteredInvoices.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage)}
         loading={loading}
         isTr={isTr}
         selectedIds={selectedIds}
@@ -1183,8 +1183,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         handleUpdatePaymentStatus={handleUpdatePaymentStatus}
         handleConvertToStock={handleConvertToStock}
         handleConvertToExpense={handleConvertToExpense}
-        page={page}
-        totalPages={Math.ceil(invoices.length / itemsPerPage)}
+        page={safePage}
+        totalPages={Math.ceil(filteredInvoices.length / itemsPerPage)}
         setPage={setPage}
         onEditProduct={onEditProduct}
         storeId={role === 'superadmin' ? storeId : undefined}
