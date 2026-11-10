@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { FileText, Trash2, Camera, Upload, Plus, Eye } from "lucide-react";
 import { RealEstateProperty } from "../../../types";
-import { contractTemplates, resolvePropertyRegionLabel } from "../../../utils/contractTemplates";
+import { contractTemplates, resolvePropertyRegionLabel, resolveOfficialPropertyTitle } from "../../../utils/contractTemplates";
 
 interface RealEstateDocsPublishTabProps {
   formData: Partial<RealEstateProperty>;
@@ -93,7 +93,7 @@ export const RealEstateDocsPublishTab: React.FC<RealEstateDocsPublishTabProps> =
         clientName: doc.details?.clientName || "[Müşteri Adı]",
         clientIdentity: doc.details?.clientIdentity || "[Kimlik / Pasaport No]",
         clientPhone: doc.details?.clientPhone || "[Telefon]",
-        propertyTitle: `[Ref: ${formData.reference_no || `LP-${formData.id || ""}`}] ${formData.title || ""}`,
+        propertyTitle: resolveOfficialPropertyTitle(formData),
         propertyLocation: resolvePropertyRegionLabel(formData),
         propertyPrice: `${formattedPriceNum} ${symbol}`,
         propertyBlockPlot: formData.block_plot,

@@ -1,7 +1,7 @@
 import React from "react";
 import { X, FileText, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { contractTemplates, resolvePropertyRegionLabel } from "@/utils/contractTemplates";
+import { contractTemplates, resolvePropertyRegionLabel, resolveOfficialPropertyTitle } from "@/utils/contractTemplates";
 import { ArrangeTourModal } from "@/components/ArrangeTourModal";
 
 const RealEstateModal = React.lazy(() => import("@/components/RealEstateModal").then(m => ({ default: m.RealEstateModal })));
@@ -480,7 +480,7 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                               ownerPhone: doc.details?.ownerPhone || viewDocsProperty.owner_info?.phone,
                               sellerIdentity: doc.details?.sellerIdentity,
                               sellerIdType: doc.details?.sellerIdType || "KKTC Kimlik Kartı",
-                              propertyTitle: `[Ref: ${viewDocsProperty.reference_no || `LP-${viewDocsProperty.id}`}] ${viewDocsProperty.title}`,
+                              propertyTitle: resolveOfficialPropertyTitle(viewDocsProperty),
                               propertyLocation: resolvedRegion,
                               propertyPrice: `${formattedPriceNum} ${symbol}`,
                               propertyBlockPlot: viewDocsProperty.block_plot,

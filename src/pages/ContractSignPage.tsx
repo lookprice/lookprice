@@ -26,7 +26,9 @@ import {
   computeRemainingSaleAmount,
   buildDefaultSalePropertyDetails,
   buildDefaultRentalPropertyMeta,
-  buildDefaultShowingPropertyDetails
+  buildDefaultShowingPropertyDetails,
+  resolvePropertyFeatureHighlight,
+  resolveOfficialPropertyTitle
 } from "../utils/contractTemplates";
 import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
 
@@ -627,7 +629,9 @@ export default function ContractSignPage() {
           clientAddress: clientAddressParam || savedDocDetails?.clientAddress,
           showingItem1Details:
             showingItem1DetailsParam ||
-            savedDocDetails?.showingItem1Details ||
+            (savedDocDetails?.showingItem1Details && itemData.title && savedDocDetails.showingItem1Details.includes(itemData.title)
+              ? savedDocDetails.showingItem1Details.replace(itemData.title, resolvePropertyFeatureHighlight(itemData)).replace(/\s+-\s+-\s+/g, " - ").trim()
+              : savedDocDetails?.showingItem1Details) ||
             buildDefaultShowingPropertyDetails(itemData),
           showingItem1Price: showingItem1PriceParam || savedDocDetails?.showingItem1Price,
           showingItem2Details: showingItem2DetailsParam || savedDocDetails?.showingItem2Details,
@@ -770,11 +774,7 @@ export default function ContractSignPage() {
         sellerIdentity: sellerIdentity || savedDocDetails?.sellerIdentity || "..................................................",
         sellerIdType: sellerIdType || savedDocDetails?.sellerIdType || (effectiveTemplateId === "rental_agreement" ? "KKTC kimlik" : "KKTC Kimlik Kartı"),
         storeName: storeName,
-        storePhone: itemData.store_phone || "",
-        propertyTitle: itemData.type === "land"
-          ? `[Ref: ${itemData.reference_no || `LP-${itemData.id}`}] ${(itemData as any).mahalle || ""} Mah. Ada: ${(itemData as any).ada || "..."}, Parsel: ${(itemData as any).parsel || "..."}`
-          : `[Ref: ${itemData.reference_no || `LP-${itemData.id}`}] ${itemData.title}`,
-        propertyLocation: resolvedRegionLabel,
+        propertyTitle: resolveOfficialPropertyTitle(itemData),
         propertyPrice: `${formattedPriceNum} ${symbol}`,
         propertyBlockPlot: itemData.block_plot,
         commissionRate: itemData.listing_intent === "rent"
@@ -864,6 +864,15 @@ export default function ContractSignPage() {
         salesPaymentTerms: salesPaymentTermsParam || savedDocDetails?.salesPaymentTerms || "Tapu devrinde hepsi ödenecektir.",
         reservationDays: reservationDaysParam || savedDocDetails?.reservationDays || "15 (on beş)",
         escrowDeadlineDays: escrowDeadlineDaysParam || savedDocDetails?.escrowDeadlineDays || "15",
+        // Commission Receipts (KOMİSYON ALIM BELGESİ) fields
+        commissionAmountWords: searchParams.get("commissionAmountWords") || savedDocDetails?.commissionAmountWords,
+        commissionPaymentMethod: searchParams.get("commissionPaymentMethod") || savedDocDetails?.commissionPaymentMethod || "Nakit",
+        commissionBrokerTitle: searchParams.get("commissionBrokerTitle") || savedDocDetails?.commissionBrokerTitle || storeName,
+        commissionPayerName: searchParams.get("commissionPayerName") || savedDocDetails?.commissionPayerName || clientName || resolvedOwnerName,
+        commissionPayerIdentity: searchParams.get("commissionPayerIdentity") || savedDocDetails?.commissionPayerIdentity || clientIdentity || sellerIdentity,
+        commissionPayerPhone: searchParams.get("commissionPayerPhone") || savedDocDetails?.commissionPayerPhone || clientPhone || resolvedOwnerPhone,
+        commissionPayerRole: searchParams.get("commissionPayerRole") || savedDocDetails?.commissionPayerRole || (effectiveTemplateId === "rental_commission_receipt" ? "KİRACI" : "MAL SAHİBİ"),
+        commissionReceiptNo: searchParams.get("commissionReceiptNo") || savedDocDetails?.commissionReceiptNo || `MAK-${itemData?.reference_no || itemData?.id || "001"}`,
         // Offer letter & Consultant variables
         offerPrice: offerPriceParam || savedDocDetails?.offerPrice || `${formattedPriceNum} ${symbol}`,
         viewingDate: viewingDateParam || savedDocDetails?.viewingDate || contractDateParam,
@@ -884,7 +893,9 @@ export default function ContractSignPage() {
         clientAddress: clientAddressParam || savedDocDetails?.clientAddress || "",
         showingItem1Details:
           showingItem1DetailsParam ||
-          savedDocDetails?.showingItem1Details ||
+          (savedDocDetails?.showingItem1Details && itemData.title && savedDocDetails.showingItem1Details.includes(itemData.title)
+            ? savedDocDetails.showingItem1Details.replace(itemData.title, resolvePropertyFeatureHighlight(itemData)).replace(/\s+-\s+-\s+/g, " - ").trim()
+            : savedDocDetails?.showingItem1Details) ||
           buildDefaultShowingPropertyDetails(itemData),
         showingItem1Price:
           showingItem1PriceParam || savedDocDetails?.showingItem1Price || `${formattedPriceNum} ${symbol}`,

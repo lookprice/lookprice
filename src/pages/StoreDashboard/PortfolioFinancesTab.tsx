@@ -27,13 +27,16 @@ import {
   FileCheck2,
   PieChart as PieIcon,
   Layers,
-  ArrowRight
+  ArrowRight,
+  FileText
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { usePortfolioFinances, PortfolioTransaction } from "../../hooks/usePortfolioFinances";
 import { useRealEstate } from "../../hooks/useRealEstate";
 import { api } from "../../services/api";
+import { contractTemplates, resolveOfficialPropertyTitle } from "../../utils/contractTemplates";
+import { printHtmlContract } from "../../utils/printContractHelper";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
@@ -483,6 +486,55 @@ export default function PortfolioFinancesTab({
     } catch (err) {
       toast.error(isTr ? "Kayıt silinirken hata oluştu." : "Error deleting record.");
     }
+  };
+
+  const handlePrintReceipt = (t: PortfolioTransaction) => {
+    const prop = t.property_id ? properties.find(p => p.id === t.property_id) : null;
+    const isRent = t.category === "rental_placement" || (prop && prop.listing_intent === "rent") || (t.title && t.title.toLowerCase().includes("kira"));
+    const templateId = isRent ? "rental_commission_receipt" : "sales_commission_receipt";
+    const tpl = contractTemplates.find(ct => ct.id === templateId);
+    if (!tpl) {
+      toast.error(isTr ? "Makbuz şablonu bulunamadı." : "Receipt template not found.");
+      return;
+    }
+
+    const storeTitle = branding?.store_name || branding?.name || "Yetkili Emlak Ofisi";
+    const storeAddress = branding?.address || "Atatürk Caddesi No: 81/A Küçük Kaymaklı / Lefkoşa";
+    const storePhone = branding?.phone || branding?.whatsapp_number || "";
+
+    const propTitle = prop ? resolveOfficialPropertyTitle(prop) : (t.property_title || t.title);
+    const propAddress = prop?.address || (prop ? `${prop.kktc_sub_region || ""} ${prop.kktc_region || ""}`.trim() : "-");
+
+    const receiptNo = t.reference_no || `MAK-${isRent ? "KIR" : "SAT"}-${t.id || Date.now().toString().slice(-4)}`;
+    const payerName = t.contact_name || (isRent ? "Kiracı" : (prop?.owner_info?.fullName || "Mülk Sahibi"));
+
+    const { html } = tpl.getTemplate({
+      storeName: storeTitle,
+      storePhone: storePhone,
+      brokerAddress: storeAddress,
+      clientName: payerName,
+      clientIdentity: "-",
+      clientPhone: isRent ? (branding?.phone || "") : (prop?.owner_info?.phone || ""),
+      ownerName: isRent ? "" : payerName,
+      sellerIdentity: isRent ? "" : (prop?.owner_info?.identityNo || "-"),
+      ownerPhone: isRent ? "" : (prop?.owner_info?.phone || ""),
+      propertyTitle: propTitle,
+      propertyAddress: propAddress,
+      propertyLocation: prop ? `${prop.kktc_region || ""} / ${prop.kktc_sub_region || ""}` : "",
+      propertyPrice: `${t.amount} ${t.currency}`,
+      commissionRate: `${t.amount} ${t.currency}`,
+      commissionAmountWords: String(t.amount),
+      rentCurrency: t.currency,
+      saleCurrency: t.currency,
+      commissionPaymentMethod: t.payment_method || (isTr ? "Banka Havalesi / EFT" : "Bank Transfer"),
+      commissionReceiptNo: receiptNo,
+      commissionPayerName: payerName,
+      commissionPayerRole: isRent ? "KİRACI" : "MAL SAHİBİ",
+      contractDate: t.date ? new Date(t.date).toLocaleDateString("tr-TR") : new Date().toLocaleDateString("tr-TR")
+    });
+
+    printHtmlContract(html, `${isRent ? "Kiralık" : "Satılık"} Komisyon Alım Belgesi - ${receiptNo}`);
+    toast.success(isTr ? "Resmi Komisyon Alım Belgesi yazdırma penceresi açılıyor..." : "Opening receipt print preview...");
   };
 
   // Financial Account Form Submit
@@ -1933,6 +1985,16 @@ export default function PortfolioFinancesTab({
                               </div>
                             ) : (
                               <div className="inline-flex items-center gap-0.5">
+                                {isIncome && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePrintReceipt(t)}
+                                    className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                                    title={isTr ? "Resmi Komisyon Alım Belgesi (Makbuz) Yazdır" : "Print Commission Receipt"}
+                                  >
+                                    <FileText className="w-3 h-3 text-emerald-600" />
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEditModal(t)}

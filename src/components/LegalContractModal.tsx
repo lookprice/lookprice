@@ -20,8 +20,11 @@ import {
   RotateCcw,
   ChevronDown,
   ChevronUp,
-  Check
+  Check,
+  Receipt,
+  Banknote
 } from "lucide-react";
+import { api } from "../services/api";
 import {
   contractTemplates,
   ContractTemplate,
@@ -35,7 +38,10 @@ import {
   buildDefaultSalePropertyDetails,
   buildDefaultRentalPropertyMeta,
   buildDefaultShowingPropertyDetails,
-  detectDefaultAuthPropertyCategory
+  detectDefaultAuthPropertyCategory,
+  resolvePropertyFeatureHighlight,
+  resolveOfficialPropertyTitle,
+  parseNumericAmount
 } from "../utils/contractTemplates";
 import { RealEstateProperty } from "../types";
 import { formatPhoneForWhatsApp, formatDateTR } from "../utils/formatUtils";
@@ -253,8 +259,8 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
   const [activeMobileTab, setActiveMobileTab] = useState<'params' | 'preview'>('params');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(() => {
-    if (initialTemplateId === "rental_authorization" && !isRentProperty && !isPrePortfolioProperty) {
-      return "exclusivity_agreement";
+    if ((initialTemplateId === "rental_authorization" || initialTemplateId === "exclusivity_agreement") && !isRentProperty && !isPrePortfolioProperty) {
+      return "sales_authorization";
     }
     return initialTemplateId || (isRentProperty ? "rental_agreement" : "sales_brokerage");
   });
@@ -263,6 +269,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   const [resolvedPropertyId, setResolvedPropertyId] = useState<string | number>(() => property?.id || `pre_portfolio_${Date.now()}`);
 
   const getTemplateBadge = (templateId: string) => {
+    if (templateId === "rental_commission_receipt") {
+      return { label: "Kiracı ➔ Aracı (Makbuz)", bg: "bg-emerald-400 text-slate-950" };
+    }
+    if (templateId === "sales_commission_receipt") {
+      return { label: "Mal Sahibi ➔ Aracı (Makbuz)", bg: "bg-emerald-400 text-slate-950" };
+    }
     if (["sales_brokerage", "property_reservation_deposit", "offer_letter"].includes(templateId)) {
       return { label: "Alıcı ➔ Satıcı İmzalı", bg: "bg-amber-400 text-slate-950" };
     }
@@ -422,7 +434,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   );
   const [authCopiesCount, setAuthCopiesCount] = useState<string>("2 (İki)");
 
-  // Rental Deposit / Kapora Agreement (KAPORA / KAPARO SÖZLEŞMESİ) specific states
+  // Rental Deposit / Kapora Agreement (KAPORA SÖZLEŞMESİ) specific states
   const [kaporaTenant2Info, setKaporaTenant2Info] = useState<string>("");
   const [kaporaTenant3Info, setKaporaTenant3Info] = useState<string>("");
   const [kaporaTotalRentAmount, setKaporaTotalRentAmount] = useState<string>("");
@@ -436,6 +448,31 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   const [salesPaymentTerms, setSalesPaymentTerms] = useState<string>("Tapu devrinde hepsi ödenecektir.");
   const [reservationDays, setReservationDays] = useState<string>("15 (on beş)");
   const [escrowDeadlineDays, setEscrowDeadlineDays] = useState<string>("15");
+
+  // Commission Receipts (KİRALIK & SATILIK KOMİSYON ALIM BELGESİ) states
+  const [commissionReceiptAmount, setCommissionReceiptAmount] = useState<string>(() => {
+    const rawPrice = property?.price;
+    const num = typeof rawPrice === "number" ? rawPrice : parseFloat(String(rawPrice || "").replace(/[^\d.]/g, ""));
+    if (isNaN(num) || num <= 0) return "";
+    if (isRentProperty) {
+      return formatThousandsInput(num);
+    } else {
+      const commVal = Math.round((num * 5) / 100);
+      return formatThousandsInput(commVal);
+    }
+  });
+  const [commissionReceiptCurrency, setCommissionReceiptCurrency] = useState<string>(() => (property?.currency || "GBP").toUpperCase());
+  const [commissionReceiptPaymentMethod, setCommissionReceiptPaymentMethod] = useState<string>("Banka Havalesi / EFT");
+  const [commissionReceiptPayerName, setCommissionReceiptPayerName] = useState<string>(() => isRentProperty ? (initialClientName || "") : (resolveOwnerName(property) || ""));
+  const [commissionReceiptPayerIdentity, setCommissionReceiptPayerIdentity] = useState<string>(() => isRentProperty ? "" : (resolveOwnerIdentity(property) || ""));
+  const [commissionReceiptPayerPhone, setCommissionReceiptPayerPhone] = useState<string>(() => isRentProperty ? (initialClientPhone || "") : (resolveOwnerPhone(property) || ""));
+  const [commissionReceiptPayerRole, setCommissionReceiptPayerRole] = useState<string>(() => isRentProperty ? "KİRACI" : "MAL SAHİBİ");
+  const [commissionReceiptNo, setCommissionReceiptNo] = useState<string>(() => {
+    const prefix = isRentProperty ? "MAK-KIR" : "MAK-SAT";
+    const refPart = property?.reference_no ? property.reference_no.replace(/[^\w-]/g, "") : `LP-${property?.id || "001"}`;
+    return `${prefix}-${refPart}`;
+  });
+  const [recordToCashRegister, setRecordToCashRegister] = useState<boolean>(true);
 
   // 1st Signature: Buyer / Tenant (Priority 1)
   const [signed, setSigned] = useState<boolean>(false);
@@ -499,7 +536,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         setAuthorizedPersonIdentity(det.authorizedPersonIdentity || branding?.owner_identity || "1170237140");
         setBrokerAddress(det.brokerAddress || branding?.address || "Atatürk Caddesi No: 81/A Küçük Kaymaklı / Lefkoşa");
         setClientAddress(det.clientAddress || "");
-        setShowingItem1Details(det.showingItem1Details || buildDefaultShowingPropertyDetails(property));
+        const rawShowing1 = det.showingItem1Details || "";
+        const cleanShowing1 = (rawShowing1 && property?.title && rawShowing1.includes(property.title))
+          ? rawShowing1.replace(property.title, resolvePropertyFeatureHighlight(property)).replace(/\s+-\s+-\s+/g, " - ").trim()
+          : (rawShowing1 || buildDefaultShowingPropertyDetails(property));
+        setShowingItem1Details(cleanShowing1);
         const defaultSym =
           property?.currency === "GBP"
             ? "£"
@@ -915,22 +956,30 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   if (!isOpen) return null;
 
   const baseOrderedTemplateIds = isRentProperty
-    ? ["rental_agreement", "rental_deposit_agreement", "showing_agreement", "rental_authorization", "exclusivity_agreement", "eviction_undertaking"]
+    ? [
+        "rental_agreement",
+        "rental_deposit_agreement",
+        "rental_commission_receipt",
+        "showing_agreement",
+        "rental_authorization",
+        "exclusivity_agreement",
+        "eviction_undertaking"
+      ]
     : [
         "sales_brokerage",
         "sales_deposit_agreement",
+        "sales_commission_receipt",
         "escrow_deposit_agreement",
         "property_reservation_deposit",
         "showing_agreement",
         "offer_letter",
         "sales_authorization",
-        "exclusivity_agreement",
         "inter_branch_split"
       ];
 
   const orderedTemplateIds =
     baseOrderedTemplateIds.includes(selectedTemplateId) ||
-    (selectedTemplateId === "rental_authorization" && !isRentProperty && !isPrePortfolioProperty)
+    ((selectedTemplateId === "rental_authorization" || selectedTemplateId === "exclusivity_agreement") && !isRentProperty && !isPrePortfolioProperty)
       ? baseOrderedTemplateIds
       : [selectedTemplateId, ...baseOrderedTemplateIds];
 
@@ -943,24 +992,26 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   const isBilateralContract = [
     "sales_brokerage",
     "sales_deposit_agreement",
+    "sales_commission_receipt",
     "escrow_deposit_agreement",
     "property_reservation_deposit",
     "rental_agreement",
     "rental_deposit_agreement",
+    "rental_commission_receipt",
     "offer_letter",
     "exclusivity_agreement",
     "rental_authorization",
     "sales_authorization"
   ].includes(selectedTemplateId);
 
-  const firstSignerLabel = isOwnerAuthContract
+  const firstSignerLabel = isOwnerAuthContract || selectedTemplateId === "sales_commission_receipt"
     ? "Mülk Sahibi"
-    : selectedTemplateId === "rental_agreement" || selectedTemplateId === "rental_deposit_agreement" || selectedTemplateId === "eviction_undertaking"
+    : selectedTemplateId === "rental_agreement" || selectedTemplateId === "rental_deposit_agreement" || selectedTemplateId === "rental_commission_receipt" || selectedTemplateId === "eviction_undertaking"
     ? "Kiracı"
     : "Alıcı";
   const secondSignerLabel = isOwnerAuthContract
     ? "İşletme Yetkilisi"
-    : selectedTemplateId === "rental_deposit_agreement" || selectedTemplateId === "sales_deposit_agreement"
+    : selectedTemplateId === "rental_deposit_agreement" || selectedTemplateId === "sales_deposit_agreement" || selectedTemplateId === "rental_commission_receipt" || selectedTemplateId === "sales_commission_receipt"
     ? "Emlak Komisyoncusu"
     : selectedTemplateId === "escrow_deposit_agreement"
     ? "Emanetçi (Komisyoncu)"
@@ -982,11 +1033,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
   const rawAuthSalePriceNum = parseInt(String(salePriceInput || "").replace(/[^\d]/g, ""), 10);
   const effectivePropPrice =
-    selectedTemplateId === "exclusivity_agreement" && !isNaN(rawAuthSalePriceNum) && rawAuthSalePriceNum > 0
+    (selectedTemplateId === "sales_authorization" || selectedTemplateId === "exclusivity_agreement") && !isNaN(rawAuthSalePriceNum) && rawAuthSalePriceNum > 0
       ? rawAuthSalePriceNum
       : Number(property.price || 0);
   const effectivePropCurrency =
-    selectedTemplateId === "exclusivity_agreement"
+    (selectedTemplateId === "sales_authorization" || selectedTemplateId === "exclusivity_agreement")
       ? (saleCurrency || property.currency || "GBP")
       : (property.currency || "GBP");
   const formattedPriceNum = effectivePropPrice.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -1010,11 +1061,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     ownerName: ownerName || (isOwnerAuthContract ? storeNameVal : (resolveOwnerName(property) || "Mülk Sahibi")),
     ownerPhone: ownerPhone || (isOwnerAuthContract ? storePhoneVal : (resolveOwnerPhone(property) || "")),
     sellerIdentity: sellerIdentity || "[Kimlik No]",
-    sellerIdType: sellerIdType || "KKTC Kimlik Kartı",
-    propertyTitle: property.type === 'land' 
-      ? `[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.mahalle || ''} Mah. Ada: ${property.ada || '...'}, Parsel: ${property.parsel || '...'}, Pafta: ${property.pafta || '...'}`
-      : `[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}`,
-    propertyLocation: resolvePropertyRegionLabel(property),
+    propertyTitle: resolveOfficialPropertyTitle(property),
     propertyPrice: propertyPriceFormatted,
     propertyBlockPlot: property.block_plot || (adaNo || parselNo ? `Ada: ${adaNo || '-'} / Parsel: ${parselNo || '-'}` : undefined),
     commissionRate: property.listing_intent === 'rent' || selectedTemplateId === 'rental_authorization' ? commissionRate : (commissionRate.includes('%') ? commissionRate : `%${commissionRate}`),
@@ -1053,7 +1100,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     rentPaymentMethod: rentPaymentMethod || (selectedTemplateId === "rental_deposit_agreement" ? "1 Yıl Peşin Ödemeli" : "Aylık Ödemeli"),
     rentStartDate: formatTrDate(rentStartDate) || formatTrDate(contractDate),
     rentEndDate: formatTrDate(rentEndDate),
-    // Rental Deposit / Kapora Agreement (KAPORA / KAPARO SÖZLEŞMESİ) fields
+    // Rental Deposit / Kapora Agreement (KAPORA SÖZLEŞMESİ) fields
     kaporaTenant2Info: kaporaTenant2Info,
     kaporaTenant3Info: kaporaTenant3Info,
     kaporaTotalRentAmount: kaporaTotalRentAmount,
@@ -1082,6 +1129,15 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     salesPaymentTerms: salesPaymentTerms || "Tapu devrinde hepsi ödenecektir.",
     reservationDays: reservationDays || "15 (on beş)",
     escrowDeadlineDays: escrowDeadlineDays || "15",
+    // Commission Receipts (KOMİSYON ALIM BELGESİ) fields
+    commissionAmountWords: commissionReceiptAmount,
+    commissionPaymentMethod: commissionReceiptPaymentMethod,
+    commissionBrokerTitle: storeNameVal,
+    commissionPayerName: commissionReceiptPayerName || (selectedTemplateId === "rental_commission_receipt" ? clientName : (ownerName || clientName)),
+    commissionPayerIdentity: commissionReceiptPayerIdentity || (selectedTemplateId === "rental_commission_receipt" ? clientIdentity : (sellerIdentity || clientIdentity)),
+    commissionPayerPhone: commissionReceiptPayerPhone || (selectedTemplateId === "rental_commission_receipt" ? clientPhone : (ownerPhone || clientPhone)),
+    commissionPayerRole: commissionReceiptPayerRole,
+    commissionReceiptNo: commissionReceiptNo,
     // Offer Letter fields
     offerPropertyNature: offerPropertyNature || detectDefaultPropertyNature(property),
     offerPropertyDetails: offerPropertyDetails || buildDefaultOfferPropertyDetails(property),
@@ -1269,6 +1325,18 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       showingItem1Price: placeholderValues.showingItem1Price || "",
       showingItem2Details: placeholderValues.showingItem2Details || "",
       showingItem2Price: placeholderValues.showingItem2Price || "",
+      // Commission Receipt params
+      commissionReceiptNo: placeholderValues.commissionReceiptNo || "",
+      commissionReceiptAmount: placeholderValues.commissionReceiptAmount || "",
+      commissionReceiptCurrency: placeholderValues.commissionReceiptCurrency || "",
+      commissionAmountWords: placeholderValues.commissionAmountWords || "",
+      commissionPaymentMethod: placeholderValues.commissionPaymentMethod || "",
+      commissionPayerName: placeholderValues.commissionPayerName || "",
+      commissionPayerIdentity: placeholderValues.commissionPayerIdentity || "",
+      commissionPayerPhone: placeholderValues.commissionPayerPhone || "",
+      commissionPayerRole: placeholderValues.commissionPayerRole || "",
+      commissionBrokerTitle: placeholderValues.commissionBrokerTitle || "",
+      commissionInvoiceNote: placeholderValues.commissionInvoiceNote || "",
       customClauses: customClauses || ""
     });
     return `${base}?${params.toString()}`;
@@ -1414,13 +1482,25 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         propertyLocation: placeholderValues.propertyLocation,
         isFurnishedRental: placeholderValues.isFurnishedRental,
         fixturePhotosCount: placeholderValues.fixturePhotosCount,
-        fixturePhotos: placeholderValues.fixturePhotos
+        fixturePhotos: placeholderValues.fixturePhotos,
+        // Commission receipt details
+        commissionReceiptNo: placeholderValues.commissionReceiptNo,
+        commissionReceiptAmount: placeholderValues.commissionReceiptAmount,
+        commissionReceiptCurrency: placeholderValues.commissionReceiptCurrency,
+        commissionAmountWords: placeholderValues.commissionAmountWords,
+        commissionPaymentMethod: placeholderValues.commissionPaymentMethod,
+        commissionPayerName: placeholderValues.commissionPayerName,
+        commissionPayerIdentity: placeholderValues.commissionPayerIdentity,
+        commissionPayerPhone: placeholderValues.commissionPayerPhone,
+        commissionPayerRole: placeholderValues.commissionPayerRole,
+        commissionBrokerTitle: placeholderValues.commissionBrokerTitle,
+        commissionInvoiceNote: placeholderValues.commissionInvoiceNote
       }
     };
 
     const isRentAuthFlow =
       selectedTemplateId === "rental_authorization" ||
-      (selectedTemplateId === "exclusivity_agreement" && exclusivityIntent === "rent");
+      selectedTemplateId === "exclusivity_agreement";
 
     const prePortfolioMeta = {
       templateId: selectedTemplateId,
@@ -1479,7 +1559,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     const signUrl = buildContractSignUrl("buyer", activeDocId, targetPropId);
     const subjectLabel = isOwnerAuthContract
       ? `${placeholderValues.propertyAddress || "Belirtilen Adres"} (${placeholderValues.authPropertyTypeFeatures || "Gayrimenkul"})`
-      : `[Ref: ${property.reference_no || `LP-${targetPropId}`}] ${property.title}`;
+      : resolveOfficialPropertyTitle(property);
     const message = `Sayın *${clientName}*,\n\n*${subjectLabel}* taşınmazı için hazırlanan resmi *${currentTemplate.titleTr}* belgesi **1. İmza (${firstSignerLabel} Onayı)** için tarafınıza sunulmuştur.\n\nSözleşmeyi mobil cihazınızdan incelemek ve dijital olarak *İMZALAMAK* için lütfen aşağıdaki bağlantıya tıklayınız:\n\n${signUrl}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
@@ -1498,7 +1578,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     const targetPhone = ownerPhone || (isOwnerAuthContract ? storePhoneVal : resolveOwnerPhone(property));
     const formattedOwnerPhone = targetPhone && !targetPhone.includes("5XX") ? formatPhoneForWhatsApp(targetPhone) : "";
     const signUrl = buildContractSignUrl("seller", activeDocId);
-    const message = `*2. İMZA (${secondSignerLabel.toUpperCase()} FİNAL ONAYI) - ${currentTemplate.titleTr.toUpperCase()}*\nTarih: ${placeholderValues.contractDate}\n\n*Sn. ${placeholderValues.ownerName}*,\n\n*[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}* taşınmazı için hazırlanan *${currentTemplate.titleTr}*, ${firstSignerLabel} *${clientName || firstSignerLabel}* tarafından dijital olarak imzalanmıştır (✔ 1. İmza Tamamlandı).\n\nİmzalı sözleşmeyi incelemek ve **${secondSignerLabel} olarak aynı sözleşme üzerinde dijital imzanızla FİNALLEMEK** için lütfen aşağıdaki bağlantıya tıklayınız:\n\n${signUrl}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    const message = `*2. İMZA (${secondSignerLabel.toUpperCase()} FİNAL ONAYI) - ${currentTemplate.titleTr.toUpperCase()}*\nTarih: ${placeholderValues.contractDate}\n\n*Sn. ${placeholderValues.ownerName}*,\n\n*${resolveOfficialPropertyTitle(property)}* taşınmazı için hazırlanan *${currentTemplate.titleTr}*, ${firstSignerLabel} *${clientName || firstSignerLabel}* tarafından dijital olarak imzalanmıştır (✔ 1. İmza Tamamlandı).\n\nİmzalı sözleşmeyi incelemek ve **${secondSignerLabel} olarak aynı sözleşme üzerinde dijital imzanızla FİNALLEMEK** için lütfen aşağıdaki bağlantıya tıklayınız:\n\n${signUrl}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
     if (formattedOwnerPhone) {
       window.open(`https://wa.me/${formattedOwnerPhone}?text=${encodeURIComponent(message)}`, '_blank');
     } else {
@@ -1519,7 +1599,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     const formattedPhone = rawPhone && !rawPhone.includes("5XX") ? formatPhoneForWhatsApp(rawPhone) : "";
     const recipientName = isFirstParty ? (clientName || firstSignerLabel) : (placeholderValues.ownerName || secondSignerLabel);
 
-    const message = `*FİNAL İMZALI ${currentTemplate.titleTr.toUpperCase()} (${firstSignerLabel.toUpperCase()} + ${secondSignerLabel.toUpperCase()} ONAYLI)*\nTarih: ${placeholderValues.contractDate}\n\nSayın *${recipientName}*,\n\n*[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}* taşınmazına ait *${currentTemplate.titleTr}*, hem ${firstSignerLabel} (*${clientName}*) hem de ${secondSignerLabel} (*${placeholderValues.ownerName}*) tarafından karşılıklı dijital imzalarla tamamlanarak sistemde mühürlenmiştir.\n\nHer iki tarafın imzasını taşıyan **Sözleşmenin Son Halini** görüntülemek ve PDF olarak indirmek için:\n\n${finalUrl}\n\nHayırlı ve uğurlu olmasını dileriz.\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    const message = `*FİNAL İMZALI ${currentTemplate.titleTr.toUpperCase()} (${firstSignerLabel.toUpperCase()} + ${secondSignerLabel.toUpperCase()} ONAYLI)*\nTarih: ${placeholderValues.contractDate}\n\nSayın *${recipientName}*,\n\n*${resolveOfficialPropertyTitle(property)}* taşınmazına ait *${currentTemplate.titleTr}*, hem ${firstSignerLabel} (*${clientName}*) hem de ${secondSignerLabel} (*${placeholderValues.ownerName}*) tarafından karşılıklı dijital imzalarla tamamlanarak sistemde mühürlenmiştir.\n\nHer iki tarafın imzasını taşıyan **Sözleşmenin Son Halini** görüntülemek ve PDF olarak indirmek için:\n\n${finalUrl}\n\nHayırlı ve uğurlu olmasını dileriz.\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
 
     if (formattedPhone) {
       window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
@@ -1530,23 +1610,64 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
   const handleSaveContract = async () => {
     const isOfferLetter = selectedTemplateId === "offer_letter";
-    if (!clientName.trim() || (!isOfferLetter && !isOwnerAuthContract && !clientIdentity.trim())) {
-      alert(`Lütfen sözleşmeyi kaydetmeden önce ${firstSignerLabel} Adı Soyadı bilgisini giriniz.`);
+    const isCommissionReceipt = selectedTemplateId === "rental_commission_receipt" || selectedTemplateId === "sales_commission_receipt";
+    const primaryName = isCommissionReceipt
+      ? (commissionReceiptPayerName || clientName || ownerName)
+      : clientName;
+    const primaryId = isCommissionReceipt
+      ? (commissionReceiptPayerIdentity || clientIdentity || sellerIdentity)
+      : clientIdentity;
+
+    if (!primaryName.trim() || (!isOfferLetter && !isOwnerAuthContract && !isCommissionReceipt && !primaryId.trim())) {
+      alert(`Lütfen belgeyi kaydetmeden önce ${firstSignerLabel} Adı Soyadı bilgisini giriniz.`);
       return;
     }
     if (!onSaveContract) return;
     setSaving(true);
     try {
       await persistContractRecord();
+
+      // Kasaya Gelir Olarak İşle
+      if (isCommissionReceipt && recordToCashRegister) {
+        try {
+          const rawNum = parseNumericAmount(commissionReceiptAmount);
+          if (rawNum > 0) {
+            const isRentReceipt = selectedTemplateId === "rental_commission_receipt";
+            const targetStoreId = property?.store_id || branding?.store_id || branding?.id || 1;
+            const payerLabel = primaryName || (isRentReceipt ? "Kiracı" : "Mal Sahibi");
+            await api.addPortfolioTransaction({
+              type: "income",
+              category: isRentReceipt ? "rental_placement" : "commission",
+              title: isRentReceipt ? "Kiralama Hizmet Bedeli (Komisyon)" : "Gayrimenkul Satış Komisyonu",
+              amount: rawNum,
+              currency: commissionReceiptCurrency || "GBP",
+              date: contractDate || new Date().toISOString().split("T")[0],
+              property_id: property.id || null,
+              property_title: resolveOfficialPropertyTitle(property),
+              description: `${commissionReceiptNo || "Makbuz"} no'lu ${isRentReceipt ? "Kiralık" : "Satılık"} Komisyon Alım Belgesi - ${payerLabel}`,
+              payment_method: commissionReceiptPaymentMethod || "Nakit",
+              contact_name: payerLabel,
+              reference_no: commissionReceiptNo || property.reference_no || ""
+            }, targetStoreId);
+          }
+        } catch (kasaErr) {
+          console.warn("Kasa gelir kaydı eklenirken hata:", kasaErr);
+        }
+      }
+
+      const kasaMsg = (isCommissionReceipt && recordToCashRegister)
+        ? "\n\n💰 Komisyon bedeli Mağaza Finans Kasasına (Gelir olarak) başarıyla işlendi."
+        : "";
+
       alert(
         signed && sellerSigned
-          ? `${firstSignerLabel} ve ${secondSignerLabel} imzalı FİNAL SÖZLEŞME sistem arşivine kaydedildi! Şimdi son halini taraflara iletebilirsiniz.`
+          ? `${firstSignerLabel} ve ${secondSignerLabel} onaylı FİNAL BELGE sistem arşivine kaydedildi! Şimdi son halini taraflara iletebilirsiniz.${kasaMsg}`
           : signed
-          ? `1. İmza (${firstSignerLabel} imzalı sözleşme) kaydedildi! Şimdi 2. adım olarak ${secondSignerLabel} imzasına geçebilirsiniz.`
-          : "Sözleşme başarıyla kaydedildi!"
+          ? `1. İmza (${firstSignerLabel} onaylı belge) kaydedildi! Şimdi 2. adım olarak ${secondSignerLabel} onayına geçebilirsiniz.${kasaMsg}`
+          : `Belge başarıyla kaydedildi!${kasaMsg}`
       );
     } catch (err: any) {
-      alert("Sözleşme kaydedilemedi: " + err.message);
+      alert("Belge kaydedilemedi: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -1646,9 +1767,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 const activeTpl = filteredTemplates.find((t) => t.id === selectedTemplateId) || filteredTemplates[0];
                 const activeTitle = activeTpl
                   ? activeTpl.id === "exclusivity_agreement"
-                    ? (isPrePortfolioProperty ? exclusivityIntent === "rent" : isRentProperty)
-                      ? "Kiralık Tek Yetki Sözleşmesi"
-                      : "Satılık Tek Yetki Sözleşmesi"
+                    ? "Kiralık Tek Yetki Sözleşmesi"
                     : activeTpl.titleTr
                   : "Sözleşme";
                 const activeBadge = getTemplateBadge(selectedTemplateId);
@@ -1703,9 +1822,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                   {filteredTemplates.map((template) => {
                     const displayTitleTr =
                       template.id === "exclusivity_agreement"
-                        ? (isPrePortfolioProperty ? exclusivityIntent === "rent" : isRentProperty)
-                          ? "Kiralık Tek Yetki Sözleşmesi"
-                          : "Satılık Tek Yetki Sözleşmesi"
+                        ? "Kiralık Tek Yetki Sözleşmesi"
                         : template.titleTr;
                     const isSelected = selectedTemplateId === template.id;
                     const badge = getTemplateBadge(template.id);
@@ -2168,6 +2285,126 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
               </div>
             )}
 
+            {/* KOMİSYON ALIM BELGESİ (Kiralık & Satılık) Özel Değişkenleri & Kasa Entegrasyonu */}
+            {(selectedTemplateId === "rental_commission_receipt" || selectedTemplateId === "sales_commission_receipt") && (
+              <div className="p-3 bg-emerald-50/90 border-2 border-emerald-400 rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                    <Receipt className="w-3.5 h-3.5 text-emerald-700" />
+                    3. {selectedTemplateId === "rental_commission_receipt" ? "Kiralık" : "Satılık"} Komisyon Alım Belgesi & Kasa Entegrasyonu
+                  </span>
+                  <span className="text-[9px] font-black bg-slate-900 text-emerald-400 px-2 py-0.5 rounded uppercase">
+                    {selectedTemplateId === "rental_commission_receipt" ? "Kiracı ➔ Aracı" : "Mal Sahibi ➔ Aracı"}
+                  </span>
+                </div>
+
+                {/* Komisyon Tutarı & Para Birimi & Ödeme Şekli */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="space-y-0.5 sm:col-span-2">
+                    <label className="text-[10px] font-black text-slate-900">
+                      Alınan Komisyon Bedeli *
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="flex-1 min-w-0 bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-emerald-600"
+                        placeholder="Örn: 800"
+                        value={commissionReceiptAmount}
+                        onChange={(e) => setCommissionReceiptAmount(formatThousandsInput(e.target.value))}
+                      />
+                      <select
+                        className="w-20 bg-slate-900 text-white border-2 border-slate-900 px-1.5 py-1.5 rounded-lg text-xs font-black shrink-0"
+                        value={commissionReceiptCurrency}
+                        onChange={(e) => setCommissionReceiptCurrency(e.target.value)}
+                      >
+                        <option value="GBP">GBP</option>
+                        <option value="EUR">EUR</option>
+                        <option value="USD">USD</option>
+                        <option value="TRY">TRY</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-black text-slate-900">
+                      Tahsilat / Ödeme Şekli
+                    </label>
+                    <select
+                      className="w-full bg-white border-2 border-slate-300 px-2 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-emerald-600"
+                      value={commissionReceiptPaymentMethod}
+                      onChange={(e) => setCommissionReceiptPaymentMethod(e.target.value)}
+                    >
+                      <option value="Nakit">Nakit</option>
+                      <option value="Banka Havalesi / EFT">Banka Havalesi / EFT</option>
+                      <option value="Kredi Kartı">Kredi Kartı</option>
+                      <option value="Çek">Çek</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Makbuz Numarası & Ödeyen Taraf Rolü */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-black text-slate-900">
+                      Makbuz / Belge Numarası
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-slate-950 focus:outline-none focus:border-emerald-600"
+                      placeholder="MAK-001"
+                      value={commissionReceiptNo}
+                      onChange={(e) => setCommissionReceiptNo(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-black text-slate-900">
+                      Ödemeyi Yapan Taraf Rolü
+                    </label>
+                    <select
+                      className="w-full bg-white border-2 border-slate-300 px-2 py-1.5 rounded-lg text-xs font-bold text-slate-950 focus:outline-none focus:border-emerald-600"
+                      value={commissionReceiptPayerRole}
+                      onChange={(e) => setCommissionReceiptPayerRole(e.target.value)}
+                    >
+                      {selectedTemplateId === "rental_commission_receipt" ? (
+                        <>
+                          <option value="KİRACI">KİRACI</option>
+                          <option value="MÜLK SAHİBİ">MÜLK SAHİBİ</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="MAL SAHİBİ">MAL SAHİBİ</option>
+                          <option value="ALICI">ALICI</option>
+                          <option value="MÜŞTERİ">MÜŞTERİ</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Kasaya Gelir Olarak İşle - Entegre Kasa Kartı */}
+                <div className="p-2.5 bg-white border-2 border-emerald-500 rounded-xl shadow-xs">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={recordToCashRegister}
+                      onChange={(e) => setRecordToCashRegister(e.target.checked)}
+                      className="w-4 h-4 mt-0.5 accent-emerald-600 rounded text-emerald-600 focus:ring-emerald-500 shrink-0 cursor-pointer"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                        <Banknote className="w-3.5 h-3.5 text-emerald-600" />
+                        Bu Tahsilatı Mağaza Finans Kasasına (Gelir) İşle
+                      </div>
+                      <p className="text-[10.5px] font-medium text-slate-600 leading-tight">
+                        Kaydedildiğinde bu tutar ({commissionReceiptAmount || "0"} {commissionReceiptCurrency}) Mağaza Finans & Kasa Yönetimi modülüne otomatik gelir hareketi olarak işlenir.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
+
             {/* KAPORA SÖZLEŞMESİ (sales_deposit_agreement) Özel Değişkenleri */}
             {selectedTemplateId === "sales_deposit_agreement" && (
               <div className="p-3 bg-amber-50/80 border-2 border-amber-300 rounded-xl space-y-2.5">
@@ -2517,10 +2754,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
               <div className="p-3 bg-emerald-50/80 border-2 border-emerald-300 rounded-xl space-y-2.5 mt-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] font-black uppercase tracking-wider text-emerald-950">
-                    {selectedTemplateId === "exclusivity_agreement" && exclusivityIntent === "rent"
+                    {selectedTemplateId === "exclusivity_agreement"
                       ? "2 & 3. Kiralık Gayrimenkul Tek Yetkili Kiralama Bilgileri"
-                      : selectedTemplateId === "sales_authorization" ||
-                        (selectedTemplateId === "exclusivity_agreement" && exclusivityIntent === "sale")
+                      : selectedTemplateId === "sales_authorization"
                       ? "2 & 3. Satılık Gayrimenkul Yetkili Satış Sözleşmesi (Hizmet Bedeli Eklenerek)"
                       : "3. Sözleşmenin Konusu (Taşınmazın Adresi & Cinsi) ve Yetki Şartları"}
                   </span>
@@ -2528,34 +2764,6 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                     Mülk Adresi Esaslı
                   </span>
                 </div>
-
-                {/* Tek Yetki Sözleşmesi Portföy Türü Seçici: Sadece Ön Portföyde Seçilebilir, Kayıtlı Portföyde Kendi Statüsüne Kilitlidir */}
-                {selectedTemplateId === "exclusivity_agreement" && isPrePortfolioProperty && (
-                  <div className="grid grid-cols-2 gap-1.5 bg-slate-900 p-1 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setExclusivityIntent("rent")}
-                      className={`py-1.5 px-2 rounded-lg text-[11px] font-black transition-all cursor-pointer ${
-                        exclusivityIntent === "rent"
-                          ? "bg-emerald-400 text-slate-950 shadow-sm"
-                          : "text-slate-300 hover:text-white"
-                      }`}
-                    >
-                      Kiralık Tek Yetki Sözleşmesi
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setExclusivityIntent("sale")}
-                      className={`py-1.5 px-2 rounded-lg text-[11px] font-black transition-all cursor-pointer ${
-                        exclusivityIntent === "sale"
-                          ? "bg-amber-400 text-slate-950 shadow-sm"
-                          : "text-slate-300 hover:text-white"
-                      }`}
-                    >
-                      Satılık Tek Yetki Sözleşmesi
-                    </button>
-                  </div>
-                )}
 
                 {/* Taşınmazın Açık Adresi */}
                 <div className="space-y-1">
@@ -2574,7 +2782,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 </div>
 
                 {/* Kiralık Tek Yetki Sözleşmesi ise: ÇEŞİT Seçimi (EV, APT.DAİRESİ, BİNA, DEPO, BÜRO, DÜKKAN, DİĞER) */}
-                {selectedTemplateId === "exclusivity_agreement" && exclusivityIntent === "rent" ? (
+                {selectedTemplateId === "exclusivity_agreement" ? (
                   <div className="space-y-2">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="space-y-1">
@@ -3551,7 +3759,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
               <div className="space-y-2.5 mt-1 p-3 bg-amber-50/80 border-2 border-amber-300 rounded-xl">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-wider text-amber-950">
-                    3. Kapora (Kaparo) Sözleşmesi Detayları & Hesaplama
+                    3. Kapora Sözleşmesi Detayları & Hesaplama
                   </span>
                   <span className="text-[9px] font-black bg-slate-900 text-amber-400 px-2 py-0.5 rounded uppercase">
                     Kiralık Rezervasyon • KKTC

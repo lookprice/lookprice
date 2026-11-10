@@ -111,7 +111,7 @@ export interface ContractPlaceholderValues {
   authShowingDayType?: string;
   authShowingHours?: string;
   authDurationDays?: string;
-  // Rental Deposit / Kapora Agreement (KAPORA / KAPARO SÖZLEŞMESİ) fields
+  // Rental Deposit / Kapora Agreement (KAPORA SÖZLEŞMESİ) fields
   kaporaTenant2Info?: string;
   kaporaTenant3Info?: string;
   kaporaTotalRentAmount?: string;
@@ -126,6 +126,16 @@ export interface ContractPlaceholderValues {
   salesPaymentTerms?: string;
   reservationDays?: string;
   escrowDeadlineDays?: string;
+  // Commission Receipt (KOMİSYON ALIM BELGESİ) fields
+  commissionAmountWords?: string;
+  commissionPaymentMethod?: string;
+  commissionInvoiceNote?: string;
+  commissionBrokerTitle?: string;
+  commissionPayerName?: string;
+  commissionPayerIdentity?: string;
+  commissionPayerPhone?: string;
+  commissionPayerRole?: string;
+  commissionReceiptNo?: string;
 }
 
 export function parseCustomClauseLines(customClauses?: string): string[] {
@@ -273,14 +283,11 @@ export const contractTemplates: ContractTemplate[] = [
           ? rawComm
           : "1 aylık kira bedeli";
 
-      const defaultItem1Details = [
-        v.propertyLocation,
-        v.propertyAddress,
-        v.propertyTitle,
-        v.propertyBlockPlot ? `Ada/Parsel: ${v.propertyBlockPlot}` : ""
-      ]
-        .filter(Boolean)
-        .join(" • ");
+      const defaultItem1Details = (
+        v.showingItem1Details ||
+        v.propertyTitle ||
+        [v.propertyLocation, v.propertyAddress, v.propertyBlockPlot ? `Ada/Parsel: ${v.propertyBlockPlot}` : ""].filter(Boolean).join(" • ")
+      ).trim();
 
       const item1Details = (v.showingItem1Details || defaultItem1Details).trim();
       const item1Price = (v.showingItem1Price || v.propertyPrice || "").trim();
@@ -453,10 +460,10 @@ ${item2Details ? `2- ${item2Details} | Ortalama Değeri: ${item2Price} | Tarih: 
   },
   {
     id: "exclusivity_agreement",
-    titleTr: "Tek Yetki Sözleşmesi",
-    titleEn: "Exclusive Listing Agreement",
-    descriptionTr: "Mülk sahibinin gayrimenkul kiralama veya satış yetkisini tek bir ofise devrettiği sözleşme.",
-    descriptionEn: "Exclusive mandate from owner granting sole rights to market and rent/sell property.",
+    titleTr: "Tek Yetki Kiralama Sözleşmesi",
+    titleEn: "Exclusive Rental Mandate",
+    descriptionTr: "Mülk sahibinin gayrimenkul kiralama yetkisini tek bir ofise devrettiği resmi sözleşme.",
+    descriptionEn: "Exclusive mandate from owner granting sole rights to market and rent property.",
     getTemplate: (v) => {
       const rawDate = (v.contractDate || new Date().toLocaleDateString("tr-TR")).trim();
       const slashDate = rawDate.replace(/\./g, "/");
@@ -1488,7 +1495,7 @@ ${renderCustomClausesMarkdown(v.customClauses)}`;
       <li style="margin-bottom: 5px;">Kiracı gayrimenkulü süre sonunda tahliye etmek isterse, bunu iki ay önceden kiraya verene veya vekiline bildirecektir. Taraflar süre sonunda gayrimenkulün tahliyesi konusunda birbirlerine herhangi bir bildirimde bulunmadıkları taktirde kontrat kendiliğinden bir yıl daha uzar.</li>
       <li style="margin-bottom: 5px;">Kira akdinin bir yıl daha uzaması durumunda, yıllık kira artışı kiraya veren ve kiracı tarafından karşılıklı olarak anlaşma yoluna gidilecektir ve yeni sözleşme yapılacaktır. Şayet karşılıklı anlaşma sağlanamazsa kiracı gayrimenkulü tahliye edecektir.</li>
       <li style="margin-bottom: 5px;">Kiracı gayrimenkulü tahliye edeceği son ay içerisinde gayrimenkulü yeni kiracı adaylarına göstermek zorundadır.</li>
-      <li style="margin-bottom: 5px;">Verilen Depozit kiraya sayılmaz. Gayrimenkul’ün tahliye edileceği gün kiraya veren ve kiracı birlikte gayrimenkulü, tüm eşya ve malzemeleri kontrol edip herhangi bir zarar ziyan ve arızalı yıpranmış kırılmış veya yırtılmış herhangi bir şey varsa elektrik, su, internet veya aidat borcu varsa tüm bu masraflar kaparo dan karşılanacaktır. Eğer verilen depozit yetersiz kaldığı takdirde geriye kalan tüm masraflar kiracı tarafından karşılanacağını kiracı kabul ve taahhüt eder. Şayet herhangi bir zarar ziyan ve borç yoksa kiraya veren alınan depozit’i eksiksiz bir tamam iade edeceğini kabul ve taahhüt eder.</li>
+      <li style="margin-bottom: 5px;">Verilen Depozit kiraya sayılmaz. Gayrimenkul’ün tahliye edileceği gün kiraya veren ve kiracı birlikte gayrimenkulü, tüm eşya ve malzemeleri kontrol edip herhangi bir zarar ziyan ve arızalı yıpranmış kırılmış veya yırtılmış herhangi bir şey varsa elektrik, su, internet veya aidat borcu varsa tüm bu masraflar depozitodan karşılanacaktır. Eğer verilen depozit yetersiz kaldığı takdirde geriye kalan tüm masraflar kiracı tarafından karşılanacağını kiracı kabul ve taahhüt eder. Şayet herhangi bir zarar ziyan ve borç yoksa kiraya veren alınan depozit’i eksiksiz bir tamam iade edeceğini kabul ve taahhüt eder.</li>
       <li style="margin-bottom: 5px;">Kiracı, kiralananı kendi malı gibi kullanmaya, evsaf ve meziyetlerini şöhret ve itibarını kaybetmesine meydan vermemeye ve bina içinde meskun diğer kiracı/maliklere karşı özenli davranmaya mecburdur.</li>
       <li style="margin-bottom: 5px;">Kira sözleşmesinin sona erdirilmesi halinde kiralanan üzerinde yapılmış olan her türlü tadilat ve değişiklik kiralayan tarafından talep edilmesi halinde kiracı tarafından eski haline getirilecek ve kiralanan ilk teslim edildiği şekli ile kiraya verene teslim edilecektir. Kiracı bu yükümlülüğüne aykırı hareket etmesi halinde kiraya verenin kiralananı eski haline getirmek için yaptığı masrafların beş katı tutarında cezai şart bedeli ödemeyi kabul ve taahhüt eder.</li>
       <li style="margin-bottom: 5px;">Mal sahibi, yetkili veya sorumlu olan kişi normal zamanlarda kiracıya sözlü olarak bilgi vererek veya acil durumlarda bilgi vermeden kontrol veya hasar önlemek amacıyla gayrimenkule dilediği zaman girmeye yetkilidir.</li>
@@ -2277,7 +2284,7 @@ ${renderCustomClausesMarkdown(v.customClauses)}
   },
   {
     id: "rental_deposit_agreement",
-    titleTr: "Kapora (Kaparo) Sözleşmesi",
+    titleTr: "Kapora Sözleşmesi",
     titleEn: "Rental Deposit / Reservation Agreement",
     getTemplate: (v: ContractPlaceholderValues) => {
       const currMeta = getCurrencyMeta(v.rentCurrency || "GBP");
@@ -2417,7 +2424,7 @@ ${renderCustomClausesMarkdown(v.customClauses)}
           <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 14px;">
             <div>
               <h1 style="margin: 0; font-size: 18px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.4px;">
-                KAPORA (KAPARO) SÖZLEŞMESİ VE ANLAŞMASI
+                KAPORA SÖZLEŞMESİ
               </h1>
               <div style="font-size: 11.5px; font-weight: bold; color: #334155; margin-top: 3px;">
                 TARAFLAR ARASINDA AŞAĞIDAKİ ŞARTLAR DAHİLİNDE KAPORA ANLAŞMASINA VARILMIŞTIR
@@ -2433,7 +2440,7 @@ ${renderCustomClausesMarkdown(v.customClauses)}
               Bir taraftan <strong>${allTenantsInline}</strong> (Bundan böyle <strong>"KİRACI"</strong> olarak anılacaktır), işbu kapora anlaşmasını yapmaya tam yetkili olduğunu ve aşağıda bilgileri yazılı taşınmazı kiralamak niyetinde olduğunu beyan eder;
             </p>
             <p style="margin: 0 0 12px 0;">
-              Diğer taraftan <strong>${brokerIdStr}</strong> numaralı K.K.T.C Kimlik Kartı / MŞ hamili <strong>${brokerTitle}</strong>${brokerPhoneStr ? ` (Tel: ${brokerPhoneStr})` : ""} (Bundan böyle <strong>"EMLAK KOMİSYONCUSU / EMLAKÇI"</strong> olarak anılacaktır); bugün <strong>${v.contractDate}</strong> tarihinde işbu kapora (kaparo) sözleşmesini aşağıdaki şartlar dahilinde akdederler.
+              Diğer taraftan <strong>${brokerIdStr}</strong> numaralı K.K.T.C Kimlik Kartı / MŞ hamili <strong>${brokerTitle}</strong>${brokerPhoneStr ? ` (Tel: ${brokerPhoneStr})` : ""} (Bundan böyle <strong>"EMLAK KOMİSYONCUSU / EMLAKÇI"</strong> olarak anılacaktır); bugün <strong>${v.contractDate}</strong> tarihinde işbu kapora sözleşmesini aşağıdaki şartlar dahilinde akdederler.
             </p>
 
             <!-- MALIN TANIMI VE ADRESİ -->
@@ -2459,7 +2466,7 @@ ${renderCustomClausesMarkdown(v.customClauses)}
 
             <!-- KAPORA, KALAN BAKİYE, REZERVASYON VE KASA MUHAFAZA HÜKÜMLERİ -->
             <p style="margin: 0 0 9px 0;">
-              Söz konusu gayrimenkulü yukarıda belirtilen şartlar dahilinde kiralamak için kendi isteğim ile bugün Emlak Komisyoncusu'na <strong>${kaporaPaidDisplay}</strong> kapora (kaparo) bırakıyorum / verilmiştir ve geriye kalan <strong>${remainingBalanceDisplay}</strong> tutarı en geç <strong>${balanceDueDateStr}</strong> tarihinde ödemeyi kabul ve taahhüt ediyorum.
+              Söz konusu gayrimenkulü yukarıda belirtilen şartlar dahilinde kiralamak için kendi isteğim ile bugün Emlak Komisyoncusu'na <strong>${kaporaPaidDisplay}</strong> kapora bırakıyorum / verilmiştir ve geriye kalan <strong>${remainingBalanceDisplay}</strong> tutarı en geç <strong>${balanceDueDateStr}</strong> tarihinde ödemeyi kabul ve taahhüt ediyorum.
             </p>
             <p style="margin: 0 0 9px 0;">
               Mal sahibi / Emlak Komisyoncusu, söz konusu (<strong>${propDef}</strong>) taşınmazı bugünden itibaren <strong>${balanceDueDateStr}</strong> tarihine değin başka kişilere kiralamayacağını kabul eder. Alınan kapora; tarafların hakları düşünülerek işbu kiralamaya aracılık eden Emlak Komisyoncusu'nun kasasında, kira sözleşmesi yapılana (<strong>${balanceDueDateStr}</strong> tarihine) kadar muhafaza edilecektir.
@@ -2471,7 +2478,7 @@ ${renderCustomClausesMarkdown(v.customClauses)}
             <!-- CAYMA VE İADE ŞARTLARI (KİRACI & ARACI) -->
             <div style="border-left: 3.5px solid #0f172a; padding: 6px 12px; margin-bottom: 12px; background: #f8fafc;">
               <p style="margin: 0 0 6px 0;">
-                <strong>Kiracı Beyanı (Vazgeçme ve Cezai İşlem):</strong> Şayet kiracı <strong>${balanceDueDateStr}</strong> tarihine değin yukarıda anlaşılan hususları yerine getirmez, şartlara uymadığı takdirde veya taşınmazı kiralamaktan vazgeçmesi halinde verdiği kaporayı cezai işlem olarak geri talep edemeyeceğini ve geri alamayacağını biliyor, kabul ve beyan ediyorum. Mal sahibi zarar ziyan olarak söz konusu kaparo bedeline el koyabilir ve geri iade etmez.
+                <strong>Kiracı Beyanı (Vazgeçme ve Cezai İşlem):</strong> Şayet kiracı <strong>${balanceDueDateStr}</strong> tarihine değin yukarıda anlaşılan hususları yerine getirmez, şartlara uymadığı takdirde veya taşınmazı kiralamaktan vazgeçmesi halinde verdiği kaporayı cezai işlem olarak geri talep edemeyeceğini ve geri alamayacağını biliyor, kabul ve beyan ediyorum. Mal sahibi zarar ziyan olarak söz konusu kapora bedeline el koyabilir ve geri iade etmez.
               </p>
               <p style="margin: 0;">
                 <strong>Aracı (Emlak Komisyoncusu) Beyanı:</strong> Mülk sahibinin kiralama işleminden vazgeçmesi halinde ise Emlak Komisyoncusu alınan kaporayı hiçbir kesintiye uğramadan Kiracı'ya geri iade edecektir.
@@ -2539,7 +2546,7 @@ ${renderCustomClausesMarkdown(v.customClauses)}
         </div>
       `;
 
-      const markdown = `# KAPORA (KAPARO) SÖZLEŞMESİ VE ANLAŞMASI
+      const markdown = `# KAPORA SÖZLEŞMESİ
 **Tarih:** ${v.contractDate}
 
 Bir taraftan **${allTenantsInline}** (Bundan böyle **KİRACI** olarak anılacaktır), diğer taraftan **${brokerIdStr}** numaralı K.K.T.C Kimlik Kartı hamili **${brokerTitle}** (Bundan böyle **EMLAK KOMİSYONCUSU** olarak anılacaktır) bugün **${v.contractDate}** tarihinde işbu kapora sözleşmesini akdederler.
@@ -3114,6 +3121,407 @@ ${renderCustomClausesMarkdown(v.customClauses)}
 
       return { html, markdown };
     }
+  },
+  {
+    id: "rental_commission_receipt",
+    titleTr: "Kiralık Komisyon Alım Belgesi",
+    titleEn: "Rental Commission Receipt",
+    getTemplate: (v: ContractPlaceholderValues) => {
+      const currMeta = getCurrencyMeta(v.rentCurrency || v.saleCurrency || "GBP");
+      const currWordCompact = currMeta.wordLabel.replace(/\s+/g, "");
+
+      // Resolve numeric amount for commission
+      let commissionNum = parseNumericAmount(v.commissionAmountWords || v.depositAmount || v.kaporaCommissionAmount || v.commissionRate);
+      if (commissionNum <= 0) {
+        // If commissionRate is percentage like "%5" and rentPrice is known
+        const rentNum = parseNumericAmount(v.rentPriceRaw || v.propertyPrice);
+        if (rentNum > 0) {
+          const rateMatch = String(v.commissionRate || "").match(/\d+/);
+          const pct = rateMatch ? parseFloat(rateMatch[0]) : 0;
+          if (pct > 0 && pct <= 100) {
+            commissionNum = Math.round((rentNum * pct) / 100);
+          } else {
+            // Default to 1 month rent if rent property
+            commissionNum = rentNum;
+          }
+        }
+      }
+
+      const commissionFormatted = commissionNum > 0 ? commissionNum.toLocaleString("tr-TR") : "....................";
+      const commissionWords = commissionNum > 0 ? numberToTurkishWords(commissionNum).replace(/\s+/g, "") : "....................";
+
+      const receiptNo = (v.commissionReceiptNo || `MAK-KIR-${(v.contractDate || "").replace(/\D/g, "").slice(0, 8) || "001"}`).trim();
+      const propAddr = (v.propertyAddress || v.rentalAddress || [v.rentalTownVillage, v.rentalDistrict, v.propertyLocation].filter(Boolean).join(" / ") || ".......................................................................................................").trim();
+      const propDetails = (v.propertyTitle || "Kiralık Gayrimenkul").trim();
+      const paymentMethod = (v.commissionPaymentMethod || "Nakit").trim();
+
+      const brokerTitle = (v.commissionBrokerTitle || v.agentAndCompany || v.storeName || "Rodel Investment").trim();
+      const brokerIdentity = (v.authorizedPersonIdentity || "1170237140").trim();
+      const brokerPhone = (v.storePhone || "").trim();
+      const brokerAddr = (v.brokerAddress || "Atatürk Caddesi No: 81/A Küçük Kaymaklı / Lefkoşa").trim();
+
+      const tenantName = (v.clientName || "...............................................................................................").trim();
+      const tenantId = (v.clientIdentity || "........................................").trim();
+      const tenantPhone = (v.clientPhone || "........................................").trim();
+
+      const html = `
+        <div style="font-family: 'Times New Roman', Times, serif; line-height: 1.55; color: #0f172a; max-width: 820px; margin: 0 auto; padding: 30px 36px; border: 2px solid #0f172a; background: #ffffff; position: relative;">
+          <!-- Top Header -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px;">
+            <div>
+              <div style="font-size: 18px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">
+                ${v.storeName || "YETKİLİ EMLAK DANIŞMANLIĞI"}
+              </div>
+              <div style="font-size: 11.5px; color: #475569; margin-top: 3px;">
+                ${brokerAddr}
+              </div>
+              <div style="font-size: 11.5px; color: #475569;">
+                İletişim: <strong>${brokerPhone || "Belirtilmedi"}</strong>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div style="display: inline-block; padding: 4px 10px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; font-weight: bold; color: #0f172a;">
+                Makbuz No: ${receiptNo}
+              </div>
+              <div style="font-size: 12px; font-weight: bold; color: #334155; margin-top: 5px;">
+                Tarih: ${v.contractDate || "..../..../20...."}
+              </div>
+            </div>
+          </div>
+
+          <!-- Document Title -->
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 21px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; color: #0f172a; text-decoration: underline;">
+              KİRALIK KOMİSYON ALIM BELGESİ
+            </h1>
+            <div style="font-size: 12px; font-style: italic; color: #64748b; margin-top: 4px;">
+              (Kiralama Hizmet Bedeli Tahsilat Makbuzu)
+            </div>
+          </div>
+
+          <!-- Section 1: Kiralanan Gayrimenkul -->
+          <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px 16px; margin-bottom: 14px; background: #f8fafc;">
+            <div style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px;">
+              KİRALANAN GAYRİMENKULÜN BİLGİLERİ
+            </div>
+            <p style="margin: 4px 0; font-size: 13.5px;">
+              <strong>KİRALANAN ADRES :</strong> ${propAddr}
+            </p>
+            <p style="margin: 4px 0; font-size: 13px; color: #1e293b;">
+              <strong>Mülk & Ref Bilgisi :</strong> ${propDetails}
+            </p>
+            ${(v.adaNo || v.parselNo || v.kocanNo) ? `
+              <p style="margin: 4px 0; font-size: 12px; color: #475569;">
+                <strong>Kadastro :</strong> Ada: ${v.adaNo || "-"} | Parsel: ${v.parselNo || "-"} | Pafta: ${v.paftaNo || "-"} | Koçan No: ${v.kocanNo || "-"}
+              </p>
+            ` : ""}
+          </div>
+
+          <!-- Section 2: Alınan Komisyon Bedeli -->
+          <div style="border: 2px solid #0284c7; border-radius: 6px; padding: 14px 16px; margin-bottom: 16px; background: #f0f9ff;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px;">
+              <div style="font-size: 15px; font-weight: 900; color: #0369a1; text-transform: uppercase;">
+                ALINAN KOMİSYON BEDELİ:
+              </div>
+              <div style="font-size: 18px; font-weight: 900; color: #0c4a6e;">
+                ${commissionFormatted} ${currMeta.codeLabel}
+              </div>
+            </div>
+            ${commissionNum > 0 ? `
+              <div style="font-size: 13px; font-weight: bold; color: #075985; margin-top: 4px;">
+                Yalnız : ${commissionWords} ${currWordCompact}
+              </div>
+            ` : ""}
+            <div style="margin-top: 8px; font-size: 12px; color: #0369a1; display: flex; gap: 16px;">
+              <div><strong>Ödeme Şekli:</strong> ${paymentMethod}</div>
+              <div><strong>Hizmet Türü:</strong> Gayrimenkul Kiralama Aracılık Bedeli</div>
+            </div>
+          </div>
+
+          <!-- Legal Confirmation Text -->
+          <p style="font-size: 12.5px; text-align: justify; margin: 0 0 20px 0; color: #334155; line-height: 1.5;">
+            Yukarıda açık adresi ve portföy bilgileri yer alan gayrimenkulün kiralanmasına istinaden; Gayrimenkulü Kiralayan Aracı tarafından sunulan tanıtım, pazarlama ve kiralama aracılık hizmetleri karşılığında kararlaştırılan hizmet komisyon bedeli kiracıdan eksiksiz olarak tahsil edilmiş olup, taraflar bu hususta tam mutabakata varmışlardır.
+          </p>
+
+          ${renderCustomClausesHtml(v.customClauses)}
+
+          <!-- Signatures Section -->
+          <div style="display: flex; justify-content: space-between; gap: 20px; border-top: 2px solid #0f172a; padding-top: 14px; margin-top: 10px;">
+            <!-- Aracı Tarafı -->
+            <div style="width: 48%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px;">
+                  GAYRİMENKULÜ KİRALAYAN ARACI
+                </div>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>Ünvan:</strong> ${brokerTitle}</p>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>Yetkili KKTC No:</strong> ${brokerIdentity}</p>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>Tel:</strong> ${brokerPhone || "Belirtilmedi"}</p>
+              </div>
+              <div style="margin-top: 20px; text-align: center;">
+                ${
+                  v.sellerSigned
+                    ? `
+                  <div style="padding: 6px; border: 2px solid #0284c7; background-color: #f0f9ff; border-radius: 6px;">
+                    <div style="font-size: 9px; font-weight: bold; color: #0369a1; text-transform: uppercase;">✔ ARACI DİJİTAL ONAYI</div>
+                    ${v.sellerSignatureImage ? `<img src="${v.sellerSignatureImage}" style="max-height: 44px; margin: 4px auto; display: block;" alt="Aracı İmzası" />` : ""}
+                    <div style="font-family: monospace; font-size: 11px; color: #075985; font-weight: bold;">${v.sellerSigningName || brokerTitle}</div>
+                  </div>
+                `
+                    : `<p style="color: #64748b; font-size: 11px; font-weight: bold; border-top: 1px dashed #cbd5e1; padding-top: 8px;">KAŞE & İMZA: ............................................</p>`
+                }
+              </div>
+            </div>
+
+            <!-- Kiracı Tarafı -->
+            <div style="width: 48%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px;">
+                  KİRACI (ÖDEMEYİ YAPAN)
+                </div>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>Adı Soyadı:</strong> ${tenantName}</p>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>P./K./Kimlik No:</strong> ${tenantId}</p>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>Tel:</strong> ${tenantPhone}</p>
+              </div>
+              <div style="margin-top: 20px; text-align: center;">
+                ${
+                  v.isSigned
+                    ? `
+                  <div style="padding: 6px; border: 2px solid #16a34a; background-color: #f0fdf4; border-radius: 6px;">
+                    <div style="font-size: 9px; font-weight: bold; color: #15803d; text-transform: uppercase;">✔ KİRACI DİJİTAL ONAYI</div>
+                    ${v.signatureImage ? `<img src="${v.signatureImage}" style="max-height: 44px; margin: 4px auto; display: block;" alt="Kiracı İmzası" />` : ""}
+                    <div style="font-family: monospace; font-size: 11px; color: #166534; font-weight: bold;">${v.signingName || tenantName}</div>
+                  </div>
+                `
+                    : `<p style="color: #64748b; font-size: 11px; font-weight: bold; border-top: 1px dashed #cbd5e1; padding-top: 8px;">İMZA: ............................................</p>`
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Footer -->
+          <div style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94a3b8;">
+            <span>Resmi Belge No: ${receiptNo}</span>
+            <span>LookPrice Real Estate E-Sözleşme & Makbuz Sistemi</span>
+          </div>
+        </div>
+      `;
+
+      const markdown = `# KİRALIK KOMİSYON ALIM BELGESİ
+**Makbuz No:** ${receiptNo}
+**Tarih:** ${v.contractDate || ""}
+
+- **KİRALANAN ADRES :** ${propAddr}
+- **Mülk Detayı :** ${propDetails}
+- **ALINAN KOMİSYON BEDELİ :** ${commissionFormatted} ${currMeta.codeLabel} (${commissionWords} ${currWordCompact})
+- **Ödeme Şekli :** ${paymentMethod}
+
+${renderCustomClausesMarkdown(v.customClauses)}
+
+**GAYRİMENKULÜ KİRALAYAN ARACI:** ${brokerTitle} (${brokerIdentity})
+**KİRACI:** ${tenantName} (${tenantId})
+`;
+
+      return { html, markdown };
+    }
+  },
+  {
+    id: "sales_commission_receipt",
+    titleTr: "Satılık Komisyon Alım Belgesi",
+    titleEn: "Sales Commission Receipt",
+    getTemplate: (v: ContractPlaceholderValues) => {
+      const currMeta = getCurrencyMeta(v.saleCurrency || "GBP");
+      const currWordCompact = currMeta.wordLabel.replace(/\s+/g, "");
+
+      // Resolve numeric amount for commission
+      let commissionNum = parseNumericAmount(v.commissionAmountWords || v.depositAmount || v.kaporaCommissionAmount || v.commissionRate);
+      if (commissionNum <= 0) {
+        // If commissionRate is percentage like "%5" and salePrice is known
+        const saleNum = parseNumericAmount(v.salePriceRaw || v.propertyPrice);
+        if (saleNum > 0) {
+          const rateMatch = String(v.commissionRate || "").match(/\d+/);
+          const pct = rateMatch ? parseFloat(rateMatch[0]) : 5;
+          commissionNum = Math.round((saleNum * pct) / 100);
+        }
+      }
+
+      const commissionFormatted = commissionNum > 0 ? commissionNum.toLocaleString("tr-TR") : "....................";
+      const commissionWords = commissionNum > 0 ? numberToTurkishWords(commissionNum).replace(/\s+/g, "") : "....................";
+
+      const receiptNo = (v.commissionReceiptNo || `MAK-SAT-${(v.contractDate || "").replace(/\D/g, "").slice(0, 8) || "001"}`).trim();
+      const propAddr = (v.propertyAddress || [v.rentalTownVillage, v.rentalDistrict, v.propertyLocation].filter(Boolean).join(" / ") || ".......................................................................................................").trim();
+      const propDetails = (v.propertyTitle || "Satılık Gayrimenkul").trim();
+      const paymentMethod = (v.commissionPaymentMethod || "Banka Havalesi / EFT").trim();
+
+      const brokerTitle = (v.commissionBrokerTitle || v.agentAndCompany || v.storeName || "Rodel Investment").trim();
+      const brokerIdentity = (v.authorizedPersonIdentity || "1170237140").trim();
+      const brokerPhone = (v.storePhone || "").trim();
+      const brokerAddr = (v.brokerAddress || "Atatürk Caddesi No: 81/A Küçük Kaymaklı / Lefkoşa").trim();
+
+      // Payer is owner by default, or client (buyer)
+      const payerName = (v.commissionPayerName || v.ownerName || v.clientName || "...............................................................................................").trim();
+      const payerId = (v.commissionPayerIdentity || v.sellerIdentity || v.clientIdentity || "........................................").trim();
+      const payerPhone = (v.commissionPayerPhone || v.ownerPhone || v.clientPhone || "........................................").trim();
+      const payerRole = (v.commissionPayerRole || "MAL SAHİBİ").trim();
+
+      const html = `
+        <div style="font-family: 'Times New Roman', Times, serif; line-height: 1.55; color: #0f172a; max-width: 820px; margin: 0 auto; padding: 30px 36px; border: 2px solid #0f172a; background: #ffffff; position: relative;">
+          <!-- Top Header -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px;">
+            <div>
+              <div style="font-size: 18px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">
+                ${v.storeName || "YETKİLİ EMLAK DANIŞMANLIĞI"}
+              </div>
+              <div style="font-size: 11.5px; color: #475569; margin-top: 3px;">
+                ${brokerAddr}
+              </div>
+              <div style="font-size: 11.5px; color: #475569;">
+                İletişim: <strong>${brokerPhone || "Belirtilmedi"}</strong>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div style="display: inline-block; padding: 4px 10px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; font-weight: bold; color: #0f172a;">
+                Makbuz No: ${receiptNo}
+              </div>
+              <div style="font-size: 12px; font-weight: bold; color: #334155; margin-top: 5px;">
+                Tarih: ${v.contractDate || "..../..../20...."}
+              </div>
+            </div>
+          </div>
+
+          <!-- Document Title -->
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 21px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; color: #0f172a; text-decoration: underline;">
+              SATILIK KOMİSYON ALIM BELGESİ
+            </h1>
+            <div style="font-size: 12px; font-style: italic; color: #64748b; margin-top: 4px;">
+              (Gayrimenkul Satış Hizmet Bedeli Tahsilat Makbuzu)
+            </div>
+          </div>
+
+          <!-- Section 1: Satılan Gayrimenkul -->
+          <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px 16px; margin-bottom: 14px; background: #f8fafc;">
+            <div style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px;">
+              SATILAN GAYRİMENKULÜN BİLGİLERİ
+            </div>
+            <p style="margin: 4px 0; font-size: 13.5px;">
+              <strong>SATILAN GAYRİMENKUL ADRES :</strong> ${propAddr}
+            </p>
+            <p style="margin: 4px 0; font-size: 13px; color: #1e293b;">
+              <strong>Mülk & Ref Bilgisi :</strong> ${propDetails}
+            </p>
+            ${(v.adaNo || v.parselNo || v.kocanNo) ? `
+              <p style="margin: 4px 0; font-size: 12px; color: #475569;">
+                <strong>Kadastro :</strong> Ada: ${v.adaNo || "-"} | Parsel: ${v.parselNo || "-"} | Pafta: ${v.paftaNo || "-"} | Koçan No: ${v.kocanNo || "-"}
+              </p>
+            ` : ""}
+          </div>
+
+          <!-- Section 2: Alınan Komisyon Bedeli -->
+          <div style="border: 2px solid #16a34a; border-radius: 6px; padding: 14px 16px; margin-bottom: 16px; background: #f0fdf4;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px;">
+              <div style="font-size: 15px; font-weight: 900; color: #15803d; text-transform: uppercase;">
+                ALINAN KOMİSYON BEDELİ:
+              </div>
+              <div style="font-size: 18px; font-weight: 900; color: #14532d;">
+                ${commissionFormatted} ${currMeta.codeLabel}
+              </div>
+            </div>
+            ${commissionNum > 0 ? `
+              <div style="font-size: 13px; font-weight: bold; color: #166534; margin-top: 4px;">
+                Yalnız : ${commissionWords} ${currWordCompact}
+              </div>
+            ` : ""}
+            <div style="margin-top: 8px; font-size: 12px; color: #15803d; display: flex; gap: 16px;">
+              <div><strong>Ödeme Şekli:</strong> ${paymentMethod}</div>
+              <div><strong>Hizmet Türü:</strong> Gayrimenkul Satış Aracılık Bedeli</div>
+            </div>
+          </div>
+
+          <!-- Legal Confirmation Text -->
+          <p style="font-size: 12.5px; text-align: justify; margin: 0 0 20px 0; color: #334155; line-height: 1.5;">
+            Yukarıda açık adresi ve tapu kayıt bilgileri yer alan gayrimenkulün satış işlemine istinaden; Gayrimenkulü Satan Aracı tarafından yürütülen tanıtım, pazarlama ve satış aracılık hizmetleri neticesinde hak kazanılan hizmet komisyon bedeli tahsil edilmiş olup, taraflar bu tutarın eksiksiz ödendiği hususunda tam mutabakata varmışlardır.
+          </p>
+
+          ${renderCustomClausesHtml(v.customClauses)}
+
+          <!-- Signatures Section -->
+          <div style="display: flex; justify-content: space-between; gap: 20px; border-top: 2px solid #0f172a; padding-top: 14px; margin-top: 10px;">
+            <!-- Aracı Tarafı -->
+            <div style="width: 48%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px;">
+                  GAYRİ MENKULÜ SATAN ARACI
+                </div>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>Ünvan:</strong> ${brokerTitle}</p>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>Yetkili KKTC No:</strong> ${brokerIdentity}</p>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>Tel:</strong> ${brokerPhone || "Belirtilmedi"}</p>
+              </div>
+              <div style="margin-top: 20px; text-align: center;">
+                ${
+                  v.sellerSigned
+                    ? `
+                  <div style="padding: 6px; border: 2px solid #0284c7; background-color: #f0f9ff; border-radius: 6px;">
+                    <div style="font-size: 9px; font-weight: bold; color: #0369a1; text-transform: uppercase;">✔ ARACI DİJİTAL ONAYI</div>
+                    ${v.sellerSignatureImage ? `<img src="${v.sellerSignatureImage}" style="max-height: 44px; margin: 4px auto; display: block;" alt="Aracı İmzası" />` : ""}
+                    <div style="font-family: monospace; font-size: 11px; color: #075985; font-weight: bold;">${v.sellerSigningName || brokerTitle}</div>
+                  </div>
+                `
+                    : `<p style="color: #64748b; font-size: 11px; font-weight: bold; border-top: 1px dashed #cbd5e1; padding-top: 8px;">KAŞE & İMZA: ............................................</p>`
+                }
+              </div>
+            </div>
+
+            <!-- Mal Sahibi / Ödeyen Tarafı -->
+            <div style="width: 48%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px;">
+                  ${payerRole.toUpperCase()}
+                </div>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>Adı Soyadı:</strong> ${payerName}</p>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>P./K./Kimlik No:</strong> ${payerId}</p>
+                <p style="margin: 3px 0; font-size: 12px;"><strong>Tel:</strong> ${payerPhone}</p>
+              </div>
+              <div style="margin-top: 20px; text-align: center;">
+                ${
+                  v.isSigned
+                    ? `
+                  <div style="padding: 6px; border: 2px solid #16a34a; background-color: #f0fdf4; border-radius: 6px;">
+                    <div style="font-size: 9px; font-weight: bold; color: #15803d; text-transform: uppercase;">✔ DİJİTAL ONAY</div>
+                    ${v.signatureImage ? `<img src="${v.signatureImage}" style="max-height: 44px; margin: 4px auto; display: block;" alt="İmza" />` : ""}
+                    <div style="font-family: monospace; font-size: 11px; color: #166534; font-weight: bold;">${v.signingName || payerName}</div>
+                  </div>
+                `
+                    : `<p style="color: #64748b; font-size: 11px; font-weight: bold; border-top: 1px dashed #cbd5e1; padding-top: 8px;">İMZA: ............................................</p>`
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Footer -->
+          <div style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94a3b8;">
+            <span>Resmi Belge No: ${receiptNo}</span>
+            <span>LookPrice Real Estate E-Sözleşme & Makbuz Sistemi</span>
+          </div>
+        </div>
+      `;
+
+      const markdown = `# SATILIK KOMİSYON ALIM BELGESİ
+**Makbuz No:** ${receiptNo}
+**Tarih:** ${v.contractDate || ""}
+
+- **SATILAN GAYRİMENKUL ADRES :** ${propAddr}
+- **Mülk Detayı :** ${propDetails}
+- **ALINAN KOMİSYON BEDELİ :** ${commissionFormatted} ${currMeta.codeLabel} (${commissionWords} ${currWordCompact})
+- **Ödeme Şekli :** ${paymentMethod}
+
+${renderCustomClausesMarkdown(v.customClauses)}
+
+**GAYRİ MENKULÜ SATAN ARACI:** ${brokerTitle} (${brokerIdentity})
+**MAL SAHİBİ:** ${payerName} (${payerId})
+`;
+
+      return { html, markdown };
+    }
   }
 ];
 
@@ -3426,8 +3834,9 @@ export function buildDefaultOfferPropertyDetails(prop: any): string {
   if (rooms && rooms !== "Belirtilmedi") specs.push(`${rooms}`);
   if (specs.length > 0) {
     parts.push(`${specs.join(" ")} olan`);
-  } else if (prop.title) {
-    parts.push(`(${prop.title}) özelliklerindeki`);
+  } else {
+    const feat = resolvePropertyFeatureHighlight(prop);
+    if (feat) parts.push(`${feat} özelliklerindeki`);
   }
 
   return parts.join(", ");
@@ -3587,16 +3996,218 @@ export function buildDefaultSalePropertyDetails(prop: any): string {
   const unitParts: string[] = [];
   if (floor) unitParts.push(`${floor}. Kat`);
   if (unitNo) unitParts.push(`${unitNo} nolu`);
-  const nature = detectDefaultPropertyNature(prop).toLocaleLowerCase("tr-TR");
+  const feat = resolvePropertyFeatureHighlight(prop).toLocaleLowerCase("tr-TR");
   if (unitParts.length > 0) {
-    segments.push(`${unitParts.join(" ")} ${nature}`);
-  } else if (title) {
-    segments.push(`${title} (${nature})`);
+    segments.push(`${unitParts.join(" ")} ${feat}`);
   } else {
-    segments.push(nature);
+    segments.push(feat);
   }
 
   return segments.join(" ").replace(/\s+/g, " ").trim();
+}
+
+export function resolvePropertyFeatureHighlight(prop: any): string {
+  if (!prop) return "Gayrimenkul";
+  const sec =
+    typeof prop.sector_data === "string"
+      ? (() => {
+          try {
+            return JSON.parse(prop.sector_data);
+          } catch {
+            return {};
+          }
+        })()
+      : prop.sector_data || {};
+
+  const subType = (
+    prop.sub_type ||
+    sec.sub_type ||
+    prop.subType ||
+    sec.subType ||
+    prop.property_sub_type ||
+    sec.property_sub_type ||
+    prop.sub_category ||
+    sec.sub_category ||
+    ""
+  ).toString().trim();
+
+  const type = (prop.type || sec.type || prop.category || sec.category || "").toString().trim().toLowerCase();
+  const rooms = (prop.rooms || sec.rooms || prop.room_count || sec.room_count || "").toString().trim();
+  const rawTitle = (prop.title || "").toString().toLowerCase();
+
+  const isTwinVilla =
+    subType.toLowerCase().includes("ikiz") ||
+    rawTitle.includes("ikiz villa") ||
+    rawTitle.includes("ikiz");
+
+  const isDetachedVilla =
+    subType.toLowerCase().includes("müstakil villa") ||
+    subType.toLowerCase().includes("mustakil villa") ||
+    rawTitle.includes("müstakil villa") ||
+    rawTitle.includes("mustakil villa");
+
+  const isTriplexVilla =
+    subType.toLowerCase().includes("triplex") ||
+    subType.toLowerCase().includes("tripleks") ||
+    rawTitle.includes("triplex") ||
+    rawTitle.includes("tripleks");
+
+  const isVilla =
+    isTwinVilla ||
+    isDetachedVilla ||
+    isTriplexVilla ||
+    subType.toLowerCase().includes("villa") ||
+    rawTitle.includes("villa") ||
+    type.includes("villa");
+
+  const isPenthouse =
+    subType.toLowerCase().includes("penthouse") ||
+    rawTitle.includes("penthouse") ||
+    rawTitle.includes("çatı dubleksi") ||
+    rawTitle.includes("cati dubleks");
+
+  const isStudio =
+    rooms.toLowerCase().includes("stüdyo") ||
+    rooms.toLowerCase().includes("studyo") ||
+    rooms === "1+0" ||
+    subType.toLowerCase().includes("stüdyo") ||
+    subType.toLowerCase().includes("studyo") ||
+    rawTitle.includes("stüdyo") ||
+    rawTitle.includes("studyo") ||
+    rawTitle.includes("1+0");
+
+  const isApartment =
+    subType.toLowerCase().includes("daire") ||
+    subType.toLowerCase().includes("rezidans") ||
+    subType.toLowerCase().includes("apartman") ||
+    rawTitle.includes("daire") ||
+    type === "residence" ||
+    type === "konut";
+
+  const isLand =
+    type === "land" ||
+    type === "arsa" ||
+    subType.toLowerCase().includes("arsa") ||
+    subType.toLowerCase().includes("tarla") ||
+    subType.toLowerCase().includes("arazi") ||
+    rawTitle.includes("arsa") ||
+    rawTitle.includes("tarla");
+
+  const isCommercial =
+    type === "commercial" ||
+    type === "ticari" ||
+    subType.toLowerCase().includes("dükkan") ||
+    subType.toLowerCase().includes("dukkan") ||
+    subType.toLowerCase().includes("ofis") ||
+    subType.toLowerCase().includes("iş yeri") ||
+    subType.toLowerCase().includes("is yeri") ||
+    subType.toLowerCase().includes("bina") ||
+    subType.toLowerCase().includes("depo") ||
+    rawTitle.includes("dükkan") ||
+    rawTitle.includes("dukkan") ||
+    rawTitle.includes("ofis") ||
+    rawTitle.includes("işyeri") ||
+    rawTitle.includes("isyeri");
+
+  const cleanRooms = rooms && rooms !== "Belirtilmedi" && rooms !== "0" ? rooms : "";
+
+  if (isLand) {
+    if (subType && (subType.toLowerCase().includes("arsa") || subType.toLowerCase().includes("tarla"))) {
+      return subType;
+    }
+    return "Arsa";
+  }
+
+  if (isTwinVilla) {
+    return cleanRooms ? `${cleanRooms} İkiz Villa` : "İkiz Villa";
+  }
+
+  if (isDetachedVilla) {
+    return cleanRooms ? `${cleanRooms} Müstakil Villa` : "Müstakil Villa";
+  }
+
+  if (isTriplexVilla) {
+    return cleanRooms ? `${cleanRooms} Triplex Villa` : "Triplex Villa";
+  }
+
+  if (isVilla) {
+    return cleanRooms ? `${cleanRooms} Villa` : "Villa";
+  }
+
+  if (isPenthouse) {
+    return cleanRooms ? `${cleanRooms} Penthouse Daire` : "Penthouse Daire";
+  }
+
+  if (isStudio) {
+    return "Stüdyo Daire";
+  }
+
+  if (isCommercial) {
+    if (subType && subType !== "Ticari") return subType;
+    if (rawTitle.includes("dükkan") || rawTitle.includes("dukkan")) return "Dükkan";
+    if (rawTitle.includes("ofis")) return "Ofis";
+    if (rawTitle.includes("depo")) return "Depo";
+    return "Ticari İşyeri";
+  }
+
+  if (isApartment || cleanRooms) {
+    return cleanRooms ? `${cleanRooms} Daire` : "Daire";
+  }
+
+  if (subType) {
+    return subType;
+  }
+
+  return detectDefaultPropertyNature(prop) || "Gayrimenkul";
+}
+
+export function resolveOfficialPropertyTitle(prop: any): string {
+  if (!prop) return "";
+  const sec =
+    typeof prop.sector_data === "string"
+      ? (() => {
+          try {
+            return JSON.parse(prop.sector_data);
+          } catch {
+            return {};
+          }
+        })()
+      : prop.sector_data || {};
+
+  const refTag = prop.reference_no
+    ? `[Ref: ${prop.reference_no}]`
+    : prop.id
+    ? `[Ref: LP-${prop.id}]`
+    : "";
+
+  const feature = resolvePropertyFeatureHighlight(prop);
+  const region = resolvePropertyRegionLabel(prop);
+  const mahalle = (prop.mahalle || sec.mahalle || "").toString().trim();
+  const address = (prop.address || sec.address || "").toString().trim();
+  const ada = (prop.ada || sec.ada || "").toString().trim();
+  const parsel = (prop.parsel || sec.parsel || prop.block_plot || sec.block_plot || "").toString().trim();
+  const pafta = (prop.pafta || sec.pafta || "").toString().trim();
+  const kocanNo = (prop.kocan_no || sec.kocan_no || prop.kocan_type || sec.kocan_type || "").toString().trim();
+
+  const parts: string[] = [];
+  if (refTag) parts.push(refTag);
+
+  const locParts: string[] = [];
+  if (region) locParts.push(region);
+  if (mahalle && !region.toLowerCase().includes(mahalle.toLowerCase())) locParts.push(mahalle);
+  else if (address && !region.toLowerCase().includes(address.toLowerCase())) locParts.push(address);
+  if (locParts.length > 0) parts.push(locParts.join(", "));
+
+  const cadastreParts: string[] = [];
+  if (ada) cadastreParts.push(`Ada: ${ada}`);
+  if (parsel) cadastreParts.push(`Parsel: ${parsel}`);
+  if (pafta) cadastreParts.push(`Pafta: ${pafta}`);
+  if (kocanNo && !ada && !parsel) cadastreParts.push(`Koçan: ${kocanNo}`);
+  if (cadastreParts.length > 0) parts.push(cadastreParts.join(", "));
+
+  if (feature) parts.push(feature);
+
+  return parts.join(" - ").replace(/\s+/g, " ").trim();
 }
 
 export function buildDefaultRentalPropertyMeta(prop: any): {
@@ -3634,12 +4245,8 @@ export function buildDefaultRentalPropertyMeta(prop: any): {
         })()
       : prop.sector_data || {};
 
-  const rooms = (prop.rooms || sec.rooms || "").toString().trim();
   const nature = detectDefaultPropertyNature(prop);
-  const rentalPropertyDef =
-    rooms && rooms !== "Belirtilmedi"
-      ? `${rooms} ${nature}`
-      : (nature && nature !== "Gayrimenkul" ? nature : "3+1 Daire");
+  const rentalPropertyDef = resolvePropertyFeatureHighlight(prop) || "3+1 Daire";
 
   const isCommercial =
     prop.type === "commercial" ||
@@ -3713,18 +4320,20 @@ export function buildDefaultShowingPropertyDetails(prop: any): string {
   const refTag = prop.reference_no ? `[Ref: ${prop.reference_no}]` : prop.id ? `[Ref: LP-${prop.id}]` : "";
   const region = resolvePropertyRegionLabel(prop);
   const address = (prop.address || sec.address || prop.mahalle || sec.mahalle || "").toString().trim();
-  const title = (prop.title || "").toString().trim();
   const kocan = (prop.kocan_no || sec.kocan_no || "").toString().trim();
   const ada = (prop.ada || sec.ada || "").toString().trim();
   const parsel = (prop.parsel || sec.parsel || prop.block_plot || sec.block_plot || "").toString().trim();
+  const pafta = (prop.pafta || sec.pafta || "").toString().trim();
+  const featureHighlight = resolvePropertyFeatureHighlight(prop);
 
   const parts: string[] = [];
   if (refTag) parts.push(refTag);
   if (region) parts.push(region);
   if (address && !region.toLowerCase().includes(address.toLowerCase())) parts.push(address);
-  if (title) parts.push(title);
-  if (kocan) parts.push(`Koçan: ${kocan}`);
   if (ada || parsel) parts.push(`Ada/Parsel: ${[ada, parsel].filter(Boolean).join("/")}`);
+  if (pafta) parts.push(`Pafta: ${pafta}`);
+  if (kocan && !ada && !parsel) parts.push(`Koçan: ${kocan}`);
+  if (featureHighlight) parts.push(featureHighlight);
 
   return parts.join(" - ").replace(/\s+/g, " ").trim();
 }
