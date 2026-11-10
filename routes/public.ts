@@ -2789,6 +2789,14 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       rentPaymentMethod,
       rentStartDate,
       rentEndDate,
+      kaporaTenant2Info,
+      kaporaTenant3Info,
+      kaporaTotalRentAmount,
+      kaporaDuesAmount,
+      kaporaCommissionAmount,
+      kaporaPaidAmount,
+      kaporaRemainingBalance,
+      kaporaBalanceDueDate,
       // Sales contract & offer letter extra fields
       salePropertyDetails,
       kocanNo,
@@ -2815,6 +2823,11 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       offerPrice,
       offerValidityPeriod,
       offerFreeNotes,
+      salesDepositPaidAmount,
+      salesDepositRemainingAmount,
+      salesPaymentTerms,
+      reservationDays,
+      escrowDeadlineDays,
       agentAndCompany,
       authorizedPersonIdentity,
       brokerAddress,
@@ -2823,6 +2836,14 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       showingItem1Price,
       showingItem2Details,
       showingItem2Price,
+      exclusivityIntent,
+      authPropertyCategory,
+      authPropertyCategoryOther,
+      authServiceFeePayer,
+      authServiceFeeReceiver,
+      authShowingDayType,
+      authShowingHours,
+      authDurationDays,
       authPropertyTypeFeatures,
       authAdvancePayment,
       authAnnualIncreaseRate,
@@ -2831,7 +2852,7 @@ router.post("/real-estate/:id/sign", async (req, res) => {
     } = req.body;
 
     const isSellerRole = signerRole === "seller";
-    const isOwnerAuthReq = ["exclusivity_agreement", "rental_authorization"].includes(String(templateId || ""));
+    const isOwnerAuthReq = ["exclusivity_agreement", "rental_authorization", "sales_authorization"].includes(String(templateId || ""));
 
     if (!isSellerRole && (!clientName || (!isOwnerAuthReq && !clientIdentity) || !clientPhone)) {
       return res.status(400).json({ error: "Lütfen ad soyad ve telefon alanlarını doldurunuz." });
@@ -2959,10 +2980,18 @@ router.post("/real-estate/:id/sign", async (req, res) => {
 
     const templateTitleMap: Record<string, string> = {
       sales_brokerage: "Satış Sözleşmesi",
+      sales_deposit_agreement: "Kapora Sözleşmesi (Emlakçı Kasa Muhafazalı)",
+      escrow_deposit_agreement: "Emanet Sözleşmesi",
+      property_reservation_deposit: "Gayrimenkul Kapora Anlaşması",
       rental_agreement: "Kira Sözleşmesi",
+      rental_deposit_agreement: "Kapora (Kaparo) Sözleşmesi",
       offer_letter: "Fiyat Teklif Mektubu",
       showing_agreement: "Yer Gösterme Sözleşmesi",
-      exclusivity_agreement: "Tek Yetki Satış Sözleşmesi",
+      exclusivity_agreement:
+        exclusivityIntent === "rent" || property.listing_intent === "rent"
+          ? "Kiralık Gayrimenkul Tek Yetkili Kiralama Sözleşmesi"
+          : "Satılık Gayrimenkul Yetkili Satış Sözleşmesi (Hizmet Bedeli Eklenerek)",
+      sales_authorization: "Satılık Gayrimenkul Yetkili Satış Sözleşmesi (Hizmet Bedeli Eklenerek)",
       rental_authorization: "Kiralama Yetki Belgesi",
       eviction_undertaking: "Tahliye Taahhütnamesi",
       external_partner_revenue_share: "Dış Paydaş Gelir Paylaşım Protokolü",
@@ -2970,14 +2999,18 @@ router.post("/real-estate/:id/sign", async (req, res) => {
     };
     const contractTitleLabel = templateTitleMap[resolvedTemplateId] || "Sözleşme";
 
-    const isOwnerAuthContract = ["exclusivity_agreement", "rental_authorization"].includes(resolvedTemplateId);
+    const isOwnerAuthContract = ["exclusivity_agreement", "rental_authorization", "sales_authorization"].includes(resolvedTemplateId);
     const firstSignerRoleLabel = isOwnerAuthContract
       ? "Mülk Sahibi"
-      : resolvedTemplateId === "rental_agreement"
+      : resolvedTemplateId === "rental_agreement" || resolvedTemplateId === "rental_deposit_agreement"
       ? "Kiracı"
       : "Alıcı";
     const secondSignerRoleLabel = isOwnerAuthContract
       ? "İşletme Yetkilisi"
+      : resolvedTemplateId === "rental_deposit_agreement" || resolvedTemplateId === "sales_deposit_agreement"
+      ? "Emlak Komisyoncusu"
+      : resolvedTemplateId === "escrow_deposit_agreement"
+      ? "Emanetçi (Komisyoncu)"
       : resolvedTemplateId === "rental_agreement"
       ? "Kiraya Veren"
       : "Satıcı";
@@ -3127,6 +3160,14 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       rentPaymentMethod: rentPaymentMethod ?? prevDetails.rentPaymentMethod ?? "Aylık Ödemeli",
       rentStartDate: rentStartDate ?? prevDetails.rentStartDate ?? "",
       rentEndDate: rentEndDate ?? prevDetails.rentEndDate ?? "",
+      kaporaTenant2Info: kaporaTenant2Info ?? prevDetails.kaporaTenant2Info ?? "",
+      kaporaTenant3Info: kaporaTenant3Info ?? prevDetails.kaporaTenant3Info ?? "",
+      kaporaTotalRentAmount: kaporaTotalRentAmount ?? prevDetails.kaporaTotalRentAmount ?? "",
+      kaporaDuesAmount: kaporaDuesAmount ?? prevDetails.kaporaDuesAmount ?? "",
+      kaporaCommissionAmount: kaporaCommissionAmount ?? prevDetails.kaporaCommissionAmount ?? "",
+      kaporaPaidAmount: kaporaPaidAmount ?? prevDetails.kaporaPaidAmount ?? "",
+      kaporaRemainingBalance: kaporaRemainingBalance ?? prevDetails.kaporaRemainingBalance ?? "",
+      kaporaBalanceDueDate: kaporaBalanceDueDate ?? prevDetails.kaporaBalanceDueDate ?? "",
       // Sales contract & offer letter fields
       salePropertyDetails: salePropertyDetails ?? prevDetails.salePropertyDetails ?? "",
       kocanNo: kocanNo ?? prevDetails.kocanNo ?? "",
@@ -3149,6 +3190,11 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       witness1Identity: witness1Identity ?? prevDetails.witness1Identity ?? "",
       witness2Name: witness2Name ?? prevDetails.witness2Name ?? "",
       witness2Identity: witness2Identity ?? prevDetails.witness2Identity ?? "",
+      salesDepositPaidAmount: salesDepositPaidAmount ?? prevDetails.salesDepositPaidAmount ?? "",
+      salesDepositRemainingAmount: salesDepositRemainingAmount ?? prevDetails.salesDepositRemainingAmount ?? "",
+      salesPaymentTerms: salesPaymentTerms ?? prevDetails.salesPaymentTerms ?? "",
+      reservationDays: reservationDays ?? prevDetails.reservationDays ?? "",
+      escrowDeadlineDays: escrowDeadlineDays ?? prevDetails.escrowDeadlineDays ?? "",
       customClauses: customClauses ?? prevDetails.customClauses ?? "",
       viewingDate: viewingDate ?? prevDetails.viewingDate ?? "",
       offerPropertyDetails: offerPropertyDetails ?? prevDetails.offerPropertyDetails ?? "",
@@ -3164,6 +3210,17 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       showingItem1Price: showingItem1Price ?? prevDetails.showingItem1Price ?? "",
       showingItem2Details: showingItem2Details ?? prevDetails.showingItem2Details ?? "",
       showingItem2Price: showingItem2Price ?? prevDetails.showingItem2Price ?? "",
+      exclusivityIntent:
+        exclusivityIntent ??
+        prevDetails.exclusivityIntent ??
+        (property.listing_intent === "rent" ? "rent" : "sale"),
+      authPropertyCategory: authPropertyCategory ?? prevDetails.authPropertyCategory ?? "",
+      authPropertyCategoryOther: authPropertyCategoryOther ?? prevDetails.authPropertyCategoryOther ?? "",
+      authServiceFeePayer: authServiceFeePayer ?? prevDetails.authServiceFeePayer ?? "",
+      authServiceFeeReceiver: authServiceFeeReceiver ?? prevDetails.authServiceFeeReceiver ?? "",
+      authShowingDayType: authShowingDayType ?? prevDetails.authShowingDayType ?? "TÜMÜ",
+      authShowingHours: authShowingHours ?? prevDetails.authShowingHours ?? "09:00 - 18:00",
+      authDurationDays: authDurationDays ?? prevDetails.authDurationDays ?? "90 (Doksan)",
       authPropertyTypeFeatures: authPropertyTypeFeatures ?? prevDetails.authPropertyTypeFeatures ?? "",
       authAdvancePayment: authAdvancePayment ?? prevDetails.authAdvancePayment ?? "",
       authAnnualIncreaseRate: authAnnualIncreaseRate ?? prevDetails.authAnnualIncreaseRate ?? "",

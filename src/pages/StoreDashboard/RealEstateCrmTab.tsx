@@ -89,6 +89,27 @@ export const cleanContactNotes = (rawNotes?: string, linkedProps: any[] = []): s
   return Array.from(new Set(lines)).join(" | ");
 };
 
+export const isPropertyRental = (prop: any): boolean => {
+  if (!prop) return false;
+  const lType = String(prop.listing_type || "").trim();
+  const titleStr = String(prop.title || "").trim();
+  if (/\b(kiralık|kiralik|kira|for rent)\b/i.test(lType)) return true;
+  if (/\b(satılık|satilik|satış|satis|for sale)\b/i.test(lType)) return false;
+  if (prop.listing_intent === "rent" || prop.intent === "kiralik" || prop.sector_data?.listing_intent === "rent") {
+    return true;
+  }
+  if (
+    /\b(kiralık|kiralik|kira|for rent)\b/i.test(titleStr) &&
+    !/\b(satılık|satilik|for sale)\b/i.test(titleStr)
+  ) {
+    return true;
+  }
+  if (prop.listing_intent === "sale" || prop.intent === "satilik" || prop.sector_data?.listing_intent === "sale") {
+    return false;
+  }
+  return false;
+};
+
 export const extractContactSubMeta = (contact: RealEstateContact, properties: any[] = []): ContactSubMeta => {
   const intents = new Set<ContactIntentType>();
   const propertyTypes = new Set<ContactPropertyType>();
@@ -109,14 +130,16 @@ export const extractContactSubMeta = (contact: RealEstateContact, properties: an
     return false;
   });
 
-  const analyzeText = (raw: string) => {
+  const analyzeText = (raw: string, includeIntents = true) => {
     const t = normalizeTr(raw);
     if (!t) return;
 
-    // Intents
-    if (/\b(satılık|satilik|satis|satış|for sale|yatırımlık|yatirimlik)\b/i.test(t)) intents.add('satilik');
-    if (/\b(kiralık|kiralik|kira|for rent|rent)\b/i.test(t)) intents.add('kiralik');
-    if (/\b(kat karşılığı|kat karsiligi|ortak proje)\b/i.test(t)) intents.add('kat_karsiligi');
+    if (includeIntents) {
+      // Intents
+      if (/\b(satılık|satilik|satis|satış|for sale|yatırımlık|yatirimlik)\b/i.test(t)) intents.add('satilik');
+      if (/\b(kiralık|kiralik|kira|for rent|rent)\b/i.test(t)) intents.add('kiralik');
+      if (/\b(kat karşılığı|kat karsiligi|ortak proje)\b/i.test(t)) intents.add('kat_karsiligi');
+    }
 
     // Property Types
     if (/\b(villa|müstakil|mustakil|ikiz villa|bungalow|köşk|yalı)\b/i.test(t)) propertyTypes.add('villa');
@@ -134,11 +157,12 @@ export const extractContactSubMeta = (contact: RealEstateContact, properties: an
     if (/\b(lefke|gemikonağı|gemikonagi|yedidalga|gaziveren)\b/i.test(t)) regions.add('Lefke');
   };
 
-  analyzeText(`${contact.notes || ""} ${contact.address || ""}`);
+  analyzeText(`${contact.notes || ""} ${contact.address || ""}`, linkedProps.length === 0);
 
   for (const p of linkedProps) {
+    intents.add(isPropertyRental(p) ? 'kiralik' : 'satilik');
     const pText = `${p.title || ""} ${p.listing_type || ""} ${p.property_type || ""} ${p.category || ""} ${p.sub_category || ""} ${p.kktc_region || ""} ${p.location || ""}`;
-    analyzeText(pText);
+    analyzeText(pText, false);
   }
 
   return {
@@ -247,7 +271,7 @@ const RealEstateCrmTab = ({
   const [authContractState, setAuthContractState] = useState<{
     isOpen: boolean;
     property: any;
-    templateId: 'exclusivity_agreement' | 'rental_authorization';
+    templateId: 'exclusivity_agreement' | 'rental_authorization' | 'sales_authorization';
     ownerName: string;
     ownerPhone: string;
     ownerIdNumber: string;
@@ -363,32 +387,51 @@ const RealEstateCrmTab = ({
   const openOwnerAuthContract = (
     contact: RealEstateContact,
     property: any,
-    templateId: 'exclusivity_agreement' | 'rental_authorization'
+    templateId: 'exclusivity_agreement' | 'rental_authorization' | 'sales_authorization',
+    forcedIntent?: 'rent' | 'sale'
   ) => {
     const pOwner = getPropertyOwnerDetails(property);
     const ownerName = contact.name || pOwner.name || "";
     const ownerPhone = contact.phone || pOwner.phone || "";
     const ownerIdNumber = String((contact as any).id_number || pOwner.idNumber || "").trim();
 
-    const targetProperty = property || {
-      id: `pre_portfolio_${Date.now()}`,
-      title: `Ön Portföy (Yetki Belgesi)`,
-      address: contact.address || "",
-      location: "KKTC",
-      price: 0,
-      currency: "GBP",
-      listing_intent: templateId === "rental_authorization" ? "rent" : "sale",
-      listing_type: templateId === "rental_authorization" ? "Kiralık" : "Satılık",
-      owner_name: ownerName,
-      owner_phone: ownerPhone,
-      owner_info: {
-        fullName: ownerName,
-        phone: ownerPhone,
-        identityNo: ownerIdNumber,
-        idNumber: ownerIdNumber,
-      },
-      documents: []
-    };
+    const resolvedIntent: 'rent' | 'sale' =
+      forcedIntent ||
+      (templateId === "rental_authorization"
+        ? "rent"
+        : templateId === "sales_authorization"
+        ? "sale"
+        : property
+        ? isPropertyRental(property)
+          ? "rent"
+          : "sale"
+        : "sale");
+
+    const targetProperty = property
+      ? {
+          ...property,
+          listing_intent: resolvedIntent,
+          listing_type: resolvedIntent === "rent" ? "Kiralık" : "Satılık",
+        }
+      : {
+          id: `pre_portfolio_${Date.now()}`,
+          title: `Ön Portföy (Yetki Belgesi)`,
+          address: contact.address || "",
+          location: "KKTC",
+          price: 0,
+          currency: "GBP",
+          listing_intent: resolvedIntent,
+          listing_type: resolvedIntent === "rent" ? "Kiralık" : "Satılık",
+          owner_name: ownerName,
+          owner_phone: ownerPhone,
+          owner_info: {
+            fullName: ownerName,
+            phone: ownerPhone,
+            identityNo: ownerIdNumber,
+            idNumber: ownerIdNumber,
+          },
+          documents: []
+        };
 
     setAuthContractState({
       isOpen: true,
@@ -571,21 +614,30 @@ const RealEstateCrmTab = ({
           <span className="text-[10px] font-bold text-slate-500">
             Henüz bağlı portföy ilanı yok
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap">
             <button
               type="button"
-              onClick={() => openOwnerAuthContract(contact, null, 'exclusivity_agreement')}
+              onClick={() => openOwnerAuthContract(contact, null, 'sales_authorization', 'sale')}
               className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black rounded-md flex items-center gap-1 cursor-pointer shadow-2xs"
-              title="Mülk Sahibi 1. İmza Öncelikli Tek Yetki Sözleşmesi Hazırla"
+              title="Satılık Gayrimenkul Yetkili Satış Sözleşmesi (Hizmet Bedeli Eklenerek) Hazırla (1. İmza: Mülk Sahibi)"
             >
               <FileSignature size={10} />
-              <span>Tek Yetki</span>
+              <span>Yetkili Satış Sözleşmesi</span>
             </button>
             <button
               type="button"
-              onClick={() => openOwnerAuthContract(contact, null, 'rental_authorization')}
+              onClick={() => openOwnerAuthContract(contact, null, 'exclusivity_agreement', 'rent')}
+              className="px-2 py-0.5 bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black rounded-md flex items-center gap-1 cursor-pointer shadow-2xs"
+              title="Kiralık Gayrimenkul Tek Yetkili Kiralama Sözleşmesi Hazırla (1. İmza: Mülk Sahibi)"
+            >
+              <FileSignature size={10} />
+              <span>Kiralık Tek Yetki</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openOwnerAuthContract(contact, null, 'rental_authorization', 'rent')}
               className="px-2 py-0.5 bg-teal-600 hover:bg-teal-700 text-white text-[9px] font-black rounded-md flex items-center gap-1 cursor-pointer shadow-2xs"
-              title="Mülk Sahibi 1. İmza Öncelikli Kiralama Yetki Belgesi Hazırla"
+              title="Kiralıklarda Yetki Belgesi Sözleşmesi Hazırla (1. İmza: Mülk Sahibi)"
             >
               <FileCheck size={10} />
               <span>Kiralama Yetki</span>
@@ -605,7 +657,7 @@ const RealEstateCrmTab = ({
         </div>
         <div className={`space-y-1 ${compact ? 'max-h-44 overflow-y-auto pr-0.5 custom-scrollbar' : ''}`}>
           {linkedProps.map((prop) => {
-            const isRent = /kira/i.test(String(prop.listing_type || ""));
+            const isRent = isPropertyRental(prop);
             const priceFormatted = Number(prop.price || 0).toLocaleString("tr-TR");
             const curr = prop.currency || "GBP";
             const refCode = prop.reference_code || prop.id;
@@ -660,24 +712,38 @@ const RealEstateCrmTab = ({
                     <Eye size={10} className="text-indigo-600" />
                     <span>İncele</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => openOwnerAuthContract(contact, prop, 'exclusivity_agreement')}
-                    className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black flex items-center gap-1 cursor-pointer shadow-2xs"
-                    title="Bu mülk için Tek Yetki Sözleşmesi (1. İmza: Mülk Sahibi)"
-                  >
-                    <FileSignature size={10} />
-                    <span>Tek Yetki</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openOwnerAuthContract(contact, prop, 'rental_authorization')}
-                    className="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-[9px] font-black flex items-center gap-1 cursor-pointer shadow-2xs"
-                    title="Bu mülk için Kiralama Yetki Belgesi (1. İmza: Mülk Sahibi)"
-                  >
-                    <FileCheck size={10} />
-                    <span>Kiralama Yetki</span>
-                  </button>
+                  {isRent ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openOwnerAuthContract(contact, prop, 'exclusivity_agreement', 'rent')}
+                        className="px-2 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[9px] font-black flex items-center gap-1 cursor-pointer shadow-2xs"
+                        title="Bu kiralık mülk için Kiralık Gayrimenkul Tek Yetkili Kiralama Sözleşmesi (1. İmza: Mülk Sahibi)"
+                      >
+                        <FileSignature size={10} />
+                        <span>Kiralık Tek Yetki</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openOwnerAuthContract(contact, prop, 'rental_authorization', 'rent')}
+                        className="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-[9px] font-black flex items-center gap-1 cursor-pointer shadow-2xs"
+                        title="Bu kiralık mülk için Kiralama Yetki Belgesi (1. İmza: Mülk Sahibi)"
+                      >
+                        <FileCheck size={10} />
+                        <span>Kiralama Yetki</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openOwnerAuthContract(contact, prop, 'sales_authorization', 'sale')}
+                      className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black flex items-center gap-1 cursor-pointer shadow-2xs"
+                      title="Bu satılık mülk için Satılık Gayrimenkul Yetkili Satış Sözleşmesi (Hizmet Bedeli Eklenerek) (1. İmza: Mülk Sahibi)"
+                    >
+                      <FileSignature size={10} />
+                      <span>Yetkili Satış Sözleşmesi</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -739,14 +805,15 @@ const RealEstateCrmTab = ({
                     openOwnerAuthContract(
                       { name: "", phone: "", type: "owner" },
                       null,
-                      "exclusivity_agreement"
+                      "sales_authorization",
+                      "sale"
                     )
                   }
                   className="flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 px-2.5 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer shadow-2xs"
-                  title="Henüz Portföye Alınmamış Mülk İçin Tek Yetki Sözleşmesi Al (Ön Portföy Oluşturur)"
+                  title="Henüz Portföye Alınmamış Satılık Mülk İçin Yetkili Satış Sözleşmesi (Hizmet Bedeli Eklenerek) Al (Ön Portföy Oluşturur)"
                 >
                   <FileSignature size={13} className="text-indigo-700" />
-                  <span>Tek Yetki Al</span>
+                  <span>Satış Yetki Al</span>
                 </button>
                 <button
                   type="button"
@@ -754,7 +821,24 @@ const RealEstateCrmTab = ({
                     openOwnerAuthContract(
                       { name: "", phone: "", type: "owner" },
                       null,
-                      "rental_authorization"
+                      "exclusivity_agreement",
+                      "rent"
+                    )
+                  }
+                  className="flex items-center gap-1 bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-300 px-2.5 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer shadow-2xs"
+                  title="Henüz Portföye Alınmamış Kiralık Mülk İçin Tek Yetkili Kiralama Sözleşmesi Al (Ön Portföy Oluşturur)"
+                >
+                  <FileSignature size={13} className="text-sky-700" />
+                  <span>Kira Tek Yetki Al</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openOwnerAuthContract(
+                      { name: "", phone: "", type: "owner" },
+                      null,
+                      "rental_authorization",
+                      "rent"
                     )
                   }
                   className="flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 px-2.5 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer shadow-2xs"
@@ -1516,12 +1600,15 @@ const RealEstateCrmTab = ({
                   title: `[YETKİ ALINDI] ${typeLabel} - ${addrLabel}`,
                   description: `Yetki Sözleşmesi ile Ön Portföye Alındı. Taşınmazın Adresi: ${addrLabel} | Cinsi ve Özellikleri: ${typeLabel}. (Fotoğraf çekimi ve detaylı ilan bilgileri bekleniyor)`,
                   address: addrLabel,
-                  location: addrLabel,
+                  location: prePortfolioMeta?.district || addrLabel,
+                  kktc_region: prePortfolioMeta?.district || authContractState.property?.kktc_region || "Lefkoşa",
+                  mahalle: prePortfolioMeta?.townVillage || "",
                   price: Number(prePortfolioMeta?.price || 0),
                   currency: prePortfolioMeta?.currency || "GBP",
                   listing_intent: isRentAuth ? "rent" : "sale",
                   listing_type: isRentAuth ? "Kiralık" : "Satılık",
                   kocan_no: prePortfolioMeta?.kocanNo || "",
+                  pafta: prePortfolioMeta?.paftaNo || "",
                   ada: prePortfolioMeta?.adaNo || "",
                   parsel: prePortfolioMeta?.parselNo || "",
                   owner_name: ownerFullName,

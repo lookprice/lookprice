@@ -60,6 +60,14 @@ export default function ContractSignPage() {
   const partnerIdParam = searchParams.get("partnerId") || "";
 
   // Rental Contract (KİRA SÖZLEŞMESİ) & Authorization params
+  const exclusivityIntentParam = searchParams.get("exclusivityIntent") || "";
+  const authPropertyCategoryParam = searchParams.get("authPropertyCategory") || "";
+  const authPropertyCategoryOtherParam = searchParams.get("authPropertyCategoryOther") || "";
+  const authServiceFeePayerParam = searchParams.get("authServiceFeePayer") || "";
+  const authServiceFeeReceiverParam = searchParams.get("authServiceFeeReceiver") || "";
+  const authShowingDayTypeParam = searchParams.get("authShowingDayType") || "";
+  const authShowingHoursParam = searchParams.get("authShowingHours") || "";
+  const authDurationDaysParam = searchParams.get("authDurationDays") || "";
   const rentalPropertyDefParam = searchParams.get("rentalPropertyDef") || "";
   const authPropertyTypeFeaturesParam = searchParams.get("authPropertyTypeFeatures") || "";
   const authAdvancePaymentParam = searchParams.get("authAdvancePayment") || "";
@@ -79,6 +87,14 @@ export default function ContractSignPage() {
   const rentPaymentMethodParam = searchParams.get("rentPaymentMethod") || "";
   const rentStartDateParam = searchParams.get("rentStartDate") || "";
   const rentEndDateParam = searchParams.get("rentEndDate") || "";
+  const kaporaTenant2InfoParam = searchParams.get("kaporaTenant2Info") || "";
+  const kaporaTenant3InfoParam = searchParams.get("kaporaTenant3Info") || "";
+  const kaporaTotalRentAmountParam = searchParams.get("kaporaTotalRentAmount") || "";
+  const kaporaDuesAmountParam = searchParams.get("kaporaDuesAmount") || "";
+  const kaporaCommissionAmountParam = searchParams.get("kaporaCommissionAmount") || "";
+  const kaporaPaidAmountParam = searchParams.get("kaporaPaidAmount") || "";
+  const kaporaRemainingBalanceParam = searchParams.get("kaporaRemainingBalance") || "";
+  const kaporaBalanceDueDateParam = searchParams.get("kaporaBalanceDueDate") || "";
 
   // Sales Contract (SATIŞ SÖZLEŞMESİ) params
   const salePropertyDetailsParam = searchParams.get("salePropertyDetails") || "";
@@ -93,6 +109,13 @@ export default function ContractSignPage() {
   const witness1IdentityParam = searchParams.get("witness1Identity") || "";
   const witness2NameParam = searchParams.get("witness2Name") || "";
   const witness2IdentityParam = searchParams.get("witness2Identity") || "";
+
+  // Sales Deposit / Kapora & Escrow Agreements params
+  const salesDepositPaidAmountParam = searchParams.get("salesDepositPaidAmount") || "";
+  const salesDepositRemainingAmountParam = searchParams.get("salesDepositRemainingAmount") || "";
+  const salesPaymentTermsParam = searchParams.get("salesPaymentTerms") || "";
+  const reservationDaysParam = searchParams.get("reservationDays") || "";
+  const escrowDeadlineDaysParam = searchParams.get("escrowDeadlineDays") || "";
 
   // Offer Letter & Consultant params
   const offerPriceParam = searchParams.get("offerPrice") || "";
@@ -187,18 +210,21 @@ export default function ContractSignPage() {
           });
         } else if (id.startsWith("pre_portfolio_") || id.startsWith("temp_")) {
           setIsVehicle(false);
-          const rawPriceStr = templateIdParam === "rental_authorization" ? rentPriceRawParam : salePriceRawParam;
+          const isRentPrePortfolio =
+            templateIdParam === "rental_authorization" ||
+            (templateIdParam === "exclusivity_agreement" && exclusivityIntentParam === "rent");
+          const rawPriceStr = isRentPrePortfolio ? rentPriceRawParam : salePriceRawParam;
           const numericPrice = parseInt(String(rawPriceStr || "0").replace(/[^\d]/g, ""), 10) || 0;
           setItemData({
             id,
-            title: `${authPropertyTypeFeaturesParam || rentalPropertyDefParam || "Gayrimenkul"} - ${rentalAddressParam || "KKTC"}`,
+            title: `${authPropertyCategoryParam || authPropertyTypeFeaturesParam || rentalPropertyDefParam || "Gayrimenkul"} - ${rentalAddressParam || "KKTC"}`,
             address: rentalAddressParam || "",
             reference_no: "YETKİ-ÖN-PORTFÖY",
             store_name: storeNameParam || ownerNameParam || "Seçkin Emlak",
             store_phone: storePhoneParam || ownerPhoneParam || "",
             price: numericPrice,
-            currency: (templateIdParam === "rental_authorization" ? rentCurrencyParam : saleCurrencyParam) || "GBP",
-            listing_intent: templateIdParam === "rental_authorization" ? "rent" : "sale"
+            currency: (isRentPrePortfolio ? rentCurrencyParam : saleCurrencyParam) || "GBP",
+            listing_intent: isRentPrePortfolio ? "rent" : "sale"
           });
         } else if (id.startsWith("vehicle-")) {
           setIsVehicle(true);
@@ -356,16 +382,31 @@ export default function ContractSignPage() {
     savedDocDetails?.templateId ||
     (itemData?.listing_intent === "rent" ? "rental_agreement" : "sales_brokerage");
 
-  const isOwnerAuthContract = ["exclusivity_agreement", "rental_authorization"].includes(effectiveTemplateId);
-  const isBilateralContract = ["sales_brokerage", "rental_agreement", "offer_letter", "exclusivity_agreement", "rental_authorization"].includes(effectiveTemplateId);
+  const isOwnerAuthContract = ["exclusivity_agreement", "rental_authorization", "sales_authorization"].includes(effectiveTemplateId);
+  const isBilateralContract = [
+    "sales_brokerage",
+    "sales_deposit_agreement",
+    "escrow_deposit_agreement",
+    "property_reservation_deposit",
+    "rental_agreement",
+    "rental_deposit_agreement",
+    "offer_letter",
+    "exclusivity_agreement",
+    "rental_authorization",
+    "sales_authorization"
+  ].includes(effectiveTemplateId);
 
   const firstSignerLabel = isOwnerAuthContract
     ? "Mülk Sahibi"
-    : effectiveTemplateId === "rental_agreement" || effectiveTemplateId === "eviction_undertaking"
+    : effectiveTemplateId === "rental_agreement" || effectiveTemplateId === "rental_deposit_agreement" || effectiveTemplateId === "eviction_undertaking"
     ? "Kiracı"
     : "Alıcı";
   const secondSignerLabel = isOwnerAuthContract
     ? "İşletme Yetkilisi"
+    : effectiveTemplateId === "rental_deposit_agreement" || effectiveTemplateId === "sales_deposit_agreement"
+    ? "Emlak Komisyoncusu"
+    : effectiveTemplateId === "escrow_deposit_agreement"
+    ? "Emanetçi (Komisyoncu)"
     : effectiveTemplateId === "rental_agreement"
     ? "Kiraya Veren"
     : "Satıcı";
@@ -513,6 +554,17 @@ export default function ContractSignPage() {
           contractDuration: contractDurationParam || savedDocDetails?.contractDuration,
           evictionDate: evictionDateParam || savedDocDetails?.evictionDate,
           // Rental & Authorization contract fields
+          exclusivityIntent:
+            exclusivityIntentParam ||
+            savedDocDetails?.exclusivityIntent ||
+            (itemData?.listing_intent === "rent" ? "rent" : "sale"),
+          authPropertyCategory: authPropertyCategoryParam || savedDocDetails?.authPropertyCategory,
+          authPropertyCategoryOther: authPropertyCategoryOtherParam || savedDocDetails?.authPropertyCategoryOther,
+          authServiceFeePayer: authServiceFeePayerParam || savedDocDetails?.authServiceFeePayer || clientName,
+          authServiceFeeReceiver: authServiceFeeReceiverParam || savedDocDetails?.authServiceFeeReceiver || resolvedOwnerName,
+          authShowingDayType: authShowingDayTypeParam || savedDocDetails?.authShowingDayType || "TÜMÜ",
+          authShowingHours: authShowingHoursParam || savedDocDetails?.authShowingHours || "09:00 - 18:00",
+          authDurationDays: authDurationDaysParam || savedDocDetails?.authDurationDays || "90 (Doksan)",
           rentalPropertyDef: rentalPropertyDefParam || savedDocDetails?.rentalPropertyDef,
           authPropertyTypeFeatures: authPropertyTypeFeaturesParam || savedDocDetails?.authPropertyTypeFeatures || rentalPropertyDefParam || savedDocDetails?.rentalPropertyDef,
           authAdvancePayment: authAdvancePaymentParam || savedDocDetails?.authAdvancePayment,
@@ -532,6 +584,14 @@ export default function ContractSignPage() {
           rentPaymentMethod: rentPaymentMethodParam || savedDocDetails?.rentPaymentMethod || "Aylık Ödemeli",
           rentStartDate: rentStartDateParam || savedDocDetails?.rentStartDate || contractDateParam,
           rentEndDate: rentEndDateParam || savedDocDetails?.rentEndDate,
+          kaporaTenant2Info: kaporaTenant2InfoParam || savedDocDetails?.kaporaTenant2Info,
+          kaporaTenant3Info: kaporaTenant3InfoParam || savedDocDetails?.kaporaTenant3Info,
+          kaporaTotalRentAmount: kaporaTotalRentAmountParam || savedDocDetails?.kaporaTotalRentAmount,
+          kaporaDuesAmount: kaporaDuesAmountParam || savedDocDetails?.kaporaDuesAmount,
+          kaporaCommissionAmount: kaporaCommissionAmountParam || savedDocDetails?.kaporaCommissionAmount,
+          kaporaPaidAmount: kaporaPaidAmountParam || savedDocDetails?.kaporaPaidAmount,
+          kaporaRemainingBalance: kaporaRemainingBalanceParam || savedDocDetails?.kaporaRemainingBalance,
+          kaporaBalanceDueDate: kaporaBalanceDueDateParam || savedDocDetails?.kaporaBalanceDueDate,
           // Sales contract fields
           salePropertyDetails:
             salePropertyDetailsParam ||
@@ -548,6 +608,12 @@ export default function ContractSignPage() {
           witness1Identity: witness1IdentityParam || savedDocDetails?.witness1Identity,
           witness2Name: witness2NameParam || savedDocDetails?.witness2Name,
           witness2Identity: witness2IdentityParam || savedDocDetails?.witness2Identity,
+          // Sales Deposit / Kapora & Escrow Agreements fields
+          salesDepositPaidAmount: salesDepositPaidAmountParam || savedDocDetails?.salesDepositPaidAmount || effectiveDepositAmount,
+          salesDepositRemainingAmount: salesDepositRemainingAmountParam || savedDocDetails?.salesDepositRemainingAmount || computeRemainingSaleAmount(salePriceRawParam || savedDocDetails?.salePriceRaw || itemData?.price, effectiveDepositAmount),
+          salesPaymentTerms: salesPaymentTermsParam || savedDocDetails?.salesPaymentTerms || "Tapu devrinde hepsi ödenecektir.",
+          reservationDays: reservationDaysParam || savedDocDetails?.reservationDays || "15 (on beş)",
+          escrowDeadlineDays: escrowDeadlineDaysParam || savedDocDetails?.escrowDeadlineDays || "15",
           // Offer letter & custom clauses
           offerPrice: offerPriceParam || savedDocDetails?.offerPrice,
           viewingDate: viewingDateParam || savedDocDetails?.viewingDate,
@@ -673,7 +739,16 @@ export default function ContractSignPage() {
     }
   } else {
     const matchedTemplate = contractTemplates.find((t) => t.id === effectiveTemplateId);
-    dynamicContractTitle = matchedTemplate ? matchedTemplate.titleTr : "Satış Sözleşmesi";
+    const resolvedExclusivityIntent =
+      exclusivityIntentParam ||
+      savedDocDetails?.exclusivityIntent ||
+      (itemData?.listing_intent === "rent" ? "rent" : "sale");
+    dynamicContractTitle =
+      effectiveTemplateId === "exclusivity_agreement" && resolvedExclusivityIntent === "rent"
+        ? "Kiralık Gayrimenkul Tek Yetkili Kiralama Sözleşmesi"
+        : matchedTemplate
+        ? matchedTemplate.titleTr
+        : "Satış Sözleşmesi";
   }
 
   let renderedContractHtml = "";
@@ -716,6 +791,19 @@ export default function ContractSignPage() {
         rentDuration: rentDurationParam || savedDocDetails?.rentDuration || "1 (Bir) Yıl",
         paymentDay: paymentDayParam || savedDocDetails?.paymentDay || "Her Ayın En Geç 5 (Beş)’inde Ödenecektir.",
         // Rental & Authorization contract variables
+        exclusivityIntent:
+          (exclusivityIntentParam ||
+            savedDocDetails?.exclusivityIntent ||
+            (itemData.listing_intent === "rent" ? "rent" : "sale")) as "rent" | "sale",
+        authPropertyCategory: authPropertyCategoryParam || savedDocDetails?.authPropertyCategory || "APT.DAİRESİ",
+        authPropertyCategoryOther: authPropertyCategoryOtherParam || savedDocDetails?.authPropertyCategoryOther || "",
+        authServiceFeePayer:
+          authServiceFeePayerParam || savedDocDetails?.authServiceFeePayer || clientName || savedDocDetails?.clientName || "",
+        authServiceFeeReceiver:
+          authServiceFeeReceiverParam || savedDocDetails?.authServiceFeeReceiver || resolvedOwnerName || storeName,
+        authShowingDayType: authShowingDayTypeParam || savedDocDetails?.authShowingDayType || "TÜMÜ",
+        authShowingHours: authShowingHoursParam || savedDocDetails?.authShowingHours || "09:00 - 18:00",
+        authDurationDays: authDurationDaysParam || savedDocDetails?.authDurationDays || "90 (Doksan)",
         rentalPropertyDef: rentalPropertyDefParam || savedDocDetails?.rentalPropertyDef || rMeta.rentalPropertyDef,
         authPropertyTypeFeatures:
           authPropertyTypeFeaturesParam ||
@@ -742,6 +830,14 @@ export default function ContractSignPage() {
         rentPaymentMethod: rentPaymentMethodParam || savedDocDetails?.rentPaymentMethod || "Aylık Ödemeli",
         rentStartDate: rentStartDateParam || savedDocDetails?.rentStartDate || savedDocDetails?.contractDate || contractDateParam,
         rentEndDate: rentEndDateParam || savedDocDetails?.rentEndDate || "",
+        kaporaTenant2Info: kaporaTenant2InfoParam || savedDocDetails?.kaporaTenant2Info || "",
+        kaporaTenant3Info: kaporaTenant3InfoParam || savedDocDetails?.kaporaTenant3Info || "",
+        kaporaTotalRentAmount: kaporaTotalRentAmountParam || savedDocDetails?.kaporaTotalRentAmount || "",
+        kaporaDuesAmount: kaporaDuesAmountParam || savedDocDetails?.kaporaDuesAmount || "Aylık 300 TL",
+        kaporaCommissionAmount: kaporaCommissionAmountParam || savedDocDetails?.kaporaCommissionAmount || "1 Kira Bedeli",
+        kaporaPaidAmount: kaporaPaidAmountParam || savedDocDetails?.kaporaPaidAmount || formattedPriceNum,
+        kaporaRemainingBalance: kaporaRemainingBalanceParam || savedDocDetails?.kaporaRemainingBalance || "",
+        kaporaBalanceDueDate: kaporaBalanceDueDateParam || savedDocDetails?.kaporaBalanceDueDate || contractDateParam,
         // Sales contract variables
         salePropertyDetails:
           salePropertyDetailsParam ||
@@ -762,6 +858,12 @@ export default function ContractSignPage() {
         witness1Identity: witness1IdentityParam || savedDocDetails?.witness1Identity || "1170237140",
         witness2Name: witness2NameParam || savedDocDetails?.witness2Name || "",
         witness2Identity: witness2IdentityParam || savedDocDetails?.witness2Identity || "",
+        // Sales Deposit / Kapora & Escrow Agreements fields
+        salesDepositPaidAmount: salesDepositPaidAmountParam || savedDocDetails?.salesDepositPaidAmount || effectiveDepositAmount || formattedPriceNum,
+        salesDepositRemainingAmount: salesDepositRemainingAmountParam || savedDocDetails?.salesDepositRemainingAmount || computeRemainingSaleAmount(resolvedSalePriceRaw, effectiveDepositAmount),
+        salesPaymentTerms: salesPaymentTermsParam || savedDocDetails?.salesPaymentTerms || "Tapu devrinde hepsi ödenecektir.",
+        reservationDays: reservationDaysParam || savedDocDetails?.reservationDays || "15 (on beş)",
+        escrowDeadlineDays: escrowDeadlineDaysParam || savedDocDetails?.escrowDeadlineDays || "15",
         // Offer letter & Consultant variables
         offerPrice: offerPriceParam || savedDocDetails?.offerPrice || `${formattedPriceNum} ${symbol}`,
         viewingDate: viewingDateParam || savedDocDetails?.viewingDate || contractDateParam,
