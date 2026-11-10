@@ -371,17 +371,20 @@ const RealEstateCrmTab = ({
     const ownerIdNumber = String((contact as any).id_number || pOwner.idNumber || "").trim();
 
     const targetProperty = property || {
-      id: `temp_${Date.now()}`,
-      title: `${ownerName} Gayrimenkul Portföyü`,
+      id: `pre_portfolio_${Date.now()}`,
+      title: `Ön Portföy (Yetki Belgesi)`,
+      address: contact.address || "",
       location: "KKTC",
       price: 0,
       currency: "GBP",
+      listing_intent: templateId === "rental_authorization" ? "rent" : "sale",
       listing_type: templateId === "rental_authorization" ? "Kiralık" : "Satılık",
       owner_name: ownerName,
       owner_phone: ownerPhone,
       owner_info: {
         fullName: ownerName,
         phone: ownerPhone,
+        identityNo: ownerIdNumber,
         idNumber: ownerIdNumber,
       },
       documents: []
@@ -727,13 +730,49 @@ const RealEstateCrmTab = ({
             </div>
           </div>
 
-          <button 
-            onClick={openAddModal}
-            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-black transition-all w-full sm:w-auto justify-center cursor-pointer shadow-2xs active:scale-95 shrink-0"
-          >
-            <UserPlus size={15} className="stroke-[2.5]" />
-            <span>{isTr ? "Yeni Kişi Ekle" : t.add}</span>
-          </button>
+          <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto justify-end shrink-0">
+            {!isAutomotive && (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openOwnerAuthContract(
+                      { name: "", phone: "", type: "owner" },
+                      null,
+                      "exclusivity_agreement"
+                    )
+                  }
+                  className="flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 px-2.5 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer shadow-2xs"
+                  title="Henüz Portföye Alınmamış Mülk İçin Tek Yetki Sözleşmesi Al (Ön Portföy Oluşturur)"
+                >
+                  <FileSignature size={13} className="text-indigo-700" />
+                  <span>Tek Yetki Al</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openOwnerAuthContract(
+                      { name: "", phone: "", type: "owner" },
+                      null,
+                      "rental_authorization"
+                    )
+                  }
+                  className="flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 px-2.5 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer shadow-2xs"
+                  title="Henüz Portföye Alınmamış Mülk İçin Kiralama Yetki Belgesi Al (Ön Portföy Oluşturur)"
+                >
+                  <FileCheck size={13} className="text-teal-700" />
+                  <span>Kira Yetki Al</span>
+                </button>
+              </>
+            )}
+            <button 
+              onClick={openAddModal}
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
+            >
+              <UserPlus size={15} className="stroke-[2.5]" />
+              <span>{isTr ? "Yeni Kişi Ekle" : t.add}</span>
+            </button>
+          </div>
         </div>
 
         {/* Quick Filter Pills */}
@@ -1422,24 +1461,101 @@ const RealEstateCrmTab = ({
             initialClientName={authContractState.ownerName}
             initialClientPhone={authContractState.ownerPhone}
             initialClientIdentity={authContractState.ownerIdNumber}
-            onSaveContract={async (contractDoc) => {
-              if (!onSaveProperty || !authContractState.property?.id || String(authContractState.property.id).startsWith("temp_")) {
+            onSaveContract={async (contractDoc, prePortfolioMeta) => {
+              if (!onSaveProperty) {
                 toast.success("Yetki sözleşmesi hazırlandı!");
                 return;
               }
-              const existingDocs = authContractState.property.documents || [];
+              const isPrePortfolio =
+                !authContractState.property?.id ||
+                String(authContractState.property.id).startsWith("temp_") ||
+                String(authContractState.property.id).startsWith("pre_portfolio_");
+
+              const existingDocs = authContractState.property?.documents || [];
               const existingIdx = existingDocs.findIndex((d: any) => d && d.id === contractDoc.id);
               const updatedDocs =
                 existingIdx >= 0
                   ? existingDocs.map((d: any, idx: number) => (idx === existingIdx ? contractDoc : d))
                   : [...existingDocs, contractDoc];
-              await onSaveProperty({
+
+              if (isPrePortfolio) {
+                const isRentAuth =
+                  prePortfolioMeta?.listingIntent === "rent" ||
+                  contractDoc?.details?.templateId === "rental_authorization";
+                const addrLabel = (
+                  prePortfolioMeta?.address ||
+                  contractDoc?.details?.rentalAddress ||
+                  "KKTC"
+                ).trim();
+                const typeLabel = (
+                  prePortfolioMeta?.propertyTypeFeatures ||
+                  contractDoc?.details?.authPropertyTypeFeatures ||
+                  "Gayrimenkul"
+                ).trim();
+                const ownerFullName = (
+                  prePortfolioMeta?.ownerName ||
+                  contractDoc?.details?.clientName ||
+                  authContractState.ownerName ||
+                  ""
+                ).trim();
+                const ownerTel = (
+                  prePortfolioMeta?.ownerPhone ||
+                  contractDoc?.details?.clientPhone ||
+                  authContractState.ownerPhone ||
+                  ""
+                ).trim();
+                const ownerIdNo = (
+                  prePortfolioMeta?.ownerIdentity ||
+                  contractDoc?.details?.clientIdentity ||
+                  authContractState.ownerIdNumber ||
+                  ""
+                ).trim();
+
+                const newPrePortfolioProp = {
+                  ...authContractState.property,
+                  title: `[YETKİ ALINDI] ${typeLabel} - ${addrLabel}`,
+                  description: `Yetki Sözleşmesi ile Ön Portföye Alındı. Taşınmazın Adresi: ${addrLabel} | Cinsi ve Özellikleri: ${typeLabel}. (Fotoğraf çekimi ve detaylı ilan bilgileri bekleniyor)`,
+                  address: addrLabel,
+                  location: addrLabel,
+                  price: Number(prePortfolioMeta?.price || 0),
+                  currency: prePortfolioMeta?.currency || "GBP",
+                  listing_intent: isRentAuth ? "rent" : "sale",
+                  listing_type: isRentAuth ? "Kiralık" : "Satılık",
+                  kocan_no: prePortfolioMeta?.kocanNo || "",
+                  ada: prePortfolioMeta?.adaNo || "",
+                  parsel: prePortfolioMeta?.parselNo || "",
+                  owner_name: ownerFullName,
+                  owner_phone: ownerTel,
+                  owner_info: {
+                    fullName: ownerFullName,
+                    phone: ownerTel,
+                    identityNo: ownerIdNo,
+                    idNumber: ownerIdNo,
+                    address: prePortfolioMeta?.ownerAddress || ""
+                  },
+                  documents: updatedDocs
+                };
+
+                const createdRes = await onSaveProperty(newPrePortfolioProp);
+                const resolvedProp =
+                  createdRes && typeof createdRes === "object"
+                    ? createdRes
+                    : { ...newPrePortfolioProp };
+                setAuthContractState((prev) =>
+                  prev ? { ...prev, property: resolvedProp } : null
+                );
+                toast.success("Yetki sözleşmesi kaydedildi ve mülk 'Ön Portföy' olarak portföye eklendi!");
+                return resolvedProp;
+              }
+
+              const savedRes = await onSaveProperty({
                 ...authContractState.property,
                 documents: updatedDocs
               });
               setAuthContractState((prev) =>
                 prev ? { ...prev, property: { ...prev.property, documents: updatedDocs } } : null
               );
+              return savedRes;
             }}
           />
         </React.Suspense>

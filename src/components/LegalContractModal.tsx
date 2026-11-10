@@ -42,7 +42,7 @@ interface LegalContractModalProps {
   onClose: () => void;
   property: RealEstateProperty;
   branding?: any;
-  onSaveContract?: (contractDoc: any) => Promise<void>;
+  onSaveContract?: (contractDoc: any, prePortfolioMeta?: any) => Promise<any>;
   initialTemplateId?: string;
   initialOfferPrice?: string;
   initialClientName?: string;
@@ -214,6 +214,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     initialTemplateId || (property.listing_intent === 'rent' ? "rental_agreement" : "sales_brokerage")
   );
   const [activeDocId, setActiveDocId] = useState<string>(() => initialContractDoc?.id || `virtual-contract-${Date.now()}`);
+  const [resolvedPropertyId, setResolvedPropertyId] = useState<string | number>(() => property?.id || `pre_portfolio_${Date.now()}`);
 
   // Buyer / Tenant states
   const [clientName, setClientName] = useState<string>(initialClientName || "");
@@ -331,6 +332,17 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   const [showingItem2Details, setShowingItem2Details] = useState<string>("");
   const [showingItem2Price, setShowingItem2Price] = useState<string>("");
 
+  // Authorization Contracts (KİRALIKLARDA YETKİ BELGESİ & TEK YETKİ SÖZLEŞMESİ) specific states
+  const [authPropertyTypeFeatures, setAuthPropertyTypeFeatures] = useState<string>(
+    () => defaultRentalMeta.rentalPropertyDef || "3+1 Daire"
+  );
+  const [authAdvancePayment, setAuthAdvancePayment] = useState<string>("1 Aylık Kira Bedeli");
+  const [authAnnualIncreaseRate, setAuthAnnualIncreaseRate] = useState<string>("%10");
+  const [authTenantCriteria, setAuthTenantCriteria] = useState<string>(
+    "Düzenli gelir sahibi, kurumsal çalışan veya aile"
+  );
+  const [authCopiesCount, setAuthCopiesCount] = useState<string>("2 (İki)");
+
   // 1st Signature: Buyer / Tenant (Priority 1)
   const [signed, setSigned] = useState<boolean>(false);
   const [signingName, setSigningName] = useState<string>(initialClientName || "");
@@ -406,6 +418,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         setShowingItem1Price(det.showingItem1Price || (defaultNum ? `${defaultNum} ${defaultSym}` : ""));
         setShowingItem2Details(det.showingItem2Details || "");
         setShowingItem2Price(det.showingItem2Price || "");
+        setAuthPropertyTypeFeatures(det.authPropertyTypeFeatures || det.rentalPropertyDef || rMeta.rentalPropertyDef || "3+1 Daire");
+        setAuthAdvancePayment(det.authAdvancePayment || "1 Aylık Kira Bedeli");
+        setAuthAnnualIncreaseRate(det.authAnnualIncreaseRate || "%10");
+        setAuthTenantCriteria(det.authTenantCriteria || "Düzenli gelir sahibi, kurumsal çalışan veya aile");
+        setAuthCopiesCount(det.authCopiesCount || "2 (İki)");
         setCustomClauses(det.customClauses || "");
         setSigned(Boolean(det.signed));
         setSigningName(det.signingName || det.clientName || "");
@@ -415,15 +432,27 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         setSellerSignatureImage(det.sellerSignatureImage || "");
       } else {
         setActiveDocId(`virtual-contract-${Date.now()}`);
+        setResolvedPropertyId(property.id || `pre_portfolio_${Date.now()}`);
         const targetTplId =
           initialTemplateId || (property.listing_intent === 'rent' ? "rental_agreement" : "sales_brokerage");
         setSelectedTemplateId(targetTplId);
         const isTargetOwnerAuth = ["exclusivity_agreement", "rental_authorization"].includes(targetTplId);
         setDepositAmount(getInitialDeposit(property));
         setRentDuration("1 (Bir) Yıl");
-        setContractDuration(targetTplId === "exclusivity_agreement" ? "6 (Altı) Ay" : "12 Ay / 12 Months");
+        setContractDuration(
+          targetTplId === "exclusivity_agreement"
+            ? "6 (Altı) Ay"
+            : targetTplId === "rental_authorization"
+            ? "6 (Altı)"
+            : "12 Ay / 12 Months"
+        );
         setPaymentDay("Her Ayın En Geç 5 (Beş)’inde Ödenecektir.");
         setRentalPropertyDef(rMeta.rentalPropertyDef);
+        setAuthPropertyTypeFeatures(rMeta.rentalPropertyDef || "3+1 Daire");
+        setAuthAdvancePayment("1 Aylık Kira Bedeli");
+        setAuthAnnualIncreaseRate("%10");
+        setAuthTenantCriteria("Düzenli gelir sahibi, kurumsal çalışan veya aile");
+        setAuthCopiesCount("2 (İki)");
         setRentalUsagePurpose(rMeta.rentalUsagePurpose);
         setRentalAddress(rMeta.rentalAddress);
         setRentalDistrict(rMeta.rentalDistrict);
@@ -543,7 +572,13 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       setOwnerPhone(agencyTel);
       setSellerIdentity(agencyIdNo);
       setSellerSigningName(agencyRepLabel);
-      setContractDuration(nextTemplateId === "exclusivity_agreement" ? "6 (Altı) Ay" : "12 Ay / 12 Months");
+      setContractDuration(
+        nextTemplateId === "exclusivity_agreement"
+          ? "6 (Altı) Ay"
+          : nextTemplateId === "rental_authorization"
+          ? "6 (Altı)"
+          : "12 Ay / 12 Months"
+      );
     } else if (!willBeOwnerAuth && wasOwnerAuth) {
       setOwnerName(resolvedOwner);
       setOwnerPhone(resolvedOwnerTel);
@@ -554,7 +589,13 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       setClientPhone("");
       setClientIdentity("");
     } else if (willBeOwnerAuth) {
-      setContractDuration(nextTemplateId === "exclusivity_agreement" ? "6 (Altı) Ay" : "12 Ay / 12 Months");
+      setContractDuration(
+        nextTemplateId === "exclusivity_agreement"
+          ? "6 (Altı) Ay"
+          : nextTemplateId === "rental_authorization"
+          ? "6 (Altı)"
+          : "12 Ay / 12 Months"
+      );
     }
   };
 
@@ -741,9 +782,18 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   const storePhoneVal = branding?.phone || branding?.whatsapp_number || "+90 (5XX) 000 00 00";
   const storeEmailVal = branding?.email || `bilgi@${branding?.slug || 'premium'}.com`;
 
-  const formattedPriceNum = Number(property.price).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  const symbol = property.currency === 'GBP' ? '£' : property.currency === 'USD' ? '$' : property.currency === 'EUR' ? '€' : '₺';
-  const priceWords = numberToTrWords(property.price, property.currency || 'GBP');
+  const rawAuthSalePriceNum = parseInt(String(salePriceInput || "").replace(/[^\d]/g, ""), 10);
+  const effectivePropPrice =
+    selectedTemplateId === "exclusivity_agreement" && !isNaN(rawAuthSalePriceNum) && rawAuthSalePriceNum > 0
+      ? rawAuthSalePriceNum
+      : Number(property.price || 0);
+  const effectivePropCurrency =
+    selectedTemplateId === "exclusivity_agreement"
+      ? (saleCurrency || property.currency || "GBP")
+      : (property.currency || "GBP");
+  const formattedPriceNum = effectivePropPrice.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const symbol = effectivePropCurrency === 'GBP' ? '£' : effectivePropCurrency === 'USD' ? '$' : effectivePropCurrency === 'EUR' ? '€' : '₺';
+  const priceWords = numberToTrWords(effectivePropPrice, effectivePropCurrency);
   const propertyPriceFormatted = `${formattedPriceNum} ${symbol} (${priceWords})`;
 
   const computedRemainingSaleRaw = computeRemainingSaleAmount(
@@ -768,18 +818,23 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       : `[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}`,
     propertyLocation: resolvePropertyRegionLabel(property),
     propertyPrice: propertyPriceFormatted,
-    propertyBlockPlot: property.block_plot,
-    commissionRate: property.listing_intent === 'rent' ? commissionRate : (commissionRate.includes('%') ? commissionRate : `%${commissionRate}`),
+    propertyBlockPlot: property.block_plot || (adaNo || parselNo ? `Ada: ${adaNo || '-'} / Parsel: ${parselNo || '-'}` : undefined),
+    commissionRate: property.listing_intent === 'rent' || selectedTemplateId === 'rental_authorization' ? commissionRate : (commissionRate.includes('%') ? commissionRate : `%${commissionRate}`),
     contractDate: formatTrDate(contractDate),
-    propertyAddress: selectedTemplateId === "rental_agreement" ? (rentalAddress || property.address) : property.address,
+    propertyAddress: rentalAddress || property.address,
     splitRatio: splitRatio,
     contractDuration: contractDuration,
     evictionDate: formatTrDate(evictionDate),
     depositAmount: depositAmount,
     rentDuration: rentDuration,
     paymentDay: paymentDay,
-    // Rental Agreement (KİRA SÖZLEŞMESİ) fields
+    // Rental Agreement (KİRA SÖZLEŞMESİ) & Authorization fields
     rentalPropertyDef: rentalPropertyDef || defaultRentalMeta.rentalPropertyDef,
+    authPropertyTypeFeatures: authPropertyTypeFeatures || rentalPropertyDef || defaultRentalMeta.rentalPropertyDef,
+    authAdvancePayment: authAdvancePayment || "1 Aylık Kira Bedeli",
+    authAnnualIncreaseRate: authAnnualIncreaseRate || "%10",
+    authTenantCriteria: authTenantCriteria || "Düzenli gelir sahibi, kurumsal çalışan veya aile",
+    authCopiesCount: authCopiesCount || "2 (İki)",
     rentalUsagePurpose: rentalUsagePurpose || defaultRentalMeta.rentalUsagePurpose,
     rentalDistrict: rentalDistrict || defaultRentalMeta.rentalDistrict,
     rentalTownVillage: rentalTownVillage || defaultRentalMeta.rentalTownVillage,
@@ -898,8 +953,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     }
   };
 
-  const buildContractSignUrl = (role: "buyer" | "seller" | "final" = "buyer", customDocId?: string) => {
-    const base = `${window.location.origin}/contract/sign/${property.id}`;
+  const buildContractSignUrl = (role: "buyer" | "seller" | "final" = "buyer", customDocId?: string, customPropId?: string | number) => {
+    const targetPropId = customPropId || resolvedPropertyId || property.id;
+    const base = `${window.location.origin}/contract/sign/${targetPropId}`;
     const resolvedDocId = customDocId || activeDocId;
     const params = new URLSearchParams({
       docId: resolvedDocId,
@@ -922,8 +978,13 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       depositAmount: depositAmount || "",
       rentDuration: rentDuration || "",
       paymentDay: paymentDay || "",
-      // Rental contract params
+      // Rental & Authorization contract params
       rentalPropertyDef: placeholderValues.rentalPropertyDef || "",
+      authPropertyTypeFeatures: placeholderValues.authPropertyTypeFeatures || "",
+      authAdvancePayment: placeholderValues.authAdvancePayment || "",
+      authAnnualIncreaseRate: placeholderValues.authAnnualIncreaseRate || "",
+      authTenantCriteria: placeholderValues.authTenantCriteria || "",
+      authCopiesCount: placeholderValues.authCopiesCount || "",
       rentalUsagePurpose: placeholderValues.rentalUsagePurpose || "",
       rentalAddress: placeholderValues.propertyAddress || "",
       rentalDistrict: placeholderValues.rentalDistrict || "",
@@ -1032,6 +1093,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         rentDuration,
         paymentDay,
         rentalPropertyDef: placeholderValues.rentalPropertyDef,
+        authPropertyTypeFeatures: placeholderValues.authPropertyTypeFeatures,
+        authAdvancePayment: placeholderValues.authAdvancePayment,
+        authAnnualIncreaseRate: placeholderValues.authAnnualIncreaseRate,
+        authTenantCriteria: placeholderValues.authTenantCriteria,
+        authCopiesCount: placeholderValues.authCopiesCount,
         rentalUsagePurpose: placeholderValues.rentalUsagePurpose,
         rentalAddress: placeholderValues.propertyAddress,
         rentalDistrict: placeholderValues.rentalDistrict,
@@ -1079,8 +1145,39 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       }
     };
 
-    await onSaveContract(docRecord);
-    return activeDocId;
+    const prePortfolioMeta = {
+      templateId: selectedTemplateId,
+      listingIntent: selectedTemplateId === "rental_authorization" ? "rent" : "sale",
+      address: placeholderValues.propertyAddress || rentalAddress || property.address || "",
+      propertyTypeFeatures:
+        placeholderValues.authPropertyTypeFeatures ||
+        authPropertyTypeFeatures ||
+        rentalPropertyDef ||
+        "Konut / Gayrimenkul",
+      price:
+        selectedTemplateId === "rental_authorization"
+          ? parseInt(String(rentPriceInput || "0").replace(/[^\d]/g, ""), 10) || Number(property.price || 0)
+          : parseInt(String(salePriceInput || "0").replace(/[^\d]/g, ""), 10) || Number(property.price || 0),
+      currency:
+        selectedTemplateId === "rental_authorization"
+          ? (rentCurrency === "TL" ? "TRY" : rentCurrency || "GBP")
+          : (saleCurrency || property.currency || "GBP"),
+      deposit: depositAmount,
+      kocanNo,
+      adaNo,
+      parselNo,
+      ownerName: clientName || resolveOwnerName(property),
+      ownerPhone: clientPhone || resolveOwnerPhone(property),
+      ownerIdentity: clientIdentity || resolveOwnerIdentity(property),
+      ownerAddress: clientAddress || ""
+    };
+
+    const savedProp = await onSaveContract(docRecord, prePortfolioMeta);
+    const nextPropId = savedProp?.id || resolvedPropertyId || property.id;
+    if (savedProp?.id) {
+      setResolvedPropertyId(savedProp.id);
+    }
+    return { docId: activeDocId, propId: nextPropId };
   };
 
   // 1. Send to 1st Priority Signer (Mülk Sahibi for owner auth contracts; Alıcı/Kiracı otherwise)
@@ -1090,14 +1187,21 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       alert(`Lütfen ${firstSignerLabel} tarafına imza bağlantısı göndermeden önce ${firstSignerLabel} Adı Soyadı ve Telefon Numarasını eksiksiz doldurunuz.`);
       return;
     }
+    let targetPropId: string | number = resolvedPropertyId || property.id;
     try {
-      await persistContractRecord({ silent: true });
+      const persisted = await persistContractRecord({ silent: true });
+      if (persisted && typeof persisted === "object" && persisted.propId) {
+        targetPropId = persisted.propId;
+      }
     } catch {
       // ignore if offline
     }
     const formattedPhone = formatPhoneForWhatsApp(clientPhone);
-    const signUrl = buildContractSignUrl("buyer", activeDocId);
-    const message = `Sayın *${clientName}*,\n\n*[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}* taşınmazı için hazırlanan resmi *${currentTemplate.titleTr}* belgesi **1. İmza (${firstSignerLabel} Onayı)** için tarafınıza sunulmuştur.\n\nSözleşmeyi mobil cihazınızdan incelemek ve dijital olarak *İMZALAMAK* için lütfen aşağıdaki bağlantıya tıklayınız:\n\n${signUrl}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    const signUrl = buildContractSignUrl("buyer", activeDocId, targetPropId);
+    const subjectLabel = isOwnerAuthContract
+      ? `${placeholderValues.propertyAddress || "Belirtilen Adres"} (${placeholderValues.authPropertyTypeFeatures || "Gayrimenkul"})`
+      : `[Ref: ${property.reference_no || `LP-${targetPropId}`}] ${property.title}`;
+    const message = `Sayın *${clientName}*,\n\n*${subjectLabel}* taşınmazı için hazırlanan resmi *${currentTemplate.titleTr}* belgesi **1. İmza (${firstSignerLabel} Onayı)** için tarafınıza sunulmuştur.\n\nSözleşmeyi mobil cihazınızdan incelemek ve dijital olarak *İMZALAMAK* için lütfen aşağıdaki bağlantıya tıklayınız:\n\n${signUrl}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -1704,18 +1808,258 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
             )}
 
             {(selectedTemplateId === "rental_authorization" || selectedTemplateId === "exclusivity_agreement") && (
-              <div className="space-y-1 mt-1">
-                <label className="text-[10px] font-black text-slate-900 ml-0.5">Yetki Süresi</label>
-                <div className="relative">
-                  <Bookmark className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                  <input 
+              <div className="p-3 bg-emerald-50/80 border-2 border-emerald-300 rounded-xl space-y-2.5 mt-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-950">
+                    3. Sözleşmenin Konusu (Taşınmazın Adresi & Cinsi) ve Yetki Şartları
+                  </span>
+                  <span className="text-[9px] font-black bg-slate-900 text-emerald-400 px-2 py-0.5 rounded uppercase shrink-0">
+                    Mülk Adresi Esaslı
+                  </span>
+                </div>
+
+                {/* Taşınmazın Açık Adresi & Cinsi/Özellikleri */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-900">
+                    Taşınmazın Açık Adresi * (İlan açıklaması değil, mülkün gerçek adresi)
+                  </label>
+                  <input
                     type="text"
-                    className="w-full bg-white border-2 border-slate-300 pl-9 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
-                    placeholder={selectedTemplateId === "exclusivity_agreement" ? "Örn: 6 (Altı) Ay" : "Örn: 12 Ay"}
-                    value={contractDuration}
-                    onChange={(e) => setContractDuration(e.target.value)}
+                    className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-emerald-600"
+                    placeholder="Örn: Ortaköy Mah. Şehit Gazeteci Hasan Tahsin Cad. No:14 Lefkoşa / KKTC"
+                    value={rentalAddress}
+                    onChange={(e) => setRentalAddress(e.target.value)}
                   />
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-900">
+                      Taşınmazın Cinsi ve Özellikleri *
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-emerald-600"
+                      placeholder="Örn: 3+1 Eşyalı Daire / Müstakil Villa / Arsa"
+                      value={authPropertyTypeFeatures}
+                      onChange={(e) => setAuthPropertyTypeFeatures(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-900">
+                      {selectedTemplateId === "rental_authorization" ? "Kiraya Veren Adresi" : "Mülk Sahibi Adresi"}
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-950 focus:outline-none focus:border-emerald-600"
+                      placeholder="Mülk sahibinin tebligat / ikamet adresi..."
+                      value={clientAddress}
+                      onChange={(e) => setClientAddress(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Emlak Komisyoncusu (Tellal) Kimlik & Adres Bilgileri */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[10px] font-black text-slate-900">
+                      Emlak Komisyoncusu (Tellal) Adresi
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-950"
+                      placeholder="Atatürk Caddesi No: 81/A Küçük Kaymaklı / Lefkoşa"
+                      value={brokerAddress}
+                      onChange={(e) => setBrokerAddress(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-900">
+                      Tellal K / P / MŞ No
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950"
+                      placeholder="1170237140"
+                      value={authorizedPersonIdentity}
+                      onChange={(e) => setAuthorizedPersonIdentity(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {selectedTemplateId === "rental_authorization" ? (
+                  <>
+                    {/* Kiralama Yetki Belgesi Şartları (A: a, b, c, d & B, C, J) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5 border-t border-emerald-300">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-900">a) Talep Edilen Kira Bedeli *</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="flex-1 min-w-0 bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950"
+                            placeholder="25.000"
+                            value={rentPriceInput}
+                            onChange={(e) => setRentPriceInput(formatThousandsInput(e.target.value))}
+                          />
+                          <select
+                            className="w-20 bg-slate-900 text-white border-2 border-slate-900 px-1.5 py-1.5 rounded-lg text-xs font-black shrink-0"
+                            value={rentCurrency}
+                            onChange={(e) => setRentCurrency(e.target.value)}
+                          >
+                            <option value="GBP">GBP</option>
+                            <option value="EUR">EUR</option>
+                            <option value="USD">USD</option>
+                            <option value="TL">TL</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-900">b) Güvence Bedeli (Depozito)</label>
+                        <input
+                          type="text"
+                          className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950"
+                          placeholder="Örn: 2 Aylık Kira Bedeli veya 1.000 GBP"
+                          value={depositAmount}
+                          onChange={(e) => setDepositAmount(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-900">c) Peşinat Şartı</label>
+                        <input
+                          type="text"
+                          className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950"
+                          placeholder="Örn: 1 Aylık Kira Peşin / 6 Aylık Peşin"
+                          value={authAdvancePayment}
+                          onChange={(e) => setAuthAdvancePayment(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-900">d) Yıllık Artış Oranı</label>
+                        <input
+                          type="text"
+                          className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950"
+                          placeholder="Örn: %10 veya TÜFE Oranında"
+                          value={authAnnualIncreaseRate}
+                          onChange={(e) => setAuthAnnualIncreaseRate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-900">
+                        B) Kiracı Adayında Aranılacak Başlıca Özellikler
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-950"
+                        placeholder="Örn: Düzenli gelir sahibi, kurumsal çalışan veya aile"
+                        value={authTenantCriteria}
+                        onChange={(e) => setAuthTenantCriteria(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-900">C) Sözleşme Süresi (Ay)</label>
+                        <input
+                          type="text"
+                          className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950"
+                          placeholder="Örn: 6 (Altı)"
+                          value={contractDuration}
+                          onChange={(e) => setContractDuration(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-900">J) Düzenlenen Nüsha Sayısı</label>
+                        <input
+                          type="text"
+                          className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950"
+                          placeholder="Örn: 2 (İki)"
+                          value={authCopiesCount}
+                          onChange={(e) => setAuthCopiesCount(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Tek Yetki Satış Sözleşmesi Şartları */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5 border-t border-emerald-300">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-900">Hedef Satış Bedeli *</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="flex-1 min-w-0 bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950"
+                            placeholder="125.000"
+                            value={salePriceInput}
+                            onChange={(e) => setSalePriceInput(formatThousandsInput(e.target.value))}
+                          />
+                          <select
+                            className="w-20 bg-slate-900 text-white border-2 border-slate-900 px-1.5 py-1.5 rounded-lg text-xs font-black shrink-0"
+                            value={saleCurrency}
+                            onChange={(e) => setSaleCurrency(e.target.value)}
+                          >
+                            <option value="GBP">GBP</option>
+                            <option value="EUR">EUR</option>
+                            <option value="USD">USD</option>
+                            <option value="TRY">TRY</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-900">Yetki Süresi</label>
+                        <input
+                          type="text"
+                          className="w-full bg-white border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950"
+                          placeholder="Örn: 6 (Altı) Ay"
+                          value={contractDuration}
+                          onChange={(e) => setContractDuration(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-black text-slate-900">Koçan No</label>
+                        <input
+                          type="text"
+                          className="w-full bg-white border border-slate-300 px-2 py-1 rounded-lg text-xs font-bold text-slate-950"
+                          placeholder="Koçan No"
+                          value={kocanNo}
+                          onChange={(e) => setKocanNo(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-black text-slate-900">Ada / Blok</label>
+                        <input
+                          type="text"
+                          className="w-full bg-white border border-slate-300 px-2 py-1 rounded-lg text-xs font-bold text-slate-950"
+                          placeholder="Ada / Blok"
+                          value={adaNo}
+                          onChange={(e) => setAdaNo(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-black text-slate-900">Parsel</label>
+                        <input
+                          type="text"
+                          className="w-full bg-white border border-slate-300 px-2 py-1 rounded-lg text-xs font-bold text-slate-950"
+                          placeholder="Parsel"
+                          value={parselNo}
+                          onChange={(e) => setParselNo(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

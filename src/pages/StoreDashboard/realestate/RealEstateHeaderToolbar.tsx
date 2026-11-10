@@ -19,6 +19,8 @@ import {
   ChevronUp,
   SlidersHorizontal,
   Handshake,
+  FileSignature,
+  FileCheck,
   X
 } from "lucide-react";
 import { toast } from "sonner";
@@ -54,6 +56,7 @@ interface RealEstateHeaderToolbarProps {
   soldCount: number;
   rentedCount: number;
   onOpenPartnerPortal?: () => void;
+  onOpenPrePortfolioAuth?: (templateId: 'exclusivity_agreement' | 'rental_authorization') => void;
 }
 
 export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = ({
@@ -82,7 +85,8 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
   optionedCount,
   soldCount,
   rentedCount,
-  onOpenPartnerPortal
+  onOpenPartnerPortal,
+  onOpenPrePortfolioAuth
 }) => {
   // Default collapsed for both Dashboard Stats/Ref Counter and Search/Filter panel
   const [isRefAndStatsOpen, setIsRefAndStatsOpen] = useState(false);
@@ -355,6 +359,29 @@ export const RealEstateHeaderToolbar: React.FC<RealEstateHeaderToolbarProps> = (
                 <Layout className="w-3 h-3 text-indigo-600" />
                 <span className="hidden sm:inline">Pipeline</span>
               </button>
+
+              {onOpenPrePortfolioAuth && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onOpenPrePortfolioAuth('exclusivity_agreement')}
+                    className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
+                    title="Henüz Portföye Alınmamış Mülk İçin Tek Yetki Sözleşmesi Al (Ön Portföy Oluşturur)"
+                  >
+                    <FileSignature className="w-3 h-3 text-indigo-700" />
+                    <span className="hidden sm:inline">Tek Yetki Al</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenPrePortfolioAuth('rental_authorization')}
+                    className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
+                    title="Henüz Portföye Alınmamış Mülk İçin Kiralama Yetki Belgesi Al (Ön Portföy Oluşturur)"
+                  >
+                    <FileCheck className="w-3 h-3 text-teal-700" />
+                    <span className="hidden sm:inline">Kira Yetki Al</span>
+                  </button>
+                </>
+              )}
 
               <button
                 onClick={() => onAddNewProperty()}

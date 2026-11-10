@@ -97,6 +97,12 @@ export interface ContractPlaceholderValues {
   showingItem1Price?: string;
   showingItem2Details?: string;
   showingItem2Price?: string;
+  // Owner Authorization (KİRALIKLARDA YETKİ BELGESİ & TEK YETKİ) fields
+  authPropertyTypeFeatures?: string;
+  authAdvancePayment?: string;
+  authAnnualIncreaseRate?: string;
+  authTenantCriteria?: string;
+  authCopiesCount?: string;
 }
 
 export function parseCustomClauseLines(customClauses?: string): string[] {
@@ -477,13 +483,19 @@ ${item2Details ? `2- ${item2Details} | Ortalama Değeri: ${item2Price} | Tarih: 
       <td style="padding: 10px; border: 1px solid #e2e8f0;">${ownerPhoneStr}</td>
     </tr>
     <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">PAZARLANACAK MÜLK / PROPERTY</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">TAŞINMAZIN ADRESİ / ADDRESS</td>
       <td style="padding: 10px; border: 1px solid #e2e8f0;">
-        <strong>${v.propertyTitle}</strong> (${v.propertyLocation}) ${v.propertyBlockPlot ? `• Ada/Parsel: ${v.propertyBlockPlot}` : ''}
-        ${v.propertyAddress ? `<div style="margin-top: 4px; font-size: 11px; color: #64748b;"><strong>Mülk Adresi / Property Address:</strong> ${v.propertyAddress}</div>` : ''}
+        <strong>${v.propertyAddress || v.propertyLocation || "KKTC"}</strong>
+        ${v.propertyBlockPlot ? `<span style="margin-left: 6px; font-size: 12px; color: #334155;">• Koçan/Ada/Parsel: <strong>${v.propertyBlockPlot}</strong></span>` : ''}
       </td>
     </tr>
     <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">CİNSİ VE ÖZELLİKLERİ / PROPERTY TYPE</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">
+        <strong>${v.authPropertyTypeFeatures || v.rentalPropertyDef || "Konut / Gayrimenkul"}</strong>
+      </td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HEDEF SATIŞ BEDELİ / ASKING PRICE</td>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #1d4ed8;">${v.propertyPrice}</td>
     </tr>
@@ -1134,123 +1146,293 @@ ${v.isFurnishedRental ? `\n> **EŞYA VE DEMİRBAŞ ONAYI:** "Mülk'ü kiralarken
     id: "rental_authorization",
     titleTr: "Kiralama Yetki Belgesi",
     titleEn: "Rental Authorization Mandate",
-    descriptionTr: "Mülk sahibinin gayrimenkul kiralama yetkisini emlak ofisine devrettiği yetki belgesi.",
-    descriptionEn: "Mandate from owner granting rights to market and rent the property.",
+    descriptionTr: "Mülk sahibinin (Kiraya Veren) gayrimenkul kiralama yetkisini emlak komisyoncusuna devrettiği resmi KKTC yetki belgesi sözleşmesi.",
+    descriptionEn: "Official KKTC rental authorization agreement between Landlord/Owner and Real Estate Broker.",
     getTemplate: (v) => {
-      const ownerFullName = (
-        v.clientName && !v.clientName.startsWith("[")
-          ? v.clientName
-          : v.ownerName || "Mülk Sahibi"
-      ).trim();
-      const ownerIdStr = (
-        v.clientIdentity && !v.clientIdentity.startsWith("[")
-          ? v.clientIdentity
-          : v.sellerIdentity || "Belirtilmedi"
-      ).trim();
-      const ownerPhoneStr = (
-        v.clientPhone && !v.clientPhone.startsWith("[")
-          ? v.clientPhone
-          : v.ownerPhone || "Belirtilmedi"
-      ).trim();
-      const agencyRepName = (
+      const rawDate = (v.contractDate || new Date().toLocaleDateString("tr-TR")).trim();
+      const slashDate = rawDate.replace(/\./g, "/");
+
+      // Emlak Komisyoncusu (Tellal) - 2. İmza (Final Onay)
+      const rawBrokerTitle = (
         v.sellerSigningName ||
-        (v.ownerName && v.ownerName !== ownerFullName ? v.ownerName : "") ||
+        (v.ownerName && v.ownerName !== v.clientName ? v.ownerName : "") ||
         v.agentAndCompany ||
         v.storeName ||
-        "Yetkili Emlak Ofisi"
+        ""
       ).trim();
+      const brokerTitle =
+        !rawBrokerTitle ||
+        rawBrokerTitle.toLowerCase().includes("seçkin") ||
+        rawBrokerTitle.toLowerCase().includes("premium vip")
+          ? "Rodel investment EMRAH CEYHAN"
+          : rawBrokerTitle;
+
+      const brokerIdentity = (
+        v.authorizedPersonIdentity ||
+        (v.sellerIdentity && !v.sellerIdentity.startsWith("[") ? v.sellerIdentity : "") ||
+        "1170237140"
+      ).trim();
+      const brokerAddr = (
+        v.brokerAddress || "Atatürk Caddesi No: 81/A Küçük Kaymaklı / Lefkoşa"
+      ).trim();
+      const rawBrokerPhone = (v.ownerPhone || v.storePhone || "").trim();
+      const brokerPhone =
+        !rawBrokerPhone || rawBrokerPhone.includes("5XX")
+          ? "0 542 865 5000"
+          : rawBrokerPhone;
+
+      // Kiraya Veren / Yetkilisi (Mülk Sahibi) - 1. İmza (Öncelikli)
+      const landlordName =
+        v.clientName && !v.clientName.startsWith("[")
+          ? v.clientName.trim()
+          : "................................................................................................................................................";
+      const landlordId =
+        v.clientIdentity && !v.clientIdentity.startsWith("[")
+          ? v.clientIdentity.trim()
+          : "";
+      const landlordAddr =
+        v.clientAddress && v.clientAddress.trim()
+          ? v.clientAddress.trim()
+          : "................................................................................................................................................";
+      const landlordPhone =
+        v.clientPhone && !v.clientPhone.startsWith("[")
+          ? v.clientPhone.trim()
+          : "................................................................................................................................................";
+
+      // Sözleşmenin Konusu: Taşınmazın Adresi & Cinsi ve Özellikleri (İlan açıklaması ASLA kullanılmaz!)
+      const rawPropAddr = [
+        v.propertyAddress && v.propertyAddress !== "Belirtilmemiş adres" ? v.propertyAddress.trim() : "",
+        v.propertyLocation && (!v.propertyAddress || !v.propertyAddress.includes(v.propertyLocation)) ? v.propertyLocation.trim() : "",
+        v.kocanNo ? `Koçan No: ${v.kocanNo}` : "",
+        v.adaNo ? `Ada/Blok: ${v.adaNo}` : "",
+        v.parselNo ? `Parsel: ${v.parselNo}` : v.propertyBlockPlot ? `Parsel: ${v.propertyBlockPlot}` : ""
+      ]
+        .filter(Boolean)
+        .join(" • ");
+
+      const propAddrDisplay =
+        rawPropAddr ||
+        ".........................................................................................................................................";
+
+      const propTypeFeaturesDisplay =
+        (v.authPropertyTypeFeatures || v.rentalPropertyDef || "").trim() ||
+        ".........................................................................................................................................";
+
+      // a) Kira Bedeli: Tutar (Yazı ile)
+      const rentCurr = (v.rentCurrency || "TL").toUpperCase();
+      const currMeta = getCurrencyMeta(rentCurr);
+      const rawRentNum = parseNumericAmount(v.rentPriceRaw ?? v.propertyPrice);
+      const rentNumFormatted = rawRentNum > 0 ? `${rawRentNum.toLocaleString("tr-TR")} ${currMeta.codeLabel}` : "...................................................";
+      const rentWordsFormatted = rawRentNum > 0 ? `${numberToTurkishWords(rawRentNum)} ${currMeta.wordLabel}` : "...................................................";
+
+      // b) Güvence Bedeli (Depozito): Tutar (Yazı ile)
+      const formatAmountAndWordsPair = (rawVal?: string, fallbackText?: string) => {
+        const clean = (rawVal || "").trim();
+        if (!clean) {
+          return {
+            amount: fallbackText || "...................................................",
+            words: "..................................................."
+          };
+        }
+        const onlyDigitsAndSeps = /^[\d.,\s]+(TL|TRY|GBP|EUR|USD|£|\$|€|₺)?$/i.test(clean);
+        const num = parseNumericAmount(clean);
+        if (onlyDigitsAndSeps && num > 0) {
+          return {
+            amount: `${num.toLocaleString("tr-TR")} ${currMeta.codeLabel}`,
+            words: `${numberToTurkishWords(num)} ${currMeta.wordLabel}`
+          };
+        }
+        const parenMatch = clean.match(/^([^(]+)\(([^)]+)\)$/);
+        if (parenMatch) {
+          return {
+            amount: parenMatch[1].trim(),
+            words: parenMatch[2].trim()
+          };
+        }
+        if (/(\d+)\s*ayl[ıi]k/i.test(clean)) {
+          const m = clean.match(/(\d+)/);
+          const mNum = m ? parseInt(m[1], 10) : 1;
+          const totalNum = rawRentNum > 0 ? rawRentNum * mNum : 0;
+          return {
+            amount: totalNum > 0 ? `${clean} - ${totalNum.toLocaleString("tr-TR")} ${currMeta.codeLabel}` : clean,
+            words: totalNum > 0 ? `${numberToTurkishWords(totalNum)} ${currMeta.wordLabel}` : `${numberToTurkishWords(mNum)} Aylık Kira Bedeli`
+          };
+        }
+        return {
+          amount: clean,
+          words: "Yukarıda Belirtilen Şartlarda"
+        };
+      };
+
+      const depPair = formatAmountAndWordsPair(v.depositAmount, "2 Aylık Kira Bedeli");
+      const advPair = formatAmountAndWordsPair(v.authAdvancePayment, "1 Aylık Kira Bedeli");
+      const annualIncDisplay =
+        (v.authAnnualIncreaseRate || "").trim() ||
+        ".........................................................................................................................................";
+      const tenantCriteriaDisplay =
+        (v.authTenantCriteria || "").trim() ||
+        "....................................................................................................................................................................................................................";
+
+      // C- Sözleşmenin süresi .... aydır.
+      const rawDuration = (v.contractDuration || "6 (Altı)").trim();
+      const durationCleanMonths = rawDuration
+        .replace(/\/\s*12\s*Months/gi, "")
+        .replace(/\b(aydır|aydir|ay)\b/gi, "")
+        .trim() || "6 (Altı)";
+
+      // J- Nüsha sayısı
+      const copiesCountDisplay = (v.authCopiesCount || "2 (İki)").trim();
+
+      const signerLandlordLabel =
+        v.signingName && !v.signingName.startsWith("[")
+          ? v.signingName.trim()
+          : v.clientName && !v.clientName.startsWith("[")
+          ? v.clientName.trim()
+          : "Kiraya Veren / Yetkili";
 
       const html = `
-<div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
-  <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 20px;">
-    <h1 style="font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">KİRALAMA YETKİ BELGESİ</h1>
-    <h2 style="font-size: 13px; font-weight: bold; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 0.1em;">RENTAL AUTHORIZATION MANDATE</h2>
+<div style="font-family: 'Times New Roman', Georgia, serif; max-width: 800px; margin: 0 auto; padding: 28px 34px; color: #0f172a; line-height: 1.56; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px;">
+  <div style="text-align: center; margin-bottom: 16px;">
+    <h1 style="font-size: 19px; font-weight: bold; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.04em; text-decoration: underline;">
+      KİRALIKLARDA YETKİ BELGESİ SÖZLEŞMESİ
+    </h1>
   </div>
 
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
-    <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">ARACI OFİS / YETKİLİ</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${agencyRepName}</strong> (${v.storeName})</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK SAHİBİ / OWNER</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${ownerFullName}</strong></td>
-    </tr>
-    <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİMLİK / PASAPORT NO</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${ownerIdStr}</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK SAHİBİ İLETİŞİM</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${ownerPhoneStr}</td>
-    </tr>
-    <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK BİLGİSİ / PROPERTY</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">
-        <strong>${v.propertyTitle}</strong> (${v.propertyLocation})
-        ${v.propertyAddress ? `<div style="margin-top: 4px; font-size: 11px; color: #64748b;"><strong>Mülk Adresi / Property Address:</strong> ${v.propertyAddress}</div>` : ''}
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HEDEF KİRA / ASKING RENT</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #1d4ed8;">${v.propertyPrice}</td>
-    </tr>
-    <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HİZMET BEDELİ / COMMISSION</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.commissionRate}</strong> (+ KDV)</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">SÖZLEŞME TARİHİ / DATE</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.contractDate}</td>
-    </tr>
-    <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">YETKİ SÜRESİ / DURATION</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.contractDuration || "12 Ay / 12 Months"}</strong></td>
-    </tr>
-  </table>
+  <div style="margin-bottom: 12px; font-size: 13px; color: #0f172a;">
+    <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">1- TARAFLAR</div>
+    
+    <div style="margin-bottom: 8px; padding: 8px 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px;">
+      <div style="font-weight: bold; color: #0f172a;">Emlak Komisyoncusu (Tellal)</div>
+      <div><strong>Adı, Soyadı-Ünvanı :</strong> ${brokerTitle}</div>
+      <div><strong>K / P / MŞ NO :</strong> ${brokerIdentity}</div>
+      <div><strong>Adresi :</strong> ${brokerAddr}</div>
+      <div><strong>TeL:</strong> ${brokerPhone}</div>
+      <div style="font-style: italic; font-size: 12px; color: #334155; margin-top: 2px;">
+        (Bu sözleşme süresince "Tellal" ; "Emlak Komisyoncusu" olarak anılacaktır.)
+      </div>
+    </div>
 
-  <p style="font-size: 12px; text-align: justify;">
-    Mülk Sahibi (<strong>${ownerFullName}</strong>), yukarıdaki taşınmazın kiralanması için <strong>${v.contractDate}</strong> tarihli yetki belgesi ile <strong>${v.contractDuration || "12 Ay / 12 Months"}</strong> süre boyunca <strong>${v.storeName}</strong> firmasını yetkili kılmıştır. Aracı, mülkün tanıtımını yapacak, kiracı adaylarını bulacak ve sözleşme sürecini yönetecektir. Kiralama gerçekleştiğinde Mülk Sahibi <strong>${v.commissionRate}</strong> tutarında hizmet bedeli ödemeyi kabul eder.
-  </p>
-
-  ${renderCustomClausesHtml(v.customClauses)}
-
-  <div style="margin-top: 32px; display: flex; justify-content: space-between; gap: 32px; font-size: 11px; page-break-inside: avoid;">
-    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 170px;">
+    <div style="padding: 8px 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px;">
+      <div style="font-weight: bold; color: #0f172a;">Kiraya Veren / Yetkilisi</div>
       <div>
-        <strong style="font-size: 12px; color: #0f172a;">MÜLK SAHİBİ (1. İMZA)</strong>
-        <div style="font-size: 11px; font-weight: bold; color: #334155; margin-top: 2px;">${ownerFullName}</div>
+        <strong>Adı Soyadı-Ünvanı :</strong> ${landlordName}
+        ${landlordId ? `<span style="margin-left: 12px;"><strong>Kimlik / Pasaport No :</strong> ${landlordId}</span>` : ""}
+      </div>
+      <div><strong>Adresi :</strong> ${landlordAddr}</div>
+      <div><strong>Telefonu :</strong> ${landlordPhone}</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 12px; font-size: 13px; color: #0f172a;">
+    <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">SÖZLEŞMENİN KONUSU</div>
+    <p style="margin: 0 0 6px 0; text-align: justify;">
+      Aşağıda bilgileri bulunan taşınmazın, 3. maddede yazılı şartlar çerçevesinde kiraya verilmesi ve kira sözleşmesinin hazırlanması imkanın sağlanması hususunda Emlak Komisyoncusuna gerekli yetkinin verilmesi ve bu konuda tarafların hak ve yükümlülükleri
+    </p>
+    <div style="padding: 8px 12px; background: #ffffff; border: 1.5px solid #0f172a; border-radius: 6px;">
+      <div style="margin-bottom: 4px;"><strong>Taşınmazın Adresi :</strong> ${propAddrDisplay}</div>
+      <div><strong>Cinsi ve Özellikleri :</strong> ${propTypeFeaturesDisplay}</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 12px; font-size: 12.5px; color: #0f172a; text-align: justify;">
+    <div style="font-size: 13px; font-weight: bold; text-decoration: underline; margin-bottom: 6px;">SÖZLEŞMENİN ŞARTLARI</div>
+
+    <div style="margin-bottom: 6px;">
+      <strong>A-</strong> Emlak Komisyoncusu, 2. Maddede açık adresi belirtilen taşınmaza, aşağıda kira şartları ile kiracı bulmak ve kiraya veren ile karşı karşıya gelmelerini sağlamayı yükümlenir. Emlak Komisyoncusu, bu hizmeti bizzat yürüteceği gibi bir başka Emlak Komisyoncusu ile de ortak hareket edebilir. Kiraya verenin talep ettiği şartlar ve özellikler:
+      <div style="padding-left: 16px; margin-top: 4px; line-height: 1.65;">
+        <div><strong>a) Kira Bedeli :</strong> ${rentNumFormatted} ( ${rentWordsFormatted} )</div>
+        <div><strong>b) Güvence Bedeli :</strong> ${depPair.amount} ( ${depPair.words} )</div>
+        <div><strong>c) Peşinat :</strong> ${advPair.amount} ( ${advPair.words} )</div>
+        <div><strong>d) Yıllık artış oranı :</strong> ${annualIncDisplay}</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 6px;">
+      <strong>B) Kiracı adayında aranılacak başlıca özellikler :</strong> ${tenantCriteriaDisplay}
+    </div>
+
+    <div style="margin-bottom: 6px;">
+      <strong>C-</strong> Sözleşmenin süresi <strong>${durationCleanMonths}</strong> aydır. Sözleşme süresi içinde taraflar, -mücbir sebepler dışında sözleşmeyi tek yanlı olarak feshedemezler. Kiraya veren, henüz süre dolmadan sözleşmeyi tek yanlı olarak feshederse bu takdirde; Emlak Komisyoncusuna, işbu sözleşmede yazılı kira bedeli üzerinden bir aylık kira bedeli kadar bir meblağı derhal ödemeyi kabul ve taahhüt eder.
+    </div>
+
+    <div style="margin-bottom: 6px;">
+      <strong>D-</strong> Taraflar, sözleşme bitiminde 15 gün öncesine kadar, karşı tarafa sözleşmenin yenilenmeyeceğini yazılı olarak ihbar etmedikleri takdirde, sözleşme aynı koşullarla ve C Fıkrasında belirtilen süre kadar yenilenmiş olur.
+    </div>
+
+    <div style="margin-bottom: 6px;">
+      <strong>E-</strong> Kiraya veren, işbu sözleşme süresince taşınmazın kiraya verilmesi amacıyla pazarlanması için başka hiçbir kişi veya kuruluşa yetki veremeyeceği gibi bizzat kendisi de kiraya veremez. Aksi halde kiraya veren, sözleşmede belirtilen kira bedelinin üzerinden bir kira bedeli oranındaki bir meblağı, Emlak komisyoncusuna ödemeyi kabul ve taahhüt eder.
+    </div>
+
+    <div style="margin-bottom: 6px;">
+      <strong>F-</strong> Kiraya veren, Emlak komisyoncusunun; sözleşmedeki özel ve genel şartlar çerçevesinde bulup önerdiği kiracı adayı ile kira sözleşmesi yapmaktan imtina ederse; kira sözleşmesinin yapılması imkanını sağlamış olmakla görevini tamamlamış bulunan Emlak Komisyoncusuna; sözleşmede belirtilen kira bedeli üzerinden bir aylık kira bedeli oranındaki bir meblağı, "Tellaliye ücreti" olarak ödemeyi kabul ve taahhüt eder.
+    </div>
+
+    <div style="margin-bottom: 6px;">
+      <strong>G-</strong> Emlak Komisyoncusunun, bulup kiraya verene önerdiği kiracı adaylarına ilişkin değerlendirmenin sözleşmenin bitim tarihini aşması halinde, bu konuda kiraya verenin cevabını bildirinceye kadar geçecek süre, sözleşme süresi içinde sayılır ve bu halde de sözleşme koşulları aynen uygulanır.
+    </div>
+
+    <div style="margin-bottom: 6px;">
+      <strong>H-</strong> Emlak komisyoncusunun işbu sözleşmeden doğacak alacaklarının zamanında ödenmemesi halinde aylık %10 temerrüt faizi uygulanır.
+    </div>
+
+    <div style="margin-bottom: 6px;">
+      <strong>I-</strong> İşbu sözleşmede şayet mal sahibi bir vekille (Yetkiliyle) temsil edilmişse vekalete dayalı yetkinin varlığı ve geçerliliğini "vekil" olduğunu beyan eden kişi ispat etmek zorundadır. Yetkisiz temsil veya vekaletin hükümsüzlüğü gibi hallerde işbu sözleşme ile Mal sahibine yüklenilen bütün borçlar ve sorumluluklar vekaleten imza koyan kişiye aittir.
+    </div>
+
+    <div style="margin-bottom: 6px;">
+      <strong>İ-</strong> İşbu sözleşmeden doğacak uyuşmazlıkların çözümünde, KKTC Mahkemeleri ve İcra Daireleri yetkilidir.
+    </div>
+
+    ${renderCustomClausesHtml(v.customClauses)}
+
+    <div style="margin-top: 8px; font-weight: bold;">
+      <strong>J-</strong> İşbu sözleşme <strong>${copiesCountDisplay}</strong> nüsha düzenlenmiş olup; taraflarca birer nüshası tevdi edilmiştir. <strong>${slashDate}</strong>
+    </div>
+  </div>
+
+  <div style="margin-top: 22px; display: flex; justify-content: space-between; gap: 28px; page-break-inside: avoid;">
+    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 165px;">
+      <div>
+        <div style="font-size: 13px; font-weight: bold; color: #0f172a; text-decoration: underline;">KİRAYA VEREN / YETKİLİ</div>
+        <div style="font-size: 12.5px; font-weight: bold; color: #1e293b; margin-top: 4px;">${signerLandlordLabel}</div>
       </div>
       ${renderSignatureOrStamp(
-        v.signingName || ownerFullName,
+        signerLandlordLabel,
         v.isSigned,
         v.signatureImage,
-        "1. Öncelik: Mülk Sahibi İmzası Bekleniyor"
+        "1. Öncelik: Kiraya Veren (Mülk Sahibi) İmzası Bekleniyor"
       )}
-      <div style="font-size: 10px; color: #64748b;">1. İmza (Öncelikli) • Mülk Sahibi</div>
+      <div style="font-size: 10px; color: #64748b;">1. İmza (Öncelikli) • Kiraya Veren / Mülk Sahibi</div>
     </div>
-    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 170px;">
+
+    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 165px;">
       <div>
-        <strong style="font-size: 12px; color: #0f172a;">İŞLETME YETKİLİSİ / ARACI OFİS (2. İMZA)</strong>
-        <div style="font-size: 11px; font-weight: bold; color: #334155; margin-top: 2px;">${agencyRepName}</div>
+        <div style="font-size: 13px; font-weight: bold; color: #0f172a; text-decoration: underline;">EMLAK KOMİSYONCUSU</div>
+        <div style="font-size: 12.5px; font-weight: bold; color: #1e293b; margin-top: 4px;">${brokerTitle}</div>
       </div>
       ${renderSignatureOrStamp(
-        agencyRepName,
+        brokerTitle,
         v.sellerSigned,
         v.sellerSignatureImage,
-        v.isSigned ? "İşletme Yetkilisi Onayı Bekleniyor" : "Önce Mülk Sahibi İmzası Bekleniyor"
+        v.isSigned ? "Emlak Komisyoncusu Final Onayı Bekleniyor" : "Önce Kiraya Veren İmzası Bekleniyor"
       )}
-      <div style="font-size: 10px; color: #64748b;">2. İmza (Final Onay) • İşletme Yetkilisi</div>
+      <div style="font-size: 10px; color: #64748b;">2. İmza (Final Onay) • Emlak Komisyoncusu</div>
     </div>
   </div>
 </div>
 `;
-      const markdown = `
-# KİRALAMA YETKİ BELGESİ
-**Mülk Sahibi:** ${ownerFullName}
-**Aracı Ofis / Yetkili:** ${agencyRepName} (${v.storeName})
-**Mülk:** ${v.propertyTitle}
-**Hedef Kira:** ${v.propertyPrice}
+      const markdown = `# KİRALIKLARDA YETKİ BELGESİ SÖZLEŞMESİ
+**Tarih:** ${slashDate}
+**Emlak Komisyoncusu (Tellal):** ${brokerTitle} (K/P/MŞ No: ${brokerIdentity}) - ${brokerAddr} - Tel: ${brokerPhone}
+**Kiraya Veren / Yetkilisi:** ${landlordName} - Adres: ${landlordAddr} - Tel: ${landlordPhone}
+**Taşınmazın Adresi:** ${propAddrDisplay}
+**Cinsi ve Özellikleri:** ${propTypeFeaturesDisplay}
+**a) Kira Bedeli:** ${rentNumFormatted} (${rentWordsFormatted})
+**b) Güvence Bedeli:** ${depPair.amount} (${depPair.words})
+**c) Peşinat:** ${advPair.amount} (${advPair.words})
+**d) Yıllık Artış Oranı:** ${annualIncDisplay}
+**B) Kiracı Adayında Aranılacak Özellikler:** ${tenantCriteriaDisplay}
+**C) Yetki Süresi:** ${durationCleanMonths} ay
 ${renderCustomClausesMarkdown(v.customClauses)}`;
       return { html, markdown };
     }

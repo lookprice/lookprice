@@ -35,16 +35,21 @@ export const useRealEstate = (storeId?: number) => {
   const saveProperty = async (property: Partial<RealEstateProperty>) => {
     try {
       let res;
-      const payload = { ...property, store_id: storeId };
-      if (property.id) {
-        res = await api.updateProperty(property.id, payload);
+      const payload: any = { ...property, store_id: storeId };
+      const rawId = String(property.id || "");
+      const isTempId = !rawId || rawId.startsWith("temp_") || rawId.startsWith("pre_portfolio_");
+      if (!isTempId) {
+        res = await api.updateProperty(property.id!, payload);
       } else {
+        delete payload.id;
         res = await api.addProperty(payload);
       }
       if (res && res.error) {
         throw new Error(res.error);
       }
       await fetchProperties();
+      await fetchContacts();
+      return res;
     } catch (error) {
       console.error('Error saving property:', error);
       throw error;

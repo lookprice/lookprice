@@ -71,6 +71,7 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [contractProperty, setContractProperty] = useState<any>(null);
+  const [contractInitialTemplateId, setContractInitialTemplateId] = useState<string | undefined>(undefined);
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
   const [isSocialShareModalOpen, setIsSocialShareModalOpen] = useState(false);
@@ -183,6 +184,21 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
         soldCount={soldCount}
         rentedCount={rentedCount}
         onOpenPartnerPortal={() => setIsPartnerPortalOpen(true)}
+        onOpenPrePortfolioAuth={(tplId) => {
+          setContractInitialTemplateId(tplId);
+          setContractProperty({
+            id: `pre_portfolio_${Date.now()}`,
+            title: "Ön Portföy (Yetki Belgesi)",
+            address: "",
+            location: "KKTC",
+            kktc_region: "Lefkoşa",
+            price: 0,
+            currency: "GBP",
+            listing_intent: tplId === "rental_authorization" ? "rent" : "sale",
+            documents: []
+          });
+          setIsContractModalOpen(true);
+        }}
       />
       
       {viewMode === 'calendar' ? (
@@ -240,6 +256,7 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
               viewMode={viewMode}
               storeSlug={storeSlug}
               onOpenContract={(p) => {
+                setContractInitialTemplateId(undefined);
                 setContractProperty(p);
                 setIsContractModalOpen(true);
               }}
@@ -286,6 +303,8 @@ export const RealEstateTab: React.FC<RealEstateTabProps> = ({
         setIsContractModalOpen={setIsContractModalOpen}
         contractProperty={contractProperty}
         setContractProperty={setContractProperty}
+        contractInitialTemplateId={contractInitialTemplateId}
+        setContractInitialTemplateId={setContractInitialTemplateId}
         isTapuModalOpen={isTapuModalOpen}
         setIsTapuModalOpen={setIsTapuModalOpen}
         tapuProperty={tapuProperty}

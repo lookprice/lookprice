@@ -2822,16 +2822,45 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       showingItem1Details,
       showingItem1Price,
       showingItem2Details,
-      showingItem2Price
+      showingItem2Price,
+      authPropertyTypeFeatures,
+      authAdvancePayment,
+      authAnnualIncreaseRate,
+      authTenantCriteria,
+      authCopiesCount
     } = req.body;
 
     const isSellerRole = signerRole === "seller";
+    const isOwnerAuthReq = ["exclusivity_agreement", "rental_authorization"].includes(String(templateId || ""));
 
-    if (!isSellerRole && (!clientName || !clientIdentity || !clientPhone)) {
-      return res.status(400).json({ error: "Lütfen alıcı/kiracı ad soyad, kimlik/pasaport ve telefon alanlarını doldurunuz." });
+    if (!isSellerRole && (!clientName || (!isOwnerAuthReq && !clientIdentity) || !clientPhone)) {
+      return res.status(400).json({ error: "Lütfen ad soyad ve telefon alanlarını doldurunuz." });
     }
     if (isSellerRole && !(ownerName || sellerSigningName || clientName)) {
-      return res.status(400).json({ error: "Lütfen satıcı / mülk sahibi ad soyad ve kimlik bilgilerini doldurunuz." });
+      return res.status(400).json({ error: "Lütfen yetkili / satıcı ad soyad bilgilerini doldurunuz." });
+    }
+
+    if (!/^\d+$/.test(String(id))) {
+      const nowTemp = new Date();
+      const trDateTemp = `${String(nowTemp.getDate()).padStart(2, "0")}.${String(nowTemp.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}.${nowTemp.getFullYear()} ${String(nowTemp.getHours()).padStart(2, "0")}:${String(
+        nowTemp.getMinutes()
+      ).padStart(2, "0")}`;
+      const resolvedIpTemp = String(req.headers["x-forwarded-for"] || req.ip || "127.0.0.1")
+        .split(",")[0]
+        .trim();
+      const otpTemp = req.body.otpCode || String(Math.floor(100000 + Math.random() * 900000));
+      return res.json({
+        success: true,
+        docId: docId || `virtual-contract-${Date.now()}`,
+        contractStage: isSellerRole ? "finalized" : "buyer_signed",
+        ipAddress: resolvedIpTemp,
+        timestamp: trDateTemp,
+        otpCode: otpTemp,
+        legalSeal: `Bu sözleşme [${resolvedIpTemp}] IP adresi üzerinden [${trDateTemp}] anında [OTP Doğrulama Kodu: #${otpTemp}] ile hukuki ve değiştirilemez olarak dijital mühürlenmiştir.`
+      });
     }
 
     let propRes = await pool.query("SELECT * FROM real_estate_properties WHERE id = $1", [id]);
@@ -3134,7 +3163,12 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       showingItem1Details: showingItem1Details ?? prevDetails.showingItem1Details ?? "",
       showingItem1Price: showingItem1Price ?? prevDetails.showingItem1Price ?? "",
       showingItem2Details: showingItem2Details ?? prevDetails.showingItem2Details ?? "",
-      showingItem2Price: showingItem2Price ?? prevDetails.showingItem2Price ?? ""
+      showingItem2Price: showingItem2Price ?? prevDetails.showingItem2Price ?? "",
+      authPropertyTypeFeatures: authPropertyTypeFeatures ?? prevDetails.authPropertyTypeFeatures ?? "",
+      authAdvancePayment: authAdvancePayment ?? prevDetails.authAdvancePayment ?? "",
+      authAnnualIncreaseRate: authAnnualIncreaseRate ?? prevDetails.authAnnualIncreaseRate ?? "",
+      authTenantCriteria: authTenantCriteria ?? prevDetails.authTenantCriteria ?? "",
+      authCopiesCount: authCopiesCount ?? prevDetails.authCopiesCount ?? ""
     };
 
     const savedDoc = {

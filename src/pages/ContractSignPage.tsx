@@ -59,8 +59,13 @@ export default function ContractSignPage() {
   const paymentDayParam = searchParams.get("paymentDay") || "";
   const partnerIdParam = searchParams.get("partnerId") || "";
 
-  // Rental Contract (KİRA SÖZLEŞMESİ) params
+  // Rental Contract (KİRA SÖZLEŞMESİ) & Authorization params
   const rentalPropertyDefParam = searchParams.get("rentalPropertyDef") || "";
+  const authPropertyTypeFeaturesParam = searchParams.get("authPropertyTypeFeatures") || "";
+  const authAdvancePaymentParam = searchParams.get("authAdvancePayment") || "";
+  const authAnnualIncreaseRateParam = searchParams.get("authAnnualIncreaseRate") || "";
+  const authTenantCriteriaParam = searchParams.get("authTenantCriteria") || "";
+  const authCopiesCountParam = searchParams.get("authCopiesCount") || "";
   const rentalUsagePurposeParam = searchParams.get("rentalUsagePurpose") || "";
   const rentalAddressParam = searchParams.get("rentalAddress") || "";
   const rentalDistrictParam = searchParams.get("rentalDistrict") || "";
@@ -179,6 +184,21 @@ export default function ContractSignPage() {
             price: 0,
             currency: "GBP",
             listing_intent: "sale"
+          });
+        } else if (id.startsWith("pre_portfolio_") || id.startsWith("temp_")) {
+          setIsVehicle(false);
+          const rawPriceStr = templateIdParam === "rental_authorization" ? rentPriceRawParam : salePriceRawParam;
+          const numericPrice = parseInt(String(rawPriceStr || "0").replace(/[^\d]/g, ""), 10) || 0;
+          setItemData({
+            id,
+            title: `${authPropertyTypeFeaturesParam || rentalPropertyDefParam || "Gayrimenkul"} - ${rentalAddressParam || "KKTC"}`,
+            address: rentalAddressParam || "",
+            reference_no: "YETKİ-ÖN-PORTFÖY",
+            store_name: storeNameParam || ownerNameParam || "Seçkin Emlak",
+            store_phone: storePhoneParam || ownerPhoneParam || "",
+            price: numericPrice,
+            currency: (templateIdParam === "rental_authorization" ? rentCurrencyParam : saleCurrencyParam) || "GBP",
+            listing_intent: templateIdParam === "rental_authorization" ? "rent" : "sale"
           });
         } else if (id.startsWith("vehicle-")) {
           setIsVehicle(true);
@@ -492,8 +512,13 @@ export default function ContractSignPage() {
           splitRatio: splitRatioParam || savedDocDetails?.splitRatio,
           contractDuration: contractDurationParam || savedDocDetails?.contractDuration,
           evictionDate: evictionDateParam || savedDocDetails?.evictionDate,
-          // Rental contract fields
+          // Rental & Authorization contract fields
           rentalPropertyDef: rentalPropertyDefParam || savedDocDetails?.rentalPropertyDef,
+          authPropertyTypeFeatures: authPropertyTypeFeaturesParam || savedDocDetails?.authPropertyTypeFeatures || rentalPropertyDefParam || savedDocDetails?.rentalPropertyDef,
+          authAdvancePayment: authAdvancePaymentParam || savedDocDetails?.authAdvancePayment,
+          authAnnualIncreaseRate: authAnnualIncreaseRateParam || savedDocDetails?.authAnnualIncreaseRate,
+          authTenantCriteria: authTenantCriteriaParam || savedDocDetails?.authTenantCriteria,
+          authCopiesCount: authCopiesCountParam || savedDocDetails?.authCopiesCount,
           rentalUsagePurpose: rentalUsagePurposeParam || savedDocDetails?.rentalUsagePurpose,
           rentalAddress: rentalAddressParam || savedDocDetails?.rentalAddress || itemData?.address,
           rentalDistrict: rentalDistrictParam || savedDocDetails?.rentalDistrict,
@@ -690,8 +715,21 @@ export default function ContractSignPage() {
         depositAmount: effectiveDepositAmount,
         rentDuration: rentDurationParam || savedDocDetails?.rentDuration || "1 (Bir) Yıl",
         paymentDay: paymentDayParam || savedDocDetails?.paymentDay || "Her Ayın En Geç 5 (Beş)’inde Ödenecektir.",
-        // Rental contract variables
+        // Rental & Authorization contract variables
         rentalPropertyDef: rentalPropertyDefParam || savedDocDetails?.rentalPropertyDef || rMeta.rentalPropertyDef,
+        authPropertyTypeFeatures:
+          authPropertyTypeFeaturesParam ||
+          savedDocDetails?.authPropertyTypeFeatures ||
+          rentalPropertyDefParam ||
+          savedDocDetails?.rentalPropertyDef ||
+          rMeta.rentalPropertyDef,
+        authAdvancePayment: authAdvancePaymentParam || savedDocDetails?.authAdvancePayment || "1 Aylık Kira Bedeli",
+        authAnnualIncreaseRate: authAnnualIncreaseRateParam || savedDocDetails?.authAnnualIncreaseRate || "%10",
+        authTenantCriteria:
+          authTenantCriteriaParam ||
+          savedDocDetails?.authTenantCriteria ||
+          "Düzenli gelir sahibi, kurumsal çalışan veya aile",
+        authCopiesCount: authCopiesCountParam || savedDocDetails?.authCopiesCount || "2 (İki)",
         rentalUsagePurpose: rentalUsagePurposeParam || savedDocDetails?.rentalUsagePurpose || rMeta.rentalUsagePurpose,
         rentalDistrict: rentalDistrictParam || savedDocDetails?.rentalDistrict || rMeta.rentalDistrict,
         rentalTownVillage: rentalTownVillageParam || savedDocDetails?.rentalTownVillage || rMeta.rentalTownVillage,

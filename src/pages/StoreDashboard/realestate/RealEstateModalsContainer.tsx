@@ -19,6 +19,8 @@ interface RealEstateModalsContainerProps {
   setIsContractModalOpen: (open: boolean) => void;
   contractProperty: any;
   setContractProperty: React.Dispatch<React.SetStateAction<any>>;
+  contractInitialTemplateId?: string;
+  setContractInitialTemplateId?: (tplId: string | undefined) => void;
   isTapuModalOpen: boolean;
   setIsTapuModalOpen: (open: boolean) => void;
   tapuProperty: any;
@@ -55,6 +57,8 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
   setIsContractModalOpen,
   contractProperty,
   setContractProperty,
+  contractInitialTemplateId,
+  setContractInitialTemplateId,
   isTapuModalOpen,
   setIsTapuModalOpen,
   tapuProperty,
@@ -127,23 +131,97 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
               setIsContractModalOpen(false);
               setContractProperty(null);
               setEditingContractDoc(null);
+              if (setContractInitialTemplateId) setContractInitialTemplateId(undefined);
             }}
             property={contractProperty}
             branding={branding}
+            initialTemplateId={editingContractDoc?.details?.templateId || contractInitialTemplateId}
             initialContractDoc={editingContractDoc}
-            onSaveContract={async (contractDoc) => {
+            onSaveContract={async (contractDoc, prePortfolioMeta) => {
               if (!onSave || !contractProperty) return;
+              const isPrePortfolio =
+                !contractProperty.id ||
+                String(contractProperty.id).startsWith("pre_portfolio_") ||
+                String(contractProperty.id).startsWith("temp_");
+
               const existingDocs = contractProperty.documents || [];
               const existingIdx = existingDocs.findIndex((d: any) => d && d.id === contractDoc.id);
               const updatedDocs =
                 existingIdx >= 0
                   ? existingDocs.map((d: any, idx: number) => (idx === existingIdx ? contractDoc : d))
                   : [...existingDocs, contractDoc];
-              await onSave({
+
+              if (isPrePortfolio) {
+                const isRentAuth =
+                  prePortfolioMeta?.listingIntent === "rent" ||
+                  contractDoc?.details?.templateId === "rental_authorization";
+                const addrLabel = (
+                  prePortfolioMeta?.address ||
+                  contractDoc?.details?.rentalAddress ||
+                  "KKTC"
+                ).trim();
+                const typeLabel = (
+                  prePortfolioMeta?.propertyTypeFeatures ||
+                  contractDoc?.details?.authPropertyTypeFeatures ||
+                  "Gayrimenkul"
+                ).trim();
+                const ownerFullName = (
+                  prePortfolioMeta?.ownerName ||
+                  contractDoc?.details?.clientName ||
+                  ""
+                ).trim();
+                const ownerTel = (
+                  prePortfolioMeta?.ownerPhone ||
+                  contractDoc?.details?.clientPhone ||
+                  ""
+                ).trim();
+                const ownerIdNo = (
+                  prePortfolioMeta?.ownerIdentity ||
+                  contractDoc?.details?.clientIdentity ||
+                  ""
+                ).trim();
+
+                const newPrePortfolioProp = {
+                  ...contractProperty,
+                  title: `[YETKİ ALINDI] ${typeLabel} - ${addrLabel}`,
+                  description: `Yetki Sözleşmesi ile Ön Portföye Alındı. Taşınmazın Adresi: ${addrLabel} | Cinsi ve Özellikleri: ${typeLabel}. (Fotoğraf çekimi ve detaylı ilan bilgileri bekleniyor)`,
+                  address: addrLabel,
+                  location: addrLabel,
+                  price: Number(prePortfolioMeta?.price || 0),
+                  currency: prePortfolioMeta?.currency || "GBP",
+                  listing_intent: isRentAuth ? "rent" : "sale",
+                  listing_type: isRentAuth ? "Kiralık" : "Satılık",
+                  kocan_no: prePortfolioMeta?.kocanNo || "",
+                  ada: prePortfolioMeta?.adaNo || "",
+                  parsel: prePortfolioMeta?.parselNo || "",
+                  owner_name: ownerFullName,
+                  owner_phone: ownerTel,
+                  owner_info: {
+                    fullName: ownerFullName,
+                    phone: ownerTel,
+                    identityNo: ownerIdNo,
+                    idNumber: ownerIdNo,
+                    address: prePortfolioMeta?.ownerAddress || ""
+                  },
+                  documents: updatedDocs
+                };
+
+                const createdRes = await onSave(newPrePortfolioProp);
+                const resolvedProp =
+                  createdRes && typeof createdRes === "object"
+                    ? createdRes
+                    : { ...newPrePortfolioProp };
+                setContractProperty(resolvedProp);
+                toast.success("Yetki sözleşmesi kaydedildi ve mülk 'Ön Portföy' olarak portföye eklendi!");
+                return resolvedProp;
+              }
+
+              const savedRes = await onSave({
                 ...contractProperty,
                 documents: updatedDocs
               });
               setContractProperty((prev: any) => (prev ? { ...prev, documents: updatedDocs } : null));
+              return savedRes;
             }}
           />
         </React.Suspense>
@@ -418,8 +496,13 @@ export const RealEstateModalsContainer: React.FC<RealEstateModalsContainerProps>
                               depositAmount: resolvedDepositAmount,
                               rentDuration: doc.details?.rentDuration,
                               paymentDay: doc.details?.paymentDay,
-                              // Rental contract fields
+                              // Rental & Authorization contract fields
                               rentalPropertyDef: doc.details?.rentalPropertyDef,
+                              authPropertyTypeFeatures: doc.details?.authPropertyTypeFeatures || doc.details?.rentalPropertyDef,
+                              authAdvancePayment: doc.details?.authAdvancePayment,
+                              authAnnualIncreaseRate: doc.details?.authAnnualIncreaseRate,
+                              authTenantCriteria: doc.details?.authTenantCriteria,
+                              authCopiesCount: doc.details?.authCopiesCount,
                               rentalUsagePurpose: doc.details?.rentalUsagePurpose,
                               rentalDistrict: doc.details?.rentalDistrict,
                               rentalTownVillage: doc.details?.rentalTownVillage,
