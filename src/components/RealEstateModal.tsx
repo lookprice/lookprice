@@ -437,17 +437,15 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     }
     setValidationError(null);
 
-    // Sync owner to CRM contacts directly
+    // Sync owner to CRM contacts directly (upserted on backend without duplicate rows or redundant notes)
     if (formData.owner_info?.fullName) {
       api
         .addRealEstateContact(
           {
-            name: formData.owner_info.fullName,
+            name: formData.owner_info.fullName.trim(),
             phone: formData.owner_info.phone || "",
             type: "owner",
-            notes: `${
-              formData.title || "Mülk"
-            } sahibi olarak portföy kaydından otomatik senkronize edildi.`
+            notes: ""
           },
           storeId
         )

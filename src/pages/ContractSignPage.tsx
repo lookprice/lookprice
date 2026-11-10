@@ -336,7 +336,19 @@ export default function ContractSignPage() {
     savedDocDetails?.templateId ||
     (itemData?.listing_intent === "rent" ? "rental_agreement" : "sales_brokerage");
 
-  const isBilateralContract = ["sales_brokerage", "rental_agreement", "offer_letter"].includes(effectiveTemplateId);
+  const isOwnerAuthContract = ["exclusivity_agreement", "rental_authorization"].includes(effectiveTemplateId);
+  const isBilateralContract = ["sales_brokerage", "rental_agreement", "offer_letter", "exclusivity_agreement", "rental_authorization"].includes(effectiveTemplateId);
+
+  const firstSignerLabel = isOwnerAuthContract
+    ? "Mülk Sahibi"
+    : effectiveTemplateId === "rental_agreement" || effectiveTemplateId === "eviction_undertaking"
+    ? "Kiracı"
+    : "Alıcı";
+  const secondSignerLabel = isOwnerAuthContract
+    ? "İşletme Yetkilisi"
+    : effectiveTemplateId === "rental_agreement"
+    ? "Kiraya Veren"
+    : "Satıcı";
 
   const isFurnishedRental = Boolean(
     !isVehicle &&
@@ -363,27 +375,31 @@ export default function ContractSignPage() {
   const resolvedOwnerName =
     ownerName ||
     savedDocDetails?.ownerName ||
-    itemData?.owner_info?.fullName ||
-    itemData?.sector_data?.owner_info?.fullName ||
-    "Mülk Sahibi";
+    (isOwnerAuthContract
+      ? (itemData?.store_name?.replace(/lookprice/gi, "Seçkin") || "Yetkili Emlak Ofisi")
+      : (itemData?.owner_info?.fullName ||
+         itemData?.sector_data?.owner_info?.fullName ||
+         "Mülk Sahibi"));
 
   const resolvedOwnerPhone =
     ownerPhone ||
     savedDocDetails?.ownerPhone ||
-    itemData?.owner_info?.phone ||
-    itemData?.sector_data?.owner_phone ||
-    "";
+    (isOwnerAuthContract
+      ? (itemData?.store_phone || "")
+      : (itemData?.owner_info?.phone ||
+         itemData?.sector_data?.owner_phone ||
+         ""));
 
   const handleApprove = async () => {
     const isOfferLetter = effectiveTemplateId === "offer_letter";
 
     if (isSellerMode) {
       if (isBilateralContract && !signed) {
-        alert("İmza önceliği ALICI'ya aittir! Satıcı imzası öncesinde sözleşmenin Alıcı tarafından imzalanmış olması gerekmektedir.");
+        alert(`İmza önceliği ${firstSignerLabel.toUpperCase()} tarafına aittir! ${secondSignerLabel} imzası öncesinde sözleşmenin ${firstSignerLabel} tarafından imzalanmış olması gerekmektedir.`);
         return;
       }
       if (!resolvedOwnerName.trim()) {
-        alert("Lütfen Satıcı / Mülk Sahibi Ad Soyad bilgisini giriniz.");
+        alert(`Lütfen ${secondSignerLabel} Ad Soyad bilgisini giriniz.`);
         return;
       }
       if (effectiveTemplateId === "sales_brokerage" && !sellerIdentity.trim()) {
@@ -392,10 +408,10 @@ export default function ContractSignPage() {
       }
     } else {
       if (!clientName.trim()) {
-        alert("Lütfen adınızı ve soyadınızı giriniz.");
+        alert(`Lütfen ${firstSignerLabel} Adı Soyadı bilgisini giriniz.`);
         return;
       }
-      if (!isOfferLetter && !clientIdentity.trim()) {
+      if (!isOfferLetter && !isOwnerAuthContract && !clientIdentity.trim()) {
         alert("Lütfen Kimlik veya Pasaport numaranızı giriniz.");
         return;
       }
@@ -804,7 +820,7 @@ export default function ContractSignPage() {
   const handleForwardToSellerWhatsApp = () => {
     const sellerSignLink = buildRoleLink("seller");
     const targetPhone = formatPhoneForWhatsApp(resolvedOwnerPhone || itemData?.store_phone || "");
-    const msg = `*2. İMZA (SATICI FİNAL ONAYI) - ${dynamicContractTitle.toUpperCase()}*\n\nSayın *${resolvedOwnerName}*,\n\n*Ref: ${itemData?.reference_no || `LP-${id}`}* taşınmazına ait *${dynamicContractTitle}*, Alıcı (*${clientName}*) tarafından dijital olarak imzalanmıştır (✔ 1. İmza Tamamlandı).\n\nSözleşmeyi incelemek ve **Satıcı olarak aynı sözleşme üzerinde imzalayıp FİNALLEMEK** için aşağıdaki bağlantıya tıklayınız:\n\n${sellerSignLink}`;
+    const msg = `*2. İMZA (${secondSignerLabel.toUpperCase()} FİNAL ONAYI) - ${dynamicContractTitle.toUpperCase()}*\n\nSayın *${resolvedOwnerName}*,\n\n*Ref: ${itemData?.reference_no || `LP-${id}`}* taşınmazına ait *${dynamicContractTitle}*, ${firstSignerLabel} (*${clientName}*) tarafından dijital olarak imzalanmıştır (✔ 1. İmza Tamamlandı).\n\nSözleşmeyi incelemek ve **${secondSignerLabel} olarak aynı sözleşme üzerinde imzalayıp FİNALLEMEK** için aşağıdaki bağlantıya tıklayınız:\n\n${sellerSignLink}`;
     if (targetPhone) {
       window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, "_blank");
     } else {
@@ -816,8 +832,8 @@ export default function ContractSignPage() {
     const finalLink = buildRoleLink("final");
     const rawPhone = recipient === "buyer" ? clientPhone : resolvedOwnerPhone;
     const formattedPhone = rawPhone ? formatPhoneForWhatsApp(rawPhone) : "";
-    const recName = recipient === "buyer" ? (clientName || "Alıcı") : resolvedOwnerName;
-    const msg = `*FİNAL İMZALI ${dynamicContractTitle.toUpperCase()} (ALICI + SATICI ONAYLI)*\n\nSayın *${recName}*,\n\n*Ref: ${itemData?.reference_no || `LP-${id}`}* taşınmazına ait *${dynamicContractTitle}*, hem Alıcı (*${clientName}*) hem de Satıcı (*${resolvedOwnerName}*) tarafından dijital imzalarla tamamlanarak sistemde mühürlenmiştir.\n\nHer iki tarafın imzasını taşıyan **Sözleşmenin Son Halini** görüntülemek ve PDF olarak indirmek için:\n\n${finalLink}\n\nHayırlı olsun.\n*${storeName}*`;
+    const recName = recipient === "buyer" ? (clientName || firstSignerLabel) : resolvedOwnerName;
+    const msg = `*FİNAL İMZALI ${dynamicContractTitle.toUpperCase()} (${firstSignerLabel.toUpperCase()} + ${secondSignerLabel.toUpperCase()} ONAYLI)*\n\nSayın *${recName}*,\n\n*Ref: ${itemData?.reference_no || `LP-${id}`}* taşınmazına ait *${dynamicContractTitle}*, hem ${firstSignerLabel} (*${clientName}*) hem de ${secondSignerLabel} (*${resolvedOwnerName}*) tarafından dijital imzalarla tamamlanarak sistemde mühürlenmiştir.\n\nHer iki tarafın imzasını taşıyan **Sözleşmenin Son Halini** görüntülemek ve PDF olarak indirmek için:\n\n${finalLink}\n\nHayırlı olsun.\n*${storeName}*`;
     if (formattedPhone) {
       window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`, "_blank");
     } else {
@@ -830,15 +846,15 @@ export default function ContractSignPage() {
     const formattedPhone = formatPhoneForWhatsApp(itemData.store_phone || "");
     const targetRef = itemData.reference_no || `LP-${id}`;
     const sName = itemData.store_name?.replace(/lookprice/gi, "Seçkin") || "Seçkin VIP Portföy";
-    const signerLabel = isSellerMode ? `Satıcı (${resolvedOwnerName})` : `Alıcı (${clientName})`;
+    const signerLabel = isSellerMode ? `${secondSignerLabel} (${resolvedOwnerName})` : `${firstSignerLabel} (${clientName})`;
     const finalLink = buildRoleLink(signed && sellerSigned ? "final" : "seller");
 
     const message =
       decisionStatus === "approved"
         ? `SAYIN ${sName.toUpperCase()},\n\n*${dynamicContractTitle}* belgesini *${signerLabel}* olarak inceledim ve mobil cihazım üzerinden *ONAYLAYARAK İMZALADIM*.\n\n• *Portföy Ref:* ${targetRef}\n• *İmza Durumu:* ${
             signed && sellerSigned
-              ? "✔ FİNAL TAMAMLANDI (Alıcı + Satıcı İmzalı)"
-              : "1/2 Alıcı İmzası Tamamlandı (Satıcı İmzası Bekleniyor)"
+              ? `✔ FİNAL TAMAMLANDI (${firstSignerLabel} + ${secondSignerLabel} İmzalı)`
+              : `1/2 ${firstSignerLabel} İmzası Tamamlandı (${secondSignerLabel} İmzası Bekleniyor)`
           }\n• *Tarih:* ${formatDateTR(new Date())}\n\nSözleşme Bağlantısı:\n${finalLink}`
         : `SAYIN ${sName.toUpperCase()},\n\n*Ref: ${targetRef}* portföyü için iletilen sözleşme hakkında *DÜZELTME / RET TALEBİM* bulunmaktadır:\n\n• *Taraf:* ${signerLabel}\n• *Not:* ${rejectionReason}`;
     
@@ -887,7 +903,7 @@ export default function ContractSignPage() {
             <div className="bg-slate-900 text-white p-4 rounded-xl flex flex-wrap items-center justify-between gap-3">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-slate-950 px-2.5 py-0.5 rounded">
-                  ✔ FİNAL İMZALI SÖZLEŞME (ALICI + SATICI ONAYLI)
+                  ✔ FİNAL İMZALI SÖZLEŞME ({firstSignerLabel.toUpperCase()} + {secondSignerLabel.toUpperCase()} ONAYLI)
                 </span>
                 <h1 className="text-base sm:text-lg font-black text-white mt-1">
                   {dynamicContractTitle} • Ref: {itemData.reference_no || `LP-${id}`}
@@ -906,14 +922,14 @@ export default function ContractSignPage() {
                   onClick={() => handleShareFinalContractWhatsApp("buyer")}
                   className="px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Share2 className="w-4 h-4" /> Alıcıya İlet (WA)
+                  <Share2 className="w-4 h-4" /> {isOwnerAuthContract ? "Mülk Sahibine İlet (WA)" : "Alıcıya İlet (WA)"}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleShareFinalContractWhatsApp("seller")}
                   className="px-3 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Send className="w-4 h-4" /> Satıcıya İlet (WA)
+                  <Send className="w-4 h-4" /> {isOwnerAuthContract ? "Yetkiliye İlet (WA)" : "Satıcıya İlet (WA)"}
                 </button>
               </div>
             </div>
@@ -943,8 +959,8 @@ export default function ContractSignPage() {
                   <span className="bg-slate-900 text-white text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded flex items-center gap-1">
                     <Lock className="w-3 h-3 text-amber-400" />
                     {isSellerMode
-                      ? "2. ADIM: SATICI FİNAL ONAY & DİJİTAL İMZA"
-                      : "1. ADIM (ÖNCELİKLİ): ALICI DİJİTAL İMZA"}
+                      ? `2. ADIM: ${secondSignerLabel.toUpperCase()} FİNAL ONAY & DİJİTAL İMZA`
+                      : `1. ADIM (ÖNCELİKLİ): ${firstSignerLabel.toUpperCase()} DİJİTAL İMZA`}
                   </span>
                   <span className="text-xs bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-mono font-black">
                     Ref: {itemData.reference_no || `LP-${id}`}
@@ -962,8 +978,8 @@ export default function ContractSignPage() {
                       signed ? "bg-emerald-50 border-emerald-500 text-emerald-950" : "bg-indigo-50 border-indigo-500 text-indigo-950"
                     }`}>
                       <div>
-                        <span className="block text-[9px] font-black uppercase">1. İmza (Öncelikli: Alıcı)</span>
-                        <span className="text-xs font-black truncate block">{clientName || "Alıcı"}</span>
+                        <span className="block text-[9px] font-black uppercase">1. İmza (Öncelikli: {firstSignerLabel})</span>
+                        <span className="text-xs font-black truncate block">{clientName || firstSignerLabel}</span>
                       </div>
                       <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
                         signed ? "bg-emerald-600 text-white" : "bg-indigo-600 text-white"
@@ -979,17 +995,17 @@ export default function ContractSignPage() {
                         : "bg-slate-100 border-slate-300 text-slate-600"
                     }`}>
                       <div>
-                        <span className="block text-[9px] font-black uppercase">2. İmza (Final: Satıcı)</span>
+                        <span className="block text-[9px] font-black uppercase">2. İmza (Final: {secondSignerLabel})</span>
                         <span className="text-xs font-black truncate block">{resolvedOwnerName}</span>
                       </div>
                       <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
                         sellerSigned
                           ? "bg-emerald-600 text-white"
                           : signed
-                          ? "bg-amber-400 text-slate-950"
-                          : "bg-slate-300 text-slate-700"
+                          ? `SIRA ${secondSignerLabel.toUpperCase()}`
+                          : `ÖNCE ${firstSignerLabel.toUpperCase()}`
                       }`}>
-                        {sellerSigned ? "✔ FİNALLENDİ" : signed ? "SIRA SATICIDA" : "ÖNCE ALICI"}
+                        {sellerSigned ? "✔ FİNALLENDİ" : signed ? `SIRA ${secondSignerLabel.toUpperCase()}` : `ÖNCE ${firstSignerLabel.toUpperCase()}`}
                       </span>
                     </div>
                   </div>
@@ -1074,18 +1090,18 @@ export default function ContractSignPage() {
                     <PenTool className="w-4 h-4 text-indigo-600" />
                     <span>
                       {isSellerMode
-                        ? "2. ADIM: SATICI FİNAL İMZA PANELİ"
-                        : "1. ADIM (ÖNCELİKLİ): ALICI İMZA PANELİ"}
+                        ? `2. ADIM: ${secondSignerLabel.toUpperCase()} FİNAL İMZA PANELİ`
+                        : `1. ADIM (ÖNCELİKLİ): ${firstSignerLabel.toUpperCase()} İMZA PANELİ`}
                     </span>
                   </div>
                 </div>
 
-                {/* Buyer-first priority guard when Seller opens before Buyer signs */}
+                {/* 1st-signer priority guard when 2nd signer opens before 1st signer signs */}
                 {isSellerMode && isBilateralContract && !signed && (
                   <div className="p-3 bg-amber-50 border-2 border-amber-400 rounded-xl text-xs font-bold text-amber-950 space-y-1">
-                    <div className="font-black uppercase text-amber-900">⚠️ İmza Önceliği Alıcı'dadır</div>
+                    <div className="font-black uppercase text-amber-900">⚠️ İmza Önceliği {firstSignerLabel} Tarafındadır</div>
                     <p>
-                      Bu sözleşme tipinde önce Alıcı'nın imzalaması, ardından Alıcı imzalı sözleşmenin Satıcı tarafından imzalanarak finallenmesi gerekmektedir.
+                      Bu sözleşme tipinde önce {firstSignerLabel} tarafından imzalanması, ardından {secondSignerLabel} tarafından imzalanarak finallenmesi gerekmektedir.
                     </p>
                   </div>
                 )}
@@ -1095,13 +1111,13 @@ export default function ContractSignPage() {
                   <div className="space-y-2.5">
                     <div>
                       <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">
-                        SATICI / MÜLK SAHİBİ ADI SOYADI *
+                        {isOwnerAuthContract ? "İŞLETME YETKİLİSİ / BROKER ADI SOYADI *" : "SATICI / MÜLK SAHİBİ ADI SOYADI *"}
                       </label>
                       <div className="relative">
                         <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                         <input
                           type="text"
-                          placeholder="Satıcı Adı Soyadı"
+                          placeholder={`${secondSignerLabel} Adı Soyadı`}
                           value={ownerName || resolvedOwnerName}
                           onChange={(e) => setOwnerName(e.target.value)}
                           className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
@@ -1112,13 +1128,13 @@ export default function ContractSignPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">
-                          SATICI KİMLİK / PASAPORT NO *
+                          {isOwnerAuthContract ? "YETKİLİ KİMLİK NO" : "SATICI KİMLİK / PASAPORT NO *"}
                         </label>
                         <div className="relative">
                           <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                           <input
                             type="text"
-                            placeholder="Örn: 2010390619"
+                            placeholder="Örn: 1170237140"
                             value={sellerIdentity}
                             onChange={(e) => setSellerIdentity(e.target.value)}
                             className="w-full bg-slate-50 border-2 border-slate-300 focus:border-indigo-600 rounded-xl py-2 pl-9 pr-3 text-xs font-black text-slate-950 outline-none"
@@ -1128,7 +1144,7 @@ export default function ContractSignPage() {
 
                       <div>
                         <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">
-                          SATICI TELEFON NUMARASI
+                          {isOwnerAuthContract ? "OFİS / YETKİLİ TELEFON NUMARASI" : "SATICI TELEFON NUMARASI"}
                         </label>
                         <div className="relative">
                           <Smartphone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
@@ -1147,7 +1163,11 @@ export default function ContractSignPage() {
                   <div className="space-y-2.5">
                     <div>
                       <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">
-                        ALICI / MÜŞTERİ ADI SOYADI *
+                        {isOwnerAuthContract
+                          ? "MÜLK SAHİBİ ADI SOYADI *"
+                          : effectiveTemplateId === "rental_agreement" || effectiveTemplateId === "eviction_undertaking"
+                          ? "KİRACI ADI SOYADI *"
+                          : "ALICI / MÜŞTERİ ADI SOYADI *"}
                       </label>
                       <div className="relative">
                         <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
@@ -1163,7 +1183,9 @@ export default function ContractSignPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">KİMLİK / PASAPORT NO *</label>
+                        <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">
+                          {isOwnerAuthContract ? "MÜLK SAHİBİ KİMLİK / PASAPORT NO" : "KİMLİK / PASAPORT NO *"}
+                        </label>
                         <div className="relative">
                           <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                           <input 
@@ -1177,7 +1199,9 @@ export default function ContractSignPage() {
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">TELEFON NUMARANIZ *</label>
+                        <label className="block text-[10px] font-black text-slate-900 uppercase mb-1">
+                          {isOwnerAuthContract ? "MÜLK SAHİBİ TELEFON NUMARASI *" : "TELEFON NUMARANIZ *"}
+                        </label>
                         <div className="relative">
                           <Smartphone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                           <input 
@@ -1243,8 +1267,8 @@ export default function ContractSignPage() {
                   <div className="flex justify-between items-center">
                     <label className="block text-[10px] font-black text-slate-900 uppercase">
                       {isSellerMode
-                        ? "SATICI OLARAK BURAYA İMZALAYIN (FİNAL ONAY)"
-                        : "ALICI OLARAK BURAYA İMZALAYIN (1. ÖNCELİK)"}
+                        ? `${secondSignerLabel.toUpperCase()} OLARAK BURAYA İMZALAYIN (FİNAL ONAY)`
+                        : `${firstSignerLabel.toUpperCase()} OLARAK BURAYA İMZALAYIN (1. ÖNCELİK)`}
                     </label>
                     <button 
                       onClick={clearCanvas}
@@ -1322,8 +1346,8 @@ export default function ContractSignPage() {
                 >
                   <Check className="w-4 h-4" />
                   {isSellerMode
-                    ? "SATICI OLARAK İMZALA VE SÖZLEŞMEYİ FİNALLE"
-                    : "ALICI OLARAK ONAYLA VE İMZALA"}
+                    ? `${secondSignerLabel.toUpperCase()} OLARAK İMZALA VE SÖZLEŞMEYİ FİNALLE`
+                    : `${firstSignerLabel.toUpperCase()} OLARAK ONAYLA VE İMZALA`}
                 </button>
 
                 {!isVehicle && !showRejectBox && (
@@ -1365,8 +1389,8 @@ export default function ContractSignPage() {
               {decisionStatus !== "approved"
                 ? "DÜZELTME / RET TALEBİ KAYDEDİLDİ"
                 : signed && sellerSigned
-                ? "✔ SÖZLEŞME FİNALLENDİ (ALICI + SATICI İMZALI)"
-                : "✔ 1. ADIM: ALICI İMZASI TAMAMLANDI"}
+                ? `✔ SÖZLEŞME FİNALLENDİ (${firstSignerLabel.toUpperCase()} + ${secondSignerLabel.toUpperCase()} İMZALI)`
+                : `✔ 1. ADIM: ${firstSignerLabel.toUpperCase()} İMZASI TAMAMLANDI`}
             </span>
 
             <h2 className="text-xl font-black text-slate-950 tracking-tight mb-2">
@@ -1374,26 +1398,26 @@ export default function ContractSignPage() {
                 ? "Düzeltme Talebiniz Sisteme İşlendi"
                 : signed && sellerSigned
                 ? "Sözleşme Karşılıklı İmzalanarak Finallendi!"
-                : "Alıcı Dijital İmzası Kaydedildi!"}
+                : `${firstSignerLabel} Dijital İmzası Kaydedildi!`}
             </h2>
             <p className="text-xs text-slate-700 leading-relaxed mb-5 max-w-sm mx-auto font-medium">
               {decisionStatus !== "approved"
                 ? "Belirttiğiniz düzeltme/itiraz notu ilgili gayrimenkul danışmanının ekranına iletilmiştir."
                 : signed && sellerSigned
-                ? "Hem Alıcı hem Satıcı imzasını içeren sözleşmenin son hali sistemde mühürlenerek saklanmıştır. Aşağıdaki butonlarla son halini Alıcı ve Satıcıya iletebilirsiniz."
-                : "1. Öncelikli Alıcı imzası tamamlandı. Sözleşmenin finallenmesi için şimdi Satıcı imzasına iletebilirsiniz."}
+                ? `Hem ${firstSignerLabel} hem ${secondSignerLabel} imzasını içeren sözleşmenin son hali sistemde mühürlenerek saklanmıştır. Aşağıdaki butonlarla son halini taraflara iletebilirsiniz.`
+                : `1. Öncelikli ${firstSignerLabel} imzası tamamlandı. Sözleşmenin finallenmesi için şimdi ${secondSignerLabel} imzasına iletebilirsiniz.`}
             </p>
 
             <div className="bg-slate-50 border-2 border-slate-300 p-3.5 rounded-xl text-left space-y-1.5 mb-5 text-xs max-w-md mx-auto">
               <div className="flex justify-between">
-                <span className="text-slate-600 font-bold">Alıcı (1. İmza):</span>
+                <span className="text-slate-600 font-bold">{firstSignerLabel} (1. İmza):</span>
                 <span className="text-slate-950 font-black">
                   {clientName} {signed ? "✔" : ""}
                 </span>
               </div>
               {isBilateralContract && (
                 <div className="flex justify-between">
-                  <span className="text-slate-600 font-bold">Satıcı (2. Final İmza):</span>
+                  <span className="text-slate-600 font-bold">{secondSignerLabel} (2. Final İmza):</span>
                   <span className="text-slate-950 font-black">
                     {resolvedOwnerName} {sellerSigned ? "✔" : "(Bekleniyor)"}
                   </span>
@@ -1425,7 +1449,7 @@ export default function ContractSignPage() {
                   onClick={handleForwardToSellerWhatsApp}
                   className="w-full py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl tracking-wider uppercase transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Send className="w-4 h-4" /> 2. İmza İçin Satıcıya İlet (WhatsApp)
+                  <Send className="w-4 h-4" /> 2. İmza İçin {isOwnerAuthContract ? "Yetkiliye" : "Satıcıya"} İlet (WhatsApp)
                 </button>
               )}
 
@@ -1436,7 +1460,7 @@ export default function ContractSignPage() {
                     onClick={() => handleShareFinalContractWhatsApp("buyer")}
                     className="py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl uppercase flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <Share2 className="w-4 h-4" /> Son Halini Alıcıya İlet
+                    <Share2 className="w-4 h-4" /> Son Halini {isOwnerAuthContract ? "Mülk Sahibine" : "Alıcıya"} İlet
                   </button>
                   {isBilateralContract && (
                     <button
@@ -1444,7 +1468,7 @@ export default function ContractSignPage() {
                       onClick={() => handleShareFinalContractWhatsApp("seller")}
                       className="py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl uppercase flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <Send className="w-4 h-4" /> Son Halini Satıcıya İlet
+                      <Send className="w-4 h-4" /> Son Halini {isOwnerAuthContract ? "Yetkiliye" : "Satıcıya"} İlet
                     </button>
                   )}
                 </div>

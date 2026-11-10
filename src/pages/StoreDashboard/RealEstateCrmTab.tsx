@@ -1,11 +1,14 @@
 import React, { useState, useDeferredValue, useMemo } from "react";
-import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building, LayoutList, LayoutGrid, Home, Car, Key, Globe, Check, Briefcase, Clock, XCircle, Sparkles, Filter, MapPin, Tag } from "lucide-react";
+import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building, LayoutList, LayoutGrid, Home, Car, Key, Globe, Check, Briefcase, Clock, XCircle, Sparkles, Filter, MapPin, Tag, Eye, FileSignature, FileCheck } from "lucide-react";
 import { RealEstateContact } from "../../types";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatDateTimeTR } from "../../utils/formatUtils";
 import { LeadFunnelWizardModal } from "../../components/realestate/LeadFunnelWizardModal";
 import { toast } from "sonner";
+
+const LegalContractModal = React.lazy(() => import("../../components/LegalContractModal").then(m => ({ default: m.LegalContractModal })));
+const RealEstateModal = React.lazy(() => import("../../components/RealEstateModal").then(m => ({ default: m.RealEstateModal })));
 
 const normalizeTr = (str: string): string =>
   (str || "")
@@ -26,6 +29,7 @@ export interface ContactSubMeta {
   propertyTypes: ContactPropertyType[];
   regions: string[];
   linkedPropertiesCount: number;
+  linkedProperties: any[];
 }
 
 export const INTENT_LABELS: Record<ContactIntentType, string> = {
@@ -44,22 +48,64 @@ export const PROPERTY_TYPE_LABELS: Record<ContactPropertyType, string> = {
 
 export const KKTC_REGIONS = ['Girne', 'Lefkoşa', 'İskele', 'Gazimağusa', 'Güzelyurt', 'Lefke'];
 
+const parseJsonObj = (val: any): Record<string, any> => {
+  if (!val) return {};
+  if (typeof val === "object") return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return {};
+  }
+};
+
+export const getPropertyOwnerDetails = (p: any) => {
+  if (!p) return { name: "", phone: "", email: "", idNumber: "" };
+  const directOwner = parseJsonObj(p.owner_info);
+  const sectorData = parseJsonObj(p.sector_data);
+  const nestedOwner = parseJsonObj(sectorData.owner_info);
+  const name = String(directOwner.fullName || nestedOwner.fullName || p.owner_name || "").trim();
+  const phone = String(directOwner.phone || nestedOwner.phone || p.owner_phone || p.contact_phone || "").trim();
+  const email = String(directOwner.email || nestedOwner.email || p.owner_email || "").trim();
+  const idNumber = String(directOwner.idNumber || nestedOwner.idNumber || directOwner.tcNo || nestedOwner.tcNo || p.owner_id_number || "").trim();
+  return { name, phone, email, idNumber };
+};
+
+export const cleanContactNotes = (rawNotes?: string, linkedProps: any[] = []): string => {
+  if (!rawNotes) return "";
+  const lines = rawNotes
+    .split(/\r?\n/)
+    .map((line) => line.replace(/İlan Üzerinden Otomatik Eklendi:\s*[^|\n]+(\s*\|\s*)?/gi, "").trim())
+    .filter(Boolean)
+    .filter((line) => {
+      const normLine = normalizeTr(line);
+      for (const p of linkedProps) {
+        const desc = normalizeTr(p?.description || "").trim();
+        if (desc && desc.length > 20 && (desc.includes(normLine) || normLine.includes(desc.slice(0, 40)))) {
+          return false;
+        }
+      }
+      return true;
+    });
+  return Array.from(new Set(lines)).join(" | ");
+};
+
 export const extractContactSubMeta = (contact: RealEstateContact, properties: any[] = []): ContactSubMeta => {
   const intents = new Set<ContactIntentType>();
   const propertyTypes = new Set<ContactPropertyType>();
   const regions = new Set<string>();
 
   const normPhone = (contact.phone || "").replace(/\D/g, "").slice(-10);
-  const normName = normalizeTr(contact.name || "").trim();
+  const normName = normalizeTr(contact.name || "").replace(/\s+/g, " ").trim();
 
-  // 1. Cross-reference with store properties (owner_contact_id, owner_phone, owner_name)
+  // 1. Cross-reference with store properties (owner_contact_id, owner_info, owner_phone, owner_name)
   const linkedProps = (properties || []).filter((p) => {
     if (!p) return false;
     if (contact.id && String(p.owner_contact_id) === String(contact.id)) return true;
-    const pPhone = String(p.owner_phone || p.contact_phone || "").replace(/\D/g, "").slice(-10);
+    const pOwner = getPropertyOwnerDetails(p);
+    const pPhone = (pOwner.phone || "").replace(/\D/g, "").slice(-10);
     if (normPhone.length >= 7 && pPhone && pPhone === normPhone) return true;
-    const pOwnerName = normalizeTr(p.owner_name || "").trim();
-    if (normName.length >= 4 && pOwnerName && pOwnerName === normName) return true;
+    const pOwnerName = normalizeTr(pOwner.name || "").replace(/\s+/g, " ").trim();
+    if (normName.length >= 3 && pOwnerName && pOwnerName === normName) return true;
     return false;
   });
 
@@ -100,6 +146,7 @@ export const extractContactSubMeta = (contact: RealEstateContact, properties: an
     propertyTypes: Array.from(propertyTypes),
     regions: Array.from(regions),
     linkedPropertiesCount: linkedProps.length,
+    linkedProperties: linkedProps,
   };
 };
 
@@ -156,6 +203,9 @@ interface RealEstateCrmTabProps {
   initialFilter?: 'all' | 'new' | 'owner' | 'investor';
   storeId?: number;
   properties?: any[];
+  branding?: any;
+  user?: any;
+  onSaveProperty?: (prop: any) => Promise<void>;
   onNavigateToPipeline?: () => void;
 }
 
@@ -175,6 +225,9 @@ const RealEstateCrmTab = ({
   initialFilter = 'all',
   storeId,
   properties = [],
+  branding,
+  user,
+  onSaveProperty,
   onNavigateToPipeline
 }: RealEstateCrmTabProps) => {
   const { lang } = useLanguage();
@@ -189,22 +242,159 @@ const RealEstateCrmTab = ({
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<'all' | ContactPropertyType>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
 
+  // Direct Property Inspection & Authorization Contract Modal States
+  const [inspectingProperty, setInspectingProperty] = useState<any | null>(null);
+  const [authContractState, setAuthContractState] = useState<{
+    isOpen: boolean;
+    property: any;
+    templateId: 'exclusivity_agreement' | 'rental_authorization';
+    ownerName: string;
+    ownerPhone: string;
+    ownerIdNumber: string;
+  } | null>(null);
+
   React.useEffect(() => {
     if (initialFilter) setQuickFilter(initialFilter);
   }, [initialFilter]);
 
+  // Deduplicate owners & synthesize missing owners from portfolio properties
+  const consolidatedContacts = useMemo(() => {
+    const result: RealEstateContact[] = [];
+    const ownerByKey = new Map<string, RealEstateContact>();
+
+    const findExistingOwner = (normName: string, normPhone: string): RealEstateContact | undefined => {
+      if (normName && ownerByKey.has(`name:${normName}`)) {
+        return ownerByKey.get(`name:${normName}`);
+      }
+      if (normPhone.length >= 7 && ownerByKey.has(`phone:${normPhone}`)) {
+        return ownerByKey.get(`phone:${normPhone}`);
+      }
+      return undefined;
+    };
+
+    const registerOwnerKeys = (ownerObj: RealEstateContact) => {
+      const nName = normalizeTr(ownerObj.name || "").replace(/\s+/g, " ").trim();
+      const nPhone = String(ownerObj.phone || "").replace(/\D/g, "").slice(-10);
+      if (nName) ownerByKey.set(`name:${nName}`, ownerObj);
+      if (nPhone.length >= 7) ownerByKey.set(`phone:${nPhone}`, ownerObj);
+    };
+
+    for (const rawContact of contacts || []) {
+      if (!rawContact) continue;
+      if (rawContact.type !== "owner") {
+        result.push(rawContact);
+        continue;
+      }
+
+      const normName = normalizeTr(rawContact.name || "").replace(/\s+/g, " ").trim();
+      const normPhone = String(rawContact.phone || "").replace(/\D/g, "").slice(-10);
+      const existing = findExistingOwner(normName, normPhone);
+
+      if (!existing) {
+        const clone: RealEstateContact = {
+          ...rawContact,
+          notes: cleanContactNotes(rawContact.notes, properties),
+        };
+        result.push(clone);
+        registerOwnerKeys(clone);
+      } else {
+        if (!existing.phone && rawContact.phone) existing.phone = rawContact.phone;
+        if (!existing.email && rawContact.email) existing.email = rawContact.email;
+        if (!(existing as any).id_number && (rawContact as any).id_number) {
+          (existing as any).id_number = (rawContact as any).id_number;
+        }
+        const cleanedIncoming = cleanContactNotes(rawContact.notes, properties);
+        if (cleanedIncoming && !(existing.notes || "").includes(cleanedIncoming)) {
+          existing.notes = existing.notes ? `${existing.notes} | ${cleanedIncoming}` : cleanedIncoming;
+        }
+        registerOwnerKeys(existing);
+      }
+    }
+
+    // Also synthesize owners defined on portfolio properties that aren't in contacts yet
+    for (const prop of properties || []) {
+      if (!prop) continue;
+      const pOwner = getPropertyOwnerDetails(prop);
+      if (!pOwner.name) continue;
+      const normName = normalizeTr(pOwner.name).replace(/\s+/g, " ").trim();
+      const normPhone = (pOwner.phone || "").replace(/\D/g, "").slice(-10);
+      const existing = findExistingOwner(normName, normPhone);
+
+      if (!existing) {
+        const syntheticOwner: RealEstateContact = {
+          id: `prop_owner_${prop.id}`,
+          name: pOwner.name,
+          phone: pOwner.phone || "",
+          email: pOwner.email || "",
+          type: "owner",
+          notes: "",
+          created_at: prop.created_at || new Date().toISOString(),
+        };
+        (syntheticOwner as any).id_number = pOwner.idNumber || "";
+        result.push(syntheticOwner);
+        registerOwnerKeys(syntheticOwner);
+      } else {
+        if (!existing.phone && pOwner.phone) existing.phone = pOwner.phone;
+        if (!existing.email && pOwner.email) existing.email = pOwner.email;
+        if (!(existing as any).id_number && pOwner.idNumber) {
+          (existing as any).id_number = pOwner.idNumber;
+        }
+        registerOwnerKeys(existing);
+      }
+    }
+
+    return result;
+  }, [contacts, properties]);
+
   const contactMetaMap = useMemo(() => {
     const map = new Map<string, ContactSubMeta>();
-    for (const c of contacts) {
+    for (const c of consolidatedContacts) {
       const key = String(c.id || `${c.name}_${c.phone}`);
       map.set(key, extractContactSubMeta(c, properties));
     }
     return map;
-  }, [contacts, properties]);
+  }, [consolidatedContacts, properties]);
 
   const getContactMeta = (c: RealEstateContact): ContactSubMeta => {
     const key = String(c.id || `${c.name}_${c.phone}`);
-    return contactMetaMap.get(key) || { intents: [], propertyTypes: [], regions: [], linkedPropertiesCount: 0 };
+    return contactMetaMap.get(key) || { intents: [], propertyTypes: [], regions: [], linkedPropertiesCount: 0, linkedProperties: [] };
+  };
+
+  const openOwnerAuthContract = (
+    contact: RealEstateContact,
+    property: any,
+    templateId: 'exclusivity_agreement' | 'rental_authorization'
+  ) => {
+    const pOwner = getPropertyOwnerDetails(property);
+    const ownerName = contact.name || pOwner.name || "";
+    const ownerPhone = contact.phone || pOwner.phone || "";
+    const ownerIdNumber = String((contact as any).id_number || pOwner.idNumber || "").trim();
+
+    const targetProperty = property || {
+      id: `temp_${Date.now()}`,
+      title: `${ownerName} Gayrimenkul Portföyü`,
+      location: "KKTC",
+      price: 0,
+      currency: "GBP",
+      listing_type: templateId === "rental_authorization" ? "Kiralık" : "Satılık",
+      owner_name: ownerName,
+      owner_phone: ownerPhone,
+      owner_info: {
+        fullName: ownerName,
+        phone: ownerPhone,
+        idNumber: ownerIdNumber,
+      },
+      documents: []
+    };
+
+    setAuthContractState({
+      isOpen: true,
+      property: targetProperty,
+      templateId,
+      ownerName,
+      ownerPhone,
+      ownerIdNumber,
+    });
   };
 
   const toggleTagInNotes = (tagLabel: string) => {
@@ -268,19 +458,26 @@ const RealEstateCrmTab = ({
     return cleaned;
   };
 
-  const newLeadsCount = contacts.filter(c => getLeadStage(c.notes) === 'new').length;
-  const ownersCount = contacts.filter(c => c.type === 'owner').length;
-  const investorsCount = contacts.filter(c => c.type !== 'owner').length;
+  const newLeadsCount = consolidatedContacts.filter(c => getLeadStage(c.notes) === 'new').length;
+  const ownersCount = consolidatedContacts.filter(c => c.type === 'owner').length;
+  const investorsCount = consolidatedContacts.filter(c => c.type !== 'owner').length;
 
-  const filteredContacts = contacts.filter(c => {
+  const filteredContacts = consolidatedContacts.filter(c => {
     const s = normalizeTr(deferredSearch);
     const meta = getContactMeta(c);
+    const matchesPropertySearch = meta.linkedProperties.some(
+      (p) =>
+        normalizeTr(p.title || "").includes(s) ||
+        normalizeTr(String(p.reference_code || p.id || "")).includes(s) ||
+        normalizeTr(p.location || p.kktc_region || "").includes(s)
+    );
     const matchesSearch = !s || (
       normalizeTr(c.name || "").includes(s) || 
       (c.phone || "").includes(s) || 
       normalizeTr(c.email || "").includes(s) ||
       normalizeTr(c.notes || "").includes(s) ||
-      meta.regions.some(r => normalizeTr(r).includes(s))
+      meta.regions.some(r => normalizeTr(r).includes(s)) ||
+      matchesPropertySearch
     );
     if (!matchesSearch) return false;
     if (quickFilter === 'new' && getLeadStage(c.notes) !== 'new') return false;
@@ -342,16 +539,18 @@ const RealEstateCrmTab = ({
     setErrorMsg(null);
     try {
       let finalNotes = formData.notes || "";
-      // If editing an unreviewed new lead, saving the edit form automatically marks it as reviewed if stage wasn't changed
       if (editingContact && getLeadStage(editingContact.notes) === 'new' && getLeadStage(finalNotes) === 'new') {
         finalNotes = updateLeadStageInNotes(finalNotes, 'reviewed', isAutomotive);
       }
 
-      const finalizedData = {
+      const finalizedData: any = {
         ...formData,
         notes: finalNotes,
         phone: standardizeOwnerPhone(formData.phone || "")
       };
+      if (String(finalizedData.id || "").startsWith("prop_owner_")) {
+        delete finalizedData.id;
+      }
       await onSaveContact(finalizedData);
       setIsModalOpen(false);
     } catch (err: any) {
@@ -359,6 +558,130 @@ const RealEstateCrmTab = ({
     } finally {
       setSaveLoading(false);
     }
+  };
+
+  const renderOwnerPropertiesList = (contact: RealEstateContact, linkedProps: any[], compact = false) => {
+    if (isAutomotive) return null;
+    if (linkedProps.length === 0) {
+      return (
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200/80">
+          <span className="text-[10px] font-bold text-slate-500">
+            Henüz bağlı portföy ilanı yok
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => openOwnerAuthContract(contact, null, 'exclusivity_agreement')}
+              className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black rounded-md flex items-center gap-1 cursor-pointer shadow-2xs"
+              title="Mülk Sahibi 1. İmza Öncelikli Tek Yetki Sözleşmesi Hazırla"
+            >
+              <FileSignature size={10} />
+              <span>Tek Yetki</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openOwnerAuthContract(contact, null, 'rental_authorization')}
+              className="px-2 py-0.5 bg-teal-600 hover:bg-teal-700 text-white text-[9px] font-black rounded-md flex items-center gap-1 cursor-pointer shadow-2xs"
+              title="Mülk Sahibi 1. İmza Öncelikli Kiralama Yetki Belgesi Hazırla"
+            >
+              <FileCheck size={10} />
+              <span>Kiralama Yetki</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 flex items-center gap-1">
+            <Building size={11} />
+            <span>Sahip Olduğu Mülkler ({linkedProps.length})</span>
+          </span>
+        </div>
+        <div className={`space-y-1 ${compact ? 'max-h-44 overflow-y-auto pr-0.5 custom-scrollbar' : ''}`}>
+          {linkedProps.map((prop) => {
+            const isRent = /kira/i.test(String(prop.listing_type || ""));
+            const priceFormatted = Number(prop.price || 0).toLocaleString("tr-TR");
+            const curr = prop.currency || "GBP";
+            const refCode = prop.reference_code || prop.id;
+            return (
+              <div
+                key={prop.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 bg-slate-50 hover:bg-indigo-50/40 px-2.5 py-1.5 rounded-xl border border-slate-200/90 transition-colors"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[9px] font-mono font-black px-1.5 py-0.2 rounded bg-slate-900 text-white shrink-0">
+                      #{refCode}
+                    </span>
+                    <span
+                      className={`text-[9px] font-black px-1.5 py-0.2 rounded border shrink-0 ${
+                        isRent
+                          ? "bg-sky-50 text-sky-800 border-sky-300"
+                          : "bg-amber-50 text-amber-800 border-amber-300"
+                      }`}
+                    >
+                      {isRent ? "Kiralık" : "Satılık"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setInspectingProperty(prop)}
+                      className="text-[11px] font-extrabold text-slate-900 hover:text-indigo-700 truncate text-left cursor-pointer"
+                      title={prop.title}
+                    >
+                      {prop.title || "İsimsiz Gayrimenkul"}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5 text-[10px] font-bold text-slate-500">
+                    {(prop.kktc_region || prop.location) && (
+                      <span className="inline-flex items-center gap-0.5 text-slate-600 truncate">
+                        <MapPin size={9} className="text-rose-500 shrink-0" />
+                        <span>{prop.kktc_region || prop.location}</span>
+                      </span>
+                    )}
+                    <span className="font-black text-indigo-700">
+                      {priceFormatted} {curr}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setInspectingProperty(prop)}
+                    className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg text-[9px] font-black flex items-center gap-1 cursor-pointer shadow-2xs"
+                    title="Mülk Detaylarını İncele / Düzenle"
+                  >
+                    <Eye size={10} className="text-indigo-600" />
+                    <span>İncele</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openOwnerAuthContract(contact, prop, 'exclusivity_agreement')}
+                    className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black flex items-center gap-1 cursor-pointer shadow-2xs"
+                    title="Bu mülk için Tek Yetki Sözleşmesi (1. İmza: Mülk Sahibi)"
+                  >
+                    <FileSignature size={10} />
+                    <span>Tek Yetki</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openOwnerAuthContract(contact, prop, 'rental_authorization')}
+                    className="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-[9px] font-black flex items-center gap-1 cursor-pointer shadow-2xs"
+                    title="Bu mülk için Kiralama Yetki Belgesi (1. İmza: Mülk Sahibi)"
+                  >
+                    <FileCheck size={10} />
+                    <span>Kiralama Yetki</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -371,7 +694,7 @@ const RealEstateCrmTab = ({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder={isTr ? (isAutomotive ? "Araç sahibi, konsinye satıcı, alıcı veya telefon ara..." : "Mülk sahibi, yatırımcı veya telefon ara...") : t.search}
+                placeholder={isTr ? (isAutomotive ? "Araç sahibi, konsinye satıcı, alıcı veya telefon ara..." : "Mülk sahibi, mülk adı, #Ref, yatırımcı veya telefon ara...") : t.search}
                 className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500 shadow-2xs"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -424,7 +747,7 @@ const RealEstateCrmTab = ({
                 : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
             }`}
           >
-            Tümü ({contacts.length})
+            Tümü ({consolidatedContacts.length})
           </button>
           <button
             type="button"
@@ -566,6 +889,7 @@ const RealEstateCrmTab = ({
           <div className="md:hidden divide-y divide-slate-100">
             {filteredContacts.map(contact => {
               const stage = getLeadStage(contact.notes);
+              const meta = getContactMeta(contact);
               return (
                 <div key={contact.id} className="p-3 space-y-2 hover:bg-slate-50/70 transition-colors">
                   <div className="flex items-start justify-between gap-2">
@@ -587,7 +911,7 @@ const RealEstateCrmTab = ({
                               : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
                           }`}>
                             {contact.type === 'owner'
-                              ? (isAutomotive ? 'Araç Sahibi' : 'Mülk Sahibi')
+                              ? (isAutomotive ? 'Araç Sahibi' : `Mülk Sahibi (${meta.linkedPropertiesCount})`)
                               : (isAutomotive ? 'Alıcı / Filo' : 'Yatırımcı')}
                           </span>
                           {stage === 'new' && (
@@ -606,44 +930,6 @@ const RealEstateCrmTab = ({
                               <span>Portföye Alındı</span>
                             </span>
                           )}
-                          {!isAutomotive && (() => {
-                            const meta = getContactMeta(contact);
-                            return (
-                              <>
-                                {meta.intents.map((it) => (
-                                  <span
-                                    key={it}
-                                    className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${
-                                      it === 'satilik'
-                                        ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                        : it === 'kiralik'
-                                        ? 'bg-sky-50 text-sky-800 border-sky-300'
-                                        : 'bg-purple-50 text-purple-800 border-purple-300'
-                                    }`}
-                                  >
-                                    {INTENT_LABELS[it]}
-                                  </span>
-                                ))}
-                                {meta.propertyTypes.map((pt) => (
-                                  <span
-                                    key={pt}
-                                    className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-300"
-                                  >
-                                    {PROPERTY_TYPE_LABELS[pt]}
-                                  </span>
-                                ))}
-                                {meta.regions.map((rg) => (
-                                  <span
-                                    key={rg}
-                                    className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200"
-                                  >
-                                    <MapPin size={8} />
-                                    <span>{rg}</span>
-                                  </span>
-                                ))}
-                              </>
-                            );
-                          })()}
                         </div>
                       </div>
                     </div>
@@ -654,10 +940,9 @@ const RealEstateCrmTab = ({
                           type="button"
                           onClick={() => setFunnelTargetContact(contact)}
                           className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs"
-                          title="Bu yatırımcı için 6 Adımlı Akıllı Talep Hunisi ve Portföy Eşleştirmesi başlat"
                         >
                           <Sparkles size={11} />
-                          <span>Talep Hunisi Aç</span>
+                          <span>Talep Hunisi</span>
                         </button>
                       )}
                       {contact.phone && (
@@ -673,60 +958,31 @@ const RealEstateCrmTab = ({
                         onClick={() => openEditModal(contact)}
                         className="px-2 py-1 bg-slate-100 hover:bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg border border-slate-200 transition-colors cursor-pointer"
                       >
-                        İncele
+                        Kişi Kartı
                       </button>
-                      <button
-                        onClick={() => {
-                          if (window.confirm(isTr ? "Bu kişiyi silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this contact?")) {
-                            onDeleteContact(contact.id!);
-                          }
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {!String(contact.id || "").startsWith("prop_owner_") && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(isTr ? "Bu kişiyi silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this contact?")) {
+                              onDeleteContact(contact.id!);
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {contact.notes && (
-                    <p className="text-[11px] text-slate-600 font-medium line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      {contact.notes}
-                    </p>
-                  )}
-
-                  {stage !== 'none' && (
-                    <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-100">
-                      <span className="text-[10px] font-bold text-slate-500">{contact.phone}</span>
-                      <div className="flex items-center gap-1">
-                        {stage !== 'contacted' && (
-                          <button
-                            type="button"
-                            onClick={() => handleQuickStatusChange(contact, 'contacted')}
-                            className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[9px] font-black cursor-pointer"
-                          >
-                            +İletişim
-                          </button>
-                        )}
-                        {stage !== 'converted' && (
-                          <button
-                            type="button"
-                            onClick={() => handleQuickStatusChange(contact, 'converted')}
-                            className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-black cursor-pointer"
-                          >
-                            +Portföy
-                          </button>
-                        )}
-                        {stage !== 'reviewed' && (
-                          <button
-                            type="button"
-                            onClick={() => handleQuickStatusChange(contact, 'reviewed')}
-                            className="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded text-[9px] font-bold cursor-pointer"
-                          >
-                            +İncelendi
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                  {contact.type === 'owner' && !isAutomotive ? (
+                    renderOwnerPropertiesList(contact, meta.linkedProperties, true)
+                  ) : (
+                    contact.notes && (
+                      <p className="text-[11px] text-slate-600 font-medium line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        {contact.notes}
+                      </p>
+                    )
                   )}
                 </div>
               );
@@ -738,20 +994,19 @@ const RealEstateCrmTab = ({
               <thead>
                 <tr className="bg-slate-50/90 border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
                   <th className="py-2.5 px-3">Ad Soyad / Kişi</th>
-                  <th className="py-2.5 px-3">Kişi Rolü</th>
-                  <th className="py-2.5 px-3">Aşama Statüsü</th>
+                  <th className="py-2.5 px-3">Rol & Portföy Özeti</th>
                   <th className="py-2.5 px-3">İletişim</th>
-                  <th className="py-2.5 px-3">Notlar & Başvuru İçeriği</th>
-                  <th className="py-2.5 px-3">Kayıt Tarihi</th>
+                  <th className="py-2.5 px-3">Sahip Olduğu Mülkler / Yetki Belgeleri & Notlar</th>
                   <th className="py-2.5 px-3 text-right">Aksiyonlar</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-bold text-slate-700">
                 {filteredContacts.map(contact => {
                   const stage = getLeadStage(contact.notes);
+                  const meta = getContactMeta(contact);
                   return (
-                    <tr key={contact.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-2.5 px-3">
+                    <tr key={contact.id} className="hover:bg-slate-50/80 transition-colors align-top">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 font-extrabold ${
                             stage === 'new' ? 'bg-amber-50 border-amber-200 text-amber-700' :
@@ -763,135 +1018,57 @@ const RealEstateCrmTab = ({
                           </div>
                           <div>
                             <h4 className="font-extrabold text-slate-900 text-xs leading-tight">{contact.name}</h4>
-                            <span className="text-[10px] text-slate-400 font-mono">#{contact.id}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {contact.created_at ? formatDateTimeTR(contact.created_at) : `#${contact.id}`}
+                            </span>
                           </div>
                         </div>
                       </td>
 
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         <div className="flex flex-col items-start gap-1">
-                          <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-md border ${
-                            contact.type === 'owner' 
-                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200/80' 
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
-                          }`}>
-                            {contact.type === 'owner' 
-                              ? (isTr ? (isAutomotive ? 'Araç Sahibi / Konsinye' : 'Mülk Sahibi') : 'Owner') 
-                              : (isTr ? (isAutomotive ? 'Alıcı / Filo Müşterisi' : 'Yatırımcı') : 'Buyer / Investor')}
-                          </span>
-                          {!isAutomotive && (() => {
-                            const meta = getContactMeta(contact);
-                            if (meta.intents.length === 0 && meta.propertyTypes.length === 0 && meta.regions.length === 0) return null;
-                            return (
-                              <div className="flex flex-wrap items-center gap-1">
-                                {meta.intents.map((it) => (
-                                  <span
-                                    key={it}
-                                    className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${
-                                      it === 'satilik'
-                                        ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                        : it === 'kiralik'
-                                        ? 'bg-sky-50 text-sky-800 border-sky-300'
-                                        : 'bg-purple-50 text-purple-800 border-purple-300'
-                                    }`}
-                                  >
-                                    {INTENT_LABELS[it]}
-                                  </span>
-                                ))}
-                                {meta.propertyTypes.map((pt) => (
-                                  <span
-                                    key={pt}
-                                    className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-300"
-                                  >
-                                    {PROPERTY_TYPE_LABELS[pt]}
-                                  </span>
-                                ))}
-                                {meta.regions.map((rg) => (
-                                  <span
-                                    key={rg}
-                                    className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200"
-                                  >
-                                    <MapPin size={8} />
-                                    <span>{rg}</span>
-                                  </span>
-                                ))}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </td>
-
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        <div className="flex flex-col gap-1 items-start">
-                          {stage === 'new' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 border border-amber-600 shadow-2xs animate-pulse">
-                              <Globe size={11} />
-                              <span>Yeni Başvuru</span>
+                          <div className="flex items-center gap-1">
+                            <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-md border ${
+                              contact.type === 'owner' 
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200/80' 
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                            }`}>
+                              {contact.type === 'owner' 
+                                ? (isTr ? (isAutomotive ? 'Araç Sahibi' : `Mülk Sahibi (${meta.linkedPropertiesCount} Mülk)`) : 'Owner') 
+                                : (isTr ? (isAutomotive ? 'Alıcı / Filo' : 'Yatırımcı') : 'Investor')}
                             </span>
-                          )}
-                          {stage === 'contacted' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-600 text-white border border-blue-700 shadow-2xs">
-                              <Phone size={11} />
-                              <span>İletişime Geçildi</span>
-                            </span>
-                          )}
-                          {stage === 'converted' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-600 text-white border border-emerald-700 shadow-2xs">
-                              {isAutomotive ? <Car size={11} /> : <Home size={11} />}
-                              <span>Portföye Alındı</span>
-                            </span>
-                          )}
-                          {stage === 'reviewed' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 border border-slate-300">
-                              <Check size={11} />
-                              <span>İncelendi / Arşiv</span>
-                            </span>
-                          )}
-                          {stage === 'cancelled' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 border border-rose-200">
-                              <XCircle size={11} />
-                              <span>İptal Edildi</span>
-                            </span>
-                          )}
-                          {stage === 'none' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400">
-                              Standart Kayıt
-                            </span>
-                          )}
-
-                          {/* Quick Stage Change Shortcuts */}
-                          {stage !== 'none' && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              {stage !== 'contacted' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickStatusChange(contact, 'contacted')}
-                                  className="text-[9px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                                  title="İletişime geçildi yap"
+                            {stage === 'new' && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950 border border-amber-600 animate-pulse">
+                                <Globe size={10} />
+                                <span>Yeni Başvuru</span>
+                              </span>
+                            )}
+                          </div>
+                          {!isAutomotive && (meta.intents.length > 0 || meta.regions.length > 0) && (
+                            <div className="flex flex-wrap items-center gap-1">
+                              {meta.intents.map((it) => (
+                                <span
+                                  key={it}
+                                  className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${
+                                    it === 'satilik'
+                                      ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                      : it === 'kiralik'
+                                      ? 'bg-sky-50 text-sky-800 border-sky-300'
+                                      : 'bg-purple-50 text-purple-800 border-purple-300'
+                                  }`}
                                 >
-                                  +İletişim
-                                </button>
-                              )}
-                              {stage !== 'converted' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickStatusChange(contact, 'converted')}
-                                  className="text-[9px] font-bold text-emerald-600 hover:text-emerald-800 hover:underline cursor-pointer"
-                                  title="Portföye alındı yap"
+                                  {INTENT_LABELS[it]}
+                                </span>
+                              ))}
+                              {meta.regions.map((rg) => (
+                                <span
+                                  key={rg}
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200"
                                 >
-                                  +Portföy
-                                </button>
-                              )}
-                              {stage !== 'reviewed' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickStatusChange(contact, 'reviewed')}
-                                  className="text-[9px] font-bold text-slate-500 hover:text-slate-700 hover:underline cursor-pointer"
-                                  title="İncelendi olarak arşivle"
-                                >
-                                  +İncelendi
-                                </button>
-                              )}
+                                  <MapPin size={8} />
+                                  <span>{rg}</span>
+                                </span>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -899,10 +1076,17 @@ const RealEstateCrmTab = ({
 
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         <div className="space-y-0.5 text-[11px]">
-                          <div className="flex items-center gap-1 font-bold text-slate-900">
-                            <Phone size={12} className="text-emerald-600 shrink-0" />
-                            <span>{contact.phone}</span>
-                          </div>
+                          {contact.phone ? (
+                            <a
+                              href={`tel:${contact.phone}`}
+                              className="flex items-center gap-1 font-bold text-slate-900 hover:text-indigo-700"
+                            >
+                              <Phone size={12} className="text-emerald-600 shrink-0" />
+                              <span>{contact.phone}</span>
+                            </a>
+                          ) : (
+                            <span className="text-slate-400 text-[10px]">Telefon kayıtlı değil</span>
+                          )}
                           {contact.email && (
                             <div className="flex items-center gap-1 text-slate-500">
                               <Mail size={12} className="text-slate-400 shrink-0" />
@@ -912,14 +1096,21 @@ const RealEstateCrmTab = ({
                         </div>
                       </td>
 
-                      <td className="py-2.5 px-3 max-w-xs">
-                        <p className="text-[11px] text-slate-600 font-medium line-clamp-2 leading-snug">
-                          {contact.notes || '---'}
-                        </p>
-                      </td>
-
-                      <td className="py-2.5 px-3 text-[10px] text-slate-500 whitespace-nowrap font-medium">
-                        {contact.created_at ? formatDateTimeTR(contact.created_at) : '---'}
+                      <td className="py-2.5 px-3 min-w-[360px] max-w-xl">
+                        {contact.type === 'owner' && !isAutomotive ? (
+                          <div className="space-y-1.5">
+                            {renderOwnerPropertiesList(contact, meta.linkedProperties, true)}
+                            {contact.notes && (
+                              <p className="text-[10px] text-slate-500 font-medium italic line-clamp-1">
+                                Not: {contact.notes}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-slate-600 font-medium line-clamp-2 leading-snug">
+                            {contact.notes || '---'}
+                          </p>
+                        )}
                       </td>
 
                       <td className="py-2.5 px-3 text-right whitespace-nowrap">
@@ -928,32 +1119,32 @@ const RealEstateCrmTab = ({
                             <button
                               type="button"
                               onClick={() => setFunnelTargetContact(contact)}
-                              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
-                              title="Bu yatırımcı için 6 Adımlı Akıllı Talep Hunisi ve Portföy Eşleştirmesi başlat"
+                              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
                             >
-                              <Sparkles size={12} />
-                              <span>Talep Hunisi Aç</span>
+                              <Sparkles size={11} />
+                              <span>Talep Hunisi</span>
                             </button>
                           )}
                           <button 
                             onClick={() => openEditModal(contact)}
-                            className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 text-indigo-700 hover:text-indigo-800 text-[11px] font-black rounded-lg border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
-                            title={isTr ? "Düzenle ve Durum Değiştir" : "Edit and Change Status"}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 text-indigo-700 hover:text-indigo-800 text-[10px] font-black rounded-lg border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
                           >
-                            <Edit2 size={12} />
-                            <span>{isTr ? "Düzenle / İncele" : "Edit / Review"}</span>
+                            <Edit2 size={11} />
+                            <span>Kişi Kartı</span>
                           </button>
-                          <button 
-                            onClick={() => {
-                              if (window.confirm(isTr ? "Bu kişiyi silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this contact?")) {
-                                onDeleteContact(contact.id!);
-                              }
-                            }} 
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title={isTr ? "Sil" : "Delete"}
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          {!String(contact.id || "").startsWith("prop_owner_") && (
+                            <button 
+                              onClick={() => {
+                                if (window.confirm(isTr ? "Bu kişiyi silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this contact?")) {
+                                  onDeleteContact(contact.id!);
+                                }
+                              }} 
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title={isTr ? "Sil" : "Delete"}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -968,6 +1159,7 @@ const RealEstateCrmTab = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredContacts.map(contact => {
             const stage = getLeadStage(contact.notes);
+            const meta = getContactMeta(contact);
             return (
               <div key={contact.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
                 <div>
@@ -986,52 +1178,17 @@ const RealEstateCrmTab = ({
                         <div className="flex flex-wrap gap-1 mt-1">
                           <span className={`inline-block text-[9px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full ${contact.type === 'owner' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
                             {contact.type === 'owner' 
-                              ? (isTr ? (isAutomotive ? 'Araç Sahibi / Konsinye' : 'Mülk Sahibi') : 'Owner') 
-                              : (isTr ? (isAutomotive ? 'Alıcı / Filo Müşterisi' : 'Yatırımcı') : 'Buyer / Investor')}
+                              ? (isTr ? (isAutomotive ? 'Araç Sahibi' : `Mülk Sahibi (${meta.linkedPropertiesCount} Mülk)`) : 'Owner') 
+                              : (isTr ? (isAutomotive ? 'Alıcı / Filo' : 'Yatırımcı') : 'Buyer / Investor')}
                           </span>
-                          {stage === 'new' && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 border border-amber-600 shadow-xs animate-pulse">
-                              <Globe size={10} />
-                              <span>Yeni Başvuru (Bekliyor)</span>
-                            </span>
-                          )}
-                          {stage === 'contacted' && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-blue-500 text-white border border-blue-600 shadow-xs">
-                              <Phone size={10} />
-                              <span>İletişime Geçildi</span>
-                            </span>
-                          )}
-                          {stage === 'converted' && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-700 shadow-xs">
-                              {isAutomotive ? <Car size={10} /> : <Home size={10} />}
-                              <span>Portföye Alındı</span>
-                            </span>
-                          )}
-                          {stage === 'reviewed' && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
-                              <Check size={10} />
-                              <span>İncelendi / Arşiv</span>
-                            </span>
-                          )}
-                          {stage === 'cancelled' && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
-                              <XCircle size={10} />
-                              <span>İptal Edildi</span>
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
-                    {contact.created_at && (
-                      <span className="text-[10px] text-slate-400 font-medium shrink-0">
-                        {formatDateTimeTR(contact.created_at)}
-                      </span>
-                    )}
                   </div>
-                  <div className="space-y-1.5 text-xs text-slate-600 mt-2">
+                  <div className="space-y-2 text-xs text-slate-600 mt-2">
                     <div className="flex items-center gap-2">
                       <Phone size={13} className="text-slate-400" />
-                      <span className="font-bold text-slate-800">{contact.phone}</span>
+                      <span className="font-bold text-slate-800">{contact.phone || '---'}</span>
                     </div>
                     {contact.email && (
                       <div className="flex items-center gap-2">
@@ -1039,87 +1196,44 @@ const RealEstateCrmTab = ({
                         <span className="text-slate-600">{contact.email}</span>
                       </div>
                     )}
-                    {contact.notes && (
-                      <div className={`mt-2.5 text-[11px] p-2.5 rounded-xl border leading-relaxed ${
-                        stage === 'new' ? 'bg-amber-50/80 border-amber-200/80 text-slate-800 font-medium' :
-                        stage === 'contacted' ? 'bg-blue-50/80 border-blue-200/80 text-slate-800 font-medium' :
-                        stage === 'converted' ? 'bg-emerald-50/80 border-emerald-200/80 text-slate-800 font-medium' :
-                        'bg-slate-50 border-slate-100 text-slate-600 italic'
-                      }`}>
-                        {contact.notes}
+                    {contact.type === 'owner' && !isAutomotive ? (
+                      <div className="pt-1">
+                        {renderOwnerPropertiesList(contact, meta.linkedProperties, true)}
                       </div>
+                    ) : (
+                      contact.notes && (
+                        <div className="mt-2 text-[11px] p-2.5 rounded-xl border bg-slate-50 border-slate-100 text-slate-600">
+                          {contact.notes}
+                        </div>
+                      )
                     )}
                   </div>
                 </div>
 
-                {/* Quick Lead Stage Bar */}
-                {stage !== 'none' && (
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-1.5 bg-slate-50/80 p-2 rounded-xl">
-                    <span className="text-[10px] font-bold text-slate-500">
-                      {isTr ? "Aşama Güncelle:" : "Change Stage:"}
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {stage !== 'contacted' && (
-                        <button
-                          type="button"
-                          onClick={() => handleQuickStatusChange(contact, 'contacted')}
-                          className="px-2 py-1 text-[10px] font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all active:scale-95 flex items-center gap-1"
-                          title={isTr ? "İletişime geçildi olarak işaretle (Uyarıyı kaldırır)" : "Mark as contacted"}
-                        >
-                          <Phone size={11} />
-                          <span>İletişime Geçildi</span>
-                        </button>
-                      )}
-                      {stage !== 'converted' && (
-                        <button
-                          type="button"
-                          onClick={() => handleQuickStatusChange(contact, 'converted')}
-                          className="px-2 py-1 text-[10px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all active:scale-95 flex items-center gap-1"
-                          title={isTr ? "Portföye dahil edildi olarak işaretle" : "Mark as converted to portfolio"}
-                        >
-                          <Home size={11} />
-                          <span>Portföye Alındı</span>
-                        </button>
-                      )}
-                      {stage !== 'reviewed' && (
-                        <button
-                          type="button"
-                          onClick={() => handleQuickStatusChange(contact, 'reviewed')}
-                          className="px-2 py-1 text-[10px] font-semibold rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 transition-all active:scale-95 flex items-center gap-1"
-                          title={isTr ? "İncelendi olarak arşivle" : "Mark as reviewed"}
-                        >
-                          <Check size={11} />
-                          <span>İncelendi</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 <div className="flex justify-between items-center gap-1.5 mt-3 pt-2 border-t border-slate-100">
                   <span className="text-[10px] text-slate-400 font-medium">
-                    ID: #{contact.id}
+                    {contact.created_at ? formatDateTimeTR(contact.created_at) : ''}
                   </span>
                   <div className="flex items-center gap-1">
                     <button 
                       onClick={() => openEditModal(contact)}
                       className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      title={isTr ? "Düzenle ve Durum Değiştir" : "Edit and Change Status"}
                     >
                       <Edit2 size={12} />
-                      <span>{isTr ? "Düzenle / İncele" : "Edit / Review"}</span>
+                      <span>Kişi Kartı</span>
                     </button>
-                    <button 
-                      onClick={() => {
-                        if (window.confirm(isTr ? "Bu kişiyi silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this contact?")) {
-                          onDeleteContact(contact.id!);
-                        }
-                      }} 
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                      title={isTr ? "Sil" : "Delete"}
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {!String(contact.id || "").startsWith("prop_owner_") && (
+                      <button 
+                        onClick={() => {
+                          if (window.confirm(isTr ? "Bu kişiyi silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this contact?")) {
+                            onDeleteContact(contact.id!);
+                          }
+                        }} 
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1131,16 +1245,16 @@ const RealEstateCrmTab = ({
       {/* ADD/EDIT CONTACT MODAL - VIEWPORT-FIT COMPACT DESIGN (NO OVERFLOW) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[100] p-2 sm:p-4 overflow-hidden flex items-start sm:items-center justify-center py-4 sm:py-6">
-          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[calc(100vh-2rem)] sm:max-h-[88vh]">
+          <div className="bg-white rounded-2xl max-w-xl w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[calc(100vh-2rem)] sm:max-h-[88vh]">
             {/* Modal Fixed Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50 shrink-0">
-              <h3 className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-2 uppercase tracking-tight">
-                <Users size={16} className="text-indigo-600" />
-                {editingContact ? (isTr ? "Kişiyi Düzenle & İncele" : "Edit & Review Contact") : (isTr ? "Yeni Kişi Ekle" : "Add New Contact")}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-900 text-white shrink-0">
+              <h3 className="font-black text-white text-xs sm:text-sm flex items-center gap-2 uppercase tracking-tight">
+                <Users size={16} className="text-indigo-400" />
+                {editingContact ? (isTr ? "Kişi Kartı & Portföy Mülkleri" : "Edit & Review Contact") : (isTr ? "Yeni Kişi Ekle" : "Add New Contact")}
               </h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+                className="text-slate-300 hover:text-white p-1 hover:bg-slate-800 rounded-full transition-colors cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -1148,54 +1262,10 @@ const RealEstateCrmTab = ({
 
             {/* Scrollable Form Body */}
             <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-              <div className="p-3 sm:p-4 space-y-2.5 overflow-y-auto custom-scrollbar flex-1 text-xs font-bold">
+              <div className="p-3 sm:p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1 text-xs font-bold">
                 {errorMsg && (
                   <div className="bg-rose-50 border border-rose-100 text-rose-700 p-2 rounded-xl text-xs font-semibold">
                     {errorMsg}
-                  </div>
-                )}
-
-                {/* Lead Stage Selector if contact is a web lead or has lead stage */}
-                {(editingContact || getLeadStage(formData.notes) !== 'none') && (
-                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 space-y-1.5">
-                    <label className="block text-[11px] font-black text-slate-800 flex items-center justify-between">
-                      <span>{isTr ? "Başvuru Aşama Statüsü *" : "Lead Stage Status *"}</span>
-                      <span className="text-[10px] text-amber-600 font-bold">{isTr ? "(Ekrandaki uyarıyı günceller)" : "(Updates alert)"}</span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'new') })}
-                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${getLeadStage(formData.notes) === 'new' ? 'bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
-                      >
-                        <Clock size={12} />
-                        <span>Yeni (Bekliyor)</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'contacted') })}
-                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${getLeadStage(formData.notes) === 'contacted' ? 'bg-blue-600 text-white border-blue-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
-                      >
-                        <Phone size={12} />
-                        <span>İletişime Geçildi</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'converted') })}
-                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${getLeadStage(formData.notes) === 'converted' ? 'bg-emerald-600 text-white border-emerald-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
-                      >
-                        <Home size={12} />
-                        <span>Portföye Alındı</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'reviewed') })}
-                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${getLeadStage(formData.notes) === 'reviewed' ? 'bg-slate-800 text-white border-slate-900 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
-                      >
-                        <Check size={12} />
-                        <span>İncelendi & Arşiv</span>
-                      </button>
-                    </div>
                   </div>
                 )}
 
@@ -1272,42 +1342,25 @@ const RealEstateCrmTab = ({
                   </div>
                 </div>
 
-                {!isAutomotive && (
-                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-2">
-                    <div className="text-[10px] font-black uppercase text-slate-600 tracking-wider flex items-center gap-1">
-                      <Tag size={11} className="text-indigo-600" />
-                      <span>Hızlı Alt Kırılım Etiketleri (Satılık/Kiralık, Mülk Tipi & Bölge)</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {['Satılık', 'Kiralık', 'Kat Karşılığı', 'Daire', 'Villa', 'Arsa', 'Ticari', 'Bina/Proje', 'Girne', 'Lefkoşa', 'İskele', 'Gazimağusa'].map((tag) => {
-                        const isTagged = normalizeTr(formData.notes || "").includes(normalizeTr(tag));
-                        return (
-                          <button
-                            key={tag}
-                            type="button"
-                            onClick={() => toggleTagInNotes(tag)}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-black border transition-all cursor-pointer ${
-                              isTagged
-                                ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs'
-                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            {isTagged ? `✓ ${tag}` : `+ ${tag}`}
-                          </button>
-                        );
-                      })}
-                    </div>
+                {/* Owner Linked Properties & Quick Authorization Contracts inside Contact Modal */}
+                {editingContact && formData.type === 'owner' && !isAutomotive && (
+                  <div className="bg-indigo-50/40 p-3 rounded-xl border border-indigo-200/80 space-y-2">
+                    {renderOwnerPropertiesList(
+                      editingContact as RealEstateContact,
+                      getContactMeta(editingContact as RealEstateContact).linkedProperties,
+                      false
+                    )}
                   </div>
                 )}
 
                 <div>
                   <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-0.5">
-                    {isTr ? "Özel Notlar & Başvuru İçeriği" : "Notes & Submission Content"}
+                    {isTr ? "Özel İletişim Notları" : "Notes"}
                   </label>
                   <textarea
-                    rows={3}
-                    placeholder={isTr ? "Müşteri veya portföy hakkında ek notlar..." : "Additional notes..."}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 min-h-[55px]"
+                    rows={2}
+                    placeholder={isTr ? "Mülk sahibi veya yatırımcı ile ilgili özel iletişim notları..." : "Additional notes..."}
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 min-h-[50px]"
                     value={formData.notes || ""}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   />
@@ -1328,12 +1381,68 @@ const RealEstateCrmTab = ({
                   disabled={saveLoading}
                   className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {editingContact ? (isTr ? "Kaydet & Tamamla" : "Save & Complete Review") : (isTr ? "Kaydet" : "Save")}
+                  {editingContact ? (isTr ? "Kaydet" : "Save") : (isTr ? "Kaydet" : "Save")}
                 </button>
               </div>
             </form>
           </div>
         </div>
+      )}
+
+      {/* Property Inspect / Edit Modal launched directly from Owner's Property List */}
+      {inspectingProperty && (
+        <React.Suspense fallback={null}>
+          <RealEstateModal
+            isOpen={!!inspectingProperty}
+            onClose={() => setInspectingProperty(null)}
+            property={inspectingProperty}
+            storeId={storeId || user?.store_id}
+            userRole={user?.role || "store_admin"}
+            safeProperties={properties}
+            defaultStoreName={branding?.store_name || branding?.name || "Seçkin Emlak"}
+            onSave={async (updatedProp) => {
+              if (onSaveProperty) {
+                await onSaveProperty(updatedProp);
+                setInspectingProperty(null);
+              }
+            }}
+          />
+        </React.Suspense>
+      )}
+
+      {/* Tek Yetki Sözleşmesi & Kiralama Yetki Belgesi Modal (1. İmza: Mülk Sahibi, 2. İmza: İşletme Yetkilisi) */}
+      {authContractState?.isOpen && authContractState.property && (
+        <React.Suspense fallback={null}>
+          <LegalContractModal
+            isOpen={authContractState.isOpen}
+            onClose={() => setAuthContractState(null)}
+            property={authContractState.property}
+            branding={branding}
+            initialTemplateId={authContractState.templateId}
+            initialClientName={authContractState.ownerName}
+            initialClientPhone={authContractState.ownerPhone}
+            initialClientIdentity={authContractState.ownerIdNumber}
+            onSaveContract={async (contractDoc) => {
+              if (!onSaveProperty || !authContractState.property?.id || String(authContractState.property.id).startsWith("temp_")) {
+                toast.success("Yetki sözleşmesi hazırlandı!");
+                return;
+              }
+              const existingDocs = authContractState.property.documents || [];
+              const existingIdx = existingDocs.findIndex((d: any) => d && d.id === contractDoc.id);
+              const updatedDocs =
+                existingIdx >= 0
+                  ? existingDocs.map((d: any, idx: number) => (idx === existingIdx ? contractDoc : d))
+                  : [...existingDocs, contractDoc];
+              await onSaveProperty({
+                ...authContractState.property,
+                documents: updatedDocs
+              });
+              setAuthContractState((prev) =>
+                prev ? { ...prev, property: { ...prev.property, documents: updatedDocs } } : null
+              );
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* 6-Step Lead Funnel Wizard Modal launched directly from Investor CRM */}

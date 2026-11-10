@@ -1842,6 +1842,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   initialFilter={realEstateCrmInitialFilter}
                   storeId={currentStoreId!}
                   properties={properties}
+                  branding={branding}
+                  user={user}
+                  onSaveProperty={saveProperty}
                   onNavigateToPipeline={() => {
                     setTeamCrmInitialSubTab("pipeline");
                     setTeamCrmInitialView("leads");

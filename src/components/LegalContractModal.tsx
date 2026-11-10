@@ -47,6 +47,7 @@ interface LegalContractModalProps {
   initialOfferPrice?: string;
   initialClientName?: string;
   initialClientPhone?: string;
+  initialClientIdentity?: string;
   initialViewingDate?: string;
   initialContractDoc?: any;
 }
@@ -123,6 +124,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   initialOfferPrice,
   initialClientName,
   initialClientPhone,
+  initialClientIdentity,
   initialViewingDate,
   initialContractDoc
 }) => {
@@ -413,11 +415,13 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         setSellerSignatureImage(det.sellerSignatureImage || "");
       } else {
         setActiveDocId(`virtual-contract-${Date.now()}`);
-        setSelectedTemplateId(
-          initialTemplateId || (property.listing_intent === 'rent' ? "rental_agreement" : "sales_brokerage")
-        );
+        const targetTplId =
+          initialTemplateId || (property.listing_intent === 'rent' ? "rental_agreement" : "sales_brokerage");
+        setSelectedTemplateId(targetTplId);
+        const isTargetOwnerAuth = ["exclusivity_agreement", "rental_authorization"].includes(targetTplId);
         setDepositAmount(getInitialDeposit(property));
         setRentDuration("1 (Bir) Yıl");
+        setContractDuration(targetTplId === "exclusivity_agreement" ? "6 (Altı) Ay" : "12 Ay / 12 Months");
         setPaymentDay("Her Ayın En Geç 5 (Beş)’inde Ödenecektir.");
         setRentalPropertyDef(rMeta.rentalPropertyDef);
         setRentalUsagePurpose(rMeta.rentalUsagePurpose);
@@ -436,10 +440,49 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         setRentStartDate(todayIso);
         setRentEndDate(getDefaultRentEndIso(todayIso));
         const resolvedOwner = resolveOwnerName(property);
-        setOwnerName(resolvedOwner);
-        setOwnerPhone(resolveOwnerPhone(property));
-        setSellerIdentity(resolveOwnerIdentity(property));
-        setSellerSigningName(resolvedOwner);
+        const resolvedOwnerTel = resolveOwnerPhone(property);
+        const resolvedOwnerId = resolveOwnerIdentity(property);
+        const sName = getDisplayStoreNameInit();
+        const agent = (property?.responsible_agent || (property as any)?.sector_data?.responsible_agent || branding?.owner_name || "").toString().trim();
+        const agencyRepLabel = agent ? `${sName} - ${agent}` : sName;
+        const agencyTel = branding?.phone || branding?.whatsapp_number || "";
+        const agencyIdNo = branding?.owner_identity || "1170237140";
+
+        if (isTargetOwnerAuth) {
+          // For Tek Yetki & Kiralama Yetki: 1st Signer (client*) = Mülk Sahibi, 2nd Signer (owner*/seller*) = İşletme Yetkilisi
+          const oName = initialClientName || resolvedOwner;
+          setClientName(oName);
+          setSigningName(oName);
+          setClientPhone(initialClientPhone || resolvedOwnerTel);
+          setClientIdentity(initialClientIdentity || resolvedOwnerId);
+          setOwnerName(agencyRepLabel);
+          setOwnerPhone(agencyTel);
+          setSellerIdentity(agencyIdNo);
+          setSellerSigningName(agencyRepLabel);
+        } else {
+          setOwnerName(resolvedOwner);
+          setOwnerPhone(resolvedOwnerTel);
+          setSellerIdentity(resolvedOwnerId);
+          setSellerSigningName(resolvedOwner);
+          if (initialClientName) {
+            setClientName(initialClientName);
+            setSigningName(initialClientName);
+          } else {
+            setClientName("");
+            setSigningName("");
+          }
+          if (initialClientPhone) {
+            setClientPhone(initialClientPhone);
+          } else {
+            setClientPhone("");
+          }
+          if (initialClientIdentity) {
+            setClientIdentity(initialClientIdentity);
+          } else {
+            setClientIdentity("");
+          }
+        }
+
         setSalePropertyDetails(buildDefaultSalePropertyDetails(property));
         setSalePriceInput(formatThousandsInput(property?.price));
         setSaleCurrency((property?.currency || "GBP").toUpperCase());
@@ -448,10 +491,8 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         setOfferPropertyNature(detectDefaultPropertyNature(property));
         setOfferPropertyDetails(buildDefaultOfferPropertyDetails(property));
         setViewingDate(initialViewingDate || todayIso);
-        const sName = getDisplayStoreNameInit();
-        const agent = (property?.responsible_agent || (property as any)?.sector_data?.responsible_agent || branding?.owner_name || "").toString().trim();
         setAgentAndCompany(agent ? `${sName} ${agent}` : sName);
-        setAuthorizedPersonIdentity(branding?.owner_identity || "1170237140");
+        setAuthorizedPersonIdentity(agencyIdNo);
         setBrokerAddress(branding?.address || "Atatürk Caddesi No: 81/A Küçük Kaymaklı / Lefkoşa");
         setClientAddress("");
         setShowingItem1Details(buildDefaultShowingPropertyDetails(property));
@@ -474,16 +515,48 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         setSignatureImage("");
         setSellerSigned(false);
         setSellerSignatureImage("");
-        if (initialClientName) {
-          setClientName(initialClientName);
-          setSigningName(initialClientName);
-        }
-        if (initialClientPhone) {
-          setClientPhone(initialClientPhone);
-        }
       }
     }
-  }, [property, initialTemplateId, initialOfferPrice, initialClientName, initialClientPhone, initialViewingDate, initialContractDoc]);
+  }, [property, initialTemplateId, initialOfferPrice, initialClientName, initialClientPhone, initialClientIdentity, initialViewingDate, initialContractDoc]);
+
+  const handleSelectTemplate = (nextTemplateId: string) => {
+    const wasOwnerAuth = ["exclusivity_agreement", "rental_authorization"].includes(selectedTemplateId);
+    const willBeOwnerAuth = ["exclusivity_agreement", "rental_authorization"].includes(nextTemplateId);
+    setSelectedTemplateId(nextTemplateId);
+
+    const resolvedOwner = resolveOwnerName(property);
+    const resolvedOwnerTel = resolveOwnerPhone(property);
+    const resolvedOwnerId = resolveOwnerIdentity(property);
+    const sName = getDisplayStoreNameInit();
+    const agent = (property?.responsible_agent || (property as any)?.sector_data?.responsible_agent || branding?.owner_name || "").toString().trim();
+    const agencyRepLabel = agent ? `${sName} - ${agent}` : sName;
+    const agencyTel = branding?.phone || branding?.whatsapp_number || "";
+    const agencyIdNo = branding?.owner_identity || "1170237140";
+
+    if (willBeOwnerAuth && !wasOwnerAuth) {
+      const mName = resolvedOwner || initialClientName || "";
+      setClientName(mName);
+      setSigningName(mName);
+      setClientPhone(resolvedOwnerTel || initialClientPhone || "");
+      setClientIdentity(resolvedOwnerId || initialClientIdentity || "");
+      setOwnerName(agencyRepLabel);
+      setOwnerPhone(agencyTel);
+      setSellerIdentity(agencyIdNo);
+      setSellerSigningName(agencyRepLabel);
+      setContractDuration(nextTemplateId === "exclusivity_agreement" ? "6 (Altı) Ay" : "12 Ay / 12 Months");
+    } else if (!willBeOwnerAuth && wasOwnerAuth) {
+      setOwnerName(resolvedOwner);
+      setOwnerPhone(resolvedOwnerTel);
+      setSellerIdentity(resolvedOwnerId);
+      setSellerSigningName(resolvedOwner);
+      setClientName("");
+      setSigningName("");
+      setClientPhone("");
+      setClientIdentity("");
+    } else if (willBeOwnerAuth) {
+      setContractDuration(nextTemplateId === "exclusivity_agreement" ? "6 (Altı) Ay" : "12 Ay / 12 Months");
+    }
+  };
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef<boolean>(false);
@@ -629,16 +702,32 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
   if (!isOpen) return null;
 
-  const orderedTemplateIds = property.listing_intent === "rent"
-    ? ["rental_agreement", "showing_agreement", "rental_authorization", "eviction_undertaking"]
-    : ["sales_brokerage", "showing_agreement", "offer_letter", "exclusivity_agreement", "inter_branch_split"];
+  const baseOrderedTemplateIds = property.listing_intent === "rent"
+    ? ["rental_agreement", "showing_agreement", "rental_authorization", "exclusivity_agreement", "eviction_undertaking"]
+    : ["sales_brokerage", "showing_agreement", "offer_letter", "exclusivity_agreement", "rental_authorization", "inter_branch_split"];
+
+  const orderedTemplateIds = baseOrderedTemplateIds.includes(selectedTemplateId)
+    ? baseOrderedTemplateIds
+    : [selectedTemplateId, ...baseOrderedTemplateIds];
 
   const filteredTemplates = orderedTemplateIds
     .map((tid) => contractTemplates.find((t) => t.id === tid))
     .filter((t): t is ContractTemplate => Boolean(t));
 
   const currentTemplate = filteredTemplates.find(t => t.id === selectedTemplateId) || filteredTemplates[0] || contractTemplates[0];
-  const isBilateralContract = ["sales_brokerage", "rental_agreement", "offer_letter"].includes(selectedTemplateId);
+  const isOwnerAuthContract = ["exclusivity_agreement", "rental_authorization"].includes(selectedTemplateId);
+  const isBilateralContract = ["sales_brokerage", "rental_agreement", "offer_letter", "exclusivity_agreement", "rental_authorization"].includes(selectedTemplateId);
+
+  const firstSignerLabel = isOwnerAuthContract
+    ? "Mülk Sahibi"
+    : selectedTemplateId === "rental_agreement" || selectedTemplateId === "eviction_undertaking"
+    ? "Kiracı"
+    : "Alıcı";
+  const secondSignerLabel = isOwnerAuthContract
+    ? "İşletme Yetkilisi"
+    : selectedTemplateId === "rental_agreement"
+    ? "Kiraya Veren"
+    : "Satıcı";
 
   const getDisplayStoreName = () => {
     const rawName = branding?.store_name || branding?.name || "Seçkin Emlak";
@@ -666,13 +755,13 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     storeName: storeNameVal,
     storePhone: storePhoneVal,
     storeEmail: storeEmailVal,
-    clientName: clientName || "[Alıcı / Kiracı Adı]",
-    clientIdentity: clientIdentity || "[Kimlik / Pasaport No]",
+    clientName: clientName || (isOwnerAuthContract ? (resolveOwnerName(property) || "[Mülk Sahibi Adı]") : "[Alıcı / Kiracı Adı]"),
+    clientIdentity: clientIdentity || (isOwnerAuthContract ? (resolveOwnerIdentity(property) || "[Mülk Sahibi Kimlik No]") : "[Kimlik / Pasaport No]"),
     buyerIdType: buyerIdType || "KKTC KİMLİK",
-    clientPhone: clientPhone || "[Telefon Numarası]",
-    ownerName: ownerName || resolveOwnerName(property) || "Mülk Sahibi",
-    ownerPhone: ownerPhone || resolveOwnerPhone(property) || "",
-    sellerIdentity: sellerIdentity || "[Satıcı Kimlik No]",
+    clientPhone: clientPhone || (isOwnerAuthContract ? (resolveOwnerPhone(property) || "[Telefon Numarası]") : "[Telefon Numarası]"),
+    ownerName: ownerName || (isOwnerAuthContract ? storeNameVal : (resolveOwnerName(property) || "Mülk Sahibi")),
+    ownerPhone: ownerPhone || (isOwnerAuthContract ? storePhoneVal : (resolveOwnerPhone(property) || "")),
+    sellerIdentity: sellerIdentity || "[Kimlik No]",
     sellerIdType: sellerIdType || "KKTC Kimlik Kartı",
     propertyTitle: property.type === 'land' 
       ? `[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.mahalle || ''} Mah. Ada: ${property.ada || '...'}, Parsel: ${property.parsel || '...'}, Pafta: ${property.pafta || '...'}`
@@ -902,11 +991,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       : "draft";
 
     const docName = stage === "finalized"
-      ? `FİNAL İMZALI ${currentTemplate.titleTr} (Alıcı: ${clientName || 'Alıcı'} + Satıcı: ${placeholderValues.ownerName}) - ${formatTrDate(contractDate)}`
+      ? `FİNAL İMZALI ${currentTemplate.titleTr} (${firstSignerLabel}: ${clientName || firstSignerLabel} + ${secondSignerLabel}: ${placeholderValues.ownerName}) - ${formatTrDate(contractDate)}`
       : stage === "buyer_signed"
       ? isBilateralContract
-        ? `1. İmza (Alıcı Onaylı) ${currentTemplate.titleTr} - ${clientName || 'Alıcı'} [Satıcı İmzası Bekleniyor] (${formatTrDate(contractDate)})`
-        : `İMZALI ${currentTemplate.titleTr} - ${clientName || 'Müşteri'} (${formatTrDate(contractDate)})`
+        ? `1. İmza (${firstSignerLabel} Onaylı) ${currentTemplate.titleTr} - ${clientName || firstSignerLabel} [${secondSignerLabel} İmzası Bekleniyor] (${formatTrDate(contractDate)})`
+        : `İMZALI ${currentTemplate.titleTr} - ${clientName || firstSignerLabel} (${formatTrDate(contractDate)})`
       : `${currentTemplate.titleTr} - ${clientName || 'Taslak'} (${formatTrDate(contractDate)})`;
 
     const docRecord = {
@@ -994,11 +1083,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     return activeDocId;
   };
 
-  // 1. Send to Buyer for 1st Priority Signature
+  // 1. Send to 1st Priority Signer (Mülk Sahibi for owner auth contracts; Alıcı/Kiracı otherwise)
   const handleShareBuyerWhatsApp = async () => {
     const isOfferLetter = selectedTemplateId === "offer_letter";
-    if (!clientName.trim() || (!isOfferLetter && !clientIdentity.trim()) || !clientPhone.trim()) {
-      alert("Lütfen Alıcıya imza bağlantısı göndermeden önce Alıcı Adı Soyadı, Kimlik No ve Telefon Numarasını eksiksiz doldurunuz.");
+    if (!clientName.trim() || (!isOfferLetter && !isOwnerAuthContract && !clientIdentity.trim()) || !clientPhone.trim()) {
+      alert(`Lütfen ${firstSignerLabel} tarafına imza bağlantısı göndermeden önce ${firstSignerLabel} Adı Soyadı ve Telefon Numarasını eksiksiz doldurunuz.`);
       return;
     }
     try {
@@ -1008,14 +1097,14 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     }
     const formattedPhone = formatPhoneForWhatsApp(clientPhone);
     const signUrl = buildContractSignUrl("buyer", activeDocId);
-    const message = `Sayın *${clientName}*,\n\n*[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}* taşınmazı için hazırlanan resmi *${currentTemplate.titleTr}* belgesi **1. İmza (Alıcı Onayı)** için tarafınıza sunulmuştur.\n\nSözleşmeyi mobil cihazınızdan incelemek ve dijital olarak *İMZALAMAK* için lütfen aşağıdaki bağlantıya tıklayınız:\n\n${signUrl}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    const message = `Sayın *${clientName}*,\n\n*[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}* taşınmazı için hazırlanan resmi *${currentTemplate.titleTr}* belgesi **1. İmza (${firstSignerLabel} Onayı)** için tarafınıza sunulmuştur.\n\nSözleşmeyi mobil cihazınızdan incelemek ve dijital olarak *İMZALAMAK* için lütfen aşağıdaki bağlantıya tıklayınız:\n\n${signUrl}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  // 2. Send Buyer-Signed Contract to Seller for Final Signature
+  // 2. Send 1st-Signed Contract to 2nd Signer (İşletme Yetkilisi for owner auth; Satıcı/Kiraya Veren otherwise) for Final Signature
   const handleShareSellerWhatsApp = async () => {
     if (isBilateralContract && !signed) {
-      alert("İmza önceliği ALICI'dadır! Satıcıya imza için göndermeden önce sözleşmenin Alıcı tarafından imzalanmış olması gerekmektedir.");
+      alert(`İmza önceliği ${firstSignerLabel.toUpperCase()} tarafındadır! ${secondSignerLabel} imzasına göndermeden önce sözleşmenin ${firstSignerLabel} tarafından imzalanmış olması gerekmektedir.`);
       return;
     }
     try {
@@ -1023,10 +1112,10 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     } catch {
       // ignore
     }
-    const targetPhone = ownerPhone || resolveOwnerPhone(property);
-    const formattedOwnerPhone = targetPhone ? formatPhoneForWhatsApp(targetPhone) : "";
+    const targetPhone = ownerPhone || (isOwnerAuthContract ? storePhoneVal : resolveOwnerPhone(property));
+    const formattedOwnerPhone = targetPhone && !targetPhone.includes("5XX") ? formatPhoneForWhatsApp(targetPhone) : "";
     const signUrl = buildContractSignUrl("seller", activeDocId);
-    const message = `*2. İMZA (SATICI FİNAL ONAYI) - ${currentTemplate.titleTr.toUpperCase()}*\nTarih: ${placeholderValues.contractDate}\n\n*Sn. ${placeholderValues.ownerName}*,\n\n*[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}* taşınmazınız için hazırlanan *${currentTemplate.titleTr}*, Alıcı *${clientName || "Alıcı"}* tarafından dijital olarak imzalanmıştır (✔ 1. İmza Tamamlandı).\n\nAlıcı imzalı sözleşmeyi incelemek ve **Satıcı olarak aynı sözleşme üzerinde dijital imzanızla FİNALLEMEK** için lütfen aşağıdaki bağlantıya tıklayınız:\n\n${signUrl}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    const message = `*2. İMZA (${secondSignerLabel.toUpperCase()} FİNAL ONAYI) - ${currentTemplate.titleTr.toUpperCase()}*\nTarih: ${placeholderValues.contractDate}\n\n*Sn. ${placeholderValues.ownerName}*,\n\n*[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}* taşınmazı için hazırlanan *${currentTemplate.titleTr}*, ${firstSignerLabel} *${clientName || firstSignerLabel}* tarafından dijital olarak imzalanmıştır (✔ 1. İmza Tamamlandı).\n\nİmzalı sözleşmeyi incelemek ve **${secondSignerLabel} olarak aynı sözleşme üzerinde dijital imzanızla FİNALLEMEK** için lütfen aşağıdaki bağlantıya tıklayınız:\n\n${signUrl}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
     if (formattedOwnerPhone) {
       window.open(`https://wa.me/${formattedOwnerPhone}?text=${encodeURIComponent(message)}`, '_blank');
     } else {
@@ -1034,7 +1123,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     }
   };
 
-  // 3. Send Finalized Dual-Signed Contract to Buyer & Seller
+  // 3. Send Finalized Dual-Signed Contract to Both Parties
   const handleSendFinalizedWhatsApp = async (recipient: "buyer" | "seller") => {
     try {
       await persistContractRecord({ silent: true });
@@ -1042,12 +1131,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       // ignore
     }
     const finalUrl = buildContractSignUrl("final", activeDocId);
-    const isBuyer = recipient === "buyer";
-    const rawPhone = isBuyer ? clientPhone : (ownerPhone || resolveOwnerPhone(property));
-    const formattedPhone = rawPhone ? formatPhoneForWhatsApp(rawPhone) : "";
-    const recipientName = isBuyer ? (clientName || "Alıcı") : (placeholderValues.ownerName || "Satıcı");
+    const isFirstParty = recipient === "buyer";
+    const rawPhone = isFirstParty ? clientPhone : (ownerPhone || (isOwnerAuthContract ? storePhoneVal : resolveOwnerPhone(property)));
+    const formattedPhone = rawPhone && !rawPhone.includes("5XX") ? formatPhoneForWhatsApp(rawPhone) : "";
+    const recipientName = isFirstParty ? (clientName || firstSignerLabel) : (placeholderValues.ownerName || secondSignerLabel);
 
-    const message = `*FİNAL İMZALI ${currentTemplate.titleTr.toUpperCase()} (ALICI + SATICI ONAYLI)*\nTarih: ${placeholderValues.contractDate}\n\nSayın *${recipientName}*,\n\n*[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}* taşınmazına ait *${currentTemplate.titleTr}*, hem Alıcı (*${clientName}*) hem de Satıcı (*${placeholderValues.ownerName}*) tarafından karşılıklı dijital imzalarla tamamlanarak sistemde mühürlenmiştir.\n\nHer iki tarafın imzasını taşıyan **Sözleşmenin Son Halini** görüntülemek ve PDF olarak indirmek için:\n\n${finalUrl}\n\nHayırlı ve uğurlu olmasını dileriz.\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    const message = `*FİNAL İMZALI ${currentTemplate.titleTr.toUpperCase()} (${firstSignerLabel.toUpperCase()} + ${secondSignerLabel.toUpperCase()} ONAYLI)*\nTarih: ${placeholderValues.contractDate}\n\nSayın *${recipientName}*,\n\n*[Ref: ${property.reference_no || `LP-${property.id}`}] ${property.title}* taşınmazına ait *${currentTemplate.titleTr}*, hem ${firstSignerLabel} (*${clientName}*) hem de ${secondSignerLabel} (*${placeholderValues.ownerName}*) tarafından karşılıklı dijital imzalarla tamamlanarak sistemde mühürlenmiştir.\n\nHer iki tarafın imzasını taşıyan **Sözleşmenin Son Halini** görüntülemek ve PDF olarak indirmek için:\n\n${finalUrl}\n\nHayırlı ve uğurlu olmasını dileriz.\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
 
     if (formattedPhone) {
       window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
@@ -1058,8 +1147,8 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
   const handleSaveContract = async () => {
     const isOfferLetter = selectedTemplateId === "offer_letter";
-    if (!clientName.trim() || (!isOfferLetter && !clientIdentity.trim())) {
-      alert("Lütfen sözleşmeyi kaydetmeden önce Alıcı Adı Soyadı ve Kimlik/Pasaport No bilgilerini giriniz.");
+    if (!clientName.trim() || (!isOfferLetter && !isOwnerAuthContract && !clientIdentity.trim())) {
+      alert(`Lütfen sözleşmeyi kaydetmeden önce ${firstSignerLabel} Adı Soyadı bilgisini giriniz.`);
       return;
     }
     if (!onSaveContract) return;
@@ -1068,9 +1157,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       await persistContractRecord();
       alert(
         signed && sellerSigned
-          ? "Alıcı ve Satıcı imzalı FİNAL SÖZLEŞME sistem arşivine kaydedildi! Şimdi son halini Alıcı ve Satıcıya iletebilirsiniz."
+          ? `${firstSignerLabel} ve ${secondSignerLabel} imzalı FİNAL SÖZLEŞME sistem arşivine kaydedildi! Şimdi son halini taraflara iletebilirsiniz.`
           : signed
-          ? "1. İmza (Alıcı imzalı sözleşme) kaydedildi! Şimdi 2. adım olarak Satıcı imzasına geçebilir veya Satıcıya imza bağlantısı gönderebilirsiniz."
+          ? `1. İmza (${firstSignerLabel} imzalı sözleşme) kaydedildi! Şimdi 2. adım olarak ${secondSignerLabel} imzasına geçebilirsiniz.`
           : "Sözleşme başarıyla kaydedildi!"
       );
     } catch (err: any) {
@@ -1154,7 +1243,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                   <button
                     key={template.id}
                     onClick={() => {
-                      setSelectedTemplateId(template.id);
+                      handleSelectTemplate(template.id);
                     }}
                     className={`px-3 py-2 rounded-xl flex items-center justify-between gap-2 transition-all text-left border-2 cursor-pointer ${
                       selectedTemplateId === template.id 
@@ -1173,89 +1262,27 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                         Alıcı ➔ Satıcı İmzalı
                       </span>
                     )}
+                    {["exclusivity_agreement", "rental_authorization"].includes(template.id) && (
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase shrink-0 ${
+                        selectedTemplateId === template.id ? 'bg-emerald-400 text-slate-950' : 'bg-emerald-100 text-emerald-900'
+                      }`}>
+                        Mülk Sahibi ➔ Yetkili İmzalı
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* SATICI / KİRAYA VEREN (Mülk Sahibi) Bilgileri */}
-            {isBilateralContract && (
-              <div className="p-3 bg-white border-2 border-slate-300 rounded-xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">
-                    {selectedTemplateId === "rental_agreement"
-                      ? "KİRAYA VEREN (MÜLK SAHİBİ) BİLGİLERİ"
-                      : "SATICI / MÜLK SAHİBİ BİLGİLERİ"}
-                  </span>
-                  <span className="text-[9px] font-black bg-slate-900 text-amber-400 px-2 py-0.5 rounded">
-                    2. İmza (Final)
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-900">
-                      {selectedTemplateId === "rental_agreement" ? "Kiraya Veren Adı Soyadı *" : "Satıcı Adı Soyadı *"}
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full bg-slate-50 border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
-                      placeholder={selectedTemplateId === "rental_agreement" ? "Örn: TUNCEL SOYCAN" : "Örn: İMAM YILDIRIM"}
-                      value={ownerName}
-                      onChange={(e) => {
-                        setOwnerName(e.target.value);
-                        setSellerSigningName(e.target.value);
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-900">
-                      {selectedTemplateId === "rental_agreement" ? "Kiraya Veren Telefon" : "Satıcı Telefon (WhatsApp)"}
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full bg-slate-50 border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
-                      placeholder="Örn: 0548 839 4982"
-                      value={ownerPhone}
-                      onChange={(e) => setOwnerPhone(e.target.value)}
-                    />
-                  </div>
-                </div>
-                {(selectedTemplateId === "sales_brokerage" || selectedTemplateId === "rental_agreement") && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-900">Kimlik / Pasaport No</label>
-                      <input
-                        type="text"
-                        className="w-full bg-slate-50 border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
-                        placeholder={selectedTemplateId === "rental_agreement" ? "Örn: 2150296214" : "Örn: 2010390619"}
-                        value={sellerIdentity}
-                        onChange={(e) => setSellerIdentity(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-900">Kimlik Türü</label>
-                      <select
-                        className="w-full bg-slate-50 border-2 border-slate-300 px-2 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
-                        value={sellerIdType}
-                        onChange={(e) => setSellerIdType(e.target.value)}
-                      >
-                        <option value="KKTC kimlik">KKTC kimlik</option>
-                        <option value="KKTC Kimlik Kartı">KKTC Kimlik Kartı</option>
-                        <option value="TC kimlik">TC kimlik</option>
-                        <option value="TC Kimlik Kartı">TC Kimlik Kartı</option>
-                        <option value="Pasaport">Pasaport</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ALICI / KİRACI Bilgileri */}
+            {/* 1. İMZA (ÖNCELİKLİ TARAF): Tek Yetki / Kiralama Yetki'de MÜLK SAHİBİ; Diğerlerinde ALICI / KİRACI */}
             <div className="p-3 bg-white border-2 border-indigo-200 rounded-xl space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black text-indigo-950 uppercase tracking-wider">
-                  {selectedTemplateId === "rental_agreement" ? "KİRACI BİLGİLERİ" : "ALICI / MÜŞTERİ BİLGİLERİ"}
+                  {isOwnerAuthContract
+                    ? "MÜLK SAHİBİ BİLGİLERİ"
+                    : selectedTemplateId === "rental_agreement" || selectedTemplateId === "eviction_undertaking"
+                    ? "KİRACI BİLGİLERİ"
+                    : "ALICI / MÜŞTERİ BİLGİLERİ"}
                 </span>
                 <span className="text-[9px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded">
                   1. İmza (Öncelikli)
@@ -1265,14 +1292,24 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
               <div className="grid grid-cols-1 gap-2">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-900">
-                    {selectedTemplateId === "rental_agreement" ? "Kiracı Adı Soyadı *" : "Alıcı Adı Soyadı *"}
+                    {isOwnerAuthContract
+                      ? "Mülk Sahibi Adı Soyadı *"
+                      : selectedTemplateId === "rental_agreement" || selectedTemplateId === "eviction_undertaking"
+                      ? "Kiracı Adı Soyadı *"
+                      : "Alıcı Adı Soyadı *"}
                   </label>
                   <div className="relative">
                     <User className="absolute left-2.5 top-2 w-4 h-4 text-slate-500" />
                     <input 
                       type="text"
                       className="w-full bg-slate-50 border-2 border-slate-300 pl-8 pr-3 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
-                      placeholder={selectedTemplateId === "rental_agreement" ? "Örn: KIVANÇ KÖKLÜ" : "Örn: NEVZAT GÜNGÖR"}
+                      placeholder={
+                        isOwnerAuthContract
+                          ? "Örn: AYSIN YILMAÇ"
+                          : selectedTemplateId === "rental_agreement"
+                          ? "Örn: KIVANÇ KÖKLÜ"
+                          : "Örn: NEVZAT GÜNGÖR"
+                      }
                       value={clientName}
                       onChange={(e) => {
                         setClientName(e.target.value);
@@ -1284,7 +1321,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-900">Kimlik / Pasaport No *</label>
+                    <label className="text-[10px] font-black text-slate-900">
+                      {isOwnerAuthContract ? "Mülk Sahibi Kimlik / Pasaport No" : "Kimlik / Pasaport No *"}
+                    </label>
                     <input 
                       type="text"
                       className="w-full bg-slate-50 border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
@@ -1313,7 +1352,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
                   <div className={(selectedTemplateId === "sales_brokerage" || selectedTemplateId === "rental_agreement") ? "space-y-1" : "space-y-1 sm:col-span-2"}>
                     <label className="text-[10px] font-black text-slate-900">
-                      {selectedTemplateId === "rental_agreement" ? "Kiracı Telefon (WhatsApp) *" : "Alıcı Telefon (WhatsApp) *"}
+                      {isOwnerAuthContract
+                        ? "Mülk Sahibi Telefon (WhatsApp) *"
+                        : selectedTemplateId === "rental_agreement" || selectedTemplateId === "eviction_undertaking"
+                        ? "Kiracı Telefon (WhatsApp) *"
+                        : "Alıcı Telefon (WhatsApp) *"}
                     </label>
                     <input 
                       type="text"
@@ -1326,7 +1369,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {property.listing_intent === 'rent' ? (
+                  {(property.listing_intent === 'rent' || selectedTemplateId === 'rental_authorization') && selectedTemplateId !== 'exclusivity_agreement' ? (
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-900">Hizmet Komisyonu</label>
                       <input 
@@ -1370,6 +1413,95 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* 2. İMZA (FİNAL ONAY TARAF): Tek Yetki / Kiralama Yetki'de İŞLETME YETKİLİSİ; Diğerlerinde SATICI / KİRAYA VEREN */}
+            {isBilateralContract && (
+              <div className="p-3 bg-white border-2 border-slate-300 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">
+                    {isOwnerAuthContract
+                      ? "İŞLETME YETKİLİSİ / ARACI OFİS BİLGİLERİ"
+                      : selectedTemplateId === "rental_agreement"
+                      ? "KİRAYA VEREN (MÜLK SAHİBİ) BİLGİLERİ"
+                      : "SATICI / MÜLK SAHİBİ BİLGİLERİ"}
+                  </span>
+                  <span className="text-[9px] font-black bg-slate-900 text-amber-400 px-2 py-0.5 rounded">
+                    2. İmza (Final)
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-900">
+                      {isOwnerAuthContract
+                        ? "İşletme Yetkilisi / Broker *"
+                        : selectedTemplateId === "rental_agreement"
+                        ? "Kiraya Veren Adı Soyadı *"
+                        : "Satıcı Adı Soyadı *"}
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
+                      placeholder={
+                        isOwnerAuthContract
+                          ? "Örn: Rodel Investment - Emrah CEYHAN"
+                          : selectedTemplateId === "rental_agreement"
+                          ? "Örn: TUNCEL SOYCAN"
+                          : "Örn: İMAM YILDIRIM"
+                      }
+                      value={ownerName}
+                      onChange={(e) => {
+                        setOwnerName(e.target.value);
+                        setSellerSigningName(e.target.value);
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-900">
+                      {isOwnerAuthContract
+                        ? "Ofis / Yetkili Telefon (WhatsApp)"
+                        : selectedTemplateId === "rental_agreement"
+                        ? "Kiraya Veren Telefon"
+                        : "Satıcı Telefon (WhatsApp)"}
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
+                      placeholder="Örn: 0548 839 4982"
+                      value={ownerPhone}
+                      onChange={(e) => setOwnerPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+                {(selectedTemplateId === "sales_brokerage" || selectedTemplateId === "rental_agreement") && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-900">Kimlik / Pasaport No</label>
+                      <input
+                        type="text"
+                        className="w-full bg-slate-50 border-2 border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
+                        placeholder={selectedTemplateId === "rental_agreement" ? "Örn: 2150296214" : "Örn: 2010390619"}
+                        value={sellerIdentity}
+                        onChange={(e) => setSellerIdentity(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-900">Kimlik Türü</label>
+                      <select
+                        className="w-full bg-slate-50 border-2 border-slate-300 px-2 py-1.5 rounded-lg text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
+                        value={sellerIdType}
+                        onChange={(e) => setSellerIdType(e.target.value)}
+                      >
+                        <option value="KKTC kimlik">KKTC kimlik</option>
+                        <option value="KKTC Kimlik Kartı">KKTC Kimlik Kartı</option>
+                        <option value="TC kimlik">TC kimlik</option>
+                        <option value="TC Kimlik Kartı">TC Kimlik Kartı</option>
+                        <option value="Pasaport">Pasaport</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* SATIŞ SÖZLEŞMESİ (sales_brokerage) Özel Değişkenleri */}
             {selectedTemplateId === "sales_brokerage" && (
@@ -1571,7 +1703,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
               </div>
             )}
 
-            {selectedTemplateId === "rental_authorization" && (
+            {(selectedTemplateId === "rental_authorization" || selectedTemplateId === "exclusivity_agreement") && (
               <div className="space-y-1 mt-1">
                 <label className="text-[10px] font-black text-slate-900 ml-0.5">Yetki Süresi</label>
                 <div className="relative">
@@ -1579,7 +1711,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                   <input 
                     type="text"
                     className="w-full bg-white border-2 border-slate-300 pl-9 pr-3 py-2 rounded-xl text-xs font-black text-slate-950 focus:outline-none focus:border-indigo-600"
-                    placeholder="Örn: 12 Ay"
+                    placeholder={selectedTemplateId === "exclusivity_agreement" ? "Örn: 6 (Altı) Ay" : "Örn: 12 Ay"}
                     value={contractDuration}
                     onChange={(e) => setContractDuration(e.target.value)}
                   />
@@ -2120,7 +2252,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 <div className="flex items-center gap-1.5">
                   <FileCheck className="w-4 h-4 text-indigo-600" />
                   <span className="text-[11px] font-black uppercase text-slate-950 tracking-wider">
-                    {isBilateralContract ? "Sıralı Çift Dijital İmza (1. Alıcı ➔ 2. Satıcı)" : "Dijital İmza"}
+                    {isBilateralContract
+                      ? `Sıralı Çift Dijital İmza (1. ${firstSignerLabel} ➔ 2. ${secondSignerLabel})`
+                      : "Dijital İmza"}
                   </span>
                 </div>
                 <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
@@ -2133,16 +2267,16 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                   {signed && (!isBilateralContract || sellerSigned)
                     ? "FİNAL İMZALI"
                     : signed
-                    ? "1/2 ALICI İMZALADI"
+                    ? `1/2 ${firstSignerLabel.toUpperCase()} İMZALADI`
                     : "İMZA BEKLİYOR"}
                 </span>
               </div>
 
-              {/* STEP 1: BUYER / CLIENT SIGNATURE (1ST PRIORITY) */}
+              {/* STEP 1: 1ST PRIORITY SIGNATURE (Mülk Sahibi for owner auth; Alıcı/Kiracı otherwise) */}
               <div className="p-2.5 bg-slate-50 border-2 border-indigo-200 rounded-xl space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase text-indigo-950">
-                    1. Adım (İmza Önceliği): {selectedTemplateId === "rental_agreement" ? "Kiracı İmzası" : "Alıcı İmzası"}
+                    1. Adım (İmza Önceliği): {firstSignerLabel} İmzası
                   </span>
                   {signed && (
                     <button
@@ -2168,13 +2302,13 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       <span>1. İmza Tamam ({signingName || clientName})</span>
                     </div>
                     {signatureImage && (
-                      <img src={signatureImage} alt="Alıcı İmzası" className="h-8 bg-white px-1.5 py-0.5 rounded border border-emerald-300" />
+                      <img src={signatureImage} alt={`${firstSignerLabel} İmzası`} className="h-8 bg-white px-1.5 py-0.5 rounded border border-emerald-300" />
                     )}
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-700">İmzalayan: {clientName || "Alıcı"}</span>
+                      <span className="text-[10px] font-bold text-slate-700">İmzalayan: {clientName || firstSignerLabel}</span>
                       <button
                         onClick={clearCanvas}
                         type="button"
@@ -2200,7 +2334,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       {!isSigningActive && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
                           <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                            1. ÖNCELİK: ALICI BURAYA İMZALAR
+                            1. ÖNCELİK: {firstSignerLabel.toUpperCase()} BURAYA İMZALAR
                           </span>
                         </div>
                       )}
@@ -2210,11 +2344,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                         type="button"
                         onClick={async () => {
                           if (!clientName.trim()) {
-                            return alert("Lütfen önce Alıcı Adı Soyadı bilgisini giriniz!");
+                            return alert(`Lütfen önce ${firstSignerLabel} Adı Soyadı bilgisini giriniz!`);
                           }
                           const canvas = canvasRef.current;
                           if (!canvas || !isSigningActive) {
-                            return alert("Lütfen Alıcı imza kutusuna imza çiziniz!");
+                            return alert(`Lütfen ${firstSignerLabel} imza kutusuna imza çiziniz!`);
                           }
                           const dataUrl = canvas.toDataURL("image/png");
                           setSigningName(clientName.trim());
@@ -2232,28 +2366,28 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                         }}
                         className="py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase rounded-lg transition-all cursor-pointer"
                       >
-                        1. Alıcı İmzasını Onayla
+                        1. {firstSignerLabel} İmzasını Onayla
                       </button>
                       <button
                         type="button"
                         onClick={handleShareBuyerWhatsApp}
                         className="py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer"
                       >
-                        <Share2 className="w-3.5 h-3.5" /> Alıcıya Gönder (WA)
+                        <Share2 className="w-3.5 h-3.5" /> {isOwnerAuthContract ? "Mülk Sahibine Gönder (WA)" : "Alıcıya Gönder (WA)"}
                       </button>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* STEP 2: SELLER / OWNER SIGNATURE (UNLOCKED ONLY AFTER BUYER SIGNS) */}
+              {/* STEP 2: 2ND SIGNATURE (İşletme Yetkilisi for owner auth; Satıcı/Kiraya Veren otherwise - UNLOCKED ONLY AFTER 1ST SIGNER SIGNS) */}
               {isBilateralContract && (
                 <div className={`p-2.5 rounded-xl border-2 space-y-2 transition-all ${
                   signed ? "bg-amber-50/70 border-amber-400" : "bg-slate-100 border-slate-300 opacity-75"
                 }`}>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase text-slate-900">
-                      2. Adım (Final Onay): Satıcı / Mülk Sahibi İmzası
+                      2. Adım (Final Onay): {secondSignerLabel} İmzası
                     </span>
                     {sellerSigned && (
                       <button
@@ -2272,23 +2406,23 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
                   {!signed ? (
                     <div className="p-2 bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 text-center">
-                      İmza önceliği <strong>Alıcı</strong>'dadır. Alıcı imzaladıktan sonra Satıcı imzası aktifleşir.
+                      İmza önceliği <strong>{firstSignerLabel}</strong> tarafındadır. {firstSignerLabel} imzaladıktan sonra {secondSignerLabel} imzası aktifleşir.
                     </div>
                   ) : sellerSigned ? (
                     <div className="bg-emerald-100 border border-emerald-500 p-2 rounded-lg flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 text-xs font-black text-emerald-950">
                         <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
-                        <span>2. Satıcı İmzası Tamam ({sellerSigningName || placeholderValues.ownerName})</span>
+                        <span>2. {secondSignerLabel} İmzası Tamam ({sellerSigningName || placeholderValues.ownerName})</span>
                       </div>
                       {sellerSignatureImage && (
-                        <img src={sellerSignatureImage} alt="Satıcı İmzası" className="h-8 bg-white px-1.5 py-0.5 rounded border border-emerald-400" />
+                        <img src={sellerSignatureImage} alt={`${secondSignerLabel} İmzası`} className="h-8 bg-white px-1.5 py-0.5 rounded border border-emerald-400" />
                       )}
                     </div>
                   ) : (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-bold text-slate-800">
-                          Satıcı: {placeholderValues.ownerName}
+                          {secondSignerLabel}: {placeholderValues.ownerName}
                         </span>
                         <button
                           onClick={clearSellerCanvas}
@@ -2315,7 +2449,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                         {!isSellerSigningActive && (
                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
                             <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                              2. FİNAL ONAY: SATICI BURAYA İMZALAR
+                              2. FİNAL ONAY: {secondSignerLabel.toUpperCase()} BURAYA İMZALAR
                             </span>
                           </div>
                         )}
@@ -2326,10 +2460,10 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                           onClick={async () => {
                             const sCanvas = sellerCanvasRef.current;
                             if (!sCanvas || !isSellerSigningActive) {
-                              return alert("Lütfen Satıcı imza kutusuna imza çiziniz!");
+                              return alert(`Lütfen ${secondSignerLabel} imza kutusuna imza çiziniz!`);
                             }
                             const sDataUrl = sCanvas.toDataURL("image/png");
-                            const resolvedSName = (ownerName || placeholderValues.ownerName || "Satıcı").trim();
+                            const resolvedSName = (ownerName || placeholderValues.ownerName || secondSignerLabel).trim();
                             setSellerSigningName(resolvedSName);
                             setSellerSignatureImage(sDataUrl);
                             setSellerSigned(true);
@@ -2347,14 +2481,14 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                           }}
                           className="py-2 bg-slate-900 hover:bg-slate-800 text-amber-400 text-[11px] font-black uppercase rounded-lg transition-all cursor-pointer"
                         >
-                          2. Satıcı İmzasını Onayla (Finalle)
+                          2. {secondSignerLabel} İmzasını Onayla (Finalle)
                         </button>
                         <button
                           type="button"
                           onClick={handleShareSellerWhatsApp}
                           className="py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 text-[11px] font-black uppercase rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer"
                         >
-                          <Send className="w-3.5 h-3.5" /> Satıcıya Gönder (WA)
+                          <Send className="w-3.5 h-3.5" /> {isOwnerAuthContract ? "Yetkiliye Gönder (WA)" : "Satıcıya Gönder (WA)"}
                         </button>
                       </div>
                     </div>
@@ -2362,7 +2496,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 </div>
               )}
 
-              {/* FINALIZED CONTRACT DELIVERY TO BOTH BUYER AND SELLER */}
+              {/* FINALIZED CONTRACT DELIVERY TO BOTH PARTIES */}
               {signed && (!isBilateralContract || sellerSigned) && (
                 <div className="p-2.5 bg-emerald-950 text-white rounded-xl space-y-2">
                   <div className="flex items-center justify-between">
@@ -2376,7 +2510,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       onClick={() => handleSendFinalizedWhatsApp("buyer")}
                       className="py-2 px-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition-all"
                     >
-                      <Share2 className="w-3.5 h-3.5" /> Son Halini Alıcıya İlet
+                      <Share2 className="w-3.5 h-3.5" /> Son Halini {isOwnerAuthContract ? "Mülk Sahibine" : "Alıcıya"} İlet
                     </button>
                     {isBilateralContract && (
                       <button
@@ -2384,7 +2518,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                         onClick={() => handleSendFinalizedWhatsApp("seller")}
                         className="py-2 px-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition-all"
                       >
-                        <Send className="w-3.5 h-3.5" /> Son Halini Satıcıya İlet
+                        <Send className="w-3.5 h-3.5" /> Son Halini {isOwnerAuthContract ? "Yetkiliye" : "Satıcıya"} İlet
                       </button>
                     )}
                   </div>
@@ -2445,10 +2579,10 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
               <button 
                 onClick={handleShareBuyerWhatsApp}
                 className="p-2 sm:px-3 sm:py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl transition-all flex items-center gap-1.5 text-xs font-black shrink-0 cursor-pointer active:scale-95"
-                title="1. Öncelik: Alıcıya İmza İçin Gönder"
+                title={`1. Öncelik: ${firstSignerLabel} İmza İçin Gönder`}
               >
                 <Share2 className="w-3.5 h-3.5" />
-                <span className="text-[11px]">1. Alıcıya İmza</span>
+                <span className="text-[11px]">1. {isOwnerAuthContract ? "Mülk Sahibi İmza" : "Alıcıya İmza"}</span>
               </button>
               {isBilateralContract && (
                 <button 
@@ -2458,10 +2592,10 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       ? "bg-amber-400 text-slate-950 hover:bg-amber-500"
                       : "bg-slate-200 text-slate-600 hover:bg-slate-300"
                   }`}
-                  title="2. Adım: Satıcıya Final İmza İçin Gönder"
+                  title={`2. Adım: ${secondSignerLabel} Final İmza İçin Gönder`}
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">2. Satıcıya İmza</span>
+                  <span className="text-[11px]">2. {isOwnerAuthContract ? "Yetkili İmza" : "Satıcıya İmza"}</span>
                 </button>
               )}
               {signed && (!isBilateralContract || sellerSigned) && (
@@ -2469,17 +2603,17 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                   <button
                     onClick={() => handleSendFinalizedWhatsApp("buyer")}
                     className="p-2 sm:px-2.5 sm:py-1.5 bg-slate-900 text-emerald-400 hover:bg-slate-800 rounded-xl transition-all flex items-center gap-1 text-[11px] font-black shrink-0 cursor-pointer"
-                    title="Son Halini Alıcıya İlet"
+                    title={`Son Halini ${firstSignerLabel} Tarafına İlet`}
                   >
-                    <span>Final ➔ Alıcı</span>
+                    <span>Final ➔ {firstSignerLabel}</span>
                   </button>
                   {isBilateralContract && (
                     <button
                       onClick={() => handleSendFinalizedWhatsApp("seller")}
                       className="p-2 sm:px-2.5 sm:py-1.5 bg-slate-900 text-amber-400 hover:bg-slate-800 rounded-xl transition-all flex items-center gap-1 text-[11px] font-black shrink-0 cursor-pointer"
-                      title="Son Halini Satıcıya İlet"
+                      title={`Son Halini ${secondSignerLabel} Tarafına İlet`}
                     >
-                      <span>Final ➔ Satıcı</span>
+                      <span>Final ➔ {secondSignerLabel}</span>
                     </button>
                   )}
                 </>

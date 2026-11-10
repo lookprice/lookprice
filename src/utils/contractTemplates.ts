@@ -429,6 +429,29 @@ ${item2Details ? `2- ${item2Details} | Ortalama Değeri: ${item2Price} | Tarih: 
     descriptionTr: "Mülk sahibinin gayrimenkul satış yetkisini tek bir ofise devrettiği sözleşme.",
     descriptionEn: "Exclusive mandate from owner granting sole rights to market and sell property.",
     getTemplate: (v) => {
+      const ownerFullName = (
+        v.clientName && !v.clientName.startsWith("[")
+          ? v.clientName
+          : v.ownerName || "Mülk Sahibi"
+      ).trim();
+      const ownerIdStr = (
+        v.clientIdentity && !v.clientIdentity.startsWith("[")
+          ? v.clientIdentity
+          : v.sellerIdentity || "Belirtilmedi"
+      ).trim();
+      const ownerPhoneStr = (
+        v.clientPhone && !v.clientPhone.startsWith("[")
+          ? v.clientPhone
+          : v.ownerPhone || "Belirtilmedi"
+      ).trim();
+      const agencyRepName = (
+        v.sellerSigningName ||
+        (v.ownerName && v.ownerName !== ownerFullName ? v.ownerName : "") ||
+        v.agentAndCompany ||
+        v.storeName ||
+        "Yetkili Emlak Ofisi"
+      ).trim();
+
       const html = `
 <div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
   <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 20px;">
@@ -438,20 +461,20 @@ ${item2Details ? `2- ${item2Details} | Ortalama Değeri: ${item2Price} | Tarih: 
 
   <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
     <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">YETKİLİ ACENTE / EXCLUSIVE BROKER</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.storeName}</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">YETKİLİ EMLAK OFİSİ / BROKER</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${agencyRepName}</strong> (${v.storeName})</td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK SAHİBİ / OWNER</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.clientName}</strong></td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${ownerFullName}</strong></td>
     </tr>
     <tr style="background-color: #f8fafc;">
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">T.C. / PASAPORT NO</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.clientIdentity}</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİMLİK / PASAPORT NO</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${ownerIdStr}</td>
     </tr>
     <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">İLETİŞİM / CONTACT</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.clientPhone}</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK SAHİBİ İLETİŞİM</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${ownerPhoneStr}</td>
     </tr>
     <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">PAZARLANACAK MÜLK / PROPERTY</td>
@@ -473,7 +496,7 @@ ${item2Details ? `2- ${item2Details} | Ortalama Değeri: ${item2Price} | Tarih: 
   <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">SÖZLEŞME METNİ / CONTRACT BODY (TR & EN)</h3>
   <div style="font-size: 12px; color: #334155; text-align: justify; margin-bottom: 25px;">
     <p>
-      İşbu sözleşme uyarınca, <strong>Mülk Sahibi</strong>, yukarıda detayları verilen taşınmazın satılması, reklam ve tanıtımının yapılması amacıyla tek yetkili kılınmak üzere <strong>${v.storeName}</strong> (Aracı) firmasını atamıştır. 
+      İşbu sözleşme uyarınca, <strong>Mülk Sahibi (${ownerFullName})</strong>, yukarıda detayları verilen taşınmazın satılması, reklam ve tanıtımının yapılması amacıyla tek yetkili kılınmak üzere <strong>${v.storeName}</strong> (Aracı) firmasını atamıştır. 
     </p>
     <p>
       Mülk Sahibi, bu sözleşme süresince başka bir emlak ofisini yetkilendirmeyeceğini, gayrimenkulü kendisi satsa dahi, Aracı'ya satış bedeli üzerinden <strong>${v.commissionRate}</strong> oranında (+ KDV) komisyon ödemeyi yükümlenir. 
@@ -482,31 +505,39 @@ ${item2Details ? `2- ${item2Details} | Ortalama Değeri: ${item2Price} | Tarih: 
       Under this exclusive agreement, the <strong>Owner</strong> authorizes <strong>${v.storeName}</strong> (Broker) as the sole agent for marketing and selling the specified property. The Owner agrees that even if the property is sold directly by themselves or through another agent, the Broker is entitled to receive a fee of <strong>${v.commissionRate}</strong> of the final sale price.
     </p>
     <p>
-      <strong>Sözleşme Süresi (Duration):</strong> Bu yetkilendirme belgesi, imza tarihinden itibaren 6 (Altı) ay boyunca geçerlidir.
+      <strong>Sözleşme Süresi (Duration):</strong> Bu yetkilendirme belgesi, imza tarihinden itibaren <strong>${v.contractDuration || "6 (Altı) Ay"}</strong> boyunca geçerlidir.
     </p>
   </div>
 
   ${renderCustomClausesHtml(v.customClauses)}
 
-  <div style="margin-top: 40px; display: flex; justify-content: space-between; gap: 40px;">
+  <div style="margin-top: 32px; display: flex; justify-content: space-between; gap: 32px; page-break-inside: avoid;">
     <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
       <div>
-        <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">YETKİLİ OFİS CAŞESİ</span>
-        <span style="display: block; font-size: 10px; color: #94a3b8;">AGENT STAMP/SIGNATURE</span>
+        <span style="font-size: 12px; font-weight: 900; color: #0f172a; text-transform: uppercase;">MÜLK SAHİBİ (1. İMZA)</span>
+        <span style="display: block; font-size: 11px; font-weight: bold; color: #334155; margin-top: 2px;">${ownerFullName}</span>
       </div>
-      <div style="font-size: 14px; font-weight: bold; color: #475569; font-style: italic;">
-        ${v.storeName}
-      </div>
-      <div style="font-size: 9px; color: #94a3b8;">Yetkili Broker / Advisor</div>
+      ${renderSignatureOrStamp(
+        v.signingName || ownerFullName,
+        v.isSigned,
+        v.signatureImage,
+        "1. Öncelik: Mülk Sahibi İmzası Bekleniyor"
+      )}
+      <div style="font-size: 10px; color: #64748b;">1. İmza (Öncelikli) • Mülk Sahibi</div>
     </div>
 
     <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
       <div>
-        <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">MÜLK SAHİBİ</span>
-        <span style="display: block; font-size: 10px; color: #94a3b8;">PROPERTY OWNER</span>
+        <span style="font-size: 12px; font-weight: 900; color: #0f172a; text-transform: uppercase;">İŞLETME YETKİLİSİ / ARACI OFİS (2. İMZA)</span>
+        <span style="display: block; font-size: 11px; font-weight: bold; color: #334155; margin-top: 2px;">${agencyRepName}</span>
       </div>
-      ${renderSignatureOrStamp(v.clientName, v.isSigned, v.signatureImage)}
-      <div style="font-size: 9px; color: #94a3b8;">Onaylandı & Dijital İmzalandı / Authorized</div>
+      ${renderSignatureOrStamp(
+        agencyRepName,
+        v.sellerSigned,
+        v.sellerSignatureImage,
+        v.isSigned ? "İşletme Yetkilisi Onayı Bekleniyor" : "Önce Mülk Sahibi İmzası Bekleniyor"
+      )}
+      <div style="font-size: 10px; color: #64748b;">2. İmza (Final Onay) • İşletme Yetkilisi</div>
     </div>
   </div>
 </div>
@@ -514,8 +545,8 @@ ${item2Details ? `2- ${item2Details} | Ortalama Değeri: ${item2Price} | Tarih: 
       const markdown = `
 # TEK YETKİLİ SATIŞ SÖZLEŞMESİ
 
-**Aracı:** ${v.storeName}
-**Mülk Sahibi:** ${v.clientName}
+**Aracı Ofis / Yetkili:** ${agencyRepName} (${v.storeName})
+**Mülk Sahibi:** ${ownerFullName}
 **Tarih:** ${v.contractDate}
 ${v.propertyAddress ? `**Adres / Address:** ${v.propertyAddress}\n` : ''}
 
@@ -1106,6 +1137,29 @@ ${v.isFurnishedRental ? `\n> **EŞYA VE DEMİRBAŞ ONAYI:** "Mülk'ü kiralarken
     descriptionTr: "Mülk sahibinin gayrimenkul kiralama yetkisini emlak ofisine devrettiği yetki belgesi.",
     descriptionEn: "Mandate from owner granting rights to market and rent the property.",
     getTemplate: (v) => {
+      const ownerFullName = (
+        v.clientName && !v.clientName.startsWith("[")
+          ? v.clientName
+          : v.ownerName || "Mülk Sahibi"
+      ).trim();
+      const ownerIdStr = (
+        v.clientIdentity && !v.clientIdentity.startsWith("[")
+          ? v.clientIdentity
+          : v.sellerIdentity || "Belirtilmedi"
+      ).trim();
+      const ownerPhoneStr = (
+        v.clientPhone && !v.clientPhone.startsWith("[")
+          ? v.clientPhone
+          : v.ownerPhone || "Belirtilmedi"
+      ).trim();
+      const agencyRepName = (
+        v.sellerSigningName ||
+        (v.ownerName && v.ownerName !== ownerFullName ? v.ownerName : "") ||
+        v.agentAndCompany ||
+        v.storeName ||
+        "Yetkili Emlak Ofisi"
+      ).trim();
+
       const html = `
 <div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
   <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 20px;">
@@ -1114,15 +1168,23 @@ ${v.isFurnishedRental ? `\n> **EŞYA VE DEMİRBAŞ ONAYI:** "Mülk'ü kiralarken
   </div>
 
   <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
-    <tr>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">ARACI OFİS / AGENT</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.storeName}</td>
+    <tr style="background-color: #f8fafc;">
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">ARACI OFİS / YETKİLİ</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${agencyRepName}</strong> (${v.storeName})</td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK SAHİBİ / OWNER</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.clientName}</strong></td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${ownerFullName}</strong></td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİMLİK / PASAPORT NO</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${ownerIdStr}</td>
     </tr>
     <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK SAHİBİ İLETİŞİM</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${ownerPhoneStr}</td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK BİLGİSİ / PROPERTY</td>
       <td style="padding: 10px; border: 1px solid #e2e8f0;">
         <strong>${v.propertyTitle}</strong> (${v.propertyLocation})
@@ -1133,7 +1195,7 @@ ${v.isFurnishedRental ? `\n> **EŞYA VE DEMİRBAŞ ONAYI:** "Mülk'ü kiralarken
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HEDEF KİRA / ASKING RENT</td>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #1d4ed8;">${v.propertyPrice}</td>
     </tr>
-    <tr>
+    <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HİZMET BEDELİ / COMMISSION</td>
       <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.commissionRate}</strong> (+ KDV)</td>
     </tr>
@@ -1141,36 +1203,52 @@ ${v.isFurnishedRental ? `\n> **EŞYA VE DEMİRBAŞ ONAYI:** "Mülk'ü kiralarken
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">SÖZLEŞME TARİHİ / DATE</td>
       <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.contractDate}</td>
     </tr>
-    <tr>
+    <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">YETKİ SÜRESİ / DURATION</td>
       <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.contractDuration || "12 Ay / 12 Months"}</strong></td>
     </tr>
   </table>
 
   <p style="font-size: 12px; text-align: justify;">
-    Mülk Sahibi, yukarıdaki taşınmazın kiralanması için <strong>${v.contractDate}</strong> tarihli yetki belgesi ile <strong>${v.contractDuration || "12 Ay / 12 Months"}</strong> süre boyunca <strong>${v.storeName}</strong> firmasını yetkili kılmıştır. Aracı, mülkün tanıtımını yapacak, kiracı adaylarını bulacak ve sözleşme sürecini yönetecektir. Kiralama gerçekleştiğinde Mülk Sahibi <strong>${v.commissionRate}</strong> tutarında hizmet bedeli ödemeyi kabul eder.
+    Mülk Sahibi (<strong>${ownerFullName}</strong>), yukarıdaki taşınmazın kiralanması için <strong>${v.contractDate}</strong> tarihli yetki belgesi ile <strong>${v.contractDuration || "12 Ay / 12 Months"}</strong> süre boyunca <strong>${v.storeName}</strong> firmasını yetkili kılmıştır. Aracı, mülkün tanıtımını yapacak, kiracı adaylarını bulacak ve sözleşme sürecini yönetecektir. Kiralama gerçekleştiğinde Mülk Sahibi <strong>${v.commissionRate}</strong> tutarında hizmet bedeli ödemeyi kabul eder.
   </p>
 
   ${renderCustomClausesHtml(v.customClauses)}
 
-  <div style="margin-top: 40px; display: flex; justify-content: space-between; gap: 40px; font-size: 11px;">
-    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 140px;">
-      <strong>MÜLK SAHİBİ / OWNER</strong>
-      ${renderSignatureOrStamp(v.clientName, v.isSigned, v.signatureImage)}
-      <div style="font-size: 9px; color: #94a3b8;">İmza / Signature</div>
+  <div style="margin-top: 32px; display: flex; justify-content: space-between; gap: 32px; font-size: 11px; page-break-inside: avoid;">
+    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 170px;">
+      <div>
+        <strong style="font-size: 12px; color: #0f172a;">MÜLK SAHİBİ (1. İMZA)</strong>
+        <div style="font-size: 11px; font-weight: bold; color: #334155; margin-top: 2px;">${ownerFullName}</div>
+      </div>
+      ${renderSignatureOrStamp(
+        v.signingName || ownerFullName,
+        v.isSigned,
+        v.signatureImage,
+        "1. Öncelik: Mülk Sahibi İmzası Bekleniyor"
+      )}
+      <div style="font-size: 10px; color: #64748b;">1. İmza (Öncelikli) • Mülk Sahibi</div>
     </div>
-    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 140px;">
-      <strong>ARACI OFİS / AGENT</strong>
-      <span style="color: #475569; font-style: italic; font-weight: bold; display: block; margin: 10px 0;">${v.storeName}</span>
-      <div style="font-size: 9px; color: #94a3b8;">Kaşe & İmza</div>
+    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 170px;">
+      <div>
+        <strong style="font-size: 12px; color: #0f172a;">İŞLETME YETKİLİSİ / ARACI OFİS (2. İMZA)</strong>
+        <div style="font-size: 11px; font-weight: bold; color: #334155; margin-top: 2px;">${agencyRepName}</div>
+      </div>
+      ${renderSignatureOrStamp(
+        agencyRepName,
+        v.sellerSigned,
+        v.sellerSignatureImage,
+        v.isSigned ? "İşletme Yetkilisi Onayı Bekleniyor" : "Önce Mülk Sahibi İmzası Bekleniyor"
+      )}
+      <div style="font-size: 10px; color: #64748b;">2. İmza (Final Onay) • İşletme Yetkilisi</div>
     </div>
   </div>
 </div>
 `;
       const markdown = `
 # KİRALAMA YETKİ BELGESİ
-**Mülk Sahibi:** ${v.clientName}
-**Aracı:** ${v.storeName}
+**Mülk Sahibi:** ${ownerFullName}
+**Aracı Ofis / Yetkili:** ${agencyRepName} (${v.storeName})
 **Mülk:** ${v.propertyTitle}
 **Hedef Kira:** ${v.propertyPrice}
 ${renderCustomClausesMarkdown(v.customClauses)}`;

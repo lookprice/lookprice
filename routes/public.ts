@@ -2941,6 +2941,18 @@ router.post("/real-estate/:id/sign", async (req, res) => {
     };
     const contractTitleLabel = templateTitleMap[resolvedTemplateId] || "Sözleşme";
 
+    const isOwnerAuthContract = ["exclusivity_agreement", "rental_authorization"].includes(resolvedTemplateId);
+    const firstSignerRoleLabel = isOwnerAuthContract
+      ? "Mülk Sahibi"
+      : resolvedTemplateId === "rental_agreement"
+      ? "Kiracı"
+      : "Alıcı";
+    const secondSignerRoleLabel = isOwnerAuthContract
+      ? "İşletme Yetkilisi"
+      : resolvedTemplateId === "rental_agreement"
+      ? "Kiraya Veren"
+      : "Satıcı";
+
     // Locate target document if docId provided or if seller is signing an existing buyer-signed contract
     let targetDocIndex = -1;
     if (docId) {
@@ -2964,12 +2976,11 @@ router.post("/real-estate/:id/sign", async (req, res) => {
     const existingDocObj = targetDocIndex >= 0 ? existingDocs[targetDocIndex] : null;
     const prevDetails = existingDocObj?.details || {};
 
-    // Enforce Buyer-first signing priority when Seller signs
+    // Enforce 1st-signer priority when 2nd signer signs
     const hasBuyerSignature = Boolean(prevDetails.signed || (!isSellerRole && !isRejected && signatureImage));
     if (isSellerRole && !hasBuyerSignature && !signatureImage) {
       return res.status(400).json({
-        error:
-          "İmza önceliği ALICI'ya aittir. Satıcı tarafından imzalanabilmesi için önce Alıcı'nın sözleşmeyi imzalamış olması gerekmektedir."
+        error: `İmza önceliği ${firstSignerRoleLabel.toUpperCase()} tarafına aittir. ${secondSignerRoleLabel} tarafından imzalanabilmesi için önce ${firstSignerRoleLabel} imzasının tamamlanmış olması gerekmektedir.`
       });
     }
 
@@ -2994,9 +3005,7 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       ownerName ||
       prevDetails.sellerSigningName ||
       prevDetails.ownerName ||
-      existingSecData.owner_name ||
-      property.owner_name ||
-      "Mülk Sahibi";
+      (isOwnerAuthContract ? (req.body.displayName || "Emlak Ofisi Yetkilisi") : (existingSecData.owner_name || property.owner_name || "Mülk Sahibi"));
 
     const resolvedStage = isRejected
       ? "rejected"
@@ -3007,15 +3016,15 @@ router.post("/real-estate/:id/sign", async (req, res) => {
       : "draft";
 
     const finalDocId = existingDocObj?.id || docId || `virtual-contract-${Date.now()}`;
-    const buyerDisplayName = clientName || prevDetails.clientName || "Alıcı";
+    const buyerDisplayName = clientName || prevDetails.clientName || firstSignerRoleLabel;
 
     const docDisplayName = isRejected
       ? `RET / Düzeltme Talebi (${contractTitleLabel}) - ${ isSellerRole ? resolvedSellerName : buyerDisplayName } (${trDateStr})`
       : resolvedStage === "finalized"
-      ? `FİNAL İMZALI ${contractTitleLabel} (Alıcı: ${buyerDisplayName} + Satıcı: ${resolvedSellerName}) - ${trDateStr}`
+      ? `FİNAL İMZALI ${contractTitleLabel} (${firstSignerRoleLabel}: ${buyerDisplayName} + ${secondSignerRoleLabel}: ${resolvedSellerName}) - ${trDateStr}`
       : resolvedTemplateId === "external_partner_revenue_share"
       ? `Dış Paydaş Gelir Paylaşım Protokolü [IP/OTP Mühürlü] - ${buyerDisplayName} (${trDateStr})`
-      : `1. İmza (Alıcı Onaylı) ${contractTitleLabel} - ${buyerDisplayName} [Satıcı İmzası Bekleniyor] (${trDateStr})`;
+      : `1. İmza (${firstSignerRoleLabel} Onaylı) ${contractTitleLabel} - ${buyerDisplayName} [${secondSignerRoleLabel} İmzası Bekleniyor] (${trDateStr})`;
 
     const mergedDetails = {
       ...prevDetails,
